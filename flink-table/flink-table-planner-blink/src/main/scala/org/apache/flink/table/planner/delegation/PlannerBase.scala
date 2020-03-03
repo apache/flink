@@ -79,8 +79,6 @@ abstract class PlannerBase(
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
-  executor.asInstanceOf[ExecutorBase].setTableConfig(config)
-
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(

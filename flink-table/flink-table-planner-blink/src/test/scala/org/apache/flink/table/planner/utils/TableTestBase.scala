@@ -1012,13 +1012,7 @@ class TestingTableEnvironment private(
   override def insertInto(path: String, table: Table): Unit = {
     val unresolvedIdentifier = parser.parseIdentifier(path)
     val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
-
-    val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))
-    if (isEagerOperationTranslation) {
-      translate(modifyOperations)
-    } else {
-      buffer(modifyOperations)
-    }
+    buffer(List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation)))
   }
 
   override def sqlUpdate(stmt: String): Unit = {
@@ -1030,12 +1024,7 @@ class TestingTableEnvironment private(
     val operation = operations.get(0)
     operation match {
       case modifyOperation: ModifyOperation =>
-        val modifyOperations = List(modifyOperation)
-        if (isEagerOperationTranslation) {
-          translate(modifyOperations)
-        } else {
-          buffer(modifyOperations)
-        }
+        buffer(List(modifyOperation))
       case createOperation: CreateTableOperation =>
         catalogManager.createTable(
           createOperation.getCatalogTable,
@@ -1052,23 +1041,14 @@ class TestingTableEnvironment private(
 
   @throws[Exception]
   override def execute(jobName: String): JobExecutionResult = {
-    translate(bufferedOperations.toList)
+    val transformations = planner.translate(bufferedOperations)
     bufferedOperations.clear()
-    execEnv.execute(jobName)
-  }
-
-  // for test
-  def translate(): Unit = {
-    translate(bufferedOperations.toList)
+    val pipeline = executor.createPipeline(transformations, tableConfig, jobName)
+    execEnv.execute(pipeline)
   }
 
   override def createTable(tableOperation: QueryOperation): TableImpl = {
     super.createTable(tableOperation)
-  }
-
-  private def translate(modifyOperations: List[ModifyOperation]): Unit = {
-    val transformations = planner.translate(modifyOperations)
-    execEnv.apply(transformations)
   }
 
   private def buffer(modifyOperations: List[ModifyOperation]): Unit = {

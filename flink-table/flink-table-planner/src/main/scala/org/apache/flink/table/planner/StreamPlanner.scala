@@ -39,7 +39,7 @@ import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.table.util.{DummyStreamExecutionEnvironment, JavaScalaConversionUtil}
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -120,6 +120,8 @@ class StreamPlanner(
     operations.asScala.map {
       case queryOperation: QueryOperation =>
         explain(queryOperation, unwrapQueryConfig)
+      case modifyOperation: ModifyOperation =>
+        explain(modifyOperation.getChild, unwrapQueryConfig)
       case operation =>
         throw new TableException(s"${operation.getClass.getCanonicalName} is not supported")
     }.mkString(s"${System.lineSeparator}${System.lineSeparator}")
@@ -241,13 +243,14 @@ class StreamPlanner(
   private def translateToCRow(
     logicalPlan: RelNode,
     queryConfig: StreamQueryConfig): DataStream[CRow] = {
+    val planner = createDummyPlanner()
 
     logicalPlan match {
       case node: DataStreamRel =>
         getExecutionEnvironment.configure(
           config.getConfiguration,
           Thread.currentThread().getContextClassLoader)
-        node.translateToPlan(this, queryConfig)
+        node.translateToPlan(planner, queryConfig)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -445,5 +448,11 @@ class StreamPlanner(
 
       case _ => None
     }
+  }
+
+  private def createDummyPlanner(): StreamPlanner = {
+    val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecutionEnvironment)
+    val executor = new StreamExecutor(dummyExecEnv)
+    new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
 }

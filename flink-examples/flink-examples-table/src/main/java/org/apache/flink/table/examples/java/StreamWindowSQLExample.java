@@ -87,8 +87,9 @@ public class StreamWindowSQLExample {
 		Table result = tEnv.sqlQuery(query);
 		tEnv.toAppendStream(result, Row.class).print();
 
-		// submit the job
-		tEnv.execute("Streaming Window SQL Job");
+		// after the table program is converted to DataStream program,
+		// we must use `env.execute()` to submit the job.
+		env.execute("Streaming Window SQL Job");
 
 		// should output:
 		// 2019-12-12 00:00:00.000,3,10,3

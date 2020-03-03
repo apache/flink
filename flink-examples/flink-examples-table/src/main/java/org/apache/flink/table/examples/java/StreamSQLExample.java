@@ -89,6 +89,8 @@ public class StreamSQLExample {
 
 		tEnv.toAppendStream(result, Order.class).print();
 
+		// after the table program is converted to DataStream program,
+		// we must use `env.execute()` to submit the job.
 		env.execute();
 	}
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.utils;
+package org.apache.flink.table.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -54,11 +54,11 @@ import java.util.List;
  *
  * <p>This dummy StreamExecutionEnvironment is only used for buffering the transformations generated in the planner.
  * A new dummy StreamExecutionEnvironment instance should be created for each translation, and this could avoid
- * dirty the transformation buffer of the real StreamExecutionEnvironment instance.
+ * dirty the buffer of the real StreamExecutionEnvironment instance.
  *
  * <p>All set methods (e.g. `setXX`, `enableXX`, `disableXX`, etc) are disabled to prohibit changing configuration,
  * all get methods (e.g. `getXX`, `isXX`, etc) will be delegated to the real StreamExecutionEnvironment.
- * `execute`, `getStreamGraph`, `getExecutionPlan` methods are also disabled, while `addOperator` method is enabled to
+ * `execute`, `getStreamGraph` methods are also disabled, while `addOperator` method is enabled to
  * allow the planner to add the generated transformations to the dummy StreamExecutionEnvironment.
  *
  * <p>This class could be removed once the {@link StreamTableSource} interface and {@link StreamTableSink} interface
@@ -88,13 +88,13 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public StreamExecutionEnvironment setParallelism(int parallelism) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setParallelism method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setParallelism method is unsupported.");
 	}
 
 	@Override
 	public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setMaxParallelism method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setMaxParallelism method is unsupported.");
 	}
 
 	@Override
@@ -110,7 +110,7 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public StreamExecutionEnvironment setBufferTimeout(long timeoutMillis) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setBufferTimeout method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setBufferTimeout method is unsupported.");
 	}
 
 	@Override
@@ -121,7 +121,7 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public StreamExecutionEnvironment disableOperatorChaining() {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, disableOperatorChaining method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, disableOperatorChaining method is unsupported.");
 	}
 
 	@Override
@@ -137,25 +137,25 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public StreamExecutionEnvironment enableCheckpointing(long interval) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
 	}
 
 	@Override
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
 	}
 
 	@Override
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode, boolean force) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
 	}
 
 	@Override
 	public StreamExecutionEnvironment enableCheckpointing() {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
 	}
 
 	@Override
@@ -176,13 +176,13 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
 	}
 
 	@Override
 	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
 	}
 
 	@Override
@@ -193,7 +193,7 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setRestartStrategy method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setRestartStrategy method is unsupported.");
 	}
 
 	@Override
@@ -204,7 +204,7 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setNumberOfExecutionRetries method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setNumberOfExecutionRetries method is unsupported.");
 	}
 
 	@Override
@@ -215,37 +215,37 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(Class<?> type, T serializer) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
 	}
 
 	@Override
 	public void addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
 	}
 
 	@Override
 	public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
 	}
 
 	@Override
 	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer> serializerClass) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
 	}
 
 	@Override
 	public void registerType(Class<?> type) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, registerType method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, registerType method is unsupported.");
 	}
 
 	@Override
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setStreamTimeCharacteristic method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, setStreamTimeCharacteristic method is unsupported.");
 	}
 
 	@Override
@@ -256,49 +256,43 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 	@Override
 	public JobExecutionResult execute() throws Exception {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, execute method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, execute method is unsupported.");
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, execute method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, execute method is unsupported.");
 	}
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, execute method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, execute method is unsupported.");
 	}
 
 	@Override
 	public void registerCachedFile(String filePath, String name) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, registerCachedFile method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, registerCachedFile method is unsupported.");
 	}
 
 	@Override
 	public void registerCachedFile(String filePath, String name, boolean executable) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, registerCachedFile method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, registerCachedFile method is unsupported.");
 	}
 
 	@Override
 	public StreamGraph getStreamGraph() {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, getStreamGraph method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, getStreamGraph method is unsupported.");
 	}
 
 	@Override
 	public StreamGraph getStreamGraph(String jobName) {
 		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, getStreamGraph method is unsupported.");
-	}
-
-	@Override
-	public String getExecutionPlan() {
-		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, getExecutionPlan method is unsupported.");
+			"This is a dummy StreamExecutionEnvironment, getStreamGraph method is unsupported.");
 	}
 
 }

@@ -547,6 +547,8 @@ public class FunctionITCase extends StreamingTestBase {
 			tEnv().sqlUpdate(
 				"INSERT INTO SinkTable " +
 				"SELECT CustomScalarFunction('test')");
+			// trigger translation
+			tEnv().explain(false);
 			fail();
 		} catch (CodeGenException e) {
 			assertThat(
@@ -621,6 +623,8 @@ public class FunctionITCase extends StreamingTestBase {
 			tEnv().sqlUpdate(
 				"INSERT INTO SinkTable " +
 				"SELECT * FROM TABLE(PrimitiveScalarFunction(1, 2, '3'))");
+			// trigger translation
+			tEnv().explain(false);
 			fail();
 		} catch (ValidationException e) {
 			assertThat(
@@ -639,6 +643,8 @@ public class FunctionITCase extends StreamingTestBase {
 			tEnv().sqlUpdate(
 				"INSERT INTO SinkTable " +
 				"SELECT * FROM TABLE(MD5('3'))");
+			// trigger translation
+			tEnv().explain(false);
 			fail();
 		} catch (ValidationException e) {
 			assertThat(
