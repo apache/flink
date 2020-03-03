@@ -267,7 +267,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
 				List<BufferEntry<Object>> items = new ArrayList<>();
 				for (BufferEntry<OTHER> item : bucket.getValue()) {
-					items.add((BufferEntry<Object>)item);
+					items.add((BufferEntry<Object>) item);
 				}
 				newBucket.put(bucket.getKey(), items);
 			}
