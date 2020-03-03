@@ -251,14 +251,14 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	public void testPartitionPromotion() throws Exception {
 		testPartitionRelease(
 			partitionTracker -> {
-				final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture = new CompletableFuture<>();
-				partitionTracker.setPromotePartitionsConsumer(releasePartitionsFuture::complete);
-				return releasePartitionsFuture;
+				final CompletableFuture<Collection<ResultPartitionID>> promotePartitionsFuture = new CompletableFuture<>();
+				partitionTracker.setPromotePartitionsConsumer(promotePartitionsFuture::complete);
+				return promotePartitionsFuture;
 			},
-			(jobId, partitionId, taskExecutor, taskExecutorGateway, releasePartitionsFuture) -> {
+			(jobId, partitionId, taskExecutor, taskExecutorGateway, promotePartitionsFuture) -> {
 				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.emptySet(), Collections.singleton(partitionId));
 
-				assertThat(releasePartitionsFuture.get(), hasItems(partitionId));
+				assertThat(promotePartitionsFuture.get(), hasItems(partitionId));
 			}
 		);
 	}
