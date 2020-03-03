@@ -23,6 +23,8 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
+import java.io.Serializable;
+
 /**
  * A function that processes two joined elements and produces a single output one.
  *
@@ -39,43 +41,37 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 
 	private static final long serialVersionUID = -2444626938039012398L;
 
-	protected boolean skipLeftJoin = false;
-
-	protected long relativeEarlyRightEvictionBound = Long.MAX_VALUE;
-
-	protected long cacheSize = 1L;
-
-	protected long expireMs = Long.MAX_VALUE;
 	/**
-	 * This method indicates if IntervalJoinOperator skip intervaljoin scan from  {@link IN1}.
-	 * @return if skip intervaljoin scan from {@link IN1}.
+	 * Parameters used {@code IntervalJoinOperator} to optimize joiner performance.
 	 */
-	public boolean isSkipLeftJoin() {
-		return skipLeftJoin;
+	public class JoinParameters implements Serializable {
+		/**
+		 * if IntervalJoinOperator skip intervaljoin scan from  {@link IN1}.
+		 */
+		public boolean skipLeftJoin = false;
+		/**
+		 * how early IntervalJoinOperator can intervaljoin evict records from {@link IN2}.
+		 */
+		public long relativeEarlyRightEvictionBound = Long.MAX_VALUE;
+		/**
+		 * size of one side cache used in intervaljoinoperator.
+		 */
+		public long cacheSize = 1L;
+		/**
+		 *  expiration time after cache last time read.
+		 */
+		public long expireMs = Long.MAX_VALUE;
 	}
 
-	/**
-	 * This method indicates how early IntervalJoinOperator can intervaljoin evict records from {@link IN2}.
-	 * @return how early intervaljoin evict records from {@link IN2}
-	 */
-	public long getRelativeEarlyRightEvictionBound() {
-		return relativeEarlyRightEvictionBound;
-	}
+	protected JoinParameters joinParameters = new JoinParameters();
 
 	/**
-	 * This method indicates size of one side cache used in intervaljoinoperator.
-	 * @return size of in memory cache used in intervaljoinoperator
+	 * This method called in {@code IntervalJoinOperator} constructor. It can tune join optimizations
+	 * implemented.
+	 * @return The {@code JoinParameters} passed in {@code IntervalJoinOperator} constructor
 	 */
-	public long getCacheSize() {
-		return cacheSize;
-	}
-
-	/**
-	 * This method indicates expiration time after cache last time read.
-	 * @return expiration time after cache read
-	 */
-	public long getExpireMs() {
-		return expireMs;
+	public JoinParameters getJoinParameters() {
+		return joinParameters;
 	}
 
 	/**

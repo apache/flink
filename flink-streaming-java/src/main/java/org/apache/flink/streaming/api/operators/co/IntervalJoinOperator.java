@@ -62,7 +62,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -124,10 +123,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private transient InternalTimerService<String> internalTimerService;
 
 	private transient Cache<Object, SortedMap<Long, List<BufferEntry<Object>>>> otherSideCache;
-	private final boolean skipLeftJoin;
-	private final long relativeEarlyRightEvictionBound;
-	private final long cacheSize;
-	private final long expireMs;
+
+	private final ProcessJoinFunction.JoinParameters joinParameters;
 
 	/**
 	 * Creates a new IntervalJoinOperator.
@@ -155,10 +152,10 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
 
-		Preconditions.checkArgument(udf.getCacheSize() > 0,
+		Preconditions.checkArgument(udf.getJoinParameters().cacheSize > 0,
 			"cache size should be a positive number");
 
-		Preconditions.checkArgument(udf.getExpireMs() > 0,
+		Preconditions.checkArgument(udf.getJoinParameters().expireMs > 0,
 			"cache expiration time should be a positive number");
 
 		// Move buffer by +1 / -1 depending on inclusiveness in order not needing
@@ -168,10 +165,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
-		this.skipLeftJoin = udf.isSkipLeftJoin();
-		this.relativeEarlyRightEvictionBound = udf.getRelativeEarlyRightEvictionBound();
-		this.cacheSize = udf.getCacheSize();
-		this.expireMs = udf.getExpireMs();
+		this.joinParameters = udf.getJoinParameters();
 	}
 
 	@Override
@@ -182,8 +176,11 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		context = new ContextImpl(userFunction);
 		internalTimerService =
 			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
-		otherSideCache = CacheBuilder.newBuilder().maximumSize(cacheSize)
-			.expireAfterAccess(expireMs, TimeUnit.MILLISECONDS).build();
+		otherSideCache = CacheBuilder.newBuilder()
+			.maximumSize(joinParameters.cacheSize)
+			.expireAfterAccess(joinParameters.expireMs, TimeUnit.MILLISECONDS)
+			.concurrencyLevel(1)
+			.build();
 	}
 
 	@Override
@@ -260,34 +257,36 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
 		// skip intervaljoin from left side
-		if (isLeft && skipLeftJoin) {
+		if (isLeft && joinParameters.skipLeftJoin) {
 			long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
 			otherSideCache.invalidate(getCurrentKey());
 			return;
 		}
 
-		// first time process this key || process element from other direction || cache get evicted
+		/**
+		 * Cache {@code otherBuffer} of {@code getCurrentKey()} refresh cache when
+		 * first time process this key
+		 * process element from other direction
+		 * cache get evicted or invalidate
+		 */
 		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft
 			|| otherSideCache.getIfPresent(getCurrentKey()) == null) {
 			// clean up buffers of current key
 			otherSideCache.invalidate(getCurrentKey());
+
 			// build in memory sortedMap to boost lookup of other side buffer
-			otherSideCache.get(getCurrentKey(), new Callable<SortedMap<Long, List<BufferEntry<Object>>>>() {
-				@Override
-				public SortedMap<Long, List<BufferEntry<Object>>> call() throws Exception {
-					final SortedMap<Long, List<BufferEntry<Object>>> newBuckets = new TreeMap<>();
-					for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
-						List<BufferEntry<Object>> items = new ArrayList<>();
-						for (BufferEntry<OTHER> item : bucket.getValue()) {
-							items.add((BufferEntry<Object>) item);
-						}
-						newBuckets.put(bucket.getKey(), items);
-					}
-					isInsertFromLeft.update(isLeft);
-					return newBuckets;
+			final SortedMap<Long, List<BufferEntry<Object>>> newBuckets = new TreeMap<>();
+			for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+				List<BufferEntry<Object>> items = new ArrayList<>();
+				for (BufferEntry<OTHER> item : bucket.getValue()) {
+					items.add((BufferEntry<Object>) item);
 				}
-			});
+				newBuckets.put(bucket.getKey(), items);
+			}
+
+			otherSideCache.put(getCurrentKey(), newBuckets);
+			isInsertFromLeft.update(isLeft);
 		}
 
 		Preconditions.checkNotNull(otherSideCache.getIfPresent(getCurrentKey()),
@@ -319,8 +318,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
 		} else {
 			// evict right side buffer faster to improve performance
-			if (relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
-				cleanupTime = Math.min(cleanupTime, ourTimestamp + relativeEarlyRightEvictionBound);
+			if (joinParameters.relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
+				cleanupTime = Math.min(cleanupTime, ourTimestamp + joinParameters.relativeEarlyRightEvictionBound);
 			}
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
 		}
