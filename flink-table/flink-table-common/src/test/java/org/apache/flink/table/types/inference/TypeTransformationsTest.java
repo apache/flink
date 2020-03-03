@@ -33,6 +33,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 
 import static org.apache.flink.table.types.inference.TypeTransformations.legacyDecimalToDefaultDecimal;
+import static org.apache.flink.table.types.inference.TypeTransformations.legacyRawToTypeInfoRaw;
 import static org.apache.flink.table.types.inference.TypeTransformations.timeToSqlTypes;
 import static org.apache.flink.table.types.inference.TypeTransformations.toNullable;
 import static org.junit.Assert.assertEquals;
@@ -103,7 +104,7 @@ public class TypeTransformationsTest {
 			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.RAW(typeInformation)))
 		);
 
-		assertEquals(expected, DataTypeUtils.transform(dataType, legacyDecimalToDefaultDecimal()));
+		assertEquals(expected, DataTypeUtils.transform(dataType, legacyRawToTypeInfoRaw()));
 	}
 
 	@Test
