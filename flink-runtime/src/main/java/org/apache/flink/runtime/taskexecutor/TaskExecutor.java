@@ -923,19 +923,29 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, String fileName, Time timeout) {
 		log.debug("Request file {} upload.", fileType);
-		final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
-		if (logDir != null && !logDir.isEmpty() && fileName != null && !fileName.isEmpty()) {
-			final File file;
-			switch (fileType) {
-				case LOG:
-					file = new File(taskManagerConfiguration.getTaskManagerLogPath());
-					break;
-				case STDOUT:
-					file = new File(taskManagerConfiguration.getTaskManagerStdoutPath());
-					break;
-				default:
-					file = new File(logDir, fileName);
-			}
+
+		final String filePath;
+
+		switch (fileType) {
+			case LOG:
+				filePath = taskManagerConfiguration.getTaskManagerLogPath();
+				break;
+			case STDOUT:
+				filePath = taskManagerConfiguration.getTaskManagerStdoutPath();
+				break;
+			case CUSTOM:
+				final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
+				if (logDir != null && !logDir.isEmpty() && fileName != null && !fileName.isEmpty()) {
+					filePath = logDir + "/" + fileName;
+				} else {
+					filePath = null;
+				}
+				break;
+			default:
+				filePath = null;
+		}
+		if (filePath != null && !filePath.isEmpty()) {
+			final File file = new File(filePath);
 			if (file.exists()) {
 				final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
 				final TransientBlobKey transientBlobKey;
