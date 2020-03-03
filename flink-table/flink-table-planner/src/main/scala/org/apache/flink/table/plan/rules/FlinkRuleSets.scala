@@ -152,6 +152,8 @@ object FlinkRuleSets {
     // Rule that splits python ScalarFunctions from
     // java/scala ScalarFunctions in correlate conditions
     SplitPythonConditionFromCorrelateRule.INSTANCE,
+    // Rule that transpose the conditions after the Python correlate node.
+    CalcPythonCorrelateTransposeRule.INSTANCE,
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
     CalcMergeRule.INSTANCE,
