@@ -50,7 +50,7 @@ under the License.
 		<dependency>
 			<groupId>io.dropwizard.metrics</groupId>
 			<artifactId>metrics-core</artifactId>
-			<version>${metrics.version}</version>
+			<version>${dropwizard.version}</version>
 		</dependency>
 
 
