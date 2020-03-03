@@ -271,7 +271,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			|| otherSideCache.getIfPresent(getCurrentKey()) == null) {
 			// clean up buffers of current key
 			otherSideCache.invalidate(getCurrentKey());
-			// build in memory sortedMap to boost lookup
+			// build in memory sortedMap to boost lookup of other side buffer
 			otherSideCache.get(getCurrentKey(), new Callable<SortedMap<Long, List<BufferEntry<Object>>>>() {
 				@Override
 				public SortedMap<Long, List<BufferEntry<Object>>> call() throws Exception {
@@ -288,6 +288,11 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				}
 			});
 		}
+
+		Preconditions.checkNotNull(otherSideCache.getIfPresent(getCurrentKey()),
+			"cache should not be empty");
+		Preconditions.checkArgument(isLeft == isInsertFromLeft.value(),
+			"cache should be other side of buffer");
 
 		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket:
 			otherSideCache.getIfPresent(getCurrentKey()).subMap(
@@ -359,7 +364,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				long timestamp = (upperBound <= 0L) ? timerTimestamp : timerTimestamp - upperBound;
 				logger.trace("Removing from left buffer @ {}", timestamp);
 				leftBuffer.remove(timestamp);
-				// update cache if cache left buffer for this key (insert from right)
+				// trim cache if cached left buffer
 				if (otherSideCache.getIfPresent(getCurrentKey()) != null && !isInsertFromLeft.value()) {
 					otherSideCache.getIfPresent(getCurrentKey()).remove(timestamp);
 				}
@@ -369,7 +374,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				long timestamp = (lowerBound <= 0L) ? timerTimestamp + lowerBound : timerTimestamp;
 				logger.trace("Removing from right buffer @ {}", timestamp);
 				rightBuffer.remove(timestamp);
-				// update cache if cache right buffer for this key (insert from left)
+				// trim cache if cached right buffer
 				if (otherSideCache.getIfPresent(getCurrentKey()) != null && isInsertFromLeft.value()) {
 					otherSideCache.getIfPresent(getCurrentKey()).remove(timestamp);
 				}
