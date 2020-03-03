@@ -189,6 +189,8 @@ object TableSinkUtils {
       queryLogicalType,
       withChangeFlag)
     if (LogicalTypeChecks.isCompositeType(requestedOutputType.getLogicalType)) {
+      // if the requested output type is POJO, then we should ignore the POJO fields order,
+      // and infer the sink schema via field names, see expandPojoTypeToSchema().
       fromDataTypeToTypeInfo(requestedOutputType) match {
         case pj: PojoTypeInfo[_] => expandPojoTypeToSchema(pj, queryLogicalType)
         case _ => DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)

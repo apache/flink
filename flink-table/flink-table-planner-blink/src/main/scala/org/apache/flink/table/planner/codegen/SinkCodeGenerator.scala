@@ -86,10 +86,12 @@ object SinkCodeGenerator {
             inputRowType,
             inputTerm,
             inputFieldMapping = Option(mapping))
-        val outputBaseRowType = new BaseRowTypeInfo(
-          getCompositeTypes(pojo).map(fromTypeInfoToLogicalType): _*)
+        val outputRowType = RowType.of(
+          (0 until pojo.getArity)
+            .map(pojo.getTypeAt)
+            .map(fromTypeInfoToLogicalType): _*)
         val conversion = resultGenerator.generateConverterResultExpression(
-          outputBaseRowType.toRowType,
+          outputRowType,
           classOf[GenericRow])
         afterIndexModify = CodeGenUtils.newName("afterIndexModify")
         s"""
@@ -148,10 +150,5 @@ object SinkCodeGenerator {
          |""".stripMargin,
       inputRowType)
     (new CodeGenOperatorFactory[OUT](generated), outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
-  }
-
-  def getCompositeTypes(t: TypeInformation[_]): Array[TypeInformation[_]] = t match {
-    case ct: CompositeType[_] => (0 until ct.getArity).map(ct.getTypeAt).toArray
-    case _ => Array[TypeInformation[_]](t)
   }
 }
