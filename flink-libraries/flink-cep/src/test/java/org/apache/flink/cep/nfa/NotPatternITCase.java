@@ -39,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link Pattern#notFollowedBy(String)} and {@link Pattern#notNext(String)}.
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "serial"})
 public class NotPatternITCase extends TestLogger {
 
 	@Test
@@ -994,16 +994,12 @@ public class NotPatternITCase extends TestLogger {
 
 		Pattern<Event, ?> startPattern = Pattern
 				.<Event>begin("a").where(new SimpleCondition<Event>() {
-					private static final long serialVersionUID = 5726188262756267490L;
-
 					@Override
 					public boolean filter(Event value) throws Exception {
 						return value.getName().equals("a");
 					}
 				})
 				.notFollowedBy("not c").where(new SimpleCondition<Event>() {
-					private static final long serialVersionUID = 5726188262756267490L;
-
 					@Override
 					public boolean filter(Event value) throws Exception {
 						return value.getName().equals("c");
@@ -1012,8 +1008,6 @@ public class NotPatternITCase extends TestLogger {
 
 		Pattern<Event, ?> pattern = Pattern.begin(startPattern).followedBy("b")
 				.where(new SimpleCondition<Event>() {
-					private static final long serialVersionUID = 5726188262756267490L;
-
 					@Override
 					public boolean filter(Event value) throws Exception {
 						return value.getName().equals("b");
