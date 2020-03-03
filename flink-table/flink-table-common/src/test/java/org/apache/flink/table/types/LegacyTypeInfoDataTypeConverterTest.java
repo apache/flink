@@ -27,7 +27,6 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 
@@ -65,7 +64,8 @@ public class LegacyTypeInfoDataTypeConverterTest {
 				{
 					Types.GENERIC(LegacyTypeInfoDataTypeConverterTest.class),
 					new AtomicDataType(
-						new TypeInformationRawType<>(
+						new LegacyTypeInformationType<>(
+							LogicalTypeRoot.RAW,
 							Types.GENERIC(LegacyTypeInfoDataTypeConverterTest.class)))
 				},
 

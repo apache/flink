@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTy
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable}
+import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable, legacyRawToTypeInfoRaw}
 import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
 import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, RowType, TypeInformationRawType}
 import org.apache.flink.table.types.utils.DataTypeUtils
@@ -64,7 +64,7 @@ object TableSinkUtils {
     val queryLogicalType = FlinkTypeFactory.toLogicalRowType(query.getRowType)
     val sinkLogicalType = DataTypeUtils
       // we recognize legacy decimal is the same to default decimal
-      .transform(sinkSchema.toRowDataType, legacyDecimalToDefaultDecimal)
+      .transform(sinkSchema.toRowDataType, legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw)
       .getLogicalType
       .asInstanceOf[RowType]
     if (LogicalTypeCasts.supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
@@ -245,7 +245,6 @@ object TableSinkUtils {
       withChangeFlag: Boolean): DataType = {
     val consumedTypeInfo = consumedDataType.getLogicalType match {
       case lt: LegacyTypeInformationType[_] => Some(lt.getTypeInformation)
-      case rt: TypeInformationRawType[_] => Some(rt.getTypeInformation)
       case _ => None
     }
     if (consumedTypeInfo.isEmpty) {

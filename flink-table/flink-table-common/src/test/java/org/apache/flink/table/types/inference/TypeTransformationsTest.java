@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.types.inference;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -85,6 +87,26 @@ public class TypeTransformationsTest {
 	}
 
 	@Test
+	public void testLegacyRawToTypeInfoRaw() {
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("a", DataTypes.STRING()),
+			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+			DataTypes.FIELD("c", createLegacyRaw()),
+			DataTypes.FIELD("d", DataTypes.ARRAY(createLegacyRaw()))
+		);
+
+		TypeInformation<TypeTransformationsTest> typeInformation = TypeExtractor.getForClass(TypeTransformationsTest.class);
+		DataType expected = DataTypes.ROW(
+			DataTypes.FIELD("a", DataTypes.STRING()),
+			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+			DataTypes.FIELD("c", DataTypes.RAW(typeInformation)),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.RAW(typeInformation)))
+		);
+
+		assertEquals(expected, DataTypeUtils.transform(dataType, legacyDecimalToDefaultDecimal()));
+	}
+
+	@Test
 	public void testToNullable() {
 		DataType dataType = DataTypes.ROW(
 			DataTypes.FIELD("a", DataTypes.STRING().notNull()),
@@ -109,5 +131,9 @@ public class TypeTransformationsTest {
 
 	private static DataType createLegacyDecimal() {
 		return TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC);
+	}
+
+	private static DataType createLegacyRaw() {
+		return TypeConversions.fromLegacyInfoToDataType(Types.GENERIC(TypeTransformationsTest.class));
 	}
 }
