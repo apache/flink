@@ -319,7 +319,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		} else {
 			// evict right side buffer faster to improve performance
 			if (joinParameters.relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
-				cleanupTime = Math.min(cleanupTime, ourTimestamp + joinParameters.relativeEarlyRightEvictionBound);
+				cleanupTime = ourTimestamp + joinParameters.relativeEarlyRightEvictionBound;
 			}
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
 		}
@@ -373,7 +373,14 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			case CLEANUP_NAMESPACE_RIGHT: {
 				long timestamp = (lowerBound <= 0L) ? timerTimestamp + lowerBound : timerTimestamp;
 				logger.trace("Removing from right buffer @ {}", timestamp);
+
+				// restore bucket timestamp if {@code relativeEarlyRightEvictionBound} applied
+				if (joinParameters.relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
+					timestamp = timerTimestamp - joinParameters.relativeEarlyRightEvictionBound;
+				}
+
 				rightBuffer.remove(timestamp);
+
 				// trim cache if cached right buffer
 				if (otherSideCache.getIfPresent(getCurrentKey()) != null && isInsertFromLeft.value()) {
 					otherSideCache.getIfPresent(getCurrentKey()).remove(timestamp);

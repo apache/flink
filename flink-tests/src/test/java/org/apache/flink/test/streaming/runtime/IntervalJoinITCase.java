@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
@@ -412,6 +413,96 @@ public class IntervalJoinITCase {
 			});
 	}
 
+	@Test
+	public void testSkipLeftJoin() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		DataStream<Tuple2<String, Integer>> streamLeft = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
+			@Override
+			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+				ctx.markAsTemporarilyIdle();
+				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+			}
+
+			@Override
+			public void cancel() {
+				// do nothing
+			}
+		});
+		DataStream<Tuple2<String, Integer>> streamRight = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
+			@Override
+			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+			}
+
+			@Override
+			public void cancel() {
+				// do nothing
+			}
+		});
+
+		streamLeft.keyBy(new Tuple2KeyExtractor())
+			.intervalJoin(streamRight.keyBy(new Tuple2KeyExtractor()))
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.process(new CombineToStringJoinFunction(true, Long.MAX_VALUE))
+			.addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder("(key,1):(key,1)");
+	}
+
+	@Test
+	public void testRightEarlyEviction() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		DataStream<Tuple2<String, Integer>> streamLeft = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
+			@Override
+			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+				ctx.emitWatermark(new Watermark(0L));
+				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+			}
+
+			@Override
+			public void cancel() {
+				// do nothing
+			}
+		});
+		DataStream<Tuple2<String, Integer>> streamRight = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
+			@Override
+			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+				ctx.emitWatermark(new Watermark(0L));
+				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+			}
+
+			@Override
+			public void cancel() {
+				// do nothing
+			}
+		});
+
+		streamLeft.keyBy(new Tuple2KeyExtractor())
+			.intervalJoin(streamRight.keyBy(new Tuple2KeyExtractor()))
+			.between(Time.milliseconds(-1), Time.milliseconds(1))
+			.process(new CombineToStringJoinFunction(false, -1))
+			.addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder(
+			"(key,1):(key,1)",
+			"(key,1):(key,2)",
+			"(key,2):(key,2)");
+	}
+
 	private static void expectInAnyOrder(String... expected) {
 		List<String> listExpected = Lists.newArrayList(expected);
 		Collections.sort(listExpected);
@@ -434,6 +525,16 @@ public class IntervalJoinITCase {
 	}
 
 	private static class CombineToStringJoinFunction extends ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String> {
+		public CombineToStringJoinFunction() {
+			super();
+		}
+		public CombineToStringJoinFunction(boolean skipLeftJoin, long relativeEarlyRightEvictionBound) {
+			JoinParameters jp = new JoinParameters();
+			jp.skipLeftJoin = skipLeftJoin;
+			jp.relativeEarlyRightEvictionBound = relativeEarlyRightEvictionBound;
+			this.joinParameters = jp;
+		}
+
 		@Override
 		public void processElement(Tuple2<String, Integer> left,
 			Tuple2<String, Integer> right, Context ctx, Collector<String> out) {
