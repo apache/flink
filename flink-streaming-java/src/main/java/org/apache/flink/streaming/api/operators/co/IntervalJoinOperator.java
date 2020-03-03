@@ -206,11 +206,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			INSERT_DIRECTION,
 			Boolean.class
 		));
-
-		// if restore force rebuild cache from state
-		if (context.isRestored()) {
-			isInsertFromLeft.update(null);
-		}
 	}
 
 	/**
@@ -271,6 +266,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			return;
 		}
 
+		// first time process this key || process element from other direction || cache get evicted
 		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft
 			|| otherSideCache.getIfPresent(getCurrentKey()) == null) {
 			// clean up buffers of current key
