@@ -312,7 +312,13 @@ class TableEnvironment(object):
         .. versionchanged:: 1.10.0
             The signature is changed, e.g. the parameter *table_path_continued* was removed and
             the parameter *target_path* is moved before the parameter *table*.
+        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
+                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
+                  for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink, "
+                      "use TableTableEnvironment#create_statement_set for multiple sinks.",
+                      DeprecationWarning)
         self._j_tenv.insertInto(target_path, table._j_table)
 
     def list_catalogs(self):
@@ -608,7 +614,13 @@ class TableEnvironment(object):
 
         :param stmt: The SQL statement to evaluate.
         :type stmt: str
+        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single statement,
+                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
+                  for multiple DML statements.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_sql for single statement, "
+                      "use TableTableEnvironment#create_statement_set for multiple DML statements.",
+                      DeprecationWarning)
         self._j_tenv.sqlUpdate(stmt)
 
     def get_current_catalog(self):
@@ -1022,7 +1034,13 @@ class TableEnvironment(object):
         :param job_name: Desired name of the job.
         :type job_name: str
         :return: The result of the job execution, containing elapsed time and accumulators.
+        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single sink,
+                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
+                  for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_sql for single sink, "
+                      "use TableTableEnvironment#create_statement_set for multiple sinks.",
+                      DeprecationWarning)
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
