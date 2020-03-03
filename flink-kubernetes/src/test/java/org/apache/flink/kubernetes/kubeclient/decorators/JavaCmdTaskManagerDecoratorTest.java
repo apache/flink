@@ -52,7 +52,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 	private static final String jvmOpts = "-Djvm";
 
 	private static final String tmJvmMem =
-			"-Xmx251658235 -Xms251658235 -XX:MaxDirectMemorySize=211392922 -XX:MaxMetaspaceSize=100663296";
+			"-Xmx251658235 -Xms251658235 -XX:MaxDirectMemorySize=211392922 -XX:MaxMetaspaceSize=268435456";
 
 	private static final String mainClass = KubernetesTaskExecutorRunner.class.getCanonicalName();
 	private String mainClassArgs;
