@@ -75,7 +75,7 @@ class TimeAttributeITCase extends StreamingTestBase {
     tEnv.sqlUpdate(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
-    tEnv.execute("SQL JOB")
+    env.execute("SQL JOB")
 
     val expected = Seq(
       "1970-01-01T00:00:00.003,2,3.0",
@@ -112,7 +112,7 @@ class TimeAttributeITCase extends StreamingTestBase {
     tEnv.sqlUpdate(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
-    tEnv.execute("SQL JOB")
+    env.execute("SQL JOB")
 
     val expected = Seq(
       "1970-01-01T00:00:00.003,2,3.0",
@@ -149,7 +149,7 @@ class TimeAttributeITCase extends StreamingTestBase {
     tEnv.sqlUpdate(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
-    tEnv.execute("SQL JOB")
+    env.execute("SQL JOB")
 
     val expected = Seq(
       "1970-01-01T00:00:00.003,2,3.0",

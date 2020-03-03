@@ -84,7 +84,6 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.delegation.ExecutorBase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
@@ -273,23 +272,10 @@ public class ExecutionContext<ClusterID> {
 
 	public Pipeline createPipeline(String name) {
 		if (streamExecEnv != null) {
-			// special case for Blink planner to apply batch optimizations
-			// note: it also modifies the ExecutionConfig!
-			if (isBlinkPlanner(executor.getClass())) {
-				return ((ExecutorBase) executor).getStreamGraph(name);
-			}
-			return streamExecEnv.getStreamGraph(name);
+			StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
+			return streamTableEnv.getPipeline(name);
 		} else {
 			return execEnv.createProgramPlan(name);
-		}
-	}
-
-	private boolean isBlinkPlanner(Class<? extends Executor> executorClass) {
-		try {
-			return ExecutorBase.class.isAssignableFrom(executorClass);
-		} catch (NoClassDefFoundError ignore) {
-			// blink planner might not be on the class path
-			return false;
 		}
 	}
 

@@ -333,7 +333,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
             .select('c, 'b.max)
 
     t.insertInto("testSink")
-    env.execute()
+    tEnv.execute("test")
 
     val expected = List("(true,A,1)", "(true,B,2)", "(true,C,3)")
     assertEquals(expected.sorted, RowCollector.getAndClearValues.map(_.toString).sorted)

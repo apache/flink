@@ -21,6 +21,7 @@ package org.apache.flink.table.api.java.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -56,6 +57,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sources.TableSource;
@@ -63,8 +65,10 @@ import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -357,6 +361,26 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		return executionEnvironment;
 	}
 
+	/**
+	 * This method is used for sql client to submit job.
+	 */
+	public Pipeline getPipeline(String jobName) {
+		return execEnv.createPipeline(translate(), tableConfig, jobName);
+	}
+
+	@Override
+	protected List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+		// keep the behavior as before: translate each operation independently
+		List<Transformation<?>> transformations = new ArrayList<>(modifyOperations.size());
+		for (ModifyOperation operation : modifyOperations) {
+			List<Transformation<?>> transformationList = planner.translate(Collections.singletonList(operation));
+			Preconditions.checkArgument(transformationList.size() == 1,
+				"expected size is 1, actual size is " + transformationList.size());
+			transformations.add(transformationList.get(0));
+		}
+		return transformations;
+	}
+
 	private <T> DataStream<T> toDataStream(Table table, OutputConversionModifyOperation modifyOperation) {
 		List<Transformation<?>> transformations = planner.translate(Collections.singletonList(modifyOperation));
 
@@ -370,17 +394,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	protected void validateTableSource(TableSource<?> tableSource) {
 		super.validateTableSource(tableSource);
 		validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
-	}
-
-	@Override
-	protected boolean isEagerOperationTranslation() {
-		return true;
-	}
-
-	@Override
-	public String explain(boolean extended) {
-		// throw exception directly, because the operations to explain are always empty
-		throw new TableException("'explain' method without any tables is unsupported in StreamTableEnvironment.");
 	}
 
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {

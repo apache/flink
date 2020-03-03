@@ -61,7 +61,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |WHERE a < 3 OR a > 19
        """.stripMargin)
 
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = Seq(
       "Hi,1970-01-01 00:00:00.001,1",
@@ -96,7 +96,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY len
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     val retracted = RowCollector.retractResults(results).sorted
@@ -141,7 +141,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND)
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -190,7 +190,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY cnt, cTrue
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertTrue(
@@ -236,7 +236,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -288,7 +288,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -338,7 +338,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -388,7 +388,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(

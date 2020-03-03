@@ -22,12 +22,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.TableEnvironmentITCase.{getPersonCsvTableSource, readFromResource, replaceStageId}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.StreamTableEnvironment
-import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
-import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.table.planner.utils.TestTableSources.getPersonCsvTableSource
+import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
+import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
 
@@ -37,12 +37,14 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Rule, Test}
 
-import _root_.java.io.File
+import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
 import _root_.java.util
+
+import _root_.scala.io.Source
 
 
 @RunWith(classOf[Parameterized])
-class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
+class TableEnvironmentITCase(tableEnvName: String) {
 
   private val _tempFolder = new TemporaryFolder()
 
@@ -51,11 +53,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
   var tEnv: TableEnvironment = _
 
-  private val settings = if (isStreaming) {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
-  } else {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-  }
+  private val settings =
+    EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
 
   @Before
   def setup(): Unit = {
@@ -152,8 +151,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
     val resultSet = streamTableEnv.toAppendStream(table, classOf[Row])
-    val sink = new TestingAppendSink
-    resultSet.addSink(sink)
+    resultSet.addSink(new StreamITCase.StringSink[Row])
 
     val explain = streamTableEnv.explain(false)
     assertEquals(
@@ -164,12 +162,12 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     assertFirstValues(sink1Path)
 
     // the DataStream program is not executed
-    assertFalse(sink.isInitialized)
+    assertTrue(StreamITCase.testResults.isEmpty)
 
     deleteFile(sink1Path)
 
     streamEnv.execute("test2")
-    assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
+    assertEquals(getExpectedLastValues.sorted, StreamITCase.testResults.sorted)
     // the table program is not executed again
     assertFileNotExist(sink1Path)
   }
@@ -187,8 +185,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
     val resultSet = streamTableEnv.toAppendStream(table, classOf[Row])
-    val sink = new TestingAppendSink
-    resultSet.addSink(sink)
+    resultSet.addSink(new StreamITCase.StringSink[Row])
 
     streamTableEnv.sqlUpdate("insert into MySink1 select first from MyTable")
 
@@ -200,12 +197,13 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     streamEnv.execute("test2")
     // the table program is not executed
     checkEmptyFile(sink1Path)
-    assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
+    assertEquals(getExpectedLastValues.sorted, StreamITCase.testResults.sorted)
+    StreamITCase.testResults.clear()
 
     streamTableEnv.execute("test1")
     assertFirstValues(sink1Path)
-    // the DataStream program is not executed again because the result in sink is not changed
-    assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
+    // the DataStream program is not executed again
+    assertTrue(StreamITCase.testResults.isEmpty)
   }
 
   private def registerCsvTableSink(
@@ -253,12 +251,64 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 }
 
 object TableEnvironmentITCase {
-  @Parameterized.Parameters(name = "{0}:isStream={1}")
+  @Parameterized.Parameters(name = "{0}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
-      Array("TableEnvironment", true),
-      Array("TableEnvironment", false),
-      Array("StreamTableEnvironment", true)
+      Array("TableEnvironment"),
+      Array("StreamTableEnvironment")
     )
+  }
+
+  def readFromResource(path: String): String = {
+    val inputStream = getClass.getResource(path).getFile
+    Source.fromFile(inputStream).mkString
+  }
+
+  def replaceStageId(s: String): String = {
+    s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+  }
+
+  def getPersonCsvTableSource: CsvTableSource = {
+    val csvRecords = Seq(
+      "First#Id#Score#Last",
+      "Mike#1#12.3#Smith",
+      "Bob#2#45.6#Taylor",
+      "Sam#3#7.89#Miller",
+      "Peter#4#0.12#Smith",
+      "% Just a comment",
+      "Liz#5#34.5#Williams",
+      "Sally#6#6.78#Miller",
+      "Alice#7#90.1#Smith",
+      "Kelly#8#2.34#Williams"
+    )
+
+    val tempFilePath = writeToTempFile(
+      csvRecords.mkString("$"),
+      "csv-test",
+      "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("first", Types.STRING)
+      .field("id", Types.INT)
+      .field("score", Types.DOUBLE)
+      .field("last", Types.STRING)
+      .fieldDelimiter("#")
+      .lineDelimiter("$")
+      .ignoreFirstLine()
+      .commentPrefix("%")
+      .build()
+  }
+
+  private def writeToTempFile(
+      contents: String,
+      filePrefix: String,
+      fileSuffix: String,
+      charset: String = "UTF-8"): String = {
+    val tempFile = File.createTempFile(filePrefix, fileSuffix)
+    tempFile.deleteOnExit()
+    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), charset)
+    tmpWriter.write(contents)
+    tmpWriter.close()
+    tempFile.getAbsolutePath
   }
 }
