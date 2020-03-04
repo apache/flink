@@ -55,7 +55,7 @@ Depending on your version of Linux, Windows or MacOS, you may need to manually i
 
 #### Ubuntu Linux
 
-Install *node.js* by following [these instructions](https://github.com/nodesource/distributions/blob/master/README.md#debinstall).
+Install *node.js* by following [these instructions](https://nodejs.org/en/download/).
 
 Verify that the installed version is at least *10.9.0*, via `node --version`.
 
