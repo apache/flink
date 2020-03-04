@@ -819,7 +819,7 @@ public class SlotManagerImpl implements SlotManager {
 			return Optional.empty();
 		}
 
-		if (!resourceActions.allocateResource(requestedSlotResourceProfile)) {
+		if (!resourceActions.allocateResource(defaultWorkerResourceSpec)) {
 			// resource cannot be allocated
 			return Optional.empty();
 		}

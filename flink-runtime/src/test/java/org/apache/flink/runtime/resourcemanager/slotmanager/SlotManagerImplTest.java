@@ -207,7 +207,7 @@ public class SlotManagerImplTest extends TestLogger {
 			resourceProfile,
 			"localhost");
 
-		CompletableFuture<ResourceProfile> allocateResourceFuture = new CompletableFuture<>();
+		CompletableFuture<WorkerResourceSpec> allocateResourceFuture = new CompletableFuture<>();
 		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
 			.setAllocateResourceConsumer(allocateResourceFuture::complete)
 			.build();
@@ -216,7 +216,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 			slotManager.registerSlotRequest(slotRequest);
 
-			assertThat(allocateResourceFuture.get(), is(equalTo(resourceProfile)));
+			allocateResourceFuture.get();
 		}
 	}
 
@@ -447,7 +447,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final AtomicInteger numberAllocateResourceFunctionCalls = new AtomicInteger(0);
 		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceConsumer(resourceProfile -> numberAllocateResourceFunctionCalls.incrementAndGet())
+			.setAllocateResourceConsumer(ignored -> numberAllocateResourceFunctionCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
@@ -502,7 +502,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final AtomicInteger allocateResourceCalls = new AtomicInteger(0);
 		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceConsumer(resourceProfile -> allocateResourceCalls.incrementAndGet())
+			.setAllocateResourceConsumer(ignored -> allocateResourceCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
@@ -545,7 +545,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final AtomicInteger allocateResourceCalls = new AtomicInteger(0);
 		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceConsumer(resourceProfile -> allocateResourceCalls.incrementAndGet())
+			.setAllocateResourceConsumer(ignored -> allocateResourceCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
+import org.apache.flink.kubernetes.entrypoint.KubernetesWorkerResourceSpecFactory;
 import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -50,7 +51,9 @@ import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -104,6 +107,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 	private TestingFatalErrorHandler testingFatalErrorHandler;
 
 	private TestingKubernetesResourceManager resourceManager;
+	private SlotManager slotManager;
 
 	@Before
 	public void setup() throws Exception {
@@ -114,7 +118,12 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
-		resourceManager = createAndStartResourceManager(flinkConfig, flinkKubeClient);
+		WorkerResourceSpec workerResourceSpec = KubernetesWorkerResourceSpecFactory.INSTANCE.createDefaultWorkerResourceSpec(flinkConfig);
+		slotManager = SlotManagerBuilder.newBuilder()
+			.setDefaultWorkerResourceSpec(workerResourceSpec)
+			.build();
+
+		resourceManager = createAndStartResourceManager(flinkConfig, flinkKubeClient, slotManager);
 
 		final Deployment mockDeployment = new DeploymentBuilder()
 			.editOrNewMetadata()
@@ -133,8 +142,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 	}
 
 	class TestingKubernetesResourceManager extends KubernetesResourceManager {
-
-		private final SlotManager slotManager;
 
 		TestingKubernetesResourceManager(
 				RpcService rpcService,
@@ -166,7 +173,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				flinkKubeClient,
 				configuration
 			);
-			this.slotManager = slotManager;
 		}
 
 		<T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
@@ -180,10 +186,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 		MainThreadExecutor getMainThreadExecutorForTesting() {
 			return super.getMainThreadExecutor();
-		}
-
-		SlotManager getSlotManager() {
-			return this.slotManager;
 		}
 	}
 
@@ -223,7 +225,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 		// Unregister all task executors and release all task managers.
 		CompletableFuture<?> unregisterAndReleaseFuture = resourceManager.runInMainThread(() -> {
-			resourceManager.getSlotManager().unregisterTaskManagersAndReleaseResources();
+			slotManager.unregisterTaskManagersAndReleaseResources();
 			return null;
 		});
 		unregisterAndReleaseFuture.get();
@@ -335,9 +337,8 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		final AtomicInteger retries = new AtomicInteger(0);
 		final int numOfFailedRetries = 3;
 		final OneShotLatch podCreated = new OneShotLatch();
-		final FlinkKubeClient flinkKubeClient =
-			createTestingFlinkKubeClientAllocatingPodsAfter(numOfFailedRetries, retries, podCreated);
-		final TestingKubernetesResourceManager testRM = createAndStartResourceManager(flinkConfig, flinkKubeClient);
+		final FlinkKubeClient flinkKubeClient = createTestingFlinkKubeClientAllocatingPodsAfter(numOfFailedRetries, retries, podCreated);
+		final TestingKubernetesResourceManager testRM = createAndStartResourceManager(flinkConfig, flinkKubeClient, slotManager);
 		registerSlotRequest(testRM);
 
 		podCreated.await();
@@ -351,12 +352,10 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		flinkKubeClient.close();
 	}
 
-	private TestingKubernetesResourceManager createAndStartResourceManager(
-			Configuration configuration,
-			FlinkKubeClient flinkKubeClient) throws Exception {
+	private TestingKubernetesResourceManager createAndStartResourceManager(Configuration configuration, FlinkKubeClient flinkKubeClient, SlotManager slotManager) throws Exception {
 
 		final TestingRpcService rpcService = new TestingRpcService(configuration);
-		final MockResourceManagerRuntimeServices rmServices = new MockResourceManagerRuntimeServices(rpcService, TIMEOUT);
+		final MockResourceManagerRuntimeServices rmServices = new MockResourceManagerRuntimeServices(rpcService, TIMEOUT, slotManager);
 
 		final TestingKubernetesResourceManager kubernetesResourceManager = new TestingKubernetesResourceManager(
 			rpcService,
@@ -379,7 +378,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 	private void registerSlotRequest(TestingKubernetesResourceManager resourceManager) throws Exception {
 		CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
-			resourceManager.getSlotManager().registerSlotRequest(
+			slotManager.registerSlotRequest(
 				new SlotRequest(new JobID(), new AllocationID(), ResourceProfile.UNKNOWN, JOB_MANAGER_HOST));
 			return null;
 		});
@@ -421,7 +420,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 						TIMEOUT);
 				})
 			.handleAsync(
-				(Acknowledge ignored, Throwable throwable) -> resourceManager.getSlotManager().getNumberRegisteredSlots(),
+				(Acknowledge ignored, Throwable throwable) -> slotManager.getNumberRegisteredSlots(),
 				resourceManager.getMainThreadExecutorForTesting());
 		Assert.assertEquals(1, numberRegisteredSlotsFuture.get().intValue());
 	}

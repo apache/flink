@@ -29,6 +29,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -82,12 +83,16 @@ public class SlotProtocolTest extends TestLogger {
 		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
 		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setDefaultWorkerResourceSpec(new WorkerResourceSpec.Builder()
+				.setCpuCores(1.0)
+				.setTaskHeapMemoryMB(100)
+				.build())
 			.setScheduledExecutor(scheduledExecutor)
 			.build()) {
 
-			final CompletableFuture<ResourceProfile> resourceProfileFuture = new CompletableFuture<>();
+			final CompletableFuture<WorkerResourceSpec> workerRequestFuture = new CompletableFuture<>();
 			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-				.setAllocateResourceConsumer(resourceProfileFuture::complete)
+				.setAllocateResourceConsumer(workerRequestFuture::complete)
 				.build();
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
@@ -100,7 +105,7 @@ public class SlotProtocolTest extends TestLogger {
 
 			slotManager.registerSlotRequest(slotRequest);
 
-			assertThat(resourceProfileFuture.get(), is(equalTo(slotRequest.getResourceProfile())));
+			workerRequestFuture.get();
 
 			// slot becomes available
 			final CompletableFuture<Tuple3<SlotID, JobID, AllocationID>> requestFuture = new CompletableFuture<>();

@@ -44,7 +44,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -53,6 +52,7 @@ import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTra
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -83,6 +83,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -429,11 +430,14 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	public boolean startNewWorker(ResourceProfile resourceProfile) {
+	public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
+		Preconditions.checkArgument(Objects.equals(
+			workerResourceSpec,
+			WorkerResourceSpec.fromTaskExecutorProcessSpec(taskManagerParameters.containeredParameters().getTaskExecutorProcessSpec())));
 		LOG.info("Starting a new worker.");
 		try {
 			// generate new workers into persistent state and launch associated actors
-			MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(workerStore.newTaskID(), resourceProfile);
+			MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(workerStore.newTaskID(), workerResourceSpec);
 			workerStore.putWorker(worker);
 			workersInNew.put(extractResourceID(worker.taskID()), worker);
 
@@ -659,7 +663,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			assert(launched != null);
 			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}.",
 				id, status.getState(), status.getReason(), status.getMessage());
-			startNewWorker(launched.profile());
+			startNewWorker(launched.workerResourceSpec());
 		}
 
 		closeTaskManagerConnection(id, new Exception(status.getMessage()));
