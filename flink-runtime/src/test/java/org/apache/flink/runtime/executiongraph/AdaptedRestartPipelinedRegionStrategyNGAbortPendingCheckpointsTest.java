@@ -51,6 +51,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.empty;
@@ -94,8 +95,13 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 		checkState(checkpointCoordinator != null);
 
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
-		checkpointTriggeredLatch.await();
+		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(), false);
+		// there is an async call in IO thread
+		// here we need to retry to make sure the callback of the async call could be executed
+		manualMainThreadExecutor.triggerAll();
+		while (!checkpointTriggeredLatch.await(10, TimeUnit.MILLISECONDS)) {
+			manualMainThreadExecutor.triggerAll();
+		}
 		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 		long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
 

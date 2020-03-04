@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -444,7 +445,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 	private CheckpointCoordinator instantiateCheckpointCoordinator(
 		JobID jid,
-		ScheduledExecutor testingScheduledExecutor,
+		ScheduledExecutor mainThreadExecutor,
 		ExecutionVertex... ackVertices) {
 
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
@@ -456,7 +457,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 			true,
 			false,
 			0);
-		return new CheckpointCoordinator(
+		final CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinator(
 				jid,
 				chkConfig,
 				new ExecutionVertex[0],
@@ -467,11 +468,16 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor,
+				new ManuallyTriggeredScheduledExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
 				new CheckpointFailureManager(
 					0,
 					NoOpFailJobCall.INSTANCE));
+		checkpointCoordinator.start(
+			new ComponentMainThreadExecutorServiceAdapter(
+				mainThreadExecutor,
+				Thread.currentThread()));
+		return checkpointCoordinator;
 	}
 
 	private static <T> T mockGeneric(Class<?> clazz) {

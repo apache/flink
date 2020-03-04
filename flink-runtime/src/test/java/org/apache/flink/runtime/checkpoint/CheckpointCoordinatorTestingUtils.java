@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.mock.Whitebox;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -673,6 +674,9 @@ public class CheckpointCoordinatorTestingUtils {
 
 		private ScheduledExecutor timer = new ManuallyTriggeredScheduledExecutor();
 
+		private ScheduledExecutor mainThreadExecutor =
+			new ManuallyTriggeredScheduledExecutor();
+
 		private SharedStateRegistryFactory sharedStateRegistryFactory =
 			SharedStateRegistry.DEFAULT_FACTORY;
 
@@ -751,6 +755,11 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
+		public CheckpointCoordinatorBuilder setMainThreadExecutor(ScheduledExecutor mainThreadExecutor) {
+			this.mainThreadExecutor = mainThreadExecutor;
+			return this;
+		}
+
 		public CheckpointCoordinatorBuilder setSharedStateRegistryFactory(
 			SharedStateRegistryFactory sharedStateRegistryFactory) {
 			this.sharedStateRegistryFactory = sharedStateRegistryFactory;
@@ -764,7 +773,7 @@ public class CheckpointCoordinatorTestingUtils {
 		}
 
 		public CheckpointCoordinator build() {
-			return new CheckpointCoordinator(
+			final CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinator(
 				jobId,
 				checkpointCoordinatorConfiguration,
 				tasksToTrigger,
@@ -778,6 +787,11 @@ public class CheckpointCoordinatorTestingUtils {
 				timer,
 				sharedStateRegistryFactory,
 				failureManager);
+			checkpointCoordinator.start(
+				new ComponentMainThreadExecutorServiceAdapter(
+					mainThreadExecutor,
+					Thread.currentThread()));
+			return checkpointCoordinator;
 		}
 	}
 
