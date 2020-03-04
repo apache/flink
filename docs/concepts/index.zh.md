@@ -33,17 +33,17 @@ Flink offers different levels of abstraction for developing streaming/batch appl
 
   - The lowest level abstraction simply offers **stateful streaming**. It is
     embedded into the [DataStream API]({{ site.baseurl}}{% link
-    dev/datastream_api.md %}) via the [Process Function]({{ site.baseurl }}{%
-    link dev/stream/operators/process_function.md %}). It allows users freely
+    dev/datastream_api.zh.md %}) via the [Process Function]({{ site.baseurl }}{%
+    link dev/stream/operators/process_function.zh.md %}). It allows users freely
     process events from one or more streams, and use consistent fault tolerant
     *state*. In addition, users can register event time and processing time
     callbacks, allowing programs to realize sophisticated computations.
 
   - In practice, most applications would not need the above described low level
     abstraction, but would instead program against the **Core APIs** like the
-    [DataStream API]({{ site.baseurl }}{% link dev/datastream_api.md %})
+    [DataStream API]({{ site.baseurl }}{% link dev/datastream_api.zh.md %})
     (bounded/unbounded streams) and the [DataSet API]({{ site.baseurl }}{% link
-    dev/batch/index.md %}) (bounded data sets). These fluent APIs offer the
+    dev/batch/index.zh.md %}) (bounded data sets). These fluent APIs offer the
     common building blocks for data processing, like various forms of
     user-specified transformations, joins, aggregations, windows, state, etc.
     Data types processed in these APIs are represented as classes in the
@@ -56,7 +56,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
 
   - The **Table API** is a declarative DSL centered around *tables*, which may
     be dynamically changing tables (when representing streams).  The [Table
-    API]({{ site.baseurl }}{% link dev/table/index.md %}) follows the
+    API]({{ site.baseurl }}{% link dev/table/index.zh.md %}) follows the
     (extended) relational model: Tables have a schema attached (similar to
     tables in relational databases) and the API offers comparable operations,
     such as select, project, join, group-by, aggregate, etc.  Table API
@@ -74,7 +74,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
   - The highest level abstraction offered by Flink is **SQL**. This abstraction
     is similar to the *Table API* both in semantics and expressiveness, but
     represents programs as SQL query expressions.  The [SQL]({{ site.baseurl
-    }}{% link dev/table/index.md %}#sql) abstraction closely interacts with the
+    }}{% link dev/table/index.zh.md %}#sql) abstraction closely interacts with the
     Table API, and SQL queries can be executed over tables defined in the
     *Table API*.
 
