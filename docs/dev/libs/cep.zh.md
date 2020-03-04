@@ -27,7 +27,7 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 它可以让你在无限事件流中检测出特定的事件模型，有机会掌握数据中重要的那部分。
 
 本页讲述了Flink CEP中可用的API，我们首先讲述[模式API](#模式api)，它可以让你指定想在数据流中检测的模式，然后讲述如何[检测匹配的事件序列并进行处理](#检测模式)。
-再然后我们讲述Flink在按照事件时间[处理迟到事件](#按照事件时间处理晚到事件)时的假设，
+再然后我们讲述Flink在按照事件时间[处理迟到事件](#按照事件时间处理迟到事件)时的假设，
 以及如何从旧版本的Flink向1.3之后的版本[迁移作业](#从旧版本迁移13之前)。
 
 * This will be replaced by the TOC
@@ -267,7 +267,7 @@ start.timesOrMore(2).optional().greedy()
 
 **迭代条件:** 这是最普遍的条件类型。使用它可以指定一个基于前面已经被接受的事件的属性或者它们的一个子集的统计数据来决定是否接受时间序列的条件。
 
-下面是一个迭代条件的代码，它接受"middle"模式下一个事件的名称开头是"foo"， 并且前面已经匹配到的事件的加个加上这个事件的价格小于5.0。
+下面是一个迭代条件的代码，它接受"middle"模式下一个事件的名称开头是"foo"， 并且前面已经匹配到的事件加上这个事件的价格小于5.0。
 迭代条件非常强大，尤其是跟循环模式结合使用时。
 
 <div class="codetabs" markdown="1">
@@ -354,7 +354,7 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* 一些判断条件 */)
 </div>
 
 **组合条件：** 如上所示，你可以把`subtype`条件和其他的条件结合起来使用。这适用于任何条件，你可以通过依次调用`where()`来组合条件。
-最终的结果是是每个单一条件的结果的逻辑**AND**。如果想使用**OR**来组合条件，你可以使用像下面这样使用`or()`方法。
+最终的结果是每个单一条件的结果的逻辑**AND**。如果想使用**OR**来组合条件，你可以像下面这样使用`or()`方法。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -421,7 +421,7 @@ pattern.where(new IterativeCondition<Event>() {
         <tr>
             <td><strong>or(condition)</strong></td>
             <td>
-                <p>增加一个新的判断和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
+                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
 {% highlight java %}
 pattern.where(new IterativeCondition<Event>() {
     @Override
@@ -552,7 +552,7 @@ pattern.where(event => ... /* 一些判断条件 */)
         <tr>
             <td><strong>or(condition)</strong></td>
             <td>
-                <p>增加一个新的判断和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
+                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
 {% highlight scala %}
 pattern.where(event => ... /* 一些判断条件 */)
     .or(event => ... /* 替代条件 */)
@@ -564,7 +564,7 @@ pattern.where(event => ... /* 一些判断条件 */)
           <td>
               <p>为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。</p>
               <p>只适用于和<code>oneOrMore()</code>同时使用。</p>
-              <p><b>NOTE:</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
+              <p><b>提示：</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
 {% highlight scala %}
 pattern.oneOrMore().until(event => ... /* 替代条件 */)
 {% endhighlight %}
@@ -585,7 +585,7 @@ pattern.subtype(classOf[SubEvent])
                <p>指定模式期望匹配到的事件至少出现一次。.</p>
                <p>默认（在子事件间）使用松散的内部连续性。
                关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-               <p><b>NOTE:</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
+               <p><b>提示：</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
 {% highlight scala %}
 pattern.oneOrMore()
 {% endhighlight %}
@@ -745,9 +745,9 @@ val relaxedNot: Pattern[Event, _] = start.notFollowedBy("not").where(...)
 
 也可以为模式定义一个有效时间约束。
 例如，你可以通过`pattern.within()`方法指定一个模式应该在10秒内发生。
-这种暂时的模式支持[处理时间和事件时间]({{site.baseurl}}/zh/dev/event_time.html).
+这种时间模式支持[处理时间和事件时间]({{site.baseurl}}/zh/dev/event_time.html).
 
-{% warn 注意 %} 一个模式序列只能有一个时间限制。如果在限制了多个时间在不同的单个模式上，会使用最小的那个时间限制。
+{% warn 注意 %} 一个模式序列只能有一个时间限制。如果限制了多个时间在不同的单个模式上，会使用最小的那个时间限制。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1466,8 +1466,8 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 }
 {% endhighlight %}
 
-`PatternProcessFunction`可以访问`Context`对象。有了它之后，你可以访问时间属性比如`currentProcessingTime`或者当前匹配的`timestamp`
-（最新分配到匹配上的事件的时间戳）.
+`PatternProcessFunction`可以访问`Context`对象。有了它之后，你可以访问时间属性，比如`currentProcessingTime`或者当前匹配的`timestamp`
+（最新分配到匹配上的事件的时间戳）。
 更多信息可以看[时间上下文](#时间上下文)。
 通过这个上下文也可以将结果输出到[侧输出]({{ site.baseurl }}/zh/dev/stream/side_output.html).
 
@@ -1476,7 +1476,7 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 
 当一个模式上通过`within`加上窗口长度后，部分匹配的事件序列就可能因为超过窗口长度而被丢弃。可以使用`TimedOutPartialMatchHandler`接口
 来处理超时的部分匹配。这个接口可以和其它的混合使用。也就是说你可以在自己的`PatternProcessFunction`里另外实现这个接口。
-`TimedOutPartialMatchHandler`提供了另外的`processTimedOutMatch`方法，这个方法对每个超时的部分匹配都对调用。
+`TimedOutPartialMatchHandler`提供了另外的`processTimedOutMatch`方法，这个方法对每个超时的部分匹配都会调用。
 
 {% highlight java %}
 class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> implements TimedOutPartialMatchHandler<IN> {
@@ -1500,7 +1500,7 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 #### 便捷的API
 
 前面提到的`PatternProcessFunction`是在Flink 1.8之后引入的，从那之后推荐使用这个接口来处理匹配到的结果。
-仍然可以使用像`select`/`flatSelect`这样旧格式的API，它们会在内部被转换为`PatternProcessFunction`。
+用户仍然可以使用像`select`/`flatSelect`这样旧格式的API，它们会在内部被转换为`PatternProcessFunction`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1556,10 +1556,10 @@ val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
 
 ## CEP库中的时间
 
-### 按照事件时间处理晚到事件
+### 按照事件时间处理迟到事件
 
 在`CEP`中，事件的处理顺序很重要。在使用事件时间时，为了保证事件按照正确的顺序被处理，一个事件到来后会先被放到一个缓冲区中，
-在缓冲区里事件都按照时间戳从小到大排序，当水位线到达后，缓冲区中所有小于水位线的事件被处理。这意味这水位线之间的数据都按照事件戳被顺序处理。
+在缓冲区里事件都按照时间戳从小到大排序，当水位线到达后，缓冲区中所有小于水位线的事件被处理。这意味着水位线之间的数据都按照时间戳被顺序处理。
 
 {% warn 注意 %} 这个库假定按照事件时间时水位线一定是正确的。
 
@@ -1636,7 +1636,7 @@ public interface TimeContext {
 调用`TimeContext#currentProcessingTime`总是返回当前的处理时间，而且尽量去调用这个函数而不是调用其它的比如说`System.currentTimeMillis()`。
 
 使用`EventTime`时，`TimeContext#timestamp()`返回的值等于分配的时间戳。
-使用`ProcessingTime`是，这个值等于事件进入CEP算子的时间点（在`PatternProcessFunction`中是匹配产生的时间）。
+使用`ProcessingTime`时，这个值等于事件进入CEP算子的时间点（在`PatternProcessFunction`中是匹配产生的时间）。
 这意味着多次调用这个方法得到的值是一致的。
 
 ## 例子
@@ -1722,7 +1722,7 @@ CEP库在Flink-1.3发布的一系列的新特性引入了一些API上的修改�
 2. 修改你作为`select(...)`和`flatSelect(...)`方法的参数的函数为期望每个模式关联一个事件列表（`Java`中`List`，`Scala`中`Iterable`）。
 这是因为增加了循环模式后，多个事件可能匹配一个单一的（循环）模式。
 
-3. 在Flink 1.1和1.2中，`followedBy()` in Flink 1.1 and 1.2隐含了`不确定的松散连续` (参见[这里](#组合模式))。
+3. 在Flink 1.1和1.2中，`followedBy()`隐含了`不确定的松散连续` (参见[这里](#组合模式))。
 在Flink 1.3中，这里发生了变化， `followedBy()`隐含了`松散连续`，如果需要`不确定的松散连续`，应该使用`followedByAny()`。
 
 {% top %}
