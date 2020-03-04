@@ -105,7 +105,7 @@ function use_zookeeper_34() {
   if [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.5* ]; then
     # contents of 'opt' must not be changed since it is not backed up in common.sh#backup_flink_dir
     # it is fine to delete jars from 'lib' since it is backed up and will be restored after the test
-    rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.5* "${FLINK_DIR}/opt"
+    rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.5*
     cp "${FLINK_DIR}"/opt/flink-shaded-zookeeper-3.4* "${FLINK_DIR}/lib"
   fi
 }
@@ -114,7 +114,7 @@ function use_zookeeper_35() {
   if [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.4* ]; then
     # contents of 'opt' must not be changed since it is not backed up in common.sh#backup_flink_dir
     # it is fine to delete jars from 'lib' since it is backed up and will be restored after the test
-    rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.4* "${FLINK_DIR}/opt"
+    rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.4*
     cp "${FLINK_DIR}"/opt/flink-shaded-zookeeper-3.5* "${FLINK_DIR}/lib"
   fi
 }
