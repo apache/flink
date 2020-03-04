@@ -44,13 +44,13 @@ variables:
 
 stages:
   # CI / PR triggered stage:
-  - stage: ci_build
+  - stage: ci
     displayName: "CI build (custom builders)"
     condition: not(eq(variables['Build.Reason'], in('Schedule', 'Manual')))
     jobs:
       - template: jobs-template.yml
         parameters:
-          stage_name: ci_build
+          stage_name: ci
           test_pool_definition:
             name: Default
           e2e_pool_definition:
@@ -67,7 +67,7 @@ stages:
     jobs:
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_build_hadoop241
+          stage_name: cron_hadoop241
           test_pool_definition:
             name: Default
           e2e_pool_definition:
@@ -78,7 +78,7 @@ stages:
           jdk: jdk8
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_build_scala212
+          stage_name: cron_scala212
           test_pool_definition:
             name: Default
           e2e_pool_definition:
@@ -89,7 +89,7 @@ stages:
           jdk: jdk8
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_build_jdk11
+          stage_name: cron_jdk11
           test_pool_definition:
             name: Default
           e2e_pool_definition:
@@ -100,7 +100,7 @@ stages:
           jdk: jdk11
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_build_hadoopfree
+          stage_name: cron_hadoopfree
           test_pool_definition:
             name: Default
           e2e_pool_definition:
