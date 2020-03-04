@@ -100,6 +100,19 @@ The Flink job cluster image needs to contain the user code jars of the job for w
 Therefore, one needs to build a dedicated container image for every job.
 Please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) to build the Docker image.
 
+### Using plugins
+
+As described in the [plugins]({{ site.baseurl }}/zh/ops/plugins.html) documentation page: in order to use plugins they must be
+copied to the correct location in the flink installation for them to work.
+
+The simplest way to enable plugins for use on Kubernetes is to modify the provided Flink docker image by adding
+an additional layer. This does however assume you have a docker registry available where you can push images to and
+that is accessible by your Kubernetes cluster.
+
+How this can be done is described on the [Docker Setup]({{ site.baseurl }}/zh/ops/deployment/docker.html#using-plugins) page.
+
+With such an image created you can now start your Kubernetes based Flink cluster which can use the enabled plugins.
+
 ### Deploy Flink job cluster on Kubernetes
 
 In order to deploy the a job cluster on Kubernetes please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/kubernetes/README.md#deploy-flink-job-cluster).
