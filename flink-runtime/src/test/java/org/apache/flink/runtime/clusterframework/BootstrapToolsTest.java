@@ -175,7 +175,7 @@ public class BootstrapToolsTest extends TestLogger {
 			new MemorySize(333), // jvmMetaspaceSize
 			new MemorySize(0)); // jvmOverheadSize
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(taskExecutorProcessSpec, 4, new HashMap<String, String>());
+			new ContaineredTaskManagerParameters(taskExecutorProcessSpec, new HashMap<String, String>());
 
 		// no logging, with/out krb5
 		final String java = "$JAVA_HOME/bin/java";

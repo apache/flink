@@ -123,8 +123,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 		this.kubeClient = kubeClient;
 
-		this.taskManagerParameters =
-			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec, numSlotsPerTaskManager);
+		this.taskManagerParameters = ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 		this.configuration = configuration;
 	}
 

@@ -109,7 +109,7 @@ public class UtilsTest extends TestLogger {
 			.newProcessSpecBuilder(flinkConf)
 			.withTotalProcessMemory(MemorySize.parse("1g"))
 			.build();
-		ContaineredTaskManagerParameters tmParams = new ContaineredTaskManagerParameters(spec, 1, new HashMap<>(1));
+		ContaineredTaskManagerParameters tmParams = new ContaineredTaskManagerParameters(spec, new HashMap<>(1));
 		Configuration taskManagerConf = new Configuration();
 
 		String workingDirectory = root.getAbsolutePath();
