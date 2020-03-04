@@ -25,11 +25,12 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.LegacyMemoryOptions;
+import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
@@ -133,6 +134,27 @@ public class TaskExecutorProcessUtils {
 
 	public static TaskExecutorProcessSpec processSpecFromConfig(final Configuration config) {
 		return createMemoryProcessSpec(config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
+	}
+
+	public static TaskExecutorProcessSpec processSpecFromWorkerResourceSpec(
+		final Configuration config, final WorkerResourceSpec workerResourceSpec) {
+
+		final MemorySize frameworkHeapMemorySize = TaskExecutorFlinkMemoryUtils.getFrameworkHeapMemorySize(config);
+		final MemorySize frameworkOffHeapMemorySize = TaskExecutorFlinkMemoryUtils.getFrameworkOffHeapMemorySize(config);
+
+		final TaskExecutorFlinkMemory flinkMemory = new TaskExecutorFlinkMemory(
+			frameworkHeapMemorySize,
+			frameworkOffHeapMemorySize,
+			workerResourceSpec.getTaskHeapSize(),
+			workerResourceSpec.getTaskOffHeapSize(),
+			workerResourceSpec.getNetworkMemSize(),
+			workerResourceSpec.getManagedMemSize());
+
+		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
+			PROCESS_MEMORY_UTILS.deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
+				config, flinkMemory.getTotalFlinkMemorySize());
+
+		return new TaskExecutorProcessSpec(workerResourceSpec.getCpuCores(), flinkMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static TaskExecutorProcessSpec createMemoryProcessSpec(
