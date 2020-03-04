@@ -155,7 +155,6 @@ catalogs:
   - name: hivecatalog
     type: hive
     test: test
-    hive-version: 2.3.4
   - name: hivedefaultversion
     type: hive
     test: test
