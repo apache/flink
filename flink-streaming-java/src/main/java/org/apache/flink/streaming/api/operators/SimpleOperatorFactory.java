@@ -61,7 +61,9 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 
 	protected SimpleOperatorFactory(StreamOperator<OUT> operator) {
 		this.operator = checkNotNull(operator);
-		this.chainingStrategy = operator.getChainingStrategy();
+		if (operator instanceof SetupableStreamOperator) {
+			this.chainingStrategy = ((SetupableStreamOperator) operator).getChainingStrategy();
+		}
 	}
 
 	public StreamOperator<OUT> getOperator() {
@@ -84,7 +86,9 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 	@Override
 	public void setChainingStrategy(ChainingStrategy strategy) {
 		this.chainingStrategy = strategy;
-		operator.setChainingStrategy(strategy);
+		if (operator instanceof SetupableStreamOperator) {
+			((SetupableStreamOperator) operator).setChainingStrategy(strategy);
+		}
 	}
 
 	@Override

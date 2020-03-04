@@ -137,10 +137,6 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 
 	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
 
-	ChainingStrategy getChainingStrategy();
-
-	void setChainingStrategy(ChainingStrategy strategy);
-
 	MetricGroup getMetricGroup();
 
 	OperatorID getOperatorID();
