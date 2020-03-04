@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -1080,13 +1079,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Nullable String optionalDiagnostics) throws ResourceManagerException;
 
 	/**
-	 * Allocates a resource using the resource profile.
+	 * Allocates a resource using the worker resource specification.
 	 *
-	 * @param resourceProfile The resource description
+	 * @param workerResourceSpec workerResourceSpec specifies the size of the to be allocated resource
 	 * @return whether the resource can be allocated
 	 */
 	@VisibleForTesting
-	public abstract boolean startNewWorker(ResourceProfile resourceProfile);
+	public abstract boolean startNewWorker(WorkerResourceSpec workerResourceSpec);
 
 	/**
 	 * Callback when a worker was started.
@@ -1124,9 +1123,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 
 		@Override
-		public boolean allocateResource(ResourceProfile resourceProfile) {
+		public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
 			validateRunsInMainThread();
-			return startNewWorker(resourceProfile);
+			return startNewWorker(workerResourceSpec);
 		}
 
 		@Override

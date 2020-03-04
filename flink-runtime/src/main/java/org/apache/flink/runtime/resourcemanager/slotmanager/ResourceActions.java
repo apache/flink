@@ -20,8 +20,8 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 /**
  * Resource related actions which the {@link SlotManager} can perform.
@@ -37,12 +37,12 @@ public interface ResourceActions {
 	void releaseResource(InstanceID instanceId, Exception cause);
 
 	/**
-	 * Requests to allocate a resource with the given {@link ResourceProfile}.
+	 * Requests to allocate a resource with the given {@link WorkerResourceSpec}.
 	 *
-	 * @param resourceProfile for the to be allocated resource
+	 * @param workerResourceSpec for the to be allocated worker
 	 * @return whether the resource can be allocated
 	 */
-	boolean allocateResource(ResourceProfile resourceProfile);
+	boolean allocateResource(WorkerResourceSpec workerResourceSpec);
 
 	/**
 	 * Notifies that an allocation failure has occurred.
