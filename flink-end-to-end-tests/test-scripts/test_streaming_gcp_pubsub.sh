@@ -19,4 +19,4 @@
 
 cd "${END_TO_END_DIR}/flink-connector-gcp-pubsub-emulator-tests"
 
-mvn test -DskipTests=false
+run_mvn test -DskipTests=false
