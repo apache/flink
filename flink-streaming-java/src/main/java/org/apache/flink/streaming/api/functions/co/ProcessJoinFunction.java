@@ -46,17 +46,13 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 	 */
 	public class JoinParameters implements Serializable {
 		/**
-		 * if IntervalJoinOperator skip intervaljoin scan from  {@link IN1}.
-		 */
-		public boolean skipLeftJoin = false;
-		/**
 		 * how early IntervalJoinOperator can intervaljoin evict records from {@link IN2}.
 		 */
 		public long relativeEarlyRightEvictionBound = Long.MAX_VALUE;
 		/**
 		 * size of one side cache used in intervaljoinoperator.
 		 */
-		public long cacheSize = 1L;
+		public long cacheSize = 1000L;
 		/**
 		 *  expiration time after cache last time read.
 		 */

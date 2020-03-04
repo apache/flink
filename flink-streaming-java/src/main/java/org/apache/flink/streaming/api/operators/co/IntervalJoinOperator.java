@@ -256,14 +256,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
-		// skip intervaljoin from left side
-		if (isLeft && joinParameters.skipLeftJoin) {
-			long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
-			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
-			otherSideCache.invalidate(getCurrentKey());
-			return;
-		}
-
 		/**
 		 * Cache {@code otherBuffer} of {@code getCurrentKey()} refresh cache when
 		 * first time process this key
@@ -363,9 +355,12 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			case CLEANUP_NAMESPACE_LEFT: {
 				long timestamp = (upperBound <= 0L) ? timerTimestamp : timerTimestamp - upperBound;
 				logger.trace("Removing from left buffer @ {}", timestamp);
+
 				leftBuffer.remove(timestamp);
-				// trim cache if cached left buffer
-				if (otherSideCache.getIfPresent(getCurrentKey()) != null && !isInsertFromLeft.value()) {
+
+				// update left buffer cache if {@link processElement2} is last called for this {@link getCurrentKey()}
+				if (!isInsertFromLeft.value() && otherSideCache.getIfPresent(getCurrentKey()) != null) {
+					logger.trace("Removing from left buffer cache @{}", timestamp);
 					otherSideCache.getIfPresent(getCurrentKey()).remove(timestamp);
 				}
 				break;
@@ -378,11 +373,11 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				if (joinParameters.relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
 					timestamp = timerTimestamp - joinParameters.relativeEarlyRightEvictionBound;
 				}
-
 				rightBuffer.remove(timestamp);
 
-				// trim cache if cached right buffer
-				if (otherSideCache.getIfPresent(getCurrentKey()) != null && isInsertFromLeft.value()) {
+				// update right buffer cache if {@link processElement1} is last called for this {@link getCurrentKey()}
+				if (isInsertFromLeft.value() && otherSideCache.getIfPresent(getCurrentKey()) != null) {
+					logger.trace("Removing from right buffer cache @{}", timestamp);
 					otherSideCache.getIfPresent(getCurrentKey()).remove(timestamp);
 				}
 				break;
