@@ -32,6 +32,7 @@ public class SlotManagerBuilder {
 	private Time taskManagerTimeout;
 	private boolean waitResultConsumedBeforeRelease;
 	private WorkerResourceSpec defaultWorkerResourceSpec;
+	private int numSlotsPerWorker;
 
 	private SlotManagerBuilder() {
 		this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -41,6 +42,7 @@ public class SlotManagerBuilder {
 		this.taskManagerTimeout = TestingUtils.infiniteTime();
 		this.waitResultConsumedBeforeRelease = true;
 		this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
+		this.numSlotsPerWorker = 1;
 	}
 
 	public static SlotManagerBuilder newBuilder() {
@@ -82,6 +84,11 @@ public class SlotManagerBuilder {
 		return this;
 	}
 
+	public SlotManagerBuilder setNumSlotsPerWorker(int numSlotsPerWorker) {
+		this.numSlotsPerWorker = numSlotsPerWorker;
+		return this;
+	}
+
 	public SlotManagerImpl build() {
 		final SlotManagerConfiguration slotManagerConfiguration = new SlotManagerConfiguration(
 			taskManagerRequestTimeout,
@@ -89,7 +96,8 @@ public class SlotManagerBuilder {
 			taskManagerTimeout,
 			waitResultConsumedBeforeRelease,
 			slotMatchingStrategy,
-			defaultWorkerResourceSpec);
+			defaultWorkerResourceSpec,
+			numSlotsPerWorker);
 
 		return new SlotManagerImpl(
 			scheduledExecutor,
