@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 final class CheckpointingOperation {
 
@@ -48,7 +49,8 @@ final class CheckpointingOperation {
 			CloseableRegistry closeableRegistry,
 			ExecutorService threadPool,
 			Environment environment,
-			AsyncExceptionHandler asyncExceptionHandler) throws Exception {
+			AsyncExceptionHandler asyncExceptionHandler,
+			Supplier<Boolean> isCanceled) throws Exception {
 
 		Preconditions.checkNotNull(checkpointMetaData);
 		Preconditions.checkNotNull(checkpointOptions);
@@ -66,11 +68,12 @@ final class CheckpointingOperation {
 		try {
 			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
 				StreamOperator<?> op = operatorWrapper.getStreamOperator();
-				OperatorSnapshotFutures snapshotInProgress = op.snapshotState(
-					checkpointMetaData.getCheckpointId(),
-					checkpointMetaData.getTimestamp(),
+				OperatorSnapshotFutures snapshotInProgress = checkpointStreamOperator(
+					op,
+					checkpointMetaData,
 					checkpointOptions,
-					storageLocation);
+					storageLocation,
+					isCanceled);
 				operatorSnapshotsInProgress.put(op.getOperatorID(), snapshotInProgress);
 			}
 
@@ -133,4 +136,24 @@ final class CheckpointingOperation {
 		}
 	}
 
+	private static OperatorSnapshotFutures checkpointStreamOperator(
+			StreamOperator<?> op,
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			CheckpointStreamFactory storageLocation,
+			Supplier<Boolean> isCanceled) throws Exception {
+		try {
+			return op.snapshotState(
+				checkpointMetaData.getCheckpointId(),
+				checkpointMetaData.getTimestamp(),
+				checkpointOptions,
+				storageLocation);
+		}
+		catch (Exception ex) {
+			if (!isCanceled.get()) {
+				LOG.info(ex.getMessage(), ex);
+			}
+			throw ex;
+		}
+	}
 }

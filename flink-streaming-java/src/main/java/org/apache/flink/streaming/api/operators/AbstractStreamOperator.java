@@ -431,9 +431,6 @@ public abstract class AbstractStreamOperator<OUT>
 			String snapshotFailMessage = "Could not complete snapshot " + checkpointId + " for operator " +
 				getOperatorName() + ".";
 
-			if (!getContainingTask().isCanceled()) {
-				LOG.info(snapshotFailMessage, snapshotException);
-			}
 			try {
 				snapshotContext.closeExceptionally();
 			} catch (IOException e) {
