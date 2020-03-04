@@ -48,6 +48,6 @@ public final class LocalStandaloneFlinkResourceFactory implements FlinkResourceF
 			LOG.warn("Property {} not set, logs will not be backed up in case of test failures.", DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
 		}
 		LOG.info("Created {}.", LocalStandaloneFlinkResource.class.getSimpleName());
-		return Optional.of(new LocalStandaloneFlinkResource(distributionDirectory.get(), logBackupDirectory, setup));
+		return Optional.of(new LocalStandaloneFlinkResource(distributionDirectory.get(), logBackupDirectory.orElse(null), setup));
 	}
 }

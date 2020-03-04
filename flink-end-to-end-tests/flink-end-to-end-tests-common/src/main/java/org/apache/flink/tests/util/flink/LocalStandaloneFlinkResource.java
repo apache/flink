@@ -40,7 +40,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -66,9 +65,9 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	private FlinkDistribution distribution;
 
-	LocalStandaloneFlinkResource(Path distributionDirectory, Optional<Path> logBackupDirectory, FlinkResourceSetup setup) {
+	LocalStandaloneFlinkResource(Path distributionDirectory, @Nullable Path logBackupDirectory, FlinkResourceSetup setup) {
 		this.distributionDirectory = distributionDirectory;
-		this.logBackupDirectory = logBackupDirectory.orElse(null);
+		this.logBackupDirectory = logBackupDirectory;
 		this.setup = setup;
 	}
 
@@ -98,15 +97,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 	public void afterTestFailure() {
 		if (distribution != null) {
 			shutdownCluster();
-			if (logBackupDirectory != null) {
-				final Path targetDirectory = logBackupDirectory.resolve(UUID.randomUUID().toString());
-				try {
-					distribution.copyLogsTo(targetDirectory);
-					LOG.info("Backed up logs to {}.", targetDirectory);
-				} catch (IOException e) {
-					LOG.warn("An error has occurred while backing up logs to {}.", targetDirectory, e);
-				}
-			}
+			backupLogs();
 		}
 		temporaryFolder.delete();
 	}
@@ -116,6 +107,18 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 			distribution.stopFlinkCluster();
 		} catch (IOException e) {
 			LOG.warn("Error while shutting down Flink cluster.", e);
+		}
+	}
+
+	private void backupLogs() {
+		if (logBackupDirectory != null) {
+			final Path targetDirectory = logBackupDirectory.resolve(UUID.randomUUID().toString());
+			try {
+				distribution.copyLogsTo(targetDirectory);
+				LOG.info("Backed up logs to {}.", targetDirectory);
+			} catch (IOException e) {
+				LOG.warn("An error has occurred while backing up logs to {}.", targetDirectory, e);
+			}
 		}
 	}
 
