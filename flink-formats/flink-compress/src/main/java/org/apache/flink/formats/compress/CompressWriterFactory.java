@@ -26,14 +26,19 @@ import org.apache.flink.formats.compress.writers.HadoopCompressionBulkWriter;
 import org.apache.flink.formats.compress.writers.NoCompressionBulkWriter;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * A factory that creates a {@link BulkWriter} implementation that compresses the written data.
+ * A factory that creates a {@link BulkWriter} implementation that, when provided
+ * with a {@link CompressionCodec} compresses the data and writes. Otherwise simply
+ * writes the data in bulk but uncompressed.
  *
  * @param <IN> The type of element to write.
  */
@@ -42,9 +47,12 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 
 	private Extractor<IN> extractor;
 	private CompressionCodec hadoopCodec;
+	private String hadoopCodecName;
+	private Map<String, String> hadoopConfigurationMap;
 
 	public CompressWriterFactory(Extractor<IN> extractor) {
 		this.extractor = Preconditions.checkNotNull(extractor, "extractor cannot be null");
+		this.hadoopConfigurationMap = new HashMap<>();
 	}
 
 	public CompressWriterFactory<IN> withHadoopCompression(String hadoopCodecName) {
@@ -52,29 +60,46 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 	}
 
 	public CompressWriterFactory<IN> withHadoopCompression(String hadoopCodecName, Configuration hadoopConfiguration) {
-		return withHadoopCompression(new CompressionCodecFactory(hadoopConfiguration).getCodecByName(hadoopCodecName));
-	}
+		this.hadoopCodecName = hadoopCodecName;
 
-	public CompressWriterFactory<IN> withHadoopCompression(CompressionCodec hadoopCodec) {
-		this.hadoopCodec = Preconditions.checkNotNull(hadoopCodec, "hadoopCodec cannot be null");
+		for (Map.Entry<String, String> entry : hadoopConfiguration) {
+			hadoopConfigurationMap.put(entry.getKey(), entry.getValue());
+		}
+
 		return this;
 	}
 
 	@Override
 	public BulkWriter<IN> create(FSDataOutputStream out) throws IOException {
-		try {
-			return (hadoopCodec != null)
-				? new HadoopCompressionBulkWriter<>(out, extractor, hadoopCodec)
-				: new NoCompressionBulkWriter<>(out, extractor);
-		} catch (Exception e) {
-			throw new IOException(e.getLocalizedMessage(), e);
+		if (StringUtils.isEmpty(hadoopCodecName)) {
+			return new NoCompressionBulkWriter<>(out, extractor);
 		}
+
+		initializeCompressionCodec();
+
+		if (hadoopCodec == null) {
+			throw new RuntimeException("Unable to load the provided compression codec [" + hadoopCodecName + "]");
+		}
+
+		return new HadoopCompressionBulkWriter<>(hadoopCodec.createOutputStream(out), extractor);
 	}
 
 	public String codecExtension() {
 		return (hadoopCodec != null)
 			? hadoopCodec.getDefaultExtension()
 			: "";
+	}
+
+	private void initializeCompressionCodec() {
+		if (hadoopCodec == null) {
+			Configuration conf = new Configuration();
+
+			for (Map.Entry<String, String> entry : hadoopConfigurationMap.entrySet()) {
+				conf.set(entry.getKey(), entry.getValue());
+			}
+
+			hadoopCodec = new CompressionCodecFactory(conf).getCodecByName(this.hadoopCodecName);
+		}
 	}
 
 }

@@ -30,12 +30,8 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.compress.BZip2Codec;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.apache.hadoop.io.compress.DefaultCodec;
-import org.apache.hadoop.io.compress.DeflateCodec;
-import org.apache.hadoop.io.compress.GzipCodec;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -61,41 +57,48 @@ public class CompressWriterFactoryTest extends TestLogger {
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
 	@Test
-	public void testBzip2CompressByName() throws Exception {
+	public void testBzip2CompressByAlias() throws Exception {
 		testCompressByName("Bzip2");
 	}
 
 	@Test
-	public void testBzip2CompressCodec() throws Exception {
-		BZip2Codec codec = new BZip2Codec();
-		codec.setConf(new Configuration());
-		testCompressCodec(codec);
+	public void testBzip2CompressByName() throws Exception {
+		testCompressByName("Bzip2Codec");
 	}
 
 	@Test
-	public void testGzipCompressByName() throws Exception {
+	public void testGzipCompressByAlias() throws Exception {
 		testCompressByName("Gzip");
 	}
 
 	@Test
-	public void testGzipCompressCodec() throws Exception {
-		GzipCodec codec = new GzipCodec();
-		codec.setConf(new Configuration());
-		testCompressCodec(codec);
+	public void testGzipCompressByName() throws Exception {
+		testCompressByName("GzipCodec");
 	}
 
 	@Test
-	public void testDeflateCompressByName() throws Exception {
-		DeflateCodec codec = new DeflateCodec();
-		codec.setConf(new Configuration());
-		testCompressCodec(codec);
+	public void testDeflateCompressByAlias() throws Exception {
+		testCompressByName("deflate");
+	}
+
+	@Test
+	public void testDeflateCompressByClassName() throws Exception {
+		testCompressByName("org.apache.hadoop.io.compress.DeflateCodec");
 	}
 
 	@Test
 	public void testDefaultCompressByName() throws Exception {
-		DefaultCodec codec = new DefaultCodec();
-		codec.setConf(new Configuration());
-		testCompressCodec(codec);
+		testCompressByName("DefaultCodec");
+	}
+
+	@Test
+	public void testDefaultCompressByClassName() throws Exception {
+		testCompressByName("org.apache.hadoop.io.compress.DefaultCodec");
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testCompressFailureWithUnknownCodec() throws Exception {
+		testCompressByName("com.bla.bla.UnknownCodec");
 	}
 
 	private void testCompressByName(String codec) throws Exception {
@@ -105,16 +108,6 @@ public class CompressWriterFactoryTest extends TestLogger {
 		File directory = prepareCompressedFile(writer, lines);
 
 		validateResults(directory, lines, new CompressionCodecFactory(new Configuration()).getCodecByName(codec));
-	}
-
-	private void testCompressCodec(CompressionCodec codec) throws Exception {
-
-		CompressWriterFactory<String> writer = CompressWriters.forExtractor(new DefaultExtractor<String>()).withHadoopCompression(codec);
-		List<String> lines = Arrays.asList("line1", "line2", "line3");
-
-		File directory = prepareCompressedFile(writer, lines);
-
-		validateResults(directory, lines, codec);
 	}
 
 	private File prepareCompressedFile(CompressWriterFactory<String> writer, List<String> lines) throws Exception {

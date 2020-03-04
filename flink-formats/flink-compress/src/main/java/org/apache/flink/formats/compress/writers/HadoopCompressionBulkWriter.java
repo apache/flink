@@ -19,48 +19,40 @@
 package org.apache.flink.formats.compress.writers;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.formats.compress.extractor.Extractor;
 
-import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
 
 import java.io.IOException;
 
 /**
- * A {@link BulkWriter} implementation that compresses data using Hadoop codecs.
+ * A {@link BulkWriter} implementation that writes data that have been
+ * compressed using Hadoop {@link org.apache.hadoop.io.compress.CompressionCodec}.
  *
  * @param <T> The type of element to write.
  */
 public class HadoopCompressionBulkWriter<T> implements BulkWriter<T> {
 
 	private Extractor<T> extractor;
-	private FSDataOutputStream outputStream;
-	private CompressionOutputStream compressor;
+	private CompressionOutputStream out;
 
-	public HadoopCompressionBulkWriter(
-			FSDataOutputStream outputStream,
-			Extractor<T> extractor,
-			CompressionCodec compressionCodec) throws Exception {
-		this.outputStream = outputStream;
+	public HadoopCompressionBulkWriter(CompressionOutputStream out, Extractor<T> extractor) {
+		this.out = out;
 		this.extractor = extractor;
-		this.compressor = compressionCodec.createOutputStream(outputStream);
 	}
 
 	@Override
 	public void addElement(T element) throws IOException {
-		compressor.write(extractor.extract(element));
+		out.write(extractor.extract(element));
 	}
 
 	@Override
 	public void flush() throws IOException {
-		compressor.flush();
-		outputStream.flush();
+		out.flush();
 	}
 
 	@Override
 	public void finish() throws IOException {
-		compressor.finish();
-		outputStream.sync();
+		out.finish();
 	}
 }
