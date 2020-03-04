@@ -26,7 +26,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -111,17 +110,6 @@ public class SnapshotUtilsTest {
 		@Override
 		public void setKeyContextElement2(StreamRecord<?> record) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("setKeyContextElement2");
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			ACTUAL_ORDER_TRACKING.add("getChainingStrategy");
-			return null;
-		}
-
-		@Override
-		public void setChainingStrategy(ChainingStrategy strategy) {
-			ACTUAL_ORDER_TRACKING.add("setChainingStrategy");
 		}
 
 		@Override
