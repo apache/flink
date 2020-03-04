@@ -59,7 +59,7 @@ public class JDBCAppendTableSinkTest {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Row> ds = env.fromCollection(Collections.singleton(Row.of("foo")), ROW_TYPE);
-		sink.emitDataStream(ds);
+		sink.consumeDataStream(ds);
 
 		Collection<Integer> sinkIds = env
 				.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)

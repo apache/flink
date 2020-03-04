@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
@@ -57,8 +58,8 @@ public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTa
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
-		dataStream
+	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+		return dataStream
 			.map(SpendReportTableSink::format)
 			.writeUsingOutputFormat(new LoggerOutputFormat())
 			.setParallelism(dataStream.getParallelism());
@@ -93,4 +94,5 @@ public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTa
 		//noinspection MalformedFormatString
 		return String.format("%s, %s, $%.2f", row.getField(0), row.getField(1), row.getField(2));
 	}
+
 }

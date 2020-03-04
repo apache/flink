@@ -98,11 +98,6 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-		consumeDataStream(dataStream);
-	}
-
-	@Override
 	public void setKeyFields(String[] keys) {
 		this.keyFields = keys;
 	}

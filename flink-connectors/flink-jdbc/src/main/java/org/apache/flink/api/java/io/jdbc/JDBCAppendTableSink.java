@@ -69,11 +69,6 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
-		consumeDataStream(dataStream);
-	}
-
-	@Override
 	public void emitDataSet(DataSet<Row> dataSet) {
 		dataSet.output(outputFormat);
 	}

@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.runtime.stream.table
 
-import java.io.File
-import java.lang.{Boolean => JBool}
-
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -39,8 +36,12 @@ import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
+
 import org.junit.Assert._
 import org.junit.Test
+
+import java.io.File
+import java.lang.{Boolean => JBool}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -623,10 +624,6 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
 
-  override def emitDataStream(s: DataStream[Row]): Unit = {
-    consumeDataStream(s)
-  }
-
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
     dataStream.map(
       new MapFunction[Row, JTuple2[JBool, Row]] {
@@ -656,7 +653,7 @@ private[flink] class TestRetractSink extends RetractStreamTableSink[Row] {
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
 
-  override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
+  override def consumeDataStream(s: DataStream[JTuple2[JBool, Row]]): DataStreamSink[_] = {
     s.addSink(new RowSink)
   }
 
@@ -703,7 +700,7 @@ private[flink] class TestUpsertSink(
 
   override def getRecordType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
 
-  override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
+  override def consumeDataStream(s: DataStream[JTuple2[JBool, Row]]): DataStreamSink[_] = {
     s.addSink(new RowSink)
   }
 
