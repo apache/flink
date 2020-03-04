@@ -56,6 +56,8 @@ jobs:
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
     displayName: "Set to jdk11"
     condition: eq('${{parameters.jdk}}', 'jdk11')
+  - script: mkdir -p ~/.m2/ ; cp ./tools/azure-pipelines/google-mirror-settings.xml ~/.m2/settings.xml ; cat ~/.m2/settings.xml
+    displayName: Setup Google mvn mirror
   # Compile
   - script: STAGE=compile ${{parameters.environment}} ./tools/azure_controller.sh compile
     displayName: Build
@@ -119,6 +121,8 @@ jobs:
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
     displayName: "Set to jdk11"
     condition: eq('${{parameters.jdk}}', 'jdk11')  
+  - script: mkdir -p ~/.m2/ ; cp ./tools/azure-pipelines/google-mirror-settings.xml ~/.m2/settings.xml ; cat ~/.m2/settings.xml
+    displayName: Setup Google mvn mirror
   # Test
   - script: STAGE=test ${{parameters.environment}} ./tools/azure_controller.sh $(module)
     displayName: Test - $(module)
@@ -162,6 +166,8 @@ jobs:
       condition: eq('${{parameters.jdk}}', 'jdk11')
     - script: ./tools/travis/setup_maven.sh
       displayName: Setup Maven 3.2.5
+    - script: mkdir -p ~/.m2/ ; cp ./tools/azure-pipelines/google-mirror-settings.xml ~/.m2/settings.xml ; cat ~/.m2/settings.xml
+      displayName: Setup Google mvn mirror
     - script: ./tools/azure-pipelines/setup_docker.sh
       displayName: Setup Docker
     - script: ./tools/azure-pipelines/free_disk_space.sh

@@ -32,7 +32,7 @@ find . -type f -name '*.timestamp' | xargs touch
 export M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ 
 export PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH
 mvn -version
-MVN_CALL="mvn install --settings ./tools/azure-pipelines/google-mirror-settings.xml -DskipTests -Drat.skip $PROFILE"
+MVN_CALL="mvn install -DskipTests -Drat.skip $PROFILE"
 echo "Invoking Maven: '$MVN_CALL'"
 $MVN_CALL
 EXIT_CODE=$?

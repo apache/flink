@@ -64,7 +64,7 @@ EXIT_CODE=0
 # often lead to connection timeouts (probably due to rate-limiting)
 
 # adding -Dmaven.wagon.http.pool=false (see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html)
-MVN="mvn clean install --settings ./tools/azure-pipelines/google-mirror-settings.xml $MAVEN_OPTS -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.wagon.http.pool=false -Dmaven.javadoc.skip=true -B -U -DskipTests $PROFILE"
+MVN="mvn clean install $MAVEN_OPTS -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.wagon.http.pool=false -Dmaven.javadoc.skip=true -B -U -DskipTests $PROFILE"
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
