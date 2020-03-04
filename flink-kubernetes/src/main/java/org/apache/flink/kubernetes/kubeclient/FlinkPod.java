@@ -31,9 +31,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FlinkPod {
 
-	private Pod pod;
+	private final Pod pod;
 
-	private Container mainContainer;
+	private final Container mainContainer;
 
 	public FlinkPod(Pod pod, Container mainContainer) {
 		this.pod = pod;
@@ -44,16 +44,8 @@ public class FlinkPod {
 		return pod;
 	}
 
-	public void setPod(Pod pod) {
-		this.pod = pod;
-	}
-
 	public Container getMainContainer() {
 		return mainContainer;
-	}
-
-	public void setMainContainer(Container mainContainer) {
-		this.mainContainer = mainContainer;
 	}
 
 	/**
