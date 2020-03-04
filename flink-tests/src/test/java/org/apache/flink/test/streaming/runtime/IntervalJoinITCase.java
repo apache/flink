@@ -466,8 +466,10 @@ public class IntervalJoinITCase {
 			@Override
 			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
 				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
-				ctx.emitWatermark(new Watermark(0L));
+				ctx.emitWatermark(new Watermark(1L));
 				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+				ctx.emitWatermark(new Watermark(2L));
+				ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
 			}
 
 			@Override
@@ -479,8 +481,9 @@ public class IntervalJoinITCase {
 			@Override
 			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
 				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
-				ctx.emitWatermark(new Watermark(0L));
+				ctx.emitWatermark(new Watermark(1L));
 				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+				ctx.emitWatermark(new Watermark(2L));
 			}
 
 			@Override
@@ -488,18 +491,17 @@ public class IntervalJoinITCase {
 				// do nothing
 			}
 		});
-
+		// right buffer not waiting for left buffer
 		streamLeft.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamRight.keyBy(new Tuple2KeyExtractor()))
-			.between(Time.milliseconds(-1), Time.milliseconds(1))
-			.process(new CombineToStringJoinFunction(false, -1))
+			.between(Time.milliseconds(-1), Time.milliseconds(0))
+			.process(new CombineToStringJoinFunction(false, 0))
 			.addSink(new ResultSink());
 
 		env.execute();
 
 		expectInAnyOrder(
 			"(key,1):(key,1)",
-			"(key,1):(key,2)",
 			"(key,2):(key,2)");
 	}
 

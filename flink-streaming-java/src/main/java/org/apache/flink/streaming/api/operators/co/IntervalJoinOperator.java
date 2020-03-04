@@ -317,7 +317,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		if (isLeft) {
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
 		} else {
-			// evict right side buffer faster to improve performance
+			// overwrite evict right side buffer to improve performance
 			if (joinParameters.relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
 				cleanupTime = ourTimestamp + joinParameters.relativeEarlyRightEvictionBound;
 			}
@@ -631,5 +631,10 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	@VisibleForTesting
 	MapState<Long, List<BufferEntry<T2>>> getRightBuffer() {
 		return rightBuffer;
+	}
+
+	@VisibleForTesting
+	Cache<Object, SortedMap<Long, List<BufferEntry<Object>>>> getOtherSideCache() {
+		return otherSideCache;
 	}
 }
