@@ -25,10 +25,12 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
@@ -51,7 +53,12 @@ public interface SlotManager extends AutoCloseable {
 
 	int getNumberFreeSlotsOf(InstanceID instanceId);
 
-	int getNumberPendingTaskManagerSlots();
+	/**
+	 * Get number of workers SlotManager requested from {@link ResourceActions} that are not yet fulfilled.
+	 * @return a map whose key set is all the unique resource specs of the pending workers,
+	 * and the corresponding value is number of pending workers of that resource spec.
+	 */
+	Map<WorkerResourceSpec, Integer> getRequiredResources();
 
 	int getNumberPendingSlotRequests();
 

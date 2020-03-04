@@ -39,6 +39,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.OptionalConsumer;
 import org.apache.flink.util.Preconditions;
 
@@ -49,6 +50,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -199,6 +201,14 @@ public class SlotManagerImpl implements SlotManager {
 	}
 
 	@Override
+	public Map<WorkerResourceSpec, Integer> getRequiredResources() {
+		final int pendingWorkerNum = MathUtils.divideRoundUp(pendingSlots.size(), numSlotsPerWorker);
+		return pendingWorkerNum > 0 ?
+			Collections.singletonMap(defaultWorkerResourceSpec, pendingWorkerNum) :
+			Collections.emptyMap();
+	}
+
+	@VisibleForTesting
 	public int getNumberPendingTaskManagerSlots() {
 		return pendingSlots.size();
 	}
