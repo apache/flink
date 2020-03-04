@@ -294,7 +294,7 @@ public class JobLeaderService {
 		}
 
 		@Override
-		public void notifyLeaderAddress(final @Nullable String leaderAddress, final @Nullable UUID leaderId) {
+		public void notifyLeaderAddress(@Nullable final String leaderAddress, @Nullable final UUID leaderId) {
 			Optional<JobMasterId> jobManagerLostLeadership = Optional.empty();
 
 			synchronized (lock) {
@@ -446,8 +446,8 @@ public class JobLeaderService {
 		@Override
 		protected CompletableFuture<RegistrationResponse> invokeRegistration(
 				JobMasterGateway gateway,
-				JobMasterId jobMasterId,
-				long timeoutMillis) throws Exception {
+				JobMasterId fencingToken,
+				long timeoutMillis) {
 			return gateway.registerTaskManager(taskManagerRpcAddress, taskManagerLocation, Time.milliseconds(timeoutMillis));
 		}
 	}
