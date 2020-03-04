@@ -60,7 +60,7 @@ public class SingleJobSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 	@Override
 	public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
-		if (!jobGraph.getJobId().equals(jobGraph.getJobId())) {
+		if (!this.jobGraph.getJobID().equals(jobGraph.getJobId())) {
 			throw new FlinkException("Cannot put additional jobs into this submitted job graph store.");
 		}
 	}
