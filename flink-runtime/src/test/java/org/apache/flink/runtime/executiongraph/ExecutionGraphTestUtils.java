@@ -34,9 +34,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -45,7 +47,10 @@ import javax.annotation.Nullable;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -59,6 +64,8 @@ import static org.junit.Assert.assertNotNull;
  * A collection of utility methods for testing the ExecutionGraph and its related classes.
  */
 public class ExecutionGraphTestUtils {
+
+	private static final Time DEFAULT_TIMEOUT = AkkaUtils.getDefaultTimeout();
 
 	// ------------------------------------------------------------------------
 	//  reaching states
@@ -409,8 +416,22 @@ public class ExecutionGraphTestUtils {
 			ScheduledExecutorService executor,
 			ScheduleMode scheduleMode) throws Exception {
 
+		return getExecutionJobVertex(id, 1, null, executor, scheduleMode);
+	}
+
+	public static ExecutionJobVertex getExecutionJobVertex(
+			JobVertexID id,
+			int parallelism,
+			@Nullable SlotSharingGroup slotSharingGroup,
+			ScheduledExecutorService executor,
+			ScheduleMode scheduleMode) throws Exception {
+
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(AbstractInvokable.class);
+		ajv.setParallelism(parallelism);
+		if (slotSharingGroup != null) {
+			ajv.setSlotSharingGroup(slotSharingGroup);
+		}
 
 		JobGraph jobGraph = new JobGraph(ajv);
 		jobGraph.setScheduleMode(scheduleMode);
@@ -429,6 +450,69 @@ public class ExecutionGraphTestUtils {
 
 	public static ExecutionJobVertex getExecutionJobVertex(JobVertexID id) throws Exception {
 		return getExecutionJobVertex(id, new DirectScheduledExecutorService());
+	}
+
+	public static Execution getExecution() throws Exception {
+		final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
+		return ejv.getTaskVertices()[0].getCurrentExecutionAttempt();
+	}
+
+	public static Execution getExecution(final TaskManagerLocation... preferredLocations) throws Exception {
+		return getExecution(mapToPreferredLocationFutures(preferredLocations));
+	}
+
+	private static Collection<CompletableFuture<TaskManagerLocation>> mapToPreferredLocationFutures(
+			final TaskManagerLocation... preferredLocations) {
+
+		final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = new ArrayList<>();
+		for (TaskManagerLocation preferredLocation : preferredLocations) {
+			preferredLocationFutures.add(CompletableFuture.completedFuture(preferredLocation));
+		}
+		return preferredLocationFutures;
+	}
+
+	public static Execution getExecution(
+			final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures) throws Exception {
+
+		final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
+		final TestExecutionVertex ev = new TestExecutionVertex(ejv, 0, new IntermediateResult[0], DEFAULT_TIMEOUT);
+		ev.setPreferredLocationFutures(preferredLocationFutures);
+		return ev.getCurrentExecutionAttempt();
+	}
+
+	public static Execution getExecution(
+			final JobVertexID jid,
+			final int subtaskIndex,
+			final int numTasks,
+			final SlotSharingGroup slotSharingGroup) throws Exception {
+
+		return getExecution(jid, subtaskIndex, numTasks, slotSharingGroup, null);
+	}
+
+	public static Execution getExecution(
+			final JobVertexID jid,
+			final int subtaskIndex,
+			final int numTasks,
+			final SlotSharingGroup slotSharingGroup,
+			@Nullable final TaskManagerLocation... locations) throws Exception {
+
+		final ExecutionJobVertex ejv = getExecutionJobVertex(
+			jid,
+			numTasks,
+			slotSharingGroup,
+			new DirectScheduledExecutorService(),
+			ScheduleMode.LAZY_FROM_SOURCES);
+		final TestExecutionVertex ev = new TestExecutionVertex(
+			ejv,
+			subtaskIndex,
+			new IntermediateResult[0],
+			DEFAULT_TIMEOUT);
+
+		if (locations != null) {
+			ev.setPreferredLocationFutures(mapToPreferredLocationFutures(locations));
+		}
+
+		return ev.getCurrentExecutionAttempt();
 	}
 
 	// ------------------------------------------------------------------------
