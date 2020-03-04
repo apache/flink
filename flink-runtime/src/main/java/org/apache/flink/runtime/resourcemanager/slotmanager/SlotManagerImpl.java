@@ -131,6 +131,8 @@ public class SlotManagerImpl implements SlotManager {
 	 */
 	private final WorkerResourceSpec defaultWorkerResourceSpec;
 
+	private final int numSlotsPerWorker;
+
 	public SlotManagerImpl(
 			ScheduledExecutor scheduledExecutor,
 			SlotManagerConfiguration slotManagerConfiguration) {
@@ -144,6 +146,7 @@ public class SlotManagerImpl implements SlotManager {
 		this.taskManagerTimeout = slotManagerConfiguration.getTaskManagerTimeout();
 		this.waitResultConsumedBeforeRelease = slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
 		this.defaultWorkerResourceSpec = slotManagerConfiguration.getDefaultWorkerResourceSpec();
+		this.numSlotsPerWorker = slotManagerConfiguration.getNumSlotsPerWorker();
 
 		slots = new HashMap<>(16);
 		freeSlots = new LinkedHashMap<>(16);
