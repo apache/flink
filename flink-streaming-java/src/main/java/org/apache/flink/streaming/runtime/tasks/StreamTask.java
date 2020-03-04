@@ -915,7 +915,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			getCancelables(),
 			getAsyncOperationsThreadPool(),
 			getEnvironment(),
-			this);
+			this,
+			this::isCanceled);
 	}
 
 	// ------------------------------------------------------------------------
