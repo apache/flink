@@ -50,8 +50,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	/** The process environment variables. */
 	protected final Map<String, String> env;
 
-	protected final int numSlotsPerTaskManager;
-
 	protected final TaskExecutorProcessSpec taskExecutorProcessSpec;
 
 	protected final int defaultMemoryMB;
@@ -96,7 +94,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 		this.flinkConfig = flinkConfig;
 		this.env = env;
 
-		this.numSlotsPerTaskManager = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 		double defaultCpus = getCpuCores(flinkConfig);
 		this.taskExecutorProcessSpec = TaskExecutorProcessUtils
 			.newProcessSpecBuilder(flinkConfig)

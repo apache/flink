@@ -284,7 +284,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				.withTotalProcessMemory(totalProcessMemory)
 				.build();
 			ContaineredTaskManagerParameters containeredParams =
-				new ContaineredTaskManagerParameters(spec, 4, new HashMap<String, String>());
+				new ContaineredTaskManagerParameters(spec, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
 				1, 0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
 				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(), false,
