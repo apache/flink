@@ -19,32 +19,11 @@
 package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.formats.parquet.vector.reader.AbstractColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.BooleanColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.ByteColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.BytesColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.DoubleColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.FixedLenBytesColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.FloatColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.IntColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.LongColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.ShortColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
 import org.apache.flink.table.dataformat.ColumnarRow;
-import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
-import org.apache.flink.table.dataformat.vector.heap.HeapBooleanVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapByteVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapBytesVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapDoubleVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapFloatVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapIntVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapLongVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapShortVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.dataformat.vector.writable.WritableColumnVector;
-import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
@@ -52,15 +31,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReadStore;
-import org.apache.parquet.column.page.PageReader;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.OriginalType;
-import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Types;
 
@@ -69,7 +45,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.parquet.Preconditions.checkArgument;
+import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createColumnReader;
+import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createWritableColumnVector;
 import static org.apache.parquet.filter2.compat.RowGroupFilter.filterRowGroups;
 import static org.apache.parquet.format.converter.ParquetMetadataConverter.range;
 import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
@@ -184,142 +161,12 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 	private WritableColumnVector[] createWritableVectors() {
 		WritableColumnVector[] columns = new WritableColumnVector[selectedTypes.length];
 		for (int i = 0; i < selectedTypes.length; i++) {
-			columns[i] = createWritableColumn(
+			columns[i] = createWritableColumnVector(
+					batchSize,
 					selectedTypes[i],
 					requestedSchema.getColumns().get(i).getPrimitiveType());
 		}
 		return columns;
-	}
-
-	private WritableColumnVector createWritableColumn(
-			LogicalType fieldType,
-			PrimitiveType primitiveType) {
-		PrimitiveType.PrimitiveTypeName typeName = primitiveType.getPrimitiveTypeName();
-		switch (fieldType.getTypeRoot()) {
-			case BOOLEAN:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.BOOLEAN,
-						"Unexpected type: %s", typeName);
-				return new HeapBooleanVector(batchSize);
-			case TINYINT:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.INT32,
-						"Unexpected type: %s", typeName);
-				return new HeapByteVector(batchSize);
-			case DOUBLE:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.DOUBLE,
-						"Unexpected type: %s", typeName);
-				return new HeapDoubleVector(batchSize);
-			case FLOAT:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.FLOAT,
-						"Unexpected type: %s", typeName);
-				return new HeapFloatVector(batchSize);
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.INT32,
-						"Unexpected type: %s", typeName);
-				return new HeapIntVector(batchSize);
-			case BIGINT:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.INT64,
-						"Unexpected type: %s", typeName);
-				return new HeapLongVector(batchSize);
-			case SMALLINT:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.INT32,
-						"Unexpected type: %s", typeName);
-				return new HeapShortVector(batchSize);
-			case CHAR:
-			case VARCHAR:
-			case BINARY:
-			case VARBINARY:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.BINARY,
-						"Unexpected type: %s", typeName);
-				return new HeapBytesVector(batchSize);
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				checkArgument(
-						typeName == PrimitiveType.PrimitiveTypeName.INT96,
-						"Unexpected type: %s", typeName);
-				return new HeapTimestampVector(batchSize);
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) fieldType;
-				if (Decimal.is32BitDecimal(decimalType.getPrecision())) {
-					checkArgument(
-							(typeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY ||
-									typeName == PrimitiveType.PrimitiveTypeName.INT32) &&
-									primitiveType.getOriginalType() == OriginalType.DECIMAL,
-							"Unexpected type: %s", typeName);
-					return new HeapIntVector(batchSize);
-				} else if (Decimal.is64BitDecimal(decimalType.getPrecision())) {
-					checkArgument(
-							(typeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY ||
-									typeName == PrimitiveType.PrimitiveTypeName.INT64) &&
-									primitiveType.getOriginalType() == OriginalType.DECIMAL,
-							"Unexpected type: %s", typeName);
-					return new HeapLongVector(batchSize);
-				} else {
-					checkArgument(
-							(typeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY ||
-									typeName == PrimitiveType.PrimitiveTypeName.BINARY) &&
-									primitiveType.getOriginalType() == OriginalType.DECIMAL,
-							"Unexpected type: %s", typeName);
-					return new HeapBytesVector(batchSize);
-				}
-			default:
-				throw new UnsupportedOperationException(fieldType + " is not supported now.");
-		}
-	}
-
-	private AbstractColumnReader createColumnReader(
-			LogicalType fieldType,
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		switch (fieldType.getTypeRoot()) {
-			case BOOLEAN:
-				return new BooleanColumnReader(descriptor, pageReader);
-			case TINYINT:
-				return new ByteColumnReader(descriptor, pageReader);
-			case DOUBLE:
-				return new DoubleColumnReader(descriptor, pageReader);
-			case FLOAT:
-				return new FloatColumnReader(descriptor, pageReader);
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-				return new IntColumnReader(descriptor, pageReader);
-			case BIGINT:
-				return new LongColumnReader(descriptor, pageReader);
-			case SMALLINT:
-				return new ShortColumnReader(descriptor, pageReader);
-			case CHAR:
-			case VARCHAR:
-			case BINARY:
-			case VARBINARY:
-				return new BytesColumnReader(descriptor, pageReader);
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				return new TimestampColumnReader(utcTimestamp, descriptor, pageReader);
-			case DECIMAL:
-				switch (descriptor.getPrimitiveType().getPrimitiveTypeName()) {
-					case INT32:
-						return new IntColumnReader(descriptor, pageReader);
-					case INT64:
-						return new LongColumnReader(descriptor, pageReader);
-					case BINARY:
-						return new BytesColumnReader(descriptor, pageReader);
-					case FIXED_LEN_BYTE_ARRAY:
-						return new FixedLenBytesColumnReader(
-								descriptor, pageReader, ((DecimalType) fieldType).getPrecision());
-				}
-			default:
-				throw new UnsupportedOperationException(fieldType + " is not supported now.");
-		}
 	}
 
 	/**
@@ -436,6 +283,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		columnReaders = new AbstractColumnReader[columns.size()];
 		for (int i = 0; i < columns.size(); ++i) {
 			columnReaders[i] = createColumnReader(
+					utcTimestamp,
 					selectedTypes[i],
 					columns.get(i),
 					pages.getPageReader(columns.get(i)));
