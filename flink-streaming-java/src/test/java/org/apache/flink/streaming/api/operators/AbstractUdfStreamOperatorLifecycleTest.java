@@ -92,7 +92,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"getCurrentKey[], " +
 			"getMetricGroup[], " +
 			"getOperatorID[], " +
-			"initializeState[], " +
+			"initializeState[interface org.apache.flink.streaming.api.operators.StreamTaskStateInitializer], " +
 			"notifyCheckpointComplete[long], " +
 			"open[], " +
 			"prepareSnapshotPreBarrier[long], " +

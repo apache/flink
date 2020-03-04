@@ -248,7 +248,7 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final void initializeState() throws Exception {
+	public final void initializeState(StreamTaskStateInitializer streamTaskStateManager) throws Exception {
 
 		final TypeSerializer<?> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
 
@@ -256,8 +256,6 @@ public abstract class AbstractStreamOperator<OUT>
 			Preconditions.checkNotNull(getContainingTask());
 		final CloseableRegistry streamTaskCloseableRegistry =
 			Preconditions.checkNotNull(containingTask.getCancelables());
-		final StreamTaskStateInitializer streamTaskStateManager =
-			Preconditions.checkNotNull(containingTask.createStreamTaskStateInitializer());
 
 		final StreamOperatorStateContext context =
 			streamTaskStateManager.streamOperatorStateContext(

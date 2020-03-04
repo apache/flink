@@ -495,7 +495,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			}
 		}
 
-		operator.initializeState();
+		operator.initializeState(mockTask.createStreamTaskStateInitializer());
 		initializeCalled = true;
 	}
 
