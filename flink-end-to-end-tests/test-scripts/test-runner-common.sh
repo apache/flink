@@ -48,10 +48,13 @@ function run_test {
       echo "[FAIL] Test script contains errors."
       post_test_validation 1 "$description" "$skip_check_exceptions"
     }
+    # set a trap to catch a test execution error
     trap 'test_error' ERR
 
     ${command}
     exit_code="$?"
+    # remove trap for test execution
+    trap - ERR
     post_test_validation ${exit_code} "$description" "$skip_check_exceptions"
 }
 
