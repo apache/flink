@@ -62,6 +62,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -257,37 +258,41 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
 		/**
-		 * Cache {@code otherBuffer} of {@code getCurrentKey()} refresh cache when
+		 * invalidate cache when
 		 * first time process this key
 		 * process element from other direction
-		 * cache get evicted or invalidate
+		 * cache get evicted or invalidated or expired
 		 */
 		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft
 			|| otherSideCache.getIfPresent(getCurrentKey()) == null) {
-			// clean up buffers of current key
 			otherSideCache.invalidate(getCurrentKey());
-
-			// build in memory sortedMap to boost lookup of other side buffer
-			final SortedMap<Long, List<BufferEntry<Object>>> newBuckets = new TreeMap<>();
-			for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
-				List<BufferEntry<Object>> items = new ArrayList<>();
-				for (BufferEntry<OTHER> item : bucket.getValue()) {
-					items.add((BufferEntry<Object>) item);
-				}
-				newBuckets.put(bucket.getKey(), items);
-			}
-
-			otherSideCache.put(getCurrentKey(), newBuckets);
-			isInsertFromLeft.update(isLeft);
 		}
+
+		SortedMap<Long, List<BufferEntry<Object>>> buckets =
+			otherSideCache.get(getCurrentKey(), new Callable<SortedMap<Long, List<BufferEntry<Object>>>>() {
+			@Override
+			public SortedMap<Long, List<BufferEntry<Object>>> call() throws Exception {
+				// build in memory sortedMap to boost lookup of other side buffer
+				final SortedMap<Long, List<BufferEntry<Object>>> newBuckets = new TreeMap<>();
+				for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+					List<BufferEntry<Object>> items = new ArrayList<>();
+					for (BufferEntry<OTHER> item : bucket.getValue()) {
+						items.add((BufferEntry<Object>) item);
+					}
+					newBuckets.put(bucket.getKey(), items);
+				}
+
+				isInsertFromLeft.update(isLeft);
+				return newBuckets;
+			}
+		});
 
 		Preconditions.checkNotNull(otherSideCache.getIfPresent(getCurrentKey()),
 			"cache should not be empty");
 		Preconditions.checkArgument(isLeft == isInsertFromLeft.value(),
 			"cache should be other side of buffer");
 
-		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket:
-			otherSideCache.getIfPresent(getCurrentKey()).subMap(
+		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket: buckets.subMap(
 				ourTimestamp + relativeLowerBound, ourTimestamp + relativeUpperBound + 1).entrySet()) {
 			final long timestamp  = bucket.getKey();
 

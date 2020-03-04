@@ -451,7 +451,7 @@ public class IntervalJoinITCase {
 		streamLeft.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamRight.keyBy(new Tuple2KeyExtractor()))
 			.between(Time.milliseconds(-1), Time.milliseconds(0))
-			.process(new CombineToStringJoinFunction(0))
+			.process(new CombineToStringJoinFunction(0, Long.MAX_VALUE))
 			.addSink(new ResultSink());
 
 		env.execute();
@@ -487,9 +487,10 @@ public class IntervalJoinITCase {
 			super();
 		}
 
-		public CombineToStringJoinFunction(long relativeEarlyRightEvictionBound) {
+		public CombineToStringJoinFunction(long relativeEarlyRightEvictionBound, long expireMs) {
 			JoinParameters jp = new JoinParameters();
 			jp.relativeEarlyRightEvictionBound = relativeEarlyRightEvictionBound;
+			jp.expireMs = expireMs;
 			this.joinParameters = jp;
 		}
 
