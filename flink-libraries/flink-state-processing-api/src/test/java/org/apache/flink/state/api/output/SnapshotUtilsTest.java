@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Assert;
@@ -98,7 +99,7 @@ public class SnapshotUtilsTest {
 		}
 
 		@Override
-		public void initializeState() throws Exception {
+		public void initializeState(StreamTaskStateInitializer streamTaskStateManager) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("initializeState");
 		}
 
