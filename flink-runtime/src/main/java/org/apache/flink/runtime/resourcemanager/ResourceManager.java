@@ -1236,8 +1236,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	//  Resource Management
 	// ------------------------------------------------------------------------
 
-	protected int getNumberRequiredTaskManagerSlots() {
-		return slotManager.getNumberPendingTaskManagerSlots();
+	protected int getNumberRequiredTaskManagers() {
+		return getRequiredResources().values().stream().reduce(0, Integer::sum);
+	}
+
+	protected Map<WorkerResourceSpec, Integer> getRequiredResources() {
+		return slotManager.getRequiredResources();
 	}
 }
 
