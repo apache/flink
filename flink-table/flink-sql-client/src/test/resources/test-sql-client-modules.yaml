@@ -53,4 +53,5 @@ modules:
     type: hive
   - name: myhive2
     type: hive
+    hive-version: 2.3.4
 
