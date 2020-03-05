@@ -256,11 +256,6 @@ class TypeConverters(object):
         return TypeConverters._is_numeric(value) and float(value).is_integer()
 
     @staticmethod
-    def _can_convert_to_list(value):
-        vtype = type(value)
-        return vtype in [list, tuple, range, array.array]
-
-    @staticmethod
     def _can_convert_to_string(value):
         return isinstance(value, str)
 
@@ -288,10 +283,9 @@ class TypeConverters(object):
         """
         Convert a value to list of floats, if possible.
         """
-        if TypeConverters._can_convert_to_list(value):
-            value = TypeConverters.to_list(value)
-            if all(map(lambda v: TypeConverters._is_numeric(v), value)):
-                return [float(v) for v in value]
+        value = TypeConverters.to_list(value)
+        if all(map(lambda v: TypeConverters._is_numeric(v), value)):
+            return [float(v) for v in value]
         raise TypeError("Could not convert %s to list of floats" % value)
 
     @staticmethod
@@ -299,10 +293,9 @@ class TypeConverters(object):
         """
         Convert a value to list of ints, if possible.
         """
-        if TypeConverters._can_convert_to_list(value):
-            value = TypeConverters.to_list(value)
-            if all(map(lambda v: TypeConverters._is_integer(v), value)):
-                return [int(v) for v in value]
+        value = TypeConverters.to_list(value)
+        if all(map(lambda v: TypeConverters._is_integer(v), value)):
+            return [int(v) for v in value]
         raise TypeError("Could not convert %s to list of ints" % value)
 
     @staticmethod
@@ -310,10 +303,9 @@ class TypeConverters(object):
         """
         Convert a value to list of strings, if possible.
         """
-        if TypeConverters._can_convert_to_list(value):
-            value = TypeConverters.to_list(value)
-            if all(map(lambda v: TypeConverters._can_convert_to_string(v), value)):
-                return [TypeConverters.to_string(v) for v in value]
+        value = TypeConverters.to_list(value)
+        if all(map(lambda v: TypeConverters._can_convert_to_string(v), value)):
+            return [TypeConverters.to_string(v) for v in value]
         raise TypeError("Could not convert %s to list of strings" % value)
 
     @staticmethod
