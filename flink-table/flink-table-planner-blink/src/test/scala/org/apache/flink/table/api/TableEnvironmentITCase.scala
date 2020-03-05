@@ -252,7 +252,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
   @Test
   def testClearOperation(): Unit = {
     val tableEnv = TableEnvironmentImpl.create(settings)
-    tableEnv.sqlUpdate("create table dest1(x int) with('connector' = 'COLLECTION')")
+    tableEnv.sqlUpdate("create table dest1(x map<int,bigint>) with('connector' = 'COLLECTION')")
     tableEnv.sqlUpdate("create table dest2(x int) with('connector' = 'COLLECTION')")
     tableEnv.sqlUpdate("create table src(x int) with('connector' = 'COLLECTION')")
 
