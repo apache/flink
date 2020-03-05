@@ -52,20 +52,20 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 		/**
 		 * size of one side cache used in {@code IntervalJoinOperator}. Default is 1000 keys.
 		 */
-		public long maxCachedKeyedBufferSize;
+		public long maxCachedKeyedBufferEntries;
 		/**
-		 *  expiration time after cache last time access.
+		 *  expiration time after cache last time access, measured by low watermark advances.
 		 */
-		public long cacheExpireAfterAccessMs;
+		public long cacheExpiresInWatermark;
 
 		public JoinParameters() {
 			this(Long.MAX_VALUE, 1000L, Long.MAX_VALUE);
 		}
 
-		public JoinParameters(long rightSideCleanupOverwrite, long maxCachedKeyedBufferSize, long cacheExpireAfterAccessMs) {
+		public JoinParameters(long rightSideCleanupOverwrite, long maxCachedKeyedBufferEntries, long cacheExpiresInWatermark) {
 			this.rightSideCleanupOverwrite = rightSideCleanupOverwrite;
-			this.maxCachedKeyedBufferSize = maxCachedKeyedBufferSize;
-			this.cacheExpireAfterAccessMs = cacheExpireAfterAccessMs;
+			this.maxCachedKeyedBufferEntries = maxCachedKeyedBufferEntries;
+			this.cacheExpiresInWatermark = cacheExpiresInWatermark;
 		}
 	}
 

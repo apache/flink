@@ -383,7 +383,7 @@ public class IntervalJoinOperatorTest {
 	@Test
 	public void testRightSideCleanupOverwrite() throws Exception {
 		setupHarness(-1, false, 2, false,
-			new PassthroughFunction.JoinParameters(-1, 1, 1000))
+			new PassthroughFunction.JoinParameters(-1, 1, 7))
 			.processElement2(1)
 			.processElement2(2)
 			.processElement2(3)

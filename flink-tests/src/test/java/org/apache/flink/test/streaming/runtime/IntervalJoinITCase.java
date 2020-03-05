@@ -423,9 +423,6 @@ public class IntervalJoinITCase {
 			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
 				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
 				ctx.emitWatermark(new Watermark(1L));
-				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
-				ctx.emitWatermark(new Watermark(2L));
-				ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
 			}
 
 			@Override
@@ -436,9 +433,9 @@ public class IntervalJoinITCase {
 		DataStream<Tuple2<String, Integer>> streamRight = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
 			@Override
 			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
-				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 2), 1L);
 				ctx.emitWatermark(new Watermark(1L));
-				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 3), 2L);
 				ctx.emitWatermark(new Watermark(2L));
 			}
 
@@ -457,8 +454,7 @@ public class IntervalJoinITCase {
 		env.execute();
 
 		expectInAnyOrder(
-			"(key,1):(key,1)",
-			"(key,2):(key,2)");
+			"(key,1):(key,2)");
 	}
 
 	private static void expectInAnyOrder(String... expected) {
@@ -490,7 +486,7 @@ public class IntervalJoinITCase {
 		public CombineToStringJoinFunction(long relativeEarlyRightEvictionBound, long expireMs) {
 			JoinParameters jp = new JoinParameters();
 			jp.rightSideCleanupOverwrite = relativeEarlyRightEvictionBound;
-			jp.cacheExpireAfterAccessMs = expireMs;
+			jp.cacheExpiresInWatermark = expireMs;
 			this.joinParameters = jp;
 		}
 

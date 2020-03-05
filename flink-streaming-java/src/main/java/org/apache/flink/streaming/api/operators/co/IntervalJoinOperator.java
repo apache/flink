@@ -49,6 +49,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 
@@ -153,10 +154,10 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
 
-		Preconditions.checkArgument(udf.getJoinParameters().maxCachedKeyedBufferSize > 0,
+		Preconditions.checkArgument(udf.getJoinParameters().maxCachedKeyedBufferEntries > 0,
 			"cache size should be a positive number");
 
-		Preconditions.checkArgument(udf.getJoinParameters().cacheExpireAfterAccessMs > 0,
+		Preconditions.checkArgument(udf.getJoinParameters().cacheExpiresInWatermark > 0,
 			"cache expiration time should be a positive number");
 
 		// Move buffer by +1 / -1 depending on inclusiveness in order not needing
@@ -178,9 +179,15 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		internalTimerService =
 			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
 		otherSideCache = CacheBuilder.newBuilder()
-			.maximumSize(joinParameters.maxCachedKeyedBufferSize)
-			.expireAfterAccess(joinParameters.cacheExpireAfterAccessMs, TimeUnit.MILLISECONDS)
+			.maximumSize(joinParameters.maxCachedKeyedBufferEntries)
+			.expireAfterAccess(joinParameters.cacheExpiresInWatermark, TimeUnit.MILLISECONDS)
 			.concurrencyLevel(1)
+			.ticker(new Ticker() {
+				@Override
+				public long read() {
+					return internalTimerService.currentWatermark() * 1000L;
+				}
+			})
 			.build();
 	}
 
