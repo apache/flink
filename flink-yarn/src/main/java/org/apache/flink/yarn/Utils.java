@@ -38,6 +38,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
@@ -100,6 +101,17 @@ public final class Utils {
 	}
 
 	/**
+	 * Returns the Path where the YARN application files should be uploaded to.
+	 *
+	 * @param fileSystem Hadoop FileSystem
+	 * @param appId      YARN application id
+	 */
+	public static Path getYarnFilesDir(final FileSystem fileSystem, final ApplicationId appId) {
+		final Path homeDir = fileSystem.getHomeDirectory();
+		return new Path(homeDir, ".flink/" + appId + '/');
+	}
+
+	/**
 	 * Copy a local file to a remote file system and register as Local Resource.
 	 *
 	 * @param fs
@@ -108,8 +120,6 @@ public final class Utils {
 	 * 		application ID
 	 * @param localSrcPath
 	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
 	 * @param relativeTargetPath
 	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
 	 * @param replication
@@ -119,14 +129,13 @@ public final class Utils {
 	 */
 	static Tuple2<Path, LocalResource> setupLocalResource(
 		FileSystem fs,
-		String appId,
+		ApplicationId appId,
 		Path localSrcPath,
-		Path homedir,
 		String relativeTargetPath,
 		int replication) throws IOException {
 
 		File localFile = new File(localSrcPath.toUri().getPath());
-		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath, replication);
+		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, relativeTargetPath, replication);
 		// now create the resource instance
 		LocalResource resource = registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
 		return Tuple2.of(remoteFileInfo.f0, resource);
@@ -141,8 +150,6 @@ public final class Utils {
 	 * 		application ID
 	 * @param localSrcPath
 	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
 	 * @param relativeTargetPath
 	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
 	 * @param replication
@@ -152,9 +159,8 @@ public final class Utils {
 	 */
 	static Tuple2<Path, Long> uploadLocalFileToRemote(
 		FileSystem fs,
-		String appId,
+		ApplicationId appId,
 		Path localSrcPath,
-		Path homedir,
 		String relativeTargetPath,
 		int replication) throws IOException {
 
@@ -165,13 +171,10 @@ public final class Utils {
 		}
 
 		// copy resource to HDFS
-		String suffix =
-			".flink/"
-				+ appId
-				+ (relativeTargetPath.isEmpty() ? "" : "/" + relativeTargetPath)
-				+ "/" + localSrcPath.getName();
+		Path yarnFilesDir = getYarnFilesDir(fs, appId);
+		String suffix = relativeTargetPath + "/" + localSrcPath.getName();
 
-		Path dst = new Path(homedir, suffix);
+		Path dst = new Path(yarnFilesDir, suffix);
 
 		LOG.debug("Copying from {} to {} with replication number {}", localSrcPath, dst, replication);
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
