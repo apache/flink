@@ -117,9 +117,8 @@ public class YarnFileStageTest extends TestLogger {
 	@Test
 	public void testCopyFromLocalRecursiveWithScheme() throws Exception {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
-		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopyFromLocalRecursive(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder, true);
+		testCopyFromLocalRecursive(targetFileSystem, LOCAL_RESOURCE_DIRECTORY, tempFolder, true);
 	}
 
 	/**
@@ -129,9 +128,8 @@ public class YarnFileStageTest extends TestLogger {
 	@Test
 	public void testCopyFromLocalRecursiveWithoutScheme() throws Exception {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
-		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopyFromLocalRecursive(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder, false);
+		testCopyFromLocalRecursive(targetFileSystem, LOCAL_RESOURCE_DIRECTORY, tempFolder, false);
 	}
 
 	/**
@@ -140,9 +138,8 @@ public class YarnFileStageTest extends TestLogger {
 	@Test
 	public void testCopySingleFileFromLocal() throws IOException, URISyntaxException, InterruptedException {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
-		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopySingleFileFromLocal(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder);
+		testCopySingleFileFromLocal(targetFileSystem, LOCAL_RESOURCE_DIRECTORY, tempFolder);
 	}
 
 	/**
@@ -150,8 +147,6 @@ public class YarnFileStageTest extends TestLogger {
 	 *
 	 * @param targetFileSystem
 	 * 		file system of the target path
-	 * @param targetDir
-	 * 		target path (URI like <tt>hdfs://...</tt>)
 	 * @param localResourceDirectory
 	 * 		the directory that localResource are uploaded to
 	 * @param tempFolder
@@ -161,13 +156,9 @@ public class YarnFileStageTest extends TestLogger {
 	 */
 	static void testCopyFromLocalRecursive(
 			FileSystem targetFileSystem,
-			Path targetDir,
 			String localResourceDirectory,
 			TemporaryFolder tempFolder,
 			boolean addSchemeToLocalPath) throws Exception {
-
-		// directory must not yet exist
-		assertFalse(targetFileSystem.exists(targetDir));
 
 		final File srcDir = tempFolder.newFolder();
 		final Path srcPath;
@@ -189,14 +180,19 @@ public class YarnFileStageTest extends TestLogger {
 		generateFilesInDirectory(srcDir, srcFiles);
 
 		// copy the created directory recursively:
+		final List<Path> remotePaths = new ArrayList<>();
+		final HashMap<String, LocalResource> localResources = new HashMap<>();
+		final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
+		final Path yarnFilesDir = Utils.getYarnFilesDir(targetFileSystem, applicationId);
+
+		// directory must not yet exist
+		assertFalse(targetFileSystem.exists(yarnFilesDir));
+
 		try {
-			final List<Path> remotePaths = new ArrayList<>();
-			final HashMap<String, LocalResource> localResources = new HashMap<>();
 			final List<String> classpath = YarnClusterDescriptor.uploadAndRegisterFiles(
 				Collections.singletonList(new File(srcPath.toUri().getPath())),
 				targetFileSystem,
-				targetDir,
-				ApplicationId.newInstance(0, 0),
+				applicationId,
 				remotePaths,
 				localResources,
 				localResourceDirectory,
@@ -224,14 +220,13 @@ public class YarnFileStageTest extends TestLogger {
 
 		} finally {
 			// clean up
-			targetFileSystem.delete(targetDir, true);
+			targetFileSystem.delete(yarnFilesDir, true);
 		}
 	}
 
 	/**
 	 * Verifies a single file is properly uploaded.
 	 * @param targetFileSystem file system of the target path
-	 * @param targetDir target path (URI like <tt>hdfs://...</tt>)
 	 * @param localResourceDirectory the directory that localResource are uploaded to
 	 * @param temporaryFolder JUnit temporary folder rule to create the source directory with
 	 * @throws IOException if error occurs when accessing the file system
@@ -239,7 +234,6 @@ public class YarnFileStageTest extends TestLogger {
 	 */
 	private static void testCopySingleFileFromLocal(
 		FileSystem targetFileSystem,
-		Path targetDir,
 		String localResourceDirectory,
 		TemporaryFolder temporaryFolder) throws IOException, InterruptedException, URISyntaxException {
 
@@ -252,14 +246,16 @@ public class YarnFileStageTest extends TestLogger {
 		srcFiles.put(localFile, localFileContent);
 
 		generateFilesInDirectory(srcDir, srcFiles);
+
+		final List<Path> remotePaths = new ArrayList<>();
+		final HashMap<String, LocalResource> localResources = new HashMap<>();
+		final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
+
 		try {
-			final List<Path> remotePaths = new ArrayList<>();
-			final HashMap<String, LocalResource> localResources = new HashMap<>();
 			final List<String> classpath = YarnClusterDescriptor.uploadAndRegisterFiles(
 				Collections.singletonList(new File(srcDir, localFile)),
 				targetFileSystem,
-				targetDir,
-				ApplicationId.newInstance(0, 0),
+				applicationId,
 				remotePaths,
 				localResources,
 				localResourceDirectory,
@@ -272,7 +268,7 @@ public class YarnFileStageTest extends TestLogger {
 				localResources.get(new Path(localResourceDirectory, localFile).toString()).getResource()).getParent();
 			verifyDirectoryRecursive(targetFileSystem, workDir, srcFiles);
 		} finally {
-			targetFileSystem.delete(targetDir, true);
+			targetFileSystem.delete(Utils.getYarnFilesDir(targetFileSystem, applicationId), true);
 		}
 	}
 
