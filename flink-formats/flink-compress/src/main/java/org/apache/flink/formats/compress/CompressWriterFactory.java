@@ -26,6 +26,7 @@ import org.apache.flink.formats.compress.writers.HadoopCompressionBulkWriter;
 import org.apache.flink.formats.compress.writers.NoCompressionBulkWriter;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
@@ -41,7 +42,8 @@ import java.io.IOException;
 public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 
 	private Extractor<IN> extractor;
-	private CompressionCodec hadoopCodec;
+	private String hadoopCodecName;
+	private String hadoopCodecExtension;
 
 	public CompressWriterFactory(Extractor<IN> extractor) {
 		this.extractor = Preconditions.checkNotNull(extractor, "extractor cannot be null");
@@ -56,15 +58,16 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 	}
 
 	public CompressWriterFactory<IN> withHadoopCompression(CompressionCodec hadoopCodec) {
-		this.hadoopCodec = Preconditions.checkNotNull(hadoopCodec, "hadoopCodec cannot be null");
+		this.hadoopCodecName = Preconditions.checkNotNull(hadoopCodec, "hadoopCodec cannot be null").getClass().getSimpleName();
+		this.hadoopCodecExtension = hadoopCodec.getDefaultExtension();
 		return this;
 	}
 
 	@Override
 	public BulkWriter<IN> create(FSDataOutputStream out) throws IOException {
 		try {
-			return (hadoopCodec != null)
-				? new HadoopCompressionBulkWriter<>(out, extractor, hadoopCodec)
+			return (hadoopCodecName != null)
+				? new HadoopCompressionBulkWriter<>(out, extractor, new CompressionCodecFactory(new Configuration()).getCodecByName(hadoopCodecName))
 				: new NoCompressionBulkWriter<>(out, extractor);
 		} catch (Exception e) {
 			throw new IOException(e.getLocalizedMessage(), e);
@@ -72,9 +75,7 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 	}
 
 	public String codecExtension() {
-		return (hadoopCodec != null)
-			? hadoopCodec.getDefaultExtension()
-			: "";
+		return ObjectUtils.defaultIfNull(hadoopCodecExtension, "");
 	}
 
 }
