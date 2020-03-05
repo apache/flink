@@ -53,6 +53,8 @@ print_system_info() {
 
 print_system_info
 
+# enable core dumps
+sudo ulimit -c unlimited
 
 STAGE=$1
 echo "Current stage: \"$STAGE\""

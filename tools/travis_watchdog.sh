@@ -177,6 +177,14 @@ print_stacktraces () {
 	done
 }
 
+collect_coredumps() {
+	echo "Searching for .dump, .dumpstream and related files in $($HERE/../)"
+	for file in `find . -type f -regextype posix-extended -iregex '.*\.dump|.*\.dumpstream|.*hs.*\.log|.*/core(.[0-9]+)?$'`; do
+		echo "Copying $file to artifacts"
+		cp $file $ARTIFACTS_DIR/
+	done
+}
+
 # locate YARN logs and put them into artifacts directory
 put_yarn_logs_to_artifacts() {
 	# Make sure to be in project root
@@ -278,6 +286,8 @@ case $TEST in
 		put_yarn_logs_to_artifacts
 	;;
 esac
+
+collect_coredumps
 
 upload_artifacts_s3
 
