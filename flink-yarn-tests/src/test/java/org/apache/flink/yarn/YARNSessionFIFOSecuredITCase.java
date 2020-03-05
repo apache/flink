@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.contexts.HadoopSecurityContext;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -88,6 +89,10 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		try {
 			TestingSecurityContext.install(securityConfig, SecureTestEnvironment.getClientSecurityConfigurationMap());
 
+			// This is needed to ensure that SecurityUtils are run within a ugi.doAs section
+			// Since we already logged in here in @BeforeClass, even a no-op security context will still work.
+			Assert.assertTrue("HadoopSecurityContext must be installed",
+				SecurityUtils.getInstalledContext() instanceof HadoopSecurityContext);
 			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
 				@Override
 				public Integer call() {

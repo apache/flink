@@ -16,23 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.contexts;
+package org.apache.flink.runtime.security;
 
-import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityContextInitializeException;
+import java.security.GeneralSecurityException;
 
 /**
- * Default security context factory for {@link NoOpSecurityContext}.
+ * Indicates a problem with installing or uninstalling a security module or context.
  */
-public class NoOpSecurityContextFactory implements SecurityContextFactory {
+public class SecurityContextInitializeException extends GeneralSecurityException {
+	private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
-		return true;
+	public SecurityContextInitializeException(String msg) {
+		super(msg);
 	}
 
-	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
-		return new NoOpSecurityContext();
+	public SecurityContextInitializeException(String msg, Throwable cause) {
+		super(msg, cause);
 	}
 }

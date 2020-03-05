@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.contexts;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityContextInitializeException;
 
 /**
  * A factory for a {@link SecurityContext}.
@@ -47,5 +48,5 @@ public interface SecurityContextFactory {
 	 * @param securityConfig security configuration used to create context.
 	 * @return the security context object.
 	 */
-	SecurityContext createContext(SecurityConfiguration securityConfig);
+	SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException;
 }
