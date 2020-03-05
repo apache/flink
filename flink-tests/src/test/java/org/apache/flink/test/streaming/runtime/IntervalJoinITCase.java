@@ -413,7 +413,7 @@ public class IntervalJoinITCase {
 	}
 
 	@Test
-	public void testRightEarlyEviction() throws Exception {
+	public void testRightSideCleanupOverwrite() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
@@ -489,8 +489,8 @@ public class IntervalJoinITCase {
 
 		public CombineToStringJoinFunction(long relativeEarlyRightEvictionBound, long expireMs) {
 			JoinParameters jp = new JoinParameters();
-			jp.relativeEarlyRightEvictionBound = relativeEarlyRightEvictionBound;
-			jp.expireMs = expireMs;
+			jp.rightSideCleanupOverwrite = relativeEarlyRightEvictionBound;
+			jp.cacheExpireAfterAccessMs = expireMs;
 			this.joinParameters = jp;
 		}
 

@@ -44,19 +44,29 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 	/**
 	 * Parameters used {@code IntervalJoinOperator} to optimize joiner performance.
 	 */
-	public class JoinParameters implements Serializable {
+	public static class JoinParameters implements Serializable {
 		/**
-		 * how early IntervalJoinOperator can intervaljoin evict records from {@link IN2}.
+		 * {@code IntervalJoinOperator} cleanup records from {@link IN2} at timestamp + rightSideCleanupOverwrite time.
 		 */
-		public long relativeEarlyRightEvictionBound = Long.MAX_VALUE;
+		public long rightSideCleanupOverwrite;
 		/**
-		 * size of one side cache used in intervaljoinoperator.
+		 * size of one side cache used in {@code IntervalJoinOperator}. Default is 1000 keys.
 		 */
-		public long cacheSize = 1000L;
+		public long maxCachedKeyedBufferSize;
 		/**
-		 *  expiration time after cache last time read.
+		 *  expiration time after cache last time access.
 		 */
-		public long expireMs = Long.MAX_VALUE;
+		public long cacheExpireAfterAccessMs;
+
+		public JoinParameters() {
+			this(Long.MAX_VALUE, 1000L, Long.MAX_VALUE);
+		}
+
+		public JoinParameters(long rightSideCleanupOverwrite, long maxCachedKeyedBufferSize, long cacheExpireAfterAccessMs) {
+			this.rightSideCleanupOverwrite = rightSideCleanupOverwrite;
+			this.maxCachedKeyedBufferSize = maxCachedKeyedBufferSize;
+			this.cacheExpireAfterAccessMs = cacheExpireAfterAccessMs;
+		}
 	}
 
 	protected JoinParameters joinParameters = new JoinParameters();

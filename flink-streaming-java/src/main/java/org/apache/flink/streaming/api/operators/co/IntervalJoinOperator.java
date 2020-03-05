@@ -153,10 +153,10 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
 
-		Preconditions.checkArgument(udf.getJoinParameters().cacheSize > 0,
+		Preconditions.checkArgument(udf.getJoinParameters().maxCachedKeyedBufferSize > 0,
 			"cache size should be a positive number");
 
-		Preconditions.checkArgument(udf.getJoinParameters().expireMs > 0,
+		Preconditions.checkArgument(udf.getJoinParameters().cacheExpireAfterAccessMs > 0,
 			"cache expiration time should be a positive number");
 
 		// Move buffer by +1 / -1 depending on inclusiveness in order not needing
@@ -178,8 +178,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		internalTimerService =
 			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
 		otherSideCache = CacheBuilder.newBuilder()
-			.maximumSize(joinParameters.cacheSize)
-			.expireAfterAccess(joinParameters.expireMs, TimeUnit.MILLISECONDS)
+			.maximumSize(joinParameters.maxCachedKeyedBufferSize)
+			.expireAfterAccess(joinParameters.cacheExpireAfterAccessMs, TimeUnit.MILLISECONDS)
 			.concurrencyLevel(1)
 			.build();
 	}
@@ -257,14 +257,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
-		/**
-		 * invalidate cache when
-		 * first time process this key
-		 * process element from other direction
-		 * cache get evicted or invalidated or expired
-		 */
-		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft
-			|| otherSideCache.getIfPresent(getCurrentKey()) == null) {
+		// process element from other direction
+		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft) {
 			otherSideCache.invalidate(getCurrentKey());
 		}
 
@@ -287,10 +281,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			}
 		});
 
-		Preconditions.checkNotNull(otherSideCache.getIfPresent(getCurrentKey()),
-			"cache should not be empty");
-		Preconditions.checkArgument(isLeft == isInsertFromLeft.value(),
-			"cache should be other side of buffer");
+		Preconditions.checkArgument(relativeLowerBound < relativeUpperBound + 1,
+			"interval lookup range is not valid");
 
 		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket: buckets.subMap(
 				ourTimestamp + relativeLowerBound, ourTimestamp + relativeUpperBound + 1).entrySet()) {
@@ -314,9 +306,9 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		if (isLeft) {
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
 		} else {
-			// overwrite evict right side buffer to improve performance
-			if (joinParameters.relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
-				cleanupTime = ourTimestamp + joinParameters.relativeEarlyRightEvictionBound;
+			// overwrite retention of right side buffer to improve performance
+			if (joinParameters.rightSideCleanupOverwrite != Long.MAX_VALUE) {
+				cleanupTime = ourTimestamp + joinParameters.rightSideCleanupOverwrite;
 			}
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
 		}
@@ -374,9 +366,9 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				long timestamp = (lowerBound <= 0L) ? timerTimestamp + lowerBound : timerTimestamp;
 				logger.trace("Removing from right buffer @ {}", timestamp);
 
-				// restore bucket timestamp if {@code relativeEarlyRightEvictionBound} applied
-				if (joinParameters.relativeEarlyRightEvictionBound != Long.MAX_VALUE) {
-					timestamp = timerTimestamp - joinParameters.relativeEarlyRightEvictionBound;
+				// restore bucket timestamp if {@code rightSideRetentionOverwrite} applied
+				if (joinParameters.rightSideCleanupOverwrite != Long.MAX_VALUE) {
+					timestamp = timerTimestamp - joinParameters.rightSideCleanupOverwrite;
 				}
 				rightBuffer.remove(timestamp);
 

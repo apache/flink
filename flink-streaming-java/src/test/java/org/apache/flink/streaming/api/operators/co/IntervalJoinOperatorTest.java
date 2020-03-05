@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
+import java.util.SortedMap;
 import java.util.stream.Collectors;
 
 
@@ -80,7 +81,7 @@ public class IntervalJoinOperatorTest {
 		boolean lowerBoundInclusive = true;
 		boolean upperBoundInclusive = false;
 
-		setupHarness(lowerBound, lowerBoundInclusive, upperBound, upperBoundInclusive)
+		setupHarness(lowerBound, lowerBoundInclusive, upperBound, upperBoundInclusive, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(1, 2),
@@ -91,7 +92,7 @@ public class IntervalJoinOperatorTest {
 			.noLateRecords()
 			.close();
 
-		setupHarness(-1 * upperBound, upperBoundInclusive, -1 * lowerBound, lowerBoundInclusive)
+		setupHarness(-1 * upperBound, upperBoundInclusive, -1 * lowerBound, lowerBoundInclusive, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(2, 1),
@@ -106,7 +107,7 @@ public class IntervalJoinOperatorTest {
 	@Test // lhs - 2 <= rhs <= rhs + 2
 	public void testNegativeInclusiveAndNegativeInclusive() throws Exception {
 
-		setupHarness(-2, true, -1, true)
+		setupHarness(-2, true, -1, true, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(2, 1),
@@ -122,7 +123,7 @@ public class IntervalJoinOperatorTest {
 	@Test // lhs - 1 <= rhs <= rhs + 1
 	public void testNegativeInclusiveAndPositiveInclusive() throws Exception {
 
-		setupHarness(-1, true, 1, true)
+		setupHarness(-1, true, 1, true, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(1, 1),
@@ -143,7 +144,7 @@ public class IntervalJoinOperatorTest {
 	@Test // lhs + 1 <= rhs <= lhs + 2
 	public void testPositiveInclusiveAndPositiveInclusive() throws Exception {
 
-		setupHarness(1, true, 2, true)
+		setupHarness(1, true, 2, true, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(1, 2),
@@ -159,7 +160,7 @@ public class IntervalJoinOperatorTest {
 	@Test
 	public void testNegativeExclusiveAndNegativeExlusive() throws Exception {
 
-		setupHarness(-3, false, -1, false)
+		setupHarness(-3, false, -1, false, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(3, 1),
@@ -172,7 +173,7 @@ public class IntervalJoinOperatorTest {
 	@Test
 	public void testNegativeExclusiveAndPositiveExlusive() throws Exception {
 
-		setupHarness(-1, false, 1, false)
+		setupHarness(-1, false, 1, false, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(1, 1),
@@ -187,7 +188,7 @@ public class IntervalJoinOperatorTest {
 	@Test
 	public void testPositiveExclusiveAndPositiveExlusive() throws Exception {
 
-		setupHarness(1, false, 3, false)
+		setupHarness(1, false, 3, false, new PassthroughFunction.JoinParameters())
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
 				streamRecordOf(1, 3),
@@ -200,7 +201,7 @@ public class IntervalJoinOperatorTest {
 	@Test
 	public void testStateCleanupNegativeInclusiveNegativeInclusive() throws Exception {
 
-		setupHarness(-1, true, 0, true)
+		setupHarness(-1, true, 0, true, new PassthroughFunction.JoinParameters())
 			.processElement1(1)
 			.processElement1(2)
 			.processElement1(3)
@@ -236,7 +237,7 @@ public class IntervalJoinOperatorTest {
 
 	@Test
 	public void testStateCleanupNegativePositiveNegativeExlusive() throws Exception {
-		setupHarness(-2, false, 1, false)
+		setupHarness(-2, false, 1, false, new PassthroughFunction.JoinParameters())
 			.processElement1(1)
 			.processElement1(2)
 			.processElement1(3)
@@ -272,7 +273,7 @@ public class IntervalJoinOperatorTest {
 
 	@Test
 	public void testStateCleanupPositiveInclusivePositiveInclusive() throws Exception {
-		setupHarness(0, true, 1, true)
+		setupHarness(0, true, 1, true, new PassthroughFunction.JoinParameters())
 			.processElement1(1)
 			.processElement1(2)
 			.processElement1(3)
@@ -308,7 +309,7 @@ public class IntervalJoinOperatorTest {
 
 	@Test
 	public void testStateCleanupPositiveExlusivePositiveExclusive() throws Exception {
-		setupHarness(-1, false, 2, false)
+		setupHarness(-1, false, 2, false, new PassthroughFunction.JoinParameters())
 			.processElement1(1)
 			.processElement1(2)
 			.processElement1(3)
@@ -338,6 +339,89 @@ public class IntervalJoinOperatorTest {
 
 			.assertLeftBufferEmpty()
 			.assertRightBufferEmpty()
+
+			.close();
+	}
+
+	@Test
+	public void testOneSideCacheFlipSides() throws Exception {
+		setupHarness(0, true, 0, true,
+			new PassthroughFunction.JoinParameters(Long.MAX_VALUE, 1, 1000))
+			.processElement2(1)
+
+			.assertOneSideCacheContainsOnly() // empty other side buffer
+
+			.processElement1(2)
+
+			.assertOneSideCacheContainsOnly(1) // cache right side buffer
+
+			.processElement2(3)
+
+			.assertOneSideCacheContainsOnly(2) // cache left side buffer
+
+			.assertLeftBufferContainsOnly(2)
+			.assertRightBufferContainsOnly(1, 3)
+
+			.processWatermark1(2)
+			.assertLeftBufferContainsOnly(2)
+			.assertOneSideCacheContainsOnly(2) // wait for low watermark
+
+			.processWatermark2(2)
+			.assertLeftBufferContainsOnly()
+			.assertOneSideCacheContainsOnly() // cache is synced with left buffer
+
+			.processWatermark1(3)
+			.processWatermark2(3)
+
+			.assertLeftBufferContainsOnly()
+			.assertRightBufferContainsOnly()
+			.assertOneSideCacheContainsOnly()
+
+			.close();
+	}
+
+	@Test
+	public void testRightSideCleanupOverwrite() throws Exception {
+		setupHarness(-1, false, 2, false,
+			new PassthroughFunction.JoinParameters(-1, 1, 1000))
+			.processElement2(1)
+			.processElement2(2)
+			.processElement2(3)
+			.processElement2(4)
+			.processElement2(5) // fill both buffers with values
+
+			.assertOneSideCacheContainsOnly()
+
+			.processElement1(1)
+
+			.assertRightBufferContainsOnly(1, 2, 3, 4, 5)
+			.assertOneSideCacheContainsOnly(1, 2, 3, 4, 5) // same as right buffer
+
+			.processWatermark1(1)
+			.processWatermark2(1) // set common watermark to 1 and check that data is cleaned
+
+			.processElement1(2)
+			.processElement1(3)
+			.processElement1(4)
+			.processElement1(5)
+
+			.assertLeftBufferContainsOnly(1, 2, 3, 4, 5)
+			.assertRightBufferContainsOnly(3, 4, 5)
+			.assertOneSideCacheContainsOnly(3, 4, 5) // same as other side buffer after early cleanup
+
+			.processWatermark1(4) // set common watermark to 4 and check that data is cleaned
+			.processWatermark2(4)
+
+			.assertLeftBufferContainsOnly(4, 5)
+			.assertRightBufferContainsOnly()
+			.assertOneSideCacheContainsOnly() // watermark doesn't flip cache side
+
+			.processWatermark1(6) // set common watermark to 6 and check that data all buffers are empty
+			.processWatermark2(6)
+
+			.assertLeftBufferEmpty()
+			.assertRightBufferEmpty()
+			.assertOneSideCacheContainsOnly()
 
 			.close();
 	}
@@ -571,7 +655,7 @@ public class IntervalJoinOperatorTest {
 
 	@Test
 	public void testDiscardsLateData() throws Exception {
-		setupHarness(-1, true, 1, true)
+		setupHarness(-1, true, 1, true, new PassthroughFunction.JoinParameters())
 			.processElement1(1)
 			.processElement2(1)
 			.processElement1(2)
@@ -611,6 +695,16 @@ public class IntervalJoinOperatorTest {
 	private void assertEmpty(MapState<Long, ?> state) throws Exception {
 		boolean stateIsEmpty = Iterables.size(state.keys()) == 0;
 		Assert.assertTrue("state not empty", stateIsEmpty);
+	}
+
+	private void assertContainsOnly(SortedMap<Long, ?> cache, long... ts) throws Exception {
+		for (long t : ts) {
+			String message = "Keys not found in cache. \n Expected: " + Arrays.toString(ts) + "\n Actual:   " + cache.keySet();
+			Assert.assertTrue(message, cache.keySet().contains(t));
+		}
+
+		String message = "Too many objects in state. \n Expected: " + Arrays.toString(ts) + "\n Actual:   " + cache.keySet();
+		Assert.assertEquals(message, ts.length, Iterables.size(cache.keySet()));
 	}
 
 	private void assertContainsOnly(MapState<Long, ?> state, long... ts) throws Exception {
@@ -672,7 +766,8 @@ public class IntervalJoinOperatorTest {
 	private JoinTestBuilder setupHarness(long lowerBound,
 		boolean lowerBoundInclusive,
 		long upperBound,
-		boolean upperBoundInclusive) throws Exception {
+		boolean upperBoundInclusive,
+		ProcessJoinFunction.JoinParameters params) throws Exception {
 
 		IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator =
 			new IntervalJoinOperator<>(
@@ -682,7 +777,7 @@ public class IntervalJoinOperatorTest {
 				upperBoundInclusive,
 				TestElem.serializer(),
 				TestElem.serializer(),
-				new PassthroughFunction()
+				new PassthroughFunction(params)
 			);
 
 		TestHarness t = new TestHarness(
@@ -781,6 +876,15 @@ public class IntervalJoinOperatorTest {
 			return this;
 		}
 
+		public JoinTestBuilder assertOneSideCacheContainsOnly(long... timestamps) {
+			try {
+				assertContainsOnly(operator.getOtherSideCache().getIfPresent(operator.getCurrentKey()), timestamps);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			return this;
+		}
+
 		public JoinTestBuilder assertRightBufferContainsOnly(long... timestamps) {
 
 			try {
@@ -820,6 +924,14 @@ public class IntervalJoinOperatorTest {
 	}
 
 	private static class PassthroughFunction extends ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>> {
+
+		public PassthroughFunction() {
+			super();
+		}
+
+		public PassthroughFunction(JoinParameters parameters) {
+			this.joinParameters = parameters;
+		}
 
 		@Override
 		public void processElement(
