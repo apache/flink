@@ -34,6 +34,7 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.AggregateQueryOperation;
@@ -317,7 +318,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			final TableSqlFunction sqlFunction = new TableSqlFunction(
 				calculatedTable.getFunctionIdentifier().orElse(null),
-				tableFunction.toString(),
+				calculatedTable.getFunctionIdentifier().map(FunctionIdentifier::toString).orElse(tableFunction.toString()),
 				tableFunction,
 				resultType,
 				typeFactory,
@@ -521,7 +522,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 						tableSchema.getFieldNames(),
 						fieldIndices,
 						scala.Option.empty());
-			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
+			DataStreamTable<?> dataStreamTable = new DataStreamTable(
 				relBuilder.getRelOptSchema(),
 				names,
 				rowType,

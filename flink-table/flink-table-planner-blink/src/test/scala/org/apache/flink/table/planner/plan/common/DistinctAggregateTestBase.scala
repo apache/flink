@@ -33,6 +33,7 @@ abstract class DistinctAggregateTestBase extends TableTestBase {
     util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, String, String)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
   }
+
   @Test
   def testSingleDistinctAgg(): Unit = {
     util.verifyPlan("SELECT COUNT(DISTINCT a) FROM MyTable")

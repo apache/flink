@@ -68,7 +68,7 @@ class AggregateStringExpressionTest extends TableTestBase {
     )
     val t2 = t.select("myCnt.distinct(a) as aCnt, myWeightedAvg.distinct(b, a) as wAvg")
 
-    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t2, (myCnt.functionIdentifier(), "myCnt"))
   }
 
   @Test
@@ -90,7 +90,7 @@ class AggregateStringExpressionTest extends TableTestBase {
       .select("b, myCnt.distinct(a) + 9 as aCnt, myWeightedAvg.distinct(b, a) * 2 as wAvg, " +
         "myWeightedAvg.distinct(a, a) as distAgg, myWeightedAvg(a, a) as agg")
 
-    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t2, (myCnt.functionIdentifier(), "myCnt"))
   }
 
   @Test
@@ -209,7 +209,7 @@ class AggregateStringExpressionTest extends TableTestBase {
       .aggregate("testAgg(a)")
       .select("b, f0, f1")
 
-    verifyTableEquals(resScala, resJava)
+    verifyTableEquals(resScala, resJava, (testAgg.functionIdentifier(), "testAgg"))
   }
 
   @Test
@@ -232,7 +232,7 @@ class AggregateStringExpressionTest extends TableTestBase {
       .aggregate("testAgg(a) as (x, y, z)")
       .select("b, x, y")
 
-    verifyTableEquals(resScala, resJava)
+    verifyTableEquals(resScala, resJava, (testAgg.functionIdentifier(), "testAgg"))
   }
 }
 

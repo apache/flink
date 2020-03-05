@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], x=[AS($1.f0, _UTF-16LE'x')], y=[AS($1.f1, _UTF-16LE'y')])
-+- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
++- LogicalAggregate(group=[{1}], TMP_0=[org$apache$flink$table$planner$utils$CountMinMax$($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS x, TMP_0.f1 AS y])
-+- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
++- GroupAggregate(groupBy=[b], select=[b, org$apache$flink$table$planner$utils$CountMinMax$(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -158,14 +158,14 @@ Calc(select=[4 AS four, EXPR$0])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')])
-+- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
++- LogicalAggregate(group=[{1}], TMP_0=[org$apache$flink$table$planner$utils$CountMinMax$($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1])
-+- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
++- GroupAggregate(groupBy=[b], select=[b, org$apache$flink$table$planner$utils$CountMinMax$(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -213,7 +213,7 @@ Calc(select=[CAST(2) AS b, EXPR$0])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
-+- LogicalAggregate(group=[{1}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT $0, $2)], EXPR$1=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6($0, $2)])
++- LogicalAggregate(group=[{1}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$(DISTINCT $0, $2)], EXPR$1=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$($0, $2)])
    +- LogicalProject(a=[$0], c=[$2], b0=[CAST($1):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -221,7 +221,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
-+- GroupAggregate(groupBy=[c], select=[c, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT a, b0) AS EXPR$0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(a, b0) AS EXPR$1])
++- GroupAggregate(groupBy=[c], select=[c, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$(DISTINCT a, b0) AS EXPR$0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$(a, b0) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, CAST(b) AS b0])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -265,14 +265,14 @@ GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], 
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')], f2=[AS($1.f2, _UTF-16LE'f2')])
-+- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
++- LogicalAggregate(group=[{1}], TMP_0=[org$apache$flink$table$planner$utils$CountMinMax$($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1, TMP_0.f2 AS f2])
-+- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
++- GroupAggregate(groupBy=[b], select=[b, org$apache$flink$table$planner$utils$CountMinMax$(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

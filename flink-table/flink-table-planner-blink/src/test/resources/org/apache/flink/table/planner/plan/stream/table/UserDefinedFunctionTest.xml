@@ -1,0 +1,132 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregateFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], b3=[$4], b4=[$2], b5=[$3])
++- LogicalAggregate(group=[{1, 2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$VarSumAggFunction$($0)], EXPR$1=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$VarSum3AggFunction$bb4f76c1aef7fc6ac84fe19c7b5dd509($0)], EXPR$2=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$VarSum3AggFunction$dcf8990d5866692f29d0b683b46434e2($0)])
+   +- LogicalProject(b=[$0], a1=[$1], a2=[$2])
+      +- LogicalAggregate(group=[{1}], EXPR$0=[var_sum($0)], EXPR$1=[var_sum3($0)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, a2, EXPR$0 AS b1, EXPR$1 AS b2, EXPR$2 AS b3, EXPR$0 AS b4, EXPR$1 AS b5])
++- GroupAggregate(groupBy=[EXPR$0, EXPR$1], select=[EXPR$0, EXPR$1, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$VarSumAggFunction$_RETRACT(b) AS EXPR$0_0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$VarSum3AggFunction$bb4f76c1aef7fc6ac84fe19c7b5dd509_RETRACT(b) AS EXPR$1_0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$VarSum3AggFunction$dcf8990d5866692f29d0b683b46434e2_RETRACT(b) AS EXPR$2])
+   +- Exchange(distribution=[hash[EXPR$0, EXPR$1]])
+      +- GroupAggregate(groupBy=[b], select=[b, var_sum(a) AS EXPR$0, var_sum3(a) AS EXPR$1])
+         +- Exchange(distribution=[hash[b]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableAggregateFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a9=[AS($0, _UTF-16LE'a9')], a10=[AS($1, _UTF-16LE'a10')])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$TableAggFunc$b15aee58756f6f9aa7728f376b23cee0($0)]])
+   +- LogicalProject(a7=[AS($0, _UTF-16LE'a7')])
+      +- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$TableAggFunc$772e569e7107f6b96a9f3adc2895e159($0)]])
+         +- LogicalProject(a6=[AS($1, _UTF-16LE'a6')])
+            +- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$EmptyTableAggFunc$($0)]])
+               +- LogicalProject(a3=[AS($0, _UTF-16LE'a3')])
+                  +- LogicalTableAggregate(group=[{}], tableAggregate=[[table_agg_func2($0)]])
+                     +- LogicalProject(a1=[AS($0, _UTF-16LE'a1')])
+                        +- LogicalTableAggregate(group=[{}], tableAggregate=[[table_agg_func1($0)]])
+                           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f0 AS a9, f1 AS a10])
++- GroupTableAggregate(select=[org$apache$flink$table$planner$utils$TableAggFunc$b15aee58756f6f9aa7728f376b23cee0_RETRACT(a7) AS (f0, f1)])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[f0 AS a7])
+         +- GroupTableAggregate(select=[org$apache$flink$table$planner$utils$TableAggFunc$772e569e7107f6b96a9f3adc2895e159_RETRACT(a6) AS (f0, f1)])
+            +- Exchange(distribution=[single])
+               +- Calc(select=[f1 AS a6])
+                  +- GroupTableAggregate(select=[org$apache$flink$table$planner$utils$EmptyTableAggFunc$_RETRACT(a3) AS (f0, f1)])
+                     +- Exchange(distribution=[single])
+                        +- Calc(select=[f0 AS a3])
+                           +- GroupTableAggregate(select=[table_agg_func2_RETRACT(a1) AS (f0, f1)])
+                              +- Exchange(distribution=[single])
+                                 +- Calc(select=[f0 AS a1])
+                                    +- GroupTableAggregate(select=[table_agg_func1(a) AS (f0, f1)])
+                                       +- Exchange(distribution=[single])
+                                          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testScalarFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], a1=[func0($0)], a2=[org$apache$flink$table$planner$expressions$utils$Func0$$($0)], c=[$2], c1=[func13($2)], c2=[org$apache$flink$table$planner$expressions$utils$Func13$01df217653a90abc858ffd9c7bcb0162($2)], c3=[org$apache$flink$table$planner$expressions$utils$Func13$e9978185a14d4c170e97de63d6c1f6b8($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, func0(a) AS a1, org$apache$flink$table$planner$expressions$utils$Func0$$(a) AS a2, c, func13(c) AS c1, org$apache$flink$table$planner$expressions$utils$Func13$01df217653a90abc858ffd9c7bcb0162(c) AS c2, org$apache$flink$table$planner$expressions$utils$Func13$e9978185a14d4c170e97de63d6c1f6b8(c) AS c3])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$0], i=[$1], k=[$2], j=[$3])
++- LogicalCorrelate(correlation=[$cor5], joinType=[inner], requiredColumns=[{}])
+   :- LogicalProject(c=[$0], i=[$2])
+   :  +- LogicalCorrelate(correlation=[$cor4], joinType=[inner], requiredColumns=[{}])
+   :     :- LogicalProject(c=[$0], h=[$2])
+   :     :  +- LogicalCorrelate(correlation=[$cor3], joinType=[inner], requiredColumns=[{}])
+   :     :     :- LogicalProject(c=[$0], f=[$2])
+   :     :     :  +- LogicalCorrelate(correlation=[$cor2], joinType=[inner], requiredColumns=[{}])
+   :     :     :     :- LogicalProject(c=[$0], e=[$2])
+   :     :     :     :  +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{}])
+   :     :     :     :     :- LogicalProject(c=[$2], d=[$3])
+   :     :     :     :     :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+   :     :     :     :     :     :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :     :     :     :     :     +- LogicalTableFunctionScan(invocation=[table_func1($2)], rowType=[RecordType(VARCHAR(2147483647) d)], elementType=[class [Ljava.lang.Object;])
+   :     :     :     :     +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$($1)], rowType=[RecordType(VARCHAR(2147483647) e)], elementType=[class [Ljava.lang.Object;])
+   :     :     :     +- LogicalTableFunctionScan(invocation=[table_func5($1)], rowType=[RecordType(VARCHAR(2147483647) f)], elementType=[class [Ljava.lang.Object;])
+   :     :     +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc5$c693457a0ee603ab3a7b5ddbb73042cf($1)], rowType=[RecordType(VARCHAR(2147483647) h)], elementType=[class [Ljava.lang.Object;])
+   :     +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc5$e0824bf457765a5e237b5e909b21aa2a($1)], rowType=[RecordType(VARCHAR(2147483647) i)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc2$($0)], rowType=[RecordType(VARCHAR(2147483647) k, INTEGER j)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$($0)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc2$(c))], select=[c,i,k,j], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) i, VARCHAR(2147483647) k, INTEGER j)], joinType=[INNER])
++- Calc(select=[c, i])
+   +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc5$e0824bf457765a5e237b5e909b21aa2a($1)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc5$e0824bf457765a5e237b5e909b21aa2a(h))], select=[c,h,i], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) h, VARCHAR(2147483647) i)], joinType=[INNER])
+      +- Calc(select=[c, h])
+         +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc5$c693457a0ee603ab3a7b5ddbb73042cf($1)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc5$c693457a0ee603ab3a7b5ddbb73042cf(f))], select=[c,f,h], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) f, VARCHAR(2147483647) h)], joinType=[INNER])
+            +- Calc(select=[c, f])
+               +- Correlate(invocation=[table_func5($1)], correlate=[table(table_func5(e))], select=[c,e,f], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) e, VARCHAR(2147483647) f)], joinType=[INNER])
+                  +- Calc(select=[c, e])
+                     +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$($1)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc1$(d))], select=[c,d,e], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) d, VARCHAR(2147483647) e)], joinType=[INNER])
+                        +- Calc(select=[c, d])
+                           +- Correlate(invocation=[table_func1($2)], correlate=[table(table_func1(c))], select=[a,b,c,d], rowType=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c, VARCHAR(2147483647) d)], joinType=[INNER])
+                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

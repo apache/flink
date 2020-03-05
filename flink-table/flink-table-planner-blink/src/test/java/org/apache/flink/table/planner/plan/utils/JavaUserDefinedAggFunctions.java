@@ -123,6 +123,41 @@ public class JavaUserDefinedAggFunctions {
 	}
 
 	/**
+	 * Only used for test.
+	 */
+	public static class VarSum3AggFunction extends AggregateFunction<Long, Long> {
+
+		private final long initValue;
+
+		public VarSum3AggFunction(long initValue) {
+			this.initValue = initValue;
+		}
+
+		@Override
+		public Long createAccumulator() {
+			return initValue;
+		}
+
+		public void accumulate(Long acc, Integer... args) {
+			for (Integer x : args) {
+				if (x != null) {
+					acc += x.longValue();
+				}
+			}
+		}
+
+		@Override
+		public Long getValue(Long accumulator) {
+			return accumulator;
+		}
+
+		@Override
+		public TypeInformation<Long> getResultType() {
+			return Types.LONG;
+		}
+	}
+
+	/**
 	 * Accumulator for WeightedAvg.
 	 */
 	public static class WeightedAvgAccum {

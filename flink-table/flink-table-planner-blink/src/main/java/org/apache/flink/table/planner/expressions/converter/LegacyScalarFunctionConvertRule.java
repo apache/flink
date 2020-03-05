@@ -42,8 +42,7 @@ public class LegacyScalarFunctionConvertRule implements CallExpressionConvertRul
 		FunctionDefinition def = call.getFunctionDefinition();
 		if (def instanceof ScalarFunctionDefinition) {
 			ScalarFunction scalaFunc = ((ScalarFunctionDefinition) def).getScalarFunction();
-			FunctionIdentifier identifier = call.getFunctionIdentifier()
-				.orElse(FunctionIdentifier.of(scalaFunc.functionIdentifier()));
+			FunctionIdentifier identifier = FunctionIdentifier.of(((ScalarFunctionDefinition) def).getName());
 			SqlFunction sqlFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
 				identifier,
 				scalaFunc.toString(),

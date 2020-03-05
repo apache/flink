@@ -154,7 +154,7 @@ trait ImplicitExpressionConversions {
       */
     def apply(params: Expression*): Expression = {
       unresolvedCall(
-        new ScalarFunctionDefinition(s.getClass.getName, s),
+        new ScalarFunctionDefinition(s.functionIdentifier(), s),
         params.map(ApiExpressionUtils.objectToExpression): _*)
     }
   }
@@ -168,7 +168,7 @@ trait ImplicitExpressionConversions {
       val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
         .getReturnTypeOfTableFunction(t, implicitly[TypeInformation[T]])
       unresolvedCall(
-        new TableFunctionDefinition(t.getClass.getName, t, resultTypeInfo),
+        new TableFunctionDefinition(t.functionIdentifier(), t, resultTypeInfo),
         params.map(ApiExpressionUtils.objectToExpression): _*)
     }
   }
@@ -186,10 +186,10 @@ trait ImplicitExpressionConversions {
       a match {
         case af: AggregateFunction[_, _] =>
           new AggregateFunctionDefinition(
-            af.getClass.getName, af, resultTypeInfo, accTypeInfo)
+            af.functionIdentifier(), af, resultTypeInfo, accTypeInfo)
         case taf: TableAggregateFunction[_, _] =>
           new TableAggregateFunctionDefinition(
-            taf.getClass.getName, taf, resultTypeInfo, accTypeInfo)
+            taf.functionIdentifier(), taf, resultTypeInfo, accTypeInfo)
       }
     }
 

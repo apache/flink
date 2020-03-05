@@ -34,7 +34,6 @@ class CorrelateTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc1
-    util.addFunction("func1", func)
 
     val result1 = table.joinLateral(func('c) as 's).select('c, 's)
 
@@ -46,7 +45,6 @@ class CorrelateTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc1
-    util.addFunction("func1", func)
 
     val result2 = table.joinLateral(func('c, "$") as 's).select('c, 's)
     util.verifyPlan(result2)
@@ -57,7 +55,6 @@ class CorrelateTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc1
-    util.addFunction("func1", func)
 
     val result = table.leftOuterJoinLateral(func('c) as 's).select('c, 's).where('s > "")
     util.verifyPlan(result)
@@ -68,7 +65,6 @@ class CorrelateTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc1
-    util.addFunction("func1", func)
 
     val result = table.leftOuterJoinLateral(func('c) as 's, true).select('c, 's)
     util.verifyPlan(result)
@@ -79,7 +75,6 @@ class CorrelateTest extends TableTestBase {
     val util = batchTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc0
-    util.addFunction("func1", func)
 
     val result = sourceTable.select('a, 'b, 'c)
       .joinLateral(func('c) as('d, 'e))
@@ -106,7 +101,6 @@ class CorrelateTest extends TableTestBase {
 
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc0
-    util.addFunction("func1", func)
 
     val result = sourceTable.select('a, 'b, 'c)
       .joinLateral(func('c) as('d, 'e))

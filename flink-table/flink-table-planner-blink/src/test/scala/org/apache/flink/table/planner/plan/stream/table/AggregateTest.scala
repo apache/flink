@@ -54,7 +54,7 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testGroupAggregate() = {
+  def testGroupAggregate(): Unit = {
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 

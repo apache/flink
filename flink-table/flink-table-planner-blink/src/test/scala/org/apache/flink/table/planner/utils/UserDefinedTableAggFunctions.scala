@@ -290,6 +290,31 @@ class EmptyTableAggFunc extends TableAggregateFunction[JTuple2[JInt, JInt], Top3
   def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {}
 }
 
+/**
+  * Test function for plan test.
+  */
+class TableAggFunc(initSmallest: Int)
+  extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
+
+  override def createAccumulator(): Top3Accum = {
+    val acc = new Top3Accum
+    acc.data = new util.HashMap[JInt, JInt]()
+    acc.size = 0
+    acc.smallest = initSmallest
+    acc
+  }
+
+  def accumulate(acc: Top3Accum, catagory: Timestamp, value: Timestamp): Unit = {}
+
+  def accumulate(acc: Top3Accum, category: Long, value: Timestamp): Unit = {}
+
+  def accumulate(acc: Top3Accum, category: Long, value: Int): Unit = {}
+
+  def accumulate(acc: Top3Accum, value: Int): Unit = {}
+
+  def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {}
+}
+
 class EmptyTableAggFuncWithIntResultType extends TableAggregateFunction[JInt, Top3Accum] {
 
   override def createAccumulator(): Top3Accum = new Top3Accum

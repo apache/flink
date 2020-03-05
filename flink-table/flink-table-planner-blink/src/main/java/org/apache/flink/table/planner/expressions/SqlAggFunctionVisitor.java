@@ -132,7 +132,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 			}
 			return new AggSqlFunction(
 				adjustedIdentifier,
-				aggFunc.toString(),
+				adjustedIdentifier.toString(),
 				aggFunc,
 				fromLegacyInfoToDataType(definition.getResultTypeInfo()),
 				fromLegacyInfoToDataType(definition.getAccumulatorTypeInfo()),
@@ -153,7 +153,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 			}
 			return new AggSqlFunction(
 				adjustedIdentifier,
-				aggFunc.toString(),
+				adjustedIdentifier.toString(),
 				aggFunc,
 				fromLegacyInfoToDataType(definition.getResultTypeInfo()),
 				fromLegacyInfoToDataType(definition.getAccumulatorTypeInfo()),

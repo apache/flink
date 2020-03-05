@@ -27,6 +27,9 @@ import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
@@ -102,9 +105,24 @@ final class CalculatedTableFactory {
 				aliases,
 				callExpression.getFunctionName());
 
+			final FunctionIdentifier functionIdentifier;
+			if (callExpression.getFunctionIdentifier().isPresent()) {
+				functionIdentifier = callExpression.getFunctionIdentifier().get();
+			} else if (functionDefinition instanceof TableFunctionDefinition) {
+				String name = ((TableFunctionDefinition) functionDefinition).getName();
+				functionIdentifier = FunctionIdentifier.of(name);
+			} else if (functionDefinition instanceof TableFunction) {
+				String identifier = ((TableFunction) functionDefinition).functionIdentifier();
+				functionIdentifier = FunctionIdentifier.of(identifier);
+			} else {
+				// does not check whether the function is a TableFunction here,
+				// it will be check later
+				functionIdentifier = null;
+			}
+
 			return new CalculatedQueryOperation(
 				functionDefinition,
-				callExpression.getFunctionIdentifier().orElse(null),
+				functionIdentifier,
 				parameters,
 				tableSchema);
 		}

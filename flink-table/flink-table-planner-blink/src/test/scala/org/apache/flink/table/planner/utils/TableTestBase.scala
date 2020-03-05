@@ -26,12 +26,12 @@ import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.api.bridge.java.internal.{StreamTableEnvironmentImpl => JavaStreamTableEnvImpl}
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
@@ -61,6 +61,7 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -69,8 +70,10 @@ import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
+
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
+import _root_.java.util.regex.Matcher
 import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
@@ -112,9 +115,21 @@ abstract class TableTestBase {
 
   def javaBatchTestUtil(): JavaBatchTableTestUtil = JavaBatchTableTestUtil(this)
 
-  def verifyTableEquals(expected: Table, actual: Table): Unit = {
-    val expectedString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(expected))
-    val actualString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(actual))
+  def verifyTableEquals(
+      expected: Table,
+      actual: Table,
+      replaceUdfNames: Tuple2[String, String]*): Unit = {
+    var expectedString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(expected))
+    var actualString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(actual))
+
+    replaceUdfNames.foreach {
+      case (originName, newName) =>
+        expectedString = expectedString.replaceAll(
+          Matcher.quoteReplacement(originName), Matcher.quoteReplacement(newName))
+        actualString = actualString.replaceAll(
+          Matcher.quoteReplacement(originName), Matcher.quoteReplacement(newName))
+    }
+
     assertEquals(
       "Logical plans do not match",
       LogicalPlanFormatUtils.formatTempTableId(expectedString),

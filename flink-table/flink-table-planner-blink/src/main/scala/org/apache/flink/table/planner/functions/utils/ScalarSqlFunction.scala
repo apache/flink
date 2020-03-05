@@ -66,7 +66,7 @@ class ScalarSqlFunction(
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 
-  override def toString: String = displayName
+  override def toString: String = identifier.toString
 }
 
 object ScalarSqlFunction {

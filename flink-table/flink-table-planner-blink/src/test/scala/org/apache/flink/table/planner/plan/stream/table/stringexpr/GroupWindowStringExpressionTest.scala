@@ -19,9 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
+import org.apache.flink.table.api.{Session, Slide, Tumble, _}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{CountAggFunction, TableTestBase}
 
@@ -65,7 +63,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         "start(w)," +
         "end(w)")
 
-    verifyTableEquals(resJava, resScala)
+    verifyTableEquals(resJava, resScala, (myCountFun.functionIdentifier(), "myCountFun"))
   }
 
   @Test
@@ -104,7 +102,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         "start(w)," +
         "end(w)")
 
-    verifyTableEquals(resJava, resScala)
+    verifyTableEquals(resJava, resScala, (myCountFun.functionIdentifier(), "myCountFun"))
   }
 
   @Test
@@ -142,7 +140,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         "start(w)"
       )
 
-    verifyTableEquals(resJava, resScala)
+    verifyTableEquals(resJava, resScala, (myCountFun.functionIdentifier(), "myCountFun"))
   }
   @Test
   def testProcTimeSlide(): Unit = {
@@ -178,7 +176,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         "start(w)," +
         "end(w)")
 
-    verifyTableEquals(resJava, resScala)
+    verifyTableEquals(resJava, resScala, (myCountFun.functionIdentifier(), "myCountFun"))
   }
 
   @Test
@@ -215,7 +213,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         "start(w)," +
         "end(w)")
 
-    verifyTableEquals(resJava, resScala)
+    verifyTableEquals(resJava, resScala, (myCountFun.functionIdentifier(), "myCountFun"))
   }
 
   @Test
@@ -253,6 +251,6 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         "end(w)"
       )
 
-    verifyTableEquals(resJava, resScala)
+    verifyTableEquals(resJava, resScala, (myCountFun.functionIdentifier(), "myCountFun"))
   }
 }

@@ -31,7 +31,7 @@ import org.junit.Test
   */
 class ColumnFunctionsTest extends TableTestBase {
 
-  val util = streamTestUtil()
+  private val util = streamTestUtil()
 
   @Test
   def testStar(): Unit = {
@@ -105,7 +105,6 @@ class ColumnFunctionsTest extends TableTestBase {
   def testJoinLateral(): Unit = {
     val t = util.addTableSource[(Double, Long, String)]('int, 'long, 'string)
     val func0 = new TableFunc0
-   util.addFunction("func0", func0)
 
     val tab1 = t.joinLateral(func0(withColumns('string)))
     util.verifyPlan(tab1)

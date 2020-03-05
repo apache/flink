@@ -35,7 +35,6 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val function = new TableFunc1
-    util.addFunction("func1", function)
 
     val result1 = table.joinLateral(function('c) as 's).select('c, 's)
     util.verifyPlan(result1)
@@ -47,7 +46,6 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val function = new TableFunc1
-    util.addFunction("func1", function)
     // test overloading
     val result2 = table.joinLateral(function('c, "$") as 's).select('c, 's)
     util.verifyPlan(result2)
@@ -58,7 +56,6 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc1
-    util.addFunction("func1", function)
 
     val result = table.leftOuterJoinLateral(function('c) as 's, true).select('c, 's)
     util.verifyPlan(result)
@@ -69,7 +66,6 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc2
-    util.addFunction("func2", function)
     val scalarFunc = new Func13("pre")
 
     val result = table.joinLateral(
@@ -83,7 +79,6 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new HierarchyTableFunction
-    util.addFunction("hierarchy", function)
 
     val result = table.joinLateral(function('c) as ('name, 'adult, 'len))
     util.verifyPlan(result)
@@ -94,7 +89,6 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new PojoTableFunc
-    util.addFunction("pojo", function)
 
     val result = table.joinLateral(function('c))
     util.verifyPlan(result)
@@ -105,7 +99,6 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc2
-    util.addFunction("func2", function)
 
     val result = table
       .joinLateral(function('c) as ('name, 'len))
@@ -119,7 +112,6 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc1
-    util.addFunction("func1", function)
 
     val result = table.joinLateral(function('c.substring(2)) as 's)
     util.verifyPlan(result)
@@ -130,7 +122,6 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc0
-    util.addFunction("func1", function)
 
     val result = sourceTable.select('a, 'b, 'c)
       .joinLateral(function('c) as('d, 'e))
@@ -157,7 +148,6 @@ class CorrelateTest extends TableTestBase {
 
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc0
-    util.addFunction("func1", function)
     val result = sourceTable.select('a, 'b, 'c)
       .joinLateral(function('c) as('d, 'e))
       .select('c, 'd, 'e)

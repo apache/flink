@@ -377,6 +377,22 @@ class TableFunc4 extends TableFunction[Row] {
 }
 
 @SerialVersionUID(1L)
+class TableFunc5(delimiter: String) extends TableFunction[String] {
+
+  def eval(str: String): Unit = {
+    if (str.contains(delimiter)) {
+      str.split(delimiter).foreach(collect)
+    }
+  }
+
+  def eval(str: String, prefix: String): Unit = {
+    if (str.contains(delimiter)) {
+      str.split(delimiter).foreach(s => collect(prefix + s))
+    }
+  }
+}
+
+@SerialVersionUID(1L)
 class TableFunc6 extends TableFunction[Row] {
   def eval(row: Row): Unit = {
     collect(row)

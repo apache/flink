@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.utils.{CountAggFunction, TableTestBase}
 
@@ -280,7 +279,7 @@ class AggregateStringExpressionTest extends TableTestBase {
     )
     val t2 = t.select("myCnt.distinct(a) as aCnt, myWeightedAvg.distinct(b, a) as wAvg")
 
-    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t2, (myCnt.functionIdentifier(), "myCnt"))
   }
 
   @Test
@@ -295,7 +294,7 @@ class AggregateStringExpressionTest extends TableTestBase {
     val t1 = t.select(myCnt('a) as 'aCnt, call("myWeightedAvg", 'b, 'a) as 'wAvg)
     val t2 = t.select("myCnt(a) as aCnt, myWeightedAvg(b, a) as wAvg")
 
-    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t2, (myCnt.functionIdentifier(), "myCnt"))
   }
 
   @Test
@@ -318,7 +317,7 @@ class AggregateStringExpressionTest extends TableTestBase {
       .select("b, myCnt.distinct(a) + 9 as aCnt, myWeightedAvg.distinct(b, a) * 2 as wAvg, " +
         "myWeightedAvg.distinct(a, a) as distAgg, myWeightedAvg(a, a) as agg")
 
-    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t2, (myCnt.functionIdentifier(), "myCnt"))
   }
 
   @Test
@@ -340,6 +339,6 @@ class AggregateStringExpressionTest extends TableTestBase {
     val t2 = t.groupBy("b")
       .select("b, myCnt(a) + 9 as aCnt, myWeightedAvg(b, a) * 2 as wAvg, myWeightedAvg(a, a)")
 
-    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t2, (myCnt.functionIdentifier(), "myCnt"))
   }
 }
