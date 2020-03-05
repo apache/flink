@@ -92,7 +92,6 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(
 				flinkConfig,
 				POD_NAME,
-				TOTAL_PROCESS_MEMORY,
 				DYNAMIC_PROPERTIES,
 				containeredTaskManagerParameters);
 	}
