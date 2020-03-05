@@ -50,11 +50,11 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 	}
 
 	public CompressWriterFactory<IN> withHadoopCompression(String hadoopCodecName) {
-		return withHadoopCompression(hadoopCodecName, new Configuration());
+		return withHadoopCompression(createCodec(hadoopCodecName));
 	}
 
 	public CompressWriterFactory<IN> withHadoopCompression(String hadoopCodecName, Configuration hadoopConfiguration) {
-		return withHadoopCompression(new CompressionCodecFactory(hadoopConfiguration).getCodecByName(hadoopCodecName));
+		return withHadoopCompression(createCodec(hadoopCodecName, hadoopConfiguration));
 	}
 
 	public CompressWriterFactory<IN> withHadoopCompression(CompressionCodec hadoopCodec) {
@@ -67,7 +67,7 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 	public BulkWriter<IN> create(FSDataOutputStream out) throws IOException {
 		try {
 			return (hadoopCodecName != null)
-				? new HadoopCompressionBulkWriter<>(out, extractor, new CompressionCodecFactory(new Configuration()).getCodecByName(hadoopCodecName))
+				? new HadoopCompressionBulkWriter<>(out, extractor, createCodec(hadoopCodecName))
 				: new NoCompressionBulkWriter<>(out, extractor);
 		} catch (Exception e) {
 			throw new IOException(e.getLocalizedMessage(), e);
@@ -78,4 +78,11 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 		return ObjectUtils.defaultIfNull(hadoopCodecExtension, "");
 	}
 
+	private CompressionCodec createCodec(String hadoopCodecName) {
+		return createCodec(hadoopCodecName, new Configuration());
+	}
+
+	private CompressionCodec createCodec(String hadoopCodecName, Configuration hadoopConfiguration) {
+		return new CompressionCodecFactory(hadoopConfiguration).getCodecByName(hadoopCodecName);
+	}
 }
