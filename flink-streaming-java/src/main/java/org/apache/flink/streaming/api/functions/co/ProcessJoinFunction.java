@@ -55,6 +55,7 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 		public long maxCachedKeyedBufferEntries;
 		/**
 		 *  expiration time after cache last time access, measured by low watermark advances.
+		 *  if set negative, event only do interval join and and skip future lookup from left stream
 		 */
 		public long expiresInNextNanoSeconds;
 

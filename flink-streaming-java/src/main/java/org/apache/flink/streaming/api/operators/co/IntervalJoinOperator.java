@@ -261,7 +261,10 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			return;
 		}
 
-		addToBuffer(ourBuffer, ourValue, ourTimestamp);
+		// if set to negative skip adding to right buffer
+		if (isLeft || joinParameters.rightSideCleanupOverwrite >= 0) {
+			addToBuffer(ourBuffer, ourValue, ourTimestamp);
+		}
 
 		// process element from other direction
 		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft) {
