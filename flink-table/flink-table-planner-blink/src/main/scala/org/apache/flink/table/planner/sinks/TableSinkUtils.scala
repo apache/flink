@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.sinks
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
@@ -27,17 +27,17 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.utils.RelOptUtils
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable}
+import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable, legacyRawToTypeInfoRaw}
 import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
-import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, RowType, TypeInformationRawType}
 import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.{fromLegacyInfoToDataType, fromLogicalToDataType}
 import org.apache.flink.table.utils.{TableSchemaUtils, TypeMappingUtils}
 import org.apache.flink.types.Row
-
 import org.apache.calcite.rel.RelNode
 
 import _root_.scala.collection.JavaConversions._
@@ -64,7 +64,7 @@ object TableSinkUtils {
     val queryLogicalType = FlinkTypeFactory.toLogicalRowType(query.getRowType)
     val sinkLogicalType = DataTypeUtils
       // we recognize legacy decimal is the same to default decimal
-      .transform(sinkSchema.toRowDataType, legacyDecimalToDefaultDecimal)
+      .transform(sinkSchema.toRowDataType, legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw)
       .getLogicalType
       .asInstanceOf[RowType]
     if (LogicalTypeCasts.supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
@@ -189,11 +189,45 @@ object TableSinkUtils {
       queryLogicalType,
       withChangeFlag)
     if (LogicalTypeChecks.isCompositeType(requestedOutputType.getLogicalType)) {
-      DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
+      // if the requested output type is POJO, then we should ignore the POJO fields order,
+      // and infer the sink schema via field names, see expandPojoTypeToSchema().
+      fromDataTypeToTypeInfo(requestedOutputType) match {
+        case pj: PojoTypeInfo[_] => expandPojoTypeToSchema(pj, queryLogicalType)
+        case _ => DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
+      }
     } else {
       // atomic type
       TableSchema.builder().field("f0", requestedOutputType).build()
     }
+  }
+
+  /**
+   * Expands a [[PojoTypeInfo]] to a corresponding [[TableSchema]].
+   * This is a special handling for [[PojoTypeInfo]], because fields of [[PojoTypeInfo]] is not
+   * in the defined order but the alphabet order. In order to match the query schema, we should
+   * reorder the Pojo schema.
+   */
+  private def expandPojoTypeToSchema(
+      pojo: PojoTypeInfo[_],
+      queryLogicalType: RowType): TableSchema = {
+    val fieldNames = queryLogicalType.getFieldNames
+    // reorder pojo fields according to the query schema
+    val reorderedFields = fieldNames.map(name => {
+      val index = pojo.getFieldIndex(name)
+      if (index < 0) {
+        throw new TableException(s"$name is not found in ${pojo.toString}")
+      }
+      val fieldTypeInfo = pojo.getPojoFieldAt(index).getTypeInformation
+      val fieldDataType = fieldTypeInfo match {
+        case nestedPojo: PojoTypeInfo[_] =>
+          val nestedLogicalType = queryLogicalType.getFields()(index).getType.asInstanceOf[RowType]
+          expandPojoTypeToSchema(nestedPojo, nestedLogicalType).toRowDataType
+        case _ =>
+          fromLegacyInfoToDataType(fieldTypeInfo)
+      }
+      DataTypes.FIELD(name, fieldDataType)
+    })
+    DataTypeUtils.expandCompositeTypeToSchema(DataTypes.ROW(reorderedFields: _*))
   }
 
   /**
@@ -209,45 +243,47 @@ object TableSinkUtils {
       consumedDataType: DataType,
       queryLogicalType: RowType,
       withChangeFlag: Boolean): DataType = {
-    consumedDataType.getLogicalType match {
-      case lt: LegacyTypeInformationType[_] =>
-        val requestedTypeInfo = if (withChangeFlag) {
-          lt.getTypeInformation match {
-            // Scala tuple
-            case t: CaseClassTypeInfo[_]
-              if t.getTypeClass == classOf[(_, _)] && t.getTypeAt(0) == Types.BOOLEAN =>
-              t.getTypeAt[Any](1)
-            // Java tuple
-            case t: TupleTypeInfo[_]
-              if t.getTypeClass == classOf[JTuple2[_, _]] && t.getTypeAt(0) == Types.BOOLEAN =>
-              t.getTypeAt[Any](1)
-            case _ => throw new TableException(
-              "Don't support " + consumedDataType + " conversion for the retract sink")
-          }
-        } else {
-          lt.getTypeInformation
-        }
-        // The tpe may been inferred by invoking [[TypeExtractor.createTypeInfo]] based the
-        // class of the resulting type. For example, converts the given [[Table]] into
-        // an append [[DataStream]]. If the class is Row, then the return type only is
-        // [[GenericTypeInfo[Row]]. So it should convert to the [[RowTypeInfo]] in order
-        // to better serialize performance.
-        requestedTypeInfo match {
-          case gt: GenericTypeInfo[Row] if gt.getTypeClass == classOf[Row] =>
-            fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
-          case gt: GenericTypeInfo[BaseRow] if gt.getTypeClass == classOf[BaseRow] =>
-            fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[BaseRow])
-          case bt: BaseRowTypeInfo =>
-            val fields = bt.getFieldNames.zip(bt.getLogicalTypes).map { case (n, t) =>
-              DataTypes.FIELD(n, fromLogicalToDataType(t))
-            }
-            DataTypes.ROW(fields: _*).bridgedTo(classOf[BaseRow])
-          case _ =>
-            fromLegacyInfoToDataType(requestedTypeInfo)
-        }
+    val consumedTypeInfo = consumedDataType.getLogicalType match {
+      case lt: LegacyTypeInformationType[_] => Some(lt.getTypeInformation)
+      case _ => None
+    }
+    if (consumedTypeInfo.isEmpty) {
+      return consumedDataType
+    }
 
+    val requestedTypeInfo = if (withChangeFlag) {
+      consumedTypeInfo.get match {
+        // Scala tuple
+        case t: CaseClassTypeInfo[_]
+          if t.getTypeClass == classOf[(_, _)] && t.getTypeAt(0) == Types.BOOLEAN =>
+          t.getTypeAt[Any](1)
+        // Java tuple
+        case t: TupleTypeInfo[_]
+          if t.getTypeClass == classOf[JTuple2[_, _]] && t.getTypeAt(0) == Types.BOOLEAN =>
+          t.getTypeAt[Any](1)
+        case _ => throw new TableException(
+          "Don't support " + consumedDataType + " conversion for the retract sink")
+      }
+    } else {
+      consumedTypeInfo.get
+    }
+    // The tpe may been inferred by invoking [[TypeExtractor.createTypeInfo]] based the
+    // class of the resulting type. For example, converts the given [[Table]] into
+    // an append [[DataStream]]. If the class is Row, then the return type only is
+    // [[GenericTypeInfo[Row]]. So it should convert to the [[RowTypeInfo]] in order
+    // to better serialize performance.
+    requestedTypeInfo match {
+      case gt: GenericTypeInfo[Row] if gt.getTypeClass == classOf[Row] =>
+        fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
+      case gt: GenericTypeInfo[BaseRow] if gt.getTypeClass == classOf[BaseRow] =>
+        fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[BaseRow])
+      case bt: BaseRowTypeInfo =>
+        val fields = bt.getFieldNames.zip(bt.getLogicalTypes).map { case (n, t) =>
+          DataTypes.FIELD(n, fromLogicalToDataType(t))
+        }
+        DataTypes.ROW(fields: _*).bridgedTo(classOf[BaseRow])
       case _ =>
-        consumedDataType
+        fromLegacyInfoToDataType(requestedTypeInfo)
     }
   }
 
