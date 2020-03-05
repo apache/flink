@@ -161,6 +161,6 @@ jobs:
     # TODO remove pre-commit tests script by adding the tests to the nightly script
 #    - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
 #      displayName: Test - precommit 
-    - script: FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
       displayName: Run e2e tests
 
