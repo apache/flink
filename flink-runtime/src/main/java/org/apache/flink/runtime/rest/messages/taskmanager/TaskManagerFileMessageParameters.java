@@ -35,7 +35,7 @@ public class TaskManagerFileMessageParameters extends TaskManagerMessageParamete
 	public Collection<MessagePathParameter<?>> getPathParameters() {
 		return Collections.unmodifiableCollection(Arrays.asList(
 			logFileNamePathParameter,
-			this.taskManagerIdParameter
+			taskManagerIdParameter
 		));
 	}
 }

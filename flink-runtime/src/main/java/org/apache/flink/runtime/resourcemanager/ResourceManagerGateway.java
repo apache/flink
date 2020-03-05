@@ -210,7 +210,7 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * corresponding {@link TransientBlobKey} is returned.
 	 *
 	 * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
-     * @param fileType type of the file to upload
+	 * @param fileType type of the file to upload
 	 * @param fileName name of the file to upload
 	 * @param timeout for the asynchronous operation
 	 * @return Future which is completed with the {@link TransientBlobKey} after uploading the file to the

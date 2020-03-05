@@ -29,7 +29,7 @@ public class TaskManagerCustomFileHeaders implements UntypedResponseMessageHeade
 
 	private static final TaskManagerCustomFileHeaders INSTANCE = new TaskManagerCustomFileHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/log/:%s", TaskManagerIdPathParameter.KEY, LogFileNamePathParameter.KEY);
+	private static final String URL = String.format("/taskmanagers/:%s/logs/:%s", TaskManagerIdPathParameter.KEY, LogFileNamePathParameter.KEY);
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {

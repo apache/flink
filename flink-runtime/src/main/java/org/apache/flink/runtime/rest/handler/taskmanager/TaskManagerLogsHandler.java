@@ -47,7 +47,7 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 /**
- * Handler which serves detailed TaskManager information.
+ * Handler which serves detailed TaskManager log list information.
  */
 public class TaskManagerLogsHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, LogsInfo, TaskManagerMessageParameters> {
 
@@ -94,20 +94,5 @@ public class TaskManagerLogsHandler extends AbstractTaskManagerHandler<RestfulGa
 					}
 				}
 			);
-	}
-
-	/**
-	 * get ResourceManagerGateway from GatewayRetriever ResourceManagerGateway.
-	 * @param resourceManagerGatewayRetriever
-	 * @return ResourceManagerGateway
-	 * @throws RestHandlerException
-	 */
-	protected ResourceManagerGateway getResourceManagerGateway(GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) throws RestHandlerException {
-		ResourceManagerGateway resourceManagerGateway = resourceManagerGatewayRetriever
-			.getNow()
-			.orElseThrow(() -> new RestHandlerException(
-				"Cannot connect to ResourceManager right now. Please try to refresh.",
-				HttpResponseStatus.NOT_FOUND));
-		return resourceManagerGateway;
 	}
 }

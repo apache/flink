@@ -134,6 +134,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -321,10 +322,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					new FlinkException("The specific log directory is not a valid directory."));
 			}
 
-			final List<Tuple2<String, Long>> logsWithLength = new ArrayList<>(logFiles.length);
-			for (File logFile : logFiles) {
-				logsWithLength.add(Tuple2.of(logFile.getName(), logFile.length()));
-			}
+			final List<Tuple2<String, Long>> logsWithLength = Arrays.stream(logFiles)
+				.map(logFile -> Tuple2.of(logFile.getName(), logFile.length()))
+				.collect(Collectors.toList());
 			return CompletableFuture.completedFuture(logsWithLength);
 		}
 		return FutureUtils.completedExceptionally(new FlinkException("There is no log file available on the TaskExecutor."));

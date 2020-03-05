@@ -223,7 +223,7 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	/**
 	 * Requests for the historical log file names on the TaskManager.
 	 *
-	 * @return A String Array with all historical log file names
+	 * @return A Tuple2 Array with all log file names with its length.
 	 */
 	CompletableFuture<Collection<Tuple2<String, Long>>> requestLogList(@RpcTimeout Time timeout);
 

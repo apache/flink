@@ -26,7 +26,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.Objects;
 
 /**
- * Contains information about the TaskManager Log.
+ * Contains information about one log of TaskManager.
  */
 public class LogInfo {
 
