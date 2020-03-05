@@ -45,13 +45,13 @@ import java.util.concurrent.CompletableFuture;
 public class TaskManagerStdoutFileHandler extends AbstractTaskManagerFileHandler<TaskManagerMessageParameters> {
 
 	public TaskManagerStdoutFileHandler(
-		@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-		@Nonnull Time timeout,
-		@Nonnull Map<String, String> responseHeaders,
-		@Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> untypedResponseMessageHeaders,
-		@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-		@Nonnull TransientBlobService transientBlobService,
-		@Nonnull Time cacheEntryDuration) {
+			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			@Nonnull Time timeout,
+			@Nonnull Map<String, String> responseHeaders,
+			@Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> untypedResponseMessageHeaders,
+			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+			@Nonnull TransientBlobService transientBlobService,
+			@Nonnull Time cacheEntryDuration) {
 		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
 	}
 
