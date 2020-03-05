@@ -257,7 +257,9 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		if (rowsReturned >= totalRowCount) {
 			return false;
 		}
-		checkEndOfRowGroup();
+		if (rowsReturned == totalCountLoadedSoFar) {
+			readNextRowGroup();
+		}
 
 		int num = (int) Math.min(batchSize, totalCountLoadedSoFar - rowsReturned);
 		for (int i = 0; i < columnReaders.length; ++i) {
@@ -270,10 +272,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		return true;
 	}
 
-	private void checkEndOfRowGroup() throws IOException {
-		if (rowsReturned != totalCountLoadedSoFar) {
-			return;
-		}
+	private void readNextRowGroup() throws IOException {
 		PageReadStore pages = reader.readNextRowGroup();
 		if (pages == null) {
 			throw new IOException("expecting more rows but reached last block. Read "

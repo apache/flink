@@ -99,7 +99,7 @@ public class ParquetSplitReaderUtil {
 				.mapToObj(i -> fullFieldNames[i])
 				.filter(nonPartNames::contains).collect(Collectors.toList());
 
-		int[] selOrcFields = selNonPartNames.stream()
+		int[] selParquetFields = selNonPartNames.stream()
 				.mapToInt(nonPartNames::indexOf)
 				.toArray();
 
@@ -119,7 +119,7 @@ public class ParquetSplitReaderUtil {
 		return new ParquetColumnarRowSplitReader(
 				utcTimestamp,
 				conf,
-				Arrays.stream(selOrcFields)
+				Arrays.stream(selParquetFields)
 						.mapToObj(i -> fullFieldTypes[i].getLogicalType())
 						.toArray(LogicalType[]::new),
 				selNonPartNames.toArray(new String[0]),
