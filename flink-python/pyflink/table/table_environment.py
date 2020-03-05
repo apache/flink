@@ -22,7 +22,6 @@ from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class, get_method
 
-from pyflink import since
 from pyflink.common.dependency_manager import DependencyManager
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
@@ -236,7 +235,6 @@ class TableEnvironment(object):
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table)
 
-    @since("1.10.0")
     def from_path(self, path):
         """
         Reads a registered table and returns the resulting :class:`~pyflink.table.Table`.
@@ -271,6 +269,7 @@ class TableEnvironment(object):
 
         .. seealso:: :func:`use_catalog`
         .. seealso:: :func:`use_database`
+        .. versionadded:: 1.10.0
         """
         return Table(get_method(self._j_tenv, "from")(path))
 
@@ -309,13 +308,14 @@ class TableEnvironment(object):
         j_catalog_name_array = self._j_tenv.listCatalogs()
         return [item for item in j_catalog_name_array]
 
-    @since("1.10.0")
     def list_modules(self):
         """
         Gets the names of all modules registered in this environment.
 
         :return: List of module names.
         :rtype: list[str]
+
+        .. versionadded:: 1.10.0
         """
         j_module_name_array = self._j_tenv.listModules()
         return [item for item in j_module_name_array]
@@ -350,18 +350,18 @@ class TableEnvironment(object):
         j_udf_name_array = self._j_tenv.listUserDefinedFunctions()
         return [item for item in j_udf_name_array]
 
-    @since("1.10.0")
     def list_functions(self):
         """
         Gets the names of all functions in this environment.
 
         :return: List of the names of all functions in this environment.
         :rtype: list[str]
+
+        .. versionadded:: 1.10.0
         """
         j_function_name_array = self._j_tenv.listFunctions()
         return [item for item in j_function_name_array]
 
-    @since("1.10.0")
     def list_temporary_tables(self):
         """
         Gets the names of all temporary tables and views available in the current namespace
@@ -372,11 +372,11 @@ class TableEnvironment(object):
         :rtype: list[str]
 
         .. seealso:: :func:`list_tables`
+        .. versionadded:: 1.10.0
         """
         j_table_name_array = self._j_tenv.listTemporaryTables()
         return [item for item in j_table_name_array]
 
-    @since("1.10.0")
     def list_temporary_views(self):
         """
         Gets the names of all temporary views available in the current namespace (the current
@@ -387,11 +387,11 @@ class TableEnvironment(object):
         :rtype: list[str]
 
         .. seealso:: :func:`list_tables`
+        .. versionadded:: 1.10.0
         """
         j_view_name_array = self._j_tenv.listTemporaryViews()
         return [item for item in j_view_name_array]
 
-    @since("1.10.0")
     def drop_temporary_table(self, table_path):
         """
         Drops a temporary table registered in the given path.
@@ -403,10 +403,11 @@ class TableEnvironment(object):
         :type table_path: str
         :return: True if a table existed in the given path and was removed.
         :rtype: bool
+
+        .. versionadded:: 1.10.0
         """
         return self._j_tenv.dropTemporaryTable(table_path)
 
-    @since("1.10.0")
     def drop_temporary_view(self, view_path):
         """
         Drops a temporary view registered in the given path.
@@ -416,6 +417,8 @@ class TableEnvironment(object):
 
         :return: True if a view existed in the given path and was removed.
         :rtype: bool
+
+        .. versionadded:: 1.10.0
         """
         return self._j_tenv.dropTemporaryView(view_path)
 
@@ -727,7 +730,6 @@ class TableEnvironment(object):
             .loadClass(function_class_name).newInstance()
         self._j_tenv.registerFunction(name, java_function)
 
-    @since("1.10.0")
     def register_function(self, name, function):
         """
         Registers a python user-defined function under a unique name. Replaces already existing
@@ -755,13 +757,14 @@ class TableEnvironment(object):
         :type name: str
         :param function: The python user-defined function to register.
         :type function: pyflink.table.udf.UserDefinedFunctionWrapper
+
+        .. versionadded:: 1.10.0
         """
         if not self._is_blink_planner and isinstance(self, BatchTableEnvironment):
             raise Exception("Python UDF is not supported in old planner under batch mode!")
         self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
                                                            self.get_config()._j_table_config))
 
-    @since("1.10.0")
     def create_temporary_view(self, view_path, table):
         """
         Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
@@ -777,10 +780,11 @@ class TableEnvironment(object):
         :type view_path: str
         :param table: The view to register.
         :type table: pyflink.table.Table
+
+        .. versionadded:: 1.10.0
         """
         self._j_tenv.createTemporaryView(view_path, table._j_table)
 
-    @since("1.10.0")
     def add_python_file(self, file_path):
         """
         Adds a python dependency which could be python files, python packages or
@@ -789,10 +793,11 @@ class TableEnvironment(object):
 
         :param file_path: The path of the python dependency.
         :type file_path: str
+
+        .. versionadded:: 1.10.0
         """
         self._dependency_manager.add_python_file(file_path)
 
-    @since("1.10.0")
     def set_python_requirements(self, requirements_file_path, requirements_cache_dir=None):
         """
         Specifies a requirements.txt file which defines the third-party dependencies.
@@ -826,11 +831,12 @@ class TableEnvironment(object):
         :param requirements_cache_dir: The path of the local directory which contains the
                                        installation packages.
         :type requirements_cache_dir: str
+
+        .. versionadded:: 1.10.0
         """
         self._dependency_manager.set_python_requirements(requirements_file_path,
                                                          requirements_cache_dir)
 
-    @since("1.10.0")
     def add_python_archive(self, archive_path, target_dir=None):
         """
         Adds a python archive file. The file will be extracted to the working directory of
@@ -881,6 +887,8 @@ class TableEnvironment(object):
         :type archive_path: str
         :param target_dir: Optional, the target dir name that the archive file extracted to.
         :type target_dir: str
+
+        .. versionadded:: 1.10.0
         """
         self._dependency_manager.add_python_archive(archive_path, target_dir)
 
