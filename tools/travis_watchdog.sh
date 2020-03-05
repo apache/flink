@@ -146,9 +146,6 @@ upload_artifacts_s3() {
 
 	# On Azure, publish ARTIFACTS_FILE as a build artifact
 	if [ ! -z "$TF_BUILD" ] ; then
-		echo "DEBBUGGING"
-		env
-		set -x
 		ARTIFACT_DIR="$(pwd)/artifact-dir"
 		mkdir $ARTIFACT_DIR
 		cp $ARTIFACTS_FILE $ARTIFACT_DIR/
