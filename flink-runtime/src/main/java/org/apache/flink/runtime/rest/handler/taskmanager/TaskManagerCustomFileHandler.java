@@ -42,7 +42,7 @@ import java.util.concurrent.CompletableFuture;
 
 
 /**
- * Rest handler which serves the stdout file of the {@link TaskExecutor}.
+ * Rest handler which serves the custom file of the {@link TaskExecutor}.
  */
 public class TaskManagerCustomFileHandler extends AbstractTaskManagerFileHandler<TaskManagerFileMessageParameters> {
 
