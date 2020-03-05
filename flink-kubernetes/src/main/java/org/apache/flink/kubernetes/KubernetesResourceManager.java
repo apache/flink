@@ -257,7 +257,6 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 		final KubernetesTaskManagerParameters kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(
 			flinkConfig,
 			podName,
-			defaultMemoryMB,
 			dynamicProperties,
 			taskManagerParameters);
 
