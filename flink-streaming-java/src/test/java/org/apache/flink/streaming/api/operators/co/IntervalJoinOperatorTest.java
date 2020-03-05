@@ -346,7 +346,7 @@ public class IntervalJoinOperatorTest {
 	@Test
 	public void testOneSideCacheFlipSides() throws Exception {
 		setupHarness(0, true, 0, true,
-			new PassthroughFunction.JoinParameters(Long.MAX_VALUE, 1, 1000))
+			new PassthroughFunction.JoinParameters(Long.MAX_VALUE, 1, Long.MAX_VALUE))
 			.processElement2(1)
 
 			.assertOneSideCacheContainsOnly() // empty other side buffer
@@ -431,7 +431,7 @@ public class IntervalJoinOperatorTest {
 	@Test
 	public void testRightSideCleanupOverwrite() throws Exception {
 		setupHarness(-1, false, 2, false,
-			new PassthroughFunction.JoinParameters(-1, 1, 7))
+			new PassthroughFunction.JoinParameters(-1, 1, Long.MAX_VALUE))
 			.processElement2(1)
 			.processElement2(2)
 			.processElement2(3)
