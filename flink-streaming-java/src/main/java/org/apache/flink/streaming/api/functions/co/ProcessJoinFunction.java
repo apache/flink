@@ -56,16 +56,16 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 		/**
 		 *  expiration time after cache last time access, measured by low watermark advances.
 		 */
-		public long cacheExpiresInWatermark;
+		public long expiresInNextNanoSeconds;
 
 		public JoinParameters() {
 			this(Long.MAX_VALUE, 1000L, Long.MAX_VALUE);
 		}
 
-		public JoinParameters(long rightSideCleanupOverwrite, long maxCachedKeyedBufferEntries, long cacheExpiresInWatermark) {
+		public JoinParameters(long rightSideCleanupOverwrite, long maxCachedKeyedBufferEntries, long expiresInNextNanoSeconds) {
 			this.rightSideCleanupOverwrite = rightSideCleanupOverwrite;
 			this.maxCachedKeyedBufferEntries = maxCachedKeyedBufferEntries;
-			this.cacheExpiresInWatermark = cacheExpiresInWatermark;
+			this.expiresInNextNanoSeconds = expiresInNextNanoSeconds;
 		}
 	}
 

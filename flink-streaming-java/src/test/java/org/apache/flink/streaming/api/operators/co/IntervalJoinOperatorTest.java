@@ -381,6 +381,54 @@ public class IntervalJoinOperatorTest {
 	}
 
 	@Test
+	public void testOneSideCacheExpiration() throws Exception {
+		setupHarness(-1, false, 2, false,
+			new PassthroughFunction.JoinParameters(Long.MAX_VALUE, 1, 999))
+			.processElement2(1)
+			.processElement2(2)
+			.processElement2(3)
+			.processElement2(4)
+			.processElement2(5) // fill both buffers with values
+
+			.processWatermark1(0)
+			.processWatermark2(0)
+
+			.assertOneSideCacheContainsOnly()
+
+			.processElement1(1)
+
+			.assertRightBufferContainsOnly(1, 2, 3, 4, 5)
+			.assertOneSideCacheContainsOnly(1, 2, 3, 4, 5) // same as right buffer
+			.processWatermark1(1)
+			.processWatermark2(1)
+
+			.processElement1(1) // access at time 1
+
+			.processWatermark1(2)
+			.processWatermark2(2) // time 2
+
+			.assertOneSideCacheSize(0L)
+
+			.processElement1(2)
+			.processElement1(3)
+			.processElement1(4)
+			.processElement1(5)
+
+			.assertLeftBufferContainsOnly(2, 3, 4, 5)
+			.assertRightBufferContainsOnly(3, 4, 5)
+			.assertOneSideCacheContainsOnly(3, 4, 5)
+
+			.processWatermark1(3)
+			.processWatermark2(3)
+
+			.assertLeftBufferContainsOnly(3, 4, 5)
+			.assertRightBufferContainsOnly(4, 5)
+			.assertOneSideCacheSize(0L)
+
+			.close();
+	}
+
+	@Test
 	public void testRightSideCleanupOverwrite() throws Exception {
 		setupHarness(-1, false, 2, false,
 			new PassthroughFunction.JoinParameters(-1, 1, 7))
@@ -873,6 +921,11 @@ public class IntervalJoinOperatorTest {
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
+			return this;
+		}
+
+		public JoinTestBuilder assertOneSideCacheSize(long size) {
+			Assert.assertEquals(operator.getOtherSideCache().size(), size);
 			return this;
 		}
 

@@ -486,7 +486,7 @@ public class IntervalJoinITCase {
 		public CombineToStringJoinFunction(long relativeEarlyRightEvictionBound, long expireMs) {
 			JoinParameters jp = new JoinParameters();
 			jp.rightSideCleanupOverwrite = relativeEarlyRightEvictionBound;
-			jp.cacheExpiresInWatermark = expireMs;
+			jp.expiresInNextNanoSeconds = expireMs;
 			this.joinParameters = jp;
 		}
 

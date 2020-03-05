@@ -157,7 +157,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		Preconditions.checkArgument(udf.getJoinParameters().maxCachedKeyedBufferEntries > 0,
 			"cache size should be a positive number");
 
-		Preconditions.checkArgument(udf.getJoinParameters().cacheExpiresInWatermark > 0,
+		Preconditions.checkArgument(udf.getJoinParameters().expiresInNextNanoSeconds > 0,
 			"cache expiration time should be a positive number");
 
 		// Move buffer by +1 / -1 depending on inclusiveness in order not needing
@@ -180,12 +180,11 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
 		otherSideCache = CacheBuilder.newBuilder()
 			.maximumSize(joinParameters.maxCachedKeyedBufferEntries)
-			.expireAfterAccess(joinParameters.cacheExpiresInWatermark, TimeUnit.MILLISECONDS)
-			.concurrencyLevel(1)
+			.expireAfterAccess(joinParameters.expiresInNextNanoSeconds, TimeUnit.NANOSECONDS)
 			.ticker(new Ticker() {
 				@Override
 				public long read() {
-					return internalTimerService.currentWatermark() * 1000L;
+					return TimeUnit.MILLISECONDS.toNanos(internalTimerService.currentWatermark());
 				}
 			})
 			.build();
