@@ -25,7 +25,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -182,7 +182,7 @@ public class StreamingJobGraphGenerator {
 
 		jobGraph.setSavepointRestoreSettings(streamGraph.getSavepointRestoreSettings());
 
-		JobGraphGenerator.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);
+		JobGraphUtils.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);
 
 		// set the ExecutionConfig last when it has been finalized
 		try {
