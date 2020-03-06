@@ -71,6 +71,14 @@ public class YarnConfigOptions {
 				.build());
 
 	/**
+	 * The tmp directory of Yarn containers.
+	 */
+	public static final ConfigOption<String> TMP_DIR =
+		key("yarn.container.tmpdir")
+			.defaultValue("/tmp")
+			.withDescription("Defines the 'java.io.tmpdir' property of Yarn containers.");
+
+	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
 	 * availability mode. This value is usually limited by YARN.
 	 * By default, it's 1 in the standalone case and 2 in the high availability case.

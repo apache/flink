@@ -1571,6 +1571,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			javaOpts += " -Djava.security.krb5.conf=krb5.conf";
 		}
 
+		final Path tmpDirPath = new Path(ApplicationConstants.Environment.PWD.$$(),
+			flinkConfiguration.getString(YarnConfigOptions.TMP_DIR));
+		javaOpts += " -Djava.io.tmpdir=" + tmpDirPath;
+
 		// Set up the container launch context for the application master
 		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 

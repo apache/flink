@@ -161,6 +161,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
+		final String tmpdir = "-Djava.io.tmpdir=/tmp";
 		final String logfile =
 			"-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
 				"/jobmanager.log\""; // if set
@@ -179,7 +180,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			// no logging, with/out krb5
 			assertEquals(
 				java + " " + jvmmem +
-					"" + // jvmOpts
+					" " + tmpdir + // jvmOpts
 					"" + // logging
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -193,7 +194,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + krb5 + // jvmOpts
+					" " + krb5 + " " + tmpdir + // jvmOpts
 					"" + // logging
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -208,7 +209,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			// logback only, with/out krb5
 			assertEquals(
 				java + " " + jvmmem +
-					"" + // jvmOpts
+					" " + tmpdir + // jvmOpts
 					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -222,7 +223,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + krb5 + // jvmOpts
+					" " + krb5 + " " + tmpdir + // jvmOpts
 					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -237,7 +238,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			// log4j, with/out krb5
 			assertEquals(
 				java + " " + jvmmem +
-					"" + // jvmOpts
+					" " + tmpdir + // jvmOpts
 					" " + logfile + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -251,7 +252,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + krb5 + // jvmOpts
+					" " + krb5 + " " + tmpdir + // jvmOpts
 					" " + logfile + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -266,7 +267,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			// logback + log4j, with/out krb5
 			assertEquals(
 				java + " " + jvmmem +
-					"" + // jvmOpts
+					" " + tmpdir + // jvmOpts
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -280,7 +281,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + krb5 + // jvmOpts
+					" " + krb5 + " " + tmpdir + // jvmOpts
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -298,7 +299,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + jvmOpts +
+					" " + jvmOpts + " " + tmpdir +
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -312,7 +313,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + jvmOpts + " " + krb5 + // jvmOpts
+					" " + jvmOpts + " " + krb5 + " " + tmpdir + // jvmOpts
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -329,7 +330,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + jvmOpts + " " + jmJvmOpts +
+					" " + jvmOpts + " " + jmJvmOpts + " " + tmpdir +
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -343,7 +344,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + " " + tmpdir + // jvmOpts
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -361,7 +362,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 			assertEquals(
 				java + " 1 " + jvmmem +
-					" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + " " + tmpdir + // jvmOpts
 					" 3 " + logfile + " " + logback + " " + log4j +
 					" 4 " + mainClass + " 5 6 " + redirects,
 				clusterDescriptor
@@ -379,7 +380,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java +
 					" " + logfile + " " + logback + " " + log4j +
-					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + " " + tmpdir + // jvmOpts
 					" " + jvmmem +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
