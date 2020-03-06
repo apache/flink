@@ -96,7 +96,7 @@ public class CompressWriterFactoryTest extends TestLogger {
 		testCompressByName("org.apache.hadoop.io.compress.DefaultCodec");
 	}
 
-	@Test(expected = RuntimeException.class)
+	@Test(expected = NullPointerException.class)
 	public void testCompressFailureWithUnknownCodec() throws Exception {
 		testCompressByName("com.bla.bla.UnknownCodec");
 	}
