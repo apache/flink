@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.environment;
+package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 /**
@@ -32,26 +31,32 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 @PublicEvolving
 public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
-	private ExecutionEnvironment env;
+	private Pipeline pipeline;
 
-	protected StreamPlanEnvironment(ExecutionEnvironment env) {
-		this.env = env;
+	public Pipeline getPipeline() {
+		return pipeline;
+	}
 
-		int parallelism = env.getParallelism();
+	public StreamPlanEnvironment(int parallelism) {
 		if (parallelism > 0) {
 			setParallelism(parallelism);
-		} else {
-			// determine parallelism
-			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(CoreOptions.DEFAULT_PARALLELISM));
 		}
 	}
 
 	@Override
-	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
-		if (env instanceof OptimizerPlanEnvironment) {
-			((OptimizerPlanEnvironment) env).setPipeline(streamGraph);
-		}
+	public JobClient executeAsync(StreamGraph streamGraph) {
+		pipeline = streamGraph;
 
-		throw new OptimizerPlanEnvironment.ProgramAbortException();
+		// do not go on with anything now!
+		throw new ProgramAbortException();
+	}
+
+	public void setAsContext() {
+		StreamExecutionEnvironmentFactory factory = () -> this;
+		initializeContextEnvironment(factory);
+	}
+
+	public void unsetAsContext() {
+		resetContextEnvironment();
 	}
 }

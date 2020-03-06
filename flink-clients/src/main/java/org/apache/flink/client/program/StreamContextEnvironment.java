@@ -15,15 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.environment;
+package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.ContextEnvironment;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -32,8 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
@@ -45,17 +46,11 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private final ContextEnvironment ctx;
-
-	StreamContextEnvironment(final ContextEnvironment ctx) {
-		super(checkNotNull(ctx).getExecutorServiceLoader(), ctx.getConfiguration(), ctx.getUserCodeClassLoader());
-
-		this.ctx = ctx;
-
-		final int parallelism = ctx.getParallelism();
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
+	public StreamContextEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader) {
+		super(executorServiceLoader, configuration, userCodeClassLoader);
 	}
 
 	@Override
@@ -65,7 +60,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
 			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
-					jobClient.getJobExecutionResult(ctx.getUserCodeClassLoader());
+					jobClient.getJobExecutionResult(getUserClassloader());
 
 			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
 				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
@@ -74,10 +69,11 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 							// the jvm exits
 							jobClient.cancel().get(1, TimeUnit.SECONDS);
 						},
-						ContextEnvironment.class.getSimpleName(),
+						StreamContextEnvironment.class.getSimpleName(),
 						LOG);
 				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
-						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+						ShutdownHookUtil.removeShutdownHook(
+							shutdownHook, StreamContextEnvironment.class.getSimpleName(), LOG));
 			}
 
 			jobExecutionResult = jobExecutionResultFuture.get();
@@ -96,5 +92,22 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
 
 		return jobClient;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static void setAsContext(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader) {
+		StreamExecutionEnvironmentFactory factory = () -> new StreamContextEnvironment(
+			executorServiceLoader,
+			configuration,
+			userCodeClassLoader);
+		initializeContextEnvironment(factory);
+	}
+
+	public static void unsetAsContext() {
+		resetContextEnvironment();
 	}
 }

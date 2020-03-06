@@ -17,12 +17,12 @@
  *
  */
 
-package org.apache.flink.streaming.api.graph;
+package org.apache.flink.client;
 
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.FlinkPipelineTranslator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
