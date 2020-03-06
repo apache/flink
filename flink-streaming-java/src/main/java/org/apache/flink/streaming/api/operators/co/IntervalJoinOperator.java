@@ -64,7 +64,6 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -186,14 +185,14 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		otherSideCache = CacheBuilder.newBuilder()
 			.maximumSize(joinParameters.maxCachedKeyedBufferEntries)
 			.expireAfterAccess(joinParameters.expiresInNextNanoSeconds, TimeUnit.NANOSECONDS)
+			.expireAfterWrite(joinParameters.expiresInNextNanoSeconds, TimeUnit.NANOSECONDS)
 			.concurrencyLevel(1)
 			.ticker(new Ticker() {
 				@Override
 				public long read() {
 					return TimeUnit.MILLISECONDS.toNanos(internalTimerService.currentWatermark());
 				}
-			})
-			.build();
+			}).build();
 		executor = Executors.newSingleThreadExecutor();
 	}
 
