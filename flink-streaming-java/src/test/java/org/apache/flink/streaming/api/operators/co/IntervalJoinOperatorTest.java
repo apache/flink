@@ -491,15 +491,15 @@ public class IntervalJoinOperatorTest {
 			.processElement1(5)
 
 			.assertLeftBufferContainsOnly(1, 2, 3, 4, 5)
-			.assertRightBufferContainsOnly(3, 4, 5)
-			.assertOneSideCacheContainsOnly(3, 4, 5) // same as other side buffer after early cleanup
+			.assertRightBufferContainsOnly(2, 3, 4, 5)
+			.assertOneSideCacheContainsOnly(2, 3, 4, 5) // same as other side buffer after early cleanup
 
 			.processWatermark1(4) // set common watermark to 4 and check that data is cleaned
 			.processWatermark2(4)
 
 			.assertLeftBufferContainsOnly(4, 5)
-			.assertRightBufferContainsOnly()
-			.assertOneSideCacheContainsOnly() // watermark doesn't flip cache side
+			.assertRightBufferContainsOnly(5)
+			.assertOneSideCacheContainsOnly(5) // watermark doesn't flip cache side
 
 			.processWatermark1(6) // set common watermark to 6 and check that data all buffers are empty
 			.processWatermark2(6)
