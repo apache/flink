@@ -135,6 +135,16 @@ public class CliTableauResultViewTest {
 						null)
 		);
 
+		data.add(
+			Row.of(
+				null,
+				-1,
+				-1,
+				"这是一段中文",
+				BigDecimal.valueOf(-12345.06789),
+				Timestamp.valueOf("2020-03-04 18:39:14"))
+		);
+
 		streamingData = new ArrayList<>();
 		for (int i = 0; i < data.size(); ++i) {
 			streamingData.add(new Tuple2<>(i % 2 == 0, data.get(i)));
@@ -167,8 +177,9 @@ public class CliTableauResultViewTest {
 				"|   false | -2147483648 |  9223372036854775807 |                     (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |\n" +
 				"|    true |         100 | -9223372036854775808 |                 abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |\n" +
 				"|  (NULL) |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     (NULL) |\n" +
+				"|  (NULL) |          -1 |                   -1 |         这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n"	+
 				"+---------+-------------+----------------------+----------------------------+----------------+----------------------------+\n" +
-				"6 row in set\n",
+				"7 row in set\n",
 				terminalOutput.toString());
 		verify(mockExecutor, times(0)).cancelQuery(anyString(), anyString());
 	}
@@ -277,8 +288,9 @@ public class CliTableauResultViewTest {
 				"|   - |   false | -2147483648 |  9223372036854775807 |               (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |\n" +
 				"|   + |    true |         100 | -9223372036854775808 |           abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |\n" +
 				"|   - |  (NULL) |          -1 |                   -1 | abcdefghijklmnopq... |   -12345.06789 |                     (NULL) |\n" +
+				"|   + |  (NULL) |          -1 |                   -1 |   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
 				"+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+\n" +
-				"Received a total of 6 rows\n",
+				"Received a total of 7 rows\n",
 				terminalOutput.toString());
 		verify(mockExecutor, times(0)).cancelQuery(anyString(), anyString());
 	}
