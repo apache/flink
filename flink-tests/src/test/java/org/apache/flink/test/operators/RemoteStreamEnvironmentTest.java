@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.environment;
+package org.apache.flink.test.operators;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -35,6 +35,8 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.JobResult.Builder;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -57,7 +59,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the {@link RemoteStreamEnvironment}.
  */
-public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
+public class RemoteStreamEnvironmentTest extends TestLogger {
 
 	/**
 	 * Verifies that the port passed to the RemoteStreamEnvironment is used for connecting to the
