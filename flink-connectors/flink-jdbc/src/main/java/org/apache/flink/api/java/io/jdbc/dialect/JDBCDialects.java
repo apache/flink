@@ -203,7 +203,10 @@ public final class JDBCDialects {
 		}
 	}
 
-	private static class MySQLDialect extends AbstractDialect {
+	/**
+	 * MySQL dialect.
+	 */
+	public static class MySQLDialect extends AbstractDialect {
 
 		private static final long serialVersionUID = 1L;
 
@@ -301,7 +304,10 @@ public final class JDBCDialects {
 		}
 	}
 
-	private static class PostgresDialect extends AbstractDialect {
+	/**
+	 * Postgres dialect.
+	 */
+	public static class PostgresDialect extends AbstractDialect {
 
 		private static final long serialVersionUID = 1L;
 
