@@ -171,7 +171,7 @@ jobs:
       displayName: Run e2e tests
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
-      condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+      condition: and(succeededOrFailed(), not(eq(variables['ARTIFACT_DIR'], '')))
       displayName: Upload Logs
       inputs:
         path: $(ARTIFACT_DIR)
