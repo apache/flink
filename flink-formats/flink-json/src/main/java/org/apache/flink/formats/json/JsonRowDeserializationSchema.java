@@ -136,13 +136,10 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			try {
 				root = objectMapper.readTree(message);
 			} catch (IOException e) {
-				throw createParseErrorException("Unable to parse JsonNode from message.", e);
+				return (Row) nullOrThrowParseException("Unable to parse JsonNode from message.", e);
 			}
 			return (Row) runtimeConverter.convert(objectMapper, root);
 		} catch (Throwable t) {
-			if (t instanceof ParseErrorException && ignoreParseErrors) {
-				return null;
-			}
 			throw new IOException("Failed to deserialize JSON object.", t);
 		}
 	}
@@ -292,7 +289,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 				}
 				return result;
 			}  catch (RuntimeException e) {
-				throw createParseErrorException("Unable to deserialize map.", e);
+				return nullOrThrowParseException("Unable to deserialize map.", e);
 			}
 		};
 	}
@@ -302,7 +299,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			try {
 				return jsonNode.binaryValue();
 			} catch (IOException e) {
-				throw createParseErrorException("Unable to deserialize byte array.", e);
+				return nullOrThrowParseException("Unable to deserialize byte array.", e);
 			}
 		};
 	}
@@ -332,7 +329,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			try {
 				return mapper.treeToValue(jsonNode, valueType);
 			} catch (JsonProcessingException e) {
-				throw createParseErrorException(format("Could not convert node: %s", jsonNode), e);
+				return nullOrThrowParseException(format("Could not convert node: %s", jsonNode), e);
 			}
 		};
 	}
@@ -377,27 +374,27 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		}
 	}
 
-	private float convertToFloat(ObjectMapper mapper, JsonNode jsonNode) {
+	private Float convertToFloat(ObjectMapper mapper, JsonNode jsonNode) {
 		try {
 			return Float.parseFloat(jsonNode.asText().trim());
 		} catch (NumberFormatException e) {
-			throw createParseErrorException("Unable to deserialize float.", e);
+			return (Float) nullOrThrowParseException("Unable to deserialize float.", e);
 		}
 	}
 
-	private short convertToShot(ObjectMapper mapper, JsonNode jsonNode) {
+	private Short convertToShot(ObjectMapper mapper, JsonNode jsonNode) {
 		try {
 			return Short.parseShort(jsonNode.asText().trim());
 		} catch (NumberFormatException e) {
-			throw createParseErrorException("Unable to deserialize short.", e);
+			return (Short) nullOrThrowParseException("Unable to deserialize short.", e);
 		}
 	}
 
-	private byte convertToByte(ObjectMapper mapper, JsonNode jsonNode) {
+	private Byte convertToByte(ObjectMapper mapper, JsonNode jsonNode) {
 		try {
 			return Byte.parseByte(jsonNode.asText().trim());
 		} catch (NumberFormatException e) {
-			throw createParseErrorException("Unable to deserialize byte.", e);
+			return (Byte) nullOrThrowParseException("Unable to deserialize byte.", e);
 		}
 	}
 
@@ -405,7 +402,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		try {
 			return ISO_LOCAL_DATE.parse(jsonNode.asText()).query(TemporalQueries.localDate());
 		} catch (RuntimeException e) {
-			throw createParseErrorException("Unable to deserialize local date.", e);
+			return (LocalDate) nullOrThrowParseException("Unable to deserialize local date.", e);
 		}
 	}
 
@@ -413,7 +410,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		try {
 			return Date.valueOf(convertToLocalDate(mapper, jsonNode));
 		} catch (RuntimeException e) {
-			throw createParseErrorException("Unable to deserialize date.", e);
+			return (Date) nullOrThrowParseException("Unable to deserialize date.", e);
 		}
 	}
 
@@ -437,7 +434,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 			return LocalDateTime.of(localDate, localTime);
 		} catch (RuntimeException e) {
-			throw createParseErrorException("Unable to deserialize local date time.", e);
+			return (LocalDateTime) nullOrThrowParseException("Unable to deserialize local date time.", e);
 		}
 	}
 
@@ -445,7 +442,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		try {
 			return Timestamp.valueOf(convertToLocalDateTime(mapper, jsonNode));
 		} catch (RuntimeException e) {
-			throw createParseErrorException("Unable to deserialize timestamp.", e);
+			return (Timestamp) nullOrThrowParseException("Unable to deserialize timestamp.", e);
 		}
 	}
 
@@ -467,7 +464,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 			return localTime;
 		} catch (RuntimeException e) {
-			throw createParseErrorException("Unable to deserialize local time.", e);
+			return (LocalTime) nullOrThrowParseException("Unable to deserialize local time.", e);
 		}
 	}
 
@@ -475,15 +472,15 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		try {
 			return Time.valueOf(convertToLocalTime(mapper, jsonNode));
 		} catch (RuntimeException e) {
-			throw createParseErrorException("Unable to deserialize time.", e);
+			return (Time) nullOrThrowParseException("Unable to deserialize time.", e);
 		}
 	}
 
 	private DeserializationRuntimeConverter assembleRowConverter(
 		String[] fieldNames,
 		List<DeserializationRuntimeConverter> fieldConverters) {
-		try {
-			return (mapper, jsonNode) -> {
+		return (mapper, jsonNode) -> {
+			try {
 				ObjectNode node = (ObjectNode) jsonNode;
 				int arity = fieldNames.length;
 				Row row = new Row(arity);
@@ -495,13 +492,13 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 				}
 
 				return row;
-			};
-		} catch (RuntimeException e) {
-			if (e instanceof IllegalStateException) {
-				throw e;
+			} catch (RuntimeException e) {
+				if (e instanceof IllegalStateException) {
+					throw e;
+				}
+				return nullOrThrowParseException("Unable to deserialize row.", e);
 			}
-			throw createParseErrorException("Unable to deserialize row.", e);
-		}
+		};
 	}
 
 	private Object convertField(
@@ -520,7 +517,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			try {
 				return fieldConverter.convert(mapper, field);
 			} catch (RuntimeException e) {
-				throw createParseErrorException("Unable to deserialize field.", e);
+				return nullOrThrowParseException("Unable to deserialize field.", e);
 			}
 		}
 	}
@@ -541,16 +538,19 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 				return array;
 			} catch (RuntimeException e) {
-				throw createParseErrorException("Unable to deserialize array.", e);
+				return nullOrThrowParseException("Unable to deserialize array.", e);
 			}
 		};
 	}
 
-	private ParseErrorException createParseErrorException (String msg, Throwable t) {
-		if (t instanceof ParseErrorException) {
-			return (ParseErrorException) t;
+	private Object nullOrThrowParseException(String msg, Exception e) {
+		if (ignoreParseErrors) {
+			return null;
 		}
-		return new ParseErrorException(msg, t);
+		if (e instanceof ParseErrorException) {
+			throw (ParseErrorException) e;
+		}
+		throw new ParseErrorException(msg, e);
 	}
 
 	/**
