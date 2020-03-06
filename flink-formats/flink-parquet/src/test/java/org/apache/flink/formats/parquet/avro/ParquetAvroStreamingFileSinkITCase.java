@@ -62,7 +62,7 @@ import static org.junit.Assert.assertTrue;
  * {@link StreamingFileSink} with Parquet.
  */
 @SuppressWarnings("serial")
-public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
+public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
 
 	@Rule
 	public final Timeout timeoutPerTest = Timeout.seconds(20);
