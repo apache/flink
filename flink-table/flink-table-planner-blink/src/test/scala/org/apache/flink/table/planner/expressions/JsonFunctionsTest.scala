@@ -18,12 +18,42 @@
 
 package org.apache.flink.table.planner.expressions
 
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
+import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
+import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class JsonFunctionsTest extends ScalarTypesTestBase {
+class JsonFunctionsTest extends ExpressionTestBase {
+
+  override def testData: Row = {
+    val testData = new Row(9)
+    testData.setField(0, "This is a test String.")
+    testData.setField(1, true)
+    testData.setField(2, 42.toByte)
+    testData.setField(3, 43.toShort)
+    testData.setField(4, 44.toLong)
+    testData.setField(5, 4.5.toFloat)
+    testData.setField(6, 4.6)
+    testData.setField(7, 3)
+    testData.setField(8, """{ "name" : "flink" }""")
+    testData
+  }
+
+  override def typeInfo: RowTypeInfo = {
+    new RowTypeInfo(
+      /* 0 */  Types.STRING,
+      /* 1 */  Types.BOOLEAN,
+      /* 2 */  Types.BYTE,
+      /* 3 */  Types.SHORT,
+      /* 4 */  Types.LONG,
+      /* 5 */  Types.FLOAT,
+      /* 6 */  Types.DOUBLE,
+      /* 7 */  Types.INT,
+      /* 8 */  Types.STRING)
+  }
 
   @Test
   def testPredicates(): Unit = {
@@ -40,7 +70,7 @@ class JsonFunctionsTest extends ScalarTypesTestBase {
 
     // valid fields
     verifyPredicates("f0", malformed)
-    verifyPredicates("f59", jsonObject)
+    verifyPredicates("f8", jsonObject)
 
     // invalid fields
     verifyException("f1", classOf[ValidationException])
@@ -49,6 +79,7 @@ class JsonFunctionsTest extends ScalarTypesTestBase {
     verifyException("f4", classOf[ValidationException])
     verifyException("f5", classOf[ValidationException])
     verifyException("f6", classOf[ValidationException])
+    verifyException("f7", classOf[ValidationException])
   }
 
   /**
