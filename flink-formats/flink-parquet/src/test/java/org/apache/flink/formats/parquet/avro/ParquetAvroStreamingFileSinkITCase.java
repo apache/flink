@@ -19,7 +19,6 @@
 package org.apache.flink.formats.parquet.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.parquet.generated.Address;
@@ -167,7 +166,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
 		for (File partFile : partFiles) {
 			assertTrue(partFile.length() > 0);
 
-			final List<Tuple2<Long, String>> fileContent = readParquetFile(partFile, dataModel);
+			final List<T> fileContent = readParquetFile(partFile, dataModel);
 			assertEquals(expected, fileContent);
 		}
 	}
