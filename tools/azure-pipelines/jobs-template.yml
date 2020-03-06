@@ -180,7 +180,7 @@ jobs:
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
-      condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+      condition: and(succeededOrFailed(), not(eq(variables['ARTIFACT_DIR'], '')))
       displayName: Upload Logs
       inputs:
         path: $(ARTIFACT_DIR)
