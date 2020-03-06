@@ -1,5 +1,5 @@
 ---
-title: "Process Function"
+title: "Process Function (Low-level Operations)"
 nav-title: "Process Function"
 nav-parent_id: streaming_operators
 nav-pos: 35
@@ -26,66 +26,63 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## The ProcessFunction
+## ProcessFunction
 
-The `ProcessFunction` is a low-level stream processing operation, giving access to the basic building blocks of
-all (acyclic) streaming applications:
+`ProcessFunction` 是初级的流处理算子，
+允许访问所有（无环）流应用程序的基本构建块：
 
-  - events (stream elements)
-  - state (fault-tolerant, consistent, only on keyed stream)
-  - timers (event time and processing time, only on keyed stream)
+  - 事件 （流的元素）
+  - 状态 （容错、一致性，仅作用于 keyed stream）
+  - 计时器 （事件时间和处理时间，仅作用于 keyed stream）
 
-The `ProcessFunction` can be thought of as a `FlatMapFunction` with access to keyed state and timers. It handles events
-by being invoked for each event received in the input stream(s).
+`ProcessFunction` 可以被视为可以访问 keyed state 和计时器的 `FlatMapFunction`。
+它通过被输入流中每个事件调用的方式处理事件。
 
-For fault-tolerant state, the `ProcessFunction` gives access to Flink's [keyed state]({{ site.baseurl }}/dev/stream/state/state.html), accessible via the
-`RuntimeContext`, similar to the way other stateful functions can access keyed state.
+对于状态容错，`ProcessFunction` 允许访问 Flink 的 [keyed state]({{ site.baseurl }}/zh/dev/stream/state/state.html)，可以通过 `RuntimeContext` 访问，
+与其他状态函数访问 keyed state 的方式类似。
 
-The timers allow applications to react to changes in processing time and in [event time]({{ site.baseurl }}/dev/event_time.html).
-Every call to the function `processElement(...)` gets a `Context` object which gives access to the element's
-event time timestamp, and to the *TimerService*. The `TimerService` can be used to register callbacks for future
-event-/processing-time instants. With event-time timers, the `onTimer(...)` method is called when the current watermark is advanced up to or beyond the timestamp of the timer, while with processing-time timers, `onTimer(...)` is called when wall clock time reaches the specified time. During that call, all states are again scoped to the key with which the timer was created, allowing
-timers to manipulate keyed state.
+计时器允许应用对事件时间和[事件时间]({{ site.baseurl }}/zh/dev/event_time.html)的变化做出反应。
+每次调用函数 `processElement(...)` 时都会返回一个 `Context` 对象，它可以访问元素的事件时间戳以及 *TimeService*。
+*TimeService* 可以用于为以后的事件/处理时间实例注册回调。对于事件时间计时器，`onTimer(...)` 方法会在当前 watermark 先于或早于计时器的时间戳时被调用，
+而对于处理时间计时器，`onTimer(...)` 方法会在机器时间达到某些特殊时刻时被调用。在该调用期间，所有状态再次被限定在创建计时器的键的范围内，从而允许计时器操作 keyed state。
 
-<span class="label label-info">Note</span> If you want to access keyed state and timers you have
-to apply the `ProcessFunction` on a keyed stream:
+<span class="label label-info">注意</span> 如果你想要访问 keyed state 和计时器，
+你必须在 keyed stream 上使用 `ProcessFunction`。
 
 {% highlight java %}
 stream.keyBy(...).process(new MyProcessFunction())
 {% endhighlight %}
 
 
-## Low-level Joins
+## 初级 Joins
 
-To realize low-level operations on two inputs, applications can use `CoProcessFunction` or `KeyedCoProcessFunction`. This
-function is bound to two different inputs and gets individual calls to `processElement1(...)` and
-`processElement2(...)` for records from the two different inputs.
+为了在两个输入端使用初级算子，应用程序可以使用 `CoProcessFunction` 或者 `KeyedCoProcessFunction`。
+该函数与两个不同的输入绑定，
+并获取对来自两个不同输入端的记录 `processElement1(...)` 和 `processElement2(...)` 的单独调用。
 
-Implementing a low level join typically follows this pattern:
+实现初级 join 通常遵循下述规则：
 
-  - Create a state object for one input (or both)
-  - Update the state upon receiving elements from its input
-  - Upon receiving elements from the other input, probe the state and produce the joined result
+  - 为一个（或两个）输入端创建一个创建一个状态对象
+  - 通过从输入源接收到的元素更新状态
+  - 从其他输入接收元素后，检测状态并生成 join 结果
 
-For example, you might be joining customer data to financial trades,
-while keeping state for the customer data. If you care about having
-complete and deterministic joins in the face of out-of-order events,
-you can use a timer to evaluate and emit the join for a trade when the
-watermark for the customer data stream has passed the time of that
-trade.
+例如，你可能正在将客户数据 join 至金融交易中，同时保留客户数据的状态。
+如果你需要确保在处理无序事件时有完整且确定的 join 操作，
+当客户数据流的 watermark 超过交易时间时，
+你可以使用计时器计算并发出交易的 join 操作。
 
-## Example
+## 实例
 
-In the following example a `KeyedProcessFunction` maintains counts per key, and emits a key/count pair whenever a minute passes (in event time) without an update for that key:
+在下面的事例中，`KeyedProcessFunction` 维护着每个键的计数，并且每隔一分钟（基于事件时间）就输出一个键/计数对，而不更新该键：
 
-  - The count, key, and last-modification-timestamp are stored in a `ValueState`, which is implicitly scoped by key.
-  - For each record, the `KeyedProcessFunction` increments the counter and sets the last-modification timestamp
-  - The function also schedules a callback one minute into the future (in event time)
-  - Upon each callback, it checks the callback's event time timestamp against the last-modification time of the stored count
-    and emits the key/count if they match (i.e., no further update occurred during that minute)
+  - 计数、键和最近一次修改的时间戳存储在 `ValueState` 中，被键隐式地限制了作用域
+  - 对于每条记录，`KeyedProcessFunction` 增加计数器并且设置最近一次修改的时间戳
+  - 该函数还将回调安排在一分钟后（基于事件时间）
+  - 每次回调时，它都会根据存储计数的最后修改时间检查回调的事件时间戳，
+  如果匹配，则输出键/计数对（即，在这一分钟内不会做进一步的更新）
 
-<span class="label label-info">Note</span> This simple example could have been implemented with
-session windows. We use `KeyedProcessFunction` here to illustrate the basic pattern it provides.
+<span class="label label-info">注意</span> 这个简单的例子可以通过会话窗口实现。
+我们在这里使用 `KeyedProcessFunction` 来说明它提供的基本模式。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -249,16 +246,16 @@ class CountWithTimeoutFunction extends KeyedProcessFunction[Tuple, (String, Stri
 {% top %}
 
 
-**NOTE:** Before Flink 1.4.0, when called from a processing-time timer, the `ProcessFunction.onTimer()` method sets
-the current processing time as event-time timestamp. This behavior is very subtle and might not be noticed by users. Well, it's
-harmful because processing-time timestamps are indeterministic and not aligned with watermarks. Besides, user-implemented logic
-depends on this wrong timestamp highly likely is unintendedly faulty. So we've decided to fix it. Upon upgrading to 1.4.0, Flink jobs
-that are using this incorrect event-time timestamp will fail, and users should adapt their jobs to the correct logic.
+**注意:** 在 Flink 1.4.0 以前，通过处理时间计时器调用时，`ProcessFunction.onTimer()` 方法将当前处理时间设置为事件时间戳。
+这种操作非常微妙，用户可能不会注意到。然而，这样是不对的，因为处理时间戳是不确定的，并且与 watermark 不一致。
+此外，用户实现的逻辑依赖于这个错误的时间戳很可能导致意料之外的错误。
+所以我们决定将其修复。
+升级到 1.4.0 时，使用此错误事件时间戳的 Flink 作业将失败，用户应根据正确的逻辑调整其作业。
 
-## The KeyedProcessFunction
+## KeyedProcessFunction
 
-`KeyedProcessFunction`, as an extension of `ProcessFunction`, gives access to the key of timers in its `onTimer(...)`
-method.
+`KeyedProcessFunction`，作为 `ProcessFunction` 的拓展，
+可以通过它的 `onTimer(...)` 方法访问计时器的键。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -282,32 +279,33 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]):
 </div>
 </div>
 
-## Timers
+## 计时器
 
-Both types of timers (processing-time and event-time) are internally maintained by the `TimerService` and enqueued for execution.
+两种计时器（处理时间和事件时间）都由 `TimerService` 内部维护，并排队等待执行。
 
-The `TimerService` deduplicates timers per key and timestamp, i.e., there is at most one timer per key and timestamp. If multiple timers are registered for the same timestamp, the `onTimer()` method will be called just once.
+`TimerService` 对每个键和时间戳的计时器进行重复数据消除，即每个键和时间戳最多有一个计时器。如果为同一时间戳注册了多个计时器，则只调用一次 `onTimer()` 方法。
 
-<span class="label label-info">Note</span> Flink synchronizes invocations of `onTimer()` and `processElement()`. Hence, users do not have to worry about concurrent modification of state.
+<span class="label label-info">注意</span> Flink 对 `onTimer()` 和 `processElement()` 的调用是同步的。因此，用户不必担心状态的并发修改。
 
-### Fault Tolerance
+### 容错
 
-Timers are fault tolerant and checkpointed along with the state of the application. 
-In case of a failure recovery or when starting an application from a savepoint, the timers are restored.
+计数器是容错的，并且会与应用状态一起存入 checkpoint。
 
-<span class="label label-info">Note</span> Checkpointed processing-time timers that were supposed to fire before their restoration, will fire immediately.
-This might happen when an application recovers from a failure or when it is started from a savepoint.
+在故障恢复或从 savepoint 启动应用程序时，将还原计时器。
 
-<span class="label label-info">Note</span> Timers are always asynchronously checkpointed, except for the combination of RocksDB backend / with incremental snapshots / with heap-based timers (will be resolved with `FLINK-10026`).
-Notice that large numbers of timers can increase the checkpointing time because timers are part of the checkpointed state. See the "Timer Coalescing" section for advice on how to reduce the number of timers.
+<span class="label label-info">注意</span> 已存入 checkpoint 且本应该在恢复之前触发的处理时间计时器，将会立即触发。
+当应用程序从故障中恢复或从 savepoint 启动时，可能会发生这种情况。
 
-### Timer Coalescing
+<span class="label label-info">注意</span> 计时器存入 checkpoint 的方式总是异步的，除了 RocksDB backend/与增量快照/与基于堆的计时器的组合（将在 `Flink-10026` 中解决）。
+注意，大量的计时器会增加 checkpoint 的时间因为计时器也是 checkpoint 状态的一部分。参考“计时器合并”章节了解如何减少计时器的数目。
 
-Since Flink maintains only one timer per key and timestamp, you can reduce the number of timers by reducing the timer resolution to coalesce them.
+### 计时器合并
 
-For a timer resolution of 1 second (event or processing time), you
-can round down the target time to full seconds. Timers will fire at most 1 second earlier but not later than requested with millisecond accuracy. 
-As a result, there are at most one timer per key and second.
+由于 Flink 只为每个键和时间戳维护一个计时器，你可以通过降低计时器的分辨率以合并它们的方式来减少计时器的数目。
+
+对于1秒（事件或处理时间）的计时器分辨率，可以将目标时间舍入为整秒。
+计时器最多会提前1秒，但不迟于要求的毫秒精度。
+因此，每个键每秒至多有一个计时器。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -325,8 +323,8 @@ ctx.timerService.registerProcessingTimeTimer(coalescedTime)
 </div>
 </div>
 
-Since event-time timers only fire with watermarks coming in, you may also schedule and coalesce
-these timers with the next watermark by using the current one:
+由于事件时间计时器仅在 watermark 进入时触发，
+因此你还可以使用当前的 watermark 调度这些计时器并将其与下一个 watermark 合并：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -344,9 +342,9 @@ ctx.timerService.registerEventTimeTimer(coalescedTime)
 </div>
 </div>
 
-Timers can also be stopped and removed as follows:
+计时器也可以通过下面的方法停止和删除：
 
-Stopping a processing-time timer:
+停止处理时间计时器：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -364,7 +362,7 @@ ctx.timerService.deleteProcessingTimeTimer(timestampOfTimerToStop)
 </div>
 </div>
 
-Stopping an event-time timer:
+停止事件时间计时器：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -382,6 +380,6 @@ ctx.timerService.deleteEventTimeTimer(timestampOfTimerToStop)
 </div>
 </div>
 
-<span class="label label-info">Note</span> Stopping a timer has no effect if no such timer with the given timestamp is registered.
+<span class="label label-info">注意</span> 如果没有注册具有给定时间戳的计时器，则停止计时器无效。
 
 {% top %}
