@@ -64,6 +64,10 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -125,6 +129,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private transient InternalTimerService<String> internalTimerService;
 
 	private transient Cache<Object, SortedMap<Long, List<BufferEntry<Object>>>> otherSideCache;
+	private transient ExecutorService executor;
 
 	private final ProcessJoinFunction.JoinParameters joinParameters;
 
@@ -181,6 +186,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		otherSideCache = CacheBuilder.newBuilder()
 			.maximumSize(joinParameters.maxCachedKeyedBufferEntries)
 			.expireAfterAccess(joinParameters.expiresInNextNanoSeconds, TimeUnit.NANOSECONDS)
+			.concurrencyLevel(1)
 			.ticker(new Ticker() {
 				@Override
 				public long read() {
@@ -188,6 +194,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				}
 			})
 			.build();
+		executor = Executors.newSingleThreadExecutor();
 	}
 
 	@Override
@@ -257,50 +264,21 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 					"interval stream joins need to have timestamps meaningful timestamps.");
 		}
 
+		Preconditions.checkArgument(relativeLowerBound < relativeUpperBound + 1,
+			"interval lookup range is not valid");
+
 		if (isLate(ourTimestamp)) {
 			return;
 		}
 
 		// if set to negative skip adding to right buffer
-		if (isLeft || joinParameters.rightSideCleanupOverwrite >= 0) {
-			addToBuffer(ourBuffer, ourValue, ourTimestamp);
-		}
-
-		// process element from other direction
-		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft) {
-			otherSideCache.invalidate(getCurrentKey());
-		}
+		Future insertTask = executor.submit(addToBuffer(ourBuffer, ourValue, ourTimestamp));
 
 		SortedMap<Long, List<BufferEntry<Object>>> buckets =
-			otherSideCache.get(getCurrentKey(), new Callable<SortedMap<Long, List<BufferEntry<Object>>>>() {
-			@Override
-			public SortedMap<Long, List<BufferEntry<Object>>> call() throws Exception {
-				// build in memory sortedMap to boost lookup of other side buffer
-				final SortedMap<Long, List<BufferEntry<Object>>> newBuckets = new TreeMap<>();
-				for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
-					List<BufferEntry<Object>> items = new ArrayList<>();
-					for (BufferEntry<OTHER> item : bucket.getValue()) {
-						items.add((BufferEntry<Object>) item);
-					}
-					newBuckets.put(bucket.getKey(), items);
-				}
-
-				isInsertFromLeft.update(isLeft);
-				return newBuckets;
-			}
-		});
-
-		Preconditions.checkArgument(relativeLowerBound < relativeUpperBound + 1,
-			"interval lookup range is not valid");
-
-		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket: buckets.subMap(
-				ourTimestamp + relativeLowerBound, ourTimestamp + relativeUpperBound + 1).entrySet()) {
+			getBucketsInRange(isLeft, otherBuffer, ourTimestamp + relativeLowerBound,
+				ourTimestamp + relativeUpperBound);
+		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket: buckets.entrySet()) {
 			final long timestamp  = bucket.getKey();
-
-			if (timestamp < ourTimestamp + relativeLowerBound ||
-					timestamp > ourTimestamp + relativeUpperBound) {
-				throw new RuntimeException("one side buffer cache has bucket with timestamp overflow");
-			}
 
 			for (BufferEntry<Object> entry: bucket.getValue()) {
 				if (isLeft) {
@@ -310,6 +288,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				}
 			}
 		}
+		insertTask.get();
 
 		long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
 		if (isLeft) {
@@ -328,6 +307,45 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		return currentWatermark != Long.MIN_VALUE && timestamp < currentWatermark;
 	}
 
+	/**
+	 * This method check element from left/right stream and compare with last known element of
+	 * same key. If different direction or unknown, invalidate cache and repopulate.
+	 * @param isLeft direction where element comes from
+	 * @param otherBuffer buffer storing elements to interval join with current element
+	 * @param lowerBound lower time range inclusive
+	 * @param upperBound higher time range inclusive
+	 * @param <OTHER> type of otherBuffer
+	 * @return buckets of BufferEntry qualified time range
+	 * @throws Exception
+	 */
+	private <OTHER> SortedMap<Long, List<BufferEntry<Object>>> getBucketsInRange(boolean isLeft,
+		final MapState<Long, List<IntervalJoinOperator.BufferEntry<OTHER>>> otherBuffer,
+		final long lowerBound, final long upperBound) throws Exception{
+		// process element from other direction
+		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft) {
+			otherSideCache.invalidate(getCurrentKey());
+		}
+
+		return otherSideCache.get(getCurrentKey(),
+			new Callable<SortedMap<Long, List<BufferEntry<Object>>>>() {
+				@Override
+				public SortedMap<Long, List<BufferEntry<Object>>> call() throws Exception {
+					// build in memory sortedMap to boost lookup of other side buffer
+					final SortedMap<Long, List<BufferEntry<Object>>> newBuckets = new TreeMap<>();
+					for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+						List<BufferEntry<Object>> items = new ArrayList<>();
+						for (BufferEntry<?> item : bucket.getValue()) {
+							items.add((BufferEntry<Object>) item);
+						}
+						newBuckets.put(bucket.getKey(), items);
+					}
+
+					isInsertFromLeft.update(isLeft);
+					return newBuckets;
+				}
+			}).subMap(lowerBound, upperBound + 1);
+	}
+
 	private void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp) throws Exception {
 		final long resultTimestamp = Math.max(leftTimestamp, rightTimestamp);
 
@@ -337,16 +355,25 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		userFunction.processElement(left, right, context, collector);
 	}
 
-	private static <T> void addToBuffer(
+	private static <T> Runnable addToBuffer(
 			final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
 			final T value,
 			final long timestamp) throws Exception {
-		List<BufferEntry<T>> elemsInBucket = buffer.get(timestamp);
-		if (elemsInBucket == null) {
-			elemsInBucket = new ArrayList<>();
-		}
-		elemsInBucket.add(new BufferEntry<>(value, false));
-		buffer.put(timestamp, elemsInBucket);
+		return new Runnable() {
+				@Override
+				public void run() {
+					try {
+						List<BufferEntry<T>> elemsInBucket = buffer.get(timestamp);
+						if (elemsInBucket == null) {
+							elemsInBucket = new ArrayList<>();
+						}
+						elemsInBucket.add(new BufferEntry<>(value, false));
+						buffer.put(timestamp, elemsInBucket);
+					} catch (Exception e) {
+						throw new RuntimeException(e);
+					}
+				}
+			};
 	}
 
 	@Override

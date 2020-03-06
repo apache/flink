@@ -429,43 +429,6 @@ public class IntervalJoinOperatorTest {
 	}
 
 	@Test
-	public void testRightSideSKipWriteBuffer() throws Exception {
-		setupHarness(-1, false, 2, false,
-			new PassthroughFunction.JoinParameters(-1, 1, Long.MAX_VALUE))
-			.processElement2(1)
-			.processElement2(2)
-			.processElement2(3)
-			.processElement2(4)
-			.processElement2(5) // fill both buffers with values
-
-			.assertOneSideCacheContainsOnly()
-
-			.processElement1(1)
-			.assertLeftBufferContainsOnly(1)
-			.assertRightBufferContainsOnly()
-			.assertOneSideCacheContainsOnly() // same as right buffer
-
-			.processWatermark1(1)
-			.processWatermark2(1) // set common watermark to 1 and check that data is cleaned
-
-			.processElement1(2)
-			.processElement2(3)
-
-			.assertLeftBufferContainsOnly(1, 2)
-			.assertRightBufferContainsOnly()
-			.assertOneSideCacheContainsOnly(1, 2) // same as other side buffer after early cleanup
-
-			.processWatermark1(4) // set common watermark to 6 and check that data all buffers are empty
-			.processWatermark2(4)
-
-			.assertLeftBufferEmpty()
-			.assertRightBufferEmpty()
-			.assertOneSideCacheContainsOnly()
-
-			.close();
-	}
-
-	@Test
 	public void testRightSideCleanupOverwrite() throws Exception {
 		setupHarness(-1, false, 2, false,
 			new PassthroughFunction.JoinParameters(0, 1, Long.MAX_VALUE))
