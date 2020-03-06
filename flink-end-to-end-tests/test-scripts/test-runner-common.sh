@@ -26,7 +26,7 @@ export FLINK_VERSION=$(mvn --file ${END_TO_END_DIR}/pom.xml org.apache.maven.plu
 # Arguments:
 #   $1: description of the test
 #   $2: command to execute
-#   $3: check logs for erors & exceptions
+#   $3: check logs for errors & exceptions unless this parameter == skip_check_exceptions or the exit code != 0
 #######################################
 function run_test {
     local description="$1"
@@ -46,7 +46,7 @@ function run_test {
 
     function test_error() {
       echo "[FAIL] Test script contains errors."
-      post_test_validation 1 "$description" "$skip_check_exceptions"
+      post_test_validation 1 "$description"
     }
     # set a trap to catch a test execution error
     trap 'test_error' ERR
@@ -66,12 +66,13 @@ function post_test_validation {
 
     local time_elapsed=$(end_timer)
 
-    if [[ "${skip_check_exceptions}" != "skip_check_exceptions" ]]; then
+    if [[ ${exit_code} != 0 || ${EXIT_CODE} != 0 || "${skip_check_exceptions}" != "skip_check_exceptions" ]]; then
+        echo "Checking logs (exit_code=$exit_code, EXIT_CODE=$EXIT_CODE, skip_check_exceptions=$skip_check_exceptions)"
         check_logs_for_errors
         check_logs_for_exceptions
         check_logs_for_non_empty_out_files
     else
-        echo "Checking of logs skipped."
+        echo "Checking of logs skipped (exit_code=$exit_code, EXIT_CODE=$EXIT_CODE, skip_check_exceptions=$skip_check_exceptions)"
     fi
 
     # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
