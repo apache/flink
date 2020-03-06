@@ -23,66 +23,31 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.mock.Whitebox;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.RunnableFuture;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.spy;
-import static org.powermock.api.mockito.PowerMockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
  * Tests for the facilities provided by {@link AbstractStreamOperator}. This mostly
  * tests timers and state and whether they are correctly checkpointed/restored
  * with key-group reshuffling.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(AbstractStreamOperator.class)
-@PowerMockIgnore({"java.*", "javax.*", "org.slf4j.*", "org.apache.log4j.*"})
 public class AbstractStreamOperatorTest {
 	@Test
 	public void testStateDoesNotInterfere() throws Exception {
@@ -491,101 +456,6 @@ public class AbstractStreamOperatorTest {
 		testHarness3.setProcessingTime(40L);
 		assertThat(extractResult(testHarness3), contains("ON_PROC_TIME:CIAO"));
 		assertTrue(extractResult(testHarness3).isEmpty());
-	}
-
-	/**
-	 * Tests that a failing snapshot method call to the keyed state backend will trigger the closing
-	 * of the StateSnapshotContextSynchronousImpl and the cancellation of the
-	 * OperatorSnapshotResult. The latter is supposed to also cancel all assigned futures.
-	 */
-	@Test
-	public void testFailingBackendSnapshotMethod() throws Exception {
-		final long checkpointId = 42L;
-		final long timestamp = 1L;
-
-		final Exception failingException = new Exception("Test exception");
-
-		final CloseableRegistry closeableRegistry = new CloseableRegistry();
-
-		RunnableFuture<SnapshotResult<KeyedStateHandle>> futureKeyedStateHandle = mock(RunnableFuture.class);
-		RunnableFuture<SnapshotResult<OperatorStateHandle>> futureOperatorStateHandle = mock(RunnableFuture.class);
-
-		StateSnapshotContextSynchronousImpl context = spy(new StateSnapshotContextSynchronousImpl(checkpointId, timestamp));
-		when(context.getKeyedStateStreamFuture()).thenReturn(futureKeyedStateHandle);
-		when(context.getOperatorStateStreamFuture()).thenReturn(futureOperatorStateHandle);
-
-		OperatorSnapshotFutures operatorSnapshotResult = spy(new OperatorSnapshotFutures());
-
-		whenNew(StateSnapshotContextSynchronousImpl.class)
-			.withArguments(
-				anyLong(),
-				anyLong(),
-				any(CheckpointStreamFactory.class),
-				nullable(KeyGroupRange.class),
-				any(CloseableRegistry.class))
-			.thenReturn(context);
-		whenNew(OperatorSnapshotFutures.class).withAnyArguments().thenReturn(operatorSnapshotResult);
-
-		StreamTask<Void, AbstractStreamOperator<Void>> containingTask = mock(StreamTask.class);
-		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
-
-		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
-		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class), any(CheckpointStreamFactory.class))).thenCallRealMethod();
-
-		doCallRealMethod().when(operator).close();
-		doCallRealMethod().when(operator).dispose();
-
-		doReturn(containingTask).when(operator).getContainingTask();
-
-		RunnableFuture<SnapshotResult<OperatorStateHandle>> futureManagedOperatorStateHandle = mock(RunnableFuture.class);
-
-		OperatorStateBackend operatorStateBackend = mock(OperatorStateBackend.class);
-		when(operatorStateBackend.snapshot(
-			eq(checkpointId),
-			eq(timestamp),
-			any(CheckpointStreamFactory.class),
-			any(CheckpointOptions.class))).thenReturn(futureManagedOperatorStateHandle);
-
-		AbstractKeyedStateBackend<?> keyedStateBackend = mock(AbstractKeyedStateBackend.class);
-		when(keyedStateBackend.snapshot(
-			eq(checkpointId),
-			eq(timestamp),
-			any(CheckpointStreamFactory.class),
-			eq(CheckpointOptions.forCheckpointWithDefaultLocation()))).thenThrow(failingException);
-
-		closeableRegistry.registerCloseable(operatorStateBackend);
-		closeableRegistry.registerCloseable(keyedStateBackend);
-
-		Whitebox.setInternalState(operator, "operatorStateBackend", operatorStateBackend);
-		Whitebox.setInternalState(operator, "keyedStateBackend", keyedStateBackend);
-
-		try {
-			operator.snapshotState(
-					checkpointId,
-					timestamp,
-					CheckpointOptions.forCheckpointWithDefaultLocation(),
-					new MemCheckpointStreamFactory(Integer.MAX_VALUE));
-			fail("Exception expected.");
-		} catch (Exception e) {
-			assertEquals(failingException.getMessage(), e.getCause().getMessage());
-		}
-
-		// verify that the context has been closed, the operator snapshot result has been cancelled
-		// and that all futures have been cancelled.
-		verify(operatorSnapshotResult).cancel();
-
-		verify(futureKeyedStateHandle).cancel(anyBoolean());
-		verify(futureOperatorStateHandle).cancel(anyBoolean());
-		verify(futureKeyedStateHandle).cancel(anyBoolean());
-
-		operator.close();
-
-		operator.dispose();
-
-		verify(operatorStateBackend).close();
-		verify(keyedStateBackend).close();
-		verify(operatorStateBackend).dispose();
-		verify(keyedStateBackend).dispose();
 	}
 
 	/**

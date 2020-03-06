@@ -20,19 +20,31 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An entity keeping all the time-related services available to all operators extending the
@@ -45,6 +57,7 @@ import java.util.Map;
  */
 @Internal
 public class InternalTimeServiceManager<K> {
+	protected static final Logger LOG = LoggerFactory.getLogger(InternalTimeServiceManager.class);
 
 	@VisibleForTesting
 	static final String TIMER_STATE_PREFIX = "_timer_state";
@@ -76,6 +89,19 @@ public class InternalTimeServiceManager<K> {
 		this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
 
 		this.timerServices = new HashMap<>();
+	}
+
+	public <N> InternalTimerService<N> getInternalTimerService(
+			String name,
+			TypeSerializer<N> namespaceSerializer,
+			Triggerable<K, N> triggerable,
+			KeyedStateBackend<K> keyedStateBackend) {
+		checkNotNull(keyedStateBackend, "Timers can only be used on keyed operators.");
+
+		TypeSerializer<K> keySerializer = keyedStateBackend.getKeySerializer();
+		// the following casting is to overcome type restrictions.
+		TimerSerializer<K, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
+		return getInternalTimerService(name, timerSerializer, triggerable);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -130,6 +156,44 @@ public class InternalTimeServiceManager<K> {
 	}
 
 	//////////////////				Fault Tolerance Methods				///////////////////
+
+	public void snapshotState(
+			KeyedStateBackend<?> keyedStateBackend,
+			StateSnapshotContext context,
+			String operatorName) throws Exception {
+		//TODO all of this can be removed once heap-based timers are integrated with RocksDB incremental snapshots
+		if (keyedStateBackend instanceof AbstractKeyedStateBackend &&
+			((AbstractKeyedStateBackend<?>) keyedStateBackend).requiresLegacySynchronousTimerSnapshots()) {
+
+			KeyedStateCheckpointOutputStream out;
+			try {
+				out = context.getRawKeyedOperatorStateOutput();
+			} catch (Exception exception) {
+				throw new Exception("Could not open raw keyed operator state stream for " +
+					operatorName + '.', exception);
+			}
+
+			try {
+				KeyGroupsList allKeyGroups = out.getKeyGroupList();
+				for (int keyGroupIdx : allKeyGroups) {
+					out.startNewKeyGroup(keyGroupIdx);
+
+					snapshotStateForKeyGroup(
+						new DataOutputViewStreamWrapper(out), keyGroupIdx);
+				}
+			} catch (Exception exception) {
+				throw new Exception("Could not write timer service of " + operatorName +
+					" to checkpoint state stream.", exception);
+			} finally {
+				try {
+					out.close();
+				} catch (Exception closeException) {
+					LOG.warn("Could not close raw keyed operator state stream for {}. This " +
+						"might have prevented deleting some state data.", operatorName, closeException);
+				}
+			}
+		}
+	}
 
 	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
 		Preconditions.checkState(useLegacySynchronousSnapshots);
