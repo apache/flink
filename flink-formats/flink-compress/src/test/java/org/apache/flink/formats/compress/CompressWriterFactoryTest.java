@@ -32,6 +32,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -55,6 +56,13 @@ public class CompressWriterFactoryTest extends TestLogger {
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+	private static Configuration confWithCustomCodec;
+
+	@BeforeClass
+	public static void before() {
+		confWithCustomCodec = new Configuration();
+		confWithCustomCodec.set("io.compression.codecs", "org.apache.flink.formats.compress.CustomCompressionCodec");
+	}
 
 	@Test
 	public void testBzip2CompressByAlias() throws Exception {
@@ -101,13 +109,34 @@ public class CompressWriterFactoryTest extends TestLogger {
 		testCompressByName("com.bla.bla.UnknownCodec");
 	}
 
+	@Test
+	public void testCustomCompressionCodecByClassName() throws Exception {
+		testCompressByName("org.apache.flink.formats.compress.CustomCompressionCodec", confWithCustomCodec);
+	}
+
+	@Test
+	public void testCustomCompressionCodecByAlias() throws Exception {
+		testCompressByName("CustomCompressionCodec", confWithCustomCodec);
+	}
+
+	@Test
+	public void testCustomCompressionCodecByName() throws Exception {
+		testCompressByName("CustomCompression", confWithCustomCodec);
+	}
+
 	private void testCompressByName(String codec) throws Exception {
-		CompressWriterFactory<String> writer = CompressWriters.forExtractor(new DefaultExtractor<String>()).withHadoopCompression(codec);
+		testCompressByName(codec, new Configuration());
+	}
+
+	private void testCompressByName(String codec, Configuration configuration) throws Exception {
+		CompressWriterFactory<String> writer = CompressWriters.forExtractor(new DefaultExtractor<String>())
+			.withHadoopCompression(codec, configuration);
 		List<String> lines = Arrays.asList("line1", "line2", "line3");
 
 		File directory = prepareCompressedFile(writer, lines);
+		Configuration conf = (configuration != null) ? configuration : new Configuration();
 
-		validateResults(directory, lines, new CompressionCodecFactory(new Configuration()).getCodecByName(codec));
+		validateResults(directory, lines, new CompressionCodecFactory(conf).getCodecByName(codec));
 	}
 
 	private File prepareCompressedFile(CompressWriterFactory<String> writer, List<String> lines) throws Exception {
