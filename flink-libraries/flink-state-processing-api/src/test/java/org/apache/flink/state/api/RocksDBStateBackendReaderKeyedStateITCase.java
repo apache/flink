@@ -22,12 +22,9 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
-import org.junit.Ignore;
-
 /**
  * IT Case for reading state from a RocksDB keyed state backend.
  */
-@Ignore
 public class RocksDBStateBackendReaderKeyedStateITCase extends SavepointReaderKeyedStateITCase<RocksDBStateBackend> {
 	@Override
 	protected RocksDBStateBackend getStateBackend() {
