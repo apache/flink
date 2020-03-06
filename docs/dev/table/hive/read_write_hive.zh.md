@@ -171,13 +171,14 @@ It is especially beneficial when a table contains many columns.
 For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
 amount of data transferred across network.
 
-### ORC Vectorized Optimization upon Read
+### Vectorized Optimization upon Read
 
 Optimization is used automatically when the following conditions are met:
 
+- Format: ORC or Parquet.
 - Columns without complex data type, like hive types: List, Map, Struct, Union.
 
-This feature is turned on by default. If there is a problem, you can use this config option to close ORC Vectorized Optimization:
+This feature is turned on by default. If there is a problem, you can use this config option to close Vectorized Optimization:
 
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
