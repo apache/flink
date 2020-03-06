@@ -41,7 +41,7 @@ public interface Executor {
 	 *
 	 * @param transformations list of transformations
 	 * @param jobName what should be the name of the job
-	 * @return The pipeline instance.
+	 * @return The pipeline representing the transformations.
 	 */
 	Pipeline createPipeline(
 		List<Transformation<?>> transformations,
