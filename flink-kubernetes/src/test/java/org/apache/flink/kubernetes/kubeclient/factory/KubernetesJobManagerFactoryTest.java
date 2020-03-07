@@ -24,6 +24,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
+import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -57,7 +58,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	private static final String SERVICE_ACCOUNT_NAME = "service-test";
 	private static final String ENTRY_POINT_CLASS = KubernetesSessionClusterEntrypoint.class.getCanonicalName();
 
-	private KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
+	protected KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
 	@Before
 	public void setup() throws Exception {
@@ -187,7 +188,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	public void testFlinkConfConfigMap() {
 		final ConfigMap resultConfigMap = (ConfigMap) this.kubernetesJobManagerSpecification.getAccompanyingResources()
 			.stream()
-			.filter(x -> x instanceof ConfigMap)
+			.filter(x -> x instanceof ConfigMap &&
+				x.getMetadata().getName().equals(FlinkConfMountDecorator.getFlinkConfConfigMapName(CLUSTER_ID)))
 			.collect(Collectors.toList())
 			.get(0);
 

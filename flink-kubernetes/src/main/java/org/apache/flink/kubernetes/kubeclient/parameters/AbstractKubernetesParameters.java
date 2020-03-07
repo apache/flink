@@ -25,11 +25,13 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
@@ -132,6 +134,33 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
 		final File log4jFile = new File(confDir, CONFIG_FILE_LOG4J_NAME);
 		return log4jFile.exists();
+	}
+
+	@Override
+	public Optional<String> getExistingHadoopConfigurationConfigMap() {
+		final String existingHadoopConfigMap = flinkConfig.getString(KubernetesConfigOptions.HADOOP_CONF_CONFIG_MAP);
+		if (StringUtils.isBlank(existingHadoopConfigMap)) {
+			return Optional.empty();
+		} else {
+			return Optional.of(existingHadoopConfigMap.trim());
+		}
+	}
+
+	@Override
+	public Optional<String> getLocalHadoopConfigurationDirectory() {
+		final String[] possibleHadoopConfPaths = new String[] {
+			System.getenv(Constants.ENV_HADOOP_CONF_DIR),
+			System.getenv(Constants.ENV_HADOOP_HOME) + "/etc/hadoop", // hadoop 2.2
+			System.getenv(Constants.ENV_HADOOP_HOME) + "/conf"
+		};
+
+		for (String hadoopConfPath: possibleHadoopConfPaths) {
+			if (StringUtils.isNotBlank(hadoopConfPath)) {
+				return Optional.of(hadoopConfPath);
+			}
+		}
+
+		return Optional.empty();
 	}
 
 	/**

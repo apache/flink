@@ -182,8 +182,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 		return localLogConfFiles;
 	}
 
-	@VisibleForTesting
-	String getFlinkConfConfigMapName(String clusterId) {
+	public static String getFlinkConfConfigMapName(String clusterId) {
 		return CONFIG_MAP_PREFIX + clusterId;
 	}
 }
