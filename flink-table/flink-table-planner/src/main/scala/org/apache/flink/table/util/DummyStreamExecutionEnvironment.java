@@ -46,7 +46,7 @@ import java.util.List;
  * shares all configurations of the real environment, and disables all configuration setting methods.
  *
  * <p>When translating relational plan to execution plan in the {@link Planner}, the generated {@link Transformation}s
- * will be added into the StreamExecutionEnvironment's buffer, and they will be cleared only when
+ * will be added into StreamExecutionEnvironment's buffer, and they will be cleared only when
  * {@link StreamExecutionEnvironment#execute()} method is called. Each {@link TableEnvironment} instance holds
  * an immutable StreamExecutionEnvironment instance. If there are multiple translations (not all for `execute`,
  * e.g. `explain` and then `execute`) in one TableEnvironment instance, the transformation buffer is dirty,

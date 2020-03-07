@@ -51,7 +51,7 @@ public abstract class ExecutorBase implements Executor {
 		return executionEnvironment.execute((StreamGraph) pipeline);
 	}
 
-	String getNonEmptyJobName(String jobName) {
+	protected String getNonEmptyJobName(String jobName) {
 		if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
 			return DEFAULT_JOB_NAME;
 		} else {

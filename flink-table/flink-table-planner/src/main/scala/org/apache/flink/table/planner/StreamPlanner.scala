@@ -243,7 +243,7 @@ class StreamPlanner(
   private def translateToCRow(
     logicalPlan: RelNode,
     queryConfig: StreamQueryConfig): DataStream[CRow] = {
-    val planner =  createDummyPlanner()
+    val planner = createDummyPlanner()
 
     logicalPlan match {
       case node: DataStreamRel =>

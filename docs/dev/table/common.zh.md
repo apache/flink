@@ -824,8 +824,8 @@ Table API 和 SQL 查询会被翻译成 [DataStream]({{ site.baseurl }}/zh/dev/d
 
 对于 Streaming 而言，Table API 或者 SQL 查询在下列情况下会被翻译：
 
-* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中。
-* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。翻译完成后，它就是一个普通的 DataStream 程序对待并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
+* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中，每个 sink 会被单独优化。执行计划将包括多个独立的有向无环子图。
+* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
 
 对于 Batch 而言，Table API 或者 SQL 查询在下列情况下会被翻译：
 
@@ -845,14 +845,8 @@ Table API 和 SQL 查询会被翻译成 [DataStream]({{ site.baseurl }}/zh/dev/d
 
 Table API 或者 SQL 查询在下列情况下会被翻译：
 
-* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中。
-* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。翻译完成后，它就是一个普通的 DataStream 程序对待并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
-
-`TableEnvironment` 和 `StreamTableEnvironment` 翻译查询的方式不同。
-
-对于 `TableEnvironment` 而言，所有的 sink 会被优化成一张有向无环图。
-
-对于 `StreamTableEnvironment` 而言，每个 sink 会被单独优化。执行计划将包括多个独立的有向无环子图。
+* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中，所有的 sink 会被优化成一张有向无环图。
+* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
 
 </div>
 </div>

@@ -837,7 +837,7 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 
 For streaming, a Table API or SQL query is translated when:
 
-* when `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first.
+* `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first. Each sink will be optimized independently. The execution graph contains multiple independent sub-DAGs.
 * A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
 
 For batch, a Table API or SQL query is translated when:
@@ -858,14 +858,8 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 
 a Table API or SQL query is translated when:
 
-* when `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first.
+* `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first. All sinks will be optimized into one DAG.
 * A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
-
-The behavior of translating a query is different for `TableEnvironment` and `StreamTableEnvironment`.
-
-For `TableEnvironment`, all sinks will be optimized into one DAG.
-
-While for `StreamTableEnvironment`, each sink will be optimized independently. The execution graph contains multiple independent sub-DAGs.
 
 
 </div>
