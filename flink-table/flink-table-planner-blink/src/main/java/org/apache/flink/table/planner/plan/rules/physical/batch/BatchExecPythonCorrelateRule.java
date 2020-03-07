@@ -58,7 +58,7 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 			// right node is a table function
 			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
 			// return true if the table function is python table function
-			return PythonUtil.isPythonCall(scan.getCall());
+			return PythonUtil.isPythonCall(scan.getCall(), null);
 		} else if (right instanceof FlinkLogicalCalc) {
 			// a filter is pushed above the table function
 			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
@@ -66,7 +66,7 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 			if (input instanceof FlinkLogicalTableFunctionScan) {
 				FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) input;
 				// return true if the table function is python table function
-				return PythonUtil.isPythonCall(scan.getCall());
+				return PythonUtil.isPythonCall(scan.getCall(), null);
 			}
 		}
 		return false;

@@ -374,7 +374,6 @@ catalogs:
    - name: myhive
      type: hive
      hive-conf-dir: /opt/hive-conf
-     hive-version: 2.3.4
 {% endhighlight %}
 </div>
 </div>

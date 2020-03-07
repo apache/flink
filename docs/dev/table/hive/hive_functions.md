@@ -54,7 +54,6 @@ modules:
      type: core
    - name: myhive
      type: hive
-     hive-version: 2.3.4
 {% endhighlight %}
 </div>
 </div>

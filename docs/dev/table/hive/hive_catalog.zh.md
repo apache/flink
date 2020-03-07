@@ -153,7 +153,6 @@ catalogs:
    - name: myhive
      type: hive
      hive-conf-dir: /opt/hive-conf  # contains hive-site.xml
-     hive-version: 2.3.4
 {% endhighlight %}
 
 

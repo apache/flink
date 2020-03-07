@@ -126,7 +126,13 @@ jobs:
   - task: PublishTestResults@2
     inputs:
       testResultsFormat: 'JUnit'
-
+  # upload debug artifacts
+  - task: PublishPipelineArtifact@1
+    condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+    displayName: Upload Logs
+    inputs:
+      path: $(ARTIFACT_DIR)
+      artifact: logs-${{parameters.stage_name}}-$(ARTIFACT_NAME)
 
 - job: e2e_${{parameters.stage_name}}
   # uncomment below condition to run the e2e tests only on request.
@@ -161,6 +167,14 @@ jobs:
     # TODO remove pre-commit tests script by adding the tests to the nightly script
 #    - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
 #      displayName: Test - precommit 
-    - script: FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
       displayName: Run e2e tests
+      # upload debug artifacts
+    - task: PublishPipelineArtifact@1
+      condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+      displayName: Upload Logs
+      inputs:
+        path: $(ARTIFACT_DIR)
+        artifact: logs-${{parameters.stage_name}}-e2e
+        
 

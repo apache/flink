@@ -760,7 +760,9 @@ public abstract class FileSystem {
 
 	/**
 	 * Gets a description of the characteristics of this file system.
+	 * @deprecated this method is not used anymore.
 	 */
+	@Deprecated
 	public abstract FileSystemKind getKind();
 
 	// ------------------------------------------------------------------------

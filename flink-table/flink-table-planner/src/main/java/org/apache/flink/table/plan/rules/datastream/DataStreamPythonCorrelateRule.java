@@ -59,12 +59,12 @@ public class DataStreamPythonCorrelateRule extends ConverterRule {
 		if (right instanceof FlinkLogicalTableFunctionScan) {
 			// right node is a python table function
 			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
-			return PythonUtil.isPythonCall(scan.getCall());
+			return PythonUtil.isPythonCall(scan.getCall(), null);
 		} else if (right instanceof FlinkLogicalCalc) {
 			// a filter is pushed above the table function
 			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
 			Option<FlinkLogicalTableFunctionScan> scan = CorrelateUtil.getTableFunctionScan(calc);
-			return scan.isDefined() && PythonUtil.isPythonCall(scan.get().getCall());
+			return scan.isDefined() && PythonUtil.isPythonCall(scan.get().getCall(), null);
 		}
 		return false;
 	}

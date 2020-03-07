@@ -22,11 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.runtime.checkpoint.TaskState;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -59,13 +55,6 @@ public class CheckpointTestUtils {
 	/**
 	 * Creates a random collection of OperatorState objects containing various types of state handles.
 	 */
-	public static Collection<OperatorState> createOperatorStates(int numTaskStates, int numSubtasksPerTask) {
-		return createOperatorStates(new Random(), numTaskStates, numSubtasksPerTask);
-	}
-
-	/**
-	 * Creates a random collection of OperatorState objects containing various types of state handles.
-	 */
 	public static Collection<OperatorState> createOperatorStates(
 			Random random,
 			int numTaskStates,
@@ -76,6 +65,12 @@ public class CheckpointTestUtils {
 		for (int stateIdx = 0; stateIdx < numTaskStates; ++stateIdx) {
 
 			OperatorState taskState = new OperatorState(new OperatorID(), numSubtasksPerTask, 128);
+
+			final boolean hasCoordinatorState = random.nextBoolean();
+			if (hasCoordinatorState) {
+				final StreamStateHandle stateHandle = createDummyStreamStateHandle(random);
+				taskState.setCoordinatorState(stateHandle);
+			}
 
 			boolean hasOperatorStateBackend = random.nextBoolean();
 			boolean hasOperatorStateStream = random.nextBoolean();
@@ -93,7 +88,7 @@ public class CheckpointTestUtils {
 
 				OperatorStateHandle operatorStateHandleBackend = null;
 				OperatorStateHandle operatorStateHandleStream = null;
-				
+
 				Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
 				offsetsMap.put("A", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 				offsetsMap.put("B", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
@@ -136,89 +131,6 @@ public class CheckpointTestUtils {
 	}
 
 	/**
-	 * Creates a random collection of TaskState objects containing various types of state handles.
-	 */
-	public static Collection<TaskState> createTaskStates(int numTaskStates, int numSubtasksPerTask) {
-		return createTaskStates(new Random(), numTaskStates, numSubtasksPerTask);
-	}
-
-	/**
-	 * Creates a random collection of TaskState objects containing various types of state handles.
-	 */
-	public static Collection<TaskState> createTaskStates(
-			Random random,
-			int numTaskStates,
-			int numSubtasksPerTask) {
-
-		List<TaskState> taskStates = new ArrayList<>(numTaskStates);
-
-		for (int stateIdx = 0; stateIdx < numTaskStates; ++stateIdx) {
-
-			int chainLength = 1 + random.nextInt(8);
-
-			TaskState taskState = new TaskState(new JobVertexID(), numSubtasksPerTask, 128, chainLength);
-
-			int noNonPartitionableStateAtIndex = random.nextInt(chainLength);
-			int noOperatorStateBackendAtIndex = random.nextInt(chainLength);
-			int noOperatorStateStreamAtIndex = random.nextInt(chainLength);
-
-			boolean hasKeyedBackend = random.nextInt(4) != 0;
-			boolean hasKeyedStream = random.nextInt(4) != 0;
-
-			for (int subtaskIdx = 0; subtaskIdx < numSubtasksPerTask; subtaskIdx++) {
-
-				List<OperatorStateHandle> operatorStatesBackend = new ArrayList<>(chainLength);
-				List<OperatorStateHandle> operatorStatesStream = new ArrayList<>(chainLength);
-
-				for (int chainIdx = 0; chainIdx < chainLength; ++chainIdx) {
-
-					StreamStateHandle operatorStateBackend =
-							new ByteStreamStateHandle("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes(ConfigConstants.DEFAULT_CHARSET));
-					StreamStateHandle operatorStateStream =
-							new ByteStreamStateHandle("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes(ConfigConstants.DEFAULT_CHARSET));
-					Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
-					offsetsMap.put("A", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
-					offsetsMap.put("B", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
-					offsetsMap.put("C", new OperatorStateHandle.StateMetaInfo(new long[]{60, 70, 80}, OperatorStateHandle.Mode.UNION));
-
-					if (chainIdx != noOperatorStateBackendAtIndex) {
-						OperatorStateHandle operatorStateHandleBackend =
-								new OperatorStreamStateHandle(offsetsMap, operatorStateBackend);
-						operatorStatesBackend.add(operatorStateHandleBackend);
-					}
-
-					if (chainIdx != noOperatorStateStreamAtIndex) {
-						OperatorStateHandle operatorStateHandleStream =
-								new OperatorStreamStateHandle(offsetsMap, operatorStateStream);
-						operatorStatesStream.add(operatorStateHandleStream);
-					}
-				}
-
-				KeyGroupsStateHandle keyedStateBackend = null;
-				KeyGroupsStateHandle keyedStateStream = null;
-
-				if (hasKeyedBackend) {
-					keyedStateBackend = createDummyKeyGroupStateHandle(random);
-				}
-
-				if (hasKeyedStream) {
-					keyedStateStream = createDummyKeyGroupStateHandle(random);
-				}
-
-				taskState.putState(subtaskIdx, new SubtaskState(
-						new ChainedStateHandle<>(operatorStatesBackend),
-						new ChainedStateHandle<>(operatorStatesStream),
-						keyedStateStream,
-						keyedStateBackend));
-			}
-
-			taskStates.add(taskState);
-		}
-
-		return taskStates;
-	}
-
-	/**
 	 * Creates a bunch of random master states.
 	 */
 	public static Collection<MasterState> createRandomMasterStates(Random random, int num) {
@@ -238,7 +150,7 @@ public class CheckpointTestUtils {
 
 	/**
 	 * Asserts that two MasterStates are equal.
-	 * 
+	 *
 	 * <p>The MasterState avoids overriding {@code equals()} on purpose, because equality is not well
 	 * defined in the raw contents.
 	 */
@@ -251,9 +163,8 @@ public class CheckpointTestUtils {
 
 	// ------------------------------------------------------------------------
 
-	/** utility class, not meant to be instantiated */
+	/** utility class, not meant to be instantiated. */
 	private CheckpointTestUtils() {}
-
 
 	public static IncrementalRemoteKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
 		return new IncrementalRemoteKeyedStateHandle(

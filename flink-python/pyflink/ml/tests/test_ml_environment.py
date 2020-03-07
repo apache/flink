@@ -18,7 +18,7 @@
 
 import unittest
 
-from pyflink.ml.ml_environment_factory import MLEnvironment
+from pyflink.ml.api.ml_environment_factory import MLEnvironment
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import BatchTableEnvironment, StreamTableEnvironment

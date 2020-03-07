@@ -127,6 +127,14 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
   }
 }
 
+final class StringSink[T] extends AbstractExactlyOnceSink[T]() {
+  override def invoke(value: T) {
+    localResults += value.toString
+  }
+
+  override def getResults: List[String] = super.getResults
+}
+
 final class TestingAppendBaseRowSink(
     rowTypeInfo: BaseRowTypeInfo, tz: TimeZone)
   extends AbstractExactlyOnceSink[BaseRow] {

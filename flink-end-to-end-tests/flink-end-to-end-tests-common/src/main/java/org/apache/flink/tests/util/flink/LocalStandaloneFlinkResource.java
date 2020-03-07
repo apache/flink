@@ -28,13 +28,19 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
+import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ConfigurationException;
 
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -51,16 +57,28 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResource.class);
 
-	private final FlinkDistribution distribution = new FlinkDistribution();
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	private final Path distributionDirectory;
+	@Nullable
+	private final Path logBackupDirectory;
 	private final FlinkResourceSetup setup;
 
-	LocalStandaloneFlinkResource(FlinkResourceSetup setup) {
+	private FlinkDistribution distribution;
+
+	LocalStandaloneFlinkResource(Path distributionDirectory, @Nullable Path logBackupDirectory, FlinkResourceSetup setup) {
+		this.distributionDirectory = distributionDirectory;
+		this.logBackupDirectory = logBackupDirectory;
 		this.setup = setup;
 	}
 
 	@Override
 	public void before() throws Exception {
-		distribution.before();
+		temporaryFolder.create();
+		Path tmp = temporaryFolder.newFolder().toPath();
+		LOG.info("Copying distribution to {}.", tmp);
+		TestUtils.copyDirectory(distributionDirectory, tmp);
+
+		distribution = new FlinkDistribution(tmp);
 		for (JarMove jarMove : setup.getJarMoveOperations()) {
 			distribution.moveJar(jarMove);
 		}
@@ -71,12 +89,37 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	@Override
 	public void afterTestSuccess() {
-		distribution.afterTestSuccess();
+		shutdownCluster();
+		temporaryFolder.delete();
 	}
 
 	@Override
 	public void afterTestFailure() {
-		distribution.afterTestFailure();
+		if (distribution != null) {
+			shutdownCluster();
+			backupLogs();
+		}
+		temporaryFolder.delete();
+	}
+
+	private void shutdownCluster() {
+		try {
+			distribution.stopFlinkCluster();
+		} catch (IOException e) {
+			LOG.warn("Error while shutting down Flink cluster.", e);
+		}
+	}
+
+	private void backupLogs() {
+		if (logBackupDirectory != null) {
+			final Path targetDirectory = logBackupDirectory.resolve(UUID.randomUUID().toString());
+			try {
+				distribution.copyLogsTo(targetDirectory);
+				LOG.info("Backed up logs to {}.", targetDirectory);
+			} catch (IOException e) {
+				LOG.warn("An error has occurred while backing up logs to {}.", targetDirectory, e);
+			}
+		}
 	}
 
 	@Override

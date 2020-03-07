@@ -17,7 +17,7 @@
 ################################################################################
 
 from typing import Optional
-from pyflink.ml.ml_environment import MLEnvironment
+from pyflink.ml.api.ml_environment import MLEnvironment
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import BatchTableEnvironment, StreamTableEnvironment

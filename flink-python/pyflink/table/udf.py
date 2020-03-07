@@ -199,6 +199,8 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
         j_input_types = utils.to_jarray(gateway.jvm.TypeInformation,
                                         [_to_java_type(i) for i in self._input_types])
         j_result_type = _to_java_type(self._result_type)
+        j_function_kind = gateway.jvm.org.apache.flink.table.functions.python.\
+            PythonFunctionKind.GENERAL
         if is_blink_planner:
             PythonTableUtils = gateway.jvm\
                 .org.apache.flink.table.planner.utils.python.PythonTableUtils
@@ -208,6 +210,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
                                             bytearray(serialized_func),
                                             j_input_types,
                                             j_result_type,
+                                            j_function_kind,
                                             self._deterministic,
                                             _get_python_env())
         else:
@@ -217,6 +220,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
                                             bytearray(serialized_func),
                                             j_input_types,
                                             j_result_type,
+                                            j_function_kind,
                                             self._deterministic,
                                             _get_python_env())
 

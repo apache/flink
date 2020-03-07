@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.ml.ml_environment_factory import MLEnvironmentFactory, MLEnvironment
+from pyflink.ml.api.ml_environment_factory import MLEnvironmentFactory, MLEnvironment
 from pyflink.testing.test_case_utils import MLTestCase
 
 

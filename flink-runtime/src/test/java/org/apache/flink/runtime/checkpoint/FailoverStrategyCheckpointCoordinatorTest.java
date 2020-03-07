@@ -36,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
@@ -79,6 +80,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 			new ExecutionVertex[] { executionVertex },
 			new ExecutionVertex[] { executionVertex },
 			new ExecutionVertex[] { executionVertex },
+			Collections.emptyList(),
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
