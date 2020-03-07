@@ -46,6 +46,12 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 
 	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
 
+	static {
+		// Arrow requires the property io.netty.tryReflectionSetAccessible to
+		// be set to true for JDK >= 9. Please refer to ARROW-5412 for more details.
+		System.setProperty("io.netty.tryReflectionSetAccessible", "true");
+	}
+
 	/**
 	 * Max number of elements to include in an arrow batch.
 	 */
