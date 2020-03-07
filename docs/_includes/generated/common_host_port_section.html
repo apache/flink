@@ -21,6 +21,12 @@
             <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
         </tr>
         <tr>
+            <td><h5>metrics.internal.query-service.port</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>String</td>
+            <td>The port range used for Flink's internal metric query service. Accepts a list of ports (“50100,50101”), ranges(“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple Flink components are running on the same machine. Per default Flink will pick a random port.</td>
+        </tr>
+        <tr>
             <td><h5>rest.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

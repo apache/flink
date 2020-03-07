@@ -127,6 +127,14 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
   }
 }
 
+final class StringSink[T] extends AbstractExactlyOnceSink[T]() {
+  override def invoke(value: T) {
+    localResults += value.toString
+  }
+
+  override def getResults: List[String] = super.getResults
+}
+
 final class TestingAppendBaseRowSink(
     rowTypeInfo: BaseRowTypeInfo, tz: TimeZone)
   extends AbstractExactlyOnceSink[BaseRow] {
@@ -310,10 +318,6 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
       .setParallelism(dataStream.getParallelism)
   }
 
-  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, BaseRow]]): Unit = {
-    consumeDataStream(dataStream)
-  }
-
   override def configure(
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]]): TestingUpsertTableSink = {
@@ -343,10 +347,6 @@ final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[R
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
     dataStream.addSink(sink).name("TestingAppendTableSink")
       .setParallelism(dataStream.getParallelism)
-  }
-
-  override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-    consumeDataStream(dataStream)
   }
 
   override def getOutputType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
@@ -509,10 +509,6 @@ final class TestingRetractTableSink(tz: TimeZone) extends RetractStreamTableSink
       .addSink(sink)
       .name("TestingRetractTableSink")
       .setParallelism(dataStream.getParallelism)
-  }
-
-  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, Row]]): Unit = {
-    consumeDataStream(dataStream)
   }
 
   override def getRecordType: TypeInformation[Row] =

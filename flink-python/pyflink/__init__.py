@@ -16,6 +16,7 @@
 # limitations under the License.
 #################################################################################
 import sys
+from functools import wraps
 
 if sys.version_info < (3, 5):
     raise RuntimeError(
@@ -23,17 +24,13 @@ if sys.version_info < (3, 5):
         str(sys.version_info) + '].')
 
 
-def since(version):
+def keyword(func):
     """
-    A decorator that annotates a function to append the version the function was added.
+    A decorator that forces keyword arguments usage and store actual
+    input keyword arguments in `_input_kwargs`.
     """
-    import re
-    indent_p = re.compile(r'\n( +)')
-
-    def deco(f):
-        original_doc = f.__doc__ or ""
-        indents = indent_p.findall(original_doc)
-        indent = ' ' * (min(len(indent) for indent in indents) if indents else 0)
-        f.__doc__ = original_doc.rstrip() + "\n\n%s.. versionadded:: %s" % (indent, version)
-        return f
-    return deco
+    @wraps(func)
+    def wrapper(self, **kwargs):
+        self._input_kwargs = kwargs
+        return func(self, **kwargs)
+    return wrapper

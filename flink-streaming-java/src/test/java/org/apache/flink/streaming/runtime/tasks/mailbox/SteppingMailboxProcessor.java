@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 
 import java.util.Optional;
@@ -28,31 +27,21 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_P
  * A {@link MailboxProcessor} that allows to execute one mail at a time.
  */
 public class SteppingMailboxProcessor extends MailboxProcessor {
-	public SteppingMailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
-		super(mailboxDefaultAction);
-	}
-
-	public SteppingMailboxProcessor(MailboxDefaultAction mailboxDefaultAction, StreamTaskActionExecutor actionExecutor) {
-		super(mailboxDefaultAction, actionExecutor);
-	}
-
 	public SteppingMailboxProcessor(MailboxDefaultAction mailboxDefaultAction, TaskMailbox mailbox, StreamTaskActionExecutor actionExecutor) {
 		super(mailboxDefaultAction, mailbox, actionExecutor);
 	}
 
-	public SteppingMailboxProcessor(MailboxDefaultAction mailboxDefaultAction, StreamTaskActionExecutor actionExecutor, TaskMailbox mailbox, MailboxExecutor mainMailboxExecutor) {
-		super(mailboxDefaultAction, actionExecutor, mailbox, mainMailboxExecutor);
-	}
-
-	public void runMailboxStep() throws Exception {
+	@Override
+	public boolean runMailboxStep() throws Exception {
 		assert mailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 		final MailboxController defaultActionContext = new MailboxController(this);
 
 		Optional<Mail> maybeMail;
 		if (isMailboxLoopRunning() && (maybeMail = mailbox.tryTake(MIN_PRIORITY)).isPresent()) {
 			maybeMail.get().run();
-			return;
+			return true;
 		}
 		mailboxDefaultAction.runDefaultAction(defaultActionContext);
+		return false;
 	}
 }

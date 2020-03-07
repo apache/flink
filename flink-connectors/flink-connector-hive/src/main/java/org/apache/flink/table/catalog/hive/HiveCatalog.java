@@ -108,6 +108,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
+import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
 import static org.apache.flink.table.filesystem.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -133,6 +135,10 @@ public class HiveCatalog extends AbstractCatalog {
 	private final HiveShim hiveShim;
 
 	private HiveMetastoreClientWrapper client;
+
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir) {
+		this(catalogName, defaultDatabase, hiveConfDir, HiveShimLoader.getHiveVersion());
+	}
 
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir, String hiveVersion) {
 		this(catalogName,
@@ -1241,14 +1247,10 @@ public class HiveCatalog extends AbstractCatalog {
 	 * @return                whether need to update stats.
 	 */
 	private boolean statsChanged(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
-		String oldRowCount = parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
-		String oldTotalSize = parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
-		String oldNumFiles = parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
-		String oldRawDataSize = parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
-		return newTableStats.getRowCount() != Long.parseLong(oldRowCount)
-				|| newTableStats.getTotalSize() != Long.parseLong(oldTotalSize)
-				|| newTableStats.getFileCount() != Integer.parseInt(oldNumFiles)
-				|| newTableStats.getRawDataSize() != Long.parseLong(oldRawDataSize);
+		return newTableStats.getRowCount() != parsePositiveLongStat(parameters, StatsSetupConst.ROW_COUNT)
+				|| newTableStats.getTotalSize() != parsePositiveLongStat(parameters, StatsSetupConst.TOTAL_SIZE)
+				|| newTableStats.getFileCount() != parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES)
+				|| newTableStats.getRawDataSize() != parsePositiveLongStat(parameters, StatsSetupConst.NUM_FILES);
 	}
 
 	/**
@@ -1264,11 +1266,11 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	private static CatalogTableStatistics createCatalogTableStatistics(Map<String, String> parameters) {
-		long rowCount = Long.parseLong(parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
-		long totalSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
-		int numFiles = Integer.parseInt(parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
-		long rawDataSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
-		return new CatalogTableStatistics(rowCount, numFiles, totalSize, rawDataSize);
+		return new CatalogTableStatistics(
+				parsePositiveLongStat(parameters, StatsSetupConst.ROW_COUNT),
+				parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES),
+				parsePositiveLongStat(parameters, StatsSetupConst.TOTAL_SIZE),
+				parsePositiveLongStat(parameters, StatsSetupConst.RAW_DATA_SIZE));
 	}
 
 	@Override

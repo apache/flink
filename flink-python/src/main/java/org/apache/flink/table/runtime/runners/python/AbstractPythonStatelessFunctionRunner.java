@@ -25,6 +25,8 @@ import org.apache.flink.python.AbstractPythonFunctionRunner;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -152,7 +154,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
 	}
 
-	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
+	public FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
 		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		for (Object input : pythonFunctionInfo.getInputs()) {
@@ -201,12 +203,33 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 	/**
 	 * Gets the proto representation of the input coder.
 	 */
-	abstract RunnerApi.Coder getInputCoderProto();
+	private RunnerApi.Coder getInputCoderProto() {
+		return getRowCoderProto(inputType);
+	}
 
 	/**
 	 * Gets the proto representation of the output coder.
 	 */
-	abstract RunnerApi.Coder getOutputCoderProto();
+	private RunnerApi.Coder getOutputCoderProto() {
+		return getRowCoderProto(outputType);
+	}
+
+	private RunnerApi.Coder getRowCoderProto(RowType rowType) {
+		return RunnerApi.Coder.newBuilder()
+			.setSpec(
+				RunnerApi.FunctionSpec.newBuilder()
+					.setUrn(getInputOutputCoderUrn())
+					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
+						toProtoType(rowType).getRowSchema().toByteArray()))
+					.build())
+			.build();
+	}
+
+	private FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
+		return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
+	}
+
+	public abstract String getInputOutputCoderUrn();
 
 	/**
 	 * Gets the proto representation of the window coder.

@@ -38,7 +38,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -93,13 +93,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
-	public DefaultScheduler(
+	DefaultScheduler(
 		final Logger log,
 		final JobGraph jobGraph,
 		final BackPressureStatsTracker backPressureStatsTracker,
 		final Executor ioExecutor,
 		final Configuration jobMasterConfiguration,
-		final SlotProvider slotProvider,
 		final ScheduledExecutorService futureExecutor,
 		final ScheduledExecutor delayExecutor,
 		final ClassLoader userCodeLoader,
@@ -107,7 +106,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Time rpcTimeout,
 		final BlobWriter blobWriter,
 		final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-		final Time slotRequestTimeout,
 		final ShuffleMaster<?> shuffleMaster,
 		final JobMasterPartitionTracker partitionTracker,
 		final SchedulingStrategyFactory schedulingStrategyFactory,
@@ -123,7 +121,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			backPressureStatsTracker,
 			ioExecutor,
 			jobMasterConfiguration,
-			slotProvider,
+			new ThrowingSlotProvider(), // this is not used any more in the new scheduler
 			futureExecutor,
 			userCodeLoader,
 			checkpointRecoveryFactory,
@@ -131,7 +129,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			new ThrowingRestartStrategy.ThrowingRestartStrategyFactory(),
 			blobWriter,
 			jobManagerJobMetricGroup,
-			slotRequestTimeout,
+			Time.seconds(0), // this is not used any more in the new scheduler
 			shuffleMaster,
 			partitionTracker,
 			executionVertexVersioner,

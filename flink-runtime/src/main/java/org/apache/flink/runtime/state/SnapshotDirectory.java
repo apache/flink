@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -49,22 +49,13 @@ public abstract class SnapshotDirectory {
 	@Nonnull
 	protected final Path directory;
 
-	/** The filesystem that contains the snapshot directory. */
-	@Nonnull
-	protected final FileSystem fileSystem;
-
 	/** This reference tracks the lifecycle state of the snapshot directory. */
 	@Nonnull
 	protected AtomicReference<State> state;
 
-	private SnapshotDirectory(@Nonnull Path directory, @Nonnull FileSystem fileSystem) {
+	private SnapshotDirectory(@Nonnull Path directory) {
 		this.directory = directory;
-		this.fileSystem = fileSystem;
 		this.state = new AtomicReference<>(State.ONGOING);
-	}
-
-	private SnapshotDirectory(@Nonnull Path directory) throws IOException {
-		this(directory, directory.getFileSystem());
 	}
 
 	@Nonnull
@@ -73,26 +64,22 @@ public abstract class SnapshotDirectory {
 	}
 
 	public boolean mkdirs() throws IOException {
-		return fileSystem.mkdirs(directory);
-	}
-
-	@Nonnull
-	public FileSystem getFileSystem() {
-		return fileSystem;
+		Files.createDirectories(directory);
+		return true;
 	}
 
 	public boolean exists() throws IOException {
-		return fileSystem.exists(directory);
+		return Files.exists(directory);
 	}
 
 	/**
-	 * List the statuses of the files/directories in the snapshot directory.
+	 * List the files in the snapshot directory.
 	 *
-	 * @return the statuses of the files/directories in the given path.
+	 * @return the files in the snapshot directory.
 	 * @throws IOException if there is a problem creating the file statuses.
 	 */
-	public FileStatus[] listStatus() throws IOException {
-		return fileSystem.listStatus(directory);
+	public Path[] listDirectory() throws IOException {
+		return FileUtils.listDirectory(directory);
 	}
 
 	/**
@@ -103,7 +90,10 @@ public abstract class SnapshotDirectory {
 	 * @throws IOException if an exception happens during the delete.
 	 */
 	public boolean cleanup() throws IOException {
-		return !state.compareAndSet(State.ONGOING, State.DELETED) || fileSystem.delete(directory, true);
+		if (state.compareAndSet(State.ONGOING, State.DELETED)) {
+			FileUtils.deleteDirectory(directory.toFile());
+		}
+		return true;
 	}
 
 	/**
@@ -174,7 +164,7 @@ public abstract class SnapshotDirectory {
 	private static class TemporarySnapshotDirectory extends SnapshotDirectory {
 
 		TemporarySnapshotDirectory(@Nonnull File directory) throws IOException {
-			super(new Path(directory.toURI()), FileSystem.getLocalFileSystem());
+			super(directory.toPath());
 		}
 
 		@Override

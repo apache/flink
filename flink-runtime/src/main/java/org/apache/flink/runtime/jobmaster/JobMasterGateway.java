@@ -57,7 +57,8 @@ public interface JobMasterGateway extends
 	CheckpointCoordinatorGateway,
 	FencedRpcGateway<JobMasterId>,
 	KvStateLocationOracle,
-	KvStateRegistryGateway {
+	KvStateRegistryGateway,
+	JobMasterOperatorEventGateway {
 
 	/**
 	 * Cancels the currently executed job.

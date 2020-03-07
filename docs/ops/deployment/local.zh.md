@@ -1,5 +1,5 @@
 ---
-title: "Local Cluster"
+title: "本地集群"
 nav-title: 'Local Cluster'
 nav-parent_id: deployment
 nav-pos: 2
@@ -152,9 +152,9 @@ This error occurs because git is automatically transforming UNIX line endings to
 
 2. Determine your home directory by entering
 
-    {% highlight bash %}
-    cd; pwd
-    {% endhighlight %}
+{% highlight bash %}
+cd; pwd
+{% endhighlight %}
 
     This will return a path under the Cygwin root path.
 

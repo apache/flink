@@ -663,7 +663,8 @@ public class LocalExecutor implements Executor {
 		return new ResultDescriptor(
 				resultId,
 				removeTimeAttributes(table.getSchema()),
-				result.isMaterialized());
+				result.isMaterialized(),
+				context.getEnvironment().getExecution().isTableauMode());
 	}
 
 	/**

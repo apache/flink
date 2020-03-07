@@ -167,96 +167,99 @@ You can make looping patterns greedy using the `pattern.greedy()` method, but yo
 
 For a pattern named `start`, the following are valid quantifiers:
 
- <div class="codetabs" markdown="1">
- <div data-lang="java" markdown="1">
- {% highlight java %}
- // expecting 4 occurrences
- start.times(4);
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// expecting 4 occurrences
+start.times(4);
 
- // expecting 0 or 4 occurrences
- start.times(4).optional();
+// expecting 0 or 4 occurrences
+start.times(4).optional();
 
- // expecting 2, 3 or 4 occurrences
- start.times(2, 4);
+// expecting 2, 3 or 4 occurrences
+start.times(2, 4);
 
- // expecting 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).greedy();
+// expecting 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).greedy();
 
- // expecting 0, 2, 3 or 4 occurrences
- start.times(2, 4).optional();
+// expecting 0, 2, 3 or 4 occurrences
+start.times(2, 4).optional();
 
- // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).optional().greedy();
+// expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).optional().greedy();
 
- // expecting 1 or more occurrences
- start.oneOrMore();
+// expecting 1 or more occurrences
+start.oneOrMore();
 
- // expecting 1 or more occurrences and repeating as many as possible
- start.oneOrMore().greedy();
+// expecting 1 or more occurrences and repeating as many as possible
+start.oneOrMore().greedy();
 
- // expecting 0 or more occurrences
- start.oneOrMore().optional();
+// expecting 0 or more occurrences
+start.oneOrMore().optional();
 
- // expecting 0 or more occurrences and repeating as many as possible
- start.oneOrMore().optional().greedy();
+// expecting 0 or more occurrences and repeating as many as possible
+start.oneOrMore().optional().greedy();
 
- // expecting 2 or more occurrences
- start.timesOrMore(2);
+// expecting 2 or more occurrences
+start.timesOrMore(2);
 
- // expecting 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).greedy();
+// expecting 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).greedy();
 
- // expecting 0, 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).optional().greedy();
- {% endhighlight %}
- </div>
+// expecting 0, 2 or more occurrences
+start.timesOrMore(2).optional()
 
- <div data-lang="scala" markdown="1">
- {% highlight scala %}
- // expecting 4 occurrences
- start.times(4)
+// expecting 0, 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).optional().greedy();
+{% endhighlight %}
+</div>
 
- // expecting 0 or 4 occurrences
- start.times(4).optional()
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// expecting 4 occurrences
+start.times(4)
 
- // expecting 2, 3 or 4 occurrences
- start.times(2, 4)
+// expecting 0 or 4 occurrences
+start.times(4).optional()
 
- // expecting 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).greedy()
+// expecting 2, 3 or 4 occurrences
+start.times(2, 4)
 
- // expecting 0, 2, 3 or 4 occurrences
- start.times(2, 4).optional()
+// expecting 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).greedy()
 
- // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).optional().greedy()
+// expecting 0, 2, 3 or 4 occurrences
+start.times(2, 4).optional()
 
- // expecting 1 or more occurrences
- start.oneOrMore()
+// expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).optional().greedy()
 
- // expecting 1 or more occurrences and repeating as many as possible
- start.oneOrMore().greedy()
+// expecting 1 or more occurrences
+start.oneOrMore()
 
- // expecting 0 or more occurrences
- start.oneOrMore().optional()
+// expecting 1 or more occurrences and repeating as many as possible
+start.oneOrMore().greedy()
 
- // expecting 0 or more occurrences and repeating as many as possible
- start.oneOrMore().optional().greedy()
+// expecting 0 or more occurrences
+start.oneOrMore().optional()
 
- // expecting 2 or more occurrences
- start.timesOrMore(2)
+// expecting 0 or more occurrences and repeating as many as possible
+start.oneOrMore().optional().greedy()
 
- // expecting 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).greedy()
+// expecting 2 or more occurrences
+start.timesOrMore(2)
 
- // expecting 0, 2 or more occurrences
- start.timesOrMore(2).optional()
+// expecting 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).greedy()
 
- // expecting 0, 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).optional().greedy()
- {% endhighlight %}
- </div>
- </div>
+// expecting 0, 2 or more occurrences
+start.timesOrMore(2).optional()
+
+// expecting 0, 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).optional().greedy()
+{% endhighlight %}
+</div>
+</div>
 
 #### Conditions
 

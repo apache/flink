@@ -45,7 +45,7 @@ import java.net.InetAddress;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -63,7 +63,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
 			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
@@ -97,7 +97,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
+			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
 
 			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
@@ -133,7 +133,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	public void testDeployWithAsynchronousAnswer() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -175,7 +175,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	public void testDeployFailedSynchronous() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
+			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -203,7 +203,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	public void testDeployFailedAsynchronously() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
@@ -240,7 +240,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
+			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -288,7 +288,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	@Test
 	public void testTddProducedPartitionsLazyScheduling() throws Exception {
 		for (ScheduleMode scheduleMode: ScheduleMode.values()) {
-			ExecutionJobVertex jobVertex = getExecutionVertex(
+			ExecutionJobVertex jobVertex = ExecutionGraphTestUtils.getExecutionJobVertex(
 				new JobVertexID(),
 				new DirectScheduledExecutorService(),
 				scheduleMode);

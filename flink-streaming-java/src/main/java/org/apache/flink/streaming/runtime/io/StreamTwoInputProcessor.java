@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
@@ -160,12 +161,12 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		int readingInputIndex;
 		if (isPrepared) {
 			readingInputIndex = selectNextReadingInputIndex();
-			assert readingInputIndex != -1;
+			assert readingInputIndex != InputSelection.NONE_AVAILABLE;
 		} else {
 			// the preparations here are not placed in the constructor because all work in it
 			// must be executed after all operators are opened.
 			readingInputIndex = selectFirstReadingInputIndex();
-			if (readingInputIndex == -1) {
+			if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
 				return InputStatus.NOTHING_AVAILABLE;
 			}
 		}
@@ -244,8 +245,8 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		checkInputSelectionAgainstIsFinished();
 
 		int readingInputIndex = inputSelectionHandler.selectNextInputIndex(lastReadInputIndex);
-		if (readingInputIndex == -1) {
-			return -1;
+		if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
+			return InputSelection.NONE_AVAILABLE;
 		}
 
 		// to avoid starvation, if the input selection is ALL and availableInputsMask is not ALL,

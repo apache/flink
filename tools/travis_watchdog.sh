@@ -44,11 +44,11 @@ MAX_NO_OUTPUT=${1:-300}
 SLEEP_TIME=20
 
 # Maximum times to retry uploading artifacts file to transfer.sh
-TRANSFER_UPLOAD_MAX_RETRIES=10
+TRANSFER_UPLOAD_MAX_RETRIES=2
 
 # The delay between two retries to upload artifacts file to transfer.sh. The default exponential
 # backoff algorithm should be too long for the last several retries.
-TRANSFER_UPLOAD_RETRY_DELAY=15
+TRANSFER_UPLOAD_RETRY_DELAY=5
 
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
@@ -67,7 +67,7 @@ MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 #
-MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Dmaven.wagon.http.pool=false -B -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
@@ -94,6 +94,11 @@ UPLOAD_ACCESS_KEY=$ARTIFACTS_AWS_ACCESS_KEY
 UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
 
 ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
+
+if [ ! -z "$TF_BUILD" ] ; then
+	# set proper artifacts file name on Azure Pipelines
+	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tar.gz
+fi
 
 if [ $TEST == $STAGE_PYTHON ]; then
 	CMD=$PYTHON_TEST
@@ -139,6 +144,16 @@ upload_artifacts_s3() {
 		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
 	fi
 
+	# On Azure, publish ARTIFACTS_FILE as a build artifact
+	if [ ! -z "$TF_BUILD" ] ; then
+		ARTIFACT_DIR="$(pwd)/artifact-dir"
+		mkdir $ARTIFACT_DIR
+		cp $ARTIFACTS_FILE $ARTIFACT_DIR/
+		
+		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$ARTIFACT_DIR"
+		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')"
+	fi
+
 	# upload to https://transfer.sh
 	echo "Uploading to transfer.sh"
 	curl --retry ${TRANSFER_UPLOAD_MAX_RETRIES} --retry-delay ${TRANSFER_UPLOAD_RETRY_DELAY} --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
@@ -166,7 +181,7 @@ print_stacktraces () {
 put_yarn_logs_to_artifacts() {
 	# Make sure to be in project root
 	cd $HERE/../
-	for file in `find ./flink-yarn-tests/target/flink-yarn-tests* -type f -name '*.log'`; do
+	for file in `find ./flink-yarn-tests/target -type f -name '*.log'`; do
 		TARGET_FILE=`echo "$file" | grep -Eo "container_[0-9_]+/(.*).log"`
 		TARGET_DIR=`dirname	 "$TARGET_FILE"`
 		mkdir -p "$ARTIFACTS_DIR/yarn-tests/$TARGET_DIR"
@@ -273,18 +288,22 @@ cd ../../
 # only run end-to-end tests in misc because we only have flink-dist here
 case $TEST in
     (misc)
-        if [ $EXIT_CODE == 0 ]; then
-            echo "\n\n==============================================================================\n"
-            echo "Running bash end-to-end tests\n"
-            echo "==============================================================================\n"
+        # If we are not on Azure (we are on Travis) run precommit tests in misc stage.
+        # On Azure, we run them in a separate job
+        if [ -z "$TF_BUILD" ] ; then
+            if [ $EXIT_CODE == 0 ]; then
+                echo "\n\n==============================================================================\n"
+                echo "Running bash end-to-end tests\n"
+                echo "==============================================================================\n"
 
-            FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
+                FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
 
-            EXIT_CODE=$?
-        else
-            echo "\n==============================================================================\n"
-            echo "Previous build failure detected, skipping bash end-to-end tests.\n"
-            echo "==============================================================================\n"
+                EXIT_CODE=$?
+            else
+                echo "\n==============================================================================\n"
+                echo "Previous build failure detected, skipping bash end-to-end tests.\n"
+                echo "==============================================================================\n"
+            fi
         fi
         if [ $EXIT_CODE == 0 ]; then
             echo "\n\n==============================================================================\n"

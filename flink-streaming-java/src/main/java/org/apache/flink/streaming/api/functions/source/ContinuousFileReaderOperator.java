@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -36,8 +35,8 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -82,7 +81,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Using FSM approach allows to explicitly define states and enforce {@link ReaderState#TRANSITIONS transitions} between them.</p>
  */
 @Internal
-public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
+class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 	implements OneInputStreamOperator<TimestampedFileInputSplit, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -216,13 +215,13 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		}
 	};
 
-	@VisibleForTesting
-	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
-		this.format = checkNotNull(format);
-	}
+	ContinuousFileReaderOperator(
+		FileInputFormat<OUT> format,
+		ProcessingTimeService processingTimeService,
+		MailboxExecutor mailboxExecutor) {
 
-	public ContinuousFileReaderOperator(FileInputFormat<OUT> format, MailboxExecutor mailboxExecutor) {
 		this.format = checkNotNull(format);
+		this.processingTimeService = checkNotNull(processingTimeService);
 		this.executor = checkNotNull(mailboxExecutor);
 	}
 
@@ -274,7 +273,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 		this.reusedRecord = serializer.createInstance();
 		this.completedSplitsCounter = getMetricGroup().counter("numSplitsProcessed");
-		this.executor = executor != null ? executor : getContainingTask().getMailboxExecutorFactory().createExecutor(getOperatorConfig().getChainIndex());
 		this.splits = this.splits == null ? new PriorityQueue<>() : this.splits;
 
 		if (!splits.isEmpty()) {
@@ -383,7 +381,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			try {
 				cleanUp();
 			} catch (Exception ex) {
-				e = ExceptionUtils.firstOrSuppressed(ex, e);
+				e = ex;
 			}
 		}
 		{
@@ -435,7 +433,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		cleanUp();
 	}
 
-	private void cleanUp() {
+	private void cleanUp() throws Exception {
 		LOG.debug("cleanup, state={}", state);
 
 		RunnableWithException[] runClose = {
@@ -449,12 +447,12 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			try {
 				r.run();
 			} catch (Exception e) {
-				firstException = ExceptionUtils.firstOrSuppressed(firstException, e);
+				firstException = ExceptionUtils.firstOrSuppressed(e, firstException);
 			}
 		}
 		currentSplit = null;
 		if (firstException != null) {
-			throw new FlinkRuntimeException("Unable to properly cleanup ContinuousFileReaderOperator", firstException);
+			throw firstException;
 		}
 	}
 

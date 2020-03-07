@@ -29,6 +29,9 @@ import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -58,6 +61,8 @@ import static org.apache.flink.docs.util.Utils.escapeCharacters;
  * Class used for generating code based documentation of configuration parameters.
  */
 public class ConfigOptionsDocGenerator {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ConfigOptionsDocGenerator.class);
 
 	static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
@@ -110,6 +115,13 @@ public class ConfigOptionsDocGenerator {
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		String outputDirectory = args[0];
 		String rootDir = args[1];
+
+		LOG.info("Searching the following locations; configured via {}#LOCATIONS:{}",
+			ConfigOptionsDocGenerator.class.getCanonicalName(),
+			Arrays.stream(LOCATIONS).map(OptionsClassLocation::toString).collect(Collectors.joining("\n\t", "\n\t", "")));
+		LOG.info("Excluding the following classes; configured via {}#EXCLUSIONS:{}",
+			ConfigOptionsDocGenerator.class.getCanonicalName(),
+			EXCLUSIONS.stream().collect(Collectors.joining("\n\t", "\n\t", "")));
 
 		for (OptionsClassLocation location : LOCATIONS) {
 			createTable(rootDir, location.getModule(), location.getPackage(), outputDirectory, DEFAULT_PATH_PREFIX);

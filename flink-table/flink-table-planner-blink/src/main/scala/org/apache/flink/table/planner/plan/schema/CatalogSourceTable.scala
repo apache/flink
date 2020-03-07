@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory}
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory, TableSourceFactoryContextImpl}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
+import org.apache.flink.table.utils.TableConnectorUtils.generateRuntimeName
 
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
@@ -62,12 +64,23 @@ class CatalogSourceTable[T](
       .toMap
   }
 
-  lazy val tableSource: TableSource[T] = findAndCreateTableSource().asInstanceOf[TableSource[T]]
-
-  override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
+  override def getQualifiedName: JList[String] = {
+    // Do not explain source, we already have full names, table source should be created in toRel.
+    val ret = new util.ArrayList[String](names)
+    // Add class name to distinguish TableSourceTable.
+    val name = generateRuntimeName(getClass, catalogTable.getSchema.getFieldNames)
+    ret.add(s"catalog_source: [$name]")
+    ret
+  }
 
   override def toRel(context: RelOptTable.ToRelContext): RelNode = {
     val cluster = context.getCluster
+    val flinkContext = cluster
+        .getPlanner
+        .getContext
+        .unwrap(classOf[FlinkContext])
+
+    val tableSource = findAndCreateTableSource(flinkContext.getTableConfig.getConfiguration)
     val tableSourceTable = new TableSourceTable[T](
       relOptSchema,
       schemaTable.getTableIdentifier,
@@ -91,11 +104,7 @@ class CatalogSourceTable[T](
     val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema)
     relBuilder.push(scan)
 
-    val toRexFactory = cluster
-        .getPlanner
-        .getContext
-        .unwrap(classOf[FlinkContext])
-        .getSqlExprToRexConverterFactory
+    val toRexFactory = flinkContext.getSqlExprToRexConverterFactory
 
     // 2. push computed column project
     val fieldNames = rowType.getFieldNames.asScala
@@ -105,7 +114,7 @@ class CatalogSourceTable[T](
             if (columnExprs.contains(name)) {
               columnExprs(name)
             } else {
-              name
+              s"`$name`"
             }
           }.toArray
       val rexNodes = toRexFactory.create(newRelTable.getRowType).convertToRexNodes(fieldExprs)
@@ -140,32 +149,25 @@ class CatalogSourceTable[T](
     relBuilder.build()
   }
 
-  /** Create the table source lazily. */
-  private def findAndCreateTableSource(): TableSource[_] = {
+  /** Create the table source. */
+  private def findAndCreateTableSource(conf: ReadableConfig): TableSource[T] = {
     val tableFactoryOpt = schemaTable.getTableFactory
+    val context = new TableSourceFactoryContextImpl(
+      schemaTable.getTableIdentifier, catalogTable, conf)
     val tableSource = if (tableFactoryOpt.isPresent) {
       tableFactoryOpt.get() match {
         case tableSourceFactory: TableSourceFactory[_] =>
-          tableSourceFactory.createTableSource(
-            schemaTable.getTableIdentifier.toObjectPath,
-            catalogTable)
+          tableSourceFactory.createTableSource(context)
         case _ => throw new TableException("Cannot query a sink-only table. "
           + "TableFactory provided by catalog must implement TableSourceFactory")
       }
     } else {
-      TableFactoryUtil.findAndCreateTableSource(catalogTable)
+      TableFactoryUtil.findAndCreateTableSource(context)
     }
     if (!tableSource.isInstanceOf[StreamTableSource[_]]) {
       throw new TableException("Catalog tables support only "
         + "StreamTableSource and InputFormatTableSource")
     }
-    tableSource
-  }
-
-  override protected def explainSourceAsString(ts: TableSource[_]): JList[String] = {
-    val ret = new util.ArrayList[String](super.explainSourceAsString(ts))
-    // Add class name to distinguish TableSourceTable.
-    ret.add("class: " + classOf[CatalogSourceTable[_]].getSimpleName)
-    ret
+    tableSource.asInstanceOf[TableSource[T]]
   }
 }

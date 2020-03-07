@@ -56,7 +56,10 @@ public class StreamTaskTimerTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		testHarness = startTestHarness();
-		timeService = testHarness.getTask().getProcessingTimeService(0);
+
+		StreamTask<?, ?> task = testHarness.getTask();
+		timeService = task.getProcessingTimeServiceFactory().createProcessingTimeService(
+			task.getMailboxExecutorFactory().createExecutor(testHarness.getStreamConfig().getChainIndex()));
 	}
 
 	@After
@@ -67,11 +70,7 @@ public class StreamTaskTimerTest extends TestLogger {
 	@Test
 	public void testOpenCloseAndTimestamps() {
 		// first one spawns thread
-		timeService.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
-			@Override
-			public void onProcessingTime(long timestamp) {
-			}
-		});
+		timeService.registerTimer(System.currentTimeMillis(), timestamp -> {});
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
 	}
@@ -175,6 +174,7 @@ public class StreamTaskTimerTest extends TestLogger {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setChainIndex(0);
 		streamConfig.setStreamOperator(new StreamMap<String, String>(new DummyMapFunction<>()));
 
 		testHarness.invoke();

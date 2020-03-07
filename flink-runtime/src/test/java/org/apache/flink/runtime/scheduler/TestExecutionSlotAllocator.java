@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
@@ -46,6 +47,12 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 	private boolean autoCompletePendingRequests = true;
 
 	private final List<LogicalSlot> returnedSlots = new ArrayList<>();
+
+	public TestExecutionSlotAllocator() {}
+
+	public TestExecutionSlotAllocator(TaskManagerGateway taskManagerGateway) {
+		logicalSlotBuilder.setTaskManagerGateway(taskManagerGateway);
+	}
 
 	@Override
 	public List<SlotExecutionVertexAssignment> allocateSlotsFor(final List<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {

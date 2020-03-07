@@ -45,6 +45,7 @@ import java.util.List;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -588,11 +589,11 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testDynamicTableFunction() throws Exception {
-		final List<Row> sinkData = Arrays.asList(
+		final Row[] sinkData = new Row[]{
 			Row.of("Test is a string"),
 			Row.of("42"),
 			Row.of((String) null)
-		);
+		};
 
 		TestCollectionTableFactory.reset();
 
@@ -608,7 +609,7 @@ public class FunctionITCase extends StreamingTestBase {
 			"SELECT CAST(T3.i AS STRING) FROM TABLE(DynamicTableFunction(CAST(NULL AS INT))) AS T3(i)");
 		tEnv().execute("Test Job");
 
-		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+		assertThat(TestCollectionTableFactory.getResult(), containsInAnyOrder(sinkData));
 	}
 
 	@Test

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.testutils.logging.TestLoggerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -51,14 +52,15 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
-import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -83,10 +85,10 @@ import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.apache.flink.yarn.UtilsTest.addTestAppender;
-import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -111,6 +113,12 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 	/** Toggles checking for prohibited strings in logs after the test has run. */
 	private boolean checkForProhibitedLogContents = true;
+
+	@Rule
+	public final TestLoggerResource cliTestLoggerResource = new TestLoggerResource(CliFrontend.class, Level.INFO);
+
+	@Rule
+	public final TestLoggerResource yarTestLoggerResource = new TestLoggerResource(YarnClusterDescriptor.class, Level.WARN);
 
 	@BeforeClass
 	public static void setup() throws Exception {
@@ -166,7 +174,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	public void perJobYarnCluster() throws Exception {
 		runTest(() -> {
 			LOG.info("Starting perJobYarnCluster()");
-			addTestAppender(CliFrontend.class, Level.INFO);
 			File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 			runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 					"-yj", flinkUberjar.getAbsolutePath(),
@@ -180,7 +187,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				/* prohibited strings: (to verify the parallelism) */
 				// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
 				new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-				RunTypes.CLI_FRONTEND, 0, true);
+				RunTypes.CLI_FRONTEND,
+				0,
+				cliTestLoggerResource::getMessages);
 			LOG.info("Finished perJobYarnCluster()");
 		});
 	}
@@ -197,7 +206,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	public void perJobYarnClusterOffHeap() throws Exception {
 		runTest(() -> {
 			LOG.info("Starting perJobYarnCluster()");
-			addTestAppender(CliFrontend.class, Level.INFO);
 			File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 
 			// set memory constraints (otherwise this is the same test as perJobYarnCluster() above)
@@ -216,7 +224,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				/* prohibited strings: (to verify the parallelism) */
 				// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
 				new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-				RunTypes.CLI_FRONTEND, 0, true);
+				RunTypes.CLI_FRONTEND,
+				0,
+				cliTestLoggerResource::getMessages);
 			LOG.info("Finished perJobYarnCluster()");
 		});
 	}
@@ -381,7 +391,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	public void testNonexistingQueueWARNmessage() throws Exception {
 		runTest(() -> {
 			LOG.info("Starting testNonexistingQueueWARNmessage()");
-			addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 			try {
 				runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 					"-t", flinkLibFolder.getAbsolutePath(),
@@ -392,7 +401,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			} catch (Exception e) {
 				assertTrue(ExceptionUtils.findThrowableWithMessage(e, "to unknown queue: doesntExist").isPresent());
 			}
-			checkForLogString("The specified queue 'doesntExist' does not exist. Available queues");
+			assertThat(
+				yarTestLoggerResource.getMessages(),
+				hasItem(containsString("The specified queue 'doesntExist' does not exist. Available queues")));
 			LOG.info("Finished testNonexistingQueueWARNmessage()");
 		});
 	}
@@ -404,9 +415,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	public void perJobYarnClusterWithParallelism() throws Exception {
 		runTest(() -> {
 			LOG.info("Starting perJobYarnClusterWithParallelism()");
-			// write log messages to stdout as well, so that the runWithArgs() method
-			// is catching the log output
-			addTestAppender(CliFrontend.class, Level.INFO);
 			File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 			runWithArgs(new String[]{"run",
 					"-p", "2", //test that the job is executed with a DOP of 2
@@ -421,7 +429,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"Program execution finished",
 				/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
 				new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-				RunTypes.CLI_FRONTEND, 0, true);
+				RunTypes.CLI_FRONTEND,
+				0,
+				cliTestLoggerResource::getMessages);
 			LOG.info("Finished perJobYarnClusterWithParallelism()");
 		});
 	}

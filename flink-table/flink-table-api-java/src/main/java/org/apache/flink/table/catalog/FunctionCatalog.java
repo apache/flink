@@ -49,6 +49,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -60,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the long-term, the class should be a part of catalog manager similar to {@link DataTypeFactory}.
  */
 @Internal
-public final class FunctionCatalog implements FunctionLookup {
+public final class FunctionCatalog {
 	private final ReadableConfig config;
 	private final CatalogManager catalogManager;
 	private final ModuleManager moduleManager;
@@ -334,7 +335,34 @@ public final class FunctionCatalog implements FunctionLookup {
 		return tempSystemFunctions.containsKey(functionName);
 	}
 
-	@Override
+	/**
+	 * Creates a {@link FunctionLookup} to this {@link FunctionCatalog}.
+	 *
+	 * @param parser parser to use for parsing identifiers
+	 */
+	public FunctionLookup asLookup(Function<String, UnresolvedIdentifier> parser) {
+		return new FunctionLookup() {
+			@Override
+			public Optional<Result> lookupFunction(String stringIdentifier) {
+				UnresolvedIdentifier unresolvedIdentifier = parser.apply(stringIdentifier);
+				return lookupFunction(unresolvedIdentifier);
+			}
+
+			@Override
+			public Optional<FunctionLookup.Result> lookupFunction(UnresolvedIdentifier identifier) {
+				return FunctionCatalog.this.lookupFunction(identifier);
+			}
+
+			@Override
+			public PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
+				Preconditions.checkNotNull(
+					plannerTypeInferenceUtil,
+					"A planner should have set the type inference utility.");
+				return plannerTypeInferenceUtil;
+			}
+		};
+	}
+
 	public Optional<FunctionLookup.Result> lookupFunction(UnresolvedIdentifier identifier) {
 		// precise function reference
 		if (identifier.getDatabaseName().isPresent()) {
@@ -343,14 +371,6 @@ public final class FunctionCatalog implements FunctionLookup {
 			// ambiguous function reference
 			return resolveAmbiguousFunctionReference(identifier.getObjectName());
 		}
-	}
-
-	@Override
-	public PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
-		Preconditions.checkNotNull(
-			plannerTypeInferenceUtil,
-			"A planner should have set the type inference utility.");
-		return plannerTypeInferenceUtil;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -599,7 +619,7 @@ public final class FunctionCatalog implements FunctionLookup {
 			funcName);
 
 		return candidate.map(fd ->
-			Optional.of(new Result(FunctionIdentifier.of(funcName), fd)
+			Optional.of(new FunctionLookup.Result(FunctionIdentifier.of(funcName), fd)
 		)).orElseGet(() -> resolvePreciseFunctionReference(oi));
 	}
 }

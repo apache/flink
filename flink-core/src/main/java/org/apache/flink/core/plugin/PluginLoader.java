@@ -21,6 +21,7 @@ package org.apache.flink.core.plugin;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.ArrayUtils;
 import org.apache.flink.util.ChildFirstClassLoader;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -69,7 +70,7 @@ public class PluginLoader {
 	 * @return An iterator of all implementations of the given service interface that could be loaded from the plugin.
 	 */
 	public <P extends Plugin> Iterator<P> load(Class<P> service) {
-		try (TemporaryClassLoaderContext classLoaderContext = new TemporaryClassLoaderContext(pluginClassLoader)) {
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(pluginClassLoader)) {
 			return new ContextClassLoaderSettingIterator<>(
 				ServiceLoader.load(service, pluginClassLoader).iterator(),
 				pluginClassLoader);
@@ -99,7 +100,7 @@ public class PluginLoader {
 
 		@Override
 		public P next() {
-			try (TemporaryClassLoaderContext classLoaderContext = new TemporaryClassLoaderContext(pluginClassLoader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(pluginClassLoader)) {
 				return delegate.next();
 			}
 		}

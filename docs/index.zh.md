@@ -59,6 +59,7 @@ API 参考列举并解释了 Flink API 的所有功能。
 
 发布日志包含了 Flink 版本之间的重大更新。请在你升级 Flink 之前仔细阅读相应的发布日志。
 
+* [Flink 1.10 的发布日志](release-notes/flink-1.10.html).
 * [Flink 1.9 的发布日志](release-notes/flink-1.9.html)。
 * [Flink 1.8 的发布日志](release-notes/flink-1.8.html)。
 * [Flink 1.7 的发布日志](release-notes/flink-1.7.html)。

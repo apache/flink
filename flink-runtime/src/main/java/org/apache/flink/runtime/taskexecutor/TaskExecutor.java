@@ -57,7 +57,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionInfo;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
@@ -72,6 +74,8 @@ import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServer;
@@ -102,6 +106,7 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcInputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcKvStateRegistryListener;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.taskexecutor.rpc.RpcTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotActiveException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
@@ -116,6 +121,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -464,6 +470,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		try {
 			final JobID jobId = tdd.getJobId();
+			final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
 			final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);
 
 			if (jobManagerConnection == null) {
@@ -528,6 +535,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getExecutionAttemptId(),
 				taskManagerConfiguration.getTimeout());
 
+			final TaskOperatorEventGateway taskOperatorEventGateway = new RpcTaskOperatorEventGateway(
+				jobManagerConnection.getJobManagerGateway(),
+				executionAttemptID,
+				(t) -> runAsync(() -> failTask(executionAttemptID, t)));
+
 			TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
 			CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
 			GlobalAggregateManager aggregateManager = jobManagerConnection.getGlobalAggregateManager();
@@ -578,6 +590,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskManagerActions,
 				inputSplitProvider,
 				checkpointResponder,
+				taskOperatorEventGateway,
 				aggregateManager,
 				blobCacheService,
 				libraryCache,
@@ -946,6 +959,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public void disconnectResourceManager(Exception cause) {
 		if (isRunning()) {
 			reconnectToResourceManager(cause);
+		}
+	}
+
+	// ----------------------------------------------------------------------
+	// Other RPCs
+	// ----------------------------------------------------------------------
+
+	@Override
+	public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+			ExecutionAttemptID executionAttemptID,
+			OperatorID operatorId,
+			SerializedValue<OperatorEvent> evt) {
+
+		log.debug("Operator event for {} - {}", executionAttemptID, operatorId);
+
+		final Task task = taskSlotTable.getTask(executionAttemptID);
+		if (task == null) {
+			return FutureUtils.completedExceptionally(new TaskNotRunningException(
+				"Task " + executionAttemptID.toHexString() + " not running on TaskManager"));
+		}
+
+		try {
+			task.deliverOperatorEvent(operatorId, evt);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+		catch (Throwable t) {
+			ExceptionUtils.rethrowIfFatalError(t);
+			return FutureUtils.completedExceptionally(t);
 		}
 	}
 

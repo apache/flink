@@ -18,12 +18,14 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
-import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction, PythonFunctionKind}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, primitiveDefaultValue, primitiveTypeTermForType}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.types.Row
 
 /**
   * A code generator for generating Python [[UserDefinedFunction]]s.
@@ -31,6 +33,8 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 object PythonFunctionCodeGenerator {
 
   private val PYTHON_SCALAR_FUNCTION_NAME = "PythonScalarFunction"
+
+  private val PYTHON_TABLE_FUNCTION_NAME = "PythonTableFunction"
 
   /**
     * Generates a [[ScalarFunction]] for the specified Python user-defined function.
@@ -40,6 +44,7 @@ object PythonFunctionCodeGenerator {
     * @param serializedScalarFunction serialized Python scalar function
     * @param inputTypes input data types
     * @param resultType expected result type
+    * @param pythonFunctionKind the kind of the Python function
     * @param deterministic the determinism of the function's results
     * @param pythonEnv the Python execution environment
     * @return instance of generated ScalarFunction
@@ -50,6 +55,7 @@ object PythonFunctionCodeGenerator {
       serializedScalarFunction: Array[Byte],
       inputTypes: Array[TypeInformation[_]],
       resultType: TypeInformation[_],
+      pythonFunctionKind: PythonFunctionKind,
       deterministic: Boolean,
       pythonEnv: PythonEnv): ScalarFunction = {
     val funcName = newName(PYTHON_SCALAR_FUNCTION_NAME)
@@ -63,6 +69,7 @@ object PythonFunctionCodeGenerator {
 
     val typeInfoTypeTerm = classOf[TypeInformation[_]].getCanonicalName
     val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
+    val pythonFunctionKindTypeTerm = classOf[PythonFunctionKind].getCanonicalName
 
     val resultTypeNameTerm =
       ctx.addReusableObject(resultType, "resultType", typeInfoTypeTerm)
@@ -72,6 +79,8 @@ object PythonFunctionCodeGenerator {
     val inputTypesCode = inputTypes
       .map(ctx.addReusableObject(_, "inputType", typeInfoTypeTerm))
       .mkString(", ")
+    val pythonFunctionKindNameTerm =
+      ctx.addReusableObject(pythonFunctionKind, "pythonFunctionKind", pythonFunctionKindTypeTerm)
 
     val funcCode = j"""
       |public class $funcName extends ${classOf[ScalarFunction].getCanonicalName}
@@ -102,6 +111,101 @@ object PythonFunctionCodeGenerator {
       |  @Override
       |  public byte[] getSerializedPythonFunction() {
       |    return $serializedScalarFunctionNameTerm;
+      |  }
+      |
+      |  @Override
+      |  public $pythonEnvTypeTerm getPythonEnv() {
+      |    return $pythonEnvNameTerm;
+      |  }
+      |
+      |  @Override
+      |  public $pythonFunctionKindTypeTerm getPythonFunctionKind() {
+      |    return $pythonFunctionKindNameTerm;
+      |  }
+      |
+      |  @Override
+      |  public boolean isDeterministic() {
+      |    return $deterministic;
+      |  }
+      |
+      |  @Override
+      |  public String toString() {
+      |    return "$name";
+      |  }
+      |}
+      |""".stripMargin
+    new GeneratedFunction(funcName, funcCode, ctx.references.toArray)
+      .newInstance(Thread.currentThread().getContextClassLoader)
+  }
+
+  /**
+    * Generates a [[TableFunction]] for the specified Python user-defined function.
+    *
+    * @param ctx The context of the code generator
+    * @param name name of the user-defined function
+    * @param serializedTableFunction serialized Python table function
+    * @param inputTypes input data types
+    * @param resultTypes expected result types
+    * @param deterministic the determinism of the function's results
+    * @param pythonEnv the Python execution environment
+    * @return instance of generated TableFunction
+    */
+  def generateTableFunction(
+      ctx: CodeGeneratorContext,
+      name: String,
+      serializedTableFunction: Array[Byte],
+      inputTypes: Array[TypeInformation[_]],
+      resultTypes: Array[TypeInformation[_]],
+      deterministic: Boolean,
+      pythonEnv: PythonEnv): TableFunction[_] = {
+    val funcName = newName(PYTHON_TABLE_FUNCTION_NAME)
+    val inputParamCode = inputTypes.zipWithIndex.map { case (inputType, index) =>
+      s"${primitiveTypeTermForType(
+        TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType(inputType))} in$index"
+    }.mkString(", ")
+
+    val rowTypeTerm = classOf[Row].getCanonicalName
+    val typeInfoTypeTerm = classOf[TypeInformation[_]].getCanonicalName
+    val rowTypeInfoTerm = classOf[RowTypeInfo].getCanonicalName
+    val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
+
+    val serializedTableFunctionNameTerm =
+      ctx.addReusableObject(serializedTableFunction, "serializedTableFunction", "byte[]")
+    val pythonEnvNameTerm = ctx.addReusableObject(pythonEnv, "pythonEnv", pythonEnvTypeTerm)
+    val inputTypesCode = inputTypes
+      .map(ctx.addReusableObject(_, "inputType", typeInfoTypeTerm))
+      .mkString(", ")
+    val resultTypesCode = resultTypes
+      .map(ctx.addReusableObject(_, "resultType", typeInfoTypeTerm))
+      .mkString(", ")
+    val funcCode = j"""
+      |public class $funcName extends ${classOf[TableFunction[_]].getCanonicalName}<$rowTypeTerm>
+      |  implements ${classOf[PythonFunction].getCanonicalName} {
+      |
+      |  private static final long serialVersionUID = 1L;
+      |
+      |  ${ctx.reuseMemberCode()}
+      |
+      |  public $funcName(Object[] references) throws Exception {
+      |     ${ctx.reuseInitCode()}
+      |  }
+      |
+      |  public void eval($inputParamCode) {
+      |  }
+      |
+      |  @Override
+      |  public $typeInfoTypeTerm[] getParameterTypes(Class<?>[] signature) {
+      |    return new $typeInfoTypeTerm[]{$inputTypesCode};
+      |  }
+      |
+      |  @Override
+      |  public $typeInfoTypeTerm<$rowTypeTerm> getResultType() {
+      |    return new $rowTypeInfoTerm(new $typeInfoTypeTerm[]{$resultTypesCode});
+      |  }
+      |
+      |  @Override
+      |  public byte[] getSerializedPythonFunction() {
+      |    return $serializedTableFunctionNameTerm;
       |  }
       |
       |  @Override

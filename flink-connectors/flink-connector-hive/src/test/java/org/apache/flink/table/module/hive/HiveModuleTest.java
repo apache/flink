@@ -83,7 +83,7 @@ public class HiveModuleTest {
 
 	@Test
 	public void testHiveBuiltInFunction() {
-		FunctionDefinition fd = new HiveModule(HiveShimLoader.getHiveVersion()).getFunctionDefinition("reverse").get();
+		FunctionDefinition fd = new HiveModule().getFunctionDefinition("reverse").get();
 
 		ScalarFunction func = ((ScalarFunctionDefinition) fd).getScalarFunction();
 		HiveSimpleUDF udf = (HiveSimpleUDF) func;
@@ -102,7 +102,7 @@ public class HiveModuleTest {
 
 	@Test
 	public void testNonExistFunction() {
-		assertFalse(new HiveModule(HiveShimLoader.getHiveVersion()).getFunctionDefinition("nonexist").isPresent());
+		assertFalse(new HiveModule().getFunctionDefinition("nonexist").isPresent());
 	}
 
 	@Test
@@ -110,7 +110,7 @@ public class HiveModuleTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
 		tEnv.unloadModule("core");
-		tEnv.loadModule("hive", new HiveModule(HiveShimLoader.getHiveVersion()));
+		tEnv.loadModule("hive", new HiveModule());
 
 		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select concat('an', 'bn')"));
 		assertEquals("[anbn]", results.toString());
@@ -134,7 +134,7 @@ public class HiveModuleTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
 		tEnv.unloadModule("core");
-		tEnv.loadModule("hive", new HiveModule(HiveShimLoader.getHiveVersion()));
+		tEnv.loadModule("hive", new HiveModule());
 
 		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select negative(5.1)"));
 
@@ -143,7 +143,7 @@ public class HiveModuleTest {
 
 	@Test
 	public void testBlackList() {
-		HiveModule hiveModule = new HiveModule(HiveShimLoader.getHiveVersion());
+		HiveModule hiveModule = new HiveModule();
 		assertFalse(hiveModule.listFunctions().removeAll(HiveModule.BUILT_IN_FUNC_BLACKLIST));
 		for (String banned : HiveModule.BUILT_IN_FUNC_BLACKLIST) {
 			assertFalse(hiveModule.getFunctionDefinition(banned).isPresent());

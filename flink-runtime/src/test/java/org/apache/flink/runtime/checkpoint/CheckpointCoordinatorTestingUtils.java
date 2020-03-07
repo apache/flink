@@ -659,6 +659,8 @@ public class CheckpointCoordinatorTestingUtils {
 
 		private ExecutionVertex[] tasksToCommitTo;
 
+		private Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint = Collections.emptyList();
+
 		private CheckpointIDCounter checkpointIDCounter =
 			new StandaloneCheckpointIDCounter();
 
@@ -718,6 +720,10 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
+		public void setCoordinatorsToCheckpoint(Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint) {
+			this.coordinatorsToCheckpoint = coordinatorsToCheckpoint;
+		}
+
 		public CheckpointCoordinatorBuilder setCheckpointIDCounter(
 			CheckpointIDCounter checkpointIDCounter) {
 			this.checkpointIDCounter = checkpointIDCounter;
@@ -735,7 +741,7 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
-		public CheckpointCoordinatorBuilder setIoExecutor(Executor exioExecutorecutor) {
+		public CheckpointCoordinatorBuilder setIoExecutor(Executor ioExecutor) {
 			this.ioExecutor = ioExecutor;
 			return this;
 		}
@@ -764,6 +770,7 @@ public class CheckpointCoordinatorTestingUtils {
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
+				coordinatorsToCheckpoint,
 				checkpointIDCounter,
 				completedCheckpointStore,
 				checkpointStateBackend,

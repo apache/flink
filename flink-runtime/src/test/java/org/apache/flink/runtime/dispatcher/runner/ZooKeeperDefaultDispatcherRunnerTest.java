@@ -56,7 +56,8 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;

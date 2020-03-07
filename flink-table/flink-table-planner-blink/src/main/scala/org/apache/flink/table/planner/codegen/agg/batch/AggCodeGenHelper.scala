@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
+import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.expressions.{Expression, _}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -237,7 +238,7 @@ object AggCodeGenHelper {
   }
 
   def newLocalReference(resultTerm: String, resultType: LogicalType): LocalReferenceExpression = {
-    new LocalReferenceExpression(resultTerm, fromLogicalTypeToDataType(resultType))
+    localRef(resultTerm, fromLogicalTypeToDataType(resultType))
   }
 
   /**

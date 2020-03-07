@@ -23,11 +23,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.catalog.exceptions.{DatabaseAlreadyExistException, DatabaseNotEmptyException, DatabaseNotExistException, FunctionAlreadyExistException, FunctionNotExistException}
+import org.apache.flink.table.catalog.exceptions.{TableNotExistException => _, _}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
-import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.ddl._
@@ -37,14 +37,16 @@ import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
-import _root_.java.util.function.{Supplier => JSupplier}
+
+import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
-import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
 import _root_.scala.util.Try
 
 /**
@@ -67,7 +69,7 @@ abstract class TableEnvImpl(
 
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   private def tableLookup: TableReferenceLookup = {
     new TableReferenceLookup {
@@ -81,7 +83,7 @@ abstract class TableEnvImpl(
             Try({
               val unresolvedIdentifier = UnresolvedIdentifier.of(name)
               scanInternal(unresolvedIdentifier)
-                .map(t => new TableReferenceExpression(name, t))
+                .map(t => ApiExpressionUtils.tableRef(name, t))
             })
               .toOption
               .flatten)
@@ -91,7 +93,9 @@ abstract class TableEnvImpl(
 
   private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
     config,
-    functionCatalog,
+    functionCatalog.asLookup(new JFunction[String, UnresolvedIdentifier] {
+      override def apply(t: String): UnresolvedIdentifier = parser.parseIdentifier(t)
+    }),
     catalogManager.getDataTypeFactory,
     tableLookup,
     isStreamingMode)
@@ -100,7 +104,7 @@ abstract class TableEnvImpl(
     new PlanningConfigurationBuilder(
       config,
       functionCatalog,
-      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
+      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, config, isStreamingMode)),
       expressionBridge)
 
   private val parser: Parser = new ParserImpl(
@@ -647,7 +651,9 @@ abstract class TableEnvImpl(
       this,
       tableOperation,
       operationTreeBuilder,
-      functionCatalog)
+      functionCatalog.asLookup(new JFunction[String, UnresolvedIdentifier] {
+        override def apply(t: String): UnresolvedIdentifier = parser.parseIdentifier(t)
+      }))
   }
 
   /**
@@ -739,18 +745,15 @@ abstract class TableEnvImpl(
 
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
+        val context = new TableSinkFactoryContextImpl(
+          objectIdentifier, catalogTable, config.getConfiguration)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val sink = TableFactoryUtil.createTableSinkForCatalogTable(
-            catalog.get(),
-            catalogTable,
-            objectIdentifier.toObjectPath)
+          val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {
             return Option(sink.get())
           }
         }
-        val sinkProperties = catalogTable.toProperties
-        Option(TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
-          .createTableSink(sinkProperties))
+        Option(TableFactoryUtil.findAndCreateTableSink(context))
 
       case _ => None
     }

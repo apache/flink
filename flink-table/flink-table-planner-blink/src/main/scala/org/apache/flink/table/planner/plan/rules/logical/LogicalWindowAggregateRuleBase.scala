@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.FieldReferenceExpression
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.expressions.PlannerWindowReference
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable

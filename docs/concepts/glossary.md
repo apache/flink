@@ -1,6 +1,6 @@
 ---
 title: Glossary
-nav-pos: 3
+nav-pos: 10
 nav-title: Glossary
 nav-parent_id: concepts
 ---
@@ -79,8 +79,8 @@ whole [Flink Master](#flink-master) was called JobManager.
 #### Logical Graph
 
 A logical graph is a directed graph describing the high-level logic of a stream processing program.
-The nodes are [Operators](#operator) and the edges indicate input/output-relationships or
-data streams or data sets.
+The nodes are [Operators](#operator) and the edges indicate input/output-relationships of the 
+operators and correspond to data streams or data sets.
 
 #### Managed State
 
@@ -161,6 +161,6 @@ subsequent Tasks.
 A Transformation is applied on one or more data streams or data sets and results in one or more
 output data streams or data sets. A transformation might change a data stream or data set on a
 per-record basis, but might also only change its partitioning or perform an aggregation. While
-[Operators](#operator) and [Functions](#function)) are the "physical" parts of Flink's API,
-Transformations are only an API concept. Specifically, most - but not all - transformations are
+[Operators](#operator) and [Functions](#function) are the "physical" parts of Flink's API,
+Transformations are only an API concept. Specifically, most transformations are
 implemented by certain [Operators](#operator).
