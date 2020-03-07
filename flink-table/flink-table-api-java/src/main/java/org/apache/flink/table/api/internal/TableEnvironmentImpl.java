@@ -715,7 +715,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		Pipeline pipeline = execEnv.createPipeline(translate(), tableConfig, jobName);
+		Pipeline pipeline = execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
 		return execEnv.execute(pipeline);
 	}
 
@@ -738,13 +738,17 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema());
 	}
 
-	protected List<Transformation<?>> translate() {
-		List<Transformation<?>> transformations = translate(bufferedModifyOperations);
-		bufferedModifyOperations.clear();
+	protected List<Transformation<?>> translateAndClearBuffer() {
+		List<Transformation<?>> transformations;
+		try {
+			transformations = translate(bufferedModifyOperations);
+		} finally {
+			bufferedModifyOperations.clear();
+		}
 		return transformations;
 	}
 
-	protected List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+	private List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
 		return planner.translate(modifyOperations);
 	}
 

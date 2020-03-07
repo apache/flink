@@ -36,11 +36,10 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{ModifyOperation, OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation}
+import org.apache.flink.table.operations.{OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
-import org.apache.flink.util.Preconditions
 
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
@@ -188,17 +187,6 @@ class StreamTableEnvironmentImpl (
         "A rowtime attribute requires an EventTime time characteristic in stream " +
           "environment. But is: %s}", scalaExecutionEnvironment.getStreamTimeCharacteristic))
     }
-  }
-
-  override protected def translate(
-      modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
-    // keep the behavior as before: translate each operation independently
-    modifyOperations.asScala.map { operation =>
-      val transformations = planner.translate(Collections.singletonList(operation))
-      Preconditions.checkArgument(transformations.size == 1,
-        s"expected size is 1, actual size is ${transformations.size()}", null)
-      transformations.get(0)
-    }.asJava
   }
 
   private def toDataStream[T](
