@@ -290,7 +290,6 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]):
 ### 容错
 
 计数器是容错的，并且会与应用状态一起存入 checkpoint。
-
 在故障恢复或从 savepoint 启动应用程序时，将还原计时器。
 
 <span class="label label-info">注意</span> 已存入 checkpoint 且本应该在恢复之前触发的处理时间计时器，将会立即触发。
