@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * A common collection of parameters that is used to construct the JobManager/TaskManager Pods,
@@ -80,4 +81,14 @@ public interface KubernetesParameters {
 	 * Whether the log4j.properties is located.
 	 */
 	boolean hasLog4j();
+
+	/**
+	 * The existing ConfigMap containing custom Hadoop configuration.
+	 */
+	Optional<String> getExistingHadoopConfigurationConfigMap();
+
+	/**
+	 * The local directory to locate the custom Hadoop configuration.
+	 */
+	Optional<String> getLocalHadoopConfigurationDirectory();
 }

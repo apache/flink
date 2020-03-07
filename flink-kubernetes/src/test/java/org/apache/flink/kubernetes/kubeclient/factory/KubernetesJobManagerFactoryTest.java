@@ -24,6 +24,8 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
+import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -39,6 +41,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +49,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -57,7 +61,9 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	private static final String SERVICE_ACCOUNT_NAME = "service-test";
 	private static final String ENTRY_POINT_CLASS = KubernetesSessionClusterEntrypoint.class.getCanonicalName();
 
-	private KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
+	private static final String EXISTING_HADOOP_CONF_CONFIG_MAP = "hadoop-conf";
+
+	protected KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
 	@Before
 	public void setup() throws Exception {
@@ -187,7 +193,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	public void testFlinkConfConfigMap() {
 		final ConfigMap resultConfigMap = (ConfigMap) this.kubernetesJobManagerSpecification.getAccompanyingResources()
 			.stream()
-			.filter(x -> x instanceof ConfigMap)
+			.filter(x -> x instanceof ConfigMap &&
+				x.getMetadata().getName().equals(FlinkConfMountDecorator.getFlinkConfConfigMapName(CLUSTER_ID)))
 			.collect(Collectors.toList())
 			.get(0);
 
@@ -199,5 +206,47 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		assertEquals("some data", resultDatas.get("logback.xml"));
 		assertTrue(resultDatas.get(FLINK_CONF_FILENAME)
 			.contains(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS.key() + ": " + ENTRY_POINT_CLASS));
+	}
+
+	@Test
+	public void testExistingHadoopConfigMap() throws IOException {
+		flinkConfig.set(KubernetesConfigOptions.HADOOP_CONF_CONFIG_MAP, EXISTING_HADOOP_CONF_CONFIG_MAP);
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+
+		assertFalse(kubernetesJobManagerSpecification.getAccompanyingResources().stream()
+			.anyMatch(resource -> resource.getMetadata().getName().equals(HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID))));
+
+		final PodSpec podSpec = kubernetesJobManagerSpecification.getDeployment().getSpec().getTemplate().getSpec();
+		assertTrue(podSpec.getVolumes().stream().anyMatch(volume -> volume.getConfigMap().getName().equals(EXISTING_HADOOP_CONF_CONFIG_MAP)));
+	}
+
+	@Test
+	public void testHadoopConfConfigMap() throws IOException {
+		setHadoopConfDirEnv();
+		generateHadoopConfFileItems();
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+
+		final ConfigMap resultConfigMap = (ConfigMap) kubernetesJobManagerSpecification.getAccompanyingResources()
+			.stream()
+			.filter(x -> x instanceof ConfigMap &&
+				x.getMetadata().getName().equals(HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID)))
+			.collect(Collectors.toList())
+			.get(0);
+
+		assertEquals(2, resultConfigMap.getMetadata().getLabels().size());
+
+		final Map<String, String> resultDatas = resultConfigMap.getData();
+		assertEquals(2, resultDatas.size());
+		assertEquals("some data", resultDatas.get("core-site.xml"));
+		assertEquals("some data", resultDatas.get("hdfs-site.xml"));
+	}
+
+	@Test
+	public void testEmptyHadoopConfDirectory() throws IOException {
+		setHadoopConfDirEnv();
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+
+		assertFalse(kubernetesJobManagerSpecification.getAccompanyingResources().stream()
+			.anyMatch(resource -> resource.getMetadata().getName().equals(HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID))));
 	}
 }

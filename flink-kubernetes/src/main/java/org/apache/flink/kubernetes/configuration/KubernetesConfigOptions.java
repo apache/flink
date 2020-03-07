@@ -147,6 +147,13 @@ public class KubernetesConfigOptions {
 		.defaultValue("/opt/flink/log")
 		.withDescription("The directory that logs of jobmanager and taskmanager be saved in the pod.");
 
+	public static final ConfigOption<String> HADOOP_CONF_CONFIG_MAP =
+		key("kubernetes.hadoop.conf.config-map.name")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Specify the name of an existing ConfigMap that contains custom Hadoop configuration " +
+			"to be mounted on the JobManager(s) and TaskManagers.");
+
 	/**
 	 * The flink rest service exposed type.
 	 */

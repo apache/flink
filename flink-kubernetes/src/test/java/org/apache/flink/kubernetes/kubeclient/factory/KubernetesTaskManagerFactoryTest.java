@@ -30,6 +30,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * General tests for the {@link KubernetesTaskManagerFactory}.
@@ -45,6 +46,9 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
 
+		setHadoopConfDirEnv();
+		generateHadoopConfFileItems();
+
 		this.resultPod =
 			KubernetesTaskManagerFactory.createTaskManagerComponent(kubernetesTaskManagerParameters).getInternalResource();
 	}
@@ -53,7 +57,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 	public void testPod() {
 		assertEquals(POD_NAME, this.resultPod.getMetadata().getName());
 		assertEquals(3, this.resultPod.getMetadata().getLabels().size());
-		assertEquals(1, this.resultPod.getSpec().getVolumes().size());
+		assertEquals(2, this.resultPod.getSpec().getVolumes().size());
 	}
 
 	@Test
@@ -67,9 +71,15 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 			resultMainContainer.getName());
 		assertEquals(CONTAINER_IMAGE, resultMainContainer.getImage());
 		assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), resultMainContainer.getImagePullPolicy());
+
+		assertEquals(4, resultMainContainer.getEnv().size());
+		assertTrue(resultMainContainer.getEnv()
+			.stream()
+			.anyMatch(envVar -> envVar.getName().equals("key1")));
+
 		assertEquals(1, resultMainContainer.getPorts().size());
 		assertEquals(1, resultMainContainer.getCommand().size());
 		assertEquals(3, resultMainContainer.getArgs().size());
-		assertEquals(1, resultMainContainer.getVolumeMounts().size());
+		assertEquals(2, resultMainContainer.getVolumeMounts().size());
 	}
 }
