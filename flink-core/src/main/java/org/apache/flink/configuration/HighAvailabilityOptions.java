@@ -208,6 +208,15 @@ public class HighAvailabilityOptions {
 				" set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use" +
 				" SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).");
 
+	@Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
+	public static final ConfigOption<Boolean> ZOOKEEPER_CONNECTION_LOSS_TOLERATE =
+		key("high-availability.zookeeper.client.connection-loss-tolerate")
+			.booleanType()
+			.defaultValue(true)
+			.withDescription("Defines whether or not leader election tolerates connection loss exception." +
+				" Enable this option will improve the stability when ZK ensemble in an unstable network environment." +
+				" For technical details, see FLINK-10052.");
+
 	// ------------------------------------------------------------------------
 	//  Deprecated options
 	// ------------------------------------------------------------------------
