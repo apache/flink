@@ -123,7 +123,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * General tests for the YARN resource manager component.
@@ -342,17 +341,10 @@ public class YarnResourceManagerTest extends TestLogger {
 			final NodeId nodeId = NodeId.newInstance("container", 1234);
 			return new TestingContainer(containerId, nodeId, resourceManager.getContainerResource(), Priority.UNDEFINED);
 		}
-	}
 
-	private static ContainerStatus mockContainerStatus(ContainerId containerId) {
-		ContainerStatus mockContainerStatus = mock(ContainerStatus.class);
-
-		when(mockContainerStatus.getContainerId()).thenReturn(containerId);
-		when(mockContainerStatus.getState()).thenReturn(ContainerState.COMPLETE);
-		when(mockContainerStatus.getDiagnostics()).thenReturn("Test exit");
-		when(mockContainerStatus.getExitStatus()).thenReturn(-1);
-
-		return mockContainerStatus;
+		ContainerStatus createTestingContainerStatus(final ContainerId containerId) {
+			return new TestingContainerStatus(containerId, ContainerState.COMPLETE, "Test exit", -1);
+		}
 	}
 
 	@Test
@@ -487,7 +479,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 				// Callback from YARN when container is Completed, pending request can not be fulfilled by pending
 				// containers, need to request new container.
-				ContainerStatus testingContainerStatus = mockContainerStatus(testingContainer.getId());
+				ContainerStatus testingContainerStatus = createTestingContainerStatus(testingContainer.getId());
 
 				resourceManager.onContainersCompleted(ImmutableList.of(testingContainerStatus));
 				verify(mockResourceManagerClient, VERIFICATION_TIMEOUT.times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
