@@ -304,17 +304,17 @@ case $TEST in
                 echo "Previous build failure detected, skipping bash end-to-end tests.\n"
                 echo "==============================================================================\n"
             fi
-        fi
-        if [ $EXIT_CODE == 0 ]; then
-            echo "\n\n==============================================================================\n"
-            echo "Running java end-to-end tests\n"
-            echo "==============================================================================\n"
+	        if [ $EXIT_CODE == 0 ]; then
+	            echo "\n\n==============================================================================\n"
+	            echo "Running java end-to-end tests\n"
+	            echo "==============================================================================\n"
 
-            run_with_watchdog "$MVN_E2E -DdistDir=$(readlink -e build-target)"
-        else
-            echo "\n==============================================================================\n"
-            echo "Previous build failure detected, skipping java end-to-end tests.\n"
-        fi
+	            run_with_watchdog "$MVN_E2E -DdistDir=$(readlink -e build-target)"
+	        else
+	            echo "\n==============================================================================\n"
+	            echo "Previous build failure detected, skipping java end-to-end tests.\n"
+	        fi
+	    fi
     ;;
 esac
 
