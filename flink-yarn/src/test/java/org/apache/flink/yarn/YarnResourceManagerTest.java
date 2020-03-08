@@ -53,8 +53,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -115,7 +115,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * General tests for the YARN resource manager component.
@@ -376,8 +375,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				verifyFutureCompleted(startContainerAsyncFuture);
 
 				// Remote task executor registers with YarnResourceManager.
-				TaskExecutorGateway mockTaskExecutorGateway = mock(TaskExecutorGateway.class);
-				rpcService.registerGateway(taskHost, mockTaskExecutorGateway);
+				rpcService.registerGateway(taskHost, new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
 
 				final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
