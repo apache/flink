@@ -37,6 +37,7 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
 import org.junit.Rule;
@@ -97,6 +98,35 @@ public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
 	}
 
 	@Test
+	public void testWriteParquetAvroSpecificWithCompression() throws Exception {
+
+		final File folder = TEMPORARY_FOLDER.newFolder();
+
+		final List<Address> data = Arrays.asList(
+			new Address(1, "a", "b", "c", "12345"),
+			new Address(2, "p", "q", "r", "12345"),
+			new Address(3, "x", "y", "z", "12345")
+		);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.enableCheckpointing(100);
+
+		DataStream<Address> stream = env.addSource(
+			new FiniteTestSource<>(data), TypeInformation.of(Address.class));
+
+		stream.addSink(
+			StreamingFileSink.forBulkFormat(
+				Path.fromLocalFile(folder),
+				ParquetAvroWriters.forSpecificRecord(Address.class, CompressionCodecName.GZIP))
+				.build());
+
+		env.execute();
+
+		validateResults(folder, SpecificData.get(), data);
+	}
+
+	@Test
 	public void testWriteParquetAvroGeneric() throws Exception {
 
 		final File folder = TEMPORARY_FOLDER.newFolder();
@@ -128,6 +158,37 @@ public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
 	}
 
 	@Test
+	public void testWriteParquetAvroGenericWithCompression() throws Exception {
+
+		final File folder = TEMPORARY_FOLDER.newFolder();
+
+		final Schema schema = Address.getClassSchema();
+
+		final Collection<GenericRecord> data = new GenericTestDataCollection();
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.enableCheckpointing(100);
+
+		DataStream<GenericRecord> stream = env.addSource(
+			new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
+
+		stream.addSink(
+			StreamingFileSink.forBulkFormat(
+				Path.fromLocalFile(folder),
+				ParquetAvroWriters.forGenericRecord(schema, CompressionCodecName.GZIP))
+				.build());
+
+		env.execute();
+
+		List<Address> expected = Arrays.asList(
+			new Address(1, "a", "b", "c", "12345"),
+			new Address(2, "x", "y", "z", "98765"));
+
+		validateResults(folder, SpecificData.get(), expected);
+	}
+
+	@Test
 	public void testWriteParquetAvroReflect() throws Exception {
 
 		final File folder = TEMPORARY_FOLDER.newFolder();
@@ -147,6 +208,32 @@ public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
 						Path.fromLocalFile(folder),
 						ParquetAvroWriters.forReflectRecord(Datum.class))
 						.build());
+
+		env.execute();
+
+		validateResults(folder, ReflectData.get(), data);
+	}
+
+	@Test
+	public void testWriteParquetAvroReflectWithCompression() throws Exception {
+
+		final File folder = TEMPORARY_FOLDER.newFolder();
+
+		final List<Datum> data = Arrays.asList(
+			new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.enableCheckpointing(100);
+
+		DataStream<Datum> stream = env.addSource(
+			new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
+
+		stream.addSink(
+			StreamingFileSink.forBulkFormat(
+				Path.fromLocalFile(folder),
+				ParquetAvroWriters.forReflectRecord(Datum.class, CompressionCodecName.GZIP))
+				.build());
 
 		env.execute();
 
