@@ -155,7 +155,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     val explain = streamTableEnv.explain(false)
     assertEquals(
-      replaceStageId(readFromResource("/explain/testSqlUpdateAndToDataStream.out")),
+      replaceStageId(readFromResource("testSqlUpdateAndToDataStream.out")),
       replaceStageId(explain))
 
     streamTableEnv.execute("test1")
@@ -191,7 +191,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     val explain = streamTableEnv.explain(false)
     assertEquals(
-      replaceStageId(readFromResource("/explain/testSqlUpdateAndToDataStream.out")),
+      replaceStageId(readFromResource("testSqlUpdateAndToDataStream.out")),
       replaceStageId(explain))
 
     streamEnv.execute("test2")
@@ -259,9 +259,9 @@ object TableEnvironmentITCase {
     )
   }
 
-  def readFromResource(path: String): String = {
-    val inputStream = getClass.getResource(path).getFile
-    Source.fromFile(inputStream).mkString
+  def readFromResource(file: String): String = {
+    val source = s"${getClass.getResource("/").getFile}../../src/test/scala/resources/$file"
+    Source.fromFile(source).mkString
   }
 
   def replaceStageId(s: String): String = {
