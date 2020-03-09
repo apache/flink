@@ -249,14 +249,14 @@ public class PostgresJDBCCatalogITCase {
 				.field("character_arr", DataTypes.ARRAY(DataTypes.CHAR(3)))
 				.field("character_varying", DataTypes.VARCHAR(20))
 				.field("character_varying_arr", DataTypes.ARRAY(DataTypes.VARCHAR(20)))
-				.field("timestamp", DataTypes.TIMESTAMP())
-				.field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP()))
-				.field("timestamptz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())
-				.field("timestamptz_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()))
+				.field("timestamp", DataTypes.TIMESTAMP(5))
+				.field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
+				.field("timestamptz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4))
+				.field("timestamptz_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4)))
 				.field("date", DataTypes.DATE())
 				.field("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
-				.field("time", DataTypes.TIME())
-				.field("time_arr", DataTypes.ARRAY(DataTypes.TIME()))
+				.field("time", DataTypes.TIME(3))
+				.field("time_arr", DataTypes.ARRAY(DataTypes.TIME(3)))
 				.build(),
 			"int integer, " +
 				"int_arr integer[], " +
@@ -282,14 +282,14 @@ public class PostgresJDBCCatalogITCase {
 				"character_arr character(3)[], " +
 				"character_varying character varying(20), " +
 				"character_varying_arr character varying(20)[], " +
-				"timestamp timestamp(6), " +
-				"timestamp_arr timestamp(6)[], " +
-				"timestamptz timestamptz, " +
-				"timestamptz_arr timestamptz[], " +
+				"timestamp timestamp(5), " +
+				"timestamp_arr timestamp(5)[], " +
+				"timestamptz timestamptz(4), " +
+				"timestamptz_arr timestamptz(4)[], " +
 				"date date, " +
 				"date_arr date[], " +
-				"time time(6), " +
-				"time_arr time(6)[]"
+				"time time(3), " +
+				"time_arr time(3)[]"
 		);
 	}
 
