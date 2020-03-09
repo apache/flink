@@ -28,14 +28,7 @@ under the License.
 
 在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
 
-<span class="label label-info">注意</span> PyFlink的运行需要Python 3.5及以上版本。
-
-执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
-
-{% highlight bash %}
-$ python --version
-# the version printed here must be 3.5+
-{% endhighlight %}
+关于Python执行环境的要求，请参考Python Table API[环境安装]({{ site.baseurl }}/dev/dev/table/python/installation.html)。
 
 ## 创建一个Python Table API项目
 

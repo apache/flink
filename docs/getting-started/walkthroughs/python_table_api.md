@@ -25,12 +25,7 @@ under the License.
 
 This walkthrough will quickly get you started building a pure Python Flink project.
 
-<span class="label label-info">Note</span> Python 3.5 or higher is required to run PyFlink. Run the following command to confirm that the command “python” in current environment points to Python 3.5+:
-
-{% highlight bash %}
-$ python --version
-# the version printed here must be 3.5+
-{% endhighlight %}
+Please refer to the Python Table API [installation guide]({{ site.baseurl }}/dev/table/python/installation.html) on how to set up the Python execution environments.
 
 * This will be replaced by the TOC
 {:toc}
