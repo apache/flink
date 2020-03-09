@@ -981,6 +981,15 @@ object ScalarOperatorGens {
           s""" "" + $converterTerm.toExternal(${terms.head})"""
       }
 
+    case (OBJECT, VARCHAR | CHAR | INTEGER | BOOLEAN) =>
+      generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
+        terms =>
+          val converter = DataFormatConverters.getConverterForDataType(
+            fromLogicalTypeToDataType(operand.resultType))
+          val converterTerm = ctx.addReusableObject(converter, "converter")
+          s""" "" + $converterTerm.toExternal($converterTerm.toInternal(${terms.head}))"""
+      }
+
     // * (not Date/Time/Timestamp) -> String
     // TODO: GenericType with Date/Time/Timestamp -> String would call toString implicitly
     case (_, VARCHAR | CHAR) =>

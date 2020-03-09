@@ -753,6 +753,15 @@ object FunctionGenerator {
     Seq(FLOAT, INTEGER),
     BuiltInMethods.TRUNCATE_FLOAT)
 
+  addSqlFunctionMethod(
+    JSON_ARRAY,
+    Seq(RAW),
+    BuiltInMethods.JSON_ARRAY)
+
+  addSqlFunctionMethod(
+    JSON_ARRAY,
+    Seq(RAW, OBJECT),
+    BuiltInMethods.JSON_ARRAY)
 
   // ----------------------------------------------------------------------------------------------
 

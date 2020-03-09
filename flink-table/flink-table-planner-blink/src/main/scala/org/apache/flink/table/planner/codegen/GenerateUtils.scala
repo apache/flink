@@ -148,6 +148,15 @@ object GenerateUtils {
     }
   }
 
+  def generateStringResultCallWithStmtIfArgsNullable(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression])
+      (call: Seq[String] => String): GeneratedExpression = {
+    generateCallIfArgsNullable(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
+      args => s"$BINARY_STRING.fromString(${call(args)})"
+    }
+  }
+
   /**
     * Generates a call with the nullable args.
     */
@@ -274,7 +283,7 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       literalType: LogicalType,
       literalValue: Any): GeneratedExpression = {
-    if (literalValue == null) {
+    if (literalValue == null && literalType.isNullable) {
       return generateNullLiteral(literalType, ctx.nullCheck)
     }
     // non-null values
@@ -417,6 +426,10 @@ object GenerateUtils {
           .getTypeInformation.getTypeClass.isAssignableFrom(classOf[Enum[_]]) =>
         generateSymbol(literalValue.asInstanceOf[Enum[_]])
 
+      case OBJECT if literalType.asInstanceOf[TypeInformationObjectType[_]]
+        .getTypeInformation.getTypeClass.isAssignableFrom(classOf[Object]) =>
+        generateObjectSymbol(literalType, literalValue)
+
       case t@_ =>
         throw new CodeGenException(s"Type not supported: $t")
     }
@@ -430,6 +443,26 @@ object GenerateUtils {
       new TypeInformationRawType[AnyRef](new GenericTypeInfo[AnyRef](
         enum.getDeclaringClass.asInstanceOf[Class[AnyRef]])),
       literalValue = Some(enum))
+  }
+
+  def generateObjectSymbol(resultType: LogicalType, literalValue:Any): GeneratedExpression = {
+    val defaultValue = primitiveDefaultValue(resultType)
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    if (resultType.isNullable) {
+      GeneratedExpression(
+        s"(($resultTypeTerm) $defaultValue)",
+        ALWAYS_NULL,
+        NO_CODE,
+        resultType,
+        literalValue = Some(null))  // the literal is null
+    } else {
+      GeneratedExpression(
+        s"(($resultTypeTerm) $defaultValue)",
+        NEVER_NULL,
+        NO_CODE,
+        resultType,
+        literalValue = Some(literalValue.asInstanceOf[Object]))
+    }
   }
 
   /**

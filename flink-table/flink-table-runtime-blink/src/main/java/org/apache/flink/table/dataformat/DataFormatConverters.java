@@ -47,6 +47,7 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TypeInformationObjectType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -252,6 +253,38 @@ public class DataFormatConverters {
 				TypeInformation typeInfo = logicalType instanceof LegacyTypeInformationType ?
 						((LegacyTypeInformationType) logicalType).getTypeInformation() :
 						((TypeInformationRawType) logicalType).getTypeInformation();
+
+				// planner type info
+				if (typeInfo instanceof BinaryStringTypeInfo) {
+					return BinaryStringConverter.INSTANCE;
+				} else if (typeInfo instanceof DecimalTypeInfo) {
+					DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
+					return new DecimalConverter(decimalType.precision(), decimalType.scale());
+				} else if (typeInfo instanceof BigDecimalTypeInfo) {
+					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
+					return new BigDecimalConverter(decimalType.precision(), decimalType.scale());
+				} else if (typeInfo instanceof SqlTimestampTypeInfo) {
+					SqlTimestampTypeInfo sqlTimestampTypeInfo = (SqlTimestampTypeInfo) typeInfo;
+					return new SqlTimestampConverter(sqlTimestampTypeInfo.getPrecision());
+				} else if (typeInfo instanceof LegacyLocalDateTimeTypeInfo) {
+					LegacyLocalDateTimeTypeInfo dateTimeType = (LegacyLocalDateTimeTypeInfo) typeInfo;
+					return new LocalDateTimeConverter(dateTimeType.getPrecision());
+				} else if (typeInfo instanceof LegacyTimestampTypeInfo) {
+					LegacyTimestampTypeInfo timestampType = (LegacyTimestampTypeInfo) typeInfo;
+					return new TimestampConverter(timestampType.getPrecision());
+				} else if (typeInfo instanceof LegacyInstantTypeInfo) {
+					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
+					return new InstantConverter(instantTypeInfo.getPrecision());
+				}
+
+				if (clazz == BinaryGeneric.class) {
+					return BinaryGenericConverter.INSTANCE;
+				}
+				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+			case OBJECT:
+				typeInfo = logicalType instanceof LegacyTypeInformationType ?
+					((LegacyTypeInformationType) logicalType).getTypeInformation() :
+					((TypeInformationObjectType) logicalType).getTypeInformation();
 
 				// planner type info
 				if (typeInfo instanceof BinaryStringTypeInfo) {
