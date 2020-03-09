@@ -128,7 +128,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		currentReadCount = 0L;
 	}
 
-	private boolean isVectorizationSupport(LogicalType t) {
+	private boolean isVectorizationUnsupported(LogicalType t) {
 		switch (t.getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
@@ -172,7 +172,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		}
 
 		for (int i : selectedFields) {
-			if (isVectorizationSupport(fieldTypes[i].getLogicalType())) {
+			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
 				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
 				return false;
 			}
@@ -190,7 +190,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		}
 
 		for (int i : selectedFields) {
-			if (isVectorizationSupport(fieldTypes[i].getLogicalType())) {
+			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
 				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
 				return false;
 			}
