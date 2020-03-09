@@ -463,6 +463,10 @@ object FlinkTypeFactory {
         val genericRelDataType = relDataType.asInstanceOf[GenericRelDataType]
         genericRelDataType.genericType
 
+      case ANY if relDataType.isInstanceOf[BasicSqlType] =>
+        new TypeInformationObjectType[Any](
+          TypeExtractor.createTypeInfo(classOf[Any]))
+
       case ROW if relDataType.isInstanceOf[RelRecordType] =>
         toLogicalRowType(relDataType)
 

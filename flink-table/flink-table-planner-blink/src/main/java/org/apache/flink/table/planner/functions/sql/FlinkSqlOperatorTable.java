@@ -1000,4 +1000,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlAggFunction ROW_NUMBER = SqlStdOperatorTable.ROW_NUMBER;
 	public static final SqlAggFunction LEAD = SqlStdOperatorTable.LEAD;
 	public static final SqlAggFunction LAG = SqlStdOperatorTable.LAG;
+
+	// JSON FUNCTIONS
+	public static final SqlFunction JSON_VALUE = SqlStdOperatorTable.JSON_VALUE;
+	public static final SqlFunction JSON_VALUE_ANY = SqlStdOperatorTable.JSON_VALUE_ANY;
 }

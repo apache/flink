@@ -753,6 +753,34 @@ object FunctionGenerator {
     Seq(FLOAT, INTEGER),
     BuiltInMethods.TRUNCATE_FLOAT)
 
+  addSqlFunctionMethod(
+    JSON_VALUE,
+    Seq(CHAR, CHAR, RAW, OBJECT, RAW, OBJECT),
+    BuiltInMethods.JSON_VALUE_ANY)
+
+  addSqlFunction(
+    JSON_VALUE_ANY,
+    Seq(CHAR, CHAR, RAW, OBJECT, RAW, OBJECT),
+    new ObjectCallGen(
+      new MethodCallGen(BuiltInMethod.JSON_VALUE_ANY.method)))
+
+  addSqlFunction(
+    JSON_VALUE_ANY,
+    Seq(CHAR, CHAR, RAW, CHAR, RAW, OBJECT),
+    new ObjectCallGen(
+      new MethodCallGen(BuiltInMethod.JSON_VALUE_ANY.method)))
+
+  addSqlFunction(
+    JSON_VALUE_ANY,
+    Seq(CHAR, CHAR, RAW, OBJECT, RAW, CHAR),
+    new ObjectCallGen(
+      new MethodCallGen(BuiltInMethod.JSON_VALUE_ANY.method)))
+
+  addSqlFunction(
+    JSON_VALUE_ANY,
+    Seq(VARCHAR, CHAR, RAW, OBJECT, RAW, OBJECT),
+    new ObjectCallGen(
+      new MethodCallGen(BuiltInMethod.JSON_VALUE_ANY.method)))
 
   // ----------------------------------------------------------------------------------------------
 
