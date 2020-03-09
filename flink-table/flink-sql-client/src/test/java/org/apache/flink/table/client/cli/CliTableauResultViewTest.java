@@ -145,6 +145,16 @@ public class CliTableauResultViewTest {
 				Timestamp.valueOf("2020-03-04 18:39:14"))
 		);
 
+		data.add(
+			Row.of(
+				null,
+				-1,
+				-1,
+				"これは日本語をテストするための文です",
+				BigDecimal.valueOf(-12345.06789),
+				Timestamp.valueOf("2020-03-04 18:39:14"))
+		);
+
 		streamingData = new ArrayList<>();
 		for (int i = 0; i < data.size(); ++i) {
 			streamingData.add(new Tuple2<>(i % 2 == 0, data.get(i)));
@@ -166,20 +176,21 @@ public class CliTableauResultViewTest {
 
 		view.displayBatchResults();
 		view.close();
-
+		// note: about
 		Assert.assertEquals(
-				"+---------+-------------+----------------------+----------------------------+----------------+----------------------------+\n" +
-				"| boolean |         int |               bigint |                    varchar | decimal(10, 5) |                  timestamp |\n" +
-				"+---------+-------------+----------------------+----------------------------+----------------+----------------------------+\n" +
-				"|  (NULL) |           1 |                    2 |                        abc |           1.23 |      2020-03-01 18:39:14.0 |\n" +
-				"|   false |      (NULL) |                    0 |                            |              1 |      2020-03-01 18:39:14.1 |\n" +
-				"|    true |  2147483647 |               (NULL) |                    abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |\n" +
-				"|   false | -2147483648 |  9223372036854775807 |                     (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |\n" +
-				"|    true |         100 | -9223372036854775808 |                 abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |\n" +
-				"|  (NULL) |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     (NULL) |\n" +
-				"|  (NULL) |          -1 |                   -1 |         这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n"	+
-				"+---------+-------------+----------------------+----------------------------+----------------+----------------------------+\n" +
-				"7 row in set\n",
+				"+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
+				"| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |\n" +
+				"+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
+				"|  (NULL) |           1 |                    2 |                            abc |           1.23 |      2020-03-01 18:39:14.0 |\n" +
+				"|   false |      (NULL) |                    0 |                                |              1 |      2020-03-01 18:39:14.1 |\n" +
+				"|    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |\n" +
+				"|   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |\n" +
+				"|    true |         100 | -9223372036854775808 |                     abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |\n" +
+				"|  (NULL) |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     (NULL) |\n" +
+				"|  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
+				"|  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
+				"+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
+				"8 row in set\n",
 				terminalOutput.toString());
 		verify(mockExecutor, times(0)).cancelQuery(anyString(), anyString());
 	}
@@ -277,7 +288,9 @@ public class CliTableauResultViewTest {
 
 		view.displayStreamResults();
 		view.close();
-
+		// note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean) character's
+		// width < 2 in IDE by default, every CJK character usually's width is 2, you can open this source file
+		// by vim or just cat the file to check the regular result.
 		Assert.assertEquals(
 				"+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+\n" +
 				"| +/- | boolean |         int |               bigint |              varchar | decimal(10, 5) |                  timestamp |\n" +
@@ -287,10 +300,11 @@ public class CliTableauResultViewTest {
 				"|   + |    true |  2147483647 |               (NULL) |              abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |\n" +
 				"|   - |   false | -2147483648 |  9223372036854775807 |               (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |\n" +
 				"|   + |    true |         100 | -9223372036854775808 |           abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |\n" +
-				"|   - |  (NULL) |          -1 |                   -1 | abcdefghijklmnopq... |   -12345.06789 |                     (NULL) |\n" +
-				"|   + |  (NULL) |          -1 |                   -1 |   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
+				"|   - |  (NULL) |          -1 |                   -1 |  abcdefghijklmnop... |   -12345.06789 |                     (NULL) |\n" +
+				"|   + |  (NULL) |          -1 |                   -1 |         这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
+				"|   - |  (NULL) |          -1 |                   -1 |  これは日本語をテ... |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
 				"+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+\n" +
-				"Received a total of 7 rows\n",
+				"Received a total of 8 rows\n",
 				terminalOutput.toString());
 		verify(mockExecutor, times(0)).cancelQuery(anyString(), anyString());
 	}
@@ -347,7 +361,8 @@ public class CliTableauResultViewTest {
 				"|   + |  (NULL) |           1 |                    2 |                  abc |           1.23 |      2020-03-01 18:39:14.0 |\n" +
 				"|   - |   false |      (NULL) |                    0 |                      |              1 |      2020-03-01 18:39:14.1 |\n" +
 				"|   + |    true |  2147483647 |               (NULL) |              abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |\n" +
-				"Query terminated, received a total of 3 rows\n",
+				"|   - |   false | -2147483648 |  9223372036854775807 |               (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |\n" +
+				"Query terminated, received a total of 4 rows\n",
 				terminalOutput.toString());
 
 		verify(mockExecutor, times(1)).cancelQuery(anyString(), anyString());
@@ -378,7 +393,8 @@ public class CliTableauResultViewTest {
 				"+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+\n" +
 				"|   + |  (NULL) |           1 |                    2 |                  abc |           1.23 |      2020-03-01 18:39:14.0 |\n" +
 				"|   - |   false |      (NULL) |                    0 |                      |              1 |      2020-03-01 18:39:14.1 |\n" +
-				"|   + |    true |  2147483647 |               (NULL) |              abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |\n",
+				"|   + |    true |  2147483647 |               (NULL) |              abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |\n" +
+				"|   - |   false | -2147483648 |  9223372036854775807 |               (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |\n",
 				terminalOutput.toString());
 		verify(mockExecutor, times(1)).cancelQuery(anyString(), anyString());
 	}

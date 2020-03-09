@@ -38,7 +38,6 @@ import org.apache.flink.types.Row;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.terminal.Terminal;
 
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +49,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.client.cli.CliUtils.getStringWidth;
+import static org.apache.flink.table.client.cli.CliUtils.isFullWidth;
 import static org.apache.flink.table.client.cli.CliUtils.rowToString;
 
 /**
@@ -60,9 +61,9 @@ public class CliTableauResultView implements AutoCloseable {
 	private static final int NULL_COLUMN_WIDTH = CliStrings.NULL_COLUMN.length();
 	private static final int MAX_COLUMN_WIDTH = 30;
 	private static final int DEFAULT_COLUMN_WIDTH = 20;
+	private static final int COLUMN_TRUNCATED_FLAG_WIDTH = 3;
 	private static final String COLUMN_TRUNCATED_FLAG = "...";
 	private static final String CHANGEFLAG_COLUMN_NAME = "+/-";
-	private static final String DEFAULT_CHARSET = "UTF-8";
 
 	private final Terminal terminal;
 	private final Executor sqlExecutor;
@@ -276,13 +277,13 @@ public class CliTableauResultView implements AutoCloseable {
 		sb.append("|");
 		int idx = 0;
 		for (String col : cols) {
-			byte[] colBytes = getUTF8Bytes(col);
 			sb.append(" ");
-			if (colBytes.length <= colWidths[idx]) {
-				sb.append(StringUtils.repeat(' ', colWidths[idx] - colBytes.length));
+			int colWidth = getStringWidth(col);
+			if (colWidth <= colWidths[idx]) {
+				sb.append(StringUtils.repeat(' ', colWidths[idx] - colWidth));
 				sb.append(col);
 			} else {
-				sb.append(subMaxString(col, colWidths[idx]));
+				sb.append(getFixedString(col, colWidths[idx]));
 				sb.append(COLUMN_TRUNCATED_FLAG);
 			}
 			sb.append(" |");
@@ -392,7 +393,7 @@ public class CliTableauResultView implements AutoCloseable {
 		// fill column width with real data
 		for (String[] row : rows) {
 			for (int i = 0; i < row.length; ++i) {
-				colWidths[i] = Math.max(colWidths[i], getUTF8Bytes(row[i]).length);
+				colWidths[i] = Math.max(colWidths[i], getStringWidth(row[i]));
 			}
 		}
 
@@ -404,31 +405,25 @@ public class CliTableauResultView implements AutoCloseable {
 		return colWidths;
 	}
 
-	private byte[] getUTF8Bytes(String str) {
-		try {
-			return str.getBytes(DEFAULT_CHARSET);
-		} catch (UnsupportedEncodingException e) {
-			throw new SqlExecutionException("unknown charset", e);
-		}
-	}
-
-	private String subMaxString(String col, int colWidth) {
-		int bytesPos = 0;
-		int charPos = 0;
-		// avoid last char's bytes length is 2.
-		for (char ch: col.toCharArray()) {
-			bytesPos += getUTF8Bytes(String.valueOf(ch)).length;
-			if (bytesPos > colWidth - COLUMN_TRUNCATED_FLAG.length()) {
+	private String getFixedString(String col, int colWidth) {
+		int passedWidth = 0;
+		int i = 0;
+		for (; i < col.length(); i++) {
+			if (isFullWidth(Character.codePointAt(col, i))) {
+				passedWidth += 2;
+			} else {
+				passedWidth += 1;
+			}
+			if (passedWidth >= colWidth - COLUMN_TRUNCATED_FLAG_WIDTH) {
 				break;
 			}
-			charPos++;
 		}
-		String substring = col.substring(0, charPos);
-		int lackChars = colWidth - COLUMN_TRUNCATED_FLAG.length() - getUTF8Bytes(substring).length;
+		String substring = col.substring(0, i);
 
-		// fix with ' ' before result if lack char.
-		if (lackChars > 0){
-			substring = StringUtils.repeat(' ', lackChars) + substring;
+		// pad with ' ' before the column
+		int lackedWidth = colWidth - COLUMN_TRUNCATED_FLAG_WIDTH - getStringWidth(substring);
+		if (lackedWidth > 0){
+			substring = StringUtils.repeat(' ', lackedWidth) + substring;
 		}
 		return substring;
 	}
