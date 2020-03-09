@@ -25,6 +25,8 @@ import org.apache.hadoop.io.compress.CompressionOutputStream;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link BulkWriter} implementation that writes data that have been
  * compressed using Hadoop {@link org.apache.hadoop.io.compress.CompressionCodec}.
@@ -33,12 +35,12 @@ import java.io.IOException;
  */
 public class HadoopCompressionBulkWriter<T> implements BulkWriter<T> {
 
-	private Extractor<T> extractor;
-	private CompressionOutputStream out;
+	private final Extractor<T> extractor;
+	private final CompressionOutputStream out;
 
 	public HadoopCompressionBulkWriter(CompressionOutputStream out, Extractor<T> extractor) {
-		this.out = out;
-		this.extractor = extractor;
+		this.out = checkNotNull(out);
+		this.extractor = checkNotNull(extractor);
 	}
 
 	@Override

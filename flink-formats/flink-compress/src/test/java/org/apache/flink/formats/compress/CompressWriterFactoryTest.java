@@ -40,6 +40,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
@@ -104,7 +105,7 @@ public class CompressWriterFactoryTest extends TestLogger {
 		testCompressByName("org.apache.hadoop.io.compress.DefaultCodec");
 	}
 
-	@Test(expected = NullPointerException.class)
+	@Test(expected = IOException.class)
 	public void testCompressFailureWithUnknownCodec() throws Exception {
 		testCompressByName("com.bla.bla.UnknownCodec");
 	}
@@ -128,13 +129,12 @@ public class CompressWriterFactoryTest extends TestLogger {
 		testCompressByName(codec, new Configuration());
 	}
 
-	private void testCompressByName(String codec, Configuration configuration) throws Exception {
+	private void testCompressByName(String codec, Configuration conf) throws Exception {
 		CompressWriterFactory<String> writer = CompressWriters.forExtractor(new DefaultExtractor<String>())
-			.withHadoopCompression(codec, configuration);
+			.withHadoopCompression(codec, conf);
 		List<String> lines = Arrays.asList("line1", "line2", "line3");
 
 		File directory = prepareCompressedFile(writer, lines);
-		Configuration conf = (configuration != null) ? configuration : new Configuration();
 
 		validateResults(directory, lines, new CompressionCodecFactory(conf).getCodecByName(codec));
 	}

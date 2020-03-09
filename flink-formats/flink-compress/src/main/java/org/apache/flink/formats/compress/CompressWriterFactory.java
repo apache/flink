@@ -45,29 +45,48 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 
-	private Extractor<IN> extractor;
-	private CompressionCodec hadoopCodec;
+	private final Extractor<IN> extractor;
+	private final Map<String, String> hadoopConfigurationMap;
+	private transient CompressionCodec hadoopCodec;
 	private String hadoopCodecName;
-	private Map<String, String> hadoopConfigurationMap;
 	private String codecExtension;
 
+	/**
+	 * Creates a new CompressWriterFactory using the given {@link Extractor} to assemble
+	 * either {@link HadoopCompressionBulkWriter} or {@link NoCompressionBulkWriter}
+	 * based on whether a Hadoop CompressionCodec name is provided or not.
+	 *
+	 * @param extractor Extractor to extract the element
+	 */
 	public CompressWriterFactory(Extractor<IN> extractor) {
 		this.extractor = checkNotNull(extractor, "Extractor cannot be null");
 		this.hadoopConfigurationMap = new HashMap<>();
 	}
 
-	public CompressWriterFactory<IN> withHadoopCompression(String hadoopCodecName) {
-		return withHadoopCompression(hadoopCodecName, new Configuration());
+	/**
+	 * Compresses the data using the provided Hadoop {@link CompressionCodec}.
+	 *
+	 * @param codecName Simple/complete name or alias of the CompressionCodec
+	 * @return the instance of CompressionWriterFactory
+	 * @throws IOException
+	 */
+	public CompressWriterFactory<IN> withHadoopCompression(String codecName) throws IOException {
+		return withHadoopCompression(codecName, new Configuration());
 	}
 
-	public CompressWriterFactory<IN> withHadoopCompression(String hadoopCodecName, Configuration hadoopConfiguration) {
-		CompressionCodec codec = new CompressionCodecFactory(hadoopConfiguration).getCodecByName(hadoopCodecName);
-		this.codecExtension = checkNotNull(codec, "Unable to load the provided Hadoop codec [" + hadoopCodecName + "]")
-			.getDefaultExtension();
+	/**
+	 * Compresses the data using the provided Hadoop {@link CompressionCodec} and {@link Configuration}.
+	 *
+	 * @param codecName Simple/complete name or alias of the CompressionCodec
+	 * @param conf Hadoop Configuration
+	 * @return the instance of CompressionWriterFactory
+	 * @throws IOException
+	 */
+	public CompressWriterFactory<IN> withHadoopCompression(String codecName, Configuration conf) throws IOException {
+		this.codecExtension = getHadoopCodecExtension(codecName, conf);
+		this.hadoopCodecName = codecName;
 
-		this.hadoopCodecName = hadoopCodecName;
-
-		for (Map.Entry<String, String> entry : hadoopConfiguration) {
+		for (Map.Entry<String, String> entry : conf) {
 			hadoopConfigurationMap.put(entry.getKey(), entry.getValue());
 		}
 
@@ -76,7 +95,7 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 
 	@Override
 	public BulkWriter<IN> create(FSDataOutputStream out) throws IOException {
-		if (hadoopCodecName == null || hadoopCodecName.length() == 0) {
+		if (hadoopCodecName == null || hadoopCodecName.trim().isEmpty()) {
 			return new NoCompressionBulkWriter<>(out, extractor);
 		}
 
@@ -100,4 +119,15 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 			hadoopCodec = new CompressionCodecFactory(conf).getCodecByName(this.hadoopCodecName);
 		}
 	}
+
+	private String getHadoopCodecExtension(String hadoopCodecName, Configuration conf) throws IOException {
+		CompressionCodec codec = new CompressionCodecFactory(conf).getCodecByName(hadoopCodecName);
+
+		if (codec == null) {
+			throw new IOException("Unable to load the provided Hadoop codec [" + hadoopCodecName + "]");
+		}
+
+		return codec.getDefaultExtension();
+	}
+
 }
