@@ -20,7 +20,6 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
@@ -43,7 +42,6 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.commons.cli.Options;
 import org.junit.Test;
 
 import java.net.URL;
@@ -277,9 +275,7 @@ public class ExecutionContextTest {
 				new SessionContext("test-session", new Environment()),
 				Collections.emptyList(),
 				flinkConfig,
-				new DefaultClusterClientServiceLoader(),
-				new Options(),
-				Collections.singletonList(new DefaultCLI(flinkConfig))).build();
+				new DefaultClusterClientServiceLoader()).build();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -293,9 +289,7 @@ public class ExecutionContextTest {
 				new SessionContext("test-session", new Environment()),
 				Collections.emptyList(),
 				flinkConfig,
-				new DefaultClusterClientServiceLoader(),
-				new Options(),
-				Collections.singletonList(new DefaultCLI(flinkConfig)))
+				new DefaultClusterClientServiceLoader())
 				.build();
 	}
 

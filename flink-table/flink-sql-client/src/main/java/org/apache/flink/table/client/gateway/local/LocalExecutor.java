@@ -22,8 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
@@ -64,7 +62,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
-import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,8 +101,6 @@ public class LocalExecutor implements Executor {
 	private final Environment defaultEnvironment;
 	private final List<URL> dependencies;
 	private final Configuration flinkConfig;
-	private final List<CustomCommandLine> commandLines;
-	private final Options commandLineOptions;
 
 	// result maintenance
 
@@ -131,9 +126,6 @@ public class LocalExecutor implements Executor {
 			// initialize default file system
 			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
-			// load command lines for deployment
-			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig, flinkConfigDir);
-			this.commandLineOptions = collectCommandLineOptions(commandLines);
 		} catch (Exception e) {
 			throw new SqlClientException("Could not load Flink configuration.", e);
 		}
@@ -186,13 +178,10 @@ public class LocalExecutor implements Executor {
 			Environment defaultEnvironment,
 			List<URL> dependencies,
 			Configuration flinkConfig,
-			CustomCommandLine commandLine,
 			ClusterClientServiceLoader clusterClientServiceLoader) {
 		this.defaultEnvironment = defaultEnvironment;
 		this.dependencies = dependencies;
 		this.flinkConfig = flinkConfig;
-		this.commandLines = Collections.singletonList(commandLine);
-		this.commandLineOptions = collectCommandLineOptions(commandLines);
 		this.contextMap = new ConcurrentHashMap<>();
 
 		// prepare result store
@@ -212,9 +201,7 @@ public class LocalExecutor implements Executor {
 				sessionContext,
 				this.dependencies,
 				this.flinkConfig,
-				this.clusterClientServiceLoader,
-				this.commandLineOptions,
-				this.commandLines);
+				this.clusterClientServiceLoader);
 	}
 
 	@Override
@@ -740,17 +727,6 @@ public class LocalExecutor implements Executor {
 		}
 
 		return dependencies;
-	}
-
-	private static Options collectCommandLineOptions(List<CustomCommandLine> commandLines) {
-		final Options customOptions = new Options();
-		for (CustomCommandLine customCommandLine : commandLines) {
-			customCommandLine.addGeneralOptions(customOptions);
-			customCommandLine.addRunOptions(customOptions);
-		}
-		return CliFrontendParser.mergeOptions(
-			CliFrontendParser.getRunCommandOptions(),
-			customOptions);
 	}
 
 	private static TableSchema removeTimeAttributes(TableSchema schema) {

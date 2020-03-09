@@ -24,6 +24,8 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliArgsException;
+import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -145,13 +147,15 @@ public class ExecutionContext<ClusterID> {
 			@Nullable SessionState sessionState,
 			List<URL> dependencies,
 			Configuration flinkConfig,
-			ClusterClientServiceLoader clusterClientServiceLoader,
-			Options commandLineOptions,
-			List<CustomCommandLine> availableCommandLines) throws FlinkException {
+			ClusterClientServiceLoader clusterClientServiceLoader) throws FlinkException {
 		this.environment = environment;
 		this.originalSessionContext = originalSessionContext;
 
 		this.flinkConfig = flinkConfig;
+		environment.getConfiguration().asMap().forEach(flinkConfig::setString);
+
+		List<CustomCommandLine> availableCommandLines = CliFrontend.loadCustomCommandLines(flinkConfig, CliFrontend.getConfigurationDirectoryFromEnv());
+		Options commandLineOptions = collectCommandLineOptions(availableCommandLines);
 
 		// create class loader
 		classLoader = ClientUtils.buildUserCodeClassLoader(
@@ -180,6 +184,10 @@ public class ExecutionContext<ClusterID> {
 
 		clusterId = clusterClientFactory.getClusterId(flinkConfig);
 		clusterSpec = clusterClientFactory.getClusterSpecification(flinkConfig);
+
+		LOG.debug("ClusterClientFactory: {}", clusterClientFactory);
+		LOG.debug("ClusterId: {}", clusterId);
+		LOG.debug("ClusterSpec: {}", clusterSpec);
 	}
 
 	public Configuration getFlinkConfig() {
@@ -285,11 +293,9 @@ public class ExecutionContext<ClusterID> {
 			SessionContext sessionContext,
 			List<URL> dependencies,
 			Configuration configuration,
-			ClusterClientServiceLoader serviceLoader,
-			Options commandLineOptions,
-			List<CustomCommandLine> commandLines) {
+			ClusterClientServiceLoader serviceLoader) {
 		return new Builder(defaultEnv, sessionContext, dependencies, configuration,
-				serviceLoader, commandLineOptions, commandLines);
+				serviceLoader);
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -710,8 +716,6 @@ public class ExecutionContext<ClusterID> {
 		private final List<URL> dependencies;
 		private final Configuration configuration;
 		private final ClusterClientServiceLoader serviceLoader;
-		private final Options commandLineOptions;
-		private final List<CustomCommandLine> commandLines;
 
 		private Environment defaultEnv;
 		private Environment currentEnv;
@@ -725,16 +729,12 @@ public class ExecutionContext<ClusterID> {
 				@Nullable SessionContext sessionContext,
 				List<URL> dependencies,
 				Configuration configuration,
-				ClusterClientServiceLoader serviceLoader,
-				Options commandLineOptions,
-				List<CustomCommandLine> commandLines) {
+				ClusterClientServiceLoader serviceLoader) {
 			this.defaultEnv = defaultEnv;
 			this.sessionContext = sessionContext;
 			this.dependencies = dependencies;
 			this.configuration = configuration;
 			this.serviceLoader = serviceLoader;
-			this.commandLineOptions = commandLineOptions;
-			this.commandLines = commandLines;
 		}
 
 		public Builder env(Environment environment) {
@@ -757,9 +757,7 @@ public class ExecutionContext<ClusterID> {
 						this.sessionState,
 						this.dependencies,
 						this.configuration,
-						this.serviceLoader,
-						this.commandLineOptions,
-						this.commandLines);
+						this.serviceLoader);
 			} catch (Throwable t) {
 				// catch everything such that a configuration does not crash the executor
 				throw new SqlExecutionException("Could not create execution context.", t);
@@ -792,5 +790,16 @@ public class ExecutionContext<ClusterID> {
 				FunctionCatalog functionCatalog) {
 			return new SessionState(config, catalogManager, moduleManager, functionCatalog);
 		}
+	}
+
+	private static Options collectCommandLineOptions(List<CustomCommandLine> commandLines) {
+		final Options customOptions = new Options();
+		for (CustomCommandLine customCommandLine : commandLines) {
+			customCommandLine.addGeneralOptions(customOptions);
+			customCommandLine.addRunOptions(customOptions);
+		}
+		return CliFrontendParser.mergeOptions(
+			CliFrontendParser.getRunCommandOptions(),
+			customOptions);
 	}
 }

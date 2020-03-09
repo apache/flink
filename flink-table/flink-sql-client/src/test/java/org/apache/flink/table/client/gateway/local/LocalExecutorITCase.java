@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -1202,7 +1201,6 @@ public class LocalExecutorITCase extends TestLogger {
 				EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 				Collections.emptyList(),
 				clusterClient.getFlinkConfiguration(),
-				new DefaultCLI(clusterClient.getFlinkConfiguration()),
 				new DefaultClusterClientServiceLoader());
 	}
 
@@ -1212,7 +1210,6 @@ public class LocalExecutorITCase extends TestLogger {
 				EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 				Collections.emptyList(),
 				clusterClient.getFlinkConfiguration(),
-				new DefaultCLI(clusterClient.getFlinkConfiguration()),
 				new DefaultClusterClientServiceLoader());
 	}
 
@@ -1223,7 +1220,6 @@ public class LocalExecutorITCase extends TestLogger {
 				EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
 				Collections.emptyList(),
 				clusterClient.getFlinkConfiguration(),
-				new DefaultCLI(clusterClient.getFlinkConfiguration()),
 				new DefaultClusterClientServiceLoader());
 	}
 
