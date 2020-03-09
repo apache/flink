@@ -306,45 +306,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 	}
 
 	@Test
-	public void testGetCpuCoresCommonOption() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final Configuration configuration = new Configuration();
-				configuration.setDouble(TaskManagerOptions.CPU_CORES, 1.0);
-				configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
-				configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
-
-				assertThat(resourceManager.getCpuCores(configuration), is(1.0));
-			});
-		}};
-	}
-
-	@Test
-	public void testGetCpuCoresKubernetesOption() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final Configuration configuration = new Configuration();
-				configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
-				configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
-
-				assertThat(resourceManager.getCpuCores(configuration), is(2.0));
-			});
-		}};
-	}
-
-	@Test
-	public void testGetCpuCoresNumSlots() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final Configuration configuration = new Configuration();
-				configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
-
-				assertThat(resourceManager.getCpuCores(configuration), is(3.0));
-			});
-		}};
-	}
-
-	@Test
 	public void testCreateTaskManagerPodFailedAndRetry() throws Exception {
 		new Context() {{
 			final AtomicInteger retries = new AtomicInteger(0);
