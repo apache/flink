@@ -55,8 +55,6 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PostgresCatalog.class);
 
-	public static final String POSTGRES_TABLE_TYPE = "postgres";
-
 	public static final String DEFAULT_DATABASE = "postgres";
 
 	// ------ Postgres default objects that shouldn't be exposed to users ------
@@ -236,6 +234,7 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 		String pgType = metadata.getColumnTypeName(colIndex);
 
 		int precision = metadata.getPrecision(colIndex);
+		int scale = metadata.getScale(colIndex);
 
 		switch (pgType) {
 			case PG_BOOLEAN:
@@ -286,17 +285,17 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 			case PG_TEXT_ARRAY:
 				return DataTypes.ARRAY(DataTypes.STRING());
 			case PG_TIMESTAMP:
-				return DataTypes.TIMESTAMP();
+				return DataTypes.TIMESTAMP(scale);
 			case PG_TIMESTAMP_ARRAY:
-				return DataTypes.ARRAY(DataTypes.TIMESTAMP());
+				return DataTypes.ARRAY(DataTypes.TIMESTAMP(scale));
 			case PG_TIMESTAMPTZ:
-				return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE();
+				return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(scale);
 			case PG_TIMESTAMPTZ_ARRAY:
-				return DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE());
+				return DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(scale));
 			case PG_TIME:
-				return DataTypes.TIME();
+				return DataTypes.TIME(scale);
 			case PG_TIME_ARRAY:
-				return DataTypes.ARRAY(DataTypes.TIME());
+				return DataTypes.ARRAY(DataTypes.TIME(scale));
 			case PG_DATE:
 				return DataTypes.DATE();
 			case PG_DATE_ARRAY:
