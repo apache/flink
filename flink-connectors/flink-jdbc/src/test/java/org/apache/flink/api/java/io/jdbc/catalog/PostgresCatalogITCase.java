@@ -46,9 +46,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test for {@link PostgresJDBCCatalog}.
+ * Test for {@link PostgresCatalog}.
  */
-public class PostgresJDBCCatalogITCase {
+public class PostgresCatalogITCase {
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
@@ -67,7 +67,7 @@ public class PostgresJDBCCatalogITCase {
 	protected static Catalog catalog;
 
 	public static Catalog createCatalog(String name, String defaultDb, String username, String pwd, String jdbcUrl) {
-		return new PostgresJDBCCatalog("mypg", PostgresJDBCCatalog.DEFAULT_DATABASE, username, pwd, jdbcUrl);
+		return new PostgresCatalog("mypg", PostgresCatalog.DEFAULT_DATABASE, username, pwd, jdbcUrl);
 	}
 
 	@BeforeClass
@@ -77,7 +77,7 @@ public class PostgresJDBCCatalogITCase {
 		// jdbc:postgresql://localhost:50807/
 		baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/") + 1);
 
-		catalog = createCatalog("mypg", PostgresJDBCCatalog.DEFAULT_DATABASE, TEST_USERNAME, TEST_PWD, baseUrl);
+		catalog = createCatalog("mypg", PostgresCatalog.DEFAULT_DATABASE, TEST_USERNAME, TEST_PWD, baseUrl);
 
 		// create test database and schema
 		createDatabase(TEST_DB);
@@ -118,14 +118,14 @@ public class PostgresJDBCCatalogITCase {
 	public void testDbExists() throws Exception {
 		assertFalse(catalog.databaseExists("nonexistent"));
 
-		assertTrue(catalog.databaseExists(PostgresJDBCCatalog.DEFAULT_DATABASE));
+		assertTrue(catalog.databaseExists(PostgresCatalog.DEFAULT_DATABASE));
 	}
 
 	// ------ tables ------
 
 	@Test
 	public void testListTables() throws DatabaseNotExistException {
-		List<String> actual = catalog.listTables(PostgresJDBCCatalog.DEFAULT_DATABASE);
+		List<String> actual = catalog.listTables(PostgresCatalog.DEFAULT_DATABASE);
 
 		assertEquals(Arrays.asList("public.t1"), actual);
 
@@ -144,7 +144,7 @@ public class PostgresJDBCCatalogITCase {
 	public void testTableExists() {
 		assertFalse(catalog.tableExists(new ObjectPath(TEST_DB, "nonexist")));
 
-		assertTrue(catalog.tableExists(new ObjectPath(PostgresJDBCCatalog.DEFAULT_DATABASE, TABLE1)));
+		assertTrue(catalog.tableExists(new ObjectPath(PostgresCatalog.DEFAULT_DATABASE, TABLE1)));
 		assertTrue(catalog.tableExists(new ObjectPath(TEST_DB, TABLE2)));
 		assertTrue(catalog.tableExists(new ObjectPath(TEST_DB, "test_schema.t3")));
 	}
@@ -294,7 +294,7 @@ public class PostgresJDBCCatalogITCase {
 	}
 
 	private static void createTable(PostgresTablePath tablePath, String tableSchemaSql) throws SQLException {
-		executeSQL(PostgresJDBCCatalog.DEFAULT_DATABASE, String.format("CREATE TABLE %s(%s);", tablePath.getFullPath(), tableSchemaSql));
+		executeSQL(PostgresCatalog.DEFAULT_DATABASE, String.format("CREATE TABLE %s(%s);", tablePath.getFullPath(), tableSchemaSql));
 	}
 
 	private static void createTable(String db, PostgresTablePath tablePath, String tableSchemaSql) throws SQLException {

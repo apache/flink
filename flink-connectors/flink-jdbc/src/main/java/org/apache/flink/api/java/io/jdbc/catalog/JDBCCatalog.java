@@ -50,7 +50,7 @@ public class JDBCCatalog extends AbstractJDBCCatalog {
 		JDBCDialect dialect = JDBCDialects.get(baseUrl).get();
 
 		if (dialect instanceof JDBCDialects.PostgresDialect) {
-			internal = new PostgresJDBCCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
+			internal = new PostgresCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
 		} else {
 			throw new UnsupportedOperationException(
 				String.format("Catalog for '%s' is not supported yet.", dialect)

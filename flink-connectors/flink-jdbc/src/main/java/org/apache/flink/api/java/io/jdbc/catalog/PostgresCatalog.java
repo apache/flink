@@ -51,9 +51,9 @@ import java.util.Set;
  * Catalog for PostgreSQL.
  */
 @Internal
-public class PostgresJDBCCatalog extends AbstractJDBCCatalog {
+public class PostgresCatalog extends AbstractJDBCCatalog {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PostgresJDBCCatalog.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PostgresCatalog.class);
 
 	public static final String DEFAULT_DATABASE = "postgres";
 
@@ -72,7 +72,7 @@ public class PostgresJDBCCatalog extends AbstractJDBCCatalog {
 		add("information_schema");
 	}};
 
-	protected PostgresJDBCCatalog(String catalogName, String defaultDatabase, String username, String pwd, String baseUrl) {
+	protected PostgresCatalog(String catalogName, String defaultDatabase, String username, String pwd, String baseUrl) {
 		super(catalogName, defaultDatabase, username, pwd, baseUrl);
 	}
 
