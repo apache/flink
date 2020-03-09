@@ -94,7 +94,7 @@ class TableEnvironmentTest {
 
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
     val actual = tEnv.explain(false)
-    assertEquals(expected, actual)
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 
 }

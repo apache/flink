@@ -155,6 +155,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 	}
 
 	private void testUdf(boolean batch) throws Exception {
+		StreamExecutionEnvironment env = null;
 		TableEnvironment tEnv;
 		EnvironmentSettings.Builder envBuilder = EnvironmentSettings.newInstance().useBlinkPlanner();
 		if (batch) {
@@ -165,8 +166,8 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		if (batch) {
 			tEnv = TableEnvironment.create(envBuilder.build());
 		} else {
-			tEnv = StreamTableEnvironment.create(
-					StreamExecutionEnvironment.getExecutionEnvironment(), envBuilder.build());
+			env = StreamExecutionEnvironment.getExecutionEnvironment();
+			tEnv = StreamTableEnvironment.create(env, envBuilder.build());
 		}
 
 		BatchTestBase.configForMiniCluster(tEnv.getConfig());
@@ -237,7 +238,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 			streamTEnv.toRetractStream(tEnv.sqlQuery(selectSql), Row.class)
 					.map(new JavaToScala())
 					.addSink((SinkFunction) sink);
-			streamTEnv.execute("");
+			env.execute("");
 			results = JavaScalaConversionUtil.toJava(sink.getRetractResults());
 		}
 

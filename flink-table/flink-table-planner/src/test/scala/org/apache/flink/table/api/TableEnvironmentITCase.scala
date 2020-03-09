@@ -146,6 +146,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sink1Path)
+    StreamITCase.clear
 
     streamTableEnv.sqlUpdate("insert into MySink1 select first from MyTable")
 
@@ -182,6 +183,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sink1Path)
+    StreamITCase.clear
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
     val resultSet = streamTableEnv.toAppendStream(table, classOf[Row])
