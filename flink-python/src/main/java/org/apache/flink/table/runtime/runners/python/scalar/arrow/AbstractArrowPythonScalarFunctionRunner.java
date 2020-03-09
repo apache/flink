@@ -49,7 +49,9 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 	static {
 		// Arrow requires the property io.netty.tryReflectionSetAccessible to
 		// be set to true for JDK >= 9. Please refer to ARROW-5412 for more details.
-		System.setProperty("io.netty.tryReflectionSetAccessible", "true");
+		if (System.getProperty("io.netty.tryReflectionSetAccessible") == null) {
+			System.setProperty("io.netty.tryReflectionSetAccessible", "true");
+		}
 	}
 
 	/**
