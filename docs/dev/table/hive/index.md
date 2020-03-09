@@ -92,7 +92,12 @@ to make the integration work in Table API program or SQL in SQL Client.
 Alternatively, you can put these dependencies in a dedicated folder, and add them to classpath with the `-C`
 or `-l` option for Table API program or SQL Client respectively.
 
-Apache Hive is built on Hadoop, so you need Hadoop dependency first, please refer to [Providing Hadoop classes]({{ site.baseurl }}/ops/deployment/hadoop.html#providing-hadoop-classes).
+Apache Hive is built on Hadoop, so you need Hadoop dependency first, please refer to
+[Providing Hadoop classes]({{ site.baseurl }}/ops/deployment/hadoop.html#providing-hadoop-classes).
+
+There are two way to hive dependencies. First way, using bundled hive jar, providing multiple bundle
+hive jars that can cover all remote metastore versions. Second way, user defined dependencies, you
+can build your own dependencies if you need to. 
 
 #### Using bundled hive jar
 
@@ -256,13 +261,11 @@ Please find the required dependencies for different Hive major versions below.
 </div>
 </div>
 
-#### HDP and CDH versions
-
 If you use the hive version of HDP or CDH, you need to refer to the dependency in the previous section and select a similar version.
 
 And you need to specify selected and supported "hive-version" in yaml, HiveCatalog and HiveModule.
 
-#### Program
+### Program maven
 
 If you are building your own program, you need the following dependencies in your mvn file.
 It's recommended not to include these dependencies in the resulting jar file.
