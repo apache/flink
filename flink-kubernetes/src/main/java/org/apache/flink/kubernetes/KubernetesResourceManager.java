@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
@@ -319,11 +318,6 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			internalStopPod(pod.getName());
 			requestKubernetesPodIfRequired();
 		}
-	}
-
-	@Override
-	protected double getCpuCores(Configuration configuration) {
-		return TaskExecutorProcessUtils.getCpuCoresWithFallbackConfigOption(configuration, KubernetesConfigOptions.TASK_MANAGER_CPU);
 	}
 
 	private void internalStopPod(String podName) {
