@@ -148,6 +148,15 @@ object GenerateUtils {
     }
   }
 
+  def generateStringResultCallWithStmtIfArgsNullable(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression])
+      (call: Seq[String] => String): GeneratedExpression = {
+    generateCallIfArgsNullable(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
+      args => s"$BINARY_STRING.fromString(${call(args)})"
+    }
+  }
+
   /**
     * Generates a call with the nullable args.
     */
@@ -274,7 +283,7 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       literalType: LogicalType,
       literalValue: Any): GeneratedExpression = {
-    if (literalValue == null) {
+    if (literalValue == null && literalType.isNullable) {
       return generateNullLiteral(literalType, ctx.nullCheck)
     }
     // non-null values

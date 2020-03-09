@@ -21,18 +21,16 @@ package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.dataformat.DataFormatConverters
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateStringResultCallIfArgsNotNull}
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateStringResultCallIfArgsNotNull, generateStringResultCallWithStmtIfArgsNullable}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, MapType, VarBinaryType, VarCharType}
-
-import org.apache.calcite.runtime.SqlFunctions
+import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
-
 import java.lang.reflect.Method
 
 /**
@@ -222,6 +220,9 @@ object StringCallGen {
           isCharacterString(operands(1).resultType) &&
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
+
+      case JSON_OBJECT if operands.nonEmpty =>
+        generateJsonObject(ctx, returnType, operands)
 
       case _ => null
     }
@@ -675,6 +676,17 @@ object StringCallGen {
     generateStringResultCallIfArgsNotNull(ctx, operands) {
       terms =>
         s"$className.jsonValue(${safeToStringTerms(terms, operands)})"
+    }
+  }
+
+  def generateJsonObject(
+    ctx: CodeGeneratorContext,
+    returnType: LogicalType,
+    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+    val className = classOf[JsonFunctions].getCanonicalName
+    generateStringResultCallWithStmtIfArgsNullable(ctx, operands) {
+      terms =>
+        s"$className.jsonObject(${safeToStringTerms(terms, operands)})"
     }
   }
 
