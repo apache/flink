@@ -223,7 +223,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			leaderElectionService.start(this);
 			jobLeaderIdService.start(new JobLeaderIdActionsImpl());
 
-			registerSlotAndTaskExecutorMetrics();
+			registerTaskExecutorMetrics();
 		} catch (Exception e) {
 			handleStartResourceManagerServicesException(e);
 		}
@@ -772,13 +772,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
-	private void registerSlotAndTaskExecutorMetrics() {
-		resourceManagerMetricGroup.gauge(
-			MetricNames.TASK_SLOTS_AVAILABLE,
-			() -> (long) slotManager.getNumberFreeSlots());
-		resourceManagerMetricGroup.gauge(
-			MetricNames.TASK_SLOTS_TOTAL,
-			() -> (long) slotManager.getNumberRegisteredSlots());
+	private void registerTaskExecutorMetrics() {
 		resourceManagerMetricGroup.gauge(
 			MetricNames.NUM_REGISTERED_TASK_MANAGERS,
 			() -> (long) taskExecutors.size());
