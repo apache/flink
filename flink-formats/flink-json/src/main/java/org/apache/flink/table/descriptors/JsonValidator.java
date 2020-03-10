@@ -54,5 +54,10 @@ public class JsonValidator extends FormatDescriptorValidator {
 
 		properties.validateBoolean(FORMAT_FAIL_ON_MISSING_FIELD, true);
 		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
+		boolean failOnMissingField = properties.getOptionalBoolean(FORMAT_FAIL_ON_MISSING_FIELD).orElse(false);
+		boolean ignoreParseErrors = properties.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).orElse(false);
+		if (ignoreParseErrors && failOnMissingField) {
+			throw new ValidationException(FORMAT_FAIL_ON_MISSING_FIELD + " and " + FORMAT_IGNORE_PARSE_ERRORS + " shouldn't both be true.");
+		}
 	}
 }
