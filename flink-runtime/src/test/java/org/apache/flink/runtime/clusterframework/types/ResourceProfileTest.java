@@ -376,6 +376,39 @@ public class ResourceProfileTest extends TestLogger {
 	}
 
 	@Test
+	public void testMultiply() {
+		final int by = 3;
+		final ResourceProfile rp1 = ResourceProfile.newBuilder()
+			.setCpuCores(1.0)
+			.setTaskHeapMemoryMB(100)
+			.setTaskOffHeapMemoryMB(100)
+			.setNetworkMemoryMB(100)
+			.setManagedMemoryMB(100)
+			.addExtendedResource("gpu", new GPUResource(1.0))
+			.build();
+
+		ResourceProfile rp2 = rp1;
+		for (int i = 1; i < by; ++i) {
+			rp2 = rp2.merge(rp1);
+		}
+
+		assertEquals(rp2, rp1.multiply(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testMultiplyNegative() {
+		final ResourceProfile rp = ResourceProfile.newBuilder()
+			.setCpuCores(1.0)
+			.setTaskHeapMemoryMB(100)
+			.setTaskOffHeapMemoryMB(100)
+			.setNetworkMemoryMB(100)
+			.setManagedMemoryMB(100)
+			.addExtendedResource("gpu", new GPUResource(1.0))
+			.build();
+		rp.multiply(-2);
+	}
+
+	@Test
 	public void testFromSpecWithSerializationCopy() throws Exception {
 		final ResourceSpec copiedSpec = CommonTestUtils.createCopySerializable(ResourceSpec.UNKNOWN);
 		final ResourceProfile profile = ResourceProfile.fromResourceSpec(copiedSpec);
