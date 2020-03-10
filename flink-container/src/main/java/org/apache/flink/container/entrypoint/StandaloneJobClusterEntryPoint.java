@@ -80,7 +80,7 @@ public final class StandaloneJobClusterEntryPoint extends ClusterEntrypoint {
 				new DefaultDispatcherRunnerFactory(
 						ApplicationDispatcherLeaderProcessFactoryFactory
 								.create(configuration, SessionDispatcherFactory.INSTANCE, program)),
-				StandaloneResourceManagerFactory.INSTANCE,
+				StandaloneResourceManagerFactory.getInstance(),
 				JobRestEndpointFactory.INSTANCE);
 	}
 

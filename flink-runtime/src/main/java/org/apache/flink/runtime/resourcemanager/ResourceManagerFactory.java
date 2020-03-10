@@ -27,6 +27,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ConfigurationException;
 
 import javax.annotation.Nullable;
 
@@ -35,16 +36,57 @@ import javax.annotation.Nullable;
  *
  * @param <T> type of the workers of the ResourceManager
  */
-public interface ResourceManagerFactory<T extends ResourceIDRetrievable> {
+public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 
-	ResourceManager<T> createResourceManager(
-		Configuration configuration,
-		ResourceID resourceId,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		FatalErrorHandler fatalErrorHandler,
-		ClusterInformation clusterInformation,
-		@Nullable String webInterfaceUrl,
-		ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception;
+	public ResourceManager<T> createResourceManager(
+			Configuration configuration,
+			ResourceID resourceId,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			FatalErrorHandler fatalErrorHandler,
+			ClusterInformation clusterInformation,
+			@Nullable String webInterfaceUrl,
+			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
+
+		final ResourceManagerRuntimeServices resourceManagerRuntimeServices = createResourceManagerRuntimeServices(
+			configuration, rpcService, highAvailabilityServices);
+
+		return createResourceManager(
+			configuration,
+			resourceId,
+			rpcService,
+			highAvailabilityServices,
+			heartbeatServices,
+			fatalErrorHandler,
+			clusterInformation,
+			webInterfaceUrl,
+			resourceManagerMetricGroup,
+			resourceManagerRuntimeServices);
+	}
+
+	protected abstract ResourceManager<T> createResourceManager(
+			Configuration configuration,
+			ResourceID resourceId,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			FatalErrorHandler fatalErrorHandler,
+			ClusterInformation clusterInformation,
+			@Nullable String webInterfaceUrl,
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			ResourceManagerRuntimeServices resourceManagerRuntimeServices) throws Exception;
+
+	private ResourceManagerRuntimeServices createResourceManagerRuntimeServices(
+			Configuration configuration,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices) throws ConfigurationException {
+		return ResourceManagerRuntimeServices.fromConfiguration(
+			createResourceManagerRuntimeServicesConfiguration(configuration),
+			highAvailabilityServices,
+			rpcService.getScheduledExecutor());
+	}
+
+	protected abstract ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
+			Configuration configuration) throws ConfigurationException;
 }
