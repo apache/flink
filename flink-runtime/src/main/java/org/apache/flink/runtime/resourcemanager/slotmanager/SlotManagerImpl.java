@@ -214,6 +214,34 @@ public class SlotManagerImpl implements SlotManager {
 			Collections.emptyMap();
 	}
 
+	@Override
+	public ResourceProfile getRegisteredResource() {
+		return getResourceFromNumSlots(getNumberRegisteredSlots());
+	}
+
+	@Override
+	public ResourceProfile getRegisteredResourceOf(InstanceID instanceID) {
+		return getResourceFromNumSlots(getNumberRegisteredSlotsOf(instanceID));
+	}
+
+	@Override
+	public ResourceProfile getFreeResource() {
+		return getResourceFromNumSlots(getNumberFreeSlots());
+	}
+
+	@Override
+	public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
+		return getResourceFromNumSlots(getNumberFreeSlotsOf(instanceID));
+	}
+
+	private ResourceProfile getResourceFromNumSlots(int numSlots) {
+		if (numSlots < 0 || defaultSlotResourceProfile == null) {
+			return ResourceProfile.UNKNOWN;
+		} else {
+			return defaultSlotResourceProfile.multiply(numSlots);
+		}
+	}
+
 	@VisibleForTesting
 	public int getNumberPendingTaskManagerSlots() {
 		return pendingSlots.size();
