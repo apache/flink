@@ -174,6 +174,7 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 	private void finishCurrentBatch() throws Exception {
 		if (currentBatchCount > 0) {
 			arrowWriter.finish();
+			// the batch of elements sent out as one row should be serialized into one arrow batch
 			arrowStreamWriter.writeBatch();
 			arrowWriter.reset();
 

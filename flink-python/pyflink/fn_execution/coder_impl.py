@@ -19,8 +19,11 @@
 import datetime
 import decimal
 import struct
+import pyarrow as pa
+
 from apache_beam.coders.coder_impl import StreamCoderImpl
 
+from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.table import Row
 
 
@@ -373,3 +376,43 @@ class TimestampCoderImpl(StreamCoderImpl):
         second, microsecond = (milliseconds // 1000,
                                milliseconds % 1000 * 1000 + nanoseconds // 1000)
         return datetime.datetime.utcfromtimestamp(second).replace(microsecond=microsecond)
+
+
+class ArrowCoderImpl(StreamCoderImpl):
+
+    def __init__(self, schema):
+        self._schema = schema
+        self._resettable_io = ResettableIO()
+        self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
+        self._batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
+
+    def encode_to_stream(self, cols, out_stream, nested):
+        self._resettable_io.set_output_stream(out_stream)
+        self._batch_writer.write_batch(self._create_batch(cols))
+
+    def decode_from_stream(self, in_stream, nested):
+        self._resettable_io.set_input_bytes(in_stream.read_all())
+        # there is only arrow batch in the underlying input stream
+        table = pa.Table.from_batches([next(self._batch_reader)])
+        return [c.to_pandas(date_as_object=True) for c in table.itercolumns()]
+
+    @staticmethod
+    def _load_from_stream(stream):
+        reader = pa.ipc.open_stream(stream)
+        for batch in reader:
+            yield batch
+
+    def _create_batch(self, cols):
+        def create_array(s, t):
+            try:
+                return pa.Array.from_pandas(s, mask=s.isnull(), type=t)
+            except pa.ArrowException as e:
+                error_msg = "Exception thrown when converting pandas.Series (%s) to " \
+                            "pyarrow.Array (%s)."
+                raise RuntimeError(error_msg % (s.dtype, t), e)
+
+        arrays = [create_array(cols[i], self._schema.types[i]) for i in range(0, len(self._schema))]
+        return pa.RecordBatch.from_arrays(arrays, self._schema)
+
+    def __repr__(self):
+        return 'ArrowCoderImpl[%s]' % self._schema

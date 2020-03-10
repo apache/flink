@@ -172,7 +172,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
     Wrapper for Python user-defined scalar function.
     """
 
-    def __init__(self, func, input_types, result_type, deterministic, name):
+    def __init__(self, func, input_types, result_type, udf_type, deterministic, name):
         super(UserDefinedScalarFunctionWrapper, self).__init__(
             func, input_types, deterministic, name)
 
@@ -180,6 +180,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
             raise TypeError(
                 "Invalid returnType: returnType should be DataType but is {}".format(result_type))
         self._result_type = result_type
+        self._udf_type = udf_type
         self._judf_placeholder = None
 
     def java_user_defined_function(self, is_blink_planner, table_config):
@@ -188,6 +189,18 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
         return self._judf_placeholder
 
     def _create_judf(self, is_blink_planner, table_config):
+        gateway = get_gateway()
+
+        def get_python_function_kind(udf_type):
+            JPythonFunctionKind = gateway.jvm.org.apache.flink.table.functions.python.\
+                PythonFunctionKind
+            if udf_type == "general":
+                return JPythonFunctionKind.GENERAL
+            elif udf_type == "pandas":
+                return JPythonFunctionKind.PANDAS
+            else:
+                raise TypeError("Unsupported udf_type: %s." % udf_type)
+
         func = self._func
         if not isinstance(self._func, UserDefinedFunction):
             func = DelegatingScalarFunction(self._func)
@@ -195,12 +208,10 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
         import cloudpickle
         serialized_func = cloudpickle.dumps(func)
 
-        gateway = get_gateway()
         j_input_types = utils.to_jarray(gateway.jvm.TypeInformation,
                                         [_to_java_type(i) for i in self._input_types])
         j_result_type = _to_java_type(self._result_type)
-        j_function_kind = gateway.jvm.org.apache.flink.table.functions.python.\
-            PythonFunctionKind.GENERAL
+        j_function_kind = get_python_function_kind(self._udf_type)
         if is_blink_planner:
             PythonTableUtils = gateway.jvm\
                 .org.apache.flink.table.planner.utils.python.PythonTableUtils
@@ -297,15 +308,17 @@ def _get_python_env():
     return gateway.jvm.org.apache.flink.table.functions.python.PythonEnv(exec_type)
 
 
-def _create_udf(f, input_types, result_type, deterministic, name):
-    return UserDefinedScalarFunctionWrapper(f, input_types, result_type, deterministic, name)
+def _create_udf(f, input_types, result_type, udf_type, deterministic, name):
+    return UserDefinedScalarFunctionWrapper(
+        f, input_types, result_type, udf_type, deterministic, name)
 
 
 def _create_udtf(f, input_types, result_types, deterministic, name):
     return UserDefinedTableFunctionWrapper(f, input_types, result_types, deterministic, name)
 
 
-def udf(f=None, input_types=None, result_type=None, deterministic=None, name=None):
+def udf(f=None, input_types=None, result_type=None, deterministic=None, name=None,
+        udf_type="general"):
     """
     Helper method for creating a user-defined function.
 
@@ -330,21 +343,27 @@ def udf(f=None, input_types=None, result_type=None, deterministic=None, name=Non
     :type input_types: list[DataType] or DataType
     :param result_type: the result data type.
     :type result_type: DataType
-    :param name: the function name.
-    :type name: str
     :param deterministic: the determinism of the function's results. True if and only if a call to
                           this function is guaranteed to always return the same result given the
                           same parameters. (default True)
     :type deterministic: bool
+    :param name: the function name.
+    :type name: str
+    :param udf_type: the type of the python function, available value: general, pandas,
+                     (default: general)
+    :type udf_type: str
     :return: UserDefinedScalarFunctionWrapper or function.
     :rtype: UserDefinedScalarFunctionWrapper or function
     """
+    if udf_type not in ('general', 'pandas'):
+        raise ValueError("The udf_type must be one of 'general, pandas', got %s." % udf_type)
+
     # decorator
     if f is None:
         return functools.partial(_create_udf, input_types=input_types, result_type=result_type,
-                                 deterministic=deterministic, name=name)
+                                 udf_type=udf_type, deterministic=deterministic, name=name)
     else:
-        return _create_udf(f, input_types, result_type, deterministic, name)
+        return _create_udf(f, input_types, result_type, udf_type, deterministic, name)
 
 
 def udtf(f=None, input_types=None, result_types=None, deterministic=None, name=None):
