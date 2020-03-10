@@ -24,7 +24,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
-import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
@@ -34,6 +34,8 @@ import io.fabric8.kubernetes.api.model.ServiceSpec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Setup services port.
@@ -81,12 +83,15 @@ public class ServiceDecorator extends Decorator<Service, KubernetesService> {
 			flinkConfig.getInteger(RestOptions.PORT)));
 
 		if (!onlyRestPort) {
+			final int blobServerPort = KubernetesUtils.parsePort(flinkConfig, BlobServerOptions.PORT);
+			checkArgument(blobServerPort > 0, "%s should not be 0.", BlobServerOptions.PORT.key());
+
 			servicePorts.add(getServicePort(
 				getPortName(JobManagerOptions.PORT.key()),
 				flinkConfig.getInteger(JobManagerOptions.PORT)));
 			servicePorts.add(getServicePort(
 				getPortName(BlobServerOptions.PORT.key()),
-				Constants.BLOB_SERVER_PORT));
+				blobServerPort));
 		}
 
 		spec.setPorts(servicePorts);
