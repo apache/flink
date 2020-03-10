@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -307,7 +308,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
-		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1));
+		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1, ResourceProfile.ZERO, ResourceProfile.ZERO));
 	}
 
 	@Override
