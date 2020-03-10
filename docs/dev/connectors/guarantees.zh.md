@@ -23,11 +23,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-当程序出现错误的时候，Flink 的容错机制能恢复并继续运行程序。这种错误包括、机器硬件故障、网络故障、瞬态程序故障、等等。
+当程序出现错误的时候，Flink 的容错机制能恢复并继续运行程序。这种错误包括、机器硬件故障、网络故障、瞬态程序故障等等。
 
-只有当 source 参与了快照机制的时候，Flink 才能保证对自定义状态的精确一次更新。下表列举了 Flink 对自带连接器的状态更新的保证。
+只有当 source 参与了快照机制的时候，Flink 才能保证对自定义状态的精确一次更新。下表列举了 Flink 与其自带连接器的状态更新的保证。
 
-请单独阅读各个连接器的文档来了解容错保证的细节。
+请阅读各个连接器的文档来了解容错保证的细节。
 
 <table class="table table-bordered">
   <thead>
@@ -81,7 +81,7 @@ under the License.
   </tbody>
 </table>
 
-为了保证端对端精确一次的语义（除精确一次状态语义之外）, sink 需要参与 checkpointing 机制. 下表列举了 Flink 与其自带 sink 的交付保证（假设精确一次状态更新）。
+在精确一次状态语义的基础上，为了保证端对端精确一次的语义，sink 需要参与 checkpointing 机制。下表列举了 Flink 与其自带 sink 的交付保证（假设精确一次状态更新）。
 
 <table class="table table-bordered">
   <thead>
