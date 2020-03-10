@@ -417,7 +417,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@Nonnull
 	DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory() {
-		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(StandaloneResourceManagerFactory.INSTANCE);
+		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(StandaloneResourceManagerFactory.getInstance());
 	}
 
 	@VisibleForTesting

@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> type of the {@link ResourceIDRetrievable}
  */
-public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievable> implements ResourceManagerFactory<T> {
+public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievable> extends ResourceManagerFactory<T> {
 
 	@Override
 	public ResourceManager<T> createResourceManager(
@@ -54,7 +54,7 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		return createActiveResourceManager(
+		return super.createResourceManager(
 			createActiveResourceManagerConfiguration(configuration),
 			resourceId,
 			rpcService,
@@ -66,19 +66,8 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			resourceManagerMetricGroup);
 	}
 
-	private static Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
+	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
 		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
 			originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
-
-	protected abstract ResourceManager<T> createActiveResourceManager(
-		Configuration configuration,
-		ResourceID resourceId,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		FatalErrorHandler fatalErrorHandler,
-		ClusterInformation clusterInformation,
-		@Nullable String webInterfaceUrl,
-		ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception;
 }
