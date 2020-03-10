@@ -471,7 +471,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		tEnv.sqlQuery("select * from testFlinkTable").insertInto("cassandraTable");
 
-		env.execute();
+		tEnv.execute("job name");
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 
 		// validate that all input was correctly written to Cassandra

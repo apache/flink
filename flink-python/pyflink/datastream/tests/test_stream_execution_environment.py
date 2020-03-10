@@ -19,6 +19,8 @@ import os
 import tempfile
 import json
 
+import unittest
+
 from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
@@ -172,6 +174,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(time_characteristic, TimeCharacteristic.EventTime)
 
+    @unittest.skip("Python API does not support DataStream now. refactor this test later")
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()
         source_path = os.path.join(tmp_dir + '/streaming.csv')
