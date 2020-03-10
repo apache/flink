@@ -383,26 +383,24 @@ class ArrowCoderImpl(StreamCoderImpl):
     def __init__(self, schema):
         self._schema = schema
         self._resettable_io = ResettableIO()
+        self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
+        self._batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
 
     def encode_to_stream(self, cols, out_stream, nested):
-        if not hasattr(self, "_batch_writer"):
-            self._batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
-
         self._resettable_io.set_output_stream(out_stream)
         self._batch_writer.write_batch(self._create_batch(cols))
 
     def decode_from_stream(self, in_stream, nested):
-        if not hasattr(self, "_batch_reader"):
-            def load_from_stream(stream):
-                reader = pa.ipc.open_stream(stream)
-                for batch in reader:
-                    yield batch
-
-            self._batch_reader = load_from_stream(self._resettable_io)
-
         self._resettable_io.set_input_bytes(in_stream.read_all())
+        # there is only arrow batch in the underlying input stream
         table = pa.Table.from_batches([next(self._batch_reader)])
         return [c.to_pandas(date_as_object=True) for c in table.itercolumns()]
+
+    @staticmethod
+    def _load_from_stream(stream):
+        reader = pa.ipc.open_stream(stream)
+        for batch in reader:
+            yield batch
 
     def _create_batch(self, cols):
         def create_array(s, t):
