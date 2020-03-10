@@ -30,32 +30,35 @@ import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTra
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ConfigurationException;
 
 import javax.annotation.Nullable;
 
 /**
  * {@link ResourceManagerFactory} which creates a {@link StandaloneResourceManager}.
  */
-public enum StandaloneResourceManagerFactory implements ResourceManagerFactory<ResourceID> {
-	INSTANCE;
+public final class StandaloneResourceManagerFactory extends ResourceManagerFactory<ResourceID> {
+
+	private static final StandaloneResourceManagerFactory INSTANCE = new StandaloneResourceManagerFactory();
+
+	private StandaloneResourceManagerFactory() {}
+
+	public static StandaloneResourceManagerFactory getInstance() {
+		return INSTANCE;
+	}
 
 	@Override
-	public ResourceManager<ResourceID> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration =
-			ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, ArbitraryWorkerResourceSpecFactory.INSTANCE);
-		final ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
-			resourceManagerRuntimeServicesConfiguration,
-			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
+	protected ResourceManager<ResourceID> createResourceManager(
+		Configuration configuration,
+		ResourceID resourceId,
+		RpcService rpcService,
+		HighAvailabilityServices highAvailabilityServices,
+		HeartbeatServices heartbeatServices,
+		FatalErrorHandler fatalErrorHandler,
+		ClusterInformation clusterInformation,
+		@Nullable String webInterfaceUrl,
+		ResourceManagerMetricGroup resourceManagerMetricGroup,
+		ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
 
 		final Time standaloneClusterStartupPeriodTime = ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
 
@@ -72,5 +75,11 @@ public enum StandaloneResourceManagerFactory implements ResourceManagerFactory<R
 			resourceManagerMetricGroup,
 			standaloneClusterStartupPeriodTime,
 			AkkaUtils.getTimeoutAsTime(configuration));
+	}
+
+	@Override
+	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
+			Configuration configuration) throws ConfigurationException {
+		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, ArbitraryWorkerResourceSpecFactory.INSTANCE);
 	}
 }

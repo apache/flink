@@ -38,6 +38,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ConfigurationException;
 
 import javax.annotation.Nullable;
 
@@ -57,7 +58,7 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 	}
 
 	@Override
-	public ResourceManager<KubernetesWorkerNode> createActiveResourceManager(
+	public ResourceManager<KubernetesWorkerNode> createResourceManager(
 			Configuration configuration,
 			ResourceID resourceId,
 			RpcService rpcService,
@@ -66,14 +67,9 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration =
-			ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
-				configuration, KubernetesWorkerResourceSpecFactory.INSTANCE);
-		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
-			rmServicesConfiguration,
-			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
+
 		final KubernetesResourceManagerConfiguration kubernetesResourceManagerConfiguration =
 			new KubernetesResourceManagerConfiguration(
 				configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
@@ -85,13 +81,19 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 			configuration,
 			highAvailabilityServices,
 			heartbeatServices,
-			rmRuntimeServices.getSlotManager(),
+			resourceManagerRuntimeServices.getSlotManager(),
 			ResourceManagerPartitionTrackerImpl::new,
-			rmRuntimeServices.getJobLeaderIdService(),
+			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
 			resourceManagerMetricGroup,
 			KubeClientFactory.fromConfiguration(configuration),
 			kubernetesResourceManagerConfiguration);
+	}
+
+	@Override
+	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
+		Configuration configuration) throws ConfigurationException {
+		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, KubernetesWorkerResourceSpecFactory.INSTANCE);
 	}
 }
