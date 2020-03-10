@@ -30,6 +30,18 @@ class PipelineTest(unittest.TestCase):
         res = [stage.get_desc() for stage in pipeline.get_stages()]
         return "_".join(res)
 
+    def test_construct_pipeline(self):
+        pipeline1 = Pipeline()
+        pipeline1.append_stage(MockTransformer(self_desc="a1"))
+        pipeline1.append_stage(MockJavaTransformer(self_desc="ja1"))
+
+        pipeline2 = Pipeline()
+        pipeline2.append_stage(MockTransformer(self_desc="a2"))
+        pipeline2.append_stage(MockJavaTransformer(self_desc="ja2"))
+
+        pipeline3 = Pipeline(pipeline1.get_stages(), pipeline2.to_json())
+        self.assertEqual("a1_ja1_a2_ja2", PipelineTest.describe_pipeline(pipeline3))
+
     def test_pipeline_behavior(self):
         pipeline = Pipeline()
         pipeline.append_stage(MockTransformer(self_desc="a"))

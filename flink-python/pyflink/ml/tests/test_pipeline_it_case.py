@@ -21,11 +21,29 @@ from pyflink.testing.test_case_utils import MLTestCase
 
 from pyflink.ml.api import JavaTransformer, Transformer, Estimator, Model, \
     MLEnvironmentFactory, Pipeline
-from pyflink.ml.lib.param.colname import HasSelectedCols, HasVectorCol,\
+from pyflink.ml.api.param import WithParams, ParamInfo, TypeConverters
+from pyflink.ml.lib.param.colname import HasSelectedCols,\
     HasPredictionCol, HasOutputCol
 from pyflink import keyword
 from pyflink.testing import source_sink_utils
 from pyflink.java_gateway import get_gateway
+
+
+class HasVectorCol(WithParams):
+    """
+    Trait for parameter vectorColName.
+    """
+    vector_col = ParamInfo(
+        "vectorCol",
+        "Name of a vector column",
+        is_optional=False,
+        type_converter=TypeConverters.to_string)
+
+    def set_vector_col(self, v: str) -> 'HasVectorCol':
+        return super().set(self.vector_col, v)
+
+    def get_vector_col(self) -> str:
+        return super().get(self.vector_col)
 
 
 class WrapperTransformer(JavaTransformer, HasSelectedCols):
@@ -121,10 +139,9 @@ class PythonPipelineTest(MLTestCase):
 
     def test_pipeline(self):
         t_env = MLEnvironmentFactory().get_default().get_stream_table_environment()
-        MLEnvironmentFactory().get_default().get_stream_execution_environment().set_parallelism(1)
-        trainTable = t_env.from_elements(
+        train_table = t_env.from_elements(
             [(1, 2), (1, 4), (1, 0), (10, 2), (10, 4), (10, 0)], ['a', 'b'])
-        servingTable = t_env.from_elements([(0, 0), (12, 3)], ['a', 'b'])
+        serving_table = t_env.from_elements([(0, 0), (12, 3)], ['a', 'b'])
 
         table_sink = source_sink_utils.TestAppendSink(
             ['predicate_result'],
@@ -142,8 +159,8 @@ class PythonPipelineTest(MLTestCase):
         # pipeline
         pipeline = Pipeline().append_stage(transformer).append_stage(estimator)
         pipeline\
-            .fit(t_env, trainTable)\
-            .transform(t_env, servingTable)\
+            .fit(t_env, train_table)\
+            .transform(t_env, serving_table)\
             .insert_into('PredictResults')
         # execute
         t_env.execute('PipelineITCase')

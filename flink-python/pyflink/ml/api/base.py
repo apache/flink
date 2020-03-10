@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 
+import re
+
 from abc import ABCMeta, abstractmethod
 
 from pyflink.table.table_environment import TableEnvironment
@@ -52,18 +54,18 @@ class PipelineStage(WithParams):
     @staticmethod
     def _make_java_param(j_pipeline_stage, param):
         # camel case to snake case
-        import re
         name = re.sub(r'(?<!^)(?=[A-Z])', '_', param.name).upper()
         return get_field(j_pipeline_stage, name)
 
-    def _make_java_value(self, obj):
+    @staticmethod
+    def _make_java_value(obj):
         """ Convert Python object into Java """
         if isinstance(obj, list):
-            obj = [self._make_java_value(x) for x in obj]
+            obj = [PipelineStage._make_java_value(x) for x in obj]
         return obj
 
     def to_json(self) -> str:
-        return str(self.get_params().to_json())
+        return self.get_params().to_json()
 
     def load_json(self, json: str) -> None:
         self.get_params().load_json(json)
@@ -193,12 +195,15 @@ class Pipeline(Estimator, Model):
     ordinaryEstimator or Transformer as describe above.
     """
 
-    def __init__(self, stages=None):
+    def __init__(self, stages=None, pipeline_json=None):
         super().__init__()
         self.stages = []
-        if stages is not None:
-            self.stages = stages
         self.last_estimator_index = -1
+        if stages is not None:
+            for stage in stages:
+                self.append_stage(stage)
+        if pipeline_json is not None:
+            self.load_json(pipeline_json)
 
     def need_fit(self):
         return self.last_estimator_index >= 0

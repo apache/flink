@@ -55,23 +55,6 @@ class HasOutputCol(WithParams):
         return super().get(self.output_col)
 
 
-class HasVectorCol(WithParams):
-    """
-    Trait for parameter vectorColName.
-    """
-    vector_col = ParamInfo(
-        "vectorCol",
-        "Name of a vector column",
-        is_optional=False,
-        type_converter=TypeConverters.to_string)
-
-    def set_vector_col(self, v: str) -> 'HasVectorCol':
-        return super().set(self.vector_col, v)
-
-    def get_vector_col(self) -> str:
-        return super().get(self.vector_col)
-
-
 class HasPredictionCol(WithParams):
     """
     An interface for classes with a parameter specifying the column name of the prediction.
