@@ -43,6 +43,9 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import java.util
 
+import org.apache.flink.table.planner.functions.aggfunctions.JsonArrayAggAggFunction.StringJsonArrayAggAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.JsonArrayAggWithRetractAggFunction.StringJsonArrayAggWithRetractAggFunction
+
 import scala.collection.JavaConversions._
 
 /**
@@ -121,6 +124,9 @@ class AggFunctionFactory(
 
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
         createCollectAggFunction(argTypes)
+
+      case _: SqlJsonArrayAggAggFunction if call.getArgList.size() == 1 =>
+        createJsonArrayAggAggFunction(argTypes, index)
 
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.
@@ -651,5 +657,15 @@ class AggFunctionFactory(
       case t => TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(t)
     }
     new CollectAggFunction(elementTypeInfo)
+  }
+
+  private def createJsonArrayAggAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (needRetraction(index)) {
+      new StringJsonArrayAggWithRetractAggFunction
+    } else {
+      new StringJsonArrayAggAggFunction
+    }
   }
 }
