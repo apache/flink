@@ -309,7 +309,8 @@ object FlinkStreamRuleSets {
     FlinkLogicalWindowTableAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
-    FlinkLogicalSink.CONVERTER
+    FlinkLogicalSink.CONVERTER,
+    FlinkLogicalCollectionScan.CONVERTER
   )
 
   /**
@@ -362,6 +363,7 @@ object FlinkStreamRuleSets {
     StreamExecIntermediateTableScanRule.INSTANCE,
     StreamExecWatermarkAssignerRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
+    StreamExecCollectionScanRule.INSTANCE,
     // calc
     StreamExecCalcRule.INSTANCE,
     StreamExecPythonCalcRule.INSTANCE,

@@ -50,6 +50,7 @@ import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedG
 import org.apache.flink.table.operations.utils.factories.AggregateOperationFactory;
 import org.apache.flink.table.operations.utils.factories.AliasOperationUtils;
 import org.apache.flink.table.operations.utils.factories.CalculatedTableFactory;
+import org.apache.flink.table.operations.utils.factories.CollectionOperationFactory;
 import org.apache.flink.table.operations.utils.factories.ColumnOperationUtils;
 import org.apache.flink.table.operations.utils.factories.JoinOperationFactory;
 import org.apache.flink.table.operations.utils.factories.ProjectionOperationFactory;
@@ -101,6 +102,7 @@ public final class OperationTreeBuilder {
 	private final SetOperationFactory setOperationFactory;
 	private final AggregateOperationFactory aggregateOperationFactory;
 	private final JoinOperationFactory joinOperationFactory;
+	private final CollectionOperationFactory collectionOperationFactory;
 
 	private OperationTreeBuilder(
 			TableConfig config,
@@ -112,7 +114,8 @@ public final class OperationTreeBuilder {
 			CalculatedTableFactory calculatedTableFactory,
 			SetOperationFactory setOperationFactory,
 			AggregateOperationFactory aggregateOperationFactory,
-			JoinOperationFactory joinOperationFactory) {
+			JoinOperationFactory joinOperationFactory,
+			CollectionOperationFactory collectionOperationFactory) {
 		this.config = config;
 		this.functionCatalog = functionLookup;
 		this.typeFactory = typeFactory;
@@ -123,6 +126,7 @@ public final class OperationTreeBuilder {
 		this.setOperationFactory = setOperationFactory;
 		this.aggregateOperationFactory = aggregateOperationFactory;
 		this.joinOperationFactory = joinOperationFactory;
+		this.collectionOperationFactory = collectionOperationFactory;
 		this.lookupResolver = new LookupCallResolver(functionLookup);
 	}
 
@@ -142,7 +146,8 @@ public final class OperationTreeBuilder {
 			new CalculatedTableFactory(),
 			new SetOperationFactory(isStreamingMode),
 			new AggregateOperationFactory(isStreamingMode),
-			new JoinOperationFactory()
+			new JoinOperationFactory(),
+			new CollectionOperationFactory()
 		);
 	}
 
@@ -717,6 +722,14 @@ public final class OperationTreeBuilder {
 		// Step4: add a top project to alias the output fields of the table aggregate. Also, project the
 		// window attribute.
 		return aliasBackwardFields(tableAggOperation, resolvedFunctionAndAlias.f1, groupingExpressions.size());
+	}
+
+	public QueryOperation collect(Collection<?> elements) {
+		return collectionOperationFactory.create(new ArrayList<>(elements));
+	}
+
+	public QueryOperation collect(Collection<?> elements, DataType elementType) {
+		return collectionOperationFactory.create(new ArrayList<>(elements), elementType);
 	}
 
 	/**

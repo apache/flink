@@ -39,6 +39,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
+import org.apache.flink.table.operations.CollectionQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
@@ -73,6 +74,8 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
+import org.apache.flink.table.planner.plan.schema.CollectionTable;
+import org.apache.flink.table.planner.plan.schema.CollectionTable$;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
@@ -105,6 +108,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import scala.Some;
+import scala.collection.JavaConverters.*;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
@@ -332,6 +336,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					dataStreamQueryOperation.getFieldIndices(),
 					dataStreamQueryOperation.getTableSchema(),
 					dataStreamQueryOperation.getIdentifier());
+			} else if (other instanceof CollectionQueryOperation) {
+				return convertToCollectionScan((CollectionQueryOperation) other);
 			}
 
 			throw new TableException("Unknown table operation: " + other);
@@ -446,6 +452,21 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				FlinkStatistic.UNKNOWN(),
 				scala.Option.empty());
 			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable);
+		}
+
+		private RelNode convertToCollectionScan(CollectionQueryOperation operation) {
+			String refId = String.format("Unregistered_Collection_%s", System.identityHashCode(operation.getElements()));
+			List<String> names = Collections.singletonList(refId);
+
+			final RelDataType rowType = CollectionTable$.MODULE$
+				.getRowType(relBuilder.getTypeFactory(), operation.getTableSchema());
+
+			CollectionTable collectionTable = new CollectionTable(
+				names,
+				rowType,
+				operation.getElements(),
+				operation.getDataType());
+			return LogicalTableScan.create(relBuilder.getCluster(), collectionTable);
 		}
 
 		private List<RexNode> convertToRexNodes(List<ResolvedExpression> expressions) {

@@ -19,20 +19,20 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestStreamTableSource, TestTableSources}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
+import java.lang.{Boolean => JBool, Double => JDouble, Integer => JInt, Long => JLong}
 
-import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
-
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class TableSourceITCase extends StreamingTestBase {
@@ -467,6 +467,142 @@ class TableSourceITCase extends StreamingTestBase {
       "2,6.099999999999999645,12",
       "3,7.099999999999999645,123"
     )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCollectionSourceWithRowsAndType(): Unit = {
+    val data = Seq(
+      Row.of("Mike", new JInt(5), new JDouble(12.3), "Smith"),
+      Row.of("Smith", new JInt(5), new JDouble(12.4), null))
+
+    val dataType = DataTypes.ROW(
+      DataTypes.FIELD("first", DataTypes.STRING()),
+      DataTypes.FIELD("id", DataTypes.INT()),
+      DataTypes.FIELD("score", DataTypes.DOUBLE()),
+      DataTypes.FIELD("last", DataTypes.STRING()))
+
+    val table = tEnv.fromElements(data.asJava, dataType)
+    tEnv.createTemporaryView("T", table)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT last, score * 2 FROM T WHERE id > 4")
+      .toAppendStream[Row]
+      .addSink(sink)
+
+    env.execute()
+
+    val expected = Seq("Smith,24.6", "null,24.8")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCollectionSourceWithRows(): Unit = {
+    val data = Seq(
+      Row.of("Mike", new JInt(5), new JDouble(12.3), "Smith"),
+      Row.of("Smith", new JInt(5), new JDouble(12.4), null))
+
+    val table = tEnv.fromElements(data.asJava)
+    tEnv.createTemporaryView("T", table)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT f3, f2 * 2 FROM T WHERE f1 > 4")
+      .toAppendStream[Row]
+      .addSink(sink)
+
+    env.execute()
+
+    val expected = Seq("Smith,24.6", "null,24.8")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCollectionSourceWithSingleColumnAndType(): Unit = {
+    val data = Seq("Mike", "Smith", "Tom")
+
+    val dataType = DataTypes.STRING
+
+    val table = tEnv.fromElements(data.asJava, dataType)
+    tEnv.createTemporaryView("T", table)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT f0 FROM T")
+      .toAppendStream[Row]
+      .addSink(sink)
+
+    env.execute()
+
+    val expected = Seq("Mike", "Smith", "Tom")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCollectionSourceWithSingleColumn(): Unit = {
+    val data = Seq("Mike", "Smith", "Tom")
+
+    val table = tEnv.fromElements(data.asJava)
+    tEnv.createTemporaryView("T", table)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT f0 FROM T")
+      .toAppendStream[Row]
+      .addSink(sink)
+
+    env.execute()
+
+    val expected = Seq("Mike", "Smith", "Tom")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCollectionSourceWithNestedRows(): Unit = {
+    val data = Seq(
+      Row.of(
+        "Mike",
+        new JInt(1),
+        Row.of("Smith", new JDouble(12.3)),
+        new Tuple2(1, 2L)),
+      Row.of(
+        "Smith",
+        new JLong(2),
+        Row.of("Tom", new JDouble(12.3)),
+        new Tuple2(2, 4L)))
+
+    val table = tEnv.fromElements(data.asJava)
+    tEnv.createTemporaryView("T", table)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT f0, f1, f2, f3, f4, f5 FROM T")
+      .toAppendStream[Row]
+      .addSink(sink)
+
+    env.execute()
+
+    val expected = Seq("Mike,1,Smith,12.3,1,2", "Smith,2,Tom,12.3,2,4")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testEmptyCollectionSource(): Unit = {
+    val data = Seq()
+
+    val dataType = DataTypes.ROW(
+      DataTypes.FIELD("first", DataTypes.STRING()),
+      DataTypes.FIELD("id", DataTypes.INT()),
+      DataTypes.FIELD("score", DataTypes.DOUBLE()),
+      DataTypes.FIELD("last", DataTypes.STRING()))
+
+    val table = tEnv.fromElements(data.asJava, dataType)
+    tEnv.createTemporaryView("T", table)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT last, score * 2 FROM T WHERE id > 4")
+      .toAppendStream[Row]
+      .addSink(sink)
+
+    env.execute()
+
+    val expected = Seq()
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

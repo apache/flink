@@ -31,8 +31,10 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -95,6 +97,23 @@ public interface TableEnvironment {
 	 * @param source table source used as table
 	 */
 	Table fromTableSource(TableSource<?> source);
+
+	/**
+	 * Creates a table from a group of objects (known as its elements). The schema of the table
+	 * would be inferred from the type of elements.
+	 *
+	 * @param elements a group of objects.
+	 */
+	Table fromElements(Collection<?> elements);
+
+	/**
+	 * Creates a table from a group of objects (known as its elements). The schema of the table
+	 * would be inferred from the passed in data type.
+	 *
+	 * @param elements a group of objects
+	 * @param dataType the data type of the data
+	 */
+	Table fromElements(Collection<?> elements, DataType dataType);
 
 	/**
 	 * Registers a {@link Catalog} under a unique name.

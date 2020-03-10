@@ -36,14 +36,13 @@ import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQuer
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
-
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
-import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
+import _root_.java.util.{Optional, Collection => JCollection, HashMap => JHashMap, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -346,6 +345,15 @@ abstract class TableEnvImpl(
 
   override def fromTableSource(source: TableSource[_]): Table = {
     createTable(new TableSourceQueryOperation(source, isBatchTable))
+  }
+
+
+  def fromElements(elements: JCollection[_]): Table = {
+    throw new TableException("fromElements is not supported in batch TableEnvironment.")
+  }
+
+  def fromElements(elements: JCollection[_], dataType: DataType): Table = {
+    throw new TableException("fromElements is not supported in batch TableEnvironment.")
   }
 
   /**

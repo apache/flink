@@ -44,6 +44,7 @@ import org.apache.flink.table.functions.utils.TableSqlFunction;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
+import org.apache.flink.table.operations.CollectionQueryOperation;
 import org.apache.flink.table.operations.DataSetQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
@@ -66,6 +67,7 @@ import org.apache.flink.table.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.plan.nodes.FlinkConventions;
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCollectionScan;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataSetScan;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamScan;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan;
@@ -291,6 +293,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					dataStreamQueryOperation.getDataStream(),
 					dataStreamQueryOperation.getFieldIndices(),
 					dataStreamQueryOperation.getTableSchema());
+			} else if (other instanceof CollectionQueryOperation) {
+				return convertToCollectionScan((CollectionQueryOperation) other);
 			}
 
 			throw new TableException("Unknown table operation: " + other);
@@ -350,6 +354,18 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				relBuilder.getRelOptSchema(),
 				tableOperation.getDataSet(),
 				tableOperation.getFieldIndices(),
+				logicalRowType);
+		}
+
+		private RelNode convertToCollectionScan(CollectionQueryOperation collectionOperation) {
+			RelDataType logicalRowType = relBuilder.getTypeFactory()
+				.buildLogicalRowType(collectionOperation.getTableSchema());
+			return new FlinkLogicalCollectionScan(
+				relBuilder.getCluster(),
+				relBuilder.getCluster().traitSet().replace(FlinkConventions.LOGICAL()),
+				relBuilder.getRelOptSchema(),
+				collectionOperation.getElements(),
+				collectionOperation.getDataType(),
 				logicalRowType);
 		}
 

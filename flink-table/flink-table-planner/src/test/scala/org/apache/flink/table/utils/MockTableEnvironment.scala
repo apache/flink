@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.utils
 
+import java.util
+
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
@@ -29,10 +31,15 @@ import org.apache.flink.table.sources.TableSource
 import java.util.Optional
 
 import org.apache.flink.table.module.Module
+import org.apache.flink.table.types.DataType
 
 class MockTableEnvironment extends TableEnvironment {
 
   override def fromTableSource(source: TableSource[_]): Table = ???
+
+  override def fromElements(data: util.Collection[_]): Table = ???
+
+  override def fromElements(data: util.Collection[_], dataType: DataType): Table = ???
 
   override def registerFunction(name: String, function: ScalarFunction): Unit = ???
 

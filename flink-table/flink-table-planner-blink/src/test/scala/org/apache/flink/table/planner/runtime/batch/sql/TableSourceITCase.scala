@@ -20,22 +20,25 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
+import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
-
 import java.io.FileWriter
-import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
+import java.lang.{Boolean => JBool, Double => JDouble, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
 import java.sql.Timestamp
 import java.time.{Instant, LocalDateTime, ZoneId}
 
+import org.junit.Assert.assertEquals
+
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 class TableSourceITCase extends BatchTestBase {
 
@@ -345,6 +348,63 @@ class TableSourceITCase extends BatchTestBase {
         row("t3"),
         row("t4")
       )
+    )
+  }
+
+  @Test
+  def testCollectionSourceWithRowsAndType(): Unit = {
+    val data = Seq(
+      row("Mike", new JInt(5), new JDouble(12.3), "Smith"),
+      row("Smith", new JInt(5), new JDouble(12.4), "Tom"))
+
+    val dataType = DataTypes.ROW(
+      DataTypes.FIELD("first", DataTypes.STRING()),
+      DataTypes.FIELD("id", DataTypes.INT()),
+      DataTypes.FIELD("score", DataTypes.DOUBLE()),
+      DataTypes.FIELD("last", DataTypes.STRING()))
+
+    val table = tEnv.fromElements(data.asJava, dataType)
+    tEnv.createTemporaryView("T", table)
+
+    checkResult(
+      "SELECT last, score * 2 FROM T WHERE id > 4",
+      Seq(
+        row("Smith", new JDouble("24.6")),
+        row("Tom", new JDouble("24.8")))
+    )
+  }
+
+  @Test
+  def testCollectionSourceWithRows(): Unit = {
+    val data = Seq(
+      row("Mike", new JInt(5), new JDouble(12.3), "Smith"),
+      row("Smith", new JLong(5), new JDouble(12.4), "Tom"))
+
+    val table = tEnv.fromElements(data.asJava)
+    tEnv.createTemporaryView("T", table)
+
+    checkResult(
+      "SELECT f3, f2 * 2 FROM T WHERE f1 > 4",
+      Seq(
+        row("Smith", new JDouble(24.6)),
+        row("Tom", new JDouble(24.8)))
+    )
+  }
+
+  @Test
+  def testCollectionSourceWithNestedRows(): Unit = {
+    val data = Seq(
+      row("Mike", new JInt(1), row("Smith", new JDouble(12.3))),
+      row("Smith", new JInt(1), row("Tom", new JDouble(12.3))))
+
+    val table = tEnv.fromElements(data.asJava)
+    tEnv.createTemporaryView("T", table)
+
+    checkResult(
+      "SELECT f0, f1, f2, f3 FROM T",
+      Seq(
+        row("Mike", new JInt(1), "Smith", new JDouble(12.3)),
+        row("Smith", new JInt(1), "Tom", new JDouble(12.3)))
     )
   }
 }
