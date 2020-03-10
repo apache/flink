@@ -34,10 +34,10 @@ $ python --version
 # the version printed here must be 3.5+
 {% endhighlight %}
 
-<span class="label label-info">Note</span> Using Python UDF in Python Shell requires apache-beam 2.19.0. Run the following command to confirm that it meets the requirements before run the Shell in local mode:
+<span class="label label-info">Note</span> Pyflink provides a very convenient way to development - pyflink shell. Please run the following command:
 
 {% highlight bash %}
-$ python -m pip install apache-beam==2.19.0
+$ python -m pip install apache-flink
 {% endhighlight %}
 
 To use the shell with an integrated Flink cluster just execute:
@@ -46,8 +46,7 @@ To use the shell with an integrated Flink cluster just execute:
 pyflink-shell.sh local
 {% endhighlight %}
 
-in the root directory of your binary Flink directory. To run the Shell on a
-cluster, please see the Setup section below.
+To run the Shell on a cluster, please see the Setup section below.
 
 ## Usage
 
@@ -130,7 +129,7 @@ The example below is a simple program in the Python shell:
 To get an overview of what options the Python Shell provides, please use
 
 {% highlight bash %}
-bin/pyflink-shell.sh --help
+pyflink-shell.sh --help
 {% endhighlight %}
 
 ### Local
@@ -138,7 +137,7 @@ bin/pyflink-shell.sh --help
 To use the shell with an integrated Flink cluster just execute:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+pyflink-shell.sh local
 {% endhighlight %}
 
 
@@ -148,7 +147,7 @@ To use it with a running cluster, please start the Python shell with the keyword
 and supply the host and port of the JobManager with:
 
 {% highlight bash %}
-bin/pyflink-shell.sh remote <hostname> <portnumber>
+pyflink-shell.sh remote <hostname> <portnumber>
 {% endhighlight %}
 
 ### Yarn Python Shell cluster
@@ -163,7 +162,7 @@ For example, to start a Yarn cluster for the Python Shell with two TaskManagers
 use the following:
 
 {% highlight bash %}
-bin/pyflink-shell.sh yarn -n 2
+pyflink-shell.sh yarn -n 2
 {% endhighlight %}
 
 For all other options, see the full reference at the bottom.
@@ -175,7 +174,7 @@ If you have previously deployed a Flink cluster using the Flink Yarn Session,
 the Python shell can connect with it using the following command:
 
 {% highlight bash %}
-bin/pyflink-shell.sh yarn
+pyflink-shell.sh yarn
 {% endhighlight %}
 
 
