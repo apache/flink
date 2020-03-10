@@ -26,10 +26,10 @@ if [ -z "$HERE" ] ; then
 fi
 
 source "${HERE}/travis/stage.sh"
+source "${HERE}/travis/common-logging.sh"
 
-ARTIFACTS_DIR="${HERE}/artifacts"
-
-mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
+# exports $ARTIFACTS_DIR
+prepare_artifacts
 
 echo "Build for commit ${TRAVIS_COMMIT} of ${TRAVIS_REPO_SLUG} [build ID: ${TRAVIS_BUILD_ID}, job number: $TRAVIS_JOB_NUMBER]." | tee "${ARTIFACTS_DIR}/build_info"
 
@@ -42,13 +42,6 @@ MAX_NO_OUTPUT=${1:-300}
 
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
-
-# Maximum times to retry uploading artifacts file to transfer.sh
-TRANSFER_UPLOAD_MAX_RETRIES=2
-
-# The delay between two retries to upload artifacts file to transfer.sh. The default exponential
-# backoff algorithm should be too long for the last several retries.
-TRANSFER_UPLOAD_RETRY_DELAY=5
 
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
@@ -85,21 +78,6 @@ MVN_OUT="${ARTIFACTS_DIR}/mvn.out"
 
 TRACE_OUT="${ARTIFACTS_DIR}/jps-traces.out"
 
-# E.g. travis-artifacts/apache/flink/1595/1595.1
-UPLOAD_TARGET_PATH="travis-artifacts/${TRAVIS_REPO_SLUG}/${TRAVIS_BUILD_NUMBER}/"
-# These variables are stored as secure variables in '.travis.yml', which are generated per repo via
-# the travis command line tool.
-UPLOAD_BUCKET=$ARTIFACTS_AWS_BUCKET
-UPLOAD_ACCESS_KEY=$ARTIFACTS_AWS_ACCESS_KEY
-UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
-
-ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
-
-if [ ! -z "$TF_BUILD" ] ; then
-	# set proper artifacts file name on Azure Pipelines
-	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tar.gz
-fi
-
 if [ $TEST == $STAGE_PYTHON ]; then
 	CMD=$PYTHON_TEST
 	CMD_PID=$PYTHON_PID
@@ -117,47 +95,6 @@ fi
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
-upload_artifacts_s3() {
-	echo "PRODUCED build artifacts."
-
-	ls $ARTIFACTS_DIR
-
-	echo "COMPRESSING build artifacts."
-
-	cd $ARTIFACTS_DIR
-	dmesg > container.log
-	tar -zcvf $ARTIFACTS_FILE *
-
-	# Upload to secured S3
-	if [ -n "$UPLOAD_BUCKET" ] && [ -n "$UPLOAD_ACCESS_KEY" ] && [ -n "$UPLOAD_SECRET_KEY" ]; then
-
-		# Install artifacts tool
-		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
-
-		PATH=$HOME/bin/artifacts:$HOME/bin:$PATH
-
-		echo "UPLOADING build artifacts."
-
-		# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
-		# re-creates the whole directory structure from root.
-		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
-	fi
-
-	# On Azure, publish ARTIFACTS_FILE as a build artifact
-	if [ ! -z "$TF_BUILD" ] ; then
-		ARTIFACT_DIR="$(pwd)/artifact-dir"
-		mkdir $ARTIFACT_DIR
-		cp $ARTIFACTS_FILE $ARTIFACT_DIR/
-		
-		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$ARTIFACT_DIR"
-		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')"
-	fi
-
-	# upload to https://transfer.sh
-	echo "Uploading to transfer.sh"
-	curl --retry ${TRANSFER_UPLOAD_MAX_RETRIES} --retry-delay ${TRANSFER_UPLOAD_RETRY_DELAY} --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
-}
 
 print_stacktraces () {
 	echo "=============================================================================="
@@ -177,25 +114,6 @@ print_stacktraces () {
 	done
 }
 
-collect_coredumps() {
-	echo "Searching for .dump, .dumpstream and related files in $($HERE/../)"
-	for file in `find . -type f -regextype posix-extended -iregex '.*\.dump|.*\.dumpstream|.*hs.*\.log|.*/core(.[0-9]+)?$'`; do
-		echo "Copying $file to artifacts"
-		cp $file $ARTIFACTS_DIR/
-	done
-}
-
-# locate YARN logs and put them into artifacts directory
-put_yarn_logs_to_artifacts() {
-	# Make sure to be in project root
-	cd $HERE/../
-	for file in `find ./flink-yarn-tests/target -type f -name '*.log'`; do
-		TARGET_FILE=`echo "$file" | grep -Eo "container_[0-9_]+/(.*).log"`
-		TARGET_DIR=`dirname	 "$TARGET_FILE"`
-		mkdir -p "$ARTIFACTS_DIR/yarn-tests/$TARGET_DIR"
-		cp $file "$ARTIFACTS_DIR/yarn-tests/$TARGET_FILE"
-	done
-}
 
 mod_time () {
 	if [[ `uname` == 'Darwin' ]]; then
@@ -289,7 +207,7 @@ esac
 
 collect_coredumps
 
-upload_artifacts_s3
+upload_artifacts
 
 # since we are in flink/tools/artifacts
 # we are going back to

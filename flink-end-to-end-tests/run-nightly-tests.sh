@@ -32,6 +32,7 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+source "${END_TO_END_DIR}/../tools/travis/common-logging.sh"
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
@@ -47,6 +48,19 @@ echo "Free disk space"
 df -h
 
 echo "Running with profile '$PROFILE'"
+
+# On Azure, set up tooling to collect coredumps (and logs of e2e tests)
+if [ ! -z "$TF_BUILD" ] ; then
+	prepare_artifacts # exports ARTIFACTS_DIR
+	ulimit -c unlimited # enable coredumps
+	function collect_and_publish_logs {
+		collect_coredumps
+		upload_artifacts
+	}
+	# setting this trap overwrites the cleanup_proc trap from the test-runner-common. However
+	# we are exiting immediately anyways on CI, so no need to cleanup
+	trap collect_and_publish_logs EXIT
+fi
 
 # Template for adding a test:
 
@@ -213,10 +227,6 @@ if [ -z "${HERE}" ] ; then
 	# to the script (e.g. permissions re-evaled after suid)
 	exit 1  # fail
 fi
-ARTIFACTS_DIR="${HERE}/artifacts"
-mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
-
-env > $ARTIFACTS_DIR/environment
 
 LOG4J_PROPERTIES=${HERE}/../tools/log4j-travis.properties
 
@@ -232,12 +242,7 @@ EXIT_CODE=$?
 
 # On Azure, publish ARTIFACTS_FILE as a build artifact
 if [ ! -z "$TF_BUILD" ] ; then
-	echo "COMPRESSING build artifacts."
-	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tgz
-	tar -zcvf ${ARTIFACTS_FILE} $ARTIFACTS_DIR
-	mkdir artifact-dir
-	cp ${ARTIFACTS_FILE} artifact-dir/
-	echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/artifact-dir"
+	collect_and_publish_logs
 fi
 
 exit $EXIT_CODE
