@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -535,6 +536,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 					slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
 					slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
+					slotManager.getRegisteredResourceOf(taskExecutor.getInstanceID()),
+					slotManager.getFreeResourceOf(taskExecutor.getInstanceID()),
 					taskExecutor.getHardwareDescription()));
 		}
 
@@ -557,6 +560,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 				slotManager.getNumberRegisteredSlotsOf(instanceId),
 				slotManager.getNumberFreeSlotsOf(instanceId),
+				slotManager.getRegisteredResourceOf(instanceId),
+				slotManager.getFreeResourceOf(instanceId),
 				taskExecutor.getHardwareDescription());
 
 			return CompletableFuture.completedFuture(taskManagerInfo);
@@ -567,12 +572,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
 		final int numberSlots = slotManager.getNumberRegisteredSlots();
 		final int numberFreeSlots = slotManager.getNumberFreeSlots();
+		final ResourceProfile totalResource = slotManager.getRegisteredResource();
+		final ResourceProfile freeResource = slotManager.getFreeResource();
 
 		return CompletableFuture.completedFuture(
 			new ResourceOverview(
 				taskExecutors.size(),
 				numberSlots,
-				numberFreeSlots));
+				numberFreeSlots,
+				totalResource,
+				freeResource));
 	}
 
 	@Override
