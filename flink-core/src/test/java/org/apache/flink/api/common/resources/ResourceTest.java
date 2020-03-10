@@ -126,6 +126,34 @@ public class ResourceTest extends TestLogger {
 		resource.divide(by);
 	}
 
+	@Test
+	public void testMultiply() {
+		final Resource resource = new TestResource(0.3);
+		final BigDecimal by = BigDecimal.valueOf(0.2);
+		assertTestResourceValueEquals(0.06, resource.multiply(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testMutiplyNegative() {
+		final Resource resource = new TestResource(0.3);
+		final BigDecimal by = BigDecimal.valueOf(-0.2);
+		resource.multiply(by);
+	}
+
+	@Test
+	public void testMultiplyInteger() {
+		final Resource resource = new TestResource(0.3);
+		final int by = 2;
+		assertTestResourceValueEquals(0.6, resource.multiply(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testMutiplyNegativeInteger() {
+		final Resource resource = new TestResource(0.3);
+		final int by = -2;
+		resource.multiply(by);
+	}
+
 	private static void assertTestResourceValueEquals(final double value, final Resource resource) {
 		assertEquals(new TestResource(value), resource);
 	}
