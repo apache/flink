@@ -57,4 +57,19 @@ LICENSES="${DST}/licenses"
 [ -f "${LICENSES}" ] && rm -r "${LICENSES}"
 find "${TMP}" -name "licenses" -type d -exec cp -r -- "{}" "${DST}" \;
 
+# Search the source directory and collect those license files that
+# not bundled in any jars but exist in binary distribution.
+# The root license directory, hidden directories, docs, node.js should be excluded.
+# The file name should be "LICENSE.PROJECT_NAME", so the license files with incorrect
+# file names will be excluded.
+find "${SRC}" -name "LICENSE.*" -type f \
+! -path "*/.*/*" \
+! -path "*/target/*" \
+! -path "*/licenses/*" \
+! -path "*/docs/*" \
+! -path "*/flink-runtime-web/web-dashboard/node*/*" \
+! -path "*.txt" \
+! -path "*.md" \
+-exec cp -- "{}" "${DST}/licenses" \;
+
 rm -r "${TMP}"
