@@ -95,9 +95,7 @@ or `-l` option for Table API program or SQL Client respectively.
 Apache Hive is built on Hadoop, so you need Hadoop dependency first, please refer to
 [Providing Hadoop classes]({{ site.baseurl }}/ops/deployment/hadoop.html#providing-hadoop-classes).
 
-There are two way to hive dependencies. First way, using bundled hive jar, providing multiple bundle
-hive jars that can cover all remote metastore versions. Second way, user defined dependencies, you
-can build your own dependencies if you need to. 
+There are two ways to add Hive dependencies. First is to use Flink's bundled Hive jars. You can choose a bundled Hive jar according to the version of the metastore you use. Second is to add each of the required jars separately. The second way can be useful if the Hive version you're using is not listed here.
 
 #### Using bundled hive jar
 
@@ -371,4 +369,3 @@ DDL to create Hive tables, views, partitions, functions within Flink will be sup
 ## DML
 
 Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html)
-
