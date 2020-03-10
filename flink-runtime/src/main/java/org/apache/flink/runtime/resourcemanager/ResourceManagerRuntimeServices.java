@@ -50,7 +50,7 @@ public class ResourceManagerRuntimeServices {
 	public static ResourceManagerRuntimeServices fromConfiguration(
 			ResourceManagerRuntimeServicesConfiguration configuration,
 			HighAvailabilityServices highAvailabilityServices,
-			ScheduledExecutor scheduledExecutor) throws Exception {
+			ScheduledExecutor scheduledExecutor) {
 
 		final SlotManager slotManager = createSlotManager(configuration, scheduledExecutor);
 
