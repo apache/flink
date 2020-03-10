@@ -20,6 +20,8 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
@@ -33,6 +35,7 @@ public class SlotManagerBuilder {
 	private boolean waitResultConsumedBeforeRelease;
 	private WorkerResourceSpec defaultWorkerResourceSpec;
 	private int numSlotsPerWorker;
+	private SlotManagerMetricGroup slotManagerMetricGroup;
 
 	private SlotManagerBuilder() {
 		this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -43,6 +46,7 @@ public class SlotManagerBuilder {
 		this.waitResultConsumedBeforeRelease = true;
 		this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
 		this.numSlotsPerWorker = 1;
+		this.slotManagerMetricGroup = UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
 	}
 
 	public static SlotManagerBuilder newBuilder() {
@@ -89,6 +93,11 @@ public class SlotManagerBuilder {
 		return this;
 	}
 
+	public SlotManagerBuilder setSlotManagerMetricGroup(SlotManagerMetricGroup slotManagerMetricGroup) {
+		this.slotManagerMetricGroup = slotManagerMetricGroup;
+		return this;
+	}
+
 	public SlotManagerImpl build() {
 		final SlotManagerConfiguration slotManagerConfiguration = new SlotManagerConfiguration(
 			taskManagerRequestTimeout,
@@ -101,6 +110,7 @@ public class SlotManagerBuilder {
 
 		return new SlotManagerImpl(
 			scheduledExecutor,
-			slotManagerConfiguration);
+			slotManagerConfiguration,
+			slotManagerMetricGroup);
 	}
 }

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -53,7 +53,8 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
+			MetricRegistry metricRegistry,
+			String hostname) throws Exception {
 		return super.createResourceManager(
 			createActiveResourceManagerConfiguration(configuration),
 			resourceId,
@@ -63,7 +64,8 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			fatalErrorHandler,
 			clusterInformation,
 			webInterfaceUrl,
-			resourceManagerMetricGroup);
+			metricRegistry,
+			hostname);
 	}
 
 	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
