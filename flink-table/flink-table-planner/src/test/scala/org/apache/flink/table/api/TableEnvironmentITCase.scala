@@ -20,11 +20,14 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.Types.STRING
+import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableEnvironmentITCase.{getPersonCsvTableSource, readFromResource, replaceStageId}
+import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
+import org.apache.flink.table.api.TableEnvironmentITCase.{getPersonCsvTableSource, getPersonData, readFromResource, replaceStageId}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.StreamTableEnvironment
+import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
@@ -40,6 +43,7 @@ import org.junit.{Before, Rule, Test}
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
 import _root_.java.util
 
+import _root_.scala.collection.mutable
 import _root_.scala.io.Source
 
 
@@ -208,6 +212,43 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(StreamITCase.testResults.isEmpty)
   }
 
+  @Test
+  def testFromToDataStreamAndSqlUpdate(): Unit = {
+    if (!tableEnvName.equals("StreamTableEnvironment")) {
+      return
+    }
+    val streamEnv = ScalaStreamExecutionEnvironment.getExecutionEnvironment
+    val streamTableEnv = ScalaStreamTableEnvironment.create(streamEnv, settings)
+    val t = streamEnv.fromCollection(getPersonData)
+      .toTable(streamTableEnv, 'first, 'id, 'score, 'last)
+    streamTableEnv.registerTable("MyTable", t)
+    val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
+    checkEmptyFile(sink1Path)
+    StreamITCase.clear
+
+    val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
+    val resultSet = streamTableEnv.toAppendStream[Row](table)
+    resultSet.addSink(new StreamITCase.StringSink[Row])
+
+    streamTableEnv.sqlUpdate("insert into MySink1 select first from MyTable")
+
+    val explain = streamTableEnv.explain(false)
+    assertEquals(
+      replaceStageId(readFromResource("testFromToDataStreamAndSqlUpdate.out")),
+      replaceStageId(explain).replaceAll("Scan\\(id=\\[\\d+\\], ", "Scan("))
+
+    streamEnv.execute("test2")
+    // the table program is not executed
+    checkEmptyFile(sink1Path)
+    assertEquals(getExpectedLastValues.sorted, StreamITCase.testResults.sorted)
+    StreamITCase.testResults.clear()
+
+    streamTableEnv.execute("test1")
+    assertFirstValues(sink1Path)
+    // the DataStream program is not executed again
+    assertTrue(StreamITCase.testResults.isEmpty)
+  }
+
   private def registerCsvTableSink(
       tEnv: TableEnvironment,
       fieldNames: Array[String],
@@ -271,21 +312,13 @@ object TableEnvironmentITCase {
   }
 
   def getPersonCsvTableSource: CsvTableSource = {
-    val csvRecords = Seq(
-      "First#Id#Score#Last",
-      "Mike#1#12.3#Smith",
-      "Bob#2#45.6#Taylor",
-      "Sam#3#7.89#Miller",
-      "Peter#4#0.12#Smith",
-      "% Just a comment",
-      "Liz#5#34.5#Williams",
-      "Sally#6#6.78#Miller",
-      "Alice#7#90.1#Smith",
-      "Kelly#8#2.34#Williams"
-    )
+    val header = "First#Id#Score#Last"
+    val csvRecords = getPersonData.map {
+      case (first, id, score, last) => s"$first#$id#$score#$last"
+    }
 
     val tempFilePath = writeToTempFile(
-      csvRecords.mkString("$"),
+      header + "$" + csvRecords.mkString("$"),
       "csv-test",
       "tmp")
     CsvTableSource.builder()
@@ -299,6 +332,19 @@ object TableEnvironmentITCase {
       .ignoreFirstLine()
       .commentPrefix("%")
       .build()
+  }
+
+  def getPersonData: List[(String, Int, Double, String)] = {
+    val data = new mutable.MutableList[(String, Int, Double, String)]
+    data.+=(("Mike", 1, 12.3, "Smith"))
+    data.+=(("Bob", 2, 45.6, "Taylor"))
+    data.+=(("Sam", 3, 7.89, "Miller"))
+    data.+=(("Peter", 4, 0.12, "Smith"))
+    data.+=(("Liz", 5, 34.5, "Williams"))
+    data.+=(("Sally", 6, 6.78, "Miller"))
+    data.+=(("Alice", 7, 90.1, "Smith"))
+    data.+=(("Kelly", 8, 2.34, "Williams"))
+    data.toList
   }
 
   private def writeToTempFile(

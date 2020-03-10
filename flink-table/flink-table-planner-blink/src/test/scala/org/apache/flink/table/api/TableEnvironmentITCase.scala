@@ -20,10 +20,13 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.Types.STRING
+import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.StreamTableEnvironment
+import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.table.planner.utils.TestTableSources.getPersonCsvTableSource
@@ -39,6 +42,8 @@ import org.junit.{Before, Rule, Test}
 
 import _root_.java.io.File
 import _root_.java.util
+
+import _root_.scala.collection.mutable
 
 
 @RunWith(classOf[Parameterized])
@@ -208,6 +213,42 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testFromToDataStreamAndSqlUpdate(): Unit = {
+    if (!tableEnvName.equals("StreamTableEnvironment")) {
+      return
+    }
+    val streamEnv = ScalaStreamExecutionEnvironment.getExecutionEnvironment
+    val streamTableEnv = ScalaStreamTableEnvironment.create(streamEnv, settings)
+    val t = streamEnv.fromCollection(getPersonData)
+      .toTable(streamTableEnv, 'first, 'id, 'score, 'last)
+    streamTableEnv.registerTable("MyTable", t)
+    val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
+    checkEmptyFile(sink1Path)
+
+    val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
+    val resultSet = streamTableEnv.toAppendStream[Row](table)
+    val sink = new TestingAppendSink
+    resultSet.addSink(sink)
+
+    streamTableEnv.sqlUpdate("insert into MySink1 select first from MyTable")
+
+    val explain = streamTableEnv.explain(false)
+    assertEquals(
+      replaceStageId(readFromResource("/explain/testFromToDataStreamAndSqlUpdate.out")),
+      replaceStageId(explain))
+
+    streamEnv.execute("test2")
+    // the table program is not executed
+    checkEmptyFile(sink1Path)
+    assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
+
+    streamTableEnv.execute("test1")
+    assertFirstValues(sink1Path)
+    // the DataStream program is not executed again because the result in sink is not changed
+    assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
+  }
+
   private def registerCsvTableSink(
       tEnv: TableEnvironment,
       fieldNames: Array[String],
@@ -221,6 +262,19 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     tEnv.registerTableSink(tableName, configuredSink)
 
     path
+  }
+
+  def getPersonData: List[(String, Int, Double, String)] = {
+    val data = new mutable.MutableList[(String, Int, Double, String)]
+    data.+=(("Mike", 1, 12.3, "Smith"))
+    data.+=(("Bob", 2, 45.6, "Taylor"))
+    data.+=(("Sam", 3, 7.89, "Miller"))
+    data.+=(("Peter", 4, 0.12, "Smith"))
+    data.+=(("Liz", 5, 34.5, "Williams"))
+    data.+=(("Sally", 6, 6.78, "Miller"))
+    data.+=(("Alice", 7, 90.1, "Smith"))
+    data.+=(("Kelly", 8, 2.34, "Williams"))
+    data.toList
   }
 
   private def assertFirstValues(csvFilePath: String): Unit = {
