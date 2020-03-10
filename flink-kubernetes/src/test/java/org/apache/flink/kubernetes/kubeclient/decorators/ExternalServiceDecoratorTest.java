@@ -69,7 +69,7 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
 		List<ServicePort> expectedServicePorts = Collections.singletonList(
 			new ServicePortBuilder()
-				.withName("rest-port")
+				.withName(Constants.REST_PORT_NAME)
 				.withPort(REST_PORT)
 				.build());
 		assertEquals(expectedServicePorts, restService.getSpec().getPorts());

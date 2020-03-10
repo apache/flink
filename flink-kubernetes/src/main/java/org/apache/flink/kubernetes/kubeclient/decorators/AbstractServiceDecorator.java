@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
@@ -73,7 +72,7 @@ public abstract class AbstractServiceDecorator extends AbstractKubernetesStepDec
 		final List<ServicePort> servicePorts = new ArrayList<>();
 
 		servicePorts.add(getServicePort(
-			getPortName(RestOptions.PORT.key()),
+			Constants.REST_PORT_NAME,
 			kubernetesJobManagerParameters.getRestPort()));
 
 		return servicePorts;
@@ -84,9 +83,5 @@ public abstract class AbstractServiceDecorator extends AbstractKubernetesStepDec
 			.withName(name)
 			.withPort(port)
 			.build();
-	}
-
-	protected static String getPortName(String portName){
-		return portName.replace('.', '-');
 	}
 }

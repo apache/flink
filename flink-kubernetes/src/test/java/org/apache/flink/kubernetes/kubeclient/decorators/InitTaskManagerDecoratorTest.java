@@ -105,6 +105,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	public void testMainContainerPorts() {
 		final List<ContainerPort> expectedContainerPorts = Collections.singletonList(
 			new ContainerPortBuilder()
+				.withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
 				.withContainerPort(RPC_PORT)
 			.build());
 
