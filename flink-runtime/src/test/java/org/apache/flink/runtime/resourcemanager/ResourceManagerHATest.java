@@ -78,7 +78,8 @@ public class ResourceManagerHATest extends TestLogger {
 		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			resourceManagerRuntimeServicesConfiguration,
 			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
+			rpcService.getScheduledExecutor(),
+			UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup());
 
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 

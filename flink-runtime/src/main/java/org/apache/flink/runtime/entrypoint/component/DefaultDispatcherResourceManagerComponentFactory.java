@@ -40,7 +40,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.HaServicesJobGraphStoreFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
@@ -115,7 +114,6 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 		LeaderRetrievalService resourceManagerRetrievalService = null;
 		WebMonitorEndpoint<?> webMonitorEndpoint = null;
 		ResourceManager<?> resourceManager = null;
-		ResourceManagerMetricGroup resourceManagerMetricGroup = null;
 		DispatcherRunner dispatcherRunner = null;
 
 		try {
@@ -166,7 +164,6 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 
 			final String hostname = RpcUtils.getHostname(rpcService);
 
-			resourceManagerMetricGroup = ResourceManagerMetricGroup.create(metricRegistry, hostname);
 			resourceManager = resourceManagerFactory.createResourceManager(
 				configuration,
 				ResourceID.generate(),
@@ -176,7 +173,8 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				fatalErrorHandler,
 				new ClusterInformation(hostname, blobServer.getPort()),
 				webMonitorEndpoint.getRestBaseUrl(),
-				resourceManagerMetricGroup);
+				metricRegistry,
+				hostname);
 
 			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint, ioExecutor);
 
@@ -252,10 +250,6 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				terminationFuture.get();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			if (resourceManagerMetricGroup != null) {
-				resourceManagerMetricGroup.close();
 			}
 
 			throw new FlinkException("Could not create the DispatcherResourceManagerComponent.", exception);

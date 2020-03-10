@@ -27,6 +27,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
@@ -136,9 +138,12 @@ public class SlotManagerImpl implements SlotManager {
 
 	private final ResourceProfile defaultSlotResourceProfile;
 
+	private final SlotManagerMetricGroup slotManagerMetricGroup;
+
 	public SlotManagerImpl(
 			ScheduledExecutor scheduledExecutor,
-			SlotManagerConfiguration slotManagerConfiguration) {
+			SlotManagerConfiguration slotManagerConfiguration,
+			SlotManagerMetricGroup slotManagerMetricGroup) {
 
 		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 
@@ -151,6 +156,7 @@ public class SlotManagerImpl implements SlotManager {
 		this.defaultWorkerResourceSpec = slotManagerConfiguration.getDefaultWorkerResourceSpec();
 		this.numSlotsPerWorker = slotManagerConfiguration.getNumSlotsPerWorker();
 		this.defaultSlotResourceProfile = generateDefaultSlotResourceProfile(defaultWorkerResourceSpec, numSlotsPerWorker);
+		this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
 
 		slots = new HashMap<>(16);
 		freeSlots = new LinkedHashMap<>(16);
@@ -257,6 +263,17 @@ public class SlotManagerImpl implements SlotManager {
 			0L,
 			slotRequestTimeout.toMilliseconds(),
 			TimeUnit.MILLISECONDS);
+
+		registerSlotManagerMetrics();
+	}
+
+	private void registerSlotManagerMetrics() {
+		slotManagerMetricGroup.gauge(
+			MetricNames.TASK_SLOTS_AVAILABLE,
+			() -> (long) getNumberFreeSlots());
+		slotManagerMetricGroup.gauge(
+			MetricNames.TASK_SLOTS_TOTAL,
+			() -> (long) getNumberRegisteredSlots());
 	}
 
 	/**
@@ -304,6 +321,7 @@ public class SlotManagerImpl implements SlotManager {
 		LOG.info("Closing the SlotManager.");
 
 		suspend();
+		slotManagerMetricGroup.close();
 	}
 
 	// ---------------------------------------------------------------------------------------------
