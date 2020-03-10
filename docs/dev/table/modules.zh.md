@@ -22,51 +22,41 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+模块让用户能够对 Flink 内置对象进行扩展。例如定义一些类似 Flink 内置函数的函数。模块是可插拔的，Flink 已经提供了一些预构建的模块，用户还可以实现自己的模块。
 
-Modules allow users to extend Flink's built-in objects, such as defining functions that behave like Flink 
-built-in functions. They are pluggable, and while Flink provides a few pre-built modules, users can write 
-their own.
-
-For example, users can define their own geo functions and plug them into Flink as built-in functions to be used in 
-Flink SQL and Table APIs. Another example is users can load an out-of-shelf Hive module to use Hive built-in 
-functions as Flink built-in functions.
+例如，用户可以自定义地理位置函数，并将其作为内置函数插入 Flink，随后就可以在 Flink SQL 和 Table API 中使用它了。另一个示例是，用户可以加载现成的 Hive 模块，随后就可以像使用 Flink 内置函数一样使用 Hive 模块的函数了。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Module Types
+## 模块类型
 
-### CoreModule
+### 核心模块
 
-`CoreModule` contains all of Flink's system (built-in) functions and is loaded by default.
+`核心模块` 包括 Flink 所有的系统（内置）函数，默认加载。
 
-### HiveModule
+### Hive 模块
 
-The `HiveModule` provides Hive built-in functions as Flink's system functions to SQL and Table API users.
-Flink's [Hive documentation]({{ site.baseurl }}/dev/table/hive/hive_functions.html) provides full details on setting up the module.
+ `Hive模块` 为 Flink SQL 和 Table API 的用户提供了 Hive 内置函数作为 Flink 的系统函数，它们类似于 Flink 内置函数。 [Hive 文档]({{ site.baseurl }}/zh/dev/table/hive/hive_functions.html) 提供了设置该模块的详细方法。
 
-### User-Defined Module
+### 用户自定义模块
 
-Users can develop custom modules by implementing the `Module` interface.
-To use custom modules in SQL CLI, users should develop both a module and its corresponding module factory by implementing 
-the `ModuleFactory` interface.
+用户可以通过实现 `Module` 接口来开发自定义模块。为了能在 SQL CLI 使用，用户还需要通过实现 `ModuleFactory` 接口来为对应的模块开发一个模块工厂。
 
-A module factory defines a set of properties for configuring the module when the SQL CLI bootstraps.
-Properties are passed to a discovery service where the service tries to match the properties to
- a `ModuleFactory` and instantiate a corresponding module instance.
- 
+模块工厂定义了一组属性，用于在 SQL CLI 启动时配置模块。属性会传递给发现服务，发现服务会为属性匹配一个 `ModuleFactory` 并创建对应的模块实例。 
 
-## Namespace and Resolution Order
 
-Objects provided by modules are considered part of Flink's system (built-in) objects; thus, they don't have any namespaces.
+## 命名空间和解析顺序
 
-When there are two objects of the same name residing in two modules, Flink always resolves the object reference to the one in the 1st loaded module.
+模块提供的对象被认为是 Flink 系统（内置）对象的一部分。它们没有命名空间。
 
-## Module API
+当两个模块中有同名对象时，Flink 会选择最早完成加载的模块中的对象。
 
-### Loading and unloading a Module
+## 模块 API
 
-Users can load and unload modules in an existing Flink session.
+### 模块的加载与卸载
+
+用户可以在 Flink 会话中加载与卸载模块。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -76,24 +66,23 @@ tableEnv.unloadModule("myModule");
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">
+使用YAML定义的模块必须设置`类型`属性来指定模块类型。原生支持以下模块类型。
 
-All modules defined using YAML must provide a `type` property that specifies the type. 
-The following types are supported out of the box.
 
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-center" style="width: 25%">Catalog</th>
-      <th class="text-center">Type Value</th>
+      <th class="text-center" style="width: 25%">模块种类</th>
+      <th class="text-center">类型值</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-        <td class="text-center">CoreModule</td>
+        <td class="text-center">核心模块</td>
         <td class="text-center">core</td>
     </tr>
     <tr>
-        <td class="text-center">HiveModule</td>
+        <td class="text-center">Hive 模块</td>
         <td class="text-center">hive</td>
     </tr>
   </tbody>
@@ -101,6 +90,7 @@ The following types are supported out of the box.
 
 {% highlight yaml %}
 modules:
+
    - name: core
      type: core
    - name: myhive
@@ -109,7 +99,8 @@ modules:
 </div>
 </div>
 
-### List Available Modules
+
+### 列出可用模块
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
