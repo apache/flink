@@ -480,7 +480,7 @@ SELECT SUM(amount)
 FROM Orders
 GROUP BY GROUPING SETS ((user), (product))
 {% endhighlight %}
-<p><b>Note:</b> Streaming mode Grouping sets, Rollup and Cube are only supported in Blink planner.</p>
+        <p><b>Note:</b> Streaming mode Grouping sets, Rollup and Cube are only supported in Blink planner.</p>
       </td>
     </tr>
     <tr>

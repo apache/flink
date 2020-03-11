@@ -480,7 +480,7 @@ SELECT SUM(amount)
 FROM Orders
 GROUP BY GROUPING SETS ((user), (product))
 {% endhighlight %}
-<p><b>Note:</b> 流式 Grouping sets、Rollup 以及 Cube 只在 Blink planner 中支持。</p>
+        <p><b>Note:</b> 流式 Grouping sets、Rollup 以及 Cube 只在 Blink planner 中支持。</p>
       </td>
     </tr>
     <tr>
