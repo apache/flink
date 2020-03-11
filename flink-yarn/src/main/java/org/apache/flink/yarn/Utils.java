@@ -360,6 +360,37 @@ public final class Utils {
 	}
 
 	/**
+	 * Resolve keytab path either as absolute path or relative to working directory.
+	 *
+	 * @param workingDir current working directory
+	 * @param keytabPath configured keytab path.
+	 * @return resolved keytab path, or null if not found.
+	 */
+	public static String resolveKeytabPath(String workingDir, String keytabPath) {
+		String keytab = null;
+		if (keytabPath != null) {
+			File f;
+			f = new File(keytabPath);
+			if (f.exists()) {
+				keytab = f.getAbsolutePath();
+				LOG.info("Resolved keytab path: {}", keytab);
+			} else {
+				// try using relative paths, this is the case when the keytab was shipped
+				// as a local resource
+				f = new File(workingDir, keytabPath);
+				if (f.exists()) {
+					keytab = f.getAbsolutePath();
+					LOG.info("Resolved keytab path: {}", keytab);
+				} else {
+					LOG.warn("Could not resolve keytab path with: {}", keytabPath);
+					keytab = null;
+				}
+			}
+		}
+		return keytab;
+	}
+
+	/**
 	 * Private constructor to prevent instantiation.
 	 */
 	private Utils() {
@@ -600,5 +631,4 @@ public final class Utils {
 			throw new RuntimeException(String.format(message, values));
 		}
 	}
-
 }

@@ -41,7 +41,6 @@ import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
@@ -129,9 +128,6 @@ public class YarnTaskExecutorRunner {
 	private static void setupConfigurationFromVariables(Configuration configuration, String currDir, Map<String, String> variables) throws IOException {
 		final String yarnClientUsername = variables.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
-		final String remoteKeytabPath = variables.get(YarnConfigKeys.REMOTE_KEYTAB_PATH);
-		LOG.info("TM: remote keytab path obtained {}", remoteKeytabPath);
-
 		final String localKeytabPath = variables.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
 		LOG.info("TM: local keytab path obtained {}", localKeytabPath);
 
@@ -141,16 +137,7 @@ public class YarnTaskExecutorRunner {
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
-		String keytabPath = null;
-		if (remoteKeytabPath != null) {
-			File f = new File(currDir, localKeytabPath);
-			keytabPath = f.getAbsolutePath();
-			LOG.info("keytab path: {}", keytabPath);
-		} else if (localKeytabPath != null) {
-			File f = new File(localKeytabPath);
-			keytabPath = f.getAbsolutePath();
-			LOG.info("keytab path: {}", keytabPath);
-		}
+		String keytabPath = Utils.resolveKeytabPath(currDir, localKeytabPath);
 
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
