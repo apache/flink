@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.utils.TestTableSources.getPersonCsvTableSo
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
