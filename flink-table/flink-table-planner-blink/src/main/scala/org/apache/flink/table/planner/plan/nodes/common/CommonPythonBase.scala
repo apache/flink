@@ -22,7 +22,7 @@ import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
+import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.mutable
@@ -70,13 +70,7 @@ trait CommonPythonBase {
         }
     }
 
-    // Extracts the necessary information for Python function execution, such as
-    // the serialized Python function, the Python env, etc
-    val pythonFunction = new SimplePythonFunction(
-      func.asInstanceOf[PythonFunction].getSerializedPythonFunction,
-      func.asInstanceOf[PythonFunction].getPythonEnv,
-      func.asInstanceOf[PythonFunction].getPythonFunctionKind)
-    new PythonFunctionInfo(pythonFunction, inputs.toArray)
+    new PythonFunctionInfo(func.asInstanceOf[PythonFunction], inputs.toArray)
   }
 
   protected def createPythonFunctionInfo(

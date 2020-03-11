@@ -28,6 +28,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 @Internal
 public class PythonScalarFunction extends ScalarFunction implements PythonFunction {
 
+	private static final long serialVersionUID = 1L;
+
 	private final String name;
 	private final byte[] serializedScalarFunction;
 	private final TypeInformation[] inputTypes;
@@ -37,13 +39,13 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 	private final PythonEnv pythonEnv;
 
 	public PythonScalarFunction(
-			String name,
-			byte[] serializedScalarFunction,
-			TypeInformation[] inputTypes,
-			TypeInformation resultType,
-			PythonFunctionKind pythonFunctionKind,
-			boolean deterministic,
-			PythonEnv pythonEnv) {
+		String name,
+		byte[] serializedScalarFunction,
+		TypeInformation[] inputTypes,
+		TypeInformation resultType,
+		PythonFunctionKind pythonFunctionKind,
+		boolean deterministic,
+		PythonEnv pythonEnv) {
 		this.name = name;
 		this.serializedScalarFunction = serializedScalarFunction;
 		this.inputTypes = inputTypes;
