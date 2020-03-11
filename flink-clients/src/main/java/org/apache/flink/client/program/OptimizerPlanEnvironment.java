@@ -28,9 +28,9 @@ import org.apache.flink.core.execution.JobClient;
  */
 public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
-	private static Pipeline pipeline;
+	private Pipeline pipeline;
 
-	public static Pipeline getPipeline() {
+	public Pipeline getPipeline() {
 		return pipeline;
 	}
 
@@ -48,12 +48,12 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		throw new ProgramAbortException();
 	}
 
-	public static void setAsContext(int parallelism) {
-		ExecutionEnvironmentFactory factory = () -> new OptimizerPlanEnvironment(parallelism);
+	public void setAsContext() {
+		ExecutionEnvironmentFactory factory = () -> this;
 		initializeContextEnvironment(factory);
 	}
 
-	public static void unsetAsContext() {
+	public void unsetAsContext() {
 		resetContextEnvironment();
 	}
 

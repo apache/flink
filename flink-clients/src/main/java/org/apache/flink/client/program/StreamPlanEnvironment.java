@@ -31,9 +31,9 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 @PublicEvolving
 public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
-	private static Pipeline pipeline;
+	private Pipeline pipeline;
 
-	public static Pipeline getPipeline() {
+	public Pipeline getPipeline() {
 		return pipeline;
 	}
 
@@ -51,12 +51,12 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		throw new ProgramAbortException();
 	}
 
-	public static void setAsContext(int parallelism) {
-		StreamExecutionEnvironmentFactory factory = () -> new StreamPlanEnvironment(parallelism);
+	public void setAsContext() {
+		StreamExecutionEnvironmentFactory factory = () -> this;
 		initializeContextEnvironment(factory);
 	}
 
-	public static void unsetAsContext() {
+	public void unsetAsContext() {
 		resetContextEnvironment();
 	}
 }

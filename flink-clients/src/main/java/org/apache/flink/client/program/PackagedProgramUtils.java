@@ -116,18 +116,20 @@ public enum PackagedProgramUtils {
 		}
 
 		// temporary hack to support the optimizer plan preview
-		OptimizerPlanEnvironment.setAsContext(parallelism);
-		StreamPlanEnvironment.setAsContext(parallelism);
+		OptimizerPlanEnvironment benv = new OptimizerPlanEnvironment(parallelism);
+		benv.setAsContext();
+		StreamPlanEnvironment senv = new StreamPlanEnvironment(parallelism);
+		senv.setAsContext();
 
 		try {
 			program.invokeInteractiveModeForExecution();
 		} catch (Throwable t) {
-			if (OptimizerPlanEnvironment.getPipeline() != null) {
-				return OptimizerPlanEnvironment.getPipeline();
+			if (benv.getPipeline() != null) {
+				return benv.getPipeline();
 			}
 
-			if (StreamPlanEnvironment.getPipeline() != null) {
-				return StreamPlanEnvironment.getPipeline();
+			if (senv.getPipeline() != null) {
+				return senv.getPipeline();
 			}
 
 			if (t instanceof ProgramInvocationException) {
@@ -141,8 +143,8 @@ public enum PackagedProgramUtils {
 				stdOutBuffer,
 				stdErrBuffer);
 		} finally {
-			OptimizerPlanEnvironment.unsetAsContext();
-			StreamPlanEnvironment.unsetAsContext();
+			benv.unsetAsContext();
+			senv.unsetAsContext();
 			if (suppressOutput) {
 				System.setOut(originalOut);
 				System.setErr(originalErr);
