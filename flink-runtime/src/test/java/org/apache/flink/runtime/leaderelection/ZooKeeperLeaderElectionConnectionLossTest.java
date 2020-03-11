@@ -51,22 +51,22 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
 	private static final Duration TIMEOUT = Duration.ofMillis(2000L);
 
 	@Rule
-	public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+	public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
 	@Test
 	public void testKeepLeadershipOnConnectionLoss() throws Exception {
-		testLeadershipOnConnectionLoss(false);
+		testLeadershipOnConnectionLoss(true);
 	}
 
 	@Test
 	public void testLoseLeadershipOnConnectionLoss() throws Exception {
-		testLeadershipOnConnectionLoss(true);
+		testLeadershipOnConnectionLoss(false);
 	}
 
-	private void testLeadershipOnConnectionLoss(boolean lost) throws Exception {
+	private void testLeadershipOnConnectionLoss(boolean tolerateConnectionLoss) throws Exception {
 		final Configuration configuration = new Configuration();
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-		configuration.setBoolean(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_LOSS_TOLERATE, !lost);
+		configuration.setBoolean(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_LOSS_TOLERATE, tolerateConnectionLoss);
 
 		CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
 		ZooKeeperLeaderElectionService leaderElectionService = new ZooKeeperLeaderElectionService(client, LATCH_PATH, LEADER_PATH);
@@ -85,10 +85,10 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
 			connectionLossLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 			reconnectedLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
-			if (lost) {
-				revokeLeadershipLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-			} else {
+			if (tolerateConnectionLoss) {
 				assertFalse(revokeLeadershipLatch.isTriggered());
+			} else {
+				revokeLeadershipLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 			}
 		} finally {
 			leaderElectionService.stop();
