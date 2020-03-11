@@ -903,9 +903,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		String localizedKeytabPath = null;
 		String keytab = configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 		if (keytab != null) {
-			boolean	requireLocalizedKeytab = flinkConfiguration.getBoolean(YarnConfigOptions.SHIP_LOCAL_KEYTAB);
+			boolean	localizeKeytab = flinkConfiguration.getBoolean(YarnConfigOptions.SHIP_LOCAL_KEYTAB);
 			localizedKeytabPath = flinkConfiguration.getString(YarnConfigOptions.LOCALIZED_KEYTAB_PATH);
-			if (requireLocalizedKeytab) {
+			if (localizeKeytab) {
 				// Localize the keytab to YARN containers via local resource.
 				LOG.info("Adding keytab {} to the AM container local resource bucket", keytab);
 				remotePathKeytab = setupSingleLocalResource(

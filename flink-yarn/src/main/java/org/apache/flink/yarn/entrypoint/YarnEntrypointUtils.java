@@ -29,7 +29,6 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
 
 import org.apache.hadoop.security.UserGroupInformation;
@@ -99,12 +98,7 @@ public class YarnEntrypointUtils {
 				keytabPath = f.getAbsolutePath();
 			} else {
 				f = new File(workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
-				if (f.exists()) { // keytab file exist in working directory.
-					keytabPath = f.getAbsolutePath();
-				} else { // fall back to default keytab file
-					f = new File(workingDirectory, Utils.DEFAULT_KEYTAB_FILE);
-					keytabPath = f.getAbsolutePath();
-				}
+				keytabPath = f.getAbsolutePath();
 			}
 		}
 
