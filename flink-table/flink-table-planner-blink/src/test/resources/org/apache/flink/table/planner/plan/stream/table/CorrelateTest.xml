@@ -211,12 +211,12 @@ Correlate(invocation=[org$apache$flink$table$planner$utils$PojoTableFunc$eb4ab6b
 	  <![CDATA[
 LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
 :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-+- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$MockPythonTableFunction$8c725e0df55184e548883d4b29709539($0, $1)], rowType=[RecordType(INTEGER x, INTEGER y)], elementType=[class [Ljava.lang.Object;])
++- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$MockPythonTableFunction$2db9292ec254f97ef03c249bd4e602fd($0, $1)], rowType=[RecordType(INTEGER x, INTEGER y)], elementType=[class [Ljava.lang.Object;])
 ]]>
 	  </Resource>
     <Resource name="planAfter">
 	  <![CDATA[
-PythonCorrelate(invocation=[org$apache$flink$table$planner$utils$MockPythonTableFunction$8c725e0df55184e548883d4b29709539($0, $1)], correlate=[table(MockPythonTableFunction(a,b))], select=[a,b,c,x,y], rowType=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c, INTEGER x, INTEGER y)], joinType=[INNER])
+PythonCorrelate(invocation=[org$apache$flink$table$planner$utils$MockPythonTableFunction$2db9292ec254f97ef03c249bd4e602fd($0, $1)], correlate=[table(MockPythonTableFunction(a,b))], select=[a,b,c,x,y], rowType=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c, INTEGER x, INTEGER y)], joinType=[INNER])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 	</Resource>

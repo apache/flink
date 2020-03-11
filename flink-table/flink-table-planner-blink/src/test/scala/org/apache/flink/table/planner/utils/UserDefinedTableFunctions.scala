@@ -114,6 +114,7 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
   }
 }
 
+@SerialVersionUID(1L)
 class MockPythonTableFunction extends TableFunction[Row] with PythonFunction {
 
   def eval(x: Int, y: Int) = ???
