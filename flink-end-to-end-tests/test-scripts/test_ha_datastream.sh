@@ -47,18 +47,7 @@ function run_ha_test() {
     # jm killing loop
     set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
     set_config_key "env.java.opts" "-ea"
-    case ${ZOOKEEPER_VERSION} in
-      (3.4)
-        use_zookeeper_34
-      ;;
-      (3.5)
-        use_zookeeper_35
-      ;;
-      (*)
-          echo "Unknown Zookeeper version ${ZOOKEEPER_VERSION}"
-          exit 1
-      ;;
-    esac
+    setup_flink_shaded_zookeeper ${ZOOKEEPER_VERSION}
     start_local_zk
     start_cluster
 
