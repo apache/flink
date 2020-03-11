@@ -516,7 +516,11 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 	private final class TestingBlobLibraryCacheManagerBuilder {
 		private PermanentBlobService permanentBlobCache;
-		private BlobLibraryCacheManager.ClassLoaderFactory classLoaderFactory = BlobLibraryCacheManager.defaultClassLoaderFactory(FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST, new String[0]);
+		private BlobLibraryCacheManager.ClassLoaderFactory classLoaderFactory = BlobLibraryCacheManager
+			.defaultClassLoaderFactory(
+				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+				new String[0],
+				null);
 
 		private TestingBlobLibraryCacheManagerBuilder() throws IOException {
 			final Configuration blobClientConfig = new Configuration();

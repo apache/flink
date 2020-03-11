@@ -32,6 +32,7 @@ import org.junit.rules.TemporaryFolder;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.isA;
@@ -97,11 +98,9 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 		// collect the libraries / class folders with RocksDB related code: the state backend and RocksDB itself
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader1 = FlinkUserCodeClassLoaders.parentFirst(
-				new URL[] { childCodePath }, parentClassLoader);
+		final URLClassLoader childClassLoader1 = createParentFirstClassLoader(childCodePath, parentClassLoader);
 
-		final URLClassLoader childClassLoader2 = FlinkUserCodeClassLoaders.parentFirst(
-				new URL[] { childCodePath }, parentClassLoader);
+		final URLClassLoader childClassLoader2 = createParentFirstClassLoader(childCodePath, parentClassLoader);
 
 		final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
@@ -123,11 +122,9 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 		// collect the libraries / class folders with RocksDB related code: the state backend and RocksDB itself
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader1 = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[0]);
+		final URLClassLoader childClassLoader1 = createChildFirstClassLoader(childCodePath, parentClassLoader);
 
-		final URLClassLoader childClassLoader2 = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[0]);
+		final URLClassLoader childClassLoader2 = createChildFirstClassLoader(childCodePath, parentClassLoader);
 
 		final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
@@ -150,8 +147,7 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 		// collect the libraries / class folders with RocksDB related code: the state backend and RocksDB itself
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[0]);
+		final URLClassLoader childClassLoader = createChildFirstClassLoader(childCodePath, parentClassLoader);
 
 		final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
@@ -179,7 +175,10 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
 		final URLClassLoader childClassLoader = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[] { parentFirstPattern });
+			new URL[] { childCodePath },
+			parentClassLoader,
+			new String[] { parentFirstPattern },
+			NOOP_EXCEPTION_HANDLER);
 
 		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
 		final Class<?> clazz2 = Class.forName(className, false, childClassLoader);
@@ -191,5 +190,20 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 		assertEquals(clazz1, clazz4);
 
 		childClassLoader.close();
+	}
+
+	private static URLClassLoader createParentFirstClassLoader(URL childCodePath, ClassLoader parentClassLoader) {
+		return FlinkUserCodeClassLoaders.parentFirst(
+			new URL[] { childCodePath },
+			parentClassLoader,
+			NOOP_EXCEPTION_HANDLER);
+	}
+
+	private static URLClassLoader createChildFirstClassLoader(URL childCodePath, ClassLoader parentClassLoader) {
+		return FlinkUserCodeClassLoaders.childFirst(
+			new URL[] { childCodePath },
+			parentClassLoader,
+			new String[0],
+			NOOP_EXCEPTION_HANDLER);
 	}
 }
