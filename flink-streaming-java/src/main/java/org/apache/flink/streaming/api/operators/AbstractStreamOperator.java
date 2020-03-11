@@ -204,7 +204,13 @@ public abstract class AbstractStreamOperator<OUT>
 				LatencyStats.Granularity.SINGLE);
 		}
 
-		this.runtimeContext = new StreamingRuntimeContext(this, environment, environment.getAccumulatorRegistry().getUserMap());
+		this.runtimeContext = new StreamingRuntimeContext(
+			environment,
+			environment.getAccumulatorRegistry().getUserMap(),
+			getMetricGroup(),
+			getOperatorID(),
+			getProcessingTimeService(),
+			null);
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
@@ -247,6 +253,7 @@ public abstract class AbstractStreamOperator<OUT>
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), streamTaskCloseableRegistry);
 		timeServiceManager = context.internalTimerServiceManager();
 		stateHandler.initializeOperatorState(this);
+		runtimeContext.setKeyedStateStore(stateHandler.getKeyedStateStore().orElse(null));
 	}
 
 	/**
