@@ -19,6 +19,7 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.table.api.Table;
 
 /** Defines an external {@link TableSink} to emit a batch {@link Table}.
@@ -31,5 +32,5 @@ import org.apache.flink.table.api.Table;
 public interface BatchTableSink<T> extends TableSink<T> {
 
 	/** Emits the DataSet. */
-	void emitDataSet(DataSet<T> dataSet);
+	DataSink<?> emitDataSet(DataSet<T> dataSet);
 }
