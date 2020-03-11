@@ -61,7 +61,6 @@ public class CliTableauResultView implements AutoCloseable {
 	private static final int NULL_COLUMN_WIDTH = CliStrings.NULL_COLUMN.length();
 	private static final int MAX_COLUMN_WIDTH = 30;
 	private static final int DEFAULT_COLUMN_WIDTH = 20;
-	private static final int COLUMN_TRUNCATED_FLAG_WIDTH = 3;
 	private static final String COLUMN_TRUNCATED_FLAG = "...";
 	private static final String CHANGEFLAG_COLUMN_NAME = "+/-";
 
@@ -283,7 +282,7 @@ public class CliTableauResultView implements AutoCloseable {
 				sb.append(StringUtils.repeat(' ', colWidths[idx] - colWidth));
 				sb.append(col);
 			} else {
-				sb.append(getFixedString(col, colWidths[idx]));
+				sb.append(truncateString(col, colWidths[idx] - COLUMN_TRUNCATED_FLAG.length()));
 				sb.append(COLUMN_TRUNCATED_FLAG);
 			}
 			sb.append(" |");
@@ -405,7 +404,7 @@ public class CliTableauResultView implements AutoCloseable {
 		return colWidths;
 	}
 
-	private String getFixedString(String col, int colWidth) {
+	private String truncateString(String col, int targetWidth) {
 		int passedWidth = 0;
 		int i = 0;
 		for (; i < col.length(); i++) {
@@ -414,14 +413,14 @@ public class CliTableauResultView implements AutoCloseable {
 			} else {
 				passedWidth += 1;
 			}
-			if (passedWidth >= colWidth - COLUMN_TRUNCATED_FLAG_WIDTH) {
+			if (passedWidth >= targetWidth) {
 				break;
 			}
 		}
 		String substring = col.substring(0, i);
 
 		// pad with ' ' before the column
-		int lackedWidth = colWidth - COLUMN_TRUNCATED_FLAG_WIDTH - getStringWidth(substring);
+		int lackedWidth = targetWidth - getStringWidth(substring);
 		if (lackedWidth > 0){
 			substring = StringUtils.repeat(' ', lackedWidth) + substring;
 		}

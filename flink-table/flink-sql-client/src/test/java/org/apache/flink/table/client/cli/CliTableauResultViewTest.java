@@ -176,7 +176,6 @@ public class CliTableauResultViewTest {
 
 		view.displayBatchResults();
 		view.close();
-		// note: about
 		Assert.assertEquals(
 				"+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
 				"| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |\n" +
