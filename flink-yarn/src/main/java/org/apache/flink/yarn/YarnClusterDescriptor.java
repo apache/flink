@@ -851,7 +851,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				throw e;
 			} finally {
 				if (tmpJobGraphFile != null && !tmpJobGraphFile.delete()) {
-					LOG.warn("Fail to delete temporary file {}.", tmpConfigurationFile.toPath());
+					LOG.warn("Fail to delete temporary file {}.", tmpJobGraphFile.toPath());
 				}
 			}
 		}
