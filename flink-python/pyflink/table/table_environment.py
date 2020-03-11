@@ -770,8 +770,7 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._j_tenv.registerFunction(name, function.java_user_defined_function(
-            self._is_blink_planner, self.get_config()._j_table_config))
+        self._j_tenv.registerFunction(name, function.java_user_defined_function())
 
     def create_temporary_view(self, view_path, table):
         """
