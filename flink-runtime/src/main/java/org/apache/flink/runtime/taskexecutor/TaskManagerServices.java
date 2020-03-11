@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
@@ -246,6 +248,7 @@ public class TaskManagerServices {
 	 * @param permanentBlobService permanentBlobService used by the services
 	 * @param taskManagerMetricGroup metric group of the task manager
 	 * @param ioExecutor executor for async IO operations
+	 * @param fatalErrorHandler to handle class loading OOMs
 	 * @return task manager components
 	 * @throws Exception
 	 */
@@ -253,7 +256,8 @@ public class TaskManagerServices {
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
 			PermanentBlobService permanentBlobService,
 			MetricGroup taskManagerMetricGroup,
-			ExecutorService ioExecutor) throws Exception {
+			ExecutorService ioExecutor,
+			FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		// pre-start checks
 		checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
@@ -307,11 +311,14 @@ public class TaskManagerServices {
 			stateRootDirectoryFiles,
 			ioExecutor);
 
+		final boolean failOnJvmMetaspaceOomError =
+			taskManagerServicesConfiguration.getConfiguration().getBoolean(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
 		final LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
 			permanentBlobService,
 			BlobLibraryCacheManager.defaultClassLoaderFactory(
 				taskManagerServicesConfiguration.getClassLoaderResolveOrder(),
-				taskManagerServicesConfiguration.getAlwaysParentFirstLoaderPatterns()));
+				taskManagerServicesConfiguration.getAlwaysParentFirstLoaderPatterns(),
+				failOnJvmMetaspaceOomError ? fatalErrorHandler : null));
 
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
