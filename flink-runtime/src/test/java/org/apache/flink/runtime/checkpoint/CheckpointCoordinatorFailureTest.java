@@ -32,9 +32,6 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.List;
 
@@ -50,8 +47,6 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for failure of checkpoint coordinator.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(PendingCheckpoint.class)
 public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 	/**
