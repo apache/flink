@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-当程序出现错误的时候，Flink 的容错机制能恢复并继续运行程序。这种错误包括、机器硬件故障、网络故障、瞬态程序故障等等。
+当程序出现错误的时候，Flink 的容错机制能恢复并继续运行程序。这种错误包括机器硬件故障、网络故障、瞬态程序故障等等。
 
 只有当 source 参与了快照机制的时候，Flink 才能保证对自定义状态的精确一次更新。下表列举了 Flink 与其自带连接器的状态更新的保证。
 
