@@ -19,6 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
@@ -45,6 +46,13 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		JobExecutionResult result = super.execute(jobName);
+		this.lastJobExecutionResult = result;
+		return result;
+	}
+
+	@Override
+	public JobExecutionResult execute(Plan plan) throws Exception {
+		JobExecutionResult result = super.execute(plan);
 		this.lastJobExecutionResult = result;
 		return result;
 	}

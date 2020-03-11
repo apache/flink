@@ -18,10 +18,18 @@
 
 package org.apache.flink.test.operators;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.operators.DataSink;
+import org.apache.flink.api.java.utils.PlanGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.GenericInputSplit;
@@ -31,6 +39,9 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -88,5 +99,26 @@ public class ExecutionEnvironmentITCase extends TestLogger {
 			emitted = true;
 			return 1;
 		}
+	}
+
+	@Test
+	public void testExecuteGivenPlan() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+		DataSet<String> dataSet = env
+				.fromElements(1, 3, 5)
+				.map((MapFunction<Integer, String>) value -> String.valueOf(value + 1));
+
+		TypeSerializer<String> serializer = dataSet.getType().createSerializer(env.getConfig());
+		Utils.CollectHelper<String> format = new Utils.CollectHelper<>("id", serializer);
+		DataSink<?> sink = dataSet.output(format);
+		PlanGenerator generator = new PlanGenerator(
+				Collections.singletonList(sink), env.getConfig(), env.getCacheFile(), "test");
+		Plan plan = generator.generate();
+		// execute given plan
+		JobExecutionResult result = env.execute(plan);
+
+		ArrayList<byte[]> accResult = result.getJobExecutionResult().getAccumulatorResult("id");
+		List<String> list = SerializedListAccumulator.deserializeList(accResult, serializer);
+		assertEquals(Arrays.asList("2", "4", "6"), list);
 	}
 }

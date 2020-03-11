@@ -97,8 +97,13 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		OptimizedPlan op = compileProgram(jobName);
+		Plan p = createProgramPlan(jobName);
+		return execute(p);
+	}
 
+	@Override
+	public JobExecutionResult execute(Plan plan) throws Exception {
+		OptimizedPlan op = compileProgram(plan);
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		JobGraph jobGraph = jgg.compileJobGraph(op);
 
@@ -112,11 +117,9 @@ public class TestEnvironment extends ExecutionEnvironment {
 		return this.lastJobExecutionResult;
 	}
 
-	private OptimizedPlan compileProgram(String jobName) {
-		Plan p = createProgramPlan(jobName);
-
+	private OptimizedPlan compileProgram(Plan plan) {
 		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
-		return pc.compile(p);
+		return pc.compile(plan);
 	}
 
 	public void setAsContext() {

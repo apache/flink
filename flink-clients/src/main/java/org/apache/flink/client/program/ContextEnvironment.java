@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -52,6 +53,19 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		JobClient jobClient = executeAsync(jobName);
 
+		return getJobExecutionResult(jobClient);
+	}
+
+	@Override
+	public JobExecutionResult execute(Plan plan) throws Exception {
+		JobClient jobClient = executeAsync(plan);
+
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return getJobExecutionResult(jobClient);
+	}
+
+	private JobExecutionResult getJobExecutionResult(JobClient jobClient) throws Exception {
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
 			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =

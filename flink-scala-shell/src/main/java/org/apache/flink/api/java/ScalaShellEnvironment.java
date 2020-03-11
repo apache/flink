@@ -21,6 +21,7 @@ package org.apache.flink.api.java;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -72,13 +73,22 @@ public class ScalaShellEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		beforeExecute();
+		return super.execute(jobName);
+	}
+
+	@Override
+	public JobExecutionResult execute(Plan plan) throws Exception {
+		beforeExecute();
+		return super.execute(plan);
+	}
+
+	private void beforeExecute()  throws Exception {
 		final Configuration configuration = getConfiguration();
 		checkState(configuration.getBoolean(DeploymentOptions.ATTACHED), "Only ATTACHED mode is supported by the scala shell.");
 
 		final List<URL> updatedJarFiles = getUpdatedJarFiles();
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
-
-		return super.execute(jobName);
 	}
 
 	private List<URL> getUpdatedJarFiles() throws MalformedURLException {

@@ -33,9 +33,13 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 
+		return execute(p);
+	}
+
+	public JobExecutionResult execute(Plan plan) throws Exception {
 		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
 		CollectionExecutor exec = new CollectionExecutor(getConfig());
-		this.lastJobExecutionResult = exec.execute(p);
+		this.lastJobExecutionResult = exec.execute(plan);
 		return this.lastJobExecutionResult;
 	}
 
