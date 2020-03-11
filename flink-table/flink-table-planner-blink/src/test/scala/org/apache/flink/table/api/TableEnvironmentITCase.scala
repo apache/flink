@@ -33,12 +33,11 @@ import org.apache.flink.table.planner.utils.TestTableSources.getPersonCsvTableSo
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Rule, Test}
+import org.junit.{Assert, Before, Rule, Test}
 
 import _root_.java.io.File
 import _root_.java.util
@@ -257,8 +256,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     tableEnv.sqlUpdate("create table src(x int) with('connector' = 'COLLECTION')")
 
     try {
+      // it would fail due to query and sink type mismatch
       tableEnv.sqlUpdate("insert into dest1 select count(*) from src")
       tableEnv.execute("insert dest1")
+      Assert.fail("insert is expected to fail due to type mismatch")
     } catch {
       case _: Exception => //expected
     }
