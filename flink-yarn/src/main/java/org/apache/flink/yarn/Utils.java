@@ -368,10 +368,7 @@ public final class Utils {
 	 */
 	public static String resolveKeytabPath(String workingDir, String keytabPath) {
 		String keytab = null;
-		if (keytabPath == null) { // keytab not exist
-			LOG.info("keytab path isn't configured!");
-			keytab = null;
-		} else {
+		if (keytabPath != null) {
 			File f;
 			f = new File(keytabPath);
 			if (f.exists()) {
