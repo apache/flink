@@ -99,7 +99,7 @@ class PythonModel(Model):
 
     def load_model(self, table_env):
         """
-        Train the model to get the max_sum value which is used to predicate data.
+        Train the model to get the max_sum value which is used to predict data.
         """
         table_sink = source_sink_utils.TestRetractSink(["max_sum"], [DataTypes.BIGINT()])
         table_env.register_table_sink("Model_Results", table_sink)
@@ -110,7 +110,7 @@ class PythonModel(Model):
 
     def transform(self, table_env, table):
         """
-        Use max_sum to predicate input. Return turn if input value is bigger than max_sum
+        Use max_sum to predict input. Return turn if input value is bigger than max_sum
         """
         return table\
             .add_columns("features > {} as {}".format(self.max_sum, self._output_col_name))\
@@ -144,7 +144,7 @@ class PythonPipelineTest(MLTestCase):
         serving_table = t_env.from_elements([(0, 0), (12, 3)], ['a', 'b'])
 
         table_sink = source_sink_utils.TestAppendSink(
-            ['predicate_result'],
+            ['predict_result'],
             [DataTypes.BOOLEAN()])
         t_env.register_table_sink("PredictResults", table_sink)
 
@@ -154,7 +154,7 @@ class PythonPipelineTest(MLTestCase):
         # estimator
         estimator = PythonEstimator()\
             .set_vector_col("features")\
-            .set_prediction_col("predicate_result")
+            .set_prediction_col("predict_result")
 
         # pipeline
         pipeline = Pipeline().append_stage(transformer).append_stage(estimator)
