@@ -41,7 +41,6 @@ import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
@@ -138,23 +137,7 @@ public class YarnTaskExecutorRunner {
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
-		String keytabPath;
-		File f = new File(localKeytabPath);
-		if (f.exists()) {
-			keytabPath = f.getAbsolutePath();
-			LOG.info("keytab path: {}", keytabPath);
-		} else {
-			// try using relative paths, this is the case when the keytab was shipped
-			// as a local resource
-			f = new File(currDir, localKeytabPath);
-			if (f.exists()) {
-				keytabPath = f.getAbsolutePath();
-				LOG.info("keytab path: {}", keytabPath);
-			} else {
-				LOG.warn("Could not find keytab file: {}", localKeytabPath);
-				keytabPath = null;
-			}
-		}
+		String keytabPath = Utils.resolveKeytabPath(currDir, localKeytabPath);
 
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
