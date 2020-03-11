@@ -29,13 +29,13 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.slf4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
@@ -87,20 +87,7 @@ public class YarnEntrypointUtils {
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
 			ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
-		final String keytabPath;
-
-		if (env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH) == null) { // keytab not exist
-			keytabPath = null;
-		} else {
-			File f;
-			f = new File(env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
-			if (f.exists()) { // keytab file exist in host environment.
-				keytabPath = f.getAbsolutePath();
-			} else {
-				f = new File(workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
-				keytabPath = f.getAbsolutePath();
-			}
-		}
+		final String keytabPath = Utils.resolveKeytabPath(workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
 
 		if (keytabPath != null && keytabPrincipal != null) {
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);

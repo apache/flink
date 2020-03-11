@@ -108,50 +108,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 	}
 
 	@Test(timeout = 60000) // timeout after a minute.
-	@Override
-	public void testDetachedMode() throws Exception {
-		runTest(() -> {
-			Map<String, String> securityProperties = new HashMap<>();
-			if (SecureTestEnvironment.getTestKeytab() != null) {
-				securityProperties.put(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), SecureTestEnvironment.getTestKeytab());
-			}
-			if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
-				securityProperties.put(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), SecureTestEnvironment.getHadoopServicePrincipal());
-			}
-			runDetachedModeTest(securityProperties);
-			final String[] mustHave = {"Login successful for user", "using keytab file"};
-			final boolean jobManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
-				mustHave,
-				"jobmanager.log");
-			final boolean taskManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
-				mustHave, "taskmanager.log");
-
-			Assert.assertThat(
-				"The JobManager and the TaskManager should both run with Kerberos.",
-				jobManagerRunsWithKerberos && taskManagerRunsWithKerberos,
-				Matchers.is(true));
-
-			final List<String> amRMTokens = Lists.newArrayList(AMRMTokenIdentifier.KIND_NAME.toString());
-			final String jobmanagerContainerId = getContainerIdByLogName("jobmanager.log");
-			final String taskmanagerContainerId = getContainerIdByLogName("taskmanager.log");
-			final boolean jobmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, jobmanagerContainerId);
-			final boolean taskmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, taskmanagerContainerId);
-
-			Assert.assertThat(
-				"The JobManager should have AMRMToken.",
-				jobmanagerWithAmRmToken,
-				Matchers.is(true));
-			Assert.assertThat(
-				"The TaskManager should not have AMRMToken.",
-				taskmanagerWithAmRmToken,
-				Matchers.is(false));
-		});
-	}
-
-	@Test(timeout = 60000) // timeout after a minute.
 	public void testDetachedModeSecureWithPreInstallKeytab() throws Exception {
 		runTest(() -> {
-			LOG.info("Starting testDetachedModeSecureWithPreInstallKeytab()");
 			Map<String, String> securityProperties = new HashMap<>();
 			if (SecureTestEnvironment.getTestKeytab() != null) {
 				// client login keytab
@@ -165,33 +123,53 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 				securityProperties.put(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), SecureTestEnvironment.getHadoopServicePrincipal());
 			}
 			runDetachedModeTest(securityProperties);
-			final String[] mustHave = {"Login successful for user", "using keytab file"};
-			final boolean jobManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
-				mustHave,
-				"jobmanager.log");
-			final boolean taskManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
-				mustHave, "taskmanager.log");
-
-			Assert.assertThat(
-				"The JobManager and the TaskManager should both run with Kerberos.",
-				jobManagerRunsWithKerberos && taskManagerRunsWithKerberos,
-				Matchers.is(true));
-
-			final List<String> amRMTokens = Lists.newArrayList(AMRMTokenIdentifier.KIND_NAME.toString());
-			final String jobmanagerContainerId = getContainerIdByLogName("jobmanager.log");
-			final String taskmanagerContainerId = getContainerIdByLogName("taskmanager.log");
-			final boolean jobmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, jobmanagerContainerId);
-			final boolean taskmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, taskmanagerContainerId);
-
-			Assert.assertThat(
-				"The JobManager should have AMRMToken.",
-				jobmanagerWithAmRmToken,
-				Matchers.is(true));
-			Assert.assertThat(
-				"The TaskManager should not have AMRMToken.",
-				taskmanagerWithAmRmToken,
-				Matchers.is(false));
+			verifyResultContainsKerberosKeytab();
 		});
+	}
+
+	@Test(timeout = 60000) // timeout after a minute.
+	@Override
+	public void testDetachedMode() throws Exception {
+		runTest(() -> {
+			Map<String, String> securityProperties = new HashMap<>();
+			if (SecureTestEnvironment.getTestKeytab() != null) {
+				securityProperties.put(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), SecureTestEnvironment.getTestKeytab());
+			}
+			if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
+				securityProperties.put(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), SecureTestEnvironment.getHadoopServicePrincipal());
+			}
+			runDetachedModeTest(securityProperties);
+			verifyResultContainsKerberosKeytab();
+		});
+	}
+
+	private static void verifyResultContainsKerberosKeytab() throws Exception {
+		final String[] mustHave = {"Login successful for user", "using keytab file"};
+		final boolean jobManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
+			mustHave,
+			"jobmanager.log");
+		final boolean taskManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
+			mustHave, "taskmanager.log");
+
+		Assert.assertThat(
+			"The JobManager and the TaskManager should both run with Kerberos.",
+			jobManagerRunsWithKerberos && taskManagerRunsWithKerberos,
+			Matchers.is(true));
+
+		final List<String> amRMTokens = Lists.newArrayList(AMRMTokenIdentifier.KIND_NAME.toString());
+		final String jobmanagerContainerId = getContainerIdByLogName("jobmanager.log");
+		final String taskmanagerContainerId = getContainerIdByLogName("taskmanager.log");
+		final boolean jobmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, jobmanagerContainerId);
+		final boolean taskmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, taskmanagerContainerId);
+
+		Assert.assertThat(
+			"The JobManager should have AMRMToken.",
+			jobmanagerWithAmRmToken,
+			Matchers.is(true));
+		Assert.assertThat(
+			"The TaskManager should not have AMRMToken.",
+			taskmanagerWithAmRmToken,
+			Matchers.is(false));
 	}
 
 	/* For secure cluster testing, it is enough to run only one test and override below test methods
