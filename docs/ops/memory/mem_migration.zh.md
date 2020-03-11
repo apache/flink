@@ -36,7 +36,7 @@ were removed or their semantics changed. This guide will help you to migrate the
 </div>
 
 <span class="label label-info">Note</span> Before version *1.10*, Flink did not require that memory related options are set at all
-as they all had default values. The [new memory configuration](mem_setup.html#configure-total-memory) requires
+as they all had default values. The [new memory configuration](mem_setup.html#配置总内存) requires
 that at least one subset of the following options is configured explicitly, otherwise the configuration will fail:
 * [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)
 * [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
@@ -143,7 +143,7 @@ they will be directly translated into the following new options:
 
 It is also recommended to use these new options instead of the legacy ones as they might be completely removed in the following releases.
 
-See also [how to configure total memory now](mem_setup.html#configure-total-memory).
+See also [how to configure total memory now](mem_setup.html#配置总内存).
 
 ## JVM Heap Memory
 
@@ -152,11 +152,11 @@ which included any other usages of heap memory. This rest was always implicitly 
 see also [how to migrate managed memory](#managed-memory).
 
 Now, if only *total Flink memory* or *total process memory* is configured, then the JVM heap is also derived as the rest of
-what is left after subtracting all other components from the total memory, see also [how to configure total memory](mem_setup.html#configure-total-memory).
+what is left after subtracting all other components from the total memory, see also [how to configure total memory](mem_setup.html#配置总内存).
 
 Additionally, you can now have more direct control over the JVM heap assigned to the operator tasks
 ([`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)),
-see also [Task (Operator) Heap Memory](mem_setup.html#task-operator-heap-memory).
+see also [Task (Operator) Heap Memory](mem_setup.html#任务算子堆内存).
 The JVM heap memory is also used by the heap state backends ([MemoryStateBackend](../state/state_backends.html#the-memorystatebackend)
 or [FsStateBackend](../state/state_backends.html#the-fsstatebackend)) if it is chosen for streaming jobs.
 
@@ -166,7 +166,7 @@ See also [Framework memory](mem_detail.html#framework-memory).
 
 ## Managed Memory
 
-See also [how to configure managed memory now](mem_setup.html#managed-memory).
+See also [how to configure managed memory now](mem_setup.html#托管内存).
 
 ### Explicit Size
 
@@ -180,15 +180,15 @@ If not set explicitly, the managed memory could be previously specified as a fra
 of the total memory minus network memory and container cut-off (only for [Yarn](../deployment/yarn_setup.html) and
 [Mesos](../deployment/mesos.html) deployments). This option has been completely removed and will have no effect if still used.
 Please, use the new option [`taskmanager.memory.managed.fraction`](../config.html#taskmanager-memory-managed-fraction) instead.
-This new option will set the [managed memory](mem_setup.html#managed-memory) to the specified fraction of the
-[total Flink memory](mem_setup.html#configure-total-memory) if its size is not set explicitly by
+This new option will set the [managed memory](mem_setup.html#托管内存) to the specified fraction of the
+[total Flink memory](mem_setup.html#配置总内存) if its size is not set explicitly by
 [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size).
 
 ### RocksDB state
 
 If the [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is chosen for a streaming job,
-its native memory consumption should now be accounted for in [managed memory](mem_setup.html#managed-memory).
-The RocksDB memory allocation is limited by the [managed memory](mem_setup.html#managed-memory) size.
+its native memory consumption should now be accounted for in [managed memory](mem_setup.html#托管内存).
+The RocksDB memory allocation is limited by the [managed memory](mem_setup.html#托管内存) size.
 This should prevent the killing of containers on [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html).
 You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed](../config.html#state-backend-rocksdb-memory-managed)
 to `false`. See also [how to migrate container cut-off](#container-cut-off-memory).
@@ -196,9 +196,9 @@ to `false`. See also [how to migrate container cut-off](#container-cut-off-memor
 ### Other changes
 
 Additionally, the following changes have been made:
-* The [managed memory](mem_setup.html#managed-memory) is always off-heap now. The configuration option `taskmanager.memory.off-heap` is removed and will have no effect anymore.
-* The [managed memory](mem_setup.html#managed-memory) now uses native memory which is not direct memory. It means that the managed memory is no longer accounted for in the JVM direct memory limit.
-* The [managed memory](mem_setup.html#managed-memory) is always lazily allocated now. The configuration option `taskmanager.memory.preallocate` is removed and will have no effect anymore.
+* The [managed memory](mem_setup.html#托管内存) is always off-heap now. The configuration option `taskmanager.memory.off-heap` is removed and will have no effect anymore.
+* The [managed memory](mem_setup.html#托管内存) now uses native memory which is not direct memory. It means that the managed memory is no longer accounted for in the JVM direct memory limit.
+* The [managed memory](mem_setup.html#托管内存) is always lazily allocated now. The configuration option `taskmanager.memory.preallocate` is removed and will have no effect anymore.
 
 ## Container Cut-Off Memory
 
@@ -209,9 +209,9 @@ will have no effect on the task manager process anymore. The new memory model in
 described further, to address these concerns.
 
 In streaming jobs which use [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend), the RocksDB
-native memory consumption should be accounted for as a part of the [managed memory](mem_setup.html#managed-memory) now.
-The RocksDB memory allocation is also limited by the configured size of the [managed memory](mem_setup.html#managed-memory).
-See also [migrating managed memory](#managed-memory) and [how to configure managed memory now](mem_setup.html#managed-memory).
+native memory consumption should be accounted for as a part of the [managed memory](mem_setup.html#托管内存) now.
+The RocksDB memory allocation is also limited by the configured size of the [managed memory](mem_setup.html#托管内存).
+See also [migrating managed memory](#managed-memory) and [how to configure managed memory now](mem_setup.html#托管内存).
 
 The other direct or native off-heap memory consumers can now be addressed by the following new configuration options:
 * Task off-heap memory ([`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size))
@@ -228,7 +228,7 @@ This section describes the changes of the default `flink-conf.yaml` shipped with
 
 The total memory (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
 in the default `flink-conf.yaml`. The value is also increased from 1024Mb to 1568Mb.
-See also [how to configure total memory now](mem_setup.html#configure-total-memory).
+See also [how to configure total memory now](mem_setup.html#配置总内存).
 
 <div class="alert alert-warning">
   <strong>Warning:</strong> If you use the new default `flink-conf.yaml` it can result in different sizes of

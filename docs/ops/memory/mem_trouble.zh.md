@@ -35,7 +35,7 @@ mentioned in the exception message.
 ## OutOfMemoryError: Java heap space
 
 The exception usually indicates that the JVM heap is too small. You can try to increase the JVM heap size
-by increasing [total memory](mem_setup.html#configure-total-memory) or [task heap memory](mem_setup.html#task-operator-heap-memory).
+by increasing [total memory](mem_setup.html#配置总内存) or [task heap memory](mem_setup.html#任务算子堆内存).
 
 <span class="label label-info">Note</span> You can also increase the [framework heap memory](mem_detail.html#framework-memory) but this option
 is advanced and should only be changed if you are sure that the Flink framework itself needs more memory.
@@ -45,7 +45,7 @@ is advanced and should only be changed if you are sure that the Flink framework 
 The exception usually indicates that the JVM *direct memory* limit is too small or that there is a *direct memory leak*.
 Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
 You can try to increase its limit by adjusting [direct off-heap memory](mem_detail.html).
-See also [how to configure off-heap memory](mem_setup.html#configure-off-heap-memory-direct-or-native) and
+See also [how to configure off-heap memory](mem_setup.html#配置堆外内存直接内存或本地内存)) and
 the [JVM arguments](mem_detail.html#jvm-parameters) which Flink sets.
 
 ## OutOfMemoryError: Metaspace
@@ -68,7 +68,7 @@ this usually indicates that Flink has not reserved enough native memory. You can
 monitoring system or from the error messages when a container gets killed by the deployment environment.
 
 If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is used and the memory controlling is disabled,
-you can try to increase the [managed memory](mem_setup.html#managed-memory).
+you can try to increase the [managed memory](mem_setup.html#托管内存).
 
 Alternatively, you can increase the [JVM overhead](mem_detail.html).
 See also [how to configure memory for containers](mem_tuning.html#configure-memory-for-containers).
