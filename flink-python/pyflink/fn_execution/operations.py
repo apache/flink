@@ -22,6 +22,7 @@ import cloudpickle
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker.operations import Operation
+from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
@@ -75,6 +76,11 @@ class StatelessFunctionOperation(Operation):
         metrics.processed_elements.measured.output_element_counts[
             str(tag)] = receiver.opcounter.element_counter.value()
         return metrics
+
+    def process(self, o: WindowedValue):
+        output_stream = self.consumer.output_stream
+        self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
+        output_stream.maybe_flush()
 
     def generate_func(self, udfs):
         pass
@@ -166,12 +172,8 @@ class ScalarFunctionOperation(StatelessFunctionOperation):
         :return: the generated lambda function
         """
         scalar_functions = [self._extract_user_defined_function(udf) for udf in udfs]
-        return eval('lambda value: [%s]' % ','.join(scalar_functions), self.variable_dict)
-
-    def process(self, o):
-        output_stream = self.consumer.output_stream
-        self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
-        output_stream.maybe_flush()
+        mapper = eval('lambda value: [%s]' % ','.join(scalar_functions), self.variable_dict)
+        return lambda it: map(mapper, it)
 
 
 class TableFunctionOperation(StatelessFunctionOperation):
@@ -186,20 +188,8 @@ class TableFunctionOperation(StatelessFunctionOperation):
         :return: the generated lambda function
         """
         table_function = self._extract_user_defined_function(udtfs[0])
-        return eval('lambda value: %s' % table_function, self.variable_dict)
-
-    def process(self, o):
-        output_stream = self.consumer.output_stream
-        for result in self._create_result(o.value):
-            self._value_coder_impl.encode_to_stream(result, output_stream, True)
-        output_stream.maybe_flush()
-
-    def _create_result(self, value):
-        result = self.func(value)
-        if result is not None:
-            yield from result
-        yield None
-
+        mapper = eval('lambda value: %s' % table_function, self.variable_dict)
+        return lambda it: map(mapper, it)
 
 @bundle_processor.BeamTransformFactory.register_urn(
     SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)

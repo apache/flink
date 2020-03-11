@@ -117,7 +117,12 @@ class CodersTest(unittest.TestCase):
         field_coder = BigIntCoder()
         field_count = 10
         coder = FlattenRowCoder([field_coder for _ in range(field_count)])
-        self.check_coder(coder, [None if i % 2 == 0 else i for i in range(field_count)])
+        v = [[None if i % 2 == 0 else i for i in range(field_count)]]
+        generator_result = coder.decode(coder.encode(v))
+        result = []
+        for item in generator_result:
+            result.append(item)
+        self.assertEqual(v, result)
 
 
 if __name__ == '__main__':
