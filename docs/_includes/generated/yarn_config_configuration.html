@@ -111,6 +111,18 @@
             <td>When a Flink job is submitted to YARN, the JobManager’s host and the number of available processing slots is written into a properties file, so that the Flink client is able to pick those details up. This configuration parameter allows changing the default location of that file (for example for environments sharing a Flink installation between users).</td>
         </tr>
         <tr>
+            <td><h5>yarn.security.kerberos.localized-keytab-path</h5></td>
+            <td style="word-wrap: break-word;">"krb5.keytab"</td>
+            <td>String</td>
+            <td>Local (on NodeManager) path where kerberos keytab file will be localized to. If yarn.security.kerberos.ship-local-keytab set to true, Flink willl ship the keytab file as a YARN local resource. In this case, the path is relative to the local resource directory. If set to false, Flink will try to directly locate the keytab from the path itself.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.security.kerberos.ship-local-keytab</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When this is true Flink will ship the keytab file configured via security.kerberos.login.keytab as a localized YARN resource.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.ship-directories</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
