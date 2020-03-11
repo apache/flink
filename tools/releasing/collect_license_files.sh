@@ -59,7 +59,7 @@ find "${TMP}" -name "licenses" -type d -exec cp -r -- "{}" "${DST}" \;
 
 # Search the binary distribution directory and collect those license files that
 # not bundled in any jars.
-find "${SRC}/flink-dist/target" -name "LICENSE.*" -type f \
--path "*/flink-*-bin/*" ! -path "*/licenses/*" -exec cp -- "{}" "${DST}/licenses" \;
+find "${SRC}" -name "LICENSE.*" -type f \
+! -path "${DST}/licenses/*" ! -path "${TMP}/licenses/*" -exec cp -- "{}" "${DST}/licenses" \;
 
 rm -r "${TMP}"
