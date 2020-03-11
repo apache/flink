@@ -158,6 +158,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		assertNull(client.checkExists().forPath(CHECKPOINT_PATH + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
 
 		sharedStateRegistry.close();
+		store = createCompletedCheckpoints(1);
 		store.recover();
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
@@ -192,6 +193,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		// Recover again
 		sharedStateRegistry.close();
+		store = createCompletedCheckpoints(1);
 		store.recover();
 
 		CompletedCheckpoint recovered = store.getLatestCheckpoint(false);
