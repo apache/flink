@@ -47,7 +47,7 @@ and by the JVM to run the process. The *total Flink memory* consumption includes
 </center>
 <br />
 
-If you run FIink locally (e.g. from your IDE) without creating a cluster, then only a subset of the memory configuration
+If you run Flink locally (e.g. from your IDE) without creating a cluster, then only a subset of the memory configuration
 options are relevant, see also [local execution](mem_detail.html#local-execution) for more details.
 
 Otherwise, the simplest way to setup memory in Flink is to configure either of the two following options:
@@ -55,7 +55,7 @@ Otherwise, the simplest way to setup memory in Flink is to configure either of t
 * Total process memory ([`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size))
 
 The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
-[Here](mem_detail.html#detailed-memory-model) are more details about the other memory components.
+[Here](mem_detail.html) are more details about the other memory components.
 
 Configuring *total Flink memory* is better suited for standalone deployments where you want to declare how much memory
 is given to Flink itself. The *total Flink memory* splits up into JVM heap, [managed memory size](#managed-memory)
@@ -87,7 +87,7 @@ to specify explicitly both [task heap](#task-operator-heap-memory) and [managed 
 It gives more control over the available JVM heap to Flink’s tasks and its [managed memory](#managed-memory).
 
 The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
-[Here](mem_detail.html#detailed-memory-model) are more details about the other memory components.
+[Here](mem_detail.html) are more details about the other memory components.
 
 <span class="label label-info">Note</span> If you have configured the task heap and managed memory explicitly, it is recommended to set neither
 *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
@@ -130,4 +130,4 @@ see also [JVM parameters](mem_detail.html#jvm-parameters).
 <span class="label label-info">Note</span> The *network memory* is also part of JVM *direct memory* but it is managed by Flink and guaranteed
 to never exceed its configured size. Therefore, resizing the *network memory* will not help in this situation.
 
-See also [the detailed memory model](mem_detail.html#detailed-memory-model).
+See also [the detailed memory model](mem_detail.html).
