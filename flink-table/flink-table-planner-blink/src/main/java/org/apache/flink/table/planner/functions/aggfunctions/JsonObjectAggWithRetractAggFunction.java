@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import java.util.HashMap;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.functions.AggregateFunction;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.HashMap;
 
 /**
  * built-in JsonObjectAgg aggregate function.
