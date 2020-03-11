@@ -129,9 +129,6 @@ public class YarnTaskExecutorRunner {
 	private static void setupConfigurationFromVariables(Configuration configuration, String currDir, Map<String, String> variables) throws IOException {
 		final String yarnClientUsername = variables.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
-		final String remoteKeytabPath = variables.get(YarnConfigKeys.REMOTE_KEYTAB_PATH);
-		LOG.info("TM: remote keytab path obtained {}", remoteKeytabPath);
-
 		final String localKeytabPath = variables.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
 		LOG.info("TM: local keytab path obtained {}", localKeytabPath);
 
@@ -141,15 +138,22 @@ public class YarnTaskExecutorRunner {
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
-		String keytabPath = null;
-		if (remoteKeytabPath != null) {
-			File f = new File(currDir, localKeytabPath);
+		String keytabPath;
+		File f = new File(localKeytabPath);
+		if (f.exists()) {
 			keytabPath = f.getAbsolutePath();
 			LOG.info("keytab path: {}", keytabPath);
-		} else if (localKeytabPath != null) {
-			File f = new File(localKeytabPath);
-			keytabPath = f.getAbsolutePath();
-			LOG.info("keytab path: {}", keytabPath);
+		} else {
+			// try using relative paths, this is the case when the keytab was shipped
+			// as a local resource
+			f = new File(currDir, localKeytabPath);
+			if (f.exists()) {
+				keytabPath = f.getAbsolutePath();
+				LOG.info("keytab path: {}", keytabPath);
+			} else {
+				LOG.warn("Could not find keytab file: {}", localKeytabPath);
+				keytabPath = null;
+			}
 		}
 
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
