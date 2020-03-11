@@ -15,12 +15,6 @@
             <td>Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).</td>
         </tr>
         <tr>
-            <td><h5>high-availability.zookeeper.client.connection-loss-tolerate</h5></td>
-            <td style="word-wrap: break-word;">true</td>
-            <td>Boolean</td>
-            <td>Defines whether or not leader election tolerates connection loss exception. Enable this option will improve the stability when ZK ensemble in an unstable network environment. For technical details, see FLINK-10052.</td>
-        </tr>
-        <tr>
             <td><h5>high-availability.zookeeper.client.connection-timeout</h5></td>
             <td style="word-wrap: break-word;">15000</td>
             <td>Integer</td>

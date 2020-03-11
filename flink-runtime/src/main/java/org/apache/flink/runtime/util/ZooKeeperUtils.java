@@ -46,7 +46,6 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.imps.Defaul
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateErrorPolicy;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.StandardConnectionStateErrorPolicy;
 import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
@@ -129,10 +128,7 @@ public class ZooKeeperUtils {
 
 		LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
 
-		ConnectionStateErrorPolicy connectionStateErrorPolicy =
-			configuration.getBoolean(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_LOSS_TOLERATE) ?
-				new SessionConnectionStateErrorPolicy() :
-				new StandardConnectionStateErrorPolicy();
+		ConnectionStateErrorPolicy connectionStateErrorPolicy = new SessionConnectionStateErrorPolicy();
 
 		CuratorFramework cf = CuratorFrameworkFactory.builder()
 				.connectString(zkQuorum)

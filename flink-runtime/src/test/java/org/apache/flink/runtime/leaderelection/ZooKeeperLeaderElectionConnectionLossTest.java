@@ -55,18 +55,8 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
 
 	@Test
 	public void testKeepLeadershipOnConnectionLoss() throws Exception {
-		testLeadershipOnConnectionLoss(true);
-	}
-
-	@Test
-	public void testLoseLeadershipOnConnectionLoss() throws Exception {
-		testLeadershipOnConnectionLoss(false);
-	}
-
-	private void testLeadershipOnConnectionLoss(boolean tolerateConnectionLoss) throws Exception {
 		final Configuration configuration = new Configuration();
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-		configuration.setBoolean(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_LOSS_TOLERATE, tolerateConnectionLoss);
 
 		CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
 		ZooKeeperLeaderElectionService leaderElectionService = new ZooKeeperLeaderElectionService(client, LATCH_PATH, LEADER_PATH);
@@ -84,12 +74,7 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
 			zooKeeperResource.restart();
 			connectionLossLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 			reconnectedLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-
-			if (tolerateConnectionLoss) {
-				assertFalse(revokeLeadershipLatch.isTriggered());
-			} else {
-				revokeLeadershipLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-			}
+			assertFalse(revokeLeadershipLatch.isTriggered());
 		} finally {
 			leaderElectionService.stop();
 			client.close();
