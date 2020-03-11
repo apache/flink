@@ -406,7 +406,7 @@ SELECT PRETTY_PRINT(user) FROM Orders
       <td>
         <strong>GroupBy 聚合</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span><br>
-        <span class="label label-info">可自动更新结果</span>
+        <span class="label label-info">结果更新</span>
       </td>
       <td>
         <p><b>注意：</b> GroupBy 在流处理表中会产生更新结果（updating result）。详情请阅读 <a href="{{ site.baseurl }}/zh/dev/table/streaming/dynamic_tables.html">动态表流概念</a> 。
@@ -459,7 +459,7 @@ WINDOW w AS (
       <td>
         <strong>Distinct</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span> <br>
-        <span class="label label-info">可自动更新结果</span>
+        <span class="label label-info">结果更新</span>
       </td>
       <td>
 {% highlight sql %}
@@ -471,7 +471,8 @@ SELECT DISTINCT users FROM Orders
     <tr>
       <td>
         <strong>Grouping sets, Rollup, Cube</strong><br>
-        <span class="label label-primary">批处理</span>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+        <span class="label label-info">结果更新</span>
       </td>
       <td>
 {% highlight sql %}
@@ -479,6 +480,7 @@ SELECT SUM(amount)
 FROM Orders
 GROUP BY GROUPING SETS ((user), (product))
 {% endhighlight %}
+        <p><b>Note:</b> 流式 Grouping sets、Rollup 以及 Cube 只在 Blink planner 中支持。</p>
       </td>
     </tr>
     <tr>
@@ -545,7 +547,7 @@ FROM Orders INNER JOIN Product ON Orders.productId = Product.id
       <td><strong>Outer Equi-join</strong><br>
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
-        <span class="label label-info">可自动更新结果</span>
+        <span class="label label-info">结果更新</span>
       </td>
       <td>
         <p>目前仅支持 equi-join ，即 join 的联合条件至少拥有一个相等谓词。不支持任何 cross join 和 theta join。</p>
@@ -869,7 +871,7 @@ WHERE rownum <= N [AND conditions]
 - `WHERE rownum <= N`: Flink 需要 `rownum <= N` 才能识别一个查询是否为 Top-N 查询。 其中， N 代表最大或最小的 N 条记录会被保留。
 - `[AND conditions]`: 在 where 语句中，可以随意添加其他的查询条件，但其他条件只允许通过 `AND` 与 `rownum <= N` 结合使用。
 
-<span class="label label-danger">流处理模式需注意</span> TopN 查询 <span class="label label-info">可自动更新结果</span>。 Flink SQL 会根据排序键对输入的流进行排序；若 top N 的记录发生了变化，变化的部分会以撤销、更新记录的形式发送到下游。
+<span class="label label-danger">流处理模式需注意</span> TopN 查询的结果会带有更新。 Flink SQL 会根据排序键对输入的流进行排序；若 top N 的记录发生了变化，变化的部分会以撤销、更新记录的形式发送到下游。
 推荐使用一个支持更新的存储作为 Top-N 查询的 sink 。另外，若 top N 记录需要存储到外部存储，则结果表需要拥有相同与 Top-N 查询相同的唯一键。
 
 Top-N 的唯一键是分区列和 rownum 列的结合，另外 Top-N 查询也可以获得上游的唯一键。以下面的任务为例，`product_id` 是 `ShopSales` 的唯一键，然后 Top-N 的唯一键是 [`category`, `rownum`] 和 [`product_id`] 。
