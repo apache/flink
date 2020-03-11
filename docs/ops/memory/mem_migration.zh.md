@@ -123,7 +123,7 @@ The following options are deprecated but if they are still used they will be int
 
 Although, the network memory configuration has not changed too much it is recommended to verify its configuration.
 It can change if other memory components have new sizes, e.g. the total memory which the network can be a fraction of.
-See also [new detailed memory model](mem_setup.html#detailed-memory-model).
+See also [new detailed memory model](mem_detail.html).
 
 The container cut-off configuration options, [`containerized.heap-cutoff-ratio`](config.html#containerized-heap-cutoff-ratio)
 and [`containerized.heap-cutoff-min`](config.html#containerized-heap-cutoff-min), have no effect for task manager processes anymore
@@ -158,7 +158,7 @@ Additionally, you can now have more direct control over the JVM heap assigned to
 ([`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)),
 see also [Task (Operator) Heap Memory](mem_setup.html#task-operator-heap-memory).
 The JVM heap memory is also used by the heap state backends ([MemoryStateBackend](../state/state_backends.html#the-memorystatebackend)
-or [FsStateBackend](../state/state_backends.html#the-fsstatebackend) if it is chosen for streaming jobs.
+or [FsStateBackend](../state/state_backends.html#the-fsstatebackend)) if it is chosen for streaming jobs.
 
 A part of the JVM heap is now always reserved for Flink framework
 ([`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)).
@@ -217,7 +217,7 @@ The other direct or native off-heap memory consumers can now be addressed by the
 * Task off-heap memory ([`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size))
 * Framework off-heap memory ([`taskmanager.memory.framework.off-heap.size`](../config.html#taskmanager-memory-framework-off-heap-size))
 * JVM metaspace ([`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size))
-* JVM overhead (see also [detailed new memory model](mem_setup.html#detailed-memory-model))
+* JVM overhead (see also [detailed new memory model](mem_detail.html))
 
 <span class="label label-info">Note</span> The job manager still has container cut-off memory configuration options.
 The mentioned configuration options remain valid for the job manager in the same way as before.
