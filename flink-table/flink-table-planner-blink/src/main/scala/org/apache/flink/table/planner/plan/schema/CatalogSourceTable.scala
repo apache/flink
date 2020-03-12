@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory, TableSourceFactoryContextImpl}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
 import org.apache.flink.table.utils.TableConnectorUtils.generateRuntimeName
-
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -158,27 +157,26 @@ class CatalogSourceTable[T](
       tableFactoryOpt.get() match {
         case tableSourceFactory: TableSourceFactory[_] =>
           tableSourceFactory.createTableSource(context)
-        case _ => throw new TableException("Cannot query a sink-only table. "
+        case _ => throw new ValidationException("Cannot query a sink-only table. "
           + "TableFactory provided by catalog must implement TableSourceFactory")
       }
     } else {
       TableFactoryUtil.findAndCreateTableSource(context)
     }
 
-    if (!tableSource.isInstanceOf[StreamTableSource[_]]) {
-      throw new TableException("Catalog tables support only "
-        + "StreamTableSource and InputFormatTableSource")
+    // validation
+    val tableName = schemaTable.getTableIdentifier.asSummaryString();
+    tableSource match {
+      case ts: StreamTableSource[_] =>
+        if (!schemaTable.isStreamingMode && !ts.isBounded) {
+          throw new ValidationException("Cannot query on an unbounded source in batch mode, " +
+            s"but '$tableName' is unbounded.")
+        }
+      case _ =>
+        throw new ValidationException("Catalog tables only support "
+          + "StreamTableSource and InputFormatTableSource")
     }
 
-    // validate TableSource when it is in batch mode
-    if (!schemaTable.isStreamingMode) {
-      // already verified it is an instance of StreamTableSource
-      if (!tableSource.asInstanceOf[StreamTableSource[_]].isBounded) {
-        val tableName = schemaTable.getTableIdentifier.asSummaryString();
-        throw new TableException("Cannot query on an unbounded source in batch mode, " +
-          s"but '$tableName' is unbounded.")
-      }
-    }
     tableSource.asInstanceOf[TableSource[T]]
   }
 }
