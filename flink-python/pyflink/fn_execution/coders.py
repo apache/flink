@@ -407,6 +407,8 @@ class ArrowCoder(DeterministicCoder):
                 return pa.field(field.name, pa.bool_(), field.type.nullable)
             elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.FLOAT:
                 return pa.field(field.name, pa.float32(), field.type.nullable)
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.DOUBLE:
+                return pa.field(field.name, pa.float64(), field.type.nullable)
             else:
                 raise ValueError("field_type %s is not supported." % field.type)
 
