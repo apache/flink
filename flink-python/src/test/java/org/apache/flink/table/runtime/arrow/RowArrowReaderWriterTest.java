@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.arrow;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -57,6 +58,7 @@ public class RowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Row> {
 		fieldTypes.add(new BigIntType());
 		fieldTypes.add(new BooleanType());
 		fieldTypes.add(new FloatType());
+		fieldTypes.add(new DoubleType());
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (int i = 0; i < fieldTypes.size(); i++) {
@@ -84,10 +86,10 @@ public class RowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Row> {
 
 	@Override
 	public Row[] getTestData() {
-		Row row1 = Row.of((byte) 1, (short) 2, 3, 4L, true, 1.0f);
-		Row row2 = Row.of(null, (short) 2, 3, 4L, false, 1.0f);
-		Row row3 = Row.of((byte) 1, null, 3, 4L, true, 1.0f);
-		Row row4 = Row.of(null, null, null, null, null, null);
+		Row row1 = Row.of((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0);
+		Row row2 = Row.of(null, (short) 2, 3, 4L, false, 1.0f, 1.0);
+		Row row3 = Row.of((byte) 1, null, 3, 4L, true, 1.0f, 1.0);
+		Row row4 = Row.of(null, null, null, null, null, null, null);
 		return new Row[]{row1, row2, row3, row4};
 	}
 }
