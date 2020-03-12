@@ -49,7 +49,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.client.cli.CliUtils.getStringWidth;
+import static org.apache.flink.table.client.cli.CliUtils.getStringDisplayWidth;
 import static org.apache.flink.table.client.cli.CliUtils.isFullWidth;
 import static org.apache.flink.table.client.cli.CliUtils.rowToString;
 
@@ -277,9 +277,9 @@ public class CliTableauResultView implements AutoCloseable {
 		int idx = 0;
 		for (String col : cols) {
 			sb.append(" ");
-			int colWidth = getStringWidth(col);
-			if (colWidth <= colWidths[idx]) {
-				sb.append(StringUtils.repeat(' ', colWidths[idx] - colWidth));
+			int displayWidth = getStringDisplayWidth(col);
+			if (displayWidth <= colWidths[idx]) {
+				sb.append(StringUtils.repeat(' ', colWidths[idx] - displayWidth));
 				sb.append(col);
 			} else {
 				sb.append(truncateString(col, colWidths[idx] - COLUMN_TRUNCATED_FLAG.length()));
@@ -392,7 +392,7 @@ public class CliTableauResultView implements AutoCloseable {
 		// fill column width with real data
 		for (String[] row : rows) {
 			for (int i = 0; i < row.length; ++i) {
-				colWidths[i] = Math.max(colWidths[i], getStringWidth(row[i]));
+				colWidths[i] = Math.max(colWidths[i], getStringDisplayWidth(row[i]));
 			}
 		}
 
@@ -420,7 +420,7 @@ public class CliTableauResultView implements AutoCloseable {
 		String substring = col.substring(0, i);
 
 		// pad with ' ' before the column
-		int lackedWidth = targetWidth - getStringWidth(substring);
+		int lackedWidth = targetWidth - getStringDisplayWidth(substring);
 		if (lackedWidth > 0){
 			substring = StringUtils.repeat(' ', lackedWidth) + substring;
 		}

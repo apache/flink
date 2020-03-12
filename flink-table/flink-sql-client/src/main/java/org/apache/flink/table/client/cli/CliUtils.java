@@ -114,7 +114,7 @@ public final class CliUtils {
 		return typesAsString;
 	}
 
-	public static int getStringWidth(String str) {
+	public static int getStringDisplayWidth(String str) {
 		int numOfFullWidthCh = (int) str.codePoints().filter(codePoint -> isFullWidth(codePoint)).count();
 		return str.length() + numOfFullWidthCh;
 	}

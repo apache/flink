@@ -43,7 +43,7 @@ public class CliUtilsTest {
 	}
 
 	@Test
-	public void testFullWidth() {
+	public void testCharFullWidth() {
 		char[] chars = new char[] {'A', 'a', ',', '中', '，', 'こ'};
 		boolean[] expected = new boolean[] {false, false, false, true, true, true};
 
@@ -53,7 +53,7 @@ public class CliUtilsTest {
 	}
 
 	@Test
-	public void testStringWidth() {
+	public void testStringDisplayWidth() {
 		List<String> data = Arrays.asList(
 			"abcdefg,12345,ABC",
 			"to be or not to be that's a question.",
@@ -62,7 +62,7 @@ public class CliUtilsTest {
 		int[] expected = new int[] {17, 37, 12, 36};
 
 		for (int i = 0; i < data.size(); i++) {
-			assertEquals(expected[i], CliUtils.getStringWidth(data.get(i)));
+			assertEquals(expected[i], CliUtils.getStringDisplayWidth(data.get(i)));
 		}
 	}
 }

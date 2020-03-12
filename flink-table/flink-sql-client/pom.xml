@@ -111,7 +111,7 @@ under the License.
 			<version>3.9.0</version>
 		</dependency>
 
-		<!-- Tools to Unify display format for different languages -->
+		<!-- Tools to unify display format for different languages -->
 		<dependency>
 			<groupId>com.ibm.icu</groupId>
 			<artifactId>icu4j</artifactId>
@@ -530,24 +530,9 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.jline:*</include>
+									<include>com.ibm.icu:icu4j</include>
 								</includes>
 							</artifactSet>
-						</configuration>
-					</execution>
-					<!-- shade icu4j to avoid conflict with user's jar -->
-					<execution>
-						<id>shade-icu4j</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<relocations>
-								<relocation>
-									<pattern>com.ibm.icu</pattern>
-									<shadedPattern>org.apache.flink.table.client.shaded.com.ibm.icu</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 				</executions>
