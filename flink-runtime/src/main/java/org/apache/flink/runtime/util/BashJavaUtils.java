@@ -39,11 +39,8 @@ public class BashJavaUtils {
 		checkArgument(args.length > 0, "Command not specified.");
 
 		switch (Command.valueOf(args[0])) {
-			case GET_TM_RESOURCE_DYNAMIC_CONFIGS:
-				getTmResourceDynamicConfigs(args);
-				break;
-			case GET_TM_RESOURCE_JVM_PARAMS:
-				getTmResourceJvmParams(args);
+			case GET_TM_RESOURCE_PARAMS:
+				getTmResourceParams(args);
 				break;
 			default:
 				// unexpected, Command#valueOf should fail if a unknown command is passed in
@@ -51,16 +48,15 @@ public class BashJavaUtils {
 		}
 	}
 
-	private static void getTmResourceDynamicConfigs(String[] args) throws Exception {
-		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
-		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
-	}
-
-	private static void getTmResourceJvmParams(String[] args) throws Exception {
+	/**
+	 * Generate and print JVM parameters and dynamic configs of task executor resources. The last two lines of
+	 * the output should be JVM parameters and dynamic configs respectively.
+	 */
+	private static void getTmResourceParams(String[] args) throws Exception {
 		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
 		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
 		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
+		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
 	}
 
 	private static Configuration getConfigurationForStandaloneTaskManagers(String[] args) throws Exception {
@@ -74,13 +70,8 @@ public class BashJavaUtils {
 	 */
 	public enum Command {
 		/**
-		 * Get dynamic configs of task executor resources.
+		 * Get JVM parameters and dynamic configs of task executor resources.
 		 */
-		GET_TM_RESOURCE_DYNAMIC_CONFIGS,
-
-		/**
-		 * Get JVM parameters of task executor resources.
-		 */
-		GET_TM_RESOURCE_JVM_PARAMS
+		GET_TM_RESOURCE_PARAMS
 	}
 }
