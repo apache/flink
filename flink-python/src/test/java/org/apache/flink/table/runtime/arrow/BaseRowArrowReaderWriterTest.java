@@ -25,6 +25,7 @@ import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordUtils;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -86,6 +87,7 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 		fieldTypes.add(new SmallIntType());
 		fieldTypes.add(new IntType());
 		fieldTypes.add(new BigIntType());
+		fieldTypes.add(new BooleanType());
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (int i = 0; i < fieldTypes.size(); i++) {
@@ -113,12 +115,12 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 
 	@Override
 	public BaseRow[] getTestData() {
-		BaseRow row1 = StreamRecordUtils.baserow((byte) 1, (short) 2, 3, 4L);
-		BinaryRow row2 = StreamRecordUtils.binaryrow((byte) 1, (short) 2, 3, 4L);
-		BaseRow row3 = StreamRecordUtils.baserow(null, (short) 2, 3, 4L);
-		BinaryRow row4 = StreamRecordUtils.binaryrow((byte) 1, null, 3, 4L);
-		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null);
-		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null);
+		BaseRow row1 = StreamRecordUtils.baserow((byte) 1, (short) 2, 3, 4L, true);
+		BinaryRow row2 = StreamRecordUtils.binaryrow((byte) 1, (short) 2, 3, 4L, false);
+		BaseRow row3 = StreamRecordUtils.baserow(null, (short) 2, 3, 4L, false);
+		BinaryRow row4 = StreamRecordUtils.binaryrow((byte) 1, null, 3, 4L, true);
+		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null, null);
+		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null, null);
 		return new BaseRow[]{row1, row2, row3, row4, row5, row6};
 	}
 }
