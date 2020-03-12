@@ -367,7 +367,7 @@ public class CliClient {
 		}
 		// set a property
 		else {
-			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1]);
+			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1].trim());
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SET).toAnsi());
 		}
 		terminal.flush();
