@@ -25,12 +25,10 @@ import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerFileMessageParameters;
-import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -59,11 +57,11 @@ public class TaskManagerCustomFileHandler extends AbstractTaskManagerFileHandler
 
 	@Override
 	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskmanagerId2FileName) {
-		return resourceManagerGateway.requestTaskManagerFileUpload(taskmanagerId2FileName.f0, FileType.CUSTOM, taskmanagerId2FileName.f1, timeout);
+		return resourceManagerGateway.requestTaskManagerFileUploadByName(taskmanagerId2FileName.f0, taskmanagerId2FileName.f1, timeout);
 	}
 
 	@Override
-	protected String getFileName(HandlerRequest<EmptyRequestBody, TaskManagerFileMessageParameters> handlerRequest) throws RestHandlerException {
+	protected String getFileName(HandlerRequest<EmptyRequestBody, TaskManagerFileMessageParameters> handlerRequest) {
 		return handlerRequest.getPathParameter(LogFileNamePathParameter.class);
 	}
 }

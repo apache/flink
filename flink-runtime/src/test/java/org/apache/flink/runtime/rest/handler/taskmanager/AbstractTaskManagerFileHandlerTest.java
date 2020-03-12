@@ -33,7 +33,6 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerFileMessageParameters;
@@ -283,11 +282,6 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 			super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
 			this.requestFileUploads = Preconditions.checkNotNull(requestFileUploads);
 			this.expectedTaskManagerId = Preconditions.checkNotNull(expectedTaskManagerId);
-		}
-
-		@Override
-		protected String getFileName(HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest) throws RestHandlerException {
-			return "test.log";
 		}
 
 		@Override

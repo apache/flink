@@ -83,7 +83,9 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
 
-	private volatile Function<Tuple3<ResourceID, FileType, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
+	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByTypeFunction;
+
+	private volatile Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByNameFunction;
 
 	private volatile Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer;
 
@@ -143,8 +145,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.registerTaskExecutorFunction = registerTaskExecutorFunction;
 	}
 
-	public void setRequestTaskManagerFileUploadFunction(Function<Tuple3<ResourceID, FileType, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction) {
-		this.requestTaskManagerFileUploadFunction = requestTaskManagerFileUploadFunction;
+	public void setRequestTaskManagerFileUploadByTypeFunction(Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByTypeFunction) {
+		this.requestTaskManagerFileUploadByTypeFunction = requestTaskManagerFileUploadByTypeFunction;
+	}
+
+	public void setRequestTaskManagerFileUploadByNameFunction(Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByNameFunction) {
+		this.requestTaskManagerFileUploadByNameFunction = requestTaskManagerFileUploadByNameFunction;
 	}
 
 	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
@@ -301,11 +307,22 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, String fileName, Time timeout) {
-		final Function<Tuple3<ResourceID, FileType, String>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadFunction;
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(ResourceID taskManagerId, FileType fileType, Time timeout) {
+		final Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadByTypeFunction;
 
 		if (function != null) {
-			return function.apply(Tuple3.of(taskManagerId, fileType, fileName));
+			return function.apply(Tuple2.of(taskManagerId, fileType));
+		} else {
+			return CompletableFuture.completedFuture(new TransientBlobKey());
+		}
+	}
+
+	@Override
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(ResourceID taskManagerId, String fileName, Time timeout) {
+		final Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadByNameFunction;
+
+		if (function != null) {
+			return function.apply(Tuple2.of(taskManagerId, fileName));
 		} else {
 			return CompletableFuture.completedFuture(new TransientBlobKey());
 		}

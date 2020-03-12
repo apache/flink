@@ -23,6 +23,5 @@ package org.apache.flink.runtime.taskexecutor;
  */
 public enum FileType {
 	LOG,
-	STDOUT,
-	CUSTOM
+	STDOUT
 }

@@ -921,8 +921,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, String fileName, Time timeout) {
-		log.debug("Request file {} upload.", fileType);
+	public CompletableFuture<TransientBlobKey> requestFileUploadByType(FileType fileType, Time timeout) {
+		log.debug("Request file type is {} upload.", fileType);
 
 		final String filePath;
 
@@ -933,38 +933,24 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			case STDOUT:
 				filePath = taskManagerConfiguration.getTaskManagerStdoutPath();
 				break;
-			case CUSTOM:
-				final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
-				if (logDir != null && !logDir.isEmpty() && fileName != null && !fileName.isEmpty()) {
-					filePath = logDir + "/" + fileName;
-				} else {
-					filePath = null;
-				}
-				break;
 			default:
 				filePath = null;
 		}
-		if (filePath != null && !filePath.isEmpty()) {
-			final File file = new File(filePath);
-			if (file.exists()) {
-				final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
-				final TransientBlobKey transientBlobKey;
-				try (FileInputStream fileInputStream = new FileInputStream(file)) {
-					transientBlobKey = transientBlobService.putTransient(fileInputStream);
-				} catch (IOException e) {
-					log.debug("Could not upload file {}.", fileName, e);
-					return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileName + '.', e));
-				}
+		return requestFileUploadByFilePath(filePath, timeout, fileType.toString());
+	}
 
-				return CompletableFuture.completedFuture(transientBlobKey);
-			} else {
-				log.debug("The file {} which type is {} does not exist on the TaskExecutor {}.", fileName, fileType, getResourceID());
-				return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " does not exist on the TaskExecutor."));
-			}
+	@Override
+	public CompletableFuture<TransientBlobKey> requestFileUploadByName(String fileName, Time timeout) {
+		log.debug("Request file name is {} upload.", fileName);
+
+		final String filePath;
+		final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
+		if (logDir != null && !logDir.isEmpty() && fileName != null && !fileName.isEmpty()) {
+			filePath = logDir + "/" + fileName;
 		} else {
-			log.debug("The file {}  unavailable on the TaskExecutor {}.", fileType, getResourceID());
-			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " is not available on the TaskExecutor."));
+			filePath = null;
 		}
+		return requestFileUploadByFilePath(filePath, timeout, fileName);
 	}
 
 	@Override
@@ -1672,6 +1658,30 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		JobManagerConnection jmConnection = jobManagerTable.get(jobId);
 
 		return jmConnection != null && Objects.equals(jmConnection.getJobMasterId(), jobMasterId);
+	}
+
+	private CompletableFuture<TransientBlobKey> requestFileUploadByFilePath(String filePath, Time timeout, String fileTag) {
+		if (filePath != null && !filePath.isEmpty()) {
+			final File file = new File(filePath);
+			if (file.exists()) {
+				final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
+				final TransientBlobKey transientBlobKey;
+				try (FileInputStream fileInputStream = new FileInputStream(file)) {
+					transientBlobKey = transientBlobService.putTransient(fileInputStream);
+				} catch (IOException e) {
+					log.debug("Could not upload file {}.", fileTag, e);
+					return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileTag + '.', e));
+				}
+
+				return CompletableFuture.completedFuture(transientBlobKey);
+			} else {
+				log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
+				return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
+			}
+		} else {
+			log.debug("The file {} unavailable on the TaskExecutor {}.", fileTag, getResourceID());
+			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));
+		}
 	}
 
 	// ------------------------------------------------------------------------

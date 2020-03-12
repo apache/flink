@@ -24,8 +24,6 @@ import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
@@ -57,11 +55,6 @@ public class TaskManagerLogFileHandler extends AbstractTaskManagerFileHandler<Ta
 
 	@Override
 	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskmanagerId2FileName) {
-		return resourceManagerGateway.requestTaskManagerFileUpload(taskmanagerId2FileName.f0, FileType.LOG, taskmanagerId2FileName.f1, timeout);
-	}
-
-	@Override
-	protected String getFileName(HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest) throws RestHandlerException {
-		return "taskmanager.log";
+		return resourceManagerGateway.requestTaskManagerFileUploadByType(taskmanagerId2FileName.f0, FileType.LOG, timeout);
 	}
 }

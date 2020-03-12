@@ -265,7 +265,9 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 		}
 	}
 
-	protected abstract String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) throws RestHandlerException;
+	protected String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) {
+		return "undefined";
+	}
 
 	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerId2FileName);
 }

@@ -199,11 +199,19 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	 * Requests the file upload of the specified type to the cluster's {@link BlobServer}.
 	 *
 	 * @param fileType to upload
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
+	 */
+	CompletableFuture<TransientBlobKey> requestFileUploadByType(FileType fileType, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the file upload of the specified name to the cluster's {@link BlobServer}.
+	 *
 	 * @param fileName to upload
 	 * @param timeout for the asynchronous operation
 	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
 	 */
-	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, String fileName, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestFileUploadByName(String fileName, @RpcTimeout Time timeout);
 
 	/**
 	 * Returns the gateway of Metric Query Service on the TaskManager.

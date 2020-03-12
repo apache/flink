@@ -211,12 +211,23 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 *
 	 * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
 	 * @param fileType type of the file to upload
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} after uploading the file to the
+	 * {@link BlobServer}.
+	 */
+	CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(ResourceID taskManagerId, FileType fileType, @RpcTimeout Time timeout);
+
+	/**
+	 * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link BlobServer}. The
+	 * corresponding {@link TransientBlobKey} is returned.
+	 *
+	 * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
 	 * @param fileName name of the file to upload
 	 * @param timeout for the asynchronous operation
 	 * @return Future which is completed with the {@link TransientBlobKey} after uploading the file to the
 	 * {@link BlobServer}.
 	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, String fileName, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(ResourceID taskManagerId, String fileName, @RpcTimeout Time timeout);
 
 	/**
 	 * Request log list from the given {@link TaskExecutor}.

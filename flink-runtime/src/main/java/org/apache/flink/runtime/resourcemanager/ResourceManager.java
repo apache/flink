@@ -582,16 +582,30 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, String fileName, Time timeout) {
-		log.debug("Request file {} which type is {}  upload from TaskExecutor {}.", fileName, fileType, taskManagerId);
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(ResourceID taskManagerId, FileType fileType, Time timeout) {
+		log.debug("Request file which type is {}  upload from TaskExecutor {}.", fileType, taskManagerId);
 
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Requested file {} which type is {} upload from unregistered TaskExecutor {}.", fileName, fileType, taskManagerId);
+			log.debug("Requested which type is {} upload from unregistered TaskExecutor {}.", fileType, taskManagerId);
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
-			return taskExecutor.getTaskExecutorGateway().requestFileUpload(fileType, fileName, timeout);
+			return taskExecutor.getTaskExecutorGateway().requestFileUploadByType(fileType, timeout);
+		}
+	}
+
+	@Override
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(ResourceID taskManagerId, String fileName, Time timeout) {
+		log.debug("Request file which name is {}  upload from TaskExecutor {}.", fileName, taskManagerId);
+
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+
+		if (taskExecutor == null) {
+			log.debug("Requested file which name is {} upload from unregistered TaskExecutor {}.", fileName, taskManagerId);
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		} else {
+			return taskExecutor.getTaskExecutorGateway().requestFileUploadByName(fileName, timeout);
 		}
 	}
 
