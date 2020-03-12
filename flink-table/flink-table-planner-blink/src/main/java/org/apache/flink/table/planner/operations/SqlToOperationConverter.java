@@ -74,10 +74,13 @@ import org.apache.flink.util.StringUtils;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.validate.SqlValidator;
 
 import java.util.HashMap;
@@ -98,8 +101,8 @@ import java.util.stream.Collectors;
  * {@link org.apache.flink.table.delegation.Planner}.
  */
 public class SqlToOperationConverter {
-	private FlinkPlannerImpl flinkPlanner;
-	private CatalogManager catalogManager;
+	private final FlinkPlannerImpl flinkPlanner;
+	private final CatalogManager catalogManager;
 
 	//~ Constructors -----------------------------------------------------------
 
@@ -492,7 +495,7 @@ public class SqlToOperationConverter {
 				builder.field(call.operand(1).toString(),
 					TypeConversions.fromLogicalToDataType(
 						FlinkTypeFactory.toLogicalType(validatedType)),
-					validatedExpr.toString());
+					getQuotedSqlString(validatedExpr));
 				// add computed column into all field list
 				String fieldName = call.operand(1).toString();
 				allFieldNamesToTypes.put(fieldName, validatedType);
@@ -511,10 +514,20 @@ public class SqlToOperationConverter {
 			DataType exprDataType = TypeConversions.fromLogicalToDataType(
 				FlinkTypeFactory.toLogicalType(validatedType));
 			// use the qualified SQL expression string
-			builder.watermark(rowtimeAttribute, validated.toString(), exprDataType);
+			builder.watermark(rowtimeAttribute, getQuotedSqlString(validated), exprDataType);
 		});
 
 		return builder.build();
+	}
+
+	private String getQuotedSqlString(SqlNode sqlNode) {
+		SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
+		SqlDialect dialect = new CalciteSqlDialect(SqlDialect.EMPTY_CONTEXT
+			.withQuotedCasing(parserConfig.unquotedCasing())
+			.withConformance(parserConfig.conformance())
+			.withUnquotedCasing(parserConfig.unquotedCasing())
+			.withIdentifierQuoteString(parserConfig.quoting().string));
+		return sqlNode.toSqlString(dialect).getSql();
 	}
 
 	private PlannerQueryOperation toQueryOperation(FlinkPlannerImpl planner, SqlNode validated) {
