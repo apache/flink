@@ -127,10 +127,11 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	@Nullable
 	public Endpoint getRestEndpoint(String clusterId) {
 		int restPort = this.flinkConfig.getInteger(RestOptions.PORT);
-		String serviceExposedType = flinkConfig.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+		final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
+			flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
 
 		// Return the service.namespace directly when use ClusterIP.
-		if (serviceExposedType.equals(KubernetesConfigOptions.ServiceExposedType.ClusterIP.toString())) {
+		if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
 			return new Endpoint(KubernetesUtils.getInternalServiceName(clusterId) + "." + nameSpace, restPort);
 		}
 

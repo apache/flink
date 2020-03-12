@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 
@@ -55,7 +56,7 @@ public abstract class AbstractServiceDecorator extends AbstractKubernetesStepDec
 				.withLabels(kubernetesJobManagerParameters.getCommonLabels())
 				.endMetadata()
 			.withNewSpec()
-				.withType(getServiceType())
+				.withType(getServiceType().name())
 				.withPorts(getServicePorts())
 				.withSelector(kubernetesJobManagerParameters.getLabels())
 				.endSpec()
@@ -64,7 +65,7 @@ public abstract class AbstractServiceDecorator extends AbstractKubernetesStepDec
 		return Collections.singletonList(service);
 	}
 
-	protected abstract String getServiceType();
+	protected abstract KubernetesConfigOptions.ServiceExposedType getServiceType();
 
 	protected abstract String getServiceName();
 
