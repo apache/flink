@@ -164,9 +164,20 @@ class CatalogSourceTable[T](
     } else {
       TableFactoryUtil.findAndCreateTableSource(context)
     }
+
     if (!tableSource.isInstanceOf[StreamTableSource[_]]) {
       throw new TableException("Catalog tables support only "
         + "StreamTableSource and InputFormatTableSource")
+    }
+
+    // validate TableSource when it is in batch mode
+    if (!schemaTable.isStreamingMode) {
+      // already verified it is an instance of StreamTableSource
+      if (!tableSource.asInstanceOf[StreamTableSource[_]].isBounded) {
+        val tableName = schemaTable.getTableIdentifier.asSummaryString();
+        throw new TableException("Cannot query on an unbounded source in batch mode, " +
+          s"but '$tableName' is unbounded.")
+      }
     }
     tableSource.asInstanceOf[TableSource[T]]
   }
