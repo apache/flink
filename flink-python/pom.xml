@@ -201,18 +201,6 @@ under the License.
 	<build>
 		<resources>
 			<resource>
-				<directory>lib</directory>
-				<includes>
-					<include>*.zip</include>
-				</includes>
-			</resource>
-			<resource>
-				<directory>bin</directory>
-				<includes>
-					<include>pyflink-udf-runner.sh</include>
-				</includes>
-			</resource>
-			<resource>
 				<directory>src/main/resources</directory>
 			</resource>
 		</resources>
@@ -315,11 +303,6 @@ under the License.
 								<relocation>
 									<pattern>py4j</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.py4j</shadedPattern>
-									<includes>
-										<!-- prevent it from relocating the py4j zip file and
-										replacing the py4j file name string in source code -->
-										<include>py4j/**</include>
-									</includes>
 								</relocation>
 								<relocation>
 									<pattern>net.razorvine</pattern>
