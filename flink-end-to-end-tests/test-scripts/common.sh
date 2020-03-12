@@ -101,7 +101,6 @@ function revert_flink_dir() {
     CURL_SSL_ARGS=""
 }
 
-FLINK_DIR=.
 function setup_flink_shaded_zookeeper() {
   local version=$1
   # if it is already in lib we don't have to do anything
