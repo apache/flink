@@ -34,7 +34,7 @@ import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Rule, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.io.File
 import java.util
@@ -644,86 +644,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
-  }
-
-  @Test @Ignore("FLINK-14320") // need to implement
-  def testStreamSourceTableWithRowtime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a timestamp(3),
-        |  b bigint,
-        |  WATERMARK FOR a AS a - interval '1' SECOND
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a timestamp(3),
-        |  b bigint
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
-  @Test @Ignore("FLINK-14320") // need to implement
-  def testBatchTableWithRowtime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a timestamp(3),
-        |  b bigint,
-        |  WATERMARK FOR a AS a - interval '1' SECOND
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a timestamp(3),
-        |  b bigint
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
   @Test

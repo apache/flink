@@ -19,12 +19,11 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.{Before, Test}
 
 class TableScanTest extends TableTestBase {
@@ -85,6 +84,26 @@ class TableScanTest extends TableTestBase {
         |  'is-bounded' = 'true'
         |)
       """.stripMargin)
+    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testScanOnUnboundedSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Cannot query on an unbounded source in batch mode, " +
+      "but 'default_catalog.default_database.src' is unbounded")
     util.verifyPlan("SELECT * FROM src WHERE a > 1")
   }
 
