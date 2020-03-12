@@ -162,7 +162,7 @@ or [FsStateBackend](../state/state_backends.html#the-fsstatebackend)) if it is c
 
 A part of the JVM heap is now always reserved for Flink framework
 ([`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)).
-See also [Framework memory](mem_detail.html#framework-memory).
+See also [Framework memory](mem_detail.html#框架内存).
 
 ## Managed Memory
 
