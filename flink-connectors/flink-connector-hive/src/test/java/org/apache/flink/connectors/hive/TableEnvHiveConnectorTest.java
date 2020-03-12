@@ -528,6 +528,21 @@ public class TableEnvHiveConnectorTest {
 		}
 	}
 
+	@Test
+	public void testWhitespacePartValue() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.dest (x int) partitioned by (p string)");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert into db1.dest select 1,'  '");
+			tableEnv.sqlUpdate("insert into db1.dest select 2,'a \t'");
+			tableEnv.execute("insert");
+			assertEquals("[p=  , p=a %09]", hiveShell.executeQuery("show partitions db1.dest").toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
