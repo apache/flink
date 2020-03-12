@@ -58,7 +58,7 @@ class DataStreamPythonCorrelate(
   with CommonPythonCorrelate {
 
   if (condition.isDefined) {
-    throw new TableException("Currently Python correlate does not support conditions in left join")
+    throw new TableException("Currently Python correlate does not support conditions in left join.")
   }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
