@@ -174,7 +174,7 @@ class JavaEstimator(Estimator):
         return JavaModel(self._j_obj.fit(table_env._j_tenv, table._j_table))
 
 
-class Pipeline(Estimator, Model):
+class Pipeline(Estimator, Model, Transformer):
     """
     A pipeline is a linear workflow which chains Estimators and Transformers to
     execute an algorithm.
