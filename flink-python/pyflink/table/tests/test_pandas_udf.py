@@ -97,6 +97,12 @@ class PandasUDFITTests(object):
                 'boolean_param of wrong type %s !' % type(boolean_param[0])
             return boolean_param
 
+        def float_func(float_param):
+            assert isinstance(float_param, pd.Series)
+            assert isinstance(float_param[0], np.float32), \
+                'float_param of wrong type %s !' % type(float_param[0])
+            return float_param
+
         self.t_env.register_function(
             "tinyint_func",
             udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT(), udf_type="pandas"))
@@ -117,33 +123,39 @@ class PandasUDFITTests(object):
             "boolean_func",
             udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN(), udf_type="pandas"))
 
+        self.t_env.register_function(
+            "float_func",
+            udf(float_func, [DataTypes.FLOAT()], DataTypes.FLOAT(), udf_type="pandas"))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
             [DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT(), DataTypes.BIGINT(),
-             DataTypes.BOOLEAN(), DataTypes.BOOLEAN()])
+             DataTypes.BOOLEAN(), DataTypes.BOOLEAN(), DataTypes.FLOAT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
-            [(1, 32767, -2147483648, 1, True, False)],
+            [(1, 32767, -2147483648, 1, True, False, 1.0)],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
                  DataTypes.FIELD("c", DataTypes.INT()),
                  DataTypes.FIELD("d", DataTypes.BIGINT()),
                  DataTypes.FIELD("e", DataTypes.BOOLEAN()),
-                 DataTypes.FIELD("f", DataTypes.BOOLEAN())]))
+                 DataTypes.FIELD("f", DataTypes.BOOLEAN()),
+                 DataTypes.FIELD("g", DataTypes.FLOAT())]))
 
         t.select("tinyint_func(a),"
                  "smallint_func(b),"
                  "int_func(c),"
                  "bigint_func(d),"
                  "boolean_func(e),"
-                 "boolean_func(f)") \
+                 "boolean_func(f),"
+                 "float_func(g)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["1,32767,-2147483648,1,true,false"])
+                           ["1,32767,-2147483648,1,true,false,1.0"])
 
 
 class StreamPandasUDFITTests(PandasUDFITTests,

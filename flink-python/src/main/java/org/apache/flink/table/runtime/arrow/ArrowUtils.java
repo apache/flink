@@ -24,12 +24,14 @@ import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BooleanFieldReader;
+import org.apache.flink.table.runtime.arrow.readers.FloatFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.IntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.RowArrowReader;
 import org.apache.flink.table.runtime.arrow.readers.SmallIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TinyIntFieldReader;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowSmallIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
@@ -37,16 +39,19 @@ import org.apache.flink.table.runtime.arrow.vectors.BaseRowArrowReader;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowBigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowBooleanWriter;
+import org.apache.flink.table.runtime.arrow.writers.BaseRowFloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowSmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowTinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BooleanWriter;
+import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.TinyIntWriter;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -59,10 +64,12 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -125,6 +132,8 @@ public final class ArrowUtils {
 			return new BigIntWriter((BigIntVector) vector);
 		} else if (vector instanceof BitVector) {
 			return new BooleanWriter((BitVector) vector);
+		} else if (vector instanceof Float4Vector) {
+			return new FloatWriter((Float4Vector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -157,6 +166,8 @@ public final class ArrowUtils {
 			return new BaseRowBigIntWriter((BigIntVector) vector);
 		} else if (vector instanceof BitVector) {
 			return new BaseRowBooleanWriter((BitVector) vector);
+		} else if (vector instanceof Float4Vector) {
+			return new BaseRowFloatWriter((Float4Vector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -187,6 +198,8 @@ public final class ArrowUtils {
 			return new BigIntFieldReader((BigIntVector) vector);
 		} else if (vector instanceof BitVector) {
 			return new BooleanFieldReader((BitVector) vector);
+		} else if (vector instanceof Float4Vector) {
+			return new FloatFieldReader((Float4Vector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -217,6 +230,8 @@ public final class ArrowUtils {
 			return new ArrowBigIntColumnVector((BigIntVector) vector);
 		} else if (vector instanceof BitVector) {
 			return new ArrowBooleanColumnVector((BitVector) vector);
+		} else if (vector instanceof Float4Vector) {
+			return new ArrowFloatColumnVector((Float4Vector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -250,6 +265,11 @@ public final class ArrowUtils {
 		@Override
 		public ArrowType visit(BooleanType booleanType) {
 			return ArrowType.Bool.INSTANCE;
+		}
+
+		@Override
+		public ArrowType visit(FloatType floatType) {
+			return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
 		}
 
 		@Override
