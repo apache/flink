@@ -57,7 +57,13 @@ public class StreamOperatorFactoryUtil {
 			((ProcessingTimeServiceAware) operatorFactory).setProcessingTimeService(processingTimeService);
 		}
 
-		OP op = operatorFactory.createStreamOperator(containingTask, configuration, output);
+		// TODO: what to do with ProcessingTimeServiceAware?
+		OP op = operatorFactory.createStreamOperator(
+			new StreamOperatorParameters<>(
+				containingTask,
+				configuration,
+				output,
+				processingTimeService));
 		return new Tuple2<>(op, Optional.ofNullable(processingTimeService));
 	}
 }
