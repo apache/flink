@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableTestBase}
 import org.junit.{Before, Test}
 
-class CalcPythonCorrelateTransposeRuleTest extends TableTestBase{
+class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
 
   private val util = streamTestUtil()
 

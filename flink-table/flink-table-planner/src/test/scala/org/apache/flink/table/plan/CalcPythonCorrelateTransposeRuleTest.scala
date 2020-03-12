@@ -25,7 +25,7 @@ import org.apache.flink.table.utils.{MockPythonTableFunction, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.junit.Test
 
-class CalcPythonCorrelateTransposeRuleTest extends TableTestBase{
+class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
   @Test
   def testPythonTableFunctionWithCondition(): Unit = {
     val util = streamTestUtil()

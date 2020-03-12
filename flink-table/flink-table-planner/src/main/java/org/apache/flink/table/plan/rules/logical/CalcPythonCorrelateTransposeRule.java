@@ -64,7 +64,7 @@ public class CalcPythonCorrelateTransposeRule extends RelOptRule {
 		Option<FlinkLogicalTableFunctionScan> scan = CorrelateUtil.getTableFunctionScan(mergedCalc);
 		return joinType == JoinRelType.INNER &&
 			scan.isDefined() &&
-			PythonUtil.isPythonCall(scan.get().getCall()) &&
+			PythonUtil.isPythonCall(scan.get().getCall(), null) &&
 			mergedCalc.getProgram().getCondition() != null;
 	}
 
