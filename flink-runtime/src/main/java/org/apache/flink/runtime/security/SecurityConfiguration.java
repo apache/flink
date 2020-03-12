@@ -140,8 +140,10 @@ public class SecurityConfiguration {
 
 			// check the keytab is readable
 			File keytabFile = new File(keytab);
-			if (!keytabFile.exists() || !keytabFile.isFile() || !keytabFile.canRead()) {
-				throw new IllegalConfigurationException("Kerberos login configuration is invalid; keytab is unreadable");
+			if (!keytabFile.exists() || !keytabFile.isFile()) {
+				throw new IllegalConfigurationException("Kerberos login configuration is invalid; keytab [" + keytab + "] doesn't exist!");
+			} else if (!keytabFile.canRead()) {
+				throw new IllegalConfigurationException("Kerberos login configuration is invalid; keytab [" + keytab + "] is unreadable!");
 			}
 		}
 	}

@@ -87,7 +87,7 @@ public class YarnEntrypointUtils {
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
 			ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
-		final String keytabPath = Utils.resolveKeytabPath(workingDirectory, YarnConfigKeys.LOCAL_KEYTAB_PATH);
+		final String keytabPath = Utils.resolveKeytabPath(workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
 
 		if (keytabPath != null && keytabPrincipal != null) {
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
