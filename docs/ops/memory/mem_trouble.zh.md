@@ -37,7 +37,7 @@ mentioned in the exception message.
 The exception usually indicates that the JVM heap is too small. You can try to increase the JVM heap size
 by increasing [total memory](mem_setup.html#配置总内存) or [task heap memory](mem_setup.html#任务算子堆内存).
 
-<span class="label label-info">Note</span> You can also increase the [framework heap memory](mem_detail.html#framework-memory) but this option
+<span class="label label-info">Note</span> You can also increase the [framework heap memory](mem_detail.html#框架内存) but this option
 is advanced and should only be changed if you are sure that the Flink framework itself needs more memory.
 
 ## OutOfMemoryError: Direct buffer memory
@@ -46,11 +46,11 @@ The exception usually indicates that the JVM *direct memory* limit is too small 
 Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
 You can try to increase its limit by adjusting [direct off-heap memory](mem_detail.html).
 See also [how to configure off-heap memory](mem_setup.html#配置堆外内存直接内存或本地内存)) and
-the [JVM arguments](mem_detail.html#jvm-parameters) which Flink sets.
+the [JVM arguments](mem_detail.html#jvm-参数) which Flink sets.
 
 ## OutOfMemoryError: Metaspace
 
-The exception usually indicates that [JVM metaspace limit](mem_detail.html#jvm-parameters) is configured too small.
+The exception usually indicates that [JVM metaspace limit](mem_detail.html#jvm-参数) is configured too small.
 You can try to increase the [JVM metaspace option](../config.html#taskmanager-memory-jvm-metaspace-size).
 
 ## IOException: Insufficient number of network buffers
