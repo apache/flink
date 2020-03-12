@@ -69,8 +69,8 @@ public class InternalServiceDecorator extends AbstractServiceDecorator {
 	}
 
 	@Override
-	protected String getServiceType() {
-		return KubernetesConfigOptions.ServiceExposedType.ClusterIP.name();
+	protected KubernetesConfigOptions.ServiceExposedType getServiceType() {
+		return KubernetesConfigOptions.ServiceExposedType.ClusterIP;
 	}
 
 	@Override

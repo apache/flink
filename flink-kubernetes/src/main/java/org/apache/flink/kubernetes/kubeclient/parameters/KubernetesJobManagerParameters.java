@@ -100,8 +100,7 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 		return entrypointClass;
 	}
 
-	public String getRestServiceExposedType() {
-		final String exposedType = flinkConfig.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
-		return KubernetesConfigOptions.ServiceExposedType.valueOf(exposedType).name();
+	public KubernetesConfigOptions.ServiceExposedType getRestServiceExposedType() {
+		return flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
 	}
 }

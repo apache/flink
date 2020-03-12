@@ -39,8 +39,7 @@ public class ExternalServiceDecorator extends AbstractServiceDecorator {
 
 	@Override
 	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
-		if (kubernetesJobManagerParameters.getRestServiceExposedType().equals(
-			KubernetesConfigOptions.ServiceExposedType.ClusterIP.name())) {
+		if (kubernetesJobManagerParameters.getRestServiceExposedType() == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
 			return Collections.emptyList();
 		}
 
@@ -48,7 +47,7 @@ public class ExternalServiceDecorator extends AbstractServiceDecorator {
 	}
 
 	@Override
-	protected String getServiceType() {
+	protected KubernetesConfigOptions.ServiceExposedType getServiceType() {
 		return kubernetesJobManagerParameters.getRestServiceExposedType();
 	}
 

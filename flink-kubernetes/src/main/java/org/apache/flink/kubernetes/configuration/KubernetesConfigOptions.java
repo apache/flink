@@ -39,12 +39,12 @@ public class KubernetesConfigOptions {
 			"for interacting with the cluster. This could be helpful if one has multiple contexts configured and " +
 			"wants to administrate different Flink clusters on different Kubernetes clusters/contexts.");
 
-	public static final ConfigOption<String> REST_SERVICE_EXPOSED_TYPE =
+	public static final ConfigOption<ServiceExposedType> REST_SERVICE_EXPOSED_TYPE =
 		key("kubernetes.rest-service.exposed.type")
-		.stringType()
-		.defaultValue(ServiceExposedType.LoadBalancer.toString())
-		.withDescription("It could be ClusterIP/NodePort/LoadBalancer(default). When set to ClusterIP, the rest service" +
-				"will not be created.");
+		.enumType(ServiceExposedType.class)
+		.defaultValue(ServiceExposedType.LoadBalancer)
+		.withDescription("The type of the rest service (ClusterIP or NodePort or LoadBalancer). " +
+			"When set to ClusterIP, the rest service will not be created.");
 
 	public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
 		key("kubernetes.jobmanager.service-account")

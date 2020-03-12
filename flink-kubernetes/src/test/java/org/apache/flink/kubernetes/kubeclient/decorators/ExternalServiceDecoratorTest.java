@@ -80,11 +80,14 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
 	@Test
 	public void testSetServiceExposedType() throws IOException {
-		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, "NodePort");
+		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
+			KubernetesConfigOptions.ServiceExposedType.NodePort);
 		List<HasMetadata> resources = this.externalServiceDecorator.buildAccompanyingKubernetesResources();
-		assertEquals("NodePort", ((Service) resources.get(0)).getSpec().getType());
+		assertEquals(KubernetesConfigOptions.ServiceExposedType.NodePort.name(),
+			((Service) resources.get(0)).getSpec().getType());
 
-		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, "ClusterIP");
+		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
+			KubernetesConfigOptions.ServiceExposedType.ClusterIP);
 		assertTrue(this.externalServiceDecorator.buildAccompanyingKubernetesResources().isEmpty());
 	}
 }
