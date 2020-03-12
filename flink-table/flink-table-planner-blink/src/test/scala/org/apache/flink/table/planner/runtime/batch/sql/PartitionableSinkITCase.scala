@@ -23,21 +23,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{SqlDialect, TableEnvironment, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
-import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
+import org.apache.flink.table.factories.TableSinkFactory
 import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
 
@@ -168,7 +166,7 @@ class PartitionableSinkITCase extends BatchTestBase {
     expectedEx.expect(classOf[ValidationException])
     registerTableSink(tableName = "sinkTable2", rowType = type4,
       partitionColumns = Array("a", "b"))
-    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sinkTable2")
+    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sortTable")
     tEnv.execute("testJob")
   }
 
@@ -176,7 +174,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   def testInsertStaticPartitionOnNonPartitionedSink(): Unit = {
     expectedEx.expect(classOf[TableException])
     registerTableSink(tableName = "sinkTable2", rowType = type4, partitionColumns = Array())
-    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sinkTable2")
+    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sortTable")
     tEnv.execute("testJob")
   }
 
@@ -321,7 +319,7 @@ private class TestSink(
   }
 }
 
-class TestPartitionableSinkFactory extends TableSinkFactory[Row] with TableSourceFactory[Row] {
+class TestPartitionableSinkFactory extends TableSinkFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -348,24 +346,6 @@ class TestPartitionableSinkFactory extends TableSinkFactory[Row] with TableSourc
       schema.toRowType.asInstanceOf[RowTypeInfo],
       supportsGrouping,
       partitionColumns.asScala.toArray[String])
-  }
-
-  /**
-    * Remove it after FLINK-14387.
-    */
-  override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
-    val dp = new DescriptorProperties()
-    dp.putProperties(properties)
-
-    new StreamTableSource[Row] {
-      override def getTableSchema: TableSchema = {
-        dp.getTableSchema(SCHEMA)
-      }
-
-      override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-        throw new RuntimeException
-      }
-    }
   }
 }
 

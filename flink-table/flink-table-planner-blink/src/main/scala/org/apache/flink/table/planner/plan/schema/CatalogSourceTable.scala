@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
-
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -155,10 +154,20 @@ class CatalogSourceTable[T](
     } else {
       TableFactoryUtil.findAndCreateTableSource(catalogTable)
     }
-    if (!tableSource.isInstanceOf[StreamTableSource[_]]) {
-      throw new TableException("Catalog tables support only "
-        + "StreamTableSource and InputFormatTableSource")
+
+    // validation
+    val tableName = schemaTable.getTableIdentifier.asSummaryString();
+    tableSource match {
+      case ts: StreamTableSource[_] =>
+        if (!schemaTable.isStreamingMode && !ts.isBounded) {
+          throw new ValidationException("Cannot query on an unbounded source in batch mode, " +
+            s"but '$tableName' is unbounded.")
+        }
+      case _ =>
+        throw new ValidationException("Catalog tables only support "
+          + "StreamTableSource and InputFormatTableSource")
     }
+
     tableSource
   }
 
