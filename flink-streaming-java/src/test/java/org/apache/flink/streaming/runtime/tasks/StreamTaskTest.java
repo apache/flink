@@ -90,6 +90,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -1703,10 +1704,7 @@ public class StreamTaskTest extends TestLogger {
 
 	private static class UnusedOperatorFactory extends AbstractStreamOperatorFactory<String> {
 		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(
-				StreamTask<?, ?> containingTask,
-				StreamConfig config,
-				Output<StreamRecord<String>> output) {
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
 			throw new UnsupportedOperationException("This shouldn't be called");
 		}
 

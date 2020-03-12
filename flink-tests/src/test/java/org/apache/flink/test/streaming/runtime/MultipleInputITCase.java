@@ -21,17 +21,15 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -120,12 +118,9 @@ public class MultipleInputITCase extends AbstractTestBase {
 		private ChainingStrategy chainingStrategy;
 
 		@Override
-		public <T extends StreamOperator<Long>> T createStreamOperator(
-				StreamTask<?, ?> containingTask,
-				StreamConfig config,
-				Output<StreamRecord<Long>> output) {
+		public <T extends StreamOperator<Long>> T createStreamOperator(StreamOperatorParameters<Long> parameters) {
 			SumAllInputOperator sumAllInputOperator = new SumAllInputOperator();
-			sumAllInputOperator.setup(containingTask, config, output);
+			sumAllInputOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 			return (T) sumAllInputOperator;
 		}
 

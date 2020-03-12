@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperatorInitializer;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.runtime.generated.GeneratedClass;
 
 /**
@@ -36,13 +36,13 @@ public class CodeGenOperatorFactory<OUT> extends AbstractStreamOperatorFactory<O
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorInitializer<OUT> initializer) {
+	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
 		return (T) generatedClass.newInstance(
-			initializer.getContainingTask().getUserCodeClassLoader(),
+			parameters.getContainingTask().getUserCodeClassLoader(),
 			generatedClass.getReferences(),
-			initializer.getContainingTask(),
-			initializer.getStreamConfig(),
-			initializer.getOutput(),
+			parameters.getContainingTask(),
+			parameters.getStreamConfig(),
+			parameters.getOutput(),
 			processingTimeService);
 	}
 

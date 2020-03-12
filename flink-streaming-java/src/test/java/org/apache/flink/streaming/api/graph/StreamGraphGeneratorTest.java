@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
@@ -671,10 +672,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
 	private static class MultipleInputOperatorFactory implements StreamOperatorFactory<String> {
 		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(
-				StreamTask<?, ?> containingTask,
-				StreamConfig config,
-				Output<StreamRecord<String>> output) {
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
 			throw new UnsupportedOperationException();
 		}
 
