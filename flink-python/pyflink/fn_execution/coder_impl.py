@@ -138,7 +138,7 @@ class TableFunctionRowCoderImpl(StreamCoderImpl):
 
     def __init__(self, flatten_row_coder):
         self._flatten_row_coder = flatten_row_coder
-        self._field_count = flatten_row_coder._filed_count
+        self._field_count = flatten_row_coder._field_count
 
     def encode_to_stream(self, iter_value, out_stream, nested):
         for value in iter_value:
