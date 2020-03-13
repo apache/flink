@@ -61,6 +61,7 @@ import org.apache.flink.util.SerializedValue;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 import static org.mockito.Mockito.mock;
@@ -81,8 +82,8 @@ public final class TestTaskBuilder {
 	private Configuration taskManagerConfig = new Configuration();
 	private ExecutionConfig executionConfig = new ExecutionConfig();
 	private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
-	private Collection<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
-	private Collection<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
+	private List<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
+	private List<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
 	private JobID jobId = new JobID();
 	private AllocationID allocationID = new AllocationID();
 	private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
@@ -141,12 +142,12 @@ public final class TestTaskBuilder {
 		return this;
 	}
 
-	public TestTaskBuilder setResultPartitions(Collection<ResultPartitionDeploymentDescriptor> resultPartitions) {
+	public TestTaskBuilder setResultPartitions(List<ResultPartitionDeploymentDescriptor> resultPartitions) {
 		this.resultPartitions = resultPartitions;
 		return this;
 	}
 
-	public TestTaskBuilder setInputGates(Collection<InputGateDeploymentDescriptor> inputGates) {
+	public TestTaskBuilder setInputGates(List<InputGateDeploymentDescriptor> inputGates) {
 		this.inputGates = inputGates;
 		return this;
 	}
