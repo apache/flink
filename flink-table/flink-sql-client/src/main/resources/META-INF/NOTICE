@@ -9,3 +9,4 @@ See bundled license files for details.
 
 - org.jline:jline-terminal:3.9.0
 - org.jline:jline-reader:3.9.0
+- com.ibm.icu:icu4j:65.1
