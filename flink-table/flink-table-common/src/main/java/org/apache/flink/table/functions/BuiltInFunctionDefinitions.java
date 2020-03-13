@@ -896,6 +896,63 @@ public final class BuiltInFunctionDefinitions {
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
 
+	// json
+	public static final BuiltInFunctionDefinition IS_JSON_VALUE =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isJsonValue")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	public static final BuiltInFunctionDefinition IS_JSON_OBJECT =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isJsonObject")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	public static final BuiltInFunctionDefinition IS_JSON_ARRAY =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isJsonArray")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	public static final BuiltInFunctionDefinition IS_JSON_SCALAR =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isJsonScalar")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	public static final BuiltInFunctionDefinition IS_NOT_JSON_VALUE =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isNotJsonValue")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	public static final BuiltInFunctionDefinition IS_NOT_JSON_OBJECT =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isNotJsonObject")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	public static final BuiltInFunctionDefinition IS_NOT_JSON_ARRAY =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isNotJsonArray")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	public static final BuiltInFunctionDefinition IS_NOT_JSON_SCALAR =
+		new BuiltInFunctionDefinition.Builder()
+			.name("isNotJsonScalar")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
 	public static final Set<FunctionDefinition> WINDOW_PROPERTIES = new HashSet<>(Arrays.asList(
 		WINDOW_START, WINDOW_END, PROCTIME, ROWTIME
 	));

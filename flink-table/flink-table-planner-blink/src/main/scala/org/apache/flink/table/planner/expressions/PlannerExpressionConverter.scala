@@ -708,6 +708,12 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.isEmpty)
             StreamRecordTimestamp()
 
+          case IS_JSON_VALUE | IS_JSON_OBJECT | IS_JSON_ARRAY
+               | IS_JSON_SCALAR | IS_NOT_JSON_VALUE | IS_NOT_JSON_OBJECT
+               | IS_NOT_JSON_ARRAY | IS_NOT_JSON_SCALAR =>
+            assert(args.size == 1)
+            JsonPredicates(fd.toString, args.head)
+
           case _ =>
             throw new TableException(s"Unsupported function definition: $fd")
         }

@@ -20,14 +20,15 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class JsonFunctionsTest extends ExpressionTestBase {
-
   override def testData: Row = {
     val testData = new Row(9)
     testData.setField(0, "This is a test String.")
@@ -44,15 +45,15 @@ class JsonFunctionsTest extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */  Types.STRING,
-      /* 1 */  Types.BOOLEAN,
-      /* 2 */  Types.BYTE,
-      /* 3 */  Types.SHORT,
-      /* 4 */  Types.LONG,
-      /* 5 */  Types.FLOAT,
-      /* 6 */  Types.DOUBLE,
-      /* 7 */  Types.INT,
-      /* 8 */  Types.STRING)
+      /* 0 */ Types.STRING,
+      /* 1 */ Types.BOOLEAN,
+      /* 2 */ Types.BYTE,
+      /* 3 */ Types.SHORT,
+      /* 4 */ Types.LONG,
+      /* 5 */ Types.FLOAT,
+      /* 6 */ Types.DOUBLE,
+      /* 7 */ Types.INT,
+      /* 8 */ Types.STRING)
   }
 
   @Test
@@ -63,14 +64,14 @@ class JsonFunctionsTest extends ExpressionTestBase {
     val jsonScalar = Array(true, false, false, true)
 
     // strings
-    verifyPredicates("'{}'", jsonObject)
-    verifyPredicates("'[]'", jsonArray)
-    verifyPredicates("'100'", jsonScalar)
-    verifyPredicates("'{]'", malformed)
+    verifyPredicates("'{}'", "{}", jsonObject)
+    verifyPredicates("'[]'", "[]", jsonArray)
+    verifyPredicates("'100'", "100", jsonScalar)
+    verifyPredicates("'{]'", "{]", malformed)
 
     // valid fields
-    verifyPredicates("f0", malformed)
-    verifyPredicates("f8", jsonObject)
+    verifyPredicates("f0", 'f0, malformed)
+    verifyPredicates("f8", 'f8, jsonObject)
 
     // invalid fields
     verifyException("f1", classOf[ValidationException])
@@ -85,27 +86,67 @@ class JsonFunctionsTest extends ExpressionTestBase {
   /**
    * Utility for verify predicates.
    *
-   * @param candidate to be verified, can be a scalar or a column
+   * @param candidate      to be verified, can be a scalar or a column
+   * @param expr           to be verified, can be a scalar or a column Expression
    * @param expectedValues array of expected values as result of
    *                       (IS_JSON_VALUE, IS_JSON_OBJECT, IS_JSON_ARRAY, IS_JSON_SCALAR)
    */
-  private def verifyPredicates(candidate: String, expectedValues: Array[Boolean]): Unit = {
+  private def verifyPredicates(candidate: String, expr: Expression, expectedValues: Array[Boolean]): Unit = {
     assert(expectedValues.length == 4)
 
-    testSqlApi(s"$candidate is json value", expectedValues(0).toString)
-    testSqlApi(s"$candidate is not json value", (!expectedValues(0)).toString)
-    testSqlApi(s"$candidate is json object", expectedValues(1).toString)
-    testSqlApi(s"$candidate is not json object", (!expectedValues(1)).toString)
-    testSqlApi(s"$candidate is json array", expectedValues(2).toString)
-    testSqlApi(s"$candidate is not json array", (!expectedValues(2)).toString)
-    testSqlApi(s"$candidate is json scalar", expectedValues(3).toString)
-    testSqlApi(s"$candidate is not json scalar", (!expectedValues(3)).toString)
+    testAllApis(
+      expr.isJsonValue,
+      s"$candidate.isJsonValue",
+      s"$candidate is json value",
+      expectedValues(0).toString)
+
+    testAllApis(
+      expr.isNotJsonValue,
+      s"$candidate.isNotJsonValue",
+      s"$candidate is not json value",
+      (!expectedValues(0)).toString)
+
+    testAllApis(
+      expr.isJsonObject,
+      s"$candidate.isJsonObject",
+      s"$candidate is json object",
+      expectedValues(1).toString)
+
+    testAllApis(
+      expr.isNotJsonObject,
+      s"$candidate.isNotJsonObject",
+      s"$candidate is not json object",
+      (!expectedValues(1)).toString)
+
+    testAllApis(
+      expr.isJsonArray,
+      s"$candidate.isJsonArray",
+      s"$candidate is json array",
+      expectedValues(2).toString)
+
+    testAllApis(
+      expr.isNotJsonArray,
+      s"$candidate.isNotJsonArray",
+      s"$candidate is not json array",
+      (!expectedValues(2)).toString)
+
+    testAllApis(
+      expr.isJsonScalar,
+      s"$candidate.isJsonScalar",
+      s"$candidate is json scalar",
+      expectedValues(3).toString)
+
+    testAllApis(
+      expr.isNotJsonScalar,
+      s"$candidate.isNotJsonScalar",
+      s"$candidate is not json scalar",
+      (!expectedValues(3)).toString)
   }
 
   private def verifyException[T <: Exception](
-    candidate: String,
-    expectedException: Class[T]
-  ): Unit = {
+      candidate: String,
+      expectedException: Class[T]
+    ): Unit = {
     val sqlCandidates = Array(
       s"$candidate is json value",
       s"$candidate is not json value",
@@ -124,5 +165,4 @@ class JsonFunctionsTest extends ExpressionTestBase {
       }
     }
   }
-
 }

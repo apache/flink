@@ -43,6 +43,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.toMonthInter
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_JSON_ARRAY;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 //CHECKSTYLE.OFF: AvoidStarImport|ImportOrder
@@ -1279,6 +1280,38 @@ public abstract class BaseExpressions<InType, OutType> {
 	 */
 	public OutType sha2(InType hashLength) {
 		return toApiSpecificExpression(unresolvedCall(SHA2, toExpr(), objectToExpression(hashLength)));
+	}
+
+	public OutType isJsonValue() {
+		return toApiSpecificExpression(unresolvedCall(IS_JSON_VALUE, toExpr()));
+	}
+
+	public OutType isJsonObject() {
+		return toApiSpecificExpression(unresolvedCall(IS_JSON_OBJECT, toExpr()));
+	}
+
+	public OutType isJsonArray() {
+		return toApiSpecificExpression(unresolvedCall(IS_JSON_ARRAY, toExpr()));
+	}
+
+	public OutType isJsonScalar() {
+		return toApiSpecificExpression(unresolvedCall(IS_JSON_SCALAR, toExpr()));
+	}
+
+	public OutType isNotJsonValue() {
+		return toApiSpecificExpression(unresolvedCall(IS_NOT_JSON_VALUE, toExpr()));
+	}
+
+	public OutType isNotJsonObject() {
+		return toApiSpecificExpression(unresolvedCall(IS_NOT_JSON_OBJECT, toExpr()));
+	}
+
+	public OutType isNotJsonArray() {
+		return toApiSpecificExpression(unresolvedCall(IS_NOT_JSON_ARRAY, toExpr()));
+	}
+
+	public OutType isNotJsonScalar() {
+		return toApiSpecificExpression(unresolvedCall(IS_NOT_JSON_SCALAR, toExpr()));
 	}
 }
 
