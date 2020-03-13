@@ -46,7 +46,7 @@ under the License.
 <div class="alert alert-warning">
   <strong>注意：</strong> 如果 Flink 或者用户代码分配超过容器大小的非托管的堆外（本地）内存，部署环境可能会杀掉超用内存的容器，造成作业执行失败。
 </div>
-请参考[容器内存超用](mem_trouble.html#container-memory-exceeded)中的相关描述。
+请参考[容器内存超用](mem_trouble.html#容器container内存超用)中的相关描述。
 
 ## State Backend 的内存配置
 
