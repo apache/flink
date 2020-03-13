@@ -33,8 +33,12 @@ $ python --version
 # the version printed here must be 3.5+
 {% endhighlight %}
 
-<span class="label label-info">Note</span> PyFlink depends on apache-beam 2.19.0 for Python UDF execution. You can run the following command to install apache-beam:
+## Installation of PyFlink
+
+PyFlink has already been deployed to PyPi and can be installed as following:
 
 {% highlight bash %}
-$ python -m pip install apache-beam==2.19.0
+$ python -m pip install apache-flink
 {% endhighlight %}
+
+You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).

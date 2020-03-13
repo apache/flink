@@ -32,14 +32,7 @@ Please refer to the Python Table API [installation guide]({{ site.baseurl }}/dev
 
 ## Setting up a Python Project
 
-You can begin by creating a Python project and installing the PyFlink package.
-PyFlink is available via PyPi and can be easily installed using `pip`.
-
-{% highlight bash %}
-$ python -m pip install apache-flink
-{% endhighlight %}
-
-You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).
+You can begin by creating a Python project and installing the PyFlink package following the [installation guide]({{ site.baseurl }}/dev/table/python/installation.html#installation-of-pyflink).
 
 ## Writing a Flink Python Table API Program
 
