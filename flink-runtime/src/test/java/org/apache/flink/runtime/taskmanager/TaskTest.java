@@ -65,9 +65,9 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -255,7 +255,7 @@ public class TaskTest extends TestLogger {
 			shuffleDescriptor,
 			1,
 			false);
-		testExecutionFailsInNetworkRegistration(Collections.singleton(dummyPartition), Collections.emptyList());
+		testExecutionFailsInNetworkRegistration(Collections.singletonList(dummyPartition), Collections.emptyList());
 	}
 
 	@Test
@@ -266,12 +266,12 @@ public class TaskTest extends TestLogger {
 			ResultPartitionType.PIPELINED,
 			0,
 			new ShuffleDescriptor[] { dummyChannel });
-		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singleton(dummyGate));
+		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singletonList(dummyGate));
 	}
 
 	private void testExecutionFailsInNetworkRegistration(
-			Collection<ResultPartitionDeploymentDescriptor> resultPartitions,
-			Collection<InputGateDeploymentDescriptor> inputGates) throws Exception {
+			List<ResultPartitionDeploymentDescriptor> resultPartitions,
+			List<InputGateDeploymentDescriptor> inputGates) throws Exception {
 		final String errorMessage = "Network buffer pool has already been destroyed.";
 
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
