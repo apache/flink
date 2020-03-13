@@ -437,6 +437,8 @@ class ArrowCoder(DeterministicCoder):
                                 pa.decimal128(field.type.decimal_info.precision,
                                               field.type.decimal_info.scale),
                                 field.type.nullable)
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.DATE:
+                return pa.field(field.name, pa.date32(), field.type.nullable)
             else:
                 raise ValueError("field_type %s is not supported." % field.type)
 
