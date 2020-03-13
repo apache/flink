@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
+import org.apache.flink.table.client.cli.utils.TerminalUtils.MockOutputStream;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
@@ -49,7 +50,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -115,17 +115,11 @@ public class CliClientTest extends TestLogger {
 			})
 			.build();
 		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
 		SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 
 		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 
 			cliClient.open();
@@ -146,17 +140,11 @@ public class CliClientTest extends TestLogger {
 			.build();
 
 		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
 		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
 			assertThat(executor.getNumUseCatalogCalls(), is(1));
@@ -226,15 +214,8 @@ public class CliClientTest extends TestLogger {
 		String sessionId = mockExecutor.openSession(context);
 
 		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
-
 		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			Path historyFilePath = File.createTempFile("history", "tmp").toPath();
 			cliClient = new CliClient(terminal, sessionId, mockExecutor, historyFilePath);
 			cliClient.open();
@@ -247,6 +228,30 @@ public class CliClientTest extends TestLogger {
 				cliClient.close();
 			}
 		}
+	}
+
+	@Test
+	public void testSetSessionPropertyWithException() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setSessionPropertiesFunction((ignored1, ignored2, ignored3) -> {
+					throw new SqlExecutionException("Property 'parallelism' must be a integer value but was: 10a");
+				})
+				.build();
+		String output = testExecuteSql(executor, "set execution.parallelism = 10a;");
+		assertThat(executor.getNumSetSessionPropertyCalls(), is(1));
+		assertTrue(output.contains("Property 'parallelism' must be a integer value but was: 10a"));
+	}
+
+	@Test
+	public void testResetSessionPropertiesWithException() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.resetSessionPropertiesFunction((ignored1) -> {
+					throw new SqlExecutionException("Failed to reset.");
+				})
+				.build();
+		String output = testExecuteSql(executor, "reset;");
+		assertThat(executor.getNumResetSessionPropertiesCalls(), is(1));
+		assertTrue(output.contains("Failed to reset."));
 	}
 
 	@Test

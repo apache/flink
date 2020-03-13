@@ -32,7 +32,9 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.SupplierWithException;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import java.util.List;
 import java.util.Map;
@@ -57,10 +59,16 @@ class TestingExecutor implements Executor {
 	private final BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer;
 
 	private int numUseDatabaseCalls = 0;
-	private BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer;
+	private final BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer;
 
 	private int numExecuteSqlCalls = 0;
-	private BiFunctionWithException<String, String, TableResult, SqlExecutionException> executeUpdateConsumer;
+	private final BiFunctionWithException<String, String, TableResult, SqlExecutionException> executeSqlConsumer;
+
+	private int numSetSessionPropertyCalls = 0;
+	private final TriFunctionWithException<String, String, String, Void, SqlExecutionException> setSessionPropertyFunction;
+
+	private int numResetSessionPropertiesCalls = 0;
+	private final FunctionWithException<String, Void, SqlExecutionException> resetSessionPropertiesFunction;
 
 	private final SqlParserHelper helper;
 
@@ -70,13 +78,17 @@ class TestingExecutor implements Executor {
 			List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages,
 			BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer,
 			BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer,
-			BiFunctionWithException<String, String, TableResult, SqlExecutionException> executeUpdateConsumer) {
+			BiFunctionWithException<String, String, TableResult, SqlExecutionException> executeSqlConsumer,
+			TriFunctionWithException<String, String, String, Void, SqlExecutionException> setSessionPropertyFunction,
+			FunctionWithException<String, Void, SqlExecutionException> resetSessionPropertiesFunction) {
 		this.resultChanges = resultChanges;
 		this.snapshotResults = snapshotResults;
 		this.resultPages = resultPages;
 		this.useCatalogConsumer = useCatalogConsumer;
 		this.useDatabaseConsumer = useDatabaseConsumer;
-		this.executeUpdateConsumer = executeUpdateConsumer;
+		this.executeSqlConsumer = executeSqlConsumer;
+		this.setSessionPropertyFunction = setSessionPropertyFunction;
+		this.resetSessionPropertiesFunction = resetSessionPropertiesFunction;
 		helper = new SqlParserHelper();
 		helper.registerTables();
 	}
@@ -133,10 +145,14 @@ class TestingExecutor implements Executor {
 
 	@Override
 	public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+		numResetSessionPropertiesCalls++;
+		resetSessionPropertiesFunction.apply(sessionId);
 	}
 
 	@Override
 	public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
+		numSetSessionPropertyCalls++;
+		setSessionPropertyFunction.apply(sessionId, key, value);
 	}
 
 	@Override
@@ -183,7 +199,7 @@ class TestingExecutor implements Executor {
 	@Override
 	public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
 		numExecuteSqlCalls++;
-		return executeUpdateConsumer.apply(sessionId, statement);
+		return executeSqlConsumer.apply(sessionId, statement);
 	}
 
 	@Override
@@ -247,5 +263,13 @@ class TestingExecutor implements Executor {
 
 	public int getNumExecuteSqlCalls() {
 		return numExecuteSqlCalls;
+	}
+
+	public int getNumSetSessionPropertyCalls() {
+		return numSetSessionPropertyCalls;
+	}
+
+	public int getNumResetSessionPropertiesCalls() {
+		return numResetSessionPropertiesCalls;
 	}
 }
