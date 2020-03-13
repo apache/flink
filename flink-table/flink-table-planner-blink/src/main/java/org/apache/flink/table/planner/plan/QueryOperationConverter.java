@@ -108,7 +108,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import scala.Some;
-import scala.collection.JavaConverters.*;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
