@@ -24,6 +24,7 @@ import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BooleanFieldReader;
+import org.apache.flink.table.runtime.arrow.readers.DecimalFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.DoubleFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.FloatFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.IntFieldReader;
@@ -34,6 +35,7 @@ import org.apache.flink.table.runtime.arrow.readers.VarBinaryFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarCharFieldReader;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowDecimalColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDoubleColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
@@ -45,6 +47,7 @@ import org.apache.flink.table.runtime.arrow.vectors.BaseRowArrowReader;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowBigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowBooleanWriter;
+import org.apache.flink.table.runtime.arrow.writers.BaseRowDecimalWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowDoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowFloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowIntWriter;
@@ -54,6 +57,7 @@ import org.apache.flink.table.runtime.arrow.writers.BaseRowVarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowVarCharWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BooleanWriter;
+import org.apache.flink.table.runtime.arrow.writers.DecimalWriter;
 import org.apache.flink.table.runtime.arrow.writers.DoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
@@ -63,9 +67,11 @@ import org.apache.flink.table.runtime.arrow.writers.VarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
@@ -78,6 +84,7 @@ import org.apache.flink.types.Row;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
@@ -93,6 +100,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -158,6 +166,9 @@ public final class ArrowUtils {
 			return new VarCharWriter((VarCharVector) vector);
 		} else if (vector instanceof VarBinaryVector) {
 			return new VarBinaryWriter((VarBinaryVector) vector);
+		} else if (vector instanceof DecimalVector) {
+			DecimalVector decimalVector = (DecimalVector) vector;
+			return new DecimalWriter(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -198,6 +209,9 @@ public final class ArrowUtils {
 			return new BaseRowVarCharWriter((VarCharVector) vector);
 		} else if (vector instanceof VarBinaryVector) {
 			return new BaseRowVarBinaryWriter((VarBinaryVector) vector);
+		} else if (vector instanceof DecimalVector) {
+			DecimalVector decimalVector = (DecimalVector) vector;
+			return new BaseRowDecimalWriter(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -236,6 +250,8 @@ public final class ArrowUtils {
 			return new VarCharFieldReader((VarCharVector) vector);
 		} else if (vector instanceof VarBinaryVector) {
 			return new VarBinaryFieldReader((VarBinaryVector) vector);
+		} else if (vector instanceof DecimalVector) {
+			return new DecimalFieldReader((DecimalVector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -274,6 +290,8 @@ public final class ArrowUtils {
 			return new ArrowVarCharColumnVector((VarCharVector) vector);
 		} else if (vector instanceof VarBinaryVector) {
 			return new ArrowVarBinaryColumnVector((VarBinaryVector) vector);
+		} else if (vector instanceof DecimalVector) {
+			return new ArrowDecimalColumnVector((DecimalVector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -330,9 +348,34 @@ public final class ArrowUtils {
 		}
 
 		@Override
+		public ArrowType visit(DecimalType decimalType) {
+			return new ArrowType.Decimal(decimalType.getPrecision(), decimalType.getScale());
+		}
+
+		@Override
 		protected ArrowType defaultMethod(LogicalType logicalType) {
+			if (logicalType instanceof LegacyTypeInformationType) {
+				Class<?> typeClass = ((LegacyTypeInformationType) logicalType).getTypeInformation().getTypeClass();
+				if (typeClass == BigDecimal.class) {
+					// Because we can't get precision and scale from legacy BIG_DEC_TYPE_INFO,
+					// we set the precision and scale to default value compatible with python.
+					return new ArrowType.Decimal(38, 18);
+				}
+			}
 			throw new UnsupportedOperationException(String.format(
 				"Python vectorized UDF doesn't support logical type %s currently.", logicalType.asSummaryString()));
 		}
+	}
+
+	private static int getPrecision(DecimalVector decimalVector) {
+		int precision = -1;
+		try {
+			java.lang.reflect.Field precisionField = decimalVector.getClass().getDeclaredField("precision");
+			precisionField.setAccessible(true);
+			precision = (int) precisionField.get(decimalVector);
+		} catch (NoSuchFieldException | IllegalAccessException e) {
+			// should not happen, ignore
+		}
+		return precision;
 	}
 }
