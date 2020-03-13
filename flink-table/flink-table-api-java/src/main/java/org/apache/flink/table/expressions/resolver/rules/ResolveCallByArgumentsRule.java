@@ -60,6 +60,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -231,7 +232,8 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					final ResolvedExpression argument = resolvedArgs.get(pos);
 					final DataType argumentType = argument.getOutputDataType();
 					final DataType expectedType = inferenceResult.getExpectedArgumentTypes().get(pos);
-					if (!argumentType.equals(expectedType)) {
+
+					if (!supportsAvoidingCast(argumentType.getLogicalType(), expectedType.getLogicalType())) {
 						return resolutionContext
 							.postResolutionFactory()
 							.cast(argument, expectedType);

@@ -23,7 +23,8 @@ import datetime
 import decimal
 import pyarrow as pa
 from apache_beam.coders import Coder
-from apache_beam.coders.coders import FastCoder
+from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
+from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
 from pyflink.fn_execution import coder_impl
@@ -413,6 +414,24 @@ class ArrowCoder(DeterministicCoder):
     def __repr__(self):
         return 'ArrowCoder[%s]' % self._schema
 
+
+class PassThroughLengthPrefixCoder(LengthPrefixCoder):
+    """
+    Coder which doesn't prefix the length of the encoded object as the length prefix will be handled
+    by the wrapped value coder.
+    """
+    def __init__(self, value_coder):
+        super(PassThroughLengthPrefixCoder, self).__init__(value_coder)
+
+    def _create_impl(self):
+        return coder_impl.PassThroughLengthPrefixCoderImpl(self._value_coder.get_impl())
+
+    def __repr__(self):
+        return 'PassThroughLengthPrefixCoder[%s]' % self._value_coder
+
+
+Coder.register_structured_urn(
+    common_urns.coders.LENGTH_PREFIX.urn, PassThroughLengthPrefixCoder)
 
 type_name = flink_fn_execution_pb2.Schema.TypeName
 _type_name_mappings = {

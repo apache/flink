@@ -49,6 +49,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.client.cli.CliUtils.getStringDisplayWidth;
+import static org.apache.flink.table.client.cli.CliUtils.isFullWidth;
 import static org.apache.flink.table.client.cli.CliUtils.rowToString;
 
 /**
@@ -275,11 +277,12 @@ public class CliTableauResultView implements AutoCloseable {
 		int idx = 0;
 		for (String col : cols) {
 			sb.append(" ");
-			if (col.length() <= colWidths[idx]) {
-				sb.append(StringUtils.repeat(' ', colWidths[idx] - col.length()));
+			int displayWidth = getStringDisplayWidth(col);
+			if (displayWidth <= colWidths[idx]) {
+				sb.append(StringUtils.repeat(' ', colWidths[idx] - displayWidth));
 				sb.append(col);
 			} else {
-				sb.append(col, 0, colWidths[idx] - COLUMN_TRUNCATED_FLAG.length());
+				sb.append(truncateString(col, colWidths[idx] - COLUMN_TRUNCATED_FLAG.length()));
 				sb.append(COLUMN_TRUNCATED_FLAG);
 			}
 			sb.append(" |");
@@ -389,7 +392,7 @@ public class CliTableauResultView implements AutoCloseable {
 		// fill column width with real data
 		for (String[] row : rows) {
 			for (int i = 0; i < row.length; ++i) {
-				colWidths[i] = Math.max(colWidths[i], row[i].length());
+				colWidths[i] = Math.max(colWidths[i], getStringDisplayWidth(row[i]));
 			}
 		}
 
@@ -399,6 +402,29 @@ public class CliTableauResultView implements AutoCloseable {
 		}
 
 		return colWidths;
+	}
+
+	private String truncateString(String col, int targetWidth) {
+		int passedWidth = 0;
+		int i = 0;
+		for (; i < col.length(); i++) {
+			if (isFullWidth(Character.codePointAt(col, i))) {
+				passedWidth += 2;
+			} else {
+				passedWidth += 1;
+			}
+			if (passedWidth >= targetWidth) {
+				break;
+			}
+		}
+		String substring = col.substring(0, i);
+
+		// pad with ' ' before the column
+		int lackedWidth = targetWidth - getStringDisplayWidth(substring);
+		if (lackedWidth > 0){
+			substring = StringUtils.repeat(' ', lackedWidth) + substring;
+		}
+		return substring;
 	}
 
 }
