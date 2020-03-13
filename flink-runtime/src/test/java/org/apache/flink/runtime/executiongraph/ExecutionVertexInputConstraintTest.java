@@ -247,7 +247,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		}
 
 		final JobGraph jobGraph = new JobGraph(orderedVertices.toArray(new JobVertex[0]));
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobGraph.getJobID(), numSlots);
+		final SlotProvider slotProvider = new SimpleSlotProvider(numSlots);
 
 		return TestingExecutionGraphBuilder
 			.newBuilder()
