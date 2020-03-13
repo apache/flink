@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
@@ -109,6 +110,8 @@ public class SingleInputGate extends InputGate {
 	/** The name of the owning task, for logging purposes. */
 	private final String owningTaskName;
 
+	private final int gateIndex;
+
 	/**
 	 * The ID of the consumed intermediate result. Each input gate consumes partitions of the
 	 * intermediate result specified by this ID. This ID also identifies the input gate at the
@@ -175,6 +178,7 @@ public class SingleInputGate extends InputGate {
 
 	public SingleInputGate(
 		String owningTaskName,
+		int gateIndex,
 		IntermediateDataSetID consumedResultId,
 		final ResultPartitionType consumedPartitionType,
 		int consumedSubpartitionIndex,
@@ -184,6 +188,8 @@ public class SingleInputGate extends InputGate {
 		@Nullable BufferDecompressor bufferDecompressor) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
+		Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
+		this.gateIndex = gateIndex;
 
 		this.consumedResultId = checkNotNull(consumedResultId);
 		this.consumedPartitionType = checkNotNull(consumedPartitionType);
@@ -252,6 +258,10 @@ public class SingleInputGate extends InputGate {
 	@Override
 	public int getNumberOfInputChannels() {
 		return numberOfInputChannels;
+	}
+
+	public int getGateIndex() {
+		return gateIndex;
 	}
 
 	/**
