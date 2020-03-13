@@ -602,7 +602,6 @@ class TableSourceITCase extends StreamingTestBase {
 
     env.execute()
 
-    val expected = Seq()
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertEquals(0, sink.getAppendResults.size)
   }
 }
