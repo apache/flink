@@ -34,9 +34,9 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
     def __init__(self, field_coders):
         self._field_coders = field_coders
-        self._filed_count = len(field_coders)
-        self._leading_complete_bytes_num = self._filed_count // 8
-        self._remaining_bits_num = self._filed_count % 8
+        self._field_count = len(field_coders)
+        self._leading_complete_bytes_num = self._field_count // 8
+        self._remaining_bits_num = self._field_count % 8
         self.null_mask_search_table = self.generate_null_mask_search_table()
         self.null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
         self.data_out_stream = create_OutputStream()
@@ -59,8 +59,8 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         field_coders = self._field_coders
         data_out_stream = self.data_out_stream
         for value in iter_value:
-            self.write_null_mask(value, data_out_stream)
-            for i in range(self._filed_count):
+            self._write_null_mask(value, data_out_stream)
+            for i in range(self._field_count):
                 item = value[i]
                 if item is not None:
                     field_coders[i].encode_to_stream(item, data_out_stream, nested)
@@ -70,15 +70,15 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         while in_stream.size() > 0:
-            yield self.create_result(in_stream, nested)
+            in_stream.read_var_int64()
+            yield self._decode_one_row_from_stream(in_stream, nested)
 
-    def create_result(self, in_stream: create_InputStream, nested: bool) -> List:
-        in_stream.read_var_int64()
-        null_mask = self.read_null_mask(in_stream)
+    def _decode_one_row_from_stream(self, in_stream: create_InputStream, nested: bool) -> List:
+        null_mask = self._read_null_mask(in_stream)
         return [None if null_mask[idx] else self._field_coders[idx].decode_from_stream(
-            in_stream, nested) for idx in range(0, self._filed_count)]
+            in_stream, nested) for idx in range(0, self._field_count)]
 
-    def write_null_mask(self, value, out_stream):
+    def _write_null_mask(self, value, out_stream):
         field_pos = 0
         null_byte_search_table = self.null_byte_search_table
         remaining_bits_num = self._remaining_bits_num
@@ -97,7 +97,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
                     b |= null_byte_search_table[i]
             out_stream.write_byte(b)
 
-    def read_null_mask(self, in_stream):
+    def _read_null_mask(self, in_stream):
         null_mask = []
         null_mask_search_table = self.null_mask_search_table
         remaining_bits_num = self._remaining_bits_num
@@ -121,14 +121,14 @@ class RowCoderImpl(FlattenRowCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
         field_coders = self._field_coders
-        self.write_null_mask(value, out_stream)
-        for i in range(self._filed_count):
+        self._write_null_mask(value, out_stream)
+        for i in range(self._field_count):
             item = value[i]
             if item is not None:
                 field_coders[i].encode_to_stream(item, out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
-        return Row(*self.create_result(in_stream, nested))
+        return Row(*self._decode_one_row_from_stream(in_stream, nested))
 
     def __repr__(self):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -426,7 +426,7 @@ class ArrowCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         while in_stream.size() > 0:
-            yield self._create_result(in_stream)
+            yield self._decode_one_batch_from_stream(in_stream)
 
     @staticmethod
     def _load_from_stream(stream):
@@ -446,9 +446,9 @@ class ArrowCoderImpl(StreamCoderImpl):
         arrays = [create_array(cols[i], self._schema.types[i]) for i in range(0, len(self._schema))]
         return pa.RecordBatch.from_arrays(arrays, self._schema)
 
-    def _create_result(self, in_stream: create_InputStream) -> List:
+    def _decode_one_batch_from_stream(self, in_stream: create_InputStream) -> List:
         self._resettable_io.set_input_bytes(in_stream.read_all(True))
-        # there is only arrow batch in the underlying input stream
+        # there is only one arrow batch in the underlying input stream
         table = pa.Table.from_batches([next(self._batch_reader)])
         return [c.to_pandas(date_as_object=True) for c in table.itercolumns()]
 
@@ -456,7 +456,7 @@ class ArrowCoderImpl(StreamCoderImpl):
         return 'ArrowCoderImpl[%s]' % self._schema
 
 
-class CustomLengthPrefixCoderImpl(StreamCoderImpl):
+class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
     def __init__(self, value_coder):
         self._value_coder = value_coder
 
@@ -464,10 +464,10 @@ class CustomLengthPrefixCoderImpl(StreamCoderImpl):
         self._value_coder.encode_to_stream(value, out, nested)
 
     def decode_from_stream(self, in_stream: create_InputStream, nested: bool) -> Any:
-        return self._value_coder.decode_from_stream(in_stream, False)
+        return self._value_coder.decode_from_stream(in_stream, nested)
 
     def get_estimated_size_and_observables(self, value: Any, nested=False):
         return 0, []
 
     def __repr__(self):
-        return 'CustomLengthPrefixCoderImpl[%s]' % self._value_coder
+        return 'PassThroughLengthPrefixCoderImpl[%s]' % self._value_coder

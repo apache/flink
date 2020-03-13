@@ -22,7 +22,7 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder
+    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -123,6 +123,14 @@ class CodersTest(unittest.TestCase):
         for item in generator_result:
             result.append(item)
         self.assertEqual(v, result)
+
+    def test_row_coder(self):
+        from pyflink.table import Row
+        field_coder = BigIntCoder()
+        field_count = 10
+        coder = RowCoder([field_coder for _ in range(field_count)])
+        v = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
+        self.check_coder(coder, v)
 
 
 if __name__ == '__main__':

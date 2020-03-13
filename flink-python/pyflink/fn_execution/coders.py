@@ -415,24 +415,23 @@ class ArrowCoder(DeterministicCoder):
         return 'ArrowCoder[%s]' % self._schema
 
 
-class CustomLengthPrefixCoder(LengthPrefixCoder):
+class PassThroughLengthPrefixCoder(LengthPrefixCoder):
     """
-    CustomLengthPrefixCoder will replace LengthPrefixCoder in Beam for performance optimization.
-    We need to get whole in_stream in decode_to_stream. However, LengthPrefixCoder of Beam will
-    only support partial in_stream of one input row data.
+    Coder which doesn't prefix the length of the encoded object as the length prefix will be handled
+    by the wrapped value coder.
     """
     def __init__(self, value_coder):
-        super(CustomLengthPrefixCoder, self).__init__(value_coder)
+        super(PassThroughLengthPrefixCoder, self).__init__(value_coder)
 
     def _create_impl(self):
-        return coder_impl.CustomLengthPrefixCoderImpl(self._value_coder.get_impl())
+        return coder_impl.PassThroughLengthPrefixCoderImpl(self._value_coder.get_impl())
 
     def __repr__(self):
-        return 'CustomLengthPrefixCoder[%s]' % self._value_coder
+        return 'PassThroughLengthPrefixCoder[%s]' % self._value_coder
 
 
 Coder.register_structured_urn(
-    common_urns.coders.LENGTH_PREFIX.urn, CustomLengthPrefixCoder)
+    common_urns.coders.LENGTH_PREFIX.urn, PassThroughLengthPrefixCoder)
 
 type_name = flink_fn_execution_pb2.Schema.TypeName
 _type_name_mappings = {
