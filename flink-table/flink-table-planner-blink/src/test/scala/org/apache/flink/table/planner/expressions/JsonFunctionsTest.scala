@@ -91,7 +91,9 @@ class JsonFunctionsTest extends ExpressionTestBase {
    * @param expectedValues array of expected values as result of
    *                       (IS_JSON_VALUE, IS_JSON_OBJECT, IS_JSON_ARRAY, IS_JSON_SCALAR)
    */
-  private def verifyPredicates(candidate: String, expr: Expression, expectedValues: Array[Boolean]): Unit = {
+  private def verifyPredicates(candidate: String,
+     expr: Expression,
+     expectedValues: Array[Boolean]): Unit = {
     assert(expectedValues.length == 4)
 
     testAllApis(
