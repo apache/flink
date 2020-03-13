@@ -50,7 +50,10 @@ public class TerminalUtils {
 		}
 	}
 
-	private static class MockOutputStream extends OutputStream {
+	/**
+	 * A mock {@link OutputStream} for testing.
+	 */
+	public static class MockOutputStream extends OutputStream {
 
 		@Override
 		public void write(int b) {

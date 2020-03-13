@@ -21,6 +21,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
+import org.apache.flink.table.client.cli.utils.TerminalUtils.MockOutputStream;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
@@ -44,7 +45,6 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -103,17 +103,11 @@ public class CliClientTest extends TestLogger {
 		Executor executor = mock(Executor.class);
 		doThrow(new SqlExecutionException("mocked exception")).when(executor).useDatabase(any(), any());
 		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
 		SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 
 		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			cliClient = new CliClient(terminal, sessionId, executor);
 			cliClient.open();
 			verify(executor).useDatabase(any(), any());
@@ -129,17 +123,11 @@ public class CliClientTest extends TestLogger {
 		Executor executor = mock(Executor.class);
 		doThrow(new SqlExecutionException("mocked exception")).when(executor).useCatalog(any(), any());
 		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
 		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			cliClient = new CliClient(terminal, sessionId, executor);
 			cliClient.open();
 			verify(executor).useCatalog(any(), any());
