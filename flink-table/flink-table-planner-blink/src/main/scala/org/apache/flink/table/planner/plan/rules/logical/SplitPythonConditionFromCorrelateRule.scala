@@ -22,9 +22,9 @@ import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalRel}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalRel, FlinkLogicalTableFunctionScan}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecCorrelateRule
-import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
+import org.apache.flink.table.planner.plan.utils.PythonUtil.{containsPythonCall, isNonPythonCall}
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor
 
 import scala.collection.JavaConversions._
@@ -52,7 +52,11 @@ class SplitPythonConditionFromCorrelateRule
     val right: FlinkLogicalCalc = call.rel(2).asInstanceOf[FlinkLogicalCalc]
     val joinType: JoinRelType = correlate.getJoinType
     val mergedCalc = StreamExecCorrelateRule.getMergedCalc(right)
+    val tableScan = StreamExecCorrelateRule
+      .getTableScan(mergedCalc)
+      .asInstanceOf[FlinkLogicalTableFunctionScan]
     joinType == JoinRelType.INNER &&
+      isNonPythonCall(tableScan.getCall) &&
       Option(mergedCalc.getProgram.getCondition)
         .map(mergedCalc.getProgram.expandLocalRef)
         .exists(containsPythonCall(_))
