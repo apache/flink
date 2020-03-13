@@ -71,4 +71,4 @@ If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) i
 you can try to increase the [managed memory](mem_setup.html#托管内存).
 
 Alternatively, you can increase the [JVM overhead](mem_detail.html).
-See also [how to configure memory for containers](mem_tuning.html#configure-memory-for-containers).
+See also [how to configure memory for containers](mem_tuning.html#容器container的内存配置).
