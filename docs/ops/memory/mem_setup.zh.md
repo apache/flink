@@ -56,7 +56,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 *Flink 总内存*会进一步划分为 JVM 堆内存、[托管内存](#托管内存)和*直接内存*。
 
 通过配置*进程总内存*可以指定由 Flink *JVM 进程*使用的总内存大小。
-对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存](mem_tuning.html#configure-memory-for-containers)（[Kubernetes](../deployment/kubernetes.html)、[Yarn](../deployment/yarn_setup.html) 或 [Mesos](../deployment/mesos.html)）。
+对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存](mem_tuning.html#容器container的内存配置)（[Kubernetes](../deployment/kubernetes.html)、[Yarn](../deployment/yarn_setup.html) 或 [Mesos](../deployment/mesos.html)）。
 
 此外，还可以通过设置[任务堆内存（Task Heap Memory）](#任务算子堆内存)和[托管内存](#托管内存)的方式进行内存配置（[`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size) 和 [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size)）。
 这是一种更细粒度的配置方式，更多细节请参考[相关文档](#配置堆内存和托管内存)。
@@ -99,7 +99,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 当同时指定二者时，会优先采用指定的大小（Size）。
 若二者均未指定，会根据[默认占比](../config.html#taskmanager-memory-managed-fraction)进行计算。
 
-请同时参考[如何配置 State Backend 内存](mem_tuning.html#configure-memory-for-state-backends)以及[如何配置批处理作业内存](mem_tuning.html#configure-memory-for-batch-jobs)。
+请同时参考[如何配置 State Backend 内存](mem_tuning.html#state-backend-的内存配置)以及[如何配置批处理作业内存](mem_tuning.html#批处理作业的内存配置)。
 
 ## 配置堆外内存（直接内存或本地内存）
 
