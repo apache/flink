@@ -375,7 +375,12 @@ public class CliClient {
 	}
 
 	private void callReset() {
-		executor.resetSessionProperties(sessionId);
+		try {
+			executor.resetSessionProperties(sessionId);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
 		printInfo(CliStrings.MESSAGE_RESET);
 	}
 
@@ -402,7 +407,12 @@ public class CliClient {
 		}
 		// set a property
 		else {
-			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1].trim());
+			try {
+				executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1].trim());
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+				return;
+			}
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SET).toAnsi());
 		}
 		terminal.flush();
