@@ -27,12 +27,7 @@ Flink附带了一个集成的交互式Python Shell。
 本地安装Flink，请看[本地安装](../getting-started/tutorials/local_setup.html)页面。
 您也可以从源码安装Flink，请看[从源码构建 Flink](../flinkDev/building.html)页面。
 
-<span class="label label-info">注意</span> Python Shell会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
-
-{% highlight bash %}
-$ python --version
-# the version printed here must be 3.5+
-{% endhighlight %}
+<span class="label label-info">注意</span> Python Shell会调用“python”命令。关于Python执行环境的要求，请参考Python Table API[环境安装]({{ site.baseurl }}/dev/dev/table/python/installation.html)。
 
 你可以通过PyPi安装PyFlink，然后使用Python Shell:
 
