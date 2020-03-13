@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
+import org.apache.flink.table.client.cli.utils.TerminalUtils.MockOutputStream;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
@@ -50,7 +51,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -66,6 +66,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the {@link CliClient}.
@@ -116,17 +120,11 @@ public class CliClientTest extends TestLogger {
 			})
 			.build();
 		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
 		SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 
 		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 
 			cliClient.open();
@@ -147,17 +145,11 @@ public class CliClientTest extends TestLogger {
 			.build();
 
 		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
 		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
 			assertThat(executor.getNumUseCatalogCalls(), is(1));
@@ -204,15 +196,8 @@ public class CliClientTest extends TestLogger {
 		String sessionId = mockExecutor.openSession(context);
 
 		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
-
 		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			Path historyFilePath = File.createTempFile("history", "tmp").toPath();
 			cliClient = new CliClient(terminal, sessionId, mockExecutor, historyFilePath);
 			cliClient.open();
@@ -233,18 +218,12 @@ public class CliClientTest extends TestLogger {
 		doThrow(new ValidationException("Property 'parallelism' must be a integer value but was: 10a"))
 			.when(executor).setSessionProperty(any(), any(), any());
 		InputStream inputStream = new ByteArrayInputStream("set execution.parallelism = 10a;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
 		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor);
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
 			verify(executor).setSessionProperty(any(), any(), any());
 		} finally {
