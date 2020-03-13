@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
@@ -219,6 +220,33 @@ public class CliClientTest extends TestLogger {
 			assertEquals(2, content.size());
 			assertTrue(content.get(0).contains("help"));
 			assertTrue(content.get(1).contains("use catalog cat"));
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
+	@Test
+	public void testInvalidateValue() throws Exception {
+		Executor executor = mock(Executor.class);
+		doThrow(new ValidationException("Property 'parallelism' must be a integer value but was: 10a"))
+			.when(executor).setSessionProperty(any(), any(), any());
+		InputStream inputStream = new ByteArrayInputStream("set execution.parallelism = 10a;\n".getBytes());
+		// don't care about the output
+		OutputStream outputStream = new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {
+			}
+		};
+		CliClient cliClient = null;
+		SessionContext sessionContext = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(sessionContext);
+
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			cliClient = new CliClient(terminal, sessionId, executor);
+			cliClient.open();
+			verify(executor).setSessionProperty(any(), any(), any());
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();

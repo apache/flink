@@ -209,8 +209,12 @@ public class CliClient {
 			if (line == null) {
 				continue;
 			}
-			final Optional<SqlCommandCall> cmdCall = parseCommand(line);
-			cmdCall.ifPresent(this::callCommand);
+			try {
+				final Optional<SqlCommandCall> cmdCall = parseCommand(line);
+				cmdCall.ifPresent(this::callCommand);
+			} catch (Throwable t) {
+				printException("Failed to execute command.", t);
+			}
 		}
 	}
 
