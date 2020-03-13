@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -59,6 +60,7 @@ public class RowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Row> {
 		fieldTypes.add(new BooleanType());
 		fieldTypes.add(new FloatType());
 		fieldTypes.add(new DoubleType());
+		fieldTypes.add(new VarCharType());
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (int i = 0; i < fieldTypes.size(); i++) {
@@ -86,10 +88,10 @@ public class RowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Row> {
 
 	@Override
 	public Row[] getTestData() {
-		Row row1 = Row.of((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0);
-		Row row2 = Row.of(null, (short) 2, 3, 4L, false, 1.0f, 1.0);
-		Row row3 = Row.of((byte) 1, null, 3, 4L, true, 1.0f, 1.0);
-		Row row4 = Row.of(null, null, null, null, null, null, null);
+		Row row1 = Row.of((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0, "hello");
+		Row row2 = Row.of(null, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文");
+		Row row3 = Row.of((byte) 1, null, 3, 4L, true, 1.0f, 1.0, "hello");
+		Row row4 = Row.of(null, null, null, null, null, null, null, null);
 		return new Row[]{row1, row2, row3, row4};
 	}
 }

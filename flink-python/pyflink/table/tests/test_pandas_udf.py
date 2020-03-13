@@ -109,6 +109,12 @@ class PandasUDFITTests(object):
                 'double_param of wrong type %s !' % type(double_param[0])
             return double_param
 
+        def varchar_func(varchar_param):
+            assert isinstance(varchar_param, pd.Series)
+            assert isinstance(varchar_param[0], str), \
+                'varchar_param of wrong type %s !' % type(varchar_param[0])
+            return varchar_param
+
         self.t_env.register_function(
             "tinyint_func",
             udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT(), udf_type="pandas"))
@@ -137,14 +143,19 @@ class PandasUDFITTests(object):
             "double_func",
             udf(double_func, [DataTypes.DOUBLE()], DataTypes.DOUBLE(), udf_type="pandas"))
 
+        self.t_env.register_function(
+            "varchar_func",
+            udf(varchar_func, [DataTypes.STRING()], DataTypes.STRING(), udf_type="pandas"))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'],
             [DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT(), DataTypes.BIGINT(),
-             DataTypes.BOOLEAN(), DataTypes.BOOLEAN(), DataTypes.FLOAT(), DataTypes.DOUBLE()])
+             DataTypes.BOOLEAN(), DataTypes.BOOLEAN(), DataTypes.FLOAT(), DataTypes.DOUBLE(),
+             DataTypes.STRING(), DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
-            [(1, 32767, -2147483648, 1, True, False, 1.0, 1.0)],
+            [(1, 32767, -2147483648, 1, True, False, 1.0, 1.0, 'hello', '中文')],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
@@ -153,7 +164,9 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("e", DataTypes.BOOLEAN()),
                  DataTypes.FIELD("f", DataTypes.BOOLEAN()),
                  DataTypes.FIELD("g", DataTypes.FLOAT()),
-                 DataTypes.FIELD("h", DataTypes.DOUBLE())]))
+                 DataTypes.FIELD("h", DataTypes.DOUBLE()),
+                 DataTypes.FIELD("i", DataTypes.STRING()),
+                 DataTypes.FIELD("j", DataTypes.STRING())]))
 
         t.select("tinyint_func(a),"
                  "smallint_func(b),"
@@ -162,12 +175,14 @@ class PandasUDFITTests(object):
                  "boolean_func(e),"
                  "boolean_func(f),"
                  "float_func(g),"
-                 "double_func(h)") \
+                 "double_func(h),"
+                 "varchar_func(i),"
+                 "varchar_func(j)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["1,32767,-2147483648,1,true,false,1.0,1.0"])
+                           ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文"])
 
 
 class StreamPandasUDFITTests(PandasUDFITTests,
