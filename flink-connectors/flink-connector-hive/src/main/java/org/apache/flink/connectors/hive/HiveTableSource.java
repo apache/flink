@@ -168,7 +168,9 @@ public class HiveTableSource implements
 			} catch (IOException e) {
 				throw new FlinkHiveException(e);
 			}
-			source.setParallelism(Math.min(Math.max(1, splitNum), max));
+			int parallelism = Math.min(Math.max(1, splitNum), max);
+		        parallelism = limit > 0l ? Math.min(parallelism, (int)limit) : parallelism;
+			source.setParallelism(parallelism);
 		}
 		return source.name(explainSource());
 	}
