@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -30,7 +30,7 @@ import java.io.Serializable;
  *
  * @param <OUT> The output type of the operator
  */
-@Internal
+@Experimental
 public interface StreamOperatorFactory<OUT> extends Serializable {
 
 	/**
