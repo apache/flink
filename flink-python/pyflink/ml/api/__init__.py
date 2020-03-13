@@ -18,7 +18,11 @@
 
 from pyflink.ml.api.ml_environment import MLEnvironment
 from pyflink.ml.api.ml_environment_factory import MLEnvironmentFactory
+from pyflink.ml.api.base import Transformer, Estimator, Model, Pipeline, \
+    PipelineStage, JavaTransformer, JavaEstimator, JavaModel
+
 
 __all__ = [
-    "MLEnvironment", "MLEnvironmentFactory"
+    "MLEnvironment", "MLEnvironmentFactory", "Transformer", "Estimator",  "Model",
+    "Pipeline", "PipelineStage", "JavaTransformer", "JavaEstimator", "JavaModel"
 ]
