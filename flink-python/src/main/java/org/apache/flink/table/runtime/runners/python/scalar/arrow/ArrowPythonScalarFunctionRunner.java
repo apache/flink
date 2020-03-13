@@ -50,6 +50,6 @@ public class ArrowPythonScalarFunctionRunner extends AbstractArrowPythonScalarFu
 
 	@Override
 	public ArrowWriter<Row> createArrowWriter() {
-		return ArrowUtils.createRowArrowWriter(root);
+		return ArrowUtils.createRowArrowWriter(root, getInputType());
 	}
 }

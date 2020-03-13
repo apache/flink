@@ -100,7 +100,7 @@ public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionO
 				getPythonConfig().getMaxArrowBatchSize()) {
 				@Override
 				public ArrowWriter<Row> createArrowWriter() {
-					return ArrowUtils.createRowArrowWriter(root);
+					return ArrowUtils.createRowArrowWriter(root, getInputType());
 				}
 			};
 		}

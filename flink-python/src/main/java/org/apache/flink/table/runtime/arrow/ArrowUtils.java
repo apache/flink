@@ -41,11 +41,9 @@ import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.TinyIntWriter;
-import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -98,19 +96,19 @@ public final class ArrowUtils {
 	/**
 	 * Creates an {@link ArrowWriter} for the specified {@link VectorSchemaRoot}.
 	 */
-	public static ArrowWriter<Row> createRowArrowWriter(VectorSchemaRoot root) {
+	public static ArrowWriter<Row> createRowArrowWriter(VectorSchemaRoot root, RowType rowType) {
 		ArrowFieldWriter<Row>[] fieldWriters = new ArrowFieldWriter[root.getFieldVectors().size()];
 		List<FieldVector> vectors = root.getFieldVectors();
 		for (int i = 0; i < vectors.size(); i++) {
 			FieldVector vector = vectors.get(i);
 			vector.allocateNew();
-			fieldWriters[i] = createRowArrowFieldWriter(vector);
+			fieldWriters[i] = createRowArrowFieldWriter(vector, rowType.getTypeAt(i));
 		}
 
 		return new ArrowWriter<>(root, fieldWriters);
 	}
 
-	private static ArrowFieldWriter<Row> createRowArrowFieldWriter(FieldVector vector) {
+	private static ArrowFieldWriter<Row> createRowArrowFieldWriter(FieldVector vector, LogicalType fieldType) {
 		if (vector instanceof TinyIntVector) {
 			return new TinyIntWriter((TinyIntVector) vector);
 		} else if (vector instanceof SmallIntVector) {
@@ -121,26 +119,26 @@ public final class ArrowUtils {
 			return new BigIntWriter((BigIntVector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
-				"Unsupported type %s.", fromArrowFieldToLogicalType(vector.getField())));
+				"Unsupported type %s.", fieldType));
 		}
 	}
 
 	/**
 	 * Creates an {@link ArrowWriter} for blink planner for the specified {@link VectorSchemaRoot}.
 	 */
-	public static ArrowWriter<BaseRow> createBaseRowArrowWriter(VectorSchemaRoot root) {
+	public static ArrowWriter<BaseRow> createBaseRowArrowWriter(VectorSchemaRoot root, RowType rowType) {
 		ArrowFieldWriter<BaseRow>[] fieldWriters = new ArrowFieldWriter[root.getFieldVectors().size()];
 		List<FieldVector> vectors = root.getFieldVectors();
 		for (int i = 0; i < vectors.size(); i++) {
 			FieldVector vector = vectors.get(i);
 			vector.allocateNew();
-			fieldWriters[i] = createBaseRowArrowFieldWriter(vector);
+			fieldWriters[i] = createBaseRowArrowFieldWriter(vector, rowType.getTypeAt(i));
 		}
 
 		return new ArrowWriter<>(root, fieldWriters);
 	}
 
-	private static ArrowFieldWriter<BaseRow> createBaseRowArrowFieldWriter(FieldVector vector) {
+	private static ArrowFieldWriter<BaseRow> createBaseRowArrowFieldWriter(FieldVector vector, LogicalType fieldType) {
 		if (vector instanceof TinyIntVector) {
 			return new BaseRowTinyIntWriter((TinyIntVector) vector);
 		} else if (vector instanceof SmallIntVector) {
@@ -151,23 +149,24 @@ public final class ArrowUtils {
 			return new BaseRowBigIntWriter((BigIntVector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
-				"Unsupported type %s.", fromArrowFieldToLogicalType(vector.getField())));
+				"Unsupported type %s.", fieldType));
 		}
 	}
 
 	/**
 	 * Creates an {@link ArrowReader} for the specified {@link VectorSchemaRoot}.
 	 */
-	public static RowArrowReader createRowArrowReader(VectorSchemaRoot root) {
+	public static RowArrowReader createRowArrowReader(VectorSchemaRoot root, RowType rowType) {
 		List<ArrowFieldReader> fieldReaders = new ArrayList<>();
-		for (FieldVector vector : root.getFieldVectors()) {
-			fieldReaders.add(createRowArrowFieldReader(vector));
+		List<FieldVector> fieldVectors = root.getFieldVectors();
+		for (int i = 0; i < fieldVectors.size(); i++) {
+			fieldReaders.add(createRowArrowFieldReader(fieldVectors.get(i), rowType.getTypeAt(i)));
 		}
 
 		return new RowArrowReader(fieldReaders.toArray(new ArrowFieldReader[0]));
 	}
 
-	private static ArrowFieldReader createRowArrowFieldReader(FieldVector vector) {
+	private static ArrowFieldReader createRowArrowFieldReader(FieldVector vector, LogicalType fieldType) {
 		if (vector instanceof TinyIntVector) {
 			return new TinyIntFieldReader((TinyIntVector) vector);
 		} else if (vector instanceof SmallIntVector) {
@@ -178,23 +177,24 @@ public final class ArrowUtils {
 			return new BigIntFieldReader((BigIntVector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
-				"Unsupported type %s.", fromArrowFieldToLogicalType(vector.getField())));
+				"Unsupported type %s.", fieldType));
 		}
 	}
 
 	/**
 	 * Creates an {@link ArrowReader} for blink planner for the specified {@link VectorSchemaRoot}.
 	 */
-	public static BaseRowArrowReader createBaseRowArrowReader(VectorSchemaRoot root) {
+	public static BaseRowArrowReader createBaseRowArrowReader(VectorSchemaRoot root, RowType rowType) {
 		List<ColumnVector> columnVectors = new ArrayList<>();
-		for (FieldVector vector : root.getFieldVectors()) {
-			columnVectors.add(createColumnVector(vector));
+		List<FieldVector> fieldVectors = root.getFieldVectors();
+		for (int i = 0; i < fieldVectors.size(); i++) {
+			columnVectors.add(createColumnVector(fieldVectors.get(i), rowType.getTypeAt(i)));
 		}
 
 		return new BaseRowArrowReader(columnVectors.toArray(new ColumnVector[0]));
 	}
 
-	private static ColumnVector createColumnVector(FieldVector vector) {
+	private static ColumnVector createColumnVector(FieldVector vector, LogicalType fieldType) {
 		if (vector instanceof TinyIntVector) {
 			return new ArrowTinyIntColumnVector((TinyIntVector) vector);
 		} else if (vector instanceof SmallIntVector) {
@@ -205,45 +205,8 @@ public final class ArrowUtils {
 			return new ArrowBigIntColumnVector((BigIntVector) vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
-				"Unsupported type %s.", fromArrowFieldToLogicalType(vector.getField())));
+				"Unsupported type %s.", fieldType));
 		}
-	}
-
-	public static LogicalType fromArrowFieldToLogicalType(Field field) {
-		if (field.getType() == ArrowType.List.INSTANCE) {
-			LogicalType elementType = fromArrowFieldToLogicalType(field.getChildren().get(0));
-			return new ArrayType(field.isNullable(), elementType);
-		} else if (field.getType() == ArrowType.Struct.INSTANCE) {
-			List<RowType.RowField> fields = field.getChildren().stream().map(child -> {
-				LogicalType type = fromArrowFieldToLogicalType(child);
-				return new RowType.RowField(child.getName(), type, null);
-			}).collect(Collectors.toList());
-			return new RowType(field.isNullable(), fields);
-		} else if (field.getType() instanceof ArrowType.Map) {
-			Field elementField = field.getChildren().get(0);
-			LogicalType keyType = fromArrowFieldToLogicalType(elementField.getChildren().get(0));
-			LogicalType valueType = fromArrowFieldToLogicalType(elementField.getChildren().get(1));
-			return new MapType(field.isNullable(), keyType, valueType);
-		} else {
-			return fromArrowTypeToLogicalType(field.isNullable(), field.getType());
-		}
-	}
-
-	private static LogicalType fromArrowTypeToLogicalType(boolean isNullable, ArrowType arrowType) {
-		if (arrowType instanceof ArrowType.Int && ((ArrowType.Int) arrowType).getIsSigned()) {
-			ArrowType.Int intType = (ArrowType.Int) arrowType;
-			if (intType.getBitWidth() == 8) {
-				return new TinyIntType(isNullable);
-			} else if (intType.getBitWidth() == 8 * 2) {
-				return new SmallIntType(isNullable);
-			} else if (intType.getBitWidth() == 8 * 4) {
-				return new IntType(isNullable);
-			} else if (intType.getBitWidth() == 8 * 8) {
-				return new BigIntType(isNullable);
-			}
-		}
-		throw new UnsupportedOperationException(
-			String.format("Unexpected arrow type: %s.", arrowType.toString()));
 	}
 
 	private static class LogicalTypeToArrowTypeConverter extends LogicalTypeDefaultVisitor<ArrowType> {
