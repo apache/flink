@@ -1737,7 +1737,7 @@ under the License.
 					<configuration>
 						<quiet>true</quiet>
 						<detectOfflineLinks>false</detectOfflineLinks>
-						<additionalJOptions>
+						<additionalJOptions combine.children="append">
 							<additionalJOption>-Xdoclint:none</additionalJOption>
 						</additionalJOptions>
 					</configuration>
