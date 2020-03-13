@@ -906,6 +906,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "FROM_BASE64('5L2g5aW9')",
       "你好"
     )
+
+    testSqlApi(
+      "FROM_BASE64(CAST(x'6147567362473867643239796247513D' AS VARBINARY))",
+      "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(x'6147567362473867643239796247513D')",
+      "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(f58)",
+      "你好")
   }
 
   @Test
@@ -3018,37 +3030,37 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f18.floor(TimeIntervalUnit.YEAR),
       "f18.floor(YEAR)",
       "FLOOR(f18 TO YEAR)",
-      "1996-01-01 00:00:00")
+      "1996-01-01 00:00:00.000")
 
     testAllApis(
       'f18.floor(TimeIntervalUnit.MONTH),
       "f18.floor(MONTH)",
       "FLOOR(f18 TO MONTH)",
-      "1996-11-01 00:00:00")
+      "1996-11-01 00:00:00.000")
 
     testAllApis(
       'f18.floor(TimeIntervalUnit.DAY),
       "f18.floor(DAY)",
       "FLOOR(f18 TO DAY)",
-      "1996-11-10 00:00:00")
+      "1996-11-10 00:00:00.000")
 
     testAllApis(
       'f18.floor(TimeIntervalUnit.HOUR),
       "f18.floor(HOUR)",
       "FLOOR(f18 TO HOUR)",
-      "1996-11-10 06:00:00")
+      "1996-11-10 06:00:00.000")
 
     testAllApis(
       'f18.floor(TimeIntervalUnit.MINUTE),
       "f18.floor(MINUTE)",
       "FLOOR(f18 TO MINUTE)",
-      "1996-11-10 06:55:00")
+      "1996-11-10 06:55:00.000")
 
     testAllApis(
       'f18.floor(TimeIntervalUnit.SECOND),
       "f18.floor(SECOND)",
       "FLOOR(f18 TO SECOND)",
-      "1996-11-10 06:55:44")
+      "1996-11-10 06:55:44.000")
 
     testAllApis(
       'f17.floor(TimeIntervalUnit.HOUR),
@@ -3084,37 +3096,37 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f18.ceil(TimeIntervalUnit.YEAR),
       "f18.ceil(YEAR)",
       "CEIL(f18 TO YEAR)",
-      "1997-01-01 00:00:00")
+      "1997-01-01 00:00:00.000")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.MONTH),
       "f18.ceil(MONTH)",
       "CEIL(f18 TO MONTH)",
-      "1996-12-01 00:00:00")
+      "1996-12-01 00:00:00.000")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.DAY),
       "f18.ceil(DAY)",
       "CEIL(f18 TO DAY)",
-      "1996-11-11 00:00:00")
+      "1996-11-11 00:00:00.000")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.HOUR),
       "f18.ceil(HOUR)",
       "CEIL(f18 TO HOUR)",
-      "1996-11-10 07:00:00")
+      "1996-11-10 07:00:00.000")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.MINUTE),
       "f18.ceil(MINUTE)",
       "CEIL(f18 TO MINUTE)",
-      "1996-11-10 06:56:00")
+      "1996-11-10 06:56:00.000")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.SECOND),
       "f18.ceil(SECOND)",
       "CEIL(f18 TO SECOND)",
-      "1996-11-10 06:55:45")
+      "1996-11-10 06:55:45.000")
 
     testAllApis(
       'f17.ceil(TimeIntervalUnit.HOUR),
@@ -3538,25 +3550,38 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "timestampadd(DAY, 1, date '2016-06-15')",
       "2016-06-16")
 
-    testAllApis("2016-06-15".toTimestamp - 1.hour,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp - 1.hour,
       "'2016-06-15'.toTimestamp - 1.hour",
+      "2016-06-14 23:00:00.000")
+    testSqlApi(
       "timestampadd(HOUR, -1, date '2016-06-15')",
-      "2016-06-14 23:00:00")
+      "2016-06-14 23:00:00.000000")
 
-    testAllApis("2016-06-15".toTimestamp + 1.minute,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp + 1.minute,
       "'2016-06-15'.toTimestamp + 1.minute",
-      "timestampadd(MINUTE, 1, date '2016-06-15')",
-      "2016-06-15 00:01:00")
+      "2016-06-15 00:01:00.000")
+    testSqlApi("timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.000000")
 
-    testAllApis("2016-06-15".toTimestamp - 1.second,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp - 1.second,
       "'2016-06-15'.toTimestamp - 1.second",
-      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
-      "2016-06-14 23:59:59")
+      "2016-06-14 23:59:59.000")
+    testSqlApi("timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.000000")
 
-    testAllApis("2016-06-15".toTimestamp + 1.second,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp + 1.second,
       "'2016-06-15'.toTimestamp + 1.second",
-      "timestampadd(SECOND, 1, date '2016-06-15')",
-      "2016-06-15 00:00:01")
+      "2016-06-15 00:00:01.000")
+    testSqlApi("timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.000000")
 
     testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.second,
       "nullOf(SQL_TIMESTAMP) + 1.second",
@@ -3615,9 +3640,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testToTimestamp(): Unit = {
     testSqlApi("to_timestamp('abc')", "null")
-    testSqlApi("to_timestamp('2017-09-15 00:00:00')", "2017-09-15 00:00:00")
-    testSqlApi("to_timestamp('20170915000000', 'yyyyMMddHHmmss')", "2017-09-15 00:00:00")
-    testSqlApi("to_timestamp('2017-09-15', 'yyyy-MM-dd')", "2017-09-15 00:00:00")
+    testSqlApi("to_timestamp('2017-09-15 00:00:00')", "2017-09-15 00:00:00.000")
+    testSqlApi("to_timestamp('20170915000000', 'yyyyMMddHHmmss')", "2017-09-15 00:00:00.000")
+    testSqlApi("to_timestamp('2017-09-15', 'yyyy-MM-dd')", "2017-09-15 00:00:00.000")
     // test with null input
     testSqlApi("to_timestamp(cast(null as varchar))", "null")
   }
@@ -4158,5 +4183,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "IS_ALPHA(f33)",
       "false")
+  }
+
+  @Test
+  def testRawTypeEquality(): Unit = {
+    testSqlApi(
+      "f55=f56",
+      "false")
+
+    testSqlApi(
+      "f55=f57",
+      "true")
   }
 }

@@ -21,6 +21,8 @@ package org.apache.flink.kubernetes.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -29,12 +31,20 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class KubernetesConfigOptions {
 
-	public static final ConfigOption<String> REST_SERVICE_EXPOSED_TYPE =
-		key("kubernetes.rest-service.exposed.type")
+	public static final ConfigOption<String> CONTEXT =
+		key("kubernetes.context")
 		.stringType()
-		.defaultValue(ServiceExposedType.LoadBalancer.toString())
-		.withDescription("It could be ClusterIP/NodePort/LoadBalancer(default). When set to ClusterIP, the rest service" +
-				"will not be created.");
+		.noDefaultValue()
+		.withDescription("The desired context from your Kubernetes config file used to configure the Kubernetes client " +
+			"for interacting with the cluster. This could be helpful if one has multiple contexts configured and " +
+			"wants to administrate different Flink clusters on different Kubernetes clusters/contexts.");
+
+	public static final ConfigOption<ServiceExposedType> REST_SERVICE_EXPOSED_TYPE =
+		key("kubernetes.rest-service.exposed.type")
+		.enumType(ServiceExposedType.class)
+		.defaultValue(ServiceExposedType.LoadBalancer)
+		.withDescription("The type of the rest service (ClusterIP or NodePort or LoadBalancer). " +
+			"When set to ClusterIP, the rest service will not be created.");
 
 	public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
 		key("kubernetes.jobmanager.service-account")
@@ -62,6 +72,14 @@ public class KubernetesConfigOptions {
 		.defaultValue("IfNotPresent")
 		.withDescription("Kubernetes image pull policy. Valid values are Always, Never, and IfNotPresent. " +
 			"The default policy is IfNotPresent to avoid putting pressure to image repository.");
+
+	public static final ConfigOption<List<String>> CONTAINER_IMAGE_PULL_SECRETS =
+		key("kubernetes.container.image.pull-secrets")
+		.stringType()
+		.asList()
+		.noDefaultValue()
+		.withDescription("A semicolon-separated list of the Kubernetes secrets used to access " +
+			"private image registries.");
 
 	public static final ConfigOption<String> KUBE_CONFIG_FILE =
 		key("kubernetes.config.file")

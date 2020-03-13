@@ -107,7 +107,7 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
 		.argName("pythonInterpreterPath")
 		.desc("Specify the path of the python interpreter used to execute the python UDF worker " +
 			"(e.g.: --pyExecutable /usr/local/bin/python3). " +
-			"The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.15.0), " +
+			"The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.19.0), " +
 			"Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). " +
 			"Please ensure that the specified environment meets the above requirements.")
 		.build();

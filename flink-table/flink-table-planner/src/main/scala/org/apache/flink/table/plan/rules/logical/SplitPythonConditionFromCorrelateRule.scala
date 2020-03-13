@@ -23,7 +23,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalRel}
-import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
+import org.apache.flink.table.plan.util.PythonUtil.{containsPythonCall, isNonPythonCall}
 import org.apache.flink.table.plan.util.{CorrelateUtil, RexDefaultVisitor}
 
 import scala.collection.JavaConversions._
@@ -51,10 +51,13 @@ class SplitPythonConditionFromCorrelateRule
     val right: FlinkLogicalCalc = call.rel(2).asInstanceOf[FlinkLogicalCalc]
     val joinType: JoinRelType = correlate.getJoinType
     val mergedCalc = CorrelateUtil.getMergedCalc(right)
+    val tableScan = CorrelateUtil.getTableFunctionScan(mergedCalc)
     joinType == JoinRelType.INNER &&
+      tableScan.isDefined &&
+      isNonPythonCall(tableScan.get.getCall) &&
       Option(mergedCalc.getProgram.getCondition)
         .map(mergedCalc.getProgram.expandLocalRef)
-        .exists(containsPythonCall)
+        .exists(containsPythonCall(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -95,7 +98,7 @@ class SplitPythonConditionFromCorrelateRule
       correlate.getRowType.getFieldCount - mergedCalc.getRowType.getFieldCount)
 
     val pythonFilters = correlateFilters
-      .filter(containsPythonCall)
+      .filter(containsPythonCall(_))
       .map(_.accept(inputRefRewriter))
     val topCalcCondition = RexUtil.composeConjunction(rexBuilder, pythonFilters)
 

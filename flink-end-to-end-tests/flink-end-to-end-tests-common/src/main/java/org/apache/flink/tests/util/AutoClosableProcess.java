@@ -46,7 +46,7 @@ public class AutoClosableProcess implements AutoCloseable {
 
 	private final Process process;
 
-	public AutoClosableProcess(final Process process) {
+	private AutoClosableProcess(final Process process) {
 		Preconditions.checkNotNull(process);
 		this.process = process;
 	}

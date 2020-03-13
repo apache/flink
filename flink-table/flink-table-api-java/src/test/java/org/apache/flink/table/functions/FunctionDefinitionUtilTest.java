@@ -40,32 +40,56 @@ public class FunctionDefinitionUtilTest {
 
 	@Test
 	public void testTableFunction() {
-		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
+		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
 			TestTableFunction.class.getName()
 		);
 
-		assertTrue(((TableFunctionDefinition) fd).getTableFunction() instanceof TestTableFunction);
+		assertTrue(((TableFunctionDefinition) fd1).getTableFunction() instanceof TestTableFunction);
+
+		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
+				"test",
+				TestTableFunctionWithoutResultType.class.getName()
+		);
+
+		assertTrue(((TableFunctionDefinition) fd2).getTableFunction() instanceof TestTableFunctionWithoutResultType);
 	}
 
 	@Test
 	public void testAggregateFunction() {
-		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
+		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
 			TestAggFunction.class.getName()
 		);
 
-		assertTrue(((AggregateFunctionDefinition) fd).getAggregateFunction() instanceof TestAggFunction);
+		assertTrue(((AggregateFunctionDefinition) fd1).getAggregateFunction() instanceof TestAggFunction);
+
+		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
+				"test",
+				TestAggFunctionWithoutResultType.class.getName()
+		);
+
+		assertTrue(((AggregateFunctionDefinition) fd2).getAggregateFunction()
+				instanceof TestAggFunctionWithoutResultType);
+
 	}
 
 	@Test
 	public void testTableAggregateFunction() {
-		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
+		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
 			TestTableAggFunction.class.getName()
 		);
 
-		assertTrue(((TableAggregateFunctionDefinition) fd).getTableAggregateFunction() instanceof TestTableAggFunction);
+		assertTrue(((TableAggregateFunctionDefinition) fd1).getTableAggregateFunction() instanceof TestTableAggFunction);
+
+		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
+				"test",
+				TestTableAggFunctionWithoutResultType.class.getName()
+		);
+
+		assertTrue(((TableAggregateFunctionDefinition) fd2).getTableAggregateFunction()
+				instanceof TestTableAggFunctionWithoutResultType);
 	}
 
 	/**
@@ -83,6 +107,12 @@ public class FunctionDefinitionUtilTest {
 		public TypeInformation getResultType() {
 			return TypeInformation.of(Object.class);
 		}
+	}
+
+	/**
+	 * Test function.
+	 */
+	public static class TestTableFunctionWithoutResultType extends TableFunction<String> {
 	}
 
 	/**
@@ -113,6 +143,21 @@ public class FunctionDefinitionUtilTest {
 	/**
 	 * Test function.
 	 */
+	public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, Long> {
+		@Override
+		public Long createAccumulator() {
+			return null;
+		}
+
+		@Override
+		public Long getValue(Long accumulator) {
+			return null;
+		}
+	}
+
+	/**
+	 * Test function.
+	 */
 	public static class TestTableAggFunction extends TableAggregateFunction {
 		@Override
 		public Object createAccumulator() {
@@ -127,6 +172,16 @@ public class FunctionDefinitionUtilTest {
 		@Override
 		public TypeInformation getAccumulatorType() {
 			return TypeInformation.of(Object.class);
+		}
+	}
+
+	/**
+	 * Test function.
+	 */
+	public static class TestTableAggFunctionWithoutResultType extends TableAggregateFunction<Long, Long> {
+		@Override
+		public Long createAccumulator() {
+			return null;
 		}
 	}
 }

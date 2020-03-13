@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -43,6 +44,7 @@ import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 
 import java.util.List;
 
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.adaptArguments;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidCallException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidInputException;
@@ -56,6 +58,8 @@ import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUne
 @Internal
 public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker {
 
+	private final DataTypeFactory dataTypeFactory;
+
 	private final FunctionDefinition definition;
 
 	private final TypeInference typeInference;
@@ -63,8 +67,10 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 	private final SqlOperandCountRange countRange;
 
 	public TypeInferenceOperandChecker(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
+		this.dataTypeFactory = dataTypeFactory;
 		this.definition = definition;
 		this.typeInference = typeInference;
 		this.countRange = new ArgumentCountRange(typeInference.getInputTypeStrategy().getArgumentCount());
@@ -72,7 +78,11 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 
 	@Override
 	public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-		final CallContext callContext = new CallBindingCallContext(definition, callBinding, null);
+		final CallContext callContext = new CallBindingCallContext(
+			dataTypeFactory,
+			definition,
+			callBinding,
+			null);
 		try {
 			return checkOperandTypesOrError(callBinding, callContext);
 		}
@@ -93,7 +103,7 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 
 	@Override
 	public String getAllowedSignatures(SqlOperator op, String opName) {
-		return TypeInferenceUtil.generateSignature(opName, definition, typeInference);
+		return TypeInferenceUtil.generateSignature(typeInference, opName, definition);
 	}
 
 	@Override
@@ -128,7 +138,7 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 	}
 
 	private void insertImplicitCasts(SqlCallBinding callBinding, List<DataType> expectedDataTypes) {
-		final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) callBinding.getTypeFactory();
+		final FlinkTypeFactory flinkTypeFactory = unwrapTypeFactory(callBinding);
 		final List<SqlNode> operands = callBinding.operands();
 		for (int i = 0; i < operands.size(); i++) {
 			final LogicalType expectedType = expectedDataTypes.get(i).getLogicalType();

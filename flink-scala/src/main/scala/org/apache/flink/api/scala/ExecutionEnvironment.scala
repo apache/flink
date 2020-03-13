@@ -29,7 +29,7 @@ import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.core.execution.{JobClient, JobListener, PipelineExecutor}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
@@ -190,6 +190,23 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def registerType(typeClass: Class[_]) {
     javaEnv.registerType(typeClass)
+  }
+
+  /**
+   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
+   * [[org.apache.flink.configuration.PipelineOptions#CACHED_FILES]]. It will reconfigure
+   * [[ExecutionEnvironment]] and [[ExecutionConfig]].
+   *
+   * It will change the value of a setting only if a corresponding option was set in the
+   * `configuration`. If a key is not present, the current value of a field will remain
+   * untouched.
+   *
+   * @param configuration a configuration to read the values from
+   * @param classLoader   a class loader to use when loading classes
+   */
+  @PublicEvolving
+  def configure(configuration: ReadableConfig, classLoader: ClassLoader): Unit = {
+    javaEnv.configure(configuration, classLoader)
   }
 
   /**

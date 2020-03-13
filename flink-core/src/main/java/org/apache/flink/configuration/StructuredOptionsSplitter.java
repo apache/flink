@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.Internal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,6 +51,36 @@ class StructuredOptionsSplitter {
 	static List<String> splitEscaped(String string, char delimiter) {
 		List<Token> tokens = tokenize(checkNotNull(string), delimiter);
 		return processTokens(tokens);
+	}
+
+	/**
+	 * Escapes the given string with single quotes, if the input string contains a double quote or any of the
+	 * given {@code charsToEscape}. Any single quotes in the input string will be escaped by doubling.
+	 *
+	 * <p>Given that the escapeChar is (;)
+	 *
+	 * <p>Examples:
+	 * <ul>
+	 *     <li>A,B,C,D => A,B,C,D</li>
+	 *     <li>A'B'C'D => 'A''B''C''D'</li>
+	 *     <li>A;BCD => 'A;BCD'</li>
+	 *     <li>AB"C"D => 'AB"C"D'</li>
+	 *     <li>AB'"D:B => 'AB''"D:B'</li>
+	 * </ul>
+	 *
+	 * @param string a string which needs to be escaped
+	 * @param charsToEscape escape chars for the escape conditions
+	 * @return escaped string by single quote
+	 */
+	static String escapeWithSingleQuote(String string, String... charsToEscape) {
+		boolean escape = Arrays.stream(charsToEscape).anyMatch(string::contains)
+			|| string.contains("\"") || string.contains("'");
+
+		if (escape) {
+			return "'" + string.replaceAll("'", "''") + "'";
+		}
+
+		return string;
 	}
 
 	private static List<String> processTokens(List<Token> tokens) {

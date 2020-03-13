@@ -180,7 +180,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_function():
         gateway = get_gateway()
         j_function = gateway.jvm.CatalogFunctionImpl(
-            "org.apache.flink.table.functions.python.SimplePythonFunction")
+            "org.apache.flink.table.functions.python.PythonScalarFunction")
         return CatalogFunction(j_function)
 
     @staticmethod

@@ -1,0 +1,36 @@
+== Abstract Syntax Tree ==
+LogicalProject(first=[$0])
+  FlinkLogicalDataStreamScan(fields=[first, id, score, last])
+
+== Optimized Logical Plan ==
+DataStreamCalc(select=[first])
+  DataStreamScan(fields=[first, id, score, last])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : from: (first, id, score, last)
+		ship_strategy : REBALANCE
+
+		 : Operator
+			content : where: (>(id, 0)), select: (last)
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : to: Row
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : from: (first, id, score, last)
+					ship_strategy : REBALANCE
+
+					 : Operator
+						content : select: (first)
+						ship_strategy : FORWARD
+
+						 : Data Sink
+							content : Sink: Unnamed
+							ship_strategy : FORWARD
+

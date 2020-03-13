@@ -22,7 +22,7 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder
+    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -112,6 +112,12 @@ class CodersTest(unittest.TestCase):
         decimal.getcontext().prec = 2
         self.check_coder(coder, decimal.Decimal('1.001'))
         self.assertEqual(decimal.getcontext().prec, 2)
+
+    def test_flatten_row_coder(self):
+        field_coder = BigIntCoder()
+        field_count = 10
+        coder = FlattenRowCoder([field_coder for _ in range(field_count)])
+        self.check_coder(coder, [None if i % 2 == 0 else i for i in range(field_count)])
 
 
 if __name__ == '__main__':

@@ -25,7 +25,6 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -104,9 +103,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 100);
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+		config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
+		config.set(TaskManagerOptions.CPU_CORES, 1.0);
 		config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
-		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("512m"));
 
 		try (final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(config)) {
 

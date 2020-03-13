@@ -96,11 +96,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 			new TestInputChannel(inputGate, 1)
 		};
 
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0]);
-
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1]);
+		inputGate.setInputChannel(inputChannels[0]);
+		inputGate.setInputChannel(inputChannels[1]);
 
 		// Test
 		inputChannels[0].readBuffer();
@@ -149,7 +146,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			assertTrue(compressedBuffer.isCompressed());
 
 			inputChannel.read(compressedBuffer);
-			inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+			inputGate.setInputChannel(inputChannel);
 			inputGate.notifyChannelNonEmpty(inputChannel);
 
 			Optional<BufferOrEvent> bufferOrEvent = inputGate.getNext();
@@ -166,7 +163,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	public void testIsAvailable() throws Exception {
 		final SingleInputGate inputGate = createInputGate(1);
 		TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
-		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+		inputGate.setInputChannel(inputChannel);
 
 		testIsAvailable(inputGate, inputGate, inputChannel);
 	}
@@ -175,7 +172,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	public void testIsAvailableAfterFinished() throws Exception {
 		final SingleInputGate inputGate = createInputGate(1);
 		TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
-		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+		inputGate.setInputChannel(inputChannel);
 
 		testIsAvailableAfterFinished(
 			inputGate,
@@ -195,11 +192,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 			new TestInputChannel(inputGate, 1)
 		};
 
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0]);
-
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1]);
+		inputGate.setInputChannel(inputChannels[0]);
+		inputGate.setInputChannel(inputChannels[1]);
 
 		// Test
 		inputChannels[0].readBuffer();
@@ -627,7 +621,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		final LocalInputChannel localChannel = createLocalInputChannel(inputGate, new ResultPartitionManager());
 		final ResultPartitionID partitionId = localChannel.getPartitionId();
 
-		inputGate.setInputChannel(partitionId.getPartitionId(), localChannel);
+		inputGate.setInputChannel(localChannel);
 		localChannel.setError(new PartitionNotFoundException(partitionId));
 		try {
 			inputGate.getNext();

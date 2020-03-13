@@ -894,7 +894,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  @Ignore("Enable after UnaryUpdatableTopN is supported")
   @Test
   def testTopNWithGroupByAvgWithoutRowNumber(): Unit = {
     val data = List(
@@ -937,25 +936,37 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.execute("test")
 
     val expected = List(
-      "(true,book,1,100.0)",
-      "(true,book,3,110.0)",
-      "(true,book,4,120.0)",
-      "(true,book,1,150.0)",
-      "(true,book,1,166.66666666666666)",
-      "(true,book,2,300.0)",
-      "(false,book,3,110.0)",
-      "(true,book,2,350.0)",
-      "(true,book,4,310.0)",
-      "(true,book,1,225.0)",
-      "(true,fruit,5,100.0)")
+      "(true,book,1,100)",
+      "(true,book,3,110)",
+      "(true,book,4,120)",
+      "(false,book,1,100)",
+      "(true,book,1,150)",
+      "(false,book,1,150)",
+      "(true,book,1,166)",
+      "(false,book,3,110)",
+      "(true,book,2,300)",
+      "(false,book,2,300)",
+      "(true,book,3,110)",
+      "(false,book,3,110)",
+      "(true,book,2,350)",
+      "(false,book,4,120)",
+      "(true,book,3,110)",
+      "(false,book,3,110)",
+      "(true,book,4,310)",
+      "(false,book,1,166)",
+      "(true,book,3,110)",
+      "(false,book,3,110)",
+      "(true,book,1,225)",
+      "(true,fruit,5,100)"
+    )
 
     assertEquals(expected, sink.getRawResults)
 
     val updatedExpected = List(
-      "book,1,225.0",
-      "book,2,350.0",
-      "book,4,310.0",
-      "fruit,5,100.0")
+      "book,1,225",
+      "book,2,350",
+      "book,4,310",
+      "fruit,5,100")
 
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }

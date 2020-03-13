@@ -32,11 +32,13 @@ public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT> 
 		super(operator, maxParallelism, parallelism, subtaskIndex);
 	}
 
-	abstract TwoInputStreamOperator<IN1, IN2, OUT>  getOperator();
+	public TwoInputStreamOperator<IN1, IN2, OUT>  getTwoInputOperator() {
+		return (TwoInputStreamOperator<IN1, IN2, OUT>) operator;
+	}
 
 	public void processElement(StreamRecord<IN1> element) throws Exception {
-		getOperator().setKeyContextElement1(element);
-		getOperator().processElement1(element);
+		getTwoInputOperator().setKeyContextElement1(element);
+		getTwoInputOperator().processElement1(element);
 	}
 
 	public void processElement(IN1 value, long timestamp) throws Exception {
@@ -44,8 +46,8 @@ public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT> 
 	}
 
 	public void processBroadcastElement(StreamRecord<IN2> element) throws Exception {
-		getOperator().setKeyContextElement2(element);
-		getOperator().processElement2(element);
+		getTwoInputOperator().setKeyContextElement2(element);
+		getTwoInputOperator().processElement2(element);
 	}
 
 	public void processBroadcastElement(IN2 value, long timestamp) throws Exception {

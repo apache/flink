@@ -18,14 +18,25 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.vector.AbstractColumnVector;
+import org.apache.flink.core.memory.MemoryUtils;
+import org.apache.flink.table.dataformat.vector.writable.AbstractWritableVector;
 
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 /**
  * Heap vector that nullable shared structure.
  */
-public abstract class AbstractHeapVector extends AbstractColumnVector {
+public abstract class AbstractHeapVector extends AbstractWritableVector {
+
+	public static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+
+	public static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
+	public static final int BYTE_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+	public static final int INT_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(int[].class);
+	public static final int LONG_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(long[].class);
+	public static final int FLOAT_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(float[].class);
+	public static final int DOUBLE_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(double[].class);
 
 	/*
 	 * If hasNulls is true, then this array contains true if the value
@@ -56,9 +67,26 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 		noNulls = true;
 	}
 
+	@Override
 	public void setNullAt(int i) {
 		isNull[i] = true;
 		noNulls = false;
+	}
+
+	@Override
+	public void setNulls(int i, int count) {
+		for (int j = 0; j < count; j++) {
+			isNull[i + j] = true;
+		}
+		if (count > 0) {
+			noNulls = false;
+		}
+	}
+
+	@Override
+	public void fillWithNulls() {
+		this.noNulls = false;
+		Arrays.fill(isNull, true);
 	}
 
 	@Override
@@ -71,7 +99,15 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 		if (dictionaryIds == null) {
 			dictionaryIds = new HeapIntVector(capacity);
 		} else {
-			dictionaryIds.reset();
+			if (capacity > dictionaryIds.vector.length) {
+				int current = dictionaryIds.vector.length;
+				while (current < capacity) {
+					current <<= 1;
+				}
+				dictionaryIds = new HeapIntVector(current);
+			} else {
+				dictionaryIds.reset();
+			}
 		}
 		return dictionaryIds;
 	}
@@ -79,6 +115,7 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 	/**
 	 * Returns the underlying integer column for ids of dictionary.
 	 */
+	@Override
 	public HeapIntVector getDictionaryIds() {
 		return dictionaryIds;
 	}

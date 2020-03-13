@@ -21,8 +21,7 @@ package org.apache.flink.table.planner.plan.batch.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
-import org.apache.flink.table.planner.utils.{TableFunc0, TableFunc1, TableTestBase}
-
+import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableFunc0, TableFunc1, TableTestBase}
 import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
 import org.apache.calcite.tools.RuleSets
 import org.junit.Test
@@ -114,6 +113,16 @@ class CorrelateTest extends TableTestBase {
       .where('e > 10)
       .where('e > 20)
       .select('c, 'd)
+
+    util.verifyPlan(result)
+  }
+
+  @Test
+  def testCorrelatePythonTableFunction(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
+    val func = new MockPythonTableFunction
+    val result = sourceTable.joinLateral(func('a, 'b) as('x, 'y))
 
     util.verifyPlan(result)
   }

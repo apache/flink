@@ -28,7 +28,7 @@ public interface BytesColumnVector extends ColumnVector {
 	/**
 	 * Bytes data.
 	 */
-	class Bytes{
+	class Bytes {
 		public final byte[] data;
 		public final int offset;
 		public final int len;
@@ -40,6 +40,9 @@ public interface BytesColumnVector extends ColumnVector {
 		}
 
 		public byte[] getBytes() {
+			if (offset == 0 && len == data.length) {
+				return data;
+			}
 			byte[] res = new byte[len];
 			System.arraycopy(data, offset, res, 0, len);
 			return res;

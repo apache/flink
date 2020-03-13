@@ -41,8 +41,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -276,8 +276,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			ContainerSpecification containerSpecification = new ContainerSpecification();
 
 			MemorySize totalProcessMemory = MemorySize.parse("2g");
-			TaskExecutorResourceSpec spec = TaskExecutorResourceUtils
-				.newResourceSpecBuilder(flinkConfig)
+			TaskExecutorProcessSpec spec = TaskExecutorProcessUtils
+				.newProcessSpecBuilder(flinkConfig)
 				.withCpuCores(1.0)
 				.withTotalProcessMemory(totalProcessMemory)
 				.build();

@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -37,6 +36,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
@@ -58,6 +58,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -210,15 +211,21 @@ public class FileUtilsTest extends TestLogger {
 		// creating a directory to which the test creates a symbolic link
 		File linkedDirectory = tmp.newFolder();
 		File fileInLinkedDirectory = new File(linkedDirectory, "child");
-		fileInLinkedDirectory.createNewFile();
+		assertTrue(fileInLinkedDirectory.createNewFile());
+
 		File symbolicLink = new File(tmp.getRoot(), "symLink");
-		Files.createSymbolicLink(symbolicLink.toPath(), linkedDirectory.toPath());
+		try {
+			Files.createSymbolicLink(symbolicLink.toPath(), linkedDirectory.toPath());
+		} catch (FileSystemException e) {
+			// this operation can fail under Windows due to: "A required privilege is not held by the client."
+			assumeFalse("This test does not work properly under Windows", OperatingSystem.isWindows());
+			throw e;
+		}
 
 		FileUtils.deleteDirectory(symbolicLink);
 		assertTrue(fileInLinkedDirectory.exists());
 	}
 
-	@Ignore
 	@Test
 	public void testDeleteDirectoryConcurrently() throws Exception {
 		final File parent = tmp.newFolder();

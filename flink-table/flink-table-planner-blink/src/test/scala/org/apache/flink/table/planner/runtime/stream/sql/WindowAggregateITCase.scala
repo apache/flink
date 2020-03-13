@@ -101,6 +101,35 @@ class WindowAggregateITCase(mode: StateBackendMode)
   }
 
   @Test
+  def testCascadingTumbleWindow(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset
+          [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table = stream.toTable(tEnv,
+      'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+
+    val sql =
+      """
+        |SELECT SUM(cnt)
+        |FROM (
+        |  SELECT COUNT(1) AS cnt, TUMBLE_ROWTIME(rowtime, INTERVAL '10' SECOND) AS ts
+        |  FROM T1
+        |  GROUP BY `int`, `string`, TUMBLE(rowtime, INTERVAL '10' SECOND)
+        |)
+        |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq("9")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testEventTimeSessionWindow(): Unit = {
     //To verify the "merge" functionality, we create this test with the following characteristics:
     // 1. set the Parallelism to 1, and have the test data out of order

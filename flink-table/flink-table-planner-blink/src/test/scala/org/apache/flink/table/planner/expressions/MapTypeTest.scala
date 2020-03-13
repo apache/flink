@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral
+import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.MapTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
@@ -85,13 +85,15 @@ class MapTypeTest extends MapTypeTestBase {
       "MAP[DATE '1985-04-11', TIME '14:15:16', DATE '2018-07-26', TIME '17:18:19']",
       "{1985-04-11=14:15:16, 2018-07-26=17:18:19}")
 
-    testAllApis(
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi(
       map(valueLiteral(gLocalTime("14:15:16")), valueLiteral(localDateTime("1985-04-11 14:15:16")),
         valueLiteral(gLocalTime("17:18:19")), valueLiteral(localDateTime("2018-07-26 17:18:19"))),
-      "map('14:15:16'.toTime, '1985-04-11 14:15:16'.toTimestamp, " +
-          "'17:18:19'.toTime, '2018-07-26 17:18:19'.toTimestamp)",
+      "{14:15:16=1985-04-11 14:15:16, 17:18:19=2018-07-26 17:18:19}")
+    testSqlApi(
       "MAP[TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
-          "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19']",
+        "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19']",
       "{14:15:16=1985-04-11 14:15:16, 17:18:19=2018-07-26 17:18:19}")
 
     testAllApis(

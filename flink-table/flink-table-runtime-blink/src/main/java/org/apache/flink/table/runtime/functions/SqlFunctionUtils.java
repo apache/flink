@@ -1067,6 +1067,10 @@ public class SqlFunctionUtils {
 		return BinaryString.fromBytes(Base64.getDecoder().decode(bs.getBytes()));
 	}
 
+	public static BinaryString fromBase64(byte[] bytes) {
+		return BinaryString.fromBytes(Base64.getDecoder().decode(bytes));
+	}
+
 	public static String uuid(){
 		return UUID.randomUUID().toString();
 	}

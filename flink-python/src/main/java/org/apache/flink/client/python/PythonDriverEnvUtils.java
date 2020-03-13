@@ -20,6 +20,7 @@ package org.apache.flink.client.python;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
@@ -29,8 +30,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,13 +44,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.apache.flink.python.util.ResourceUtil.extractBuiltInDependencies;
-
 /**
  * The util class help to prepare Python env and run the python process.
  */
 public final class PythonDriverEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriverEnvUtils.class);
+
+	private static final String FLINK_OPT_DIR = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
+
+	private static final String FLINK_OPT_DIR_PYTHON = FLINK_OPT_DIR + File.separator + "python";
 
 	@VisibleForTesting
 	public static final String PYFLINK_PY_FILES = "PYFLINK_PY_FILES";
@@ -115,18 +122,12 @@ public final class PythonDriverEnvUtils {
 		fs.mkdirs(tmpDirPath);
 
 		env.tempDirectory = tmpDir;
-
-		// 2. append the internal lib files to PYTHONPATH.
 		List<String> pythonPathList = new ArrayList<>();
 
-		List<File> internalLibs = extractBuiltInDependencies(
-			tmpDir,
-			UUID.randomUUID().toString(),
-			true);
-
-		for (File file: internalLibs) {
-			pythonPathList.add(file.getAbsolutePath());
-			file.deleteOnExit();
+		// 2. append the internal lib files to PYTHONPATH.
+		List<java.nio.file.Path> pythonLibs = getLibFiles(FLINK_OPT_DIR_PYTHON);
+		for (java.nio.file.Path lib: pythonLibs) {
+			pythonPathList.add(lib.toFile().getAbsolutePath());
 		}
 
 		// 3. copy relevant python files to tmp dir and set them in PYTHONPATH.
@@ -198,6 +199,31 @@ public final class PythonDriverEnvUtils {
 			LOG.info("Try to copy pyflink lib to working directory");
 			Files.copy(libPath, symbolicLinkPath);
 		}
+	}
+
+	/**
+	 * Gets pyflink dependent libs in specified directory.
+	 *
+	 * @param libDir The lib directory
+	 */
+	public static List<java.nio.file.Path> getLibFiles(String libDir) {
+		final List<java.nio.file.Path> libFiles = new ArrayList<>();
+		SimpleFileVisitor<java.nio.file.Path> finder = new SimpleFileVisitor<java.nio.file.Path>() {
+			@Override
+			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
+				// only include zip file
+				if (file.toString().endsWith(".zip")) {
+					libFiles.add(file);
+				}
+				return FileVisitResult.CONTINUE;
+			}
+		};
+		try {
+			Files.walkFileTree(FileSystems.getDefault().getPath(libDir), finder);
+		} catch (IOException e) {
+			LOG.error("Gets pyflink dependent libs failed.", e);
+		}
+		return libFiles;
 	}
 
 	/**

@@ -305,11 +305,13 @@ class TableConfig(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.15.0).
+            The python udf worker depends on Apache Beam (version == 2.19.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
         :type python_exec: str
+
+        .. versionadded:: 1.10.0
         """
         self.get_configuration().set_string(DependencyManager.PYTHON_EXEC, python_exec)
 
@@ -320,6 +322,8 @@ class TableConfig(object):
 
         :return: The path of the python interpreter which is used to execute the python udf workers.
         :rtype: str
+
+        .. versionadded:: 1.10.0
         """
         return self.get_configuration().get_string(DependencyManager.PYTHON_EXEC, None)
 

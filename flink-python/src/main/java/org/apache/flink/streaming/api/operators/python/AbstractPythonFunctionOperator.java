@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.MemoryType;
@@ -40,7 +39,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -108,6 +106,10 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	public AbstractPythonFunctionOperator(Configuration config) {
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
+	}
+
+	public PythonConfig getPythonConfig() {
+		return config;
 	}
 
 	@Override
@@ -265,7 +267,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * Sends the execution results to the downstream operator.
 	 */
-	public abstract void emitResults();
+	public abstract void emitResults() throws IOException;
 
 	/**
 	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that
@@ -342,16 +344,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			config, getRuntimeContext().getDistributedCache());
 		PythonEnv pythonEnv = getPythonEnv();
 		if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
-			String taskManagerLogFile = getContainingTask()
-				.getEnvironment()
-				.getTaskManagerInfo()
-				.getConfiguration()
-				.getString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file"));
-			String logDirectory = taskManagerLogFile == null ? null : new File(taskManagerLogFile).getParent();
 			return new ProcessPythonEnvironmentManager(
 				dependencyInfo,
 				getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
-				logDirectory,
 				System.getenv());
 		} else {
 			throw new UnsupportedOperationException(String.format(

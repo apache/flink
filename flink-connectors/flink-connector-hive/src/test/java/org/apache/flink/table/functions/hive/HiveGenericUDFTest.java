@@ -43,10 +43,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_110_OR_LATER;
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -345,9 +348,7 @@ public class HiveGenericUDFTest {
 		Object[] result = (Object[]) udf2.eval(udf.eval(testInput));
 
 		assertEquals(3, result.length);
-		assertEquals("1", result[0]);
-		assertEquals("2", result[1]);
-		assertEquals("3", result[2]);
+		assertThat(Arrays.asList(result), containsInAnyOrder("1", "2", "3"));
 	}
 
 	@Test

@@ -57,12 +57,18 @@ All the Kubernetes configuration options can be found in our [configuration guid
 
 **Example**: Issue the following command to start a session cluster with 4 GB of memory and 2 CPUs with 4 slots per TaskManager:
 
+In this example we override the `resourcemanager.taskmanager-timeout` setting to make
+the pods with task managers remain for a longer period than the default of 30 seconds.
+Although this setting may cause more cloud cost it has the effect that starting new jobs is in some scenarios
+faster and during development you have more time to inspect the logfiles of your job.
+
 {% highlight bash %}
 ./bin/kubernetes-session.sh \
   -Dkubernetes.cluster-id=<ClusterId> \
   -Dtaskmanager.memory.process.size=4096m \
   -Dkubernetes.taskmanager.cpu=2 \
-  -Dtaskmanager.numberOfTaskSlots=4
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000
 {% endhighlight %}
 
 The system will use the configuration in `conf/flink-conf.yaml`.
@@ -120,12 +126,12 @@ $ echo 'stop' | ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=<ClusterId> 
 
 #### Manual Resource Cleanup
 
-Flink uses [Kubernetes ownerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to cleanup all cluster components.
-All the Flink created resources, including `ConfigMap`, `Service`, `Deployment`, `Pod`, have been set the ownerReference to `service/<ClusterId>`. 
-When the service is deleted, all other resource will be deleted automatically. 
+Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to cleanup all cluster components.
+All the Flink created resources, including `ConfigMap`, `Service`, `Pod`, have been set the OwnerReference to `deployment/<ClusterId>`. 
+When the deployment is deleted, all other resources will be deleted automatically. 
 
 {% highlight bash %}
-$ kubectl delete service/<ClusterID>
+$ kubectl delete deployment/<ClusterID>
 {% endhighlight %}
 
 ## Log Files
@@ -134,15 +140,16 @@ By default, the JobManager and TaskManager only store logs under `/opt/flink/log
 If you want to use `kubectl logs <PodName>` to view the logs, you must perform the following:
 
 1. Add a new appender to the log4j.properties in the Flink client.
-2. Update the rootLogger in log4j.properties to `log4j.rootLogger=INFO, file, console`.
+2. Add the following 'appenderRef' the rootLogger in log4j.properties `rootLogger.appenderRef.console.ref = ConsoleAppender`.
 3. Remove the redirect args by adding config option `-Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"`.
 4. Stop and start your session again. Now you could use `kubectl logs` to view your logs.
 
 {% highlight bash %}
 # Log all infos to the console
-log4j.appender.console=org.apache.log4j.ConsoleAppender
-log4j.appender.console.layout=org.apache.log4j.PatternLayout
-log4j.appender.console.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+appender.console.name = ConsoleAppender
+appender.console.type = CONSOLE
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
 {% endhighlight %}
 
 If the pod is running, you can use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process. 

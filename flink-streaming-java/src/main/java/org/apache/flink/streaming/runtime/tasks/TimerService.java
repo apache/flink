@@ -42,23 +42,6 @@ public interface TimerService extends ProcessingTimeService {
 	boolean isTerminated();
 
 	/**
-	 * This method puts the service into a state where it does not register new timers, but
-	 * returns for each call to {@link #registerTimer(long, ProcessingTimeCallback)} only a "mock" future.
-	 * Furthermore, the method clears all not yet started timers.
-	 *
-	 * <p>This method can be used to cleanly shut down the timer service. The using components
-	 * will not notice that the service is shut down (as for example via exceptions when registering
-	 * a new timer), but the service will simply not fire any timer any more.
-	 */
-	void quiesce() throws InterruptedException;
-
-	/**
-	 * This method can be used after calling {@link #quiesce()}, and awaits the completion
-	 * of currently executing timers.
-	 */
-	void awaitPendingAfterQuiesce() throws InterruptedException;
-
-	/**
 	 * Shuts down and clean up the timer service provider hard and immediately. This does not wait
 	 * for any timer to complete. Any further call to {@link #registerTimer(long, ProcessingTimeCallback)}
 	 * will result in a hard exception.

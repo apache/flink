@@ -18,16 +18,14 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -46,8 +44,6 @@ public class MiniClusterConfiguration {
 	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterConfiguration.class);
 
 	static final String SCHEDULER_TYPE_KEY = JobManagerOptions.SCHEDULER.key();
-	static final MemorySize DEFAULT_SHUFFLE_MEMORY_SIZE = MemorySize.parse("64m");
-	static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("16m");
 
 	private final UnmodifiableConfiguration configuration;
 
@@ -86,31 +82,9 @@ public class MiniClusterConfiguration {
 			modifiedConfig.setString(JobManagerOptions.SCHEDULER, schedulerType);
 		}
 
-		adjustTaskManagerMemoryConfigurations(modifiedConfig);
+		TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
 
 		return new UnmodifiableConfiguration(modifiedConfig);
-	}
-
-	@VisibleForTesting
-	static Configuration adjustTaskManagerMemoryConfigurations(final Configuration toBeModifiedConfiguration) {
-		if (!TaskExecutorResourceUtils.isTaskExecutorResourceExplicitlyConfigured(toBeModifiedConfiguration)) {
-			// This does not affect the JVM heap size for local execution,
-			// we simply set it to pass the sanity checks in memory calculations
-			toBeModifiedConfiguration.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("100m"));
-		}
-
-		if (!TaskExecutorResourceUtils.isNetworkMemoryExplicitlyConfigured(toBeModifiedConfiguration)) {
-			toBeModifiedConfiguration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, DEFAULT_SHUFFLE_MEMORY_SIZE);
-			toBeModifiedConfiguration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, DEFAULT_SHUFFLE_MEMORY_SIZE);
-			LOG.info("Network memory is not explicitly configured, use {} for local execution.", DEFAULT_SHUFFLE_MEMORY_SIZE);
-		}
-
-		if (!TaskExecutorResourceUtils.isManagedMemorySizeExplicitlyConfigured(toBeModifiedConfiguration)) {
-			toBeModifiedConfiguration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
-			LOG.info("Managed memory is not explicitly configured, use {} for local execution.", DEFAULT_MANAGED_MEMORY_SIZE);
-		}
-
-		return toBeModifiedConfiguration;
 	}
 
 	// ------------------------------------------------------------------------

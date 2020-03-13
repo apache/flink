@@ -34,6 +34,12 @@ PYFLINK_PYTHON="${PYFLINK_PYTHON:-"python"}"
 export FLINK_BIN_DIR=$FLINK_BIN_DIR
 export FLINK_HOME
 
+# Add pyflink & py4j & cloudpickle to PYTHONPATH
+export PYTHONPATH="$FLINK_OPT_DIR/python/pyflink.zip:$PYTHONPATH"
+PY4J_ZIP=`echo "$FLINK_OPT_DIR"/python/py4j-*-src.zip`
+CLOUDPICKLE_ZIP=`echo "$FLINK_OPT_DIR"/python/cloudpickle-*-src.zip`
+export PYTHONPATH="$PY4J_ZIP:$CLOUDPICKLE_ZIP:$PYTHONPATH"
+
 PARSER="org.apache.flink.client.python.PythonShellParser"
 function parse_options() {
     ${JAVA_RUN} ${JVM_ARGS} -cp ${FLINK_CLASSPATH}:${PYTHON_JAR_PATH} ${PARSER} "$@"
@@ -73,17 +79,6 @@ OPTIONS=("${OPTIONS[@]:0:$LAST}")
 
 export SUBMIT_ARGS=${OPTIONS[@]}
 
-EXTRACTOR="org.apache.flink.client.python.PythonResourceExtractor"
-PYFLINK_INTERNAL_LIB=`${JAVA_RUN} ${JVM_ARGS} -cp ${PYTHON_JAR_PATH} ${EXTRACTOR}`
-export PYTHONPATH="$PYFLINK_INTERNAL_LIB:$PYTHONPATH"
-export PYFLINK_INTERNAL_LIB
-
 # -i: interactive
 # -m: execute shell.py in the zip package
 ${PYFLINK_PYTHON} -i -m pyflink.shell
-IFS=':' read -ra LIBS_TO_DELETE <<< "$PYFLINK_INTERNAL_LIB"
-for lib_to_delete in "${LIBS_TO_DELETE[@]}"; do
-	if [[ -f ${lib_to_delete} ]]; then
-    	rm ${lib_to_delete}
-    fi
-done

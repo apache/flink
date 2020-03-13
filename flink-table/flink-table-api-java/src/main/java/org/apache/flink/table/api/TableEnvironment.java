@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,10 +27,12 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
+import java.io.Serializable;
 import java.util.Optional;
 
 /**
@@ -47,13 +50,12 @@ import java.util.Optional;
  *     <li>Offering further configuration options.</li>
  * </ul>
  *
- * <p>The path in methods such as {@link #createTemporaryView(String, Table)} should be a proper SQL identifier.
- * The syntax is following [[catalog-name.]database-name.]object-name, where the catalog name and database are
- * optional. For path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}. All keywords
- * or other special characters need to be escaped.
+ * <p>The syntax for path in methods such as {@link #createTemporaryView(String, Table)}is following
+ * [[catalog-name.]database-name.]object-name, where the catalog name and database are optional.
+ * For path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}.
  *
- * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' (table is a reserved keyword, thus must
- * be escaped) in a catalog named 'cat.1' and database named 'db'.
+ * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' in a catalog named 'cat.1' and
+ * database named 'db'.
  *
  * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
  * other Flink APIs, it might be necessary to use one of the available language-specific table environments
@@ -131,15 +133,162 @@ public interface TableEnvironment {
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing
 	 * user-defined functions under this name.
+	 *
+	 * @deprecated Use {@link #createTemporarySystemFunction(String, UserDefinedFunction)} instead. Please
+	 *             note that the new method also uses the new type system and reflective extraction logic. It
+	 *             might be necessary to update the function implementation as well. See the documentation of
+	 *             {@link ScalarFunction} for more information on the new function design.
 	 */
+	@Deprecated
 	void registerFunction(String name, ScalarFunction function);
+
+	/**
+	 * Registers a {@link UserDefinedFunction} class as a temporary system function.
+	 *
+	 * <p>Compared to {@link #createTemporaryFunction(String, Class)}, system functions are identified
+	 * by a global name that is independent of the current catalog and current database. Thus, this method
+	 * allows to extend the set of built-in system functions like {@code TRIM}, {@code ABS}, etc.
+	 *
+	 * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name exists,
+	 * it will be inaccessible in the current session. To make the permanent function available again
+	 * one can drop the corresponding temporary system function.
+	 *
+	 * @param name The name under which the function will be registered globally.
+	 * @param functionClass The function class containing the implementation.
+	 */
+	@Experimental
+	void createTemporarySystemFunction(String name, Class<? extends UserDefinedFunction> functionClass);
+
+	/**
+	 * Registers a {@link UserDefinedFunction} instance as a temporary system function.
+	 *
+	 * <p>Compared to {@link #createTemporarySystemFunction(String, Class)}, this method takes a function
+	 * instance that might have been parameterized before (e.g. through its constructor). This might be
+	 * useful for more interactive sessions. Make sure that the instance is {@link Serializable}.
+	 *
+	 * <p>Compared to {@link #createTemporaryFunction(String, UserDefinedFunction)}, system functions are
+	 * identified by a global name that is independent of the current catalog and current database. Thus,
+	 * this method allows to extend the set of built-in system functions like {@code TRIM}, {@code ABS}, etc.
+	 *
+	 * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name exists,
+	 * it will be inaccessible in the current session. To make the permanent function available again
+	 * one can drop the corresponding temporary system function.
+	 *
+	 * @param name The name under which the function will be registered globally.
+	 * @param functionInstance The (possibly pre-configured) function instance containing the implementation.
+	 */
+	@Experimental
+	void createTemporarySystemFunction(String name, UserDefinedFunction functionInstance);
+
+	/**
+	 * Drops a temporary system function registered under the given name.
+	 *
+	 * <p>If a permanent function with the given name exists, it will be used from now on for any queries
+	 * that reference this name.
+	 *
+	 * @param name The name under which the function has been registered globally.
+	 * @return true if a function existed under the given name and was removed
+	 */
+	@Experimental
+	boolean dropTemporarySystemFunction(String name);
+
+	/**
+	 * Registers a {@link UserDefinedFunction} class as a catalog function in the given path.
+	 *
+	 * <p>Compared to system functions with a globally defined name, catalog functions are always (implicitly
+	 * or explicitly) identified by a catalog and database.
+	 *
+	 * <p>There must not be another function (temporary or permanent) registered under the same path.
+	 *
+	 * @param path The path under which the function will be registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param functionClass The function class containing the implementation.
+	 */
+	@Experimental
+	void createFunction(String path, Class<? extends UserDefinedFunction> functionClass);
+
+	/**
+	 * Registers a {@link UserDefinedFunction} class as a catalog function in the given path.
+	 *
+	 * <p>Compared to system functions with a globally defined name, catalog functions are always (implicitly
+	 * or explicitly) identified by a catalog and database.
+	 *
+	 * @param path The path under which the function will be registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param functionClass The function class containing the implementation.
+	 * @param ignoreIfExists If a function exists under the given path and this flag is set, no operation
+	 *                       is executed. An exception is thrown otherwise.
+	 */
+	@Experimental
+	void createFunction(String path, Class<? extends UserDefinedFunction> functionClass, boolean ignoreIfExists);
+
+	/**
+	 * Drops a catalog function registered in the given path.
+	 *
+	 * @param path The path under which the function has been registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @return true if a function existed in the given path and was removed
+	 */
+	@Experimental
+	boolean dropFunction(String path);
+
+	/**
+	 * Registers a {@link UserDefinedFunction} class as a temporary catalog function.
+	 *
+	 * <p>Compared to {@link #createTemporarySystemFunction(String, Class)} with a globally defined name,
+	 * catalog functions are always (implicitly or explicitly) identified by a catalog and database.
+	 *
+	 * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name exists,
+	 * it will be inaccessible in the current session. To make the permanent function available again
+	 * one can drop the corresponding temporary function.
+	 *
+	 * @param path The path under which the function will be registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param functionClass The function class containing the implementation.
+	 */
+	@Experimental
+	void createTemporaryFunction(String path, Class<? extends UserDefinedFunction> functionClass);
+
+	/**
+	 * Registers a {@link UserDefinedFunction} instance as a temporary catalog function.
+	 *
+	 * <p>Compared to {@link #createTemporaryFunction(String, Class)}, this method takes a function instance
+	 * that might have been parameterized before (e.g. through its constructor). This might be useful for more
+	 * interactive sessions. Make sure that the instance is {@link Serializable}.
+	 *
+	 * <p>Compared to {@link #createTemporarySystemFunction(String, UserDefinedFunction)} with a globally
+	 * defined name, catalog functions are always (implicitly or explicitly) identified by a catalog and database.
+	 *
+	 * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name exists,
+	 * it will be inaccessible in the current session. To make the permanent function available again
+	 * one can drop the corresponding temporary function.
+	 *
+	 * @param path The path under which the function will be registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param functionInstance The (possibly pre-configured) function instance containing the implementation.
+	 */
+	@Experimental
+	void createTemporaryFunction(String path, UserDefinedFunction functionInstance);
+
+	/**
+	 * Drops a temporary catalog function registered in the given path.
+	 *
+	 * <p>If a permanent function with the given path exists, it will be used from now on for any queries
+	 * that reference this path.
+	 *
+	 * @param path The path under which the function will be registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @return true if a function existed in the given path and was removed
+	 */
+	@Experimental
+	boolean dropTemporaryFunction(String path);
 
 	/**
 	 * Registers a {@link Table} under a unique name in the TableEnvironment's catalog.
 	 * Registered tables can be referenced in SQL queries.
 	 *
 	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * be inaccessible in the current session. To make the permanent object available again one can drop the
 	 * corresponding temporary object.
 	 *
 	 * @param name The name under which the table will be registered.
@@ -153,7 +302,7 @@ public interface TableEnvironment {
 	 * Registers a {@link Table} API object as a temporary view similar to SQL temporary views.
 	 *
 	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * be inaccessible in the current session. To make the permanent object available again one can drop the
 	 * corresponding temporary object.
 	 *
 	 * @param path The path under which the view will be registered.
@@ -167,7 +316,7 @@ public interface TableEnvironment {
 	 * Registered tables can be referenced in SQL queries.
 	 *
 	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * be inaccessible in the current session. To make the permanent object available again one can drop the
 	 * corresponding temporary object.
 	 *
 	 * @param name        The name under which the {@link TableSource} is registered.
@@ -183,7 +332,7 @@ public interface TableEnvironment {
 	 * Registered sink tables can be referenced in SQL DML statements.
 	 *
 	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * be inaccessible in the current session. To make the permanent object available again one can drop the
 	 * corresponding temporary object.
 	 *
 	 * @param name The name under which the {@link TableSink} is registered.
@@ -201,7 +350,7 @@ public interface TableEnvironment {
 	 * Registered sink tables can be referenced in SQL DML statements.
 	 *
 	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * be inaccessible in the current session. To make the permanent object available again one can drop the
 	 * corresponding temporary object.
 	 *
 	 * @param name The name under which the {@link TableSink} is registered.
@@ -269,11 +418,11 @@ public interface TableEnvironment {
 	 * }
 	 * </pre>
 	 *
-	 * <p>Reading a table from a registered catalog with escaping. ({@code Table} is a reserved keyword).
-	 * Dots in e.g. a database name also must be escaped.
+	 * <p>Reading a table from a registered catalog with escaping.
+	 * Dots in e.g. a database name must be escaped.
 	 * <pre>
 	 * {@code
-	 *   Table tab = tableEnv.from("catalogName.`db.Name`.`Table`");
+	 *   Table tab = tableEnv.from("catalogName.`db.Name`.Table");
 	 * }
 	 * </pre>
 	 *
@@ -312,14 +461,14 @@ public interface TableEnvironment {
 	void insertInto(String targetPath, Table table);
 
 	/**
-	 * Creates a table source and/or table sink from a descriptor.
+	 * Creates a temporary table from a descriptor.
 	 *
 	 * <p>Descriptors allow for declaring the communication to external systems in an
 	 * implementation-agnostic way. The classpath is scanned for suitable table factories that match
 	 * the desired configuration.
 	 *
 	 * <p>The following example shows how to read from a connector using a JSON format and
-	 * register a table source as "MyTable":
+	 * register a temporary table as "MyTable":
 	 *
 	 * <pre>
 	 * {@code
@@ -336,7 +485,7 @@ public interface TableEnvironment {
 	 *     new Schema()
 	 *       .field("user-name", "VARCHAR").from("u_name")
 	 *       .field("count", "DECIMAL")
-	 *   .registerSource("MyTable");
+	 *   .createTemporaryTable("MyTable");
 	 * }
 	 *</pre>
 	 *

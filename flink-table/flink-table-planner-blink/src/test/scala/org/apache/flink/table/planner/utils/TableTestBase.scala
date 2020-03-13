@@ -66,10 +66,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.commons.lang3.SystemUtils
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
-import org.junit.rules.{ExpectedException, TestName}
+import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
@@ -87,6 +86,11 @@ abstract class TableTestBase {
 
   // used for get test case method name
   val testName: TestName = new TestName
+
+  val _tempFolder = new TemporaryFolder
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
 
   @Rule
   def thrown: ExpectedException = expectedException
@@ -1008,13 +1012,7 @@ class TestingTableEnvironment private(
   override def insertInto(path: String, table: Table): Unit = {
     val unresolvedIdentifier = parser.parseIdentifier(path)
     val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
-
-    val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))
-    if (isEagerOperationTranslation) {
-      translate(modifyOperations)
-    } else {
-      buffer(modifyOperations)
-    }
+    buffer(List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation)))
   }
 
   override def sqlUpdate(stmt: String): Unit = {
@@ -1026,12 +1024,7 @@ class TestingTableEnvironment private(
     val operation = operations.get(0)
     operation match {
       case modifyOperation: ModifyOperation =>
-        val modifyOperations = List(modifyOperation)
-        if (isEagerOperationTranslation) {
-          translate(modifyOperations)
-        } else {
-          buffer(modifyOperations)
-        }
+        buffer(List(modifyOperation))
       case createOperation: CreateTableOperation =>
         catalogManager.createTable(
           createOperation.getCatalogTable,
@@ -1048,23 +1041,14 @@ class TestingTableEnvironment private(
 
   @throws[Exception]
   override def execute(jobName: String): JobExecutionResult = {
-    translate(bufferedOperations.toList)
+    val transformations = planner.translate(bufferedOperations)
     bufferedOperations.clear()
-    execEnv.execute(jobName)
-  }
-
-  // for test
-  def translate(): Unit = {
-    translate(bufferedOperations.toList)
+    val pipeline = executor.createPipeline(transformations, tableConfig, jobName)
+    execEnv.execute(pipeline)
   }
 
   override def createTable(tableOperation: QueryOperation): TableImpl = {
     super.createTable(tableOperation)
-  }
-
-  private def translate(modifyOperations: List[ModifyOperation]): Unit = {
-    val transformations = planner.translate(modifyOperations)
-    execEnv.apply(transformations)
   }
 
   private def buffer(modifyOperations: List[ModifyOperation]): Unit = {
@@ -1079,22 +1063,37 @@ object TestingTableEnvironment {
       settings: EnvironmentSettings,
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
+
+    // temporary solution until FLINK-15635 is fixed
+    val classLoader = Thread.currentThread.getContextClassLoader
+
+    val moduleManager = new ModuleManager
+
     val catalogMgr = catalogManager match {
       case Some(c) => c
       case _ =>
-        new CatalogManager(settings.getBuiltInCatalogName,
-          new GenericInMemoryCatalog(
-            settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
+        CatalogManager.newBuilder
+          .classLoader(classLoader)
+          .config(tableConfig.getConfiguration)
+          .defaultCatalog(
+            settings.getBuiltInCatalogName,
+            new GenericInMemoryCatalog(
+              settings.getBuiltInCatalogName,
+              settings.getBuiltInDatabaseName))
+          .build
     }
-    val moduleManager = new ModuleManager
+
     val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
-    val plannerProperties = settings.toPlannerProperties
+
     val executorProperties = settings.toExecutorProperties
     val executor = ComponentFactoryService.find(classOf[ExecutorFactory],
       executorProperties).create(executorProperties)
+
+    val plannerProperties = settings.toPlannerProperties
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
       .create(plannerProperties, executor, tableConfig, functionCatalog, catalogMgr)
       .asInstanceOf[PlannerBase]
+
     new TestingTableEnvironment(
       catalogMgr,
       moduleManager,

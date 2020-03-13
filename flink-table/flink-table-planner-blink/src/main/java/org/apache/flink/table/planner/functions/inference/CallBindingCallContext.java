@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -52,11 +53,12 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 	private final @Nullable DataType outputType;
 
 	public CallBindingCallContext(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			SqlCallBinding binding,
 			@Nullable RelDataType outputType) {
 		super(
-			((FlinkTypeFactory) binding.getTypeFactory()).getDataTypeLookup(),
+			dataTypeFactory,
 			definition,
 			binding.getOperator().getNameAsId().toString());
 
@@ -91,6 +93,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
 	@Override
 	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+		if (isArgumentNull(pos)) {
+			return Optional.empty();
+		}
 		try {
 			final SqlLiteral literal = SqlLiteral.unchain(adaptedArguments.get(pos));
 			return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));

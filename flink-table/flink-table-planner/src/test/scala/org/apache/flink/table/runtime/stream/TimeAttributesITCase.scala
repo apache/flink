@@ -206,7 +206,7 @@ class TimeAttributesITCase extends AbstractTestBase {
         'rowtime.ceil(TimeIntervalUnit.DAY).as('ceilDay))
       .insertInto("testSink")
 
-    env.execute()
+     tEnv.execute("job name")
 
     val expected = Seq(
       "1970-01-01 00:00:00.007,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",

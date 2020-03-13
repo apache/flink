@@ -70,7 +70,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			DOC_TYPE,
 			KEY_DELIMITER,
 			KEY_NULL_LITERAL,
-			new JsonRowSerializationSchema(schema.toRowType()),
+			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
 			createTestSinkOptions());
@@ -79,7 +79,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 				new StreamExecutionEnvironmentMock(),
 				Types.TUPLE(Types.BOOLEAN, schema.toRowType()));
 
-		testSink.emitDataStream(dataStreamMock);
+		testSink.consumeDataStream(dataStreamMock);
 
 		final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> expectedBuilder = new ElasticsearchSink.Builder<>(
 			Collections.singletonList(new HttpHost(HOSTNAME, PORT, SCHEMA)),
@@ -88,7 +88,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 				DOC_TYPE,
 				KEY_DELIMITER,
 				KEY_NULL_LITERAL,
-				new JsonRowSerializationSchema(schema.toRowType()),
+				JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 				XContentType.JSON,
 				Elasticsearch6UpsertTableSink.UPDATE_REQUEST_FACTORY,
 				new int[0]));

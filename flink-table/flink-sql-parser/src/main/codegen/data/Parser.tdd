@@ -43,6 +43,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterTable",
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename",
     "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties",
+    "org.apache.flink.sql.parser.ddl.SqlCreateCatalog",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
@@ -453,6 +454,7 @@
   # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
+    "SqlCreateCatalog",
     "SqlCreateTable",
     "SqlCreateView",
     "SqlCreateDatabase",

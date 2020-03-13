@@ -39,8 +39,6 @@ export TASK_SLOTS_PER_TM_HA=4
 
 echo "Flink dist directory: $FLINK_DIR"
 
-FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
-
 TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
@@ -101,6 +99,22 @@ function revert_flink_dir() {
 
     REST_PROTOCOL="http"
     CURL_SSL_ARGS=""
+}
+
+function setup_flink_shaded_zookeeper() {
+  local version=$1
+  # if it is already in lib we don't have to do anything
+  if ! [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-${version}* ]; then
+    if ! [ -e "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* ]; then
+      echo "Could not find ZK ${version} in opt or lib."
+      exit 1
+    else
+      # contents of 'opt' must not be changed since it is not backed up in common.sh#backup_flink_dir
+      # it is fine to delete jars from 'lib' since it is backed up and will be restored after the test
+      rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-*
+      cp "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* "${FLINK_DIR}/lib"
+    fi
+  fi
 }
 
 function add_optional_lib() {
@@ -734,8 +748,7 @@ function find_latest_completed_checkpoint {
 }
 
 function retry_times() {
-    local command=${@:3}
-    retry_times_with_backoff_and_cleanup $1 $2 "$command" "true"
+    retry_times_with_backoff_and_cleanup $1 $2 "$3" "true"
 }
 
 function retry_times_with_backoff_and_cleanup() {

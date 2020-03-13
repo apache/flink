@@ -158,10 +158,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	//-----------------------------------------------------------------------------------------------
 
 	private static Configuration createFlinkConfiguration() {
-		final Configuration config = new Configuration();
-		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(TOTAL_FLINK_MEMORY_MB + "m"));
-
-		return config;
+		return TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration());
 	}
 
 	private static RpcService createRpcService() {
