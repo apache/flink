@@ -66,8 +66,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
-
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -288,7 +286,12 @@ public class LocalExecutor implements Executor {
 	public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		Environment env = context.getEnvironment();
-		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
+		Environment newEnv;
+		try {
+			newEnv = Environment.enrich(env, Collections.singletonMap(key, value), Collections.emptyMap());
+		} catch (Throwable t) {
+			throw new SqlExecutionException("Could not set session property.", t);
+		}
 
 		// Renew the ExecutionContext by new environment.
 		// Book keep all the session states of current ExecutionContext then
