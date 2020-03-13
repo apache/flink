@@ -63,14 +63,10 @@ under the License.
 								</includes>
 								<excludes>
 									<!-- These dependencies are not required. -->
-									<exclude>com.carrotsearch:hppc</exclude>
 									<exclude>com.tdunning:t-digest</exclude>
 									<exclude>joda-time:joda-time</exclude>
 									<exclude>net.sf.jopt-simple:jopt-simple</exclude>
 									<exclude>org.elasticsearch:jna</exclude>
-									<exclude>org.elasticsearch:elasticsearch-geo</exclude>
-									<exclude>org.elasticsearch.plugin:lang-mustache-client</exclude>
-									<exclude>com.github.spullara.mustache.java:compiler</exclude>
 									<exclude>org.hdrhistogram:HdrHistogram</exclude>
 									<exclude>org.yaml:snakeyaml</exclude>
 								</excludes>
@@ -134,10 +130,6 @@ under the License.
 								<relocation>
 									<pattern>org.elasticsearch</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch7.shaded.org.elasticsearch</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.logging</pattern>
-									<shadedPattern>org.apache.flink.elasticsearch7.shaded.org.apache.logging</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
