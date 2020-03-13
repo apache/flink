@@ -115,6 +115,8 @@ public class StreamRecordUtils {
 				writer.writeLong(j, (Long) value);
 			} else if (value instanceof Boolean) {
 				writer.writeBoolean(j, (Boolean) value);
+			} else if (value instanceof byte[]) {
+				writer.writeBinary(j, (byte[]) value);
 			} else {
 				throw new RuntimeException("Not support yet!");
 			}
