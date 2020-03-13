@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseMapSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
@@ -70,6 +71,7 @@ import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.TimeZone;
 
 /**
  * Utilities for converting Flink logical types, such as convert it to the related
@@ -79,6 +81,16 @@ import java.sql.Timestamp;
 public final class PythonTypeUtils {
 
 	private static final String EMPTY_STRING = "";
+
+	/**
+	 * The local time zone.
+	 */
+	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+
+	/**
+	 * The number of milliseconds in a day.
+	 */
+	private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
 	public static TypeSerializer toFlinkTypeSerializer(LogicalType logicalType) {
 		return logicalType.accept(new LogicalTypeToTypeSerializerConverter());
@@ -104,6 +116,29 @@ public final class PythonTypeUtils {
 			}
 		}
 		return bigDecimal;
+	}
+
+	/**
+	 * Converts the internal representation of a SQL DATE (int) to the Java
+	 * type used for UDF parameters ({@link java.sql.Date}).
+	 *
+	 * <p>Note: The implementation refers to {@link SqlDateTimeUtils#internalToDate}.
+	 */
+	public static java.sql.Date internalToDate(int v) {
+		// note that, in this case, can't handle Daylight Saving Time
+		final long t = v * MILLIS_PER_DAY;
+		return new java.sql.Date(t - LOCAL_TZ.getOffset(t));
+	}
+
+	/**
+	 * Converts the Java type used for UDF parameters of SQL DATE type
+	 * ({@link java.sql.Date}) to internal representation (int).
+	 *
+	 * <p>Note: The implementation refers to {@link SqlDateTimeUtils#dateToInternal}.
+	 */
+	public static int dateToInternal(java.sql.Date date) {
+		long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
+		return (int) (ts / MILLIS_PER_DAY);
 	}
 
 	/**

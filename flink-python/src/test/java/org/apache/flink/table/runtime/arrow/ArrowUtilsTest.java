@@ -24,6 +24,7 @@ import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BooleanFieldReader;
+import org.apache.flink.table.runtime.arrow.readers.DateFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.DecimalFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.DoubleFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.FloatFieldReader;
@@ -35,6 +36,7 @@ import org.apache.flink.table.runtime.arrow.readers.VarBinaryFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarCharFieldReader;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowDateColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDecimalColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDoubleColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
@@ -47,6 +49,7 @@ import org.apache.flink.table.runtime.arrow.vectors.BaseRowArrowReader;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowBigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowBooleanWriter;
+import org.apache.flink.table.runtime.arrow.writers.BaseRowDateWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowDecimalWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowDoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowFloatWriter;
@@ -57,6 +60,7 @@ import org.apache.flink.table.runtime.arrow.writers.BaseRowVarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowVarCharWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BooleanWriter;
+import org.apache.flink.table.runtime.arrow.writers.DateWriter;
 import org.apache.flink.table.runtime.arrow.writers.DecimalWriter;
 import org.apache.flink.table.runtime.arrow.writers.DoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
@@ -67,6 +71,7 @@ import org.apache.flink.table.runtime.arrow.writers.VarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -81,6 +86,7 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -126,6 +132,8 @@ public class ArrowUtilsTest {
 			VarBinaryWriter.class, BaseRowVarBinaryWriter.class, VarBinaryFieldReader.class, ArrowVarBinaryColumnVector.class));
 		testFields.add(Tuple7.of("f10", new DecimalType(10, 3), new ArrowType.Decimal(10, 3),
 			DecimalWriter.class, BaseRowDecimalWriter.class, DecimalFieldReader.class, ArrowDecimalColumnVector.class));
+		testFields.add(Tuple7.of("f11", new DateType(), new ArrowType.Date(DateUnit.DAY),
+			DateWriter.class, BaseRowDateWriter.class, DateFieldReader.class, ArrowDateColumnVector.class));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (Tuple7<String, LogicalType, ArrowType, Class<?>, Class<?>, Class<?>, Class<?>> field : testFields) {
