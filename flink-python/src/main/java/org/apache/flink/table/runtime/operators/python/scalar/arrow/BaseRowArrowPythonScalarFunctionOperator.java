@@ -115,7 +115,7 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 			reader.loadNextBatch();
 			VectorSchemaRoot root = reader.getVectorSchemaRoot();
 			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createBaseRowArrowReader(root);
+				arrowReader = ArrowUtils.createBaseRowArrowReader(root, outputType);
 			}
 			for (int i = 0; i < root.getRowCount(); i++) {
 				BaseRow input = forwardedInputQueue.poll();

@@ -103,15 +103,13 @@ public class ArrowUtilsTest {
 			// verify convert from RowType to ArrowType
 			assertEquals(testFields.get(i).f0, fields.get(i).getName());
 			assertEquals(testFields.get(i).f2, fields.get(i).getType());
-			// verify convert from ArrowType to LogicalType
-			assertEquals(testFields.get(i).f1, ArrowUtils.fromArrowFieldToLogicalType(fields.get(i)));
 		}
 	}
 
 	@Test
 	public void testCreateRowArrowReader() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		RowArrowReader reader = ArrowUtils.createRowArrowReader(root);
+		RowArrowReader reader = ArrowUtils.createRowArrowReader(root, rowType);
 		ArrowFieldReader[] fieldReaders = reader.getFieldReaders();
 		for (int i = 0; i < fieldReaders.length; i++) {
 			assertEquals(testFields.get(i).f5, fieldReaders[i].getClass());
@@ -121,7 +119,7 @@ public class ArrowUtilsTest {
 	@Test
 	public void testCreateBaseRowArrowReader() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		BaseRowArrowReader reader = ArrowUtils.createBaseRowArrowReader(root);
+		BaseRowArrowReader reader = ArrowUtils.createBaseRowArrowReader(root, rowType);
 		ColumnVector[] columnVectors = reader.getColumnVectors();
 		for (int i = 0; i < columnVectors.length; i++) {
 			assertEquals(testFields.get(i).f6, columnVectors[i].getClass());
@@ -131,7 +129,7 @@ public class ArrowUtilsTest {
 	@Test
 	public void testCreateRowArrowWriter() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		ArrowWriter<Row> writer = ArrowUtils.createRowArrowWriter(root);
+		ArrowWriter<Row> writer = ArrowUtils.createRowArrowWriter(root, rowType);
 		ArrowFieldWriter<Row>[] fieldWriters = writer.getFieldWriters();
 		for (int i = 0; i < fieldWriters.length; i++) {
 			assertEquals(testFields.get(i).f3, fieldWriters[i].getClass());
@@ -141,7 +139,7 @@ public class ArrowUtilsTest {
 	@Test
 	public void testCreateBaseRowArrowWriter() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		ArrowWriter<BaseRow> writer = ArrowUtils.createBaseRowArrowWriter(root);
+		ArrowWriter<BaseRow> writer = ArrowUtils.createBaseRowArrowWriter(root, rowType);
 		ArrowFieldWriter<BaseRow>[] fieldWriters = writer.getFieldWriters();
 		for (int i = 0; i < fieldWriters.length; i++) {
 			assertEquals(testFields.get(i).f4, fieldWriters[i].getClass());

@@ -99,13 +99,13 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 	public ArrowReader<BaseRow> createArrowReader(InputStream inputStream) throws IOException {
 		ArrowStreamReader reader = new ArrowStreamReader(inputStream, allocator);
 		reader.loadNextBatch();
-		return ArrowUtils.createBaseRowArrowReader(reader.getVectorSchemaRoot());
+		return ArrowUtils.createBaseRowArrowReader(reader.getVectorSchemaRoot(), rowType);
 	}
 
 	@Override
 	public Tuple2<ArrowWriter<BaseRow>, ArrowStreamWriter> createArrowWriter(OutputStream outputStream) throws IOException {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		ArrowWriter<BaseRow> arrowWriter = ArrowUtils.createBaseRowArrowWriter(root);
+		ArrowWriter<BaseRow> arrowWriter = ArrowUtils.createBaseRowArrowWriter(root, rowType);
 		ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(root, null, outputStream);
 		arrowStreamWriter.start();
 		return Tuple2.of(arrowWriter, arrowStreamWriter);

@@ -116,7 +116,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 			reader.loadNextBatch();
 			VectorSchemaRoot root = reader.getVectorSchemaRoot();
 			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createRowArrowReader(root);
+				arrowReader = ArrowUtils.createRowArrowReader(root, outputType);
 			}
 			for (int i = 0; i < root.getRowCount(); i++) {
 				CRow input = forwardedInputQueue.poll();

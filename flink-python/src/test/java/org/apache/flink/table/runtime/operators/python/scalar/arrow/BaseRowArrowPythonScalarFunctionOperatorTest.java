@@ -125,7 +125,7 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 				jobOptions) {
 				@Override
 				public ArrowWriter<BaseRow> createArrowWriter() {
-					return ArrowUtils.createBaseRowArrowWriter(root);
+					return ArrowUtils.createBaseRowArrowWriter(root, getInputType());
 				}
 			};
 		}
