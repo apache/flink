@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+import decimal
 import unittest
 
 from pyflink.table import DataTypes
@@ -121,6 +121,12 @@ class PandasUDFITTests(object):
                 'varbinary_param of wrong type %s !' % type(varbinary_param[0])
             return varbinary_param
 
+        def decimal_func(decimal_param):
+            assert isinstance(decimal_param, pd.Series)
+            assert isinstance(decimal_param[0], decimal.Decimal), \
+                'decimal_param of wrong type %s !' % type(decimal_param[0])
+            return decimal_param
+
         self.t_env.register_function(
             "tinyint_func",
             udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT(), udf_type="pandas"))
@@ -157,16 +163,23 @@ class PandasUDFITTests(object):
             "varbinary_func",
             udf(varbinary_func, [DataTypes.BYTES()], DataTypes.BYTES(), udf_type="pandas"))
 
+        self.t_env.register_function(
+            "decimal_func",
+            udf(decimal_func, [DataTypes.DECIMAL(38, 18)], DataTypes.DECIMAL(38, 18),
+                udf_type="pandas"))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'],
             [DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT(), DataTypes.BIGINT(),
              DataTypes.BOOLEAN(), DataTypes.BOOLEAN(), DataTypes.FLOAT(), DataTypes.DOUBLE(),
-             DataTypes.STRING(), DataTypes.STRING(), DataTypes.BYTES()])
+             DataTypes.STRING(), DataTypes.STRING(), DataTypes.BYTES(), DataTypes.DECIMAL(38, 18),
+             DataTypes.DECIMAL(38, 18)])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
             [(1, 32767, -2147483648, 1, True, False, 1.0, 1.0, 'hello', '中文',
-              bytearray(b'flink'))],
+              bytearray(b'flink'), decimal.Decimal('1000000000000000000.05'),
+              decimal.Decimal('1000000000000000000.05999999999999999899999999999'))],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
@@ -178,7 +191,9 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("h", DataTypes.DOUBLE()),
                  DataTypes.FIELD("i", DataTypes.STRING()),
                  DataTypes.FIELD("j", DataTypes.STRING()),
-                 DataTypes.FIELD("k", DataTypes.BYTES())]))
+                 DataTypes.FIELD("k", DataTypes.BYTES()),
+                 DataTypes.FIELD("l", DataTypes.DECIMAL(38, 18)),
+                 DataTypes.FIELD("m", DataTypes.DECIMAL(38, 18))]))
 
         t.select("tinyint_func(a),"
                  "smallint_func(b),"
@@ -190,13 +205,16 @@ class PandasUDFITTests(object):
                  "double_func(h),"
                  "varchar_func(i),"
                  "varchar_func(j),"
-                 "varbinary_func(k)") \
+                 "varbinary_func(k),"
+                 "decimal_func(l),"
+                 "decimal_func(m)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
-                            "[102, 108, 105, 110, 107]"])
+                            "[102, 108, 105, 110, 107],1000000000000000000.050000000000000000,"
+                            "1000000000000000000.059999999999999999"])
 
 
 class StreamPandasUDFITTests(PandasUDFITTests,

@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseMapSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
@@ -65,6 +66,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -84,6 +86,24 @@ public final class PythonTypeUtils {
 
 	public static TypeSerializer toBlinkTypeSerializer(LogicalType logicalType) {
 		return logicalType.accept(new LogicalTypeToBlinkTypeSerializerConverter());
+	}
+
+	/**
+	 * Convert the specified bigDecimal according to the specified precision and scale.
+	 * The specified bigDecimal may be rounded to have the specified scale and then
+	 * the specified precision is checked. If precision overflow, it will return `null`.
+	 *
+	 * <p>Note: The implementation refers to {@link Decimal#fromBigDecimal}.
+	 */
+	public static BigDecimal fromBigDecimal(BigDecimal bigDecimal, int precision, int scale) {
+		if (bigDecimal.scale() != scale || bigDecimal.precision() > precision) {
+			// need adjust the precision and scale
+			bigDecimal = bigDecimal.setScale(scale, RoundingMode.HALF_UP);
+			if (bigDecimal.precision() > precision) {
+				return null;
+			}
+		}
+		return bigDecimal;
 	}
 
 	/**
