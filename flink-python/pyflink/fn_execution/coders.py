@@ -439,6 +439,15 @@ class ArrowCoder(DeterministicCoder):
                                 field.type.nullable)
             elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.DATE:
                 return pa.field(field.name, pa.date32(), field.type.nullable)
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.TIME:
+                if field.type.time_info.precision == 0:
+                    return pa.field(field.name, pa.time32('s'), field.type.nullable)
+                elif 1 <= field.type.time_type.precision <= 3:
+                    return pa.field(field.name, pa.time32('ms'), field.type.nullable)
+                elif 4 <= field.type.time_type.precision <= 6:
+                    return pa.field(field.name, pa.time64('us'), field.type.nullable)
+                else:
+                    return pa.field(field.name, pa.time64('ns'), field.type.nullable)
             else:
                 raise ValueError("field_type %s is not supported." % field.type)
 
