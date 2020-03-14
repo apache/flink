@@ -411,6 +411,32 @@ public class HiveTableSourceTest {
 	}
 
 	@Test
+	public void testParallelismOnLimitPushDown() {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "test_parallelism_limit_pushdown";
+		hiveShell.execute("CREATE TABLE source_db.test_parallelism_limit_pushdown " +
+		                  "(year STRING, value INT) partitioned by (pt int);");
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		             .addRow(new Object[]{"2014", 3})
+		             .addRow(new Object[]{"2014", 4})
+		             .commit("pt=0");
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		             .addRow(new Object[]{"2015", 2})
+		             .addRow(new Object[]{"2015", 5})
+		             .commit("pt=1");
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism_limit_pushdown limit 1");
+		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
+		RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
+		ExecNode execNode = planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
+		@SuppressWarnings("unchecked")
+		Transformation transformation = execNode.translateToPlan(planner);
+		Assert.assertEquals(1, transformation.getParallelism());
+	}
+
+	@Test
 	public void testSourceConfig() throws Exception {
 		// vector reader not available for 1.x and we're not testing orc for 2.0.x
 		Assume.assumeTrue(HiveVersionTestUtil.HIVE_210_OR_LATER);
