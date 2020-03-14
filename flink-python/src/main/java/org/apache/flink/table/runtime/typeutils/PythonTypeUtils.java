@@ -353,6 +353,7 @@ public final class PythonTypeUtils {
 		public FlinkFnApi.Schema.FieldType visit(BinaryType binaryType) {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.BINARY)
+				.setBinaryInfo(FlinkFnApi.Schema.BinaryInfo.newBuilder().setLength(binaryType.getLength()))
 				.setNullable(binaryType.isNullable())
 				.build();
 		}
@@ -361,6 +362,7 @@ public final class PythonTypeUtils {
 		public FlinkFnApi.Schema.FieldType visit(VarBinaryType varBinaryType) {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.VARBINARY)
+				.setVarBinaryInfo(FlinkFnApi.Schema.VarBinaryInfo.newBuilder().setLength(varBinaryType.getLength()))
 				.setNullable(varBinaryType.isNullable())
 				.build();
 		}
@@ -369,6 +371,7 @@ public final class PythonTypeUtils {
 		public FlinkFnApi.Schema.FieldType visit(CharType charType) {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.CHAR)
+				.setCharInfo(FlinkFnApi.Schema.CharInfo.newBuilder().setLength(charType.getLength()))
 				.setNullable(charType.isNullable())
 				.build();
 		}
@@ -377,6 +380,7 @@ public final class PythonTypeUtils {
 		public FlinkFnApi.Schema.FieldType visit(VarCharType varCharType) {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.VARCHAR)
+				.setVarCharInfo(FlinkFnApi.Schema.VarCharInfo.newBuilder().setLength(varCharType.getLength()))
 				.setNullable(varCharType.isNullable())
 				.build();
 		}
@@ -393,6 +397,7 @@ public final class PythonTypeUtils {
 		public FlinkFnApi.Schema.FieldType visit(TimeType timeType) {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.TIME)
+				.setTimeInfo(FlinkFnApi.Schema.TimeInfo.newBuilder().setPrecision(timeType.getPrecision()))
 				.setNullable(timeType.isNullable())
 				.build();
 		}
@@ -401,13 +406,13 @@ public final class PythonTypeUtils {
 		public FlinkFnApi.Schema.FieldType visit(TimestampType timestampType) {
 			FlinkFnApi.Schema.FieldType.Builder builder =
 				FlinkFnApi.Schema.FieldType.newBuilder()
-					.setTypeName(FlinkFnApi.Schema.TypeName.DATETIME)
+					.setTypeName(FlinkFnApi.Schema.TypeName.TIMESTAMP)
 					.setNullable(timestampType.isNullable());
 
-			FlinkFnApi.Schema.DateTimeType.Builder dateTimeBuilder =
-				FlinkFnApi.Schema.DateTimeType.newBuilder()
+			FlinkFnApi.Schema.TimestampInfo.Builder timestampInfoBuilder =
+				FlinkFnApi.Schema.TimestampInfo.newBuilder()
 					.setPrecision(timestampType.getPrecision());
-			builder.setDateTimeType(dateTimeBuilder.build());
+			builder.setTimestampInfo(timestampInfoBuilder);
 			return builder.build();
 		}
 
@@ -418,11 +423,11 @@ public final class PythonTypeUtils {
 					.setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
 					.setNullable(decimalType.isNullable());
 
-			FlinkFnApi.Schema.DecimalType.Builder decimalTypeBuilder =
-				FlinkFnApi.Schema.DecimalType.newBuilder()
+			FlinkFnApi.Schema.DecimalInfo.Builder decimalInfoBuilder =
+				FlinkFnApi.Schema.DecimalInfo.newBuilder()
 					.setPrecision(decimalType.getPrecision())
 					.setScale(decimalType.getScale());
-			builder.setDecimalType(decimalTypeBuilder);
+			builder.setDecimalInfo(decimalInfoBuilder);
 			return builder.build();
 		}
 
@@ -445,11 +450,11 @@ public final class PythonTypeUtils {
 					.setTypeName(FlinkFnApi.Schema.TypeName.MAP)
 					.setNullable(mapType.isNullable());
 
-			FlinkFnApi.Schema.MapType.Builder mapBuilder =
-				FlinkFnApi.Schema.MapType.newBuilder()
+			FlinkFnApi.Schema.MapInfo.Builder mapBuilder =
+				FlinkFnApi.Schema.MapInfo.newBuilder()
 					.setKeyType(mapType.getKeyType().accept(this))
 					.setValueType(mapType.getValueType().accept(this));
-			builder.setMapType(mapBuilder.build());
+			builder.setMapInfo(mapBuilder.build());
 			return builder.build();
 		}
 
@@ -484,11 +489,11 @@ public final class PythonTypeUtils {
 							.setNullable(logicalType.isNullable());
 					// Because we can't get precision and scale from legacy BIG_DEC_TYPE_INFO,
 					// we set the precision and scale to default value compatible with python.
-					FlinkFnApi.Schema.DecimalType.Builder decimalTypeBuilder =
-						FlinkFnApi.Schema.DecimalType.newBuilder()
+					FlinkFnApi.Schema.DecimalInfo.Builder decimalTypeBuilder =
+						FlinkFnApi.Schema.DecimalInfo.newBuilder()
 							.setPrecision(38)
 							.setScale(18);
-					builder.setDecimalType(decimalTypeBuilder);
+					builder.setDecimalInfo(decimalTypeBuilder);
 					return builder.build();
 				}
 			}

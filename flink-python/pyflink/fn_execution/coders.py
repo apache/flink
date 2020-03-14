@@ -464,15 +464,15 @@ def from_proto(field_type):
         return coder
     if field_type_name == type_name.ROW:
         return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields])
-    if field_type_name == type_name.DATETIME:
-        return TimestampCoder(field_type.date_time_type.precision)
+    if field_type_name == type_name.TIMESTAMP:
+        return TimestampCoder(field_type.timestamp_info.precision)
     elif field_type_name == type_name.ARRAY:
         return ArrayCoder(from_proto(field_type.collection_element_type))
     elif field_type_name == type_name.MAP:
-        return MapCoder(from_proto(field_type.map_type.key_type),
-                        from_proto(field_type.map_type.value_type))
+        return MapCoder(from_proto(field_type.map_info.key_type),
+                        from_proto(field_type.map_info.value_type))
     elif field_type_name == type_name.DECIMAL:
-        return DecimalCoder(field_type.decimal_type.precision,
-                            field_type.decimal_type.scale)
+        return DecimalCoder(field_type.decimal_info.precision,
+                            field_type.decimal_info.scale)
     else:
         raise ValueError("field_type %s is not supported." % field_type)
