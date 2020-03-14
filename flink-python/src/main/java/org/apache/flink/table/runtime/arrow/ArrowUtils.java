@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.arrow.readers.FloatFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.IntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.RowArrowReader;
 import org.apache.flink.table.runtime.arrow.readers.SmallIntFieldReader;
+import org.apache.flink.table.runtime.arrow.readers.TimeFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TinyIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarBinaryFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarCharFieldReader;
@@ -42,6 +43,7 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowDoubleColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowSmallIntColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowTimeColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarCharColumnVector;
@@ -55,6 +57,7 @@ import org.apache.flink.table.runtime.arrow.writers.BaseRowDoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowFloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowSmallIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.BaseRowTimeWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowTinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowVarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowVarCharWriter;
@@ -66,6 +69,7 @@ import org.apache.flink.table.runtime.arrow.writers.DoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.TimeWriter;
 import org.apache.flink.table.runtime.arrow.writers.TinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
@@ -80,6 +84,7 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -96,12 +101,17 @@ import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeMicroVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.TimeNanoVector;
+import org.apache.arrow.vector.TimeSecVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -178,6 +188,9 @@ public final class ArrowUtils {
 			return new DecimalWriter(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
 		} else if (vector instanceof DateDayVector) {
 			return new DateWriter((DateDayVector) vector);
+		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
+			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
+			return new TimeWriter(vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -223,6 +236,9 @@ public final class ArrowUtils {
 			return new BaseRowDecimalWriter(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
 		} else if (vector instanceof DateDayVector) {
 			return new BaseRowDateWriter((DateDayVector) vector);
+		}  else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
+			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
+			return new BaseRowTimeWriter(vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -265,6 +281,9 @@ public final class ArrowUtils {
 			return new DecimalFieldReader((DecimalVector) vector);
 		} else if (vector instanceof DateDayVector) {
 			return new DateFieldReader((DateDayVector) vector);
+		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
+			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
+			return new TimeFieldReader(vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -307,6 +326,9 @@ public final class ArrowUtils {
 			return new ArrowDecimalColumnVector((DecimalVector) vector);
 		} else if (vector instanceof DateDayVector) {
 			return new ArrowDateColumnVector((DateDayVector) vector);
+		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
+			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
+			return new ArrowTimeColumnVector(vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -370,6 +392,19 @@ public final class ArrowUtils {
 		@Override
 		public ArrowType visit(DateType dateType) {
 			return new ArrowType.Date(DateUnit.DAY);
+		}
+
+		@Override
+		public ArrowType visit(TimeType timeType) {
+			if (timeType.getPrecision() == 0) {
+				return new ArrowType.Time(TimeUnit.SECOND, 32);
+			} else if (timeType.getPrecision() >= 1 && timeType.getPrecision() <= 3) {
+				return new ArrowType.Time(TimeUnit.MILLISECOND, 32);
+			} else if (timeType.getPrecision() >= 4 && timeType.getPrecision() <= 6) {
+				return new ArrowType.Time(TimeUnit.MICROSECOND, 64);
+			} else {
+				return new ArrowType.Time(TimeUnit.NANOSECOND, 64);
+			}
 		}
 
 		@Override

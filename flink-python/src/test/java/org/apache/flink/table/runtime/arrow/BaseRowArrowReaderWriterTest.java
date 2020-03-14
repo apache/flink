@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -101,6 +102,10 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 		fieldTypes.add(new VarBinaryType());
 		fieldTypes.add(new DecimalType(10, 3));
 		fieldTypes.add(new DateType());
+		fieldTypes.add(new TimeType(0));
+		fieldTypes.add(new TimeType(2));
+		fieldTypes.add(new TimeType(4));
+		fieldTypes.add(new TimeType(8));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (int i = 0; i < fieldTypes.size(); i++) {
@@ -128,12 +133,12 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 
 	@Override
 	public BaseRow[] getTestData() {
-		BaseRow row1 = StreamRecordUtils.baserow((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100);
-		BinaryRow row2 = StreamRecordUtils.binaryrow((byte) 1, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100);
-		BaseRow row3 = StreamRecordUtils.baserow(null, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100);
-		BinaryRow row4 = StreamRecordUtils.binaryrow((byte) 1, null, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100);
-		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null, null, null, null, null, null, null, null);
-		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null, null, null, null, null, null, null, null);
+		BaseRow row1 = StreamRecordUtils.baserow((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000);
+		BinaryRow row2 = StreamRecordUtils.binaryrow((byte) 1, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000);
+		BaseRow row3 = StreamRecordUtils.baserow(null, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000);
+		BinaryRow row4 = StreamRecordUtils.binaryrow((byte) 1, null, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000);
+		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		return new BaseRow[]{row1, row2, row3, row4, row5, row6};
 	}
 }
