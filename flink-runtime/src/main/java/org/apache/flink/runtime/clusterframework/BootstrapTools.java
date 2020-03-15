@@ -28,6 +28,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 
@@ -401,7 +402,7 @@ public class BootstrapTools {
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
 
 		final TaskExecutorProcessSpec taskExecutorProcessSpec = tmParams.getTaskExecutorProcessSpec();
-		startCommandValues.put("jvmmem", TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
+		startCommandValues.put("jvmmem", ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec));
 
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
