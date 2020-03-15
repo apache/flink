@@ -317,7 +317,7 @@ val transactions: DataStream[Transaction] = env
 
 #### Partitioning Events & Detecting Fraud
 
-The `transactions` stream contains a lot of transactions from a large number of users, such that it needs to be processed in parallel my multiple fraud detection tasks. Since fraud occurs on a per-account basis, you must ensure that all transactions for the same account are processed by the same parallel task of the fraud detector operator.
+The `transactions` stream contains a lot of transactions from a large number of users, such that it needs to be processed in parallel by multiple fraud detection tasks. Since fraud occurs on a per-account basis, you must ensure that all transactions for the same account are processed by the same parallel task of the fraud detector operator.
 
 To ensure that the same physical task processes all records for a particular key, you can partition a stream using `DataStream#keyBy`. 
 The `process()` call adds an operator that applies a function to each partitioned element in the stream.
