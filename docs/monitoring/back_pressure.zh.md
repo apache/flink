@@ -36,31 +36,31 @@ Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行�
 `Sink` 正在向上游的 `Source` 算子产生反压。
 
 
-## 采样线程
+## 反压采样
 
-通过不断对每个 Task 的 stack trace 采样来进行反压监控。JobManager 会触发对 Task `Thread.getStackTrace()` 的重复调用。
+通过不断对每个 Task 的反压状态采样来进行反压监控。JobManager 会触发对 Task `Task.isBackPressured()` 的重复调用。
 
 <img src="{{ site.baseurl }}/fig/back_pressure_sampling.png" class="img-responsive">
-<!-- https://docs.google.com/drawings/d/1_YDYGdUwGUck5zeLxJ5Z5jqhpMzqRz70JxKnrrJUltA/edit?usp=sharing -->
+<!-- https://docs.google.com/drawings/d/1O5Az3Qq4fgvnISXuSf-MqBlsLDpPolNB7EQG7A3dcTk/edit?usp=sharing -->
 
-如果样本显示 Task 线程卡在某个内部方法调用中（例如：从网络堆栈请求缓冲区），则表示这个 Task 存在反压。
+Task 是否反压是基于输出 Buffer 的可用性判断的，如果一个用于数据输出的 Buffer 都没有了，则表明 Task 被反压了。
 
-默认情况下，JobManager 会触发 100 次 stack trace 采样，每次间隔 50ms 来确定反压。
-你在 Web 界面看到的比率表示在内部方法调用中有多少 stack trace 被卡住，例如: `0.01` 表示在该方法中 100 个只有 1 个被卡住了。
+默认情况下，JobManager 会触发 100 次采样，每次间隔 50ms 来确定反压。
+你在 Web 界面看到的比率表示在获得的样本中有多少表明 Task 正在被反压，例如: `0.01` 表示 100 个样本中只有 1 个反压了。
 
 - **OK**: 0 <= 比例 <= 0.10
 - **LOW**: 0.10 < 比例 <= 0.5
 - **HIGH**: 0.5 < 比例 <= 1
 
-为了不因为 stack trace 导致 TaskManager 产生负载，Web 界面仅在 60 秒后重新采样。
+为了不因为采样导致 TaskManager 负载过重，Web 界面仅在每 60 秒后重新采样。
 
 ## 配置参数
 
 你可以使用以下键来配置 JobManager 的样本数：
 
-- `web.backpressure.refresh-interval`: 有效统计被废弃并重新进行采样的时间 (默认: 60000, 1 min)。
-- `web.backpressure.num-samples`: 用于确定反压的 stack trace 样本数 (默认: 100)。
-- `web.backpressure.delay-between-samples`: 用于确定反压的 stack trace 采样间隔时间 (默认: 50, 50 ms)。
+- `web.backpressure.refresh-interval`: 有效的反压结果被废弃并重新进行采样的时间 (默认: 60000, 1 min)。
+- `web.backpressure.num-samples`: 用于确定反压采样的样本数 (默认: 100)。
+- `web.backpressure.delay-between-samples`: 用于确定反压采样的间隔时间 (默认: 50, 50 ms)。
 
 
 ## 示例
@@ -69,7 +69,7 @@ Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行�
 
 ### 采样进行中
 
-这意味着 JobManager 对正在运行的 Task 触发了 stack trace 采样。默认情况下，大约需要 5 秒完成采样。
+这意味着 JobManager 对正在运行的 Task 触发了反压采样。默认情况下，大约需要 5 秒完成采样。
 
 注意，点击该行，可触发该算子所有 SubTask 的采样。
 

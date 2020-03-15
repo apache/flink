@@ -43,6 +43,7 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -161,12 +163,14 @@ public class JvmExitOnFatalErrorTest {
 				final TaskInformation taskInformation = new TaskInformation(
 						jobVertexId, "Test Task", 1, 1, OomInvokable.class.getName(), new Configuration());
 
-				final MemoryManager memoryManager = new MemoryManager(1024 * 1024, 1);
+				final MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 				final IOManager ioManager = new IOManagerAsync();
 
 				final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
-				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration.fromConfiguration(taskManagerConfig);
+				final Configuration copiedConf = new Configuration(taskManagerConfig);
+				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration
+					.fromConfiguration(taskManagerConfig, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf));
 
 				final Executor executor = Executors.newCachedThreadPool();
 

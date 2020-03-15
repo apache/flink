@@ -28,10 +28,19 @@ under the License.
 
 在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
 
+<span class="label label-info">注意</span> PyFlink的运行需要Python 3.5及以上版本。
+
+执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+{% endhighlight %}
+
 ## 创建一个Python Table API项目
 
-首先，你可以使用你最熟悉的IDE，创建一个Python项目。然后，你需要安装PyFlink包，
-请参考[构建PyFlink]({{ site.baseurl }}/zh/flinkDev/building.html#build-pyflink)了解详细信息。
+首先，使用您最熟悉的IDE创建一个Python项目。之后执行命令`python -m pip install apache-flink`从PyPI下载安装PyFlink包。
+如果您想从源码安装，请参考[构建PyFlink]({{ site.baseurl }}/zh/flinkDev/building.html#build-pyflink)了解详细信息。
 
 ## 编写一个Flink Python Table API程序
 
@@ -59,7 +68,7 @@ t_env.connect(FileSystem().path('/tmp/input')) \
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
-    .register_table_source('mySource')
+    .create_temporary_table('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
@@ -69,7 +78,7 @@ t_env.connect(FileSystem().path('/tmp/output')) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
                  .field('count', DataTypes.BIGINT())) \
-    .register_table_sink('mySink')
+    .create_temporary_table('mySink')
 {% endhighlight %}
 
 上面的程序展示了如何创建及在`ExecutionEnvironment`中注册表名分别为`mySource`和`mySink`的表。
@@ -107,11 +116,10 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
-                 .line_delimiter(' ')
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
-    .register_table_source('mySource')
+    .create_temporary_table('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
@@ -121,9 +129,9 @@ t_env.connect(FileSystem().path('/tmp/output')) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
                  .field('count', DataTypes.BIGINT())) \
-    .register_table_sink('mySink')
+    .create_temporary_table('mySink')
 
-t_env.scan('mySource') \
+t_env.from_path('mySource') \
     .group_by('word') \
     .select('word, count(1)') \
     .insert_into('mySink')
@@ -133,7 +141,13 @@ t_env.execute("python_job")
 
 ## 执行一个Flink Python Table API程序
 
-可以在IDE中或者命令行中运行作业（假设作业名为WordCount.py）：
+首先，你需要在文件 “/tmp/input” 中准备好输入数据。你可以选择通过如下命令准备输入数据：
+
+{% highlight bash %}
+$ echo "flink\npyflink\nflink" > /tmp/input
+{% endhighlight %}
+
+接下来，可以在命令行中运行作业（假设作业名为WordCount.py）（注意：如果输出结果文件“/tmp/output”已经存在，你需要先删除文件，否则程序将无法正确运行起来）：
 
 {% highlight bash %}
 $ python WordCount.py
@@ -142,5 +156,13 @@ $ python WordCount.py
 上述命令会构建Python Table API程序，并在本地mini cluster中运行。如果想将作业提交到远端集群执行，
 可以参考[作业提交示例]({{ site.baseurl }}/zh/ops/cli.html#job-submission-examples)。
 
+最后，你可以通过如下命令查看你的运行结果：
+
+{% highlight bash %}
+$ cat /tmp/output
+flink	2
+pyflink	1
+{% endhighlight %}
+
 上述教程介绍了如何编写并运行一个Flink Python Table API程序，如果想了解Flink Python Table API
-的更多信息，可以参考[Flink Python Table API文档]({{ site.pythondocs_baseurl }}zh/api/python)。
+的更多信息，可以参考[Flink Python Table API文档]({{ site.pythondocs_baseurl }}/api/python)。

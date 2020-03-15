@@ -43,6 +43,7 @@ import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
 import static org.apache.flink.table.catalog.PathResolutionTest.TestSpec.testSpec;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -110,7 +111,13 @@ public class PathResolutionTest {
 				.withCatalogManager(catalogWithSpecialCharacters())
 				.tableApiLookupPath("default db", "tab 1")
 				.sqlLookupPath("`default db`.`tab 1`")
-				.expectPath(BUILTIN_CATALOG_NAME, "default db", "tab 1")
+				.expectPath(BUILTIN_CATALOG_NAME, "default db", "tab 1"),
+
+			testSpec("shadowingWithTemporaryTable")
+				.withCatalogManager(catalogWithTemporaryObjects())
+				.tableApiLookupPath("cat1", "db1", "tab1")
+				.sqlLookupPath("cat1.db1.tab1")
+				.expectTemporaryPath("cat1", "db1", "tab1")
 		);
 	}
 
@@ -137,6 +144,22 @@ public class PathResolutionTest {
 					table("tab1")
 				)
 			).build();
+	}
+
+	private static CatalogManager catalogWithTemporaryObjects() throws Exception {
+		return root()
+			.builtin(
+				database("default")
+			)
+			.catalog(
+				"cat1",
+				database(
+					"db1",
+					table("tab1")
+				)
+			)
+			.temporaryTable(ObjectIdentifier.of("cat1", "db1", "tab1"))
+			.build();
 	}
 
 	private static CatalogManager catalogWithSpecialCharacters() throws Exception {
@@ -168,10 +191,15 @@ public class PathResolutionTest {
 		testSpec.getDefaultCatalog().ifPresent(catalogManager::setCurrentCatalog);
 		testSpec.getDefaultDatabase().ifPresent(catalogManager::setCurrentDatabase);
 
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(lookupPath.toArray(new String[0]));
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(lookupPath.toArray(new String[0]));
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
 		assertThat(
 			Arrays.asList(identifier.getCatalogName(), identifier.getDatabaseName(), identifier.getObjectName()),
 			CoreMatchers.equalTo(testSpec.getExpectedPath()));
+		Optional<CatalogManager.TableLookupResult> tableLookup = catalogManager.getTable(identifier);
+		assertThat(tableLookup.isPresent(), is(true));
+		assertThat(tableLookup.get().isTemporary(), is(testSpec.isTemporaryObject()));
 	}
 
 	@Test
@@ -185,8 +213,9 @@ public class PathResolutionTest {
 		util.verifyJavaSql(
 			format("SELECT * FROM %s", testSpec.getSqlPathToLookup()),
 			format(
-				"StreamTableSourceScan(table=[[%s]], fields=[], source=[()])",
-				String.join(", ", testSpec.getExpectedPath()))
+				"StreamTableSourceScan(table=[[%s]], fields=[], source=[isTemporary=[%s]])",
+				String.join(", ", testSpec.getExpectedPath()),
+				testSpec.isTemporaryObject())
 		);
 	}
 
@@ -196,6 +225,7 @@ public class PathResolutionTest {
 		private String sqlPathToLookup;
 		private List<String> tableApiLookupPath;
 		private List<String> expectedPath;
+		private boolean isTemporaryObject = false;
 		private String defaultCatalog;
 		private String defaultDatabase;
 		private CatalogManager catalogManager;
@@ -237,6 +267,11 @@ public class PathResolutionTest {
 			return this;
 		}
 
+		public TestSpec expectTemporaryPath(String... expectedPath) {
+			this.isTemporaryObject = true;
+			return expectPath(expectedPath);
+		}
+
 		public TestSpec withDefaultPath(String defaultCatalog) {
 			this.defaultCatalog = defaultCatalog;
 			return this;
@@ -272,6 +307,10 @@ public class PathResolutionTest {
 			return Optional.ofNullable(defaultDatabase);
 		}
 
+		public boolean isTemporaryObject() {
+			return isTemporaryObject;
+		}
+
 		@Override
 		public String toString() {
 
@@ -284,6 +323,10 @@ public class PathResolutionTest {
 
 			if (defaultDatabase != null) {
 				properties.add("defaultDatabase: " + defaultDatabase);
+			}
+
+			if (isTemporaryObject) {
+				properties.add("temporary: true");
 			}
 
 			properties.add("sqlPath: " + sqlPathToLookup);

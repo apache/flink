@@ -36,11 +36,11 @@ import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.apache.flink.types.Row
-
 import org.junit.Test
 import org.mockito.Mockito.{mock, when}
-
 import java.lang.{Integer => JInt, Long => JLong}
+
+import org.apache.flink.table.module.ModuleManager
 
 class StreamTableEnvironmentTest extends TableTestBase {
 
@@ -206,11 +206,13 @@ class StreamTableEnvironmentTest extends TableTestBase {
     val manager: CatalogManager = new CatalogManager(
       "default_catalog",
       new GenericInMemoryCatalog("default_catalog", "default_database"))
+    val moduleManager: ModuleManager = new ModuleManager
     val executor: StreamExecutor = new StreamExecutor(jStreamExecEnv)
-    val functionCatalog = new FunctionCatalog(manager)
+    val functionCatalog = new FunctionCatalog(config, manager, moduleManager)
     val streamPlanner = new StreamPlanner(executor, config, functionCatalog, manager)
     val jTEnv = new JStreamTableEnvironmentImpl(
       manager,
+      moduleManager,
       functionCatalog,
       config,
       jStreamExecEnv,

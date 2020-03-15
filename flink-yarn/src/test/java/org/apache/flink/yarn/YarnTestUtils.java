@@ -18,7 +18,12 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+
 import org.apache.hadoop.util.VersionInfo;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.util.Arrays;
 
@@ -35,5 +40,24 @@ public class YarnTestUtils {
 
 	private YarnTestUtils() {
 		throw new UnsupportedOperationException("This class should never be instantiated.");
+	}
+
+	public static YarnClusterDescriptor createClusterDescriptorWithLogging(
+			final String flinkConfDir,
+			final Configuration flinkConfiguration,
+			final YarnConfiguration yarnConfiguration,
+			final YarnClient yarnClient,
+			final boolean sharedYarnClient) {
+		final Configuration effectiveConfiguration = configureLogFile(flinkConfiguration, flinkConfDir);
+		return new YarnClusterDescriptor(
+			effectiveConfiguration,
+			yarnConfiguration,
+			yarnClient,
+			YarnClientYarnClusterInformationRetriever.create(yarnClient),
+			sharedYarnClient);
+	}
+
+	public static Configuration configureLogFile(Configuration flinkConfiguration, String flinkConfDir) {
+		return FlinkYarnSessionCli.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
 	}
 }

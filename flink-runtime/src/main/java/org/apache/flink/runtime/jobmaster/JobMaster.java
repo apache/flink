@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,13 +39,13 @@ import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
+import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
@@ -197,7 +198,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private Map<String, Object> accumulators;
 
-	private final PartitionTracker partitionTracker;
+	private final JobMasterPartitionTracker partitionTracker;
 
 	// ------------------------------------------------------------------------
 
@@ -219,7 +220,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			ShuffleMaster<?> shuffleMaster,
 			PartitionTrackerFactory partitionTrackerFactory) throws Exception {
 
-		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
+		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME), null);
 
 		this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
 		this.resourceId = checkNotNull(resourceId);
@@ -269,6 +270,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.establishedResourceManagerConnection = null;
 
 		this.accumulators = new HashMap<>();
+		this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
+		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 	}
 
 	private SchedulerNG createScheduler(final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
@@ -785,15 +788,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void stopHeartbeatServices() {
-		if (taskManagerHeartbeatManager != null) {
-			taskManagerHeartbeatManager.stop();
-			taskManagerHeartbeatManager = null;
-		}
-
-		if (resourceManagerHeartbeatManager != null) {
-			resourceManagerHeartbeatManager.stop();
-			resourceManagerHeartbeatManager = null;
-		}
+		taskManagerHeartbeatManager.stop();
+		resourceManagerHeartbeatManager.stop();
 	}
 
 	private void startHeartbeatServices() {
@@ -897,7 +893,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (newJobStatus.isGloballyTerminalState()) {
 			runAsync(() -> registeredTaskManagers.keySet()
-				.forEach(partitionTracker::stopTrackingAndReleasePartitionsFor));
+				.forEach(newJobStatus == JobStatus.FINISHED
+					? partitionTracker::stopTrackingAndReleaseOrPromotePartitionsFor
+					: partitionTracker::stopTrackingAndReleasePartitionsFor));
 
 			final ArchivedExecutionGraph archivedExecutionGraph = schedulerNG.requestJob();
 			scheduledExecutorService.execute(() -> jobCompletionActions.jobReachedGloballyTerminalState(archivedExecutionGraph));

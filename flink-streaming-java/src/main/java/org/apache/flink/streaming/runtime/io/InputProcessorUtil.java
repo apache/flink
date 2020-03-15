@@ -20,11 +20,11 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -67,6 +67,7 @@ public class InputProcessorUtil {
 			InputGate inputGate1,
 			InputGate inputGate2,
 			Configuration taskManagerConfig,
+			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName) throws IOException {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
@@ -91,6 +92,8 @@ public class InputProcessorUtil {
 			inputGate1.getNumberOfInputChannels() + inputGate2.getNumberOfInputChannels(),
 			taskName,
 			toNotifyOnCheckpoint);
+		taskIOMetricGroup.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+
 		return new CheckpointedInputGate[] {
 			new CheckpointedInputGate(inputGate1, linkedBufferStorage1, barrierHandler),
 			new CheckpointedInputGate(inputGate2, linkedBufferStorage2, barrierHandler, inputGate1.getNumberOfInputChannels())
@@ -120,7 +123,7 @@ public class InputProcessorUtil {
 			IOManager ioManager,
 			int pageSize,
 			Configuration taskManagerConfig,
-			String taskName) throws IOException {
+			String taskName) {
 		switch (checkpointMode) {
 			case EXACTLY_ONCE: {
 				long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
@@ -129,12 +132,7 @@ public class InputProcessorUtil {
 						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
 							+ " must be positive or -1 (infinite)");
 				}
-
-				if (taskManagerConfig.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL)) {
-					return new CachedBufferStorage(pageSize, maxAlign, taskName);
-				} else {
-					return new BufferSpiller(ioManager, pageSize, maxAlign, taskName);
-				}
+				return new CachedBufferStorage(pageSize, maxAlign, taskName);
 			}
 			case AT_LEAST_ONCE:
 				return new EmptyBufferStorage();

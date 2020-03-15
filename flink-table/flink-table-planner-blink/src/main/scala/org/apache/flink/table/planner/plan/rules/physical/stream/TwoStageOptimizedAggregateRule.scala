@@ -58,7 +58,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   "TwoStageOptimizedAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val agg: StreamExecGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 

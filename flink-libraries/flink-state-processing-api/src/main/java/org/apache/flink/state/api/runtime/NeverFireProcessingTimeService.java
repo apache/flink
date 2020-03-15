@@ -19,18 +19,17 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A processing time service whose timers never fire so all timers are included in savepoints.
  */
 @Internal
-public final class NeverFireProcessingTimeService extends ProcessingTimeService {
+public final class NeverFireProcessingTimeService implements TimerService {
 	private static final NeverCompleteFuture FUTURE = new NeverCompleteFuture(Long.MAX_VALUE);
 
 	private AtomicBoolean shutdown = new AtomicBoolean(true);
@@ -76,11 +75,4 @@ public final class NeverFireProcessingTimeService extends ProcessingTimeService 
 		shutdown.set(true);
 		return shutdown.get();
 	}
-
-	@Override
-	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
-		shutdown.set(true);
-		return shutdown.get();
-	}
 }
-

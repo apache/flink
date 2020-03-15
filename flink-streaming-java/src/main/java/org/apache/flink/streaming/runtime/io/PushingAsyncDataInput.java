@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.io.AvailabilityListener;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -31,7 +31,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
  * of returning {@code Optional.empty()} via {@link PullingAsyncDataInput#pollNext()}.
  */
 @Internal
-public interface PushingAsyncDataInput<T> extends AvailabilityListener {
+public interface PushingAsyncDataInput<T> extends AvailabilityProvider {
 
 	/**
 	 * Pushes the next element to the output from current data input, and returns

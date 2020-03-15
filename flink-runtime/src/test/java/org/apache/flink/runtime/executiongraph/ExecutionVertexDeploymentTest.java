@@ -314,7 +314,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 				new AllocationID(),
 				0,
 				null,
-				Execution.registerProducedPartitions(vertex, location, attemptID).get().values());
+				Execution.registerProducedPartitions(vertex, location, attemptID, scheduleMode.allowLazyDeployment()).get().values());
 
 			Collection<ResultPartitionDeploymentDescriptor> producedPartitions = tdd.getProducedPartitions();
 

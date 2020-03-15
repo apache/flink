@@ -263,8 +263,8 @@ look at the [event stream navigation](#pattern-navigation) section.
 ### Aggregations
 
 Aggregations can be used in `DEFINE` and `MEASURES` clauses. Both
-[built-in]({{ site.baseurl }}/dev/table/sql.html#built-in-functions) and custom
-[user defined]({{ site.baseurl }}/dev/table/udfs.html) functions are supported.
+[built-in]({{ site.baseurl }}/dev/table/functions/systemFunctions.html) and custom
+[user defined]({{ site.baseurl }}/dev/table/functions/udfs.html) functions are supported.
 
 Aggregate functions are applied to each subset of rows mapped to a match. In order to understand
 how those subsets are evaluated have a look at the [event stream navigation](#pattern-navigation)
@@ -285,7 +285,7 @@ FROM Ticker
             LAST(A.rowtime) AS end_tstamp,
             AVG(A.price) AS avgPrice
         ONE ROW PER MATCH
-        AFTER MATCH SKIP TO FIRST B
+        AFTER MATCH SKIP PAST LAST ROW
         PATTERN (A+ B)
         DEFINE
             A AS AVG(A.price) < 15
@@ -307,19 +307,20 @@ symbol         rowtime         price    tax
 'ACME'  '01-Apr-11 10:00:07'   10      2
 'ACME'  '01-Apr-11 10:00:08'   15      2
 'ACME'  '01-Apr-11 10:00:09'   25      2
-'ACME'  '01-Apr-11 10:00:10'   30      1
+'ACME'  '01-Apr-11 10:00:10'   25      1
+'ACME'  '01-Apr-11 10:00:11'   30      1
 {% endhighlight %}
 
 The query will accumulate events as part of the pattern variable `A` as long as the average price
 of them does not exceed `15`. For example, such a limit exceeding happens at `01-Apr-11 10:00:04`.
-The following period exceeds the average price of `15` again at `01-Apr-11 10:00:10`. Thus the
+The following period exceeds the average price of `15` again at `01-Apr-11 10:00:11`. Thus the
 results for said query will be:
 
 {% highlight text %}
  symbol       start_tstamp       end_tstamp          avgPrice
 =========  ==================  ==================  ============
 ACME       01-APR-11 10:00:00  01-APR-11 10:00:03     14.5
-ACME       01-APR-11 10:00:04  01-APR-11 10:00:09     13.5
+ACME       01-APR-11 10:00:05  01-APR-11 10:00:10     13.5
 {% endhighlight %}
 
 <span class="label label-info">Note</span> Aggregations can be applied to expressions, but only if

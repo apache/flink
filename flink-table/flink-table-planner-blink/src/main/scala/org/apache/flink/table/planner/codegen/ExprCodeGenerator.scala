@@ -37,10 +37,10 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.util.TimestampString
 
 import scala.collection.JavaConversions._
 
@@ -224,10 +224,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       outRow: String = DEFAULT_OUT_RECORD_TERM,
       outRowWriter: Option[String] = Some(DEFAULT_OUT_RECORD_WRITER_TERM),
       reusedOutRow: Boolean = true,
-      outRowAlreadyExists: Boolean = false): GeneratedExpression = {
+      outRowAlreadyExists: Boolean = false,
+      allowSplit: Boolean = false): GeneratedExpression = {
     val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
     generateResultExpression(fieldExprs, fieldExprIdxToOutputRowPosMap, returnType,
-      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists)
+      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists, allowSplit)
   }
 
   /**
@@ -253,7 +254,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     outRow: String,
     outRowWriter: Option[String],
     reusedOutRow: Boolean,
-    outRowAlreadyExists: Boolean)
+    outRowAlreadyExists: Boolean,
+    allowSplit: Boolean)
   : GeneratedExpression = {
     // initial type check
     if (returnType.getFieldCount != fieldExprs.length) {
@@ -270,10 +272,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     fieldExprs.zipWithIndex foreach {
       // timestamp type(Include TimeIndicator) and generic type can compatible with each other.
       case (fieldExpr, i)
-        if fieldExpr.resultType.isInstanceOf[TypeInformationAnyType[_]] ||
+        if fieldExpr.resultType.isInstanceOf[TypeInformationRawType[_]] ||
           fieldExpr.resultType.isInstanceOf[TimestampType] =>
         if (returnType.getTypeAt(i).getClass != fieldExpr.resultType.getClass
-          && !returnType.getTypeAt(i).isInstanceOf[TypeInformationAnyType[_]]) {
+          && !returnType.getTypeAt(i).isInstanceOf[TypeInformationRawType[_]]) {
           throw new CodeGenException(
             s"Incompatible types of expression and result type, Expression[$fieldExpr] type is " +
               s"[${fieldExpr.resultType}], result type is [${returnType.getTypeAt(i)}]")
@@ -285,11 +287,30 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ => // ok
     }
 
-    val setFieldsCode = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
+    val setFieldsCodes = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
       val pos = fieldExprIdxToOutputRowPosMap.getOrElse(index,
         throw new CodeGenException(s"Illegal field expr index: $index"))
       baseRowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
-    }.mkString("\n")
+    }
+    val totalLen = setFieldsCodes.map(_.length).sum
+    val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
+    val setFieldsCode = if (allowSplit && totalLen > maxCodeLength) {
+      // do the split.
+      ctx.setCodeSplit()
+      setFieldsCodes.map(project => {
+        val methodName = newName("split")
+        val method =
+          s"""
+            |private void $methodName() throws Exception {
+            |  $project
+            |}
+            |""".stripMargin
+        ctx.addReusableMember(method)
+        s"$methodName();"
+      }).mkString("\n")
+    } else {
+      setFieldsCodes.mkString("\n")
+    }
 
     val outRowInitCode = if (!outRowAlreadyExists) {
       val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter)
@@ -388,7 +409,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(literal.getType)
-    val value = literal.getValue3
+    val value = resultType.getTypeRoot match {
+      case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE |
+           LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        literal.getValueAs(classOf[TimestampString])
+      case _ =>
+        literal.getValue3
+    }
     generateLiteral(ctx, resultType, value)
   }
 
@@ -557,6 +584,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         val left = operands.head
         val right = operands(1)
         generateEquals(ctx, left, right)
+
+      case IS_NOT_DISTINCT_FROM =>
+        val left = operands.head
+        val right = operands(1)
+        generateIsNotDistinctFrom(ctx, left, right)
 
       case NOT_EQUALS =>
         val left = operands.head

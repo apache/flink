@@ -31,11 +31,13 @@ import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
 import java.util.Objects;
 
+import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.normalizeTableSchema;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -131,6 +133,11 @@ public class JDBCTableSource implements
 		return schema;
 	}
 
+	@Override
+	public String explainSource() {
+		return TableConnectorUtils.generateRuntimeName(getClass(), returnType.getFieldNames());
+	}
+
 	public static Builder builder() {
 		return new Builder();
 	}
@@ -219,7 +226,7 @@ public class JDBCTableSource implements
 		 * required, table schema of this table source.
 		 */
 		public Builder setSchema(TableSchema schema) {
-			this.schema = schema;
+			this.schema = normalizeTableSchema(schema);
 			return this;
 		}
 

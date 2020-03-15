@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.error.SqlParseException;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 
 /** An remark interface which should be inherited by extended sql nodes which are not supported
  * by Calcite core parser.
@@ -27,5 +27,5 @@ import org.apache.flink.sql.parser.error.SqlParseException;
  * {@link org.apache.calcite.sql.validate.SqlValidatorImpl}.
  */
 public interface ExtendedSqlNode {
-	void validate() throws SqlParseException;
+	void validate() throws SqlValidateException;
 }

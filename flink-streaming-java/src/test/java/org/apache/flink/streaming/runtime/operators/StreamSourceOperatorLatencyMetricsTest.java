@@ -36,9 +36,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -68,9 +68,8 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 	 */
 	@Test
 	public void testLatencyMarkEmissionDisabled() throws Exception {
-		testLatencyMarkEmission(0, (operator, timeProvider) -> {
-			setupSourceOperator(operator, new ExecutionConfig(), MockEnvironment.builder().build(), timeProvider);
-		});
+		testLatencyMarkEmission(0,
+			(operator, timeProvider) -> setupSourceOperator(operator, new ExecutionConfig(), MockEnvironment.builder().build(), timeProvider));
 	}
 
 	/**
@@ -168,9 +167,10 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 		// run and wait to be stopped
 		OperatorChain<?, ?> operatorChain = new OperatorChain<>(
 			operator.getContainingTask(),
-			StreamTask.createRecordWriters(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
+			StreamTask.createRecordWriterDelegate(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
 		try {
-			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<Long>(output), operatorChain);
+			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<>(output), operatorChain);
+			operator.close();
 		} finally {
 			operatorChain.releaseOutputs();
 		}
@@ -206,11 +206,12 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	private static <T> void setupSourceOperator(
 			StreamSource<T, ?> operator,
 			ExecutionConfig executionConfig,
 			Environment env,
-			ProcessingTimeService timeProvider) {
+			TimerService timerService) {
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStateBackend(new MemoryStateBackend());
@@ -222,7 +223,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 			MockStreamTask mockTask = new MockStreamTaskBuilder(env)
 				.setConfig(cfg)
 				.setExecutionConfig(executionConfig)
-				.setProcessingTimeService(timeProvider)
+				.setTimerService(timerService)
 				.build();
 
 			operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));

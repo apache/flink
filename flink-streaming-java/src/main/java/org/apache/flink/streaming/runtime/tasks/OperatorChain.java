@@ -29,6 +29,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
@@ -41,13 +42,11 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
-import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -56,7 +55,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutorFactory;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -73,6 +72,7 @@ import java.util.Map;
 import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The {@code OperatorChain} contains all operators that are executed as one chain within a single
@@ -105,12 +105,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	 */
 	private StreamStatus streamStatus = StreamStatus.ACTIVE;
 
-	/** The flag that tracks finished inputs. */
-	private InputSelection finishedInputs = new InputSelection.Builder().build();
-
 	public OperatorChain(
 			StreamTask<OUT, OP> containingTask,
-			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters) {
+			RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate) {
 
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
 		final StreamConfig configuration = containingTask.getConfiguration();
@@ -133,7 +130,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamEdge outEdge = outEdgesInOrder.get(i);
 
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
-					recordWriters.get(i),
+					recordWriterDelegate.getRecordWriter(i),
 					outEdge,
 					chainedConfigs.get(outEdge.getSourceId()),
 					containingTask.getEnvironment());
@@ -244,46 +241,30 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	/**
-	 * Ends an input (specified by {@code inputId}) of the {@link StreamTask}. The {@code inputId}
-	 * is numbered starting from 1, and `1` indicates the first input.
+	 * Ends the head operator input specified by {@code inputId}).
 	 *
-	 * @param inputId The ID of the input.
-	 * @throws Exception if some exception happens in the endInput function of an operator.
+	 * @param inputId the input ID starts from 1 which indicates the first input.
 	 */
-	public void endInput(int inputId) throws Exception {
-		if (finishedInputs.areAllInputsSelected()) {
-			return;
-		}
+	public void endHeadOperatorInput(int inputId) throws Exception {
+		endOperatorInput(headOperator, inputId);
+	}
 
-		if (headOperator instanceof TwoInputStreamOperator) {
-			if (finishedInputs.isInputSelected(inputId)) {
-				return;
-			}
+	/**
+	 * Ends all inputs of the non-head operator specified by {@code streamOperator})
+	 * (now there is only one input for each non-head operator).
+	 *
+	 * @param streamOperator non-head operator for ending the only input.
+	 */
+	public void endNonHeadOperatorInput(StreamOperator<?> streamOperator) throws Exception {
+		checkState(streamOperator != headOperator);
+		endOperatorInput(streamOperator, 1);
+	}
 
-			if (headOperator instanceof BoundedMultiInput) {
-				((BoundedMultiInput) headOperator).endInput(inputId);
-			}
-
-			finishedInputs = InputSelection.Builder
-				.from(finishedInputs)
-				.select(finishedInputs.getInputMask() == 0 ? inputId : -1)
-				.build();
-		} else {
-			// here, the head operator is a stream source or an one-input stream operator,
-			// so all inputs are finished
-			finishedInputs = new InputSelection.Builder()
-				.select(-1)
-				.build();
-		}
-
-		if (finishedInputs.areAllInputsSelected()) {
-			// executing #endInput() happens from head to tail operator in the chain
-			for (int i = allOperators.length - 1; i >= 0; i--) {
-				StreamOperator<?> operator = allOperators[i];
-				if (operator instanceof BoundedOneInput) {
-					((BoundedOneInput) operator).endInput();
-				}
-			}
+	private void endOperatorInput(StreamOperator<?> streamOperator, int inputId) throws Exception {
+		if (streamOperator instanceof BoundedOneInput) {
+			((BoundedOneInput) streamOperator).endInput();
+		} else if (streamOperator instanceof BoundedMultiInput) {
+			((BoundedMultiInput) streamOperator).endInput(inputId);
 		}
 	}
 
@@ -539,7 +520,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		@Override
 		public void collect(StreamRecord<T> record) {
 			if (this.outputTag != null) {
-				// we are only responsible for emitting to the main input
+				// we are not responsible for emitting to the main output.
 				return;
 			}
 
@@ -549,7 +530,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		@Override
 		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-				// we are only responsible for emitting to the side-output specified by our
+				// we are not responsible for emitting to the side-output specified by this
 				// OutputTag.
 				return;
 			}
@@ -628,7 +609,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		@Override
 		public void collect(StreamRecord<T> record) {
 			if (this.outputTag != null) {
-				// we are only responsible for emitting to the main input
+				// we are not responsible for emitting to the main output.
 				return;
 			}
 
@@ -638,7 +619,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		@Override
 		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-				// we are only responsible for emitting to the side-output specified by our
+				// we are not responsible for emitting to the side-output specified by this
 				// OutputTag.
 				return;
 			}

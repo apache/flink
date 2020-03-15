@@ -20,16 +20,16 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.duration.Duration;
 
 /**
  * Configuration for the {@link SlotManager}.
@@ -42,17 +42,20 @@ public class SlotManagerConfiguration {
 	private final Time slotRequestTimeout;
 	private final Time taskManagerTimeout;
 	private final boolean waitResultConsumedBeforeRelease;
+	private final boolean evenlySpreadOutSlots;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
 			Time taskManagerTimeout,
-			boolean waitResultConsumedBeforeRelease) {
+			boolean waitResultConsumedBeforeRelease,
+			boolean evenlySpreadOutSlots) {
 
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
 		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
+		this.evenlySpreadOutSlots = evenlySpreadOutSlots;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -71,13 +74,15 @@ public class SlotManagerConfiguration {
 		return waitResultConsumedBeforeRelease;
 	}
 
-	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
-		final String strTimeout = configuration.getString(AkkaOptions.ASK_TIMEOUT);
-		final Time rpcTimeout;
+	public boolean evenlySpreadOutSlots() {
+		return evenlySpreadOutSlots;
+	}
 
+	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
+		final Time rpcTimeout;
 		try {
-			rpcTimeout = Time.milliseconds(Duration.apply(strTimeout).toMillis());
-		} catch (NumberFormatException e) {
+			rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
+		} catch (IllegalArgumentException e) {
 			throw new ConfigurationException("Could not parse the resource manager's timeout " +
 				"value " + AkkaOptions.ASK_TIMEOUT + '.', e);
 		}
@@ -89,7 +94,14 @@ public class SlotManagerConfiguration {
 		boolean waitResultConsumedBeforeRelease =
 			configuration.getBoolean(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
 
-		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout, waitResultConsumedBeforeRelease);
+		boolean evenlySpreadOutSlots = configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+
+		return new SlotManagerConfiguration(
+			rpcTimeout,
+			slotRequestTimeout,
+			taskManagerTimeout,
+			waitResultConsumedBeforeRelease,
+			evenlySpreadOutSlots);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {

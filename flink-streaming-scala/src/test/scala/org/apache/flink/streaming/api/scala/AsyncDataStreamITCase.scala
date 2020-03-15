@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
@@ -27,27 +25,28 @@ import org.apache.flink.streaming.api.scala.async.{ResultFuture, RichAsyncFuncti
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
+
+import java.{util => ju}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 object AsyncDataStreamITCase {
   private var testResult: mutable.ArrayBuffer[Int] = _
+
+  @Parameters(name = "ordered = {0}")
+  def parameters: ju.Collection[Boolean] = ju.Arrays.asList(true, false)
 }
 
-class AsyncDataStreamITCase extends AbstractTestBase {
+@RunWith(value = classOf[Parameterized])
+class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
 
   @Test
-  def testOrderedWait(): Unit = {
-    testAsyncWait(true)
-  }
-
-  @Test
-  def testUnorderedWait(): Unit = {
-    testAsyncWait(false)
-  }
-
-  private def testAsyncWait(ordered: Boolean): Unit = {
+  def testAsyncWithTimeout(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
@@ -63,6 +62,25 @@ class AsyncDataStreamITCase extends AbstractTestBase {
     }
 
     executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](3))
+  }
+
+  @Test
+  def testAsyncWithoutTimeout(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val source = env.fromElements(1)
+
+    val timeout = 1L
+    val asyncMapped = if (ordered) {
+      AsyncDataStream.orderedWait(
+        source, new AsyncFunctionWithoutTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+    } else {
+      AsyncDataStream.unorderedWait(
+        source, new AsyncFunctionWithoutTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+    }
+
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2))
   }
 
   private def executeAndValidate(ordered: Boolean,
@@ -87,16 +105,6 @@ class AsyncDataStreamITCase extends AbstractTestBase {
   }
 
   @Test
-  def testOrderedWaitUsingAnonymousFunction(): Unit = {
-    testAsyncWaitUsingAnonymousFunction(true)
-  }
-
-  @Test
-  def testUnorderedWaitUsingAnonymousFunction(): Unit = {
-    testAsyncWaitUsingAnonymousFunction(false)
-  }
-
-  @Test
   def testRichAsyncFunctionRuntimeContext(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
@@ -105,13 +113,19 @@ class AsyncDataStreamITCase extends AbstractTestBase {
 
     val timeout = 10000L
     val richAsyncFunction = new MyRichAsyncFunction
-    val asyncMapped = AsyncDataStream
-      .unorderedWait(source, richAsyncFunction, timeout, TimeUnit.MILLISECONDS)
+    val asyncMapped = if (ordered) {
+      AsyncDataStream
+        .orderedWait(source, richAsyncFunction, timeout, TimeUnit.MILLISECONDS)
+    } else {
+      AsyncDataStream
+        .unorderedWait(source, richAsyncFunction, timeout, TimeUnit.MILLISECONDS)
+    }
 
     executeAndValidate(false, env, asyncMapped, mutable.ArrayBuffer[Int](2))
   }
 
-  private def testAsyncWaitUsingAnonymousFunction(ordered: Boolean): Unit = {
+  @Test
+  def testAsyncWaitUsingAnonymousFunction(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
@@ -154,6 +168,33 @@ class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
     invokeLatch.countDown()
+  }
+}
+
+/**
+  * The asyncInvoke and timeout might be invoked at the same time.
+  * The target is checking whether there is a race condition or not between asyncInvoke,
+  * timeout and timer cancellation.
+  * See https://issues.apache.org/jira/browse/FLINK-13605 for more details.
+  */
+class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
+  @transient var timeoutLatch: CountDownLatch = _
+
+  override def open(parameters: Configuration): Unit = {
+    timeoutLatch = new CountDownLatch(1)
+  }
+
+  override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    Future {
+      resultFuture.complete(Seq(input * 2))
+      timeoutLatch.countDown()
+    } (ExecutionContext.global)
+  }
+  override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    // this sleeping helps reproducing race condition with cancellation
+    Thread.sleep(10)
+    timeoutLatch.await()
+    resultFuture.complete(Seq(input * 3))
   }
 }
 

@@ -87,23 +87,21 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: event_timestamp
-        type: VARCHAR
+        data-type: STRING
       - name: user
-        type: VARCHAR
+        data-type: STRING
       - name: message
-        type: VARCHAR
+        data-type: STRING
       - name: duplicate_count
-        type: BIGINT
+        data-type: BIGINT
     connector:
       type: kafka
       version: "$KAFKA_SQL_VERSION"
       topic: test-avro
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
     format:
       type: avro
       avro-schema: >
@@ -123,15 +121,15 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: event_timestamp
-        type: VARCHAR
+        data-type: STRING
       - name: user
-        type: VARCHAR
+        data-type: STRING
       - name: message
-        type: VARCHAR
+        data-type: STRING
       - name: duplicate_count
-        type: BIGINT
+        data-type: BIGINT
       - name: constant
-        type: VARCHAR
+        data-type: STRING
     connector:
       type: filesystem
       path: $RESULT
@@ -139,15 +137,15 @@ cat >> $SQL_CONF << EOF
       type: csv
       fields:
         - name: event_timestamp
-          type: VARCHAR
+          data-type: STRING
         - name: user
-          type: VARCHAR
+          data-type: STRING
         - name: message
-          type: VARCHAR
+          data-type: STRING
         - name: duplicate_count
-          type: BIGINT
+          data-type: BIGINT
         - name: constant
-          type: VARCHAR
+          data-type: STRING
 
 functions:
   - name: RegReplace
@@ -215,4 +213,12 @@ for i in {1..10}; do
   sleep 5
 done
 
-check_result_hash "SQL Client Kafka $KAFKA_VERSION" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
+#Expected results:
+#
+#2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.
+#2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.
+#2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.
+#2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding.
+#
+
+check_result_hash "SQL Client Kafka $KAFKA_VERSION" $RESULT "1303e3aa1d7aeb63024d539f15e42dd1"

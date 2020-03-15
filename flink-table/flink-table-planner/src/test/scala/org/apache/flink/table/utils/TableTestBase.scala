@@ -37,9 +37,9 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.operations.{DataSetQueryOperation, JavaDataStreamQueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.utils.TableTestUtil.createCatalogManager
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
+import org.apache.flink.table.module.ModuleManager
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
@@ -231,12 +231,14 @@ case class BatchTableTestUtil(
   val javaTableEnv = new JavaBatchTableEnvironmentImpl(
     javaEnv,
     new TableConfig,
-    catalogManager.getOrElse(createCatalogManager()))
+    catalogManager.getOrElse(createCatalogManager()),
+    new ModuleManager)
   val env = new ExecutionEnvironment(javaEnv)
   val tableEnv = new ScalaBatchTableEnvironmentImpl(
     env,
     new TableConfig,
-    catalogManager.getOrElse(createCatalogManager()))
+    catalogManager.getOrElse(createCatalogManager()),
+    new ModuleManager)
 
   def addTable[T: TypeInformation](
       name: String,
@@ -328,12 +330,14 @@ case class StreamTableTestUtil(
 
   private val tableConfig = new TableConfig
   private val manager: CatalogManager = catalogManager.getOrElse(createCatalogManager())
+  private val moduleManager: ModuleManager = new ModuleManager
   private val executor: StreamExecutor = new StreamExecutor(javaEnv)
-  private val functionCatalog = new FunctionCatalog(manager)
+  private val functionCatalog = new FunctionCatalog(tableConfig, manager, moduleManager)
   private val streamPlanner = new StreamPlanner(executor, tableConfig, functionCatalog, manager)
 
   val javaTableEnv = new JavaStreamTableEnvironmentImpl(
     manager,
+    moduleManager,
     functionCatalog,
     tableConfig,
     javaEnv,
@@ -344,6 +348,7 @@ case class StreamTableTestUtil(
   val env = new StreamExecutionEnvironment(javaEnv)
   val tableEnv = new ScalaStreamTableEnvironmentImpl(
     manager,
+    moduleManager,
     functionCatalog,
     tableConfig,
     env,

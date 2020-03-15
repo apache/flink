@@ -28,8 +28,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 
-import scala.concurrent.duration.Duration;
-
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} a fixed number of times
  * with a fixed time delay in between.
@@ -76,18 +74,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	 */
 	public static FixedDelayRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
 		int maxAttempts = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
-
-		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
-
-		long delay;
-
-		try {
-			delay = Duration.apply(delayString).toMillis();
-		} catch (NumberFormatException nfe) {
-			throw new Exception("Invalid config value for " +
-					RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key() + ": " + delayString +
-					". Value must be a valid duration (such as '100 milli' or '10 s')");
-		}
+		long delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY).toMillis();
 
 		return new FixedDelayRestartStrategyFactory(maxAttempts, delay);
 	}

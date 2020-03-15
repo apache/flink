@@ -271,7 +271,6 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		//
 
 		Iterator<Map.Entry<Long, TransactionHolder<TXN>>> pendingTransactionIterator = pendingCommitTransactions.entrySet().iterator();
-		checkState(pendingTransactionIterator.hasNext(), "checkpoint completed, but no transaction pending");
 		Throwable firstError = null;
 
 		while (pendingTransactionIterator.hasNext()) {

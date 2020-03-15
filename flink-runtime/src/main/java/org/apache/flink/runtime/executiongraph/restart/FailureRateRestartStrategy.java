@@ -29,8 +29,6 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 
-import scala.concurrent.duration.Duration;
-
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} when failure rate exceeded
  * with a fixed time delay in between.
@@ -91,13 +89,14 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 
 	public static FailureRateRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
 		int maxFailuresPerInterval = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL);
-		String failuresIntervalString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL);
-		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY);
+		long failuresInterval = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL)
+			.toMillis();
+		long delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY).toMillis();
 
-		Duration failuresInterval = Duration.apply(failuresIntervalString);
-		Duration delay = Duration.apply(delayString);
-
-		return new FailureRateRestartStrategyFactory(maxFailuresPerInterval, Time.milliseconds(failuresInterval.toMillis()), Time.milliseconds(delay.toMillis()));
+		return new FailureRateRestartStrategyFactory(
+			maxFailuresPerInterval,
+			Time.milliseconds(failuresInterval),
+			Time.milliseconds(delay));
 	}
 
 	public static class FailureRateRestartStrategyFactory extends RestartStrategyFactory {

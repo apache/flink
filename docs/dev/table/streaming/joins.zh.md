@@ -26,7 +26,7 @@ Joins are a common and well-understood operation in batch data processing to con
 
 Because of that, there are a couple of ways to actually perform a join using either Table API or SQL.
 
-For more information regarding the syntax, please check the join sections in [Table API](../tableApi.html#joins) and [SQL](../sql.html#joins).
+For more information regarding the syntax, please check the join sections in [Table API](../tableApi.html#joins) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
 
 * This will be replaced by the TOC
 {:toc}

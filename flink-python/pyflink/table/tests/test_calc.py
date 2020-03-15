@@ -33,7 +33,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t = self.t_env.from_elements([(1, 'hi', 'hello')], ['a', 'b', 'c'])
         result = t.select("a + 1, b, c")
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual('[`default_catalog`.`default_database`.`plus`(a, 1), b, c]',
+        self.assertEqual('[plus(a, 1), b, c]',
                          query_operation.getProjectList().toString())
 
     def test_alias(self):
@@ -47,18 +47,18 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t = t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.where("a > 1 && b = 'Hello'")
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual("`default_catalog`.`default_database`.`and`("
-                         "`default_catalog`.`default_database`.`greaterThan`(a, 1), "
-                         "`default_catalog`.`default_database`.`equals`(b, 'Hello'))",
+        self.assertEqual("and("
+                         "greaterThan(a, 1), "
+                         "equals(b, 'Hello'))",
                          query_operation.getCondition().toString())
 
     def test_filter(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.filter("a > 1 && b = 'Hello'")
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual("`default_catalog`.`default_database`.`and`("
-                         "`default_catalog`.`default_database`.`greaterThan`(a, 1), "
-                         "`default_catalog`.`default_database`.`equals`(b, 'Hello'))",
+        self.assertEqual("and("
+                         "greaterThan(a, 1), "
+                         "equals(b, 'Hello'))",
                          query_operation.getCondition().toString())
 
     def test_from_element(self):

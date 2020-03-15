@@ -30,7 +30,6 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -158,11 +157,10 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
-				NoOpMetricRegistry.INSTANCE,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
 				fatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 				Time.minutes(5L));
 
 		resourceManager.start();
@@ -237,8 +235,16 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 					},
 					TestingUtils.defaultExecutor()));
 
+			TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
+				taskExecutorGateway.getAddress(),
+				taskExecutorResourceID,
+				dataPort,
+				hardwareDescription,
+				ResourceProfile.ZERO,
+				ResourceProfile.ZERO);
+
 			CompletableFuture<RegistrationResponse> firstFuture =
-				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, fastTimeout);
+				rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
 			try {
 				firstFuture.get();
 				fail("Should have failed because connection to taskmanager is delayed beyond timeout");
@@ -251,12 +257,12 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			// second registration after timeout is with no delay, expecting it to be succeeded
 			rpcService.resetRpcGatewayFutureFunction();
 			CompletableFuture<RegistrationResponse> secondFuture =
-				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, TIMEOUT);
+				rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT);
 			RegistrationResponse response = secondFuture.get();
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
 			// on success, send slot report for taskmanager registration
-			final SlotReport slotReport = new SlotReport(new SlotStatus(new SlotID(taskExecutorResourceID, 0), ResourceProfile.UNKNOWN));
+			final SlotReport slotReport = new SlotReport(new SlotStatus(new SlotID(taskExecutorResourceID, 0), ResourceProfile.ANY));
 			rmGateway.sendSlotReport(taskExecutorResourceID,
 				((TaskExecutorRegistrationSuccess) response).getRegistrationId(), slotReport, TIMEOUT).get();
 
@@ -303,7 +309,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 	private Collection<SlotStatus> createSlots(int numberSlots) {
 		return IntStream.range(0, numberSlots)
 			.mapToObj(index ->
-				new SlotStatus(new SlotID(taskExecutorResourceID, index), ResourceProfile.UNKNOWN))
+				new SlotStatus(new SlotID(taskExecutorResourceID, index), ResourceProfile.ANY))
 			.collect(Collectors.toList());
 	}
 
@@ -337,10 +343,13 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
 	private CompletableFuture<RegistrationResponse> registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, String taskExecutorAddress) {
 		return resourceManagerGateway.registerTaskExecutor(
-			taskExecutorAddress,
-			taskExecutorResourceID,
-			dataPort,
-			hardwareDescription,
+			new TaskExecutorRegistration(
+				taskExecutorAddress,
+				taskExecutorResourceID,
+				dataPort,
+				hardwareDescription,
+				ResourceProfile.ZERO,
+				ResourceProfile.ZERO),
 			TIMEOUT);
 	}
 }

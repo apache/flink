@@ -264,7 +264,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visit(CatalogQueryOperation catalogTable) {
-			ObjectIdentifier objectIdentifier = catalogTable.getObjectIdentifier();
+			ObjectIdentifier objectIdentifier = catalogTable.getTableIdentifier();
 			return relBuilder.scan(
 				objectIdentifier.getCatalogName(),
 				objectIdentifier.getDatabaseName(),
@@ -299,6 +299,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		@Override
 		public <U> RelNode visit(TableSourceQueryOperation<U> tableSourceTable) {
 			final Table relTable = new TableSourceTable<>(
+				tableSourceTable.getTableSchema(),
 				tableSourceTable.getTableSource(),
 				!tableSourceTable.isBatch(),
 				FlinkStatistic.UNKNOWN());
@@ -316,6 +317,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					relTable.getRowType(relBuilder.getTypeFactory()),
 					relTable,
 					Schemas.path(catalogReader.getRootSchema(), Collections.singletonList(refId))),
+				tableSourceTable.getTableSchema(),
 				tableSourceTable.getTableSource(),
 				Option.empty()
 			);

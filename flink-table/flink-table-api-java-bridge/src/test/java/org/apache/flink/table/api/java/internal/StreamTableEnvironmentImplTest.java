@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api.java.internal;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -28,10 +27,10 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
-import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.utils.ExecutorMock;
+import org.apache.flink.table.utils.PlannerMock;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -91,19 +90,22 @@ public class StreamTableEnvironmentImplTest {
 	private StreamTableEnvironmentImpl getStreamTableEnvironment(
 			StreamExecutionEnvironment env,
 			DataStreamSource<Integer> elements) {
+		TableConfig config = new TableConfig();
 		CatalogManager catalogManager = new CatalogManager("cat", new GenericInMemoryCatalog("cat", "db"));
+		ModuleManager moduleManager = new ModuleManager();
 		return new StreamTableEnvironmentImpl(
 			catalogManager,
-			new FunctionCatalog(catalogManager),
-			new TableConfig(),
+			moduleManager,
+			new FunctionCatalog(config, catalogManager, moduleManager),
+			config,
 			env,
 			new TestPlanner(elements.getTransformation()),
-			executor,
+			new ExecutorMock(),
 			true
 		);
 	}
 
-	private static class TestPlanner implements Planner {
+	private static class TestPlanner extends PlannerMock {
 		private final Transformation<?> transformation;
 
 		private TestPlanner(Transformation<?> transformation) {
@@ -111,35 +113,8 @@ public class StreamTableEnvironmentImplTest {
 		}
 
 		@Override
-		public List<Operation> parse(String statement) {
-			throw new AssertionError("Should not be called");
-		}
-
-		@Override
 		public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
 			return Collections.singletonList(transformation);
 		}
-
-		@Override
-		public String explain(List<Operation> operations, boolean extended) {
-			throw new AssertionError("Should not be called");
-		}
-
-		@Override
-		public String[] getCompletionHints(String statement, int position) {
-			throw new AssertionError("Should not be called");
-		}
 	}
-
-	private final Executor executor = new Executor() {
-		@Override
-		public void apply(List<Transformation<?>> transformations) {
-
-		}
-
-		@Override
-		public JobExecutionResult execute(String jobName) throws Exception {
-			throw new AssertionError("Should not be called");
-		}
-	};
 }

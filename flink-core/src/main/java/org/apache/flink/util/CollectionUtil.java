@@ -27,7 +27,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * Simple utility to work with Java collections.
@@ -71,5 +74,12 @@ public final class CollectionUtil {
 		}
 
 		return buckets.values();
+	}
+
+	public static <I, O> Collection<O> project(Collection<I> collection, Function<I, O> projector) {
+		return collection
+			.stream()
+			.map(projector)
+			.collect(toList());
 	}
 }

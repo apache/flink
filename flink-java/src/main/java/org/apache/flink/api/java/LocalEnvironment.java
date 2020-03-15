@@ -21,10 +21,8 @@ package org.apache.flink.api.java;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,9 +40,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class LocalEnvironment extends ExecutionEnvironment {
 
-	/** The user-defined configuration for the local execution. */
-	private final Configuration configuration;
-
 	/**
 	 * Creates a new local environment.
 	 */
@@ -58,23 +53,20 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	 * @param config The configuration used to configure the local executor.
 	 */
 	public LocalEnvironment(Configuration config) {
+		super(validateAndGetConfiguration(config));
+	}
+
+	private static Configuration validateAndGetConfiguration(final Configuration configuration) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The LocalEnvironment cannot be instantiated when running in a pre-defined context " +
 							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
 		}
-		this.configuration = checkNotNull(config);
-	}
 
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		final Plan p = createProgramPlan(jobName);
-
-		final PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
-		lastJobExecutionResult = executor.executePlan(p);
-		return lastJobExecutionResult;
+		final Configuration effectiveConfiguration = new Configuration(checkNotNull(configuration));
+		effectiveConfiguration.set(DeploymentOptions.TARGET, "local");
+		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
+		return effectiveConfiguration;
 	}
 
 	@Override

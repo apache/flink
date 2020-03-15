@@ -21,10 +21,12 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -164,6 +166,29 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 			// reset FS settings
 			FileSystem.initialize(new Configuration());
 		}
+	}
+
+	@Test
+	public void testLoadDynamicalProperties() throws IOException, FlinkParseException {
+		final File tmpDir = temporaryFolder.newFolder();
+		final File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+		final PrintWriter pw1 = new PrintWriter(confFile);
+		final long managedMemory = 1024 * 1024 * 256;
+		pw1.println(JobManagerOptions.ADDRESS.key() + ": localhost");
+		pw1.println(TaskManagerOptions.MANAGED_MEMORY_SIZE.key() + ": " + managedMemory + "b");
+		pw1.close();
+
+		final String jmHost = "host1";
+		final int jmPort = 12345;
+		String[] args = new String[] {
+			"--configDir", tmpDir.toString(),
+			"-D" + JobManagerOptions.ADDRESS.key() + "=" + jmHost,
+			"-D" + JobManagerOptions.PORT.key() + "=" + jmPort
+		};
+		Configuration configuration = TaskManagerRunner.loadConfiguration(args);
+		assertEquals(MemorySize.parse(managedMemory + "b"), configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
+		assertEquals(jmHost, configuration.get(JobManagerOptions.ADDRESS));
+		assertEquals(jmPort, configuration.getInteger(JobManagerOptions.PORT));
 	}
 
 	private static Configuration createFlinkConfigWithPredefinedTaskManagerHostname(

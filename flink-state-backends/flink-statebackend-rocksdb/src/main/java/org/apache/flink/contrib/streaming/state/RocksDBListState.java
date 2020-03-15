@@ -187,9 +187,9 @@ class RocksDBListState<K, N, V>
 					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 
 					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
-					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
+						backend.db.delete(columnFamily, writeOptions, sourceKey);
 						backend.db.merge(columnFamily, writeOptions, targetKey, valueBytes);
 					}
 				}

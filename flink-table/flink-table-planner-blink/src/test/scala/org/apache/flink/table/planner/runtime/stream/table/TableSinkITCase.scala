@@ -26,7 +26,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
-import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.{DataTypeAppendStreamTableSink, DataTypeOutputFormatTableSink}
+import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.DataTypeAppendStreamTableSink
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
@@ -54,7 +54,8 @@ class TableSinkITCase extends AbstractTestBase {
     val input = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(r => r._2)
     val fieldNames = Array("d", "e", "t")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
+    val fieldTypes: Array[TypeInformation[_]] = Array(
+      Types.STRING, Types.SQL_TIMESTAMP, Types.DECIMAL())
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
 
@@ -65,10 +66,10 @@ class TableSinkITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq(
-      "Hi,1970-01-01 00:00:00.001,1",
-      "Hello,1970-01-01 00:00:00.002,2",
-      "Comment#14,1970-01-01 00:00:00.006,6",
-      "Comment#15,1970-01-01 00:00:00.006,6").mkString("\n")
+      "Hi,1970-01-01 00:00:00.001,1.000000000000000000",
+      "Hello,1970-01-01 00:00:00.002,2.000000000000000000",
+      "Comment#14,1970-01-01 00:00:00.006,6.000000000000000000",
+      "Comment#15,1970-01-01 00:00:00.006,6.000000000000000000").mkString("\n")
 
     TestBaseUtils.compareResultAsText(MemoryTableSourceSinkUtil.tableData.asJava, expected)
   }
@@ -90,8 +91,8 @@ class TableSinkITCase extends AbstractTestBase {
     tEnv.registerTableSink(
       "csvSink",
       new CsvTableSink(path).configure(
-        Array[String]("c", "b"),
-        Array[TypeInformation[_]](Types.STRING, Types.SQL_TIMESTAMP)))
+        Array[String]("nullableCol", "c", "b"),
+        Array[TypeInformation[_]](Types.INT, Types.STRING, Types.SQL_TIMESTAMP)))
 
     val input = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._2)
@@ -99,20 +100,20 @@ class TableSinkITCase extends AbstractTestBase {
 
     input.toTable(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
-      .select('c, 'b)
+      .select(ifThenElse('a < 4, nullOf(Types.INT()), 'a), 'c, 'b)
       .insertInto("csvSink")
 
     env.execute()
 
     val expected = Seq(
-      "Hi,1970-01-01 00:00:00.001",
-      "Hello,1970-01-01 00:00:00.002",
-      "Hello world,1970-01-01 00:00:00.002",
-      "Hello world, how are you?,1970-01-01 00:00:00.003",
-      "Comment#12,1970-01-01 00:00:00.006",
-      "Comment#13,1970-01-01 00:00:00.006",
-      "Comment#14,1970-01-01 00:00:00.006",
-      "Comment#15,1970-01-01 00:00:00.006").mkString("\n")
+      ",Hello world,1970-01-01 00:00:00.002",
+      ",Hello,1970-01-01 00:00:00.002",
+      ",Hi,1970-01-01 00:00:00.001",
+      "18,Comment#12,1970-01-01 00:00:00.006",
+      "19,Comment#13,1970-01-01 00:00:00.006",
+      "20,Comment#14,1970-01-01 00:00:00.006",
+      "21,Comment#15,1970-01-01 00:00:00.006",
+      "4,Hello world, how are you?,1970-01-01 00:00:00.003").mkString("\n")
 
     TestBaseUtils.compareResultsByLinesInMemory(expected, path)
   }
@@ -227,7 +228,7 @@ class TableSinkITCase extends AbstractTestBase {
       "retractSink",
       sink.configure(
         Array[String]("len", "icnt", "nsum"),
-        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG)))
+        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.DECIMAL())))
 
     t.select('id, 'num, 'text.charLength() as 'len)
       .groupBy('len)
@@ -238,13 +239,13 @@ class TableSinkITCase extends AbstractTestBase {
 
     val retracted = sink.getRetractResults.sorted
     val expected = List(
-      "2,1,1",
-      "5,1,2",
-      "11,1,2",
-      "25,1,3",
-      "10,7,39",
-      "14,1,3",
-      "9,9,41").sorted
+      "2,1,1.000000000000000000",
+      "5,1,2.000000000000000000",
+      "11,1,2.000000000000000000",
+      "25,1,3.000000000000000000",
+      "10,7,39.000000000000000000",
+      "14,1,3.000000000000000000",
+      "9,9,41.000000000000000000").sorted
     assertEquals(expected, retracted)
 
   }
@@ -301,20 +302,19 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault)
+    val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault).configure(
+      Array[String]("cnt", "lencnt", "cTrue"),
+      Array[TypeInformation[_]](Types.LONG, Types.DECIMAL(), Types.BOOLEAN))
     sink.expectedKeys = Some(Array("cnt", "cTrue"))
     sink.expectedIsAppendOnly = Some(false)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("cnt", "lencnt", "cTrue"),
-        Array[TypeInformation[_]](Types.LONG, Types.LONG, Types.BOOLEAN)))
+    tEnv.registerTableSink("upsertSink", sink)
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
-      .select('len, 'id.count as 'cnt, 'cTrue)
-      .groupBy('cnt, 'cTrue)
-      .select('cnt, 'len.count as 'lencnt, 'cTrue)
+      // test query field name is different with registered sink field name
+      .select('len, 'id.count as 'count, 'cTrue)
+      .groupBy('count, 'cTrue)
+      .select('count, 'len.count as 'lencnt, 'cTrue)
       .insertInto("upsertSink")
 
     env.execute()
@@ -325,9 +325,9 @@ class TableSinkITCase extends AbstractTestBase {
 
     val retracted = sink.getUpsertResults.sorted
     val expected = List(
-      "1,5,true",
-      "7,1,true",
-      "9,1,true").sorted
+      "1,5.000000000000000000,true",
+      "7,1.000000000000000000,true",
+      "9,1.000000000000000000,true").sorted
     assertEquals(expected, retracted)
 
   }
@@ -343,18 +343,17 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault)
+    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault).configure(
+      Array[String]("num", "wend", "icnt"),
+      Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG))
     sink.expectedKeys = Some(Array("wend", "num"))
     sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("num", "wend", "icnt"),
-        Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG)))
+    tEnv.registerTableSink("upsertSink", sink)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
-      .select('num, 'w.end as 'wend, 'id.count as 'icnt)
+      // test query field name is different with registered sink field name
+      .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
     env.execute()

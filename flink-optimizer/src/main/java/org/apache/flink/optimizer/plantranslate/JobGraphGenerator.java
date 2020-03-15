@@ -248,9 +248,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					"This indicates that non-serializable types (like custom serializers) were registered");
 		}
 
-		graph.setAllowQueuedScheduling(false);
-		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
-
 		// add vertices to the graph
 		for (JobVertex vertex : this.vertices.values()) {
 			vertex.setInputDependencyConstraint(program.getOriginalPlan().getExecutionConfig().getDefaultInputDependencyConstraint());

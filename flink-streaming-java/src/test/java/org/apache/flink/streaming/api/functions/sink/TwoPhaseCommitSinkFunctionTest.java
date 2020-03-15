@@ -47,6 +47,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.assertEquals;
@@ -138,6 +139,26 @@ public class TwoPhaseCommitSinkFunctionTest {
 		harness.close();
 	}
 
+	/**
+	 * This can happen if savepoint and checkpoint are triggered one after another and checkpoints completes first.
+	 * See FLINK-10377 and FLINK-14979 for more details.
+	 **/
+	@Test
+	public void testSubsumedNotificationOfPreviousCheckpoint() throws Exception {
+		harness.open();
+		harness.processElement("42", 0);
+		harness.snapshot(0, 1);
+		harness.processElement("43", 2);
+		harness.snapshot(1, 3);
+		harness.processElement("44", 4);
+		harness.snapshot(2, 5);
+		harness.notifyOfCompletedCheckpoint(2);
+		harness.notifyOfCompletedCheckpoint(1);
+
+		assertExactlyOnce(Arrays.asList("42", "43", "44"));
+		assertEquals(1, tmpDirectory.listFiles().size()); // one for currentTransaction
+	}
+
 	@Test
 	public void testNotifyOfCompletedCheckpoint() throws Exception {
 		harness.open();
@@ -167,7 +188,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 			harness.snapshot(2, 5);
 			fail("something should fail");
 		} catch (Exception ex) {
-			if (!(ex.getCause() instanceof ContentDump.NotWritableException)) {
+			if (!findSerializedThrowable(ex, ContentDump.NotWritableException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
 				throw ex;
 			}
 			// ignore

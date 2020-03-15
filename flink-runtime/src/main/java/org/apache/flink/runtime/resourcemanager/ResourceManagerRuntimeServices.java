@@ -20,9 +20,12 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.resourcemanager.slotmanager.AnyMatchingSlotMatchingStrategy;
+import org.apache.flink.runtime.resourcemanager.slotmanager.LeastUtilizationSlotMatchingStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotMatchingStrategy;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -53,14 +56,7 @@ public class ResourceManagerRuntimeServices {
 			HighAvailabilityServices highAvailabilityServices,
 			ScheduledExecutor scheduledExecutor) throws Exception {
 
-		final SlotManagerConfiguration slotManagerConfiguration = configuration.getSlotManagerConfiguration();
-
-		final SlotManager slotManager = new SlotManagerImpl(
-			scheduledExecutor,
-			slotManagerConfiguration.getTaskManagerRequestTimeout(),
-			slotManagerConfiguration.getSlotRequestTimeout(),
-			slotManagerConfiguration.getTaskManagerTimeout(),
-			slotManagerConfiguration.isWaitResultConsumedBeforeRelease());
+		final SlotManager slotManager = createSlotManager(configuration, scheduledExecutor);
 
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
@@ -68,5 +64,25 @@ public class ResourceManagerRuntimeServices {
 			configuration.getJobTimeout());
 
 		return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);
+	}
+
+	private static SlotManager createSlotManager(ResourceManagerRuntimeServicesConfiguration configuration, ScheduledExecutor scheduledExecutor) {
+		final SlotManagerConfiguration slotManagerConfiguration = configuration.getSlotManagerConfiguration();
+
+		final SlotMatchingStrategy slotMatchingStrategy;
+
+		if (slotManagerConfiguration.evenlySpreadOutSlots()) {
+			slotMatchingStrategy = LeastUtilizationSlotMatchingStrategy.INSTANCE;
+		} else {
+			slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
+		}
+
+		return new SlotManagerImpl(
+			slotMatchingStrategy,
+			scheduledExecutor,
+			slotManagerConfiguration.getTaskManagerRequestTimeout(),
+			slotManagerConfiguration.getSlotRequestTimeout(),
+			slotManagerConfiguration.getTaskManagerTimeout(),
+			slotManagerConfiguration.isWaitResultConsumedBeforeRelease());
 	}
 }

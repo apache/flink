@@ -38,12 +38,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
@@ -55,20 +51,11 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 /**
  * Various tests for the {@link NettyShuffleEnvironment} class.
  */
-@RunWith(Parameterized.class)
 public class NettyShuffleEnvironmentTest extends TestLogger {
 
 	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
 	private static FileChannelManager fileChannelManager;
-
-	@Parameterized.Parameter
-	public boolean enableCreditBasedFlowControl;
-
-	@Parameterized.Parameters(name = "Credit-based = {0}")
-	public static List<Boolean> parameters() {
-		return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
-	}
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
@@ -90,15 +77,9 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithLimitedBuffers() throws Exception {
-		final int bufferCount;
 		// outgoing: 1 buffer per channel (always)
-		if (!enableCreditBasedFlowControl) {
-			// incoming: 1 buffer per channel
-			bufferCount = 20;
-		} else {
-			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
-		}
+		// incoming: 2 exclusive buffers per channel
+		final int bufferCount = 14 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
 	}
@@ -109,15 +90,9 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithInsufficientBuffers() throws Exception {
-		final int bufferCount;
 		// outgoing: 1 buffer per channel (always)
-		if (!enableCreditBasedFlowControl) {
-			// incoming: 1 buffer per channel
-			bufferCount = 19;
-		} else {
-			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
-		}
+		// incoming: 2 exclusive buffers per channel
+		final int bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
 
 		expectedException.expect(IOException.class);
 		expectedException.expectMessage("Insufficient number of network buffers");
@@ -127,7 +102,6 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
 		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
 			.setNumNetworkBuffers(bufferPoolSize)
-			.setIsCreditBased(enableCreditBasedFlowControl)
 			.build();
 
 		final ConnectionManager connManager = createDummyConnectionManager();
@@ -178,27 +152,26 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		assertEquals(expectedRp4Buffers, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		for (ResultPartition rp : resultPartitions) {
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumberOfRequiredMemorySegments());
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumBuffers());
+			assertEquals(rp.getNumberOfSubpartitions() + 1, rp.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(rp.getNumberOfSubpartitions() + 1, rp.getBufferPool().getNumBuffers());
 		}
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(enableCreditBasedFlowControl ? 0 : channels, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : channels, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : channels, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : rp4Channels, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(0, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(0, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(0, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(0, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
 
-		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? floatingBuffers : expectedBuffers, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? floatingBuffers : expectedRp4Buffers, ig4.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(floatingBuffers, ig1.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(floatingBuffers, ig2.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(floatingBuffers, ig3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(floatingBuffers, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
-		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments();
-		verify(ig2, times(invokations)).assignExclusiveSegments();
-		verify(ig3, times(invokations)).assignExclusiveSegments();
-		verify(ig4, times(invokations)).assignExclusiveSegments();
+		verify(ig1, times(1)).assignExclusiveSegments();
+		verify(ig2, times(1)).assignExclusiveSegments();
+		verify(ig3, times(1)).assignExclusiveSegments();
+		verify(ig4, times(1)).assignExclusiveSegments();
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();
@@ -228,7 +201,6 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		return spy(new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfChannels)
 			.setResultPartitionType(partitionType)
-			.setIsCreditBased(enableCreditBasedFlowControl)
 			.setupBufferPoolFactory(network)
 			.build());
 	}

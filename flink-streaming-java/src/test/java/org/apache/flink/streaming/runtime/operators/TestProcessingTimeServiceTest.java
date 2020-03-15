@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.Test;
@@ -55,26 +56,26 @@ public class TestProcessingTimeServiceTest {
 
 		testHarness.invoke();
 
-		final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
+		ProcessingTimeService processingTimeService = testHarness.getTask().getProcessingTimeService(0);
 
-		assertEquals(Long.MIN_VALUE, testHarness.getProcessingTimeService().getCurrentProcessingTime());
+		assertEquals(Long.MIN_VALUE, processingTimeService.getCurrentProcessingTime());
 
 		tp.setCurrentTime(11);
-		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 11);
+		assertEquals(processingTimeService.getCurrentProcessingTime(), 11);
 
 		tp.setCurrentTime(15);
 		tp.setCurrentTime(16);
-		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 16);
+		assertEquals(processingTimeService.getCurrentProcessingTime(), 16);
 
 		// register 2 tasks
-		mapTask.getProcessingTimeService().registerTimer(30, new ProcessingTimeCallback() {
+		processingTimeService.registerTimer(30, new ProcessingTimeCallback() {
 			@Override
 			public void onProcessingTime(long timestamp) {
 
 			}
 		});
 
-		mapTask.getProcessingTimeService().registerTimer(40, new ProcessingTimeCallback() {
+		processingTimeService.registerTimer(40, new ProcessingTimeCallback() {
 			@Override
 			public void onProcessingTime(long timestamp) {
 

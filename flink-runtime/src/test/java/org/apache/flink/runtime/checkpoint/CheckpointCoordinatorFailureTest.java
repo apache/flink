@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -49,6 +50,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for failure of checkpoint coordinator.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PendingCheckpoint.class)
 public class CheckpointCoordinatorFailureTest extends TestLogger {
@@ -61,8 +65,11 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 	public void testFailingCompletedCheckpointStoreAdd() throws Exception {
 		JobID jid = new JobID();
 
+		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
+			new ManuallyTriggeredScheduledExecutor();
+
 		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
-		final ExecutionVertex vertex = CheckpointCoordinatorTest.mockExecutionVertex(executionAttemptId);
+		final ExecutionVertex vertex = CheckpointCoordinatorTestingUtils.mockExecutionVertex(executionAttemptId);
 
 		final long triggerTimestamp = 1L;
 
@@ -90,10 +97,13 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			new FailingCompletedCheckpointStore(),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
+
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 

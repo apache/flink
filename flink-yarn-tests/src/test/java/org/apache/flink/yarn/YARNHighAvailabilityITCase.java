@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -27,8 +26,10 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -272,6 +273,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	@Nonnull
 	private YarnClusterDescriptor setupYarnClusterDescriptor() {
 		final Configuration flinkConfiguration = new Configuration();
+		flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
 		flinkConfiguration.setString(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
 		flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 		flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
@@ -288,24 +290,22 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	}
 
 	private RestClusterClient<ApplicationId> deploySessionCluster(YarnClusterDescriptor yarnClusterDescriptor) throws ClusterDeploymentException {
-		final int containerMemory = 256;
-		final ClusterClient<ApplicationId> yarnClusterClient = yarnClusterDescriptor.deploySessionCluster(
-			new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(containerMemory)
-				.setTaskManagerMemoryMB(containerMemory)
-				.setSlotsPerTaskManager(1)
-				.createClusterSpecification());
+		final int masterMemory = 256;
+		final int taskManagerMemory = 1024;
+		final ClusterClient<ApplicationId> yarnClusterClient = yarnClusterDescriptor
+				.deploySessionCluster(new ClusterSpecification.ClusterSpecificationBuilder()
+						.setMasterMemoryMB(masterMemory)
+						.setTaskManagerMemoryMB(taskManagerMemory)
+						.setSlotsPerTaskManager(1)
+						.createClusterSpecification())
+				.getClusterClient();
 
 		assertThat(yarnClusterClient, is(instanceOf(RestClusterClient.class)));
 		return (RestClusterClient<ApplicationId>) yarnClusterClient;
 	}
 
 	private JobID submitJob(RestClusterClient<ApplicationId> restClusterClient) throws InterruptedException, java.util.concurrent.ExecutionException {
-		final CompletableFuture<JobSubmissionResult> jobSubmissionResultCompletableFuture =
-			restClusterClient.submitJob(job);
-
-		final JobSubmissionResult jobSubmissionResult = jobSubmissionResultCompletableFuture.get();
-		return jobSubmissionResult.getJobID();
+		return restClusterClient.submitJob(job).get();
 	}
 
 	private void killApplicationMaster(final String processName) throws IOException, InterruptedException {

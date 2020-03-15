@@ -22,14 +22,9 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.serde2.Deserializer;
-import org.apache.hadoop.hive.serde2.SerDeException;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDateObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantTimestampObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -58,27 +53,6 @@ public class HiveReflectionUtils {
 		}
 	}
 
-	public static List<FieldSchema> getFieldsFromDeserializer(HiveShim hiveShim, String tableName, Deserializer deserializer)
-			throws SerDeException, MetaException {
-		try {
-			Method method = hiveShim.getHiveMetaStoreUtilsClass().getMethod("getFieldsFromDeserializer", String.class, Deserializer.class);
-			return (List<FieldSchema>) method.invoke(null, tableName, deserializer);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to invoke MetaStoreUtils.getFieldsFromDeserializer()", e);
-		}
-	}
-
-	public static Deserializer getDeserializer(HiveShim hiveShim, Configuration conf, Table table, boolean skipConfError)
-			throws MetaException {
-		try {
-			Method method = hiveShim.getHiveMetaStoreUtilsClass().getMethod("getDeserializer", Configuration.class,
-				Table.class, boolean.class);
-			return (Deserializer) method.invoke(null, conf, table, skipConfError);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to invoke MetaStoreUtils.getDeserializer()", e);
-		}
-	}
-
 	public static List<String> getPvals(HiveShim hiveShim, List<FieldSchema> partCols, Map<String, String> partSpec) {
 		try {
 			Method method = hiveShim.getMetaStoreUtilsClass().getMethod("getPvals", List.class, Map.class);
@@ -88,44 +62,26 @@ public class HiveReflectionUtils {
 		}
 	}
 
-	public static JavaConstantDateObjectInspector createJavaConstantDateObjectInspector(HiveShim hiveShim, Object value) {
-		Constructor<?> meth = null;
+	public static ObjectInspector createConstantObjectInspector(String className, Object value) {
 		try {
-			meth = JavaConstantDateObjectInspector.class.getDeclaredConstructor(hiveShim.getDateDataTypeClass());
-			meth.setAccessible(true);
-			return (JavaConstantDateObjectInspector) meth.newInstance(value);
-		} catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantDateObjectInspector");
+			Constructor<?>  method = Class.forName(className).getDeclaredConstructor(value.getClass());
+			method.setAccessible(true);
+			return (ObjectInspector) method.newInstance(value);
+		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException
+				| InvocationTargetException e) {
+			throw new FlinkHiveUDFException("Failed to instantiate java constant object inspector", e);
 		}
 	}
 
-	public static JavaConstantTimestampObjectInspector createJavaConstantTimestampObjectInspector(HiveShim hiveShim, Object value) {
-		Constructor<?> meth = null;
+	public static Object invokeMethod(Class clz, Object obj, String methodName, Class[] argClz, Object[] args)
+			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+		Method method;
 		try {
-			meth = JavaConstantTimestampObjectInspector.class.getDeclaredConstructor(hiveShim.getDateDataTypeClass());
-			meth.setAccessible(true);
-			return (JavaConstantTimestampObjectInspector) meth.newInstance(value);
-		} catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantTimestampObjectInspector");
+			method = clz.getDeclaredMethod(methodName, argClz);
+		} catch (NoSuchMethodException e) {
+			method = clz.getMethod(methodName, argClz);
 		}
-	}
-
-	public static Object convertToHiveDate(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
-		try {
-			Method method = hiveShim.getDateDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Date.valueOf()", e);
-		}
-	}
-
-	public static Object convertToHiveTimestamp(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
-		try {
-			Method method = hiveShim.getTimestampDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Timestamp.valueOf()", e);
-		}
+		return method.invoke(obj, args);
 	}
 
 }

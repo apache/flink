@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>For the most efficient usage, user of this class is supposed to call {@link #pollNext()}
  * until it returns that no more elements are available. If that happens, he should check if
- * input {@link #isFinished()}. If not, he should wait for {@link #isAvailable()}
+ * input {@link #isFinished()}. If not, he should wait for {@link #getAvailableFuture()}
  * {@link CompletableFuture} to be completed. For example:
  *
  * <pre>
@@ -44,13 +44,13 @@ import java.util.concurrent.CompletableFuture;
  *			// do something with next
  *		}
  *
- *		input.isAvailable().get();
+ *		input.getAvailableFuture().get();
  *	}
  * }
  * </pre>
  */
 @Internal
-public interface PullingAsyncDataInput<T> extends AvailabilityListener {
+public interface PullingAsyncDataInput<T> extends AvailabilityProvider {
 	/**
 	 * Poll the next element. This method should be non blocking.
 	 *
@@ -58,4 +58,9 @@ public interface PullingAsyncDataInput<T> extends AvailabilityListener {
 	 * if {@link #isFinished()} returns true. Otherwise {@code Optional.of(element)}.
 	 */
 	Optional<T> pollNext() throws Exception;
+
+	/**
+	 * @return true if is finished and for example end of input was reached, false otherwise.
+	 */
+	boolean isFinished();
 }

@@ -49,7 +49,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumab
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -79,7 +79,7 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -172,7 +172,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			new MemoryManager(32L * 1024L, 1),
+			MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
 			new IOManagerAsync(),
 			shuffleEnvironment,
 			new KvStateService(new KvStateRegistry(), null, null),
@@ -234,14 +234,14 @@ public class StreamTaskTerminationTest extends TestLogger {
 		}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			if (!isRunning) {
 				isRunning = true;
 				RUN_LATCH.trigger();
 			}
 			// wait until we have started an asynchronous checkpoint
 			if (isCanceled() || SNAPSHOT_HAS_STARTED.get()) {
-				context.allActionsCompleted();
+				controller.allActionsCompleted();
 			}
 		}
 

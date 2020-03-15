@@ -57,7 +57,7 @@ public class StreamTaskTimerTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		testHarness = startTestHarness();
-		timeService = testHarness.getProcessingTimeService();
+		timeService = testHarness.getTask().getProcessingTimeService(0);
 	}
 
 	@After

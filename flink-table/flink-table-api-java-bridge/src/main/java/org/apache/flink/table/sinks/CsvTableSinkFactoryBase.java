@@ -23,11 +23,18 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
+import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,12 +72,17 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		properties.add(CONNECTOR_PATH);
 		// format
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
+		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
 		properties.add(CONNECTOR_PATH);
 		// schema
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		// schema watermark
+		properties.add(SCHEMA + "." + DescriptorProperties.WATERMARK + ".*");
 		return properties;
 	}
 
@@ -87,20 +99,44 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		new SchemaValidator(isStreaming, false, false).validate(params);
 
 		// build
-		TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
-		TableSchema tableSchema = params.getTableSchema(SCHEMA);
+		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(params.getTableSchema(SCHEMA));
 
-		if (!formatSchema.equals(tableSchema)) {
-			throw new TableException(
+		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
+		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
+		if (hasSchema) {
+			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
+			if (!formatSchema.equals(tableSchema)) {
+				throw new TableException(
 					"Encodings that differ from the schema are not supported yet for CsvTableSink.");
+			}
 		}
 
 		String path = params.getString(CONNECTOR_PATH);
 		String fieldDelimiter = params.getOptionalString(FORMAT_FIELD_DELIMITER).orElse(",");
 
-		CsvTableSink csvTableSink = new CsvTableSink(path, fieldDelimiter);
+		// bridge to java.sql.Timestamp/Time/Date
+		DataType[] dataTypes = Arrays.stream(tableSchema.getFieldDataTypes())
+			.map(dt -> {
+				switch (dt.getLogicalType().getTypeRoot()) {
+					case TIMESTAMP_WITHOUT_TIME_ZONE:
+						return dt.bridgedTo(Timestamp.class);
+					case TIME_WITHOUT_TIME_ZONE:
+						return dt.bridgedTo(Time.class);
+					case DATE:
+						return dt.bridgedTo(Date.class);
+					default:
+						return dt;
+				}
+			})
+			.toArray(DataType[]::new);
 
-		return (CsvTableSink) csvTableSink.configure(formatSchema.getFieldNames(), formatSchema.getFieldTypes());
+		return new CsvTableSink(
+			path,
+			fieldDelimiter,
+			-1,
+			null,
+			tableSchema.getFieldNames(),
+			dataTypes);
 	}
 
 }

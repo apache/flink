@@ -53,7 +53,10 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	private final SlotRequestId slotRequestId;
 
+	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
+
+	private boolean released;
 
 	TestingLogicalSlot(
 			TaskManagerLocation taskManagerLocation,
@@ -61,7 +64,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 			int slotNumber,
 			AllocationID allocationId,
 			SlotRequestId slotRequestId,
-			SlotSharingGroupId slotSharingGroupId,
+			@Nullable SlotSharingGroupId slotSharingGroupId,
 			boolean automaticallyCompleteReleaseFuture,
 			SlotOwner slotOwner) {
 
@@ -71,10 +74,10 @@ public class TestingLogicalSlot implements LogicalSlot {
 		this.slotNumber = slotNumber;
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
-		this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
+		this.slotSharingGroupId = slotSharingGroupId;
 		this.releaseFuture = new CompletableFuture<>();
 		this.automaticallyCompleteReleaseFuture = automaticallyCompleteReleaseFuture;
-		this.slotOwner = slotOwner;
+		this.slotOwner = Preconditions.checkNotNull(slotOwner);
 	}
 
 	@Override
@@ -110,10 +113,14 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Override
 	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
-		slotOwner.returnLogicalSlot(this);
+		if (!released) {
+			released = true;
 
-		if (automaticallyCompleteReleaseFuture) {
-			releaseFuture.complete(null);
+			slotOwner.returnLogicalSlot(this);
+
+			if (automaticallyCompleteReleaseFuture) {
+				releaseFuture.complete(null);
+			}
 		}
 
 		return releaseFuture;

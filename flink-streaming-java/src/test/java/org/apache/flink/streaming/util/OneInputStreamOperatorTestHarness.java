@@ -21,7 +21,6 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -169,13 +168,5 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 
 	public long getCurrentWatermark() {
 		return currentWatermark;
-	}
-
-	public void endInput() throws Exception {
-		if (getOneInputOperator() instanceof BoundedOneInput) {
-			((BoundedOneInput) getOneInputOperator()).endInput();
-		} else {
-			throw new UnsupportedOperationException("The operator is not BoundedOneInput");
-		}
 	}
 }

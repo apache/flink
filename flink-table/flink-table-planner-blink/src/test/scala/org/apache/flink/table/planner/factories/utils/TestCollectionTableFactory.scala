@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
 import java.io.IOException
@@ -52,7 +53,7 @@ class TestCollectionTableFactory
 {
 
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
-    getCollectionSource(properties, isStreaming = TestCollectionTableFactory.isStreaming)
+    getCollectionSource(properties)
   }
 
   override def createTableSink(properties: JMap[String, String]): TableSink[Row] = {
@@ -60,7 +61,7 @@ class TestCollectionTableFactory
   }
 
   override def createStreamTableSource(properties: JMap[String, String]): StreamTableSource[Row] = {
-    getCollectionSource(properties, isStreaming = true)
+    getCollectionSource(properties)
   }
 
   override def createStreamTableSink(properties: JMap[String, String]): StreamTableSink[Row] = {
@@ -68,7 +69,7 @@ class TestCollectionTableFactory
   }
 
   override def createBatchTableSource(properties: JMap[String, String]): BatchTableSource[Row] = {
-    getCollectionSource(properties, isStreaming = false)
+    getCollectionSource(properties)
   }
 
   override def createBatchTableSink(properties: JMap[String, String]): BatchTableSink[Row] = {
@@ -89,7 +90,7 @@ class TestCollectionTableFactory
 }
 
 object TestCollectionTableFactory {
-  var isStreaming: Boolean = true
+  val IS_BOUNDED = "is-bounded"
 
   val SOURCE_DATA = new JLinkedList[Row]()
   val DIM_DATA = new JLinkedList[Row]()
@@ -111,19 +112,26 @@ object TestCollectionTableFactory {
     emitIntervalMS = -1L
   }
 
-  def getCollectionSource(props: JMap[String, String],
-    isStreaming: Boolean): CollectionTableSource = {
+  def getCollectionSource(props: JMap[String, String]): CollectionTableSource = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSource(emitIntervalMS, schema, isStreaming)
+    val isBounded = properties.getOptionalBoolean(IS_BOUNDED).orElse(true)
+    new CollectionTableSource(emitIntervalMS, physicalSchema(schema), isBounded)
   }
 
   def getCollectionSink(props: JMap[String, String]): CollectionTableSink = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSink(schema.toRowType.asInstanceOf[RowTypeInfo])
+    new CollectionTableSink(physicalSchema(schema))
+  }
+
+  def physicalSchema(schema: TableSchema): TableSchema = {
+    val builder = TableSchema.builder()
+    schema.getTableColumns.filter(c => !c.isGenerated)
+      .foreach(c => builder.field(c.getName, c.getType))
+    builder.build()
   }
 
   /**
@@ -132,14 +140,14 @@ object TestCollectionTableFactory {
   class CollectionTableSource(
     val emitIntervalMs: Long,
     val schema: TableSchema,
-    val isStreaming: Boolean)
+    val bounded: Boolean)
     extends BatchTableSource[Row]
       with StreamTableSource[Row]
       with LookupableTableSource[Row] {
 
     private val rowType: TypeInformation[Row] = schema.toRowType
 
-    override def isBounded: Boolean = !isStreaming
+    override def isBounded: Boolean = bounded
 
     def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
       execEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
@@ -155,7 +163,7 @@ object TestCollectionTableFactory {
         rowType)
     }
 
-    override def getReturnType: TypeInformation[Row] = rowType
+    override def getProducedDataType: DataType = schema.toRowDataType
 
     override def getTableSchema: TableSchema = {
       schema
@@ -173,27 +181,23 @@ object TestCollectionTableFactory {
   /**
     * Table sink of collection.
     */
-  class CollectionTableSink(val outputType: RowTypeInfo)
+  class CollectionTableSink(val schema: TableSchema)
     extends BatchTableSink[Row]
       with AppendStreamTableSink[Row] {
     override def emitDataSet(dataSet: DataSet[Row]): Unit = {
       dataSet.output(new LocalCollectionOutputFormat[Row](RESULT)).setParallelism(1)
     }
 
-    override def getOutputType: RowTypeInfo = outputType
+    override def getConsumedDataType: DataType = schema.toRowDataType
 
-    override def getFieldNames: Array[String] = outputType.getFieldNames
-
-    override def getFieldTypes: Array[TypeInformation[_]] = {
-      outputType.getFieldTypes
-    }
+    override def getTableSchema: TableSchema = schema
 
     override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-      dataStream.addSink(new UnsafeMemorySinkFunction(outputType)).setParallelism(1)
+      dataStream.addSink(new UnsafeMemorySinkFunction(schema.toRowType)).setParallelism(1)
     }
 
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
-      dataStream.addSink(new UnsafeMemorySinkFunction(outputType)).setParallelism(1)
+      dataStream.addSink(new UnsafeMemorySinkFunction(schema.toRowType)).setParallelism(1)
     }
 
     override def configure(fieldNames: Array[String],

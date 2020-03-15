@@ -28,9 +28,9 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, $f3, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, b, <(b, 2) AS $f3])
+   :  +- Calc(select=[a, b])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
@@ -224,12 +224,12 @@ LogicalProject(b=[$1], x=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, x])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, x, z, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- Calc(select=[x, z, <(x, 2) AS $f3])
+      +- Calc(select=[x, z])
          +- DataStreamScan(table=[[default_catalog, default_database, S]], fields=[x, y, z])
 ]]>
     </Resource>

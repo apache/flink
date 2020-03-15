@@ -36,6 +36,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -54,7 +55,7 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	private static final ResourceID resourceID = ResourceID.generate();
 	private static final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 	private static final SlotID slotId = new SlotID(resourceID, 0);
-	private static final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+	private static final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 	private static final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
 	private static final SlotReport slotReport = new SlotReport(slotStatus);
 

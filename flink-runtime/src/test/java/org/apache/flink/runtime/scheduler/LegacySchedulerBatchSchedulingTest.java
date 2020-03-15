@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
@@ -30,9 +31,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -170,7 +170,7 @@ public class LegacySchedulerBatchSchedulingTest extends TestLogger {
 
 	@Nonnull
 	private SchedulerImpl createScheduler(SlotPool slotPool, ComponentMainThreadExecutor mainThreadExecutor) {
-		final SchedulerImpl scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		final SchedulerImpl scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 		scheduler.start(mainThreadExecutor);
 
 		return scheduler;
@@ -207,7 +207,7 @@ public class LegacySchedulerBatchSchedulingTest extends TestLogger {
 			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
 			slotRequestTimeout,
 			NettyShuffleMaster.INSTANCE,
-			NoOpPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE);
 
 		legacyScheduler.setMainThreadExecutor(mainThreadExecutor);
 
@@ -218,10 +218,7 @@ public class LegacySchedulerBatchSchedulingTest extends TestLogger {
 		final JobVertex jobVertex = new JobVertex("testing task");
 		jobVertex.setParallelism(parallelism);
 		jobVertex.setInvokableClass(NoOpInvokable.class);
-		final JobGraph jobGraph = new JobGraph(jobId, "test job", jobVertex);
-		jobGraph.setAllowQueuedScheduling(true);
-
-		return jobGraph;
+		return new JobGraph(jobId, "test job", jobVertex);
 	}
 
 	private static class GloballyTerminalJobStatusListener implements JobStatusListener {

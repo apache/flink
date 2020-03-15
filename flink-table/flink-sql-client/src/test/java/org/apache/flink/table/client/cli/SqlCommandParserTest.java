@@ -56,8 +56,17 @@ public class SqlCommandParserTest {
 			"   SELECT  complicated FROM table    ",
 			new SqlCommandCall(SqlCommand.SELECT, new String[]{"SELECT  complicated FROM table"}));
 		testValidSqlCommand(
+			"WITH t as (select complicated from table) select complicated from t",
+			new SqlCommandCall(SqlCommand.SELECT, new String[]{"WITH t as (select complicated from table) select complicated from t"}));
+		testValidSqlCommand(
+			"   WITH t as (select complicated from table) select complicated from t    ",
+			new SqlCommandCall(SqlCommand.SELECT, new String[]{"WITH t as (select complicated from table) select complicated from t"}));
+		testValidSqlCommand(
 			"INSERT INTO other SELECT 1+1",
 			new SqlCommandCall(SqlCommand.INSERT_INTO, new String[]{"INSERT INTO other SELECT 1+1"}));
+		testValidSqlCommand(
+			"INSERT OVERWRITE other SELECT 1+1",
+			new SqlCommandCall(SqlCommand.INSERT_OVERWRITE, new String[]{"INSERT OVERWRITE other SELECT 1+1"}));
 		testValidSqlCommand(
 			"CREATE VIEW x AS SELECT 1+1",
 			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"x", "SELECT 1+1"}));
@@ -77,6 +86,47 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("USE CATALOG default", new SqlCommandCall(SqlCommand.USE_CATALOG, new String[]{"default"}));
 		testValidSqlCommand("use default", new SqlCommandCall(SqlCommand.USE, new String[] {"default"}));
 		testInvalidSqlCommand("use catalog");
+		testValidSqlCommand("create database db1",
+				new SqlCommandCall(SqlCommand.CREATE_DATABASE, new String[] {"create database db1"}));
+		testValidSqlCommand("drop database db1",
+				new SqlCommandCall(SqlCommand.DROP_DATABASE, new String[] {"drop database db1"}));
+		testValidSqlCommand("alter database db1 set ('k1' = 'a')",
+				new SqlCommandCall(SqlCommand.ALTER_DATABASE, new String[] {"alter database db1 set ('k1' = 'a')"}));
+		testValidSqlCommand("alter table cat1.db1.tb1 rename to tb2",
+				new SqlCommandCall(SqlCommand.ALTER_TABLE, new String[]{"alter table cat1.db1.tb1 rename to tb2"}));
+		testValidSqlCommand("alter table cat1.db1.tb1 set ('k1'='v1', 'k2'='v2')",
+				new SqlCommandCall(SqlCommand.ALTER_TABLE,
+						new String[]{"alter table cat1.db1.tb1 set ('k1'='v1', 'k2'='v2')"}));
+		// Test create table.
+		testInvalidSqlCommand("CREATE tables");
+		testInvalidSqlCommand("CREATE   tables");
+		testValidSqlCommand("create Table hello", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"create Table hello"}));
+		testValidSqlCommand("create Table hello(a int)", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"create Table hello(a int)"}));
+		testValidSqlCommand("  CREATE TABLE hello(a int)", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"CREATE TABLE hello(a int)"}));
+		testValidSqlCommand("CREATE TABLE T(\n"
+						+ "  a int,\n"
+						+ "  b varchar(20),\n"
+						+ "  c as my_udf(b),\n"
+						+ "  watermark for b as my_udf(b, 1) - INTERVAL '5' second\n"
+						+ ") WITH (\n"
+						+ "  'k1' = 'v1',\n"
+						+ "  'k2' = 'v2')\n",
+				new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[] {"CREATE TABLE T(\n"
+						+ "  a int,\n"
+						+ "  b varchar(20),\n"
+						+ "  c as my_udf(b),\n"
+						+ "  watermark for b as my_udf(b, 1) - INTERVAL '5' second\n"
+						+ ") WITH (\n"
+						+ "  'k1' = 'v1',\n"
+						+ "  'k2' = 'v2')"}));
+		// Test drop table.
+		testInvalidSqlCommand("DROP table");
+		testInvalidSqlCommand("DROP tables");
+		testInvalidSqlCommand("DROP   tables");
+		testValidSqlCommand("DROP TABLE t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE t1"}));
+		testValidSqlCommand("DROP TABLE IF EXISTS t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS t1"}));
+		testValidSqlCommand("DROP TABLE IF EXISTS catalog1.db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS catalog1.db1.t1"}));
+		testValidSqlCommand("DROP TABLE IF EXISTS db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS db1.t1"}));
 	}
 
 	private void testInvalidSqlCommand(String stmt) {

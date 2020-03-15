@@ -29,6 +29,9 @@ import java.util.Optional;
  */
 public class CoreMatchers {
 
+	/**
+	 * Checks for a {@link Throwable} that matches by class and message.
+	 */
 	public static Matcher<Throwable> containsCause(Throwable failureCause) {
 		return new ContainsCauseMatcher(failureCause);
 	}
@@ -43,7 +46,10 @@ public class CoreMatchers {
 
 		@Override
 		protected boolean matchesSafely(Throwable throwable, Description description) {
-			final Optional<Throwable> optionalCause = ExceptionUtils.findThrowable(throwable, cause -> cause.equals(failureCause));
+			final Optional<Throwable> optionalCause = ExceptionUtils.findThrowable(
+				throwable,
+				cause -> cause.getClass() == failureCause.getClass() &&
+					cause.getMessage().equals(failureCause.getMessage()));
 
 			if (!optionalCause.isPresent()) {
 				description

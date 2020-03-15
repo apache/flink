@@ -571,11 +571,11 @@ public class SqlFunctionUtils {
 
 	public static String subString(String str, long start, long len) {
 		if (len < 0) {
-			LOG.error("len of 'substring(str, start, len)' must be >= 0 and Int type, but len = {0}", len);
+			LOG.error("len of 'substring(str, start, len)' must be >= 0 and Int type, but len = {}", len);
 			return null;
 		}
 		if (len > Integer.MAX_VALUE || start > Integer.MAX_VALUE) {
-			LOG.error("len or start of 'substring(str, start, len)' must be Int type, but len = {0}, start = {0}", len, start);
+			LOG.error("len or start of 'substring(str, start, len)' must be Int type, but len = {}, start = {}", len, start);
 			return null;
 		}
 		int length = (int) len;
@@ -1063,8 +1063,8 @@ public class SqlFunctionUtils {
 		return Base64.getEncoder().encodeToString(bytes);
 	}
 
-	public static byte[] fromBase64(BinaryString bs){
-		return Base64.getDecoder().decode(bs.getBytes());
+	public static BinaryString fromBase64(BinaryString bs) {
+		return BinaryString.fromBytes(Base64.getDecoder().decode(bs.getBytes()));
 	}
 
 	public static String uuid(){

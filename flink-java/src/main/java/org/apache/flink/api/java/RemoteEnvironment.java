@@ -19,16 +19,13 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.PipelineOptions;
 
-import java.io.File;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -46,21 +43,6 @@ import java.util.List;
 @Public
 public class RemoteEnvironment extends ExecutionEnvironment {
 
-	/** The hostname of the JobManager. */
-	protected final String host;
-
-	/** The port of the JobManager main actor system. */
-	protected final int port;
-
-	/** The jar files that need to be attached to each job. */
-	protected final List<URL> jarFiles;
-
-	/** The configuration used by the client that connects to the cluster. */
-	protected Configuration clientConfiguration;
-
-	/** The classpaths that need to be attached to each job. */
-	protected final List<URL> globalClasspaths;
-
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
 	 * given host name and port.
@@ -74,7 +56,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	 *                 provided in the JAR files.
 	 */
 	public RemoteEnvironment(String host, int port, String... jarFiles) {
-		this(host, port, null, jarFiles, null);
+		this(host, port, new Configuration(), jarFiles, null);
 	}
 
 	/**
@@ -111,58 +93,59 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	 *                 protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
 	 *                 The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
-	public RemoteEnvironment(String host, int port, Configuration clientConfig,
-			String[] jarFiles, URL[] globalClasspaths) {
-		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
-			throw new InvalidProgramException(
-					"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
-							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
-		}
-		if (host == null) {
-			throw new NullPointerException("Host must not be null.");
-		}
-		if (port < 1 || port >= 0xffff) {
-			throw new IllegalArgumentException("Port out of range");
-		}
-
-		this.host = host;
-		this.port = port;
-		this.clientConfiguration = clientConfig == null ? new Configuration() : clientConfig;
-		if (jarFiles != null) {
-			this.jarFiles = new ArrayList<>(jarFiles.length);
-			for (String jarFile : jarFiles) {
-				try {
-					this.jarFiles.add(new File(jarFile).getAbsoluteFile().toURI().toURL());
-				} catch (MalformedURLException e) {
-					throw new IllegalArgumentException("JAR file path invalid", e);
-				}
-			}
-		}
-		else {
-			this.jarFiles = Collections.emptyList();
-		}
-
-		if (globalClasspaths == null) {
-			this.globalClasspaths = Collections.emptyList();
-		} else {
-			this.globalClasspaths = Arrays.asList(globalClasspaths);
-		}
+	public RemoteEnvironment(String host, int port, Configuration clientConfig, String[] jarFiles, URL[] globalClasspaths) {
+		super(validateAndGetEffectiveConfiguration(clientConfig, host, port, jarFiles, globalClasspaths));
 	}
 
-	// ------------------------------------------------------------------------
+	private static Configuration validateAndGetEffectiveConfiguration(
+			final Configuration configuration,
+			final String host,
+			final int port,
+			final String[] jarFiles,
+			final URL[] globalClasspaths) {
+		RemoteEnvironmentConfigUtils.validate(host, port);
+		return getEffectiveConfiguration(
+				getClientConfiguration(configuration),
+				host,
+				port,
+				jarFiles,
+				getClasspathURLs(globalClasspaths));
+	}
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		final Plan p = createProgramPlan(jobName);
+	private static Configuration getClientConfiguration(final Configuration configuration) {
+		return configuration == null ? new Configuration() : configuration;
+	}
 
-		final PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration, jarFiles, globalClasspaths);
-		lastJobExecutionResult = executor.executePlan(p);
-		return lastJobExecutionResult;
+	private static List<URL> getClasspathURLs(final URL[] classpaths) {
+		return classpaths == null ? Collections.emptyList() : Arrays.asList(classpaths);
+	}
+
+	private static Configuration getEffectiveConfiguration(
+			final Configuration baseConfiguration,
+			final String host,
+			final int port,
+			final String[] jars,
+			final List<URL> classpaths) {
+
+		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
+
+		RemoteEnvironmentConfigUtils.setJobManagerAddressToConfig(host, port, effectiveConfiguration);
+		RemoteEnvironmentConfigUtils.setJarURLsToConfig(jars, effectiveConfiguration);
+		ConfigUtils.encodeCollectionToConfig(effectiveConfiguration, PipelineOptions.CLASSPATHS, classpaths, URL::toString);
+
+		// these should be set in the end to overwrite any values from the client config provided in the constructor.
+		effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote");
+		effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
+
+		return effectiveConfiguration;
 	}
 
 	@Override
 	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = " +
-				(getParallelism() == -1 ? "default" : getParallelism()) + ").";
+		final String host = getConfiguration().getString(JobManagerOptions.ADDRESS);
+		final int port = getConfiguration().getInteger(JobManagerOptions.PORT);
+		final String parallelism = (getParallelism() == -1 ? "default" : "" + getParallelism());
+
+		return "Remote Environment (" + host + ":" + port + " - parallelism = " + parallelism + ").";
 	}
 }

@@ -60,11 +60,6 @@ public class JsonTest extends DescriptorTestBase {
 	}
 
 	@Test(expected = ValidationException.class)
-	public void testMissingSchema() {
-		removePropertyAndVerify(descriptors().get(0), "format.json-schema");
-	}
-
-	@Test(expected = ValidationException.class)
 	public void testDuplicateSchema() {
 		// we add an additional non-json schema
 		addPropertyAndVerify(descriptors().get(0), "format.schema", "DDD");
@@ -87,7 +82,9 @@ public class JsonTest extends DescriptorTestBase {
 
 		final Descriptor desc4 = new Json().deriveSchema();
 
-		return Arrays.asList(desc1, desc2, desc3, desc4);
+		final Descriptor desc5 = new Json().failOnMissingField(false);
+
+		return Arrays.asList(desc1, desc2, desc3, desc4, desc5);
 	}
 
 	@Override
@@ -114,7 +111,12 @@ public class JsonTest extends DescriptorTestBase {
 		props4.put("format.property-version", "1");
 		props4.put("format.derive-schema", "true");
 
-		return Arrays.asList(props1, props2, props3, props4);
+		final Map<String, String> props5 = new HashMap<>();
+		props5.put("format.type", "json");
+		props5.put("format.property-version", "1");
+		props5.put("format.fail-on-missing-field", "false");
+
+		return Arrays.asList(props1, props2, props3, props4, props5);
 	}
 
 	@Override

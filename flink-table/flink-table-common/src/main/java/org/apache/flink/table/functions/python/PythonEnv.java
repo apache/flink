@@ -32,35 +32,12 @@ public final class PythonEnv implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * The path of the Python executable file used.
-	 */
-	private final String pythonExec;
-
-	/**
-	 * The command to start Python worker process.
-	 */
-	private final String pythonWorkerCmd;
-
-	/**
 	 * The execution type of the Python worker, it defines how to execute the Python functions.
 	 */
 	private final ExecType execType;
 
-	public PythonEnv(
-		String pythonExec,
-		String pythonWorkerCmd,
-		ExecType execType) {
-		this.pythonExec = Preconditions.checkNotNull(pythonExec);
-		this.pythonWorkerCmd = Preconditions.checkNotNull(pythonWorkerCmd);
+	public PythonEnv(ExecType execType) {
 		this.execType = Preconditions.checkNotNull(execType);
-	}
-
-	public String getPythonExec() {
-		return pythonExec;
-	}
-
-	public String getPythonWorkerCmd() {
-		return pythonWorkerCmd;
 	}
 
 	public ExecType getExecType() {

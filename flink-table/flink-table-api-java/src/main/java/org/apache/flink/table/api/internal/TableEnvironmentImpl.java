@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -31,15 +32,24 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
@@ -47,15 +57,38 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
+import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.UseCatalogOperation;
+import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterFunctionOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOperation;
+import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
+import org.apache.flink.table.operations.ddl.CreateFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
+import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -80,6 +113,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	// and this should always be true. This avoids too many hard code.
 	private static final boolean IS_STREAM_TABLE = true;
 	private final CatalogManager catalogManager;
+	private final ModuleManager moduleManager;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
 
@@ -87,26 +121,68 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected final Executor execEnv;
 	protected final FunctionCatalog functionCatalog;
 	protected final Planner planner;
+	protected final Parser parser;
+	private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
+			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
+			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
+			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, " +
+			"DROP FUNCTION, ALTER FUNCTION";
+
+	/**
+	 * Provides necessary methods for {@link ConnectTableDescriptor}.
+	 */
+	private final Registration registration = new Registration() {
+		@Override
+		public void createTemporaryTable(String path, CatalogBaseTable table) {
+			UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(
+				unresolvedIdentifier);
+			catalogManager.createTemporaryTable(table, objectIdentifier, false);
+		}
+
+		@Override
+		public void createTableSource(String name, TableSource<?> tableSource) {
+			registerTableSource(name, tableSource);
+		}
+
+		@Override
+		public void createTableSink(String name, TableSink<?> tableSink) {
+			registerTableSink(name, tableSink);
+		}
+	};
 
 	protected TableEnvironmentImpl(
 			CatalogManager catalogManager,
+			ModuleManager moduleManager,
 			TableConfig tableConfig,
 			Executor executor,
 			FunctionCatalog functionCatalog,
 			Planner planner,
 			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
+		this.moduleManager = moduleManager;
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
+		this.parser = planner.getParser();
 		this.operationTreeBuilder = OperationTreeBuilder.create(
+			tableConfig,
 			functionCatalog,
 			path -> {
-				Optional<CatalogQueryOperation> catalogTableOperation = scanInternal(path);
-				return catalogTableOperation.map(tableOperation -> new TableReferenceExpression(path, tableOperation));
+				try {
+					UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+					Optional<CatalogQueryOperation> catalogQueryOperation = scanInternal(unresolvedIdentifier);
+					return catalogQueryOperation.map(t -> new TableReferenceExpression(path, t));
+				} catch (SqlParserException ex) {
+					// The TableLookup is used during resolution of expressions and it actually might not be an
+					// identifier of a table. It might be a reference to some other object such as column, local
+					// reference etc. This method should return empty optional in such cases to fallback for other
+					// identifiers resolution.
+					return Optional.empty();
+				}
 			},
 			isStreamingMode
 		);
@@ -114,23 +190,26 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	public static TableEnvironmentImpl create(EnvironmentSettings settings) {
 
+		TableConfig tableConfig = new TableConfig();
+
 		CatalogManager catalogManager = new CatalogManager(
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
 
-		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
+		ModuleManager moduleManager = new ModuleManager();
+		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = ComponentFactoryService.find(ExecutorFactory.class, executorProperties)
 			.create(executorProperties);
 
-		TableConfig tableConfig = new TableConfig();
 		Map<String, String> plannerProperties = settings.toPlannerProperties();
 		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
 			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
 
 		return new TableEnvironmentImpl(
 			catalogManager,
+			moduleManager,
 			tableConfig,
 			executor,
 			functionCatalog,
@@ -162,21 +241,45 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public void loadModule(String moduleName, Module module) {
+		moduleManager.loadModule(moduleName, module);
+	}
+
+	@Override
+	public void unloadModule(String moduleName) {
+		moduleManager.unloadModule(moduleName);
+	}
+
+	@Override
 	public void registerFunction(String name, ScalarFunction function) {
-		functionCatalog.registerScalarFunction(
+		functionCatalog.registerTempSystemScalarFunction(
 			name,
 			function);
 	}
 
 	@Override
 	public void registerTable(String name, Table table) {
-		if (((TableImpl) table).getTableEnvironment() != this) {
+		UnresolvedIdentifier identifier = UnresolvedIdentifier.of(name);
+		createTemporaryView(identifier, table);
+	}
+
+	@Override
+	public void createTemporaryView(String path, Table view) {
+		UnresolvedIdentifier identifier = parser.parseIdentifier(path);
+		createTemporaryView(identifier, view);
+	}
+
+	private void createTemporaryView(UnresolvedIdentifier identifier, Table view) {
+		if (((TableImpl) view).getTableEnvironment() != this) {
 			throw new TableException(
-				"Only tables that belong to this TableEnvironment can be registered.");
+					"Only table API objects that belong to this TableEnvironment can be registered.");
 		}
 
-		CatalogBaseTable tableTable = new QueryOperationCatalogView(table.getQueryOperation());
-		catalogManager.createTable(tableTable, getTemporaryObjectIdentifier(name), false);
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
+		QueryOperation queryOperation = qualifyQueryOperation(tableIdentifier, view.getQueryOperation());
+		CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
+
+		catalogManager.createTemporaryTable(tableTable, tableIdentifier, false);
 	}
 
 	@Override
@@ -207,26 +310,77 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table scan(String... tablePath) {
-		return scanInternal(tablePath).map(this::createTable)
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(tablePath);
+		return scanInternal(unresolvedIdentifier)
+			.map(this::createTable)
 			.orElseThrow(() -> new ValidationException(String.format(
-				"Table '%s' was not found.",
-				String.join(".", tablePath))));
+				"Table %s was not found.",
+				unresolvedIdentifier)));
 	}
 
-	private Optional<CatalogQueryOperation> scanInternal(String... tablePath) {
-		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(tablePath);
-		return catalogManager.getTable(objectIdentifier)
-			.map(t -> new CatalogQueryOperation(objectIdentifier, t.getSchema()));
+	@Override
+	public Table from(String path) {
+		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+		return scanInternal(unresolvedIdentifier)
+			.map(this::createTable)
+			.orElseThrow(() -> new ValidationException(String.format(
+				"Table %s was not found.",
+				unresolvedIdentifier)));
+	}
+
+	@Override
+	public void insertInto(String targetPath, Table table) {
+		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(targetPath);
+		insertIntoInternal(unresolvedIdentifier, table);
+	}
+
+	@Override
+	public void insertInto(Table table, String sinkPath, String... sinkPathContinued) {
+		List<String> fullPath = new ArrayList<>(Arrays.asList(sinkPathContinued));
+		fullPath.add(0, sinkPath);
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(fullPath.toArray(new String[0]));
+
+		insertIntoInternal(unresolvedIdentifier, table);
+	}
+
+	private void insertIntoInternal(UnresolvedIdentifier unresolvedIdentifier, Table table) {
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+		List<ModifyOperation> modifyOperations = Collections.singletonList(
+			new CatalogSinkModifyOperation(
+				objectIdentifier,
+				table.getQueryOperation()));
+
+		if (isEagerOperationTranslation()) {
+			translate(modifyOperations);
+		} else {
+			buffer(modifyOperations);
+		}
+	}
+
+	private Optional<CatalogQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
+
+		return catalogManager.getTable(tableIdentifier)
+			.map(t -> new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema()));
 	}
 
 	@Override
 	public ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
-		return new StreamTableDescriptor(this, connectorDescriptor);
+		return new StreamTableDescriptor(registration, connectorDescriptor);
 	}
 
 	@Override
 	public String[] listCatalogs() {
-		return catalogManager.getCatalogs().toArray(new String[0]);
+		return catalogManager.listCatalogs()
+			.stream()
+			.sorted()
+			.toArray(String[]::new);
+	}
+
+	@Override
+	public String[] listModules() {
+		return moduleManager.listModules().toArray(new String[0]);
 	}
 
 	@Override
@@ -239,17 +393,38 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public String[] listTables() {
-		String currentCatalogName = catalogManager.getCurrentCatalog();
-		Optional<Catalog> currentCatalog = catalogManager.getCatalog(currentCatalogName);
+		return catalogManager.listTables()
+			.stream()
+			.sorted()
+			.toArray(String[]::new);
+	}
 
-		return currentCatalog.map(catalog -> {
-			try {
-				return catalog.listTables(catalogManager.getCurrentDatabase()).toArray(new String[0]);
-			} catch (DatabaseNotExistException e) {
-				throw new ValidationException("Current database does not exist", e);
-			}
-		}).orElseThrow(() ->
-			new TableException(String.format("The current catalog %s does not exist.", currentCatalogName)));
+	@Override
+	public String[] listTemporaryTables() {
+		return catalogManager.listTemporaryTables()
+			.stream()
+			.sorted()
+			.toArray(String[]::new);
+	}
+
+	@Override
+	public String[] listTemporaryViews() {
+		return catalogManager.listTemporaryViews()
+			.stream()
+			.sorted()
+			.toArray(String[]::new);
+	}
+
+	@Override
+	public boolean dropTemporaryTable(String path) {
+		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+		return catalogManager.dropTemporaryTable(unresolvedIdentifier);
+	}
+
+	@Override
+	public boolean dropTemporaryView(String path) {
+		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+		return catalogManager.dropTemporaryView(unresolvedIdentifier);
 	}
 
 	@Override
@@ -286,7 +461,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table sqlQuery(String query) {
-		List<Operation> operations = planner.parse(query);
+		List<Operation> operations = parser.parse(query);
 
 		if (operations.size() != 1) {
 			throw new ValidationException(
@@ -305,30 +480,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public void insertInto(Table table, String path, String... pathContinued) {
-		List<String> fullPath = new ArrayList<>(Arrays.asList(pathContinued));
-		fullPath.add(0, path);
-
-		List<ModifyOperation> modifyOperations = Collections.singletonList(
-			new CatalogSinkModifyOperation(
-				fullPath,
-				table.getQueryOperation()));
-
-		if (isEagerOperationTranslation()) {
-			translate(modifyOperations);
-		} else {
-			buffer(modifyOperations);
-		}
-	}
-
-	@Override
 	public void sqlUpdate(String stmt) {
-		List<Operation> operations = planner.parse(stmt);
+		List<Operation> operations = parser.parse(stmt);
 
 		if (operations.size() != 1) {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT, CREATE TABLE, DROP TABLE");
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
 
 		Operation operation = operations.get(0);
@@ -342,20 +498,117 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(createTableOperation.getTablePath());
 			catalogManager.createTable(
 				createTableOperation.getCatalogTable(),
-				objectIdentifier,
+				createTableOperation.getTableIdentifier(),
 				createTableOperation.isIgnoreIfExists());
+		} else if (operation instanceof CreateDatabaseOperation) {
+			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString());
+			try {
+				catalog.createDatabase(
+						createDatabaseOperation.getDatabaseName(),
+						createDatabaseOperation.getCatalogDatabase(),
+						createDatabaseOperation.isIgnoreIfExists());
+			} catch (DatabaseAlreadyExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
-			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(dropTableOperation.getTableName());
-			catalogManager.dropTable(objectIdentifier, dropTableOperation.isIfExists());
+			catalogManager.dropTable(
+				dropTableOperation.getTableIdentifier(),
+				dropTableOperation.isIfExists());
+		} else if (operation instanceof AlterTableOperation) {
+			AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(alterTableOperation.getTableIdentifier().getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString());
+			try {
+				if (alterTableOperation instanceof AlterTableRenameOperation) {
+					AlterTableRenameOperation alterTableRenameOp = (AlterTableRenameOperation) operation;
+					catalog.renameTable(
+							alterTableRenameOp.getTableIdentifier().toObjectPath(),
+							alterTableRenameOp.getNewTableIdentifier().getObjectName(),
+							false);
+				} else if (alterTableOperation instanceof AlterTablePropertiesOperation){
+					AlterTablePropertiesOperation alterTablePropertiesOp = (AlterTablePropertiesOperation) operation;
+					catalog.alterTable(
+							alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
+							alterTablePropertiesOp.getCatalogTable(),
+							false);
+				}
+			} catch (TableAlreadyExistException | TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
+		} else if (operation instanceof DropDatabaseOperation) {
+			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString());
+			try {
+				catalog.dropDatabase(
+						dropDatabaseOperation.getDatabaseName(),
+						dropDatabaseOperation.isIfExists(),
+						dropDatabaseOperation.isCascade());
+			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
+		} else if (operation instanceof AlterDatabaseOperation) {
+			AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString());
+			try {
+				catalog.alterDatabase(
+						alterDatabaseOperation.getDatabaseName(),
+						alterDatabaseOperation.getCatalogDatabase(),
+						false);
+			} catch (DatabaseNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
+		} else if (operation instanceof CreateFunctionOperation) {
+			CreateFunctionOperation createFunctionOperation = (CreateFunctionOperation) operation;
+			createCatalogFunction(createFunctionOperation);
+		} else if (operation instanceof CreateTempSystemFunctionOperation) {
+			CreateTempSystemFunctionOperation createtempSystemFunctionOperation =
+				(CreateTempSystemFunctionOperation) operation;
+			createSystemFunction(createtempSystemFunctionOperation);
+		} else if (operation instanceof AlterFunctionOperation) {
+			AlterFunctionOperation alterFunctionOperation = (AlterFunctionOperation) operation;
+			alterCatalogFunction(alterFunctionOperation);
+		} else if (operation instanceof DropFunctionOperation) {
+			DropFunctionOperation dropFunctionOperation = (DropFunctionOperation) operation;
+			dropCatalogFunction(dropFunctionOperation);
+		} else if (operation instanceof DropTempSystemFunctionOperation) {
+			DropTempSystemFunctionOperation dropTempSystemFunctionOperation =
+				(DropTempSystemFunctionOperation) operation;
+			dropSystemFunction(dropTempSystemFunctionOperation);
+		} else if (operation instanceof UseCatalogOperation) {
+			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
+			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
+		} else if (operation instanceof UseDatabaseOperation) {
+			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
+			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
+			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 		} else {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE");
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
+	}
+
+	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
+	private Catalog getCatalogOrThrowException(String catalogName) {
+		return getCatalog(catalogName)
+				.orElseThrow(() -> new ValidationException(String.format("Catalog %s does not exist", catalogName)));
+	}
+
+	private String getDDLOpExecuteErrorMsg(String action) {
+		return String.format("Could not execute %s", action);
 	}
 
 	@Override
@@ -391,6 +644,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	/**
+	 * Subclasses can override this method to transform the given QueryOperation to a new one with
+	 * the qualified object identifier. This is needed for some QueryOperations, e.g. JavaDataStreamQueryOperation,
+	 * which doesn't know the registered identifier when created ({@code fromDataStream(DataStream)}.
+	 * But the identifier is required when converting this QueryOperation to RelNode.
+	 */
+	protected QueryOperation qualifyQueryOperation(ObjectIdentifier identifier, QueryOperation queryOperation) {
+		return queryOperation;
+	}
+
+	/**
 	 * Defines the behavior of this {@link TableEnvironment}. If true the queries will
 	 * be translated immediately. If false the {@link ModifyOperation}s will be buffered
 	 * and translated only when {@link #execute(String)} is called.
@@ -412,7 +675,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	 * @param tableSource tableSource to validate
 	 */
 	protected void validateTableSource(TableSource<?> tableSource) {
-		TableSourceValidation.validateTableSource(tableSource);
+		TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema());
 	}
 
 	private void translate(List<ModifyOperation> modifyOperations) {
@@ -425,19 +688,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		bufferedModifyOperations.addAll(modifyOperations);
 	}
 
-	private ObjectIdentifier getTemporaryObjectIdentifier(String name) {
-		return catalogManager.qualifyIdentifier(
-			catalogManager.getBuiltInCatalogName(),
-			catalogManager.getBuiltInDatabaseName(),
-			name);
-	}
-
 	private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
 		validateTableSource(tableSource);
-		Optional<CatalogBaseTable> table = getCatalogTable(
-			catalogManager.getBuiltInCatalogName(),
-			catalogManager.getBuiltInDatabaseName(),
-			name);
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));
+		Optional<CatalogBaseTable> table = getTemporaryTable(objectIdentifier);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -451,7 +705,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						tableSource,
 						sourceSinkTable.getTableSink().get(),
 						!IS_STREAM_TABLE);
-					catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false);
+					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, true);
 				}
 			} else {
 				throw new ValidationException(String.format(
@@ -459,15 +713,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else {
 			ConnectorCatalogTable source = ConnectorCatalogTable.source(tableSource, !IS_STREAM_TABLE);
-			catalogManager.createTable(source, getTemporaryObjectIdentifier(name), false);
+			catalogManager.createTemporaryTable(source, objectIdentifier, false);
 		}
 	}
 
 	private void registerTableSinkInternal(String name, TableSink<?> tableSink) {
-		Optional<CatalogBaseTable> table = getCatalogTable(
-			catalogManager.getBuiltInCatalogName(),
-			catalogManager.getBuiltInDatabaseName(),
-			name);
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));
+		Optional<CatalogBaseTable> table = getTemporaryTable(objectIdentifier);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -479,7 +731,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					// wrapper contains only sink (not source)
 					ConnectorCatalogTable sourceAndSink = ConnectorCatalogTable
 						.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, !IS_STREAM_TABLE);
-					catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false);
+					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, true);
 				}
 			} else {
 				throw new ValidationException(String.format(
@@ -487,12 +739,199 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else {
 			ConnectorCatalogTable sink = ConnectorCatalogTable.sink(tableSink, !IS_STREAM_TABLE);
-			catalogManager.createTable(sink, getTemporaryObjectIdentifier(name), false);
+			catalogManager.createTemporaryTable(sink, objectIdentifier, false);
 		}
 	}
 
-	private Optional<CatalogBaseTable> getCatalogTable(String... name) {
-		return catalogManager.getTable(catalogManager.qualifyIdentifier(name));
+	private Optional<CatalogBaseTable> getTemporaryTable(ObjectIdentifier identifier) {
+		return catalogManager.getTable(identifier)
+			.filter(CatalogManager.TableLookupResult::isTemporary)
+			.map(CatalogManager.TableLookupResult::getTable);
+	}
+
+	private void createCatalogFunction(CreateFunctionOperation createFunctionOperation) {
+		String exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString());
+		try {
+			CatalogFunction function = createFunctionOperation.getCatalogFunction();
+			if (createFunctionOperation.isTemporary()) {
+				boolean exist = functionCatalog.hasTemporaryCatalogFunction(
+					createFunctionOperation.getFunctionIdentifier());
+				if (!exist) {
+					FunctionDefinition functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
+						createFunctionOperation.getFunctionName(), function.getClassName());
+					registerCatalogFunctionInFunctionCatalog(
+						createFunctionOperation.getFunctionIdentifier(), functionDefinition);
+				} else if (!createFunctionOperation.isIgnoreIfExists()) {
+					throw new ValidationException(
+						String.format("Temporary catalog function %s is already defined",
+						createFunctionOperation.getFunctionIdentifier().asSerializableString()));
+				}
+			} else {
+				Catalog catalog = getCatalogOrThrowException(
+					createFunctionOperation.getFunctionIdentifier().getCatalogName());
+				catalog.createFunction(
+					createFunctionOperation.getFunctionIdentifier().toObjectPath(),
+					createFunctionOperation.getCatalogFunction(),
+					createFunctionOperation.isIgnoreIfExists());
+			}
+		} catch (ValidationException e) {
+			throw e;
+		} catch (FunctionAlreadyExistException e) {
+			throw new ValidationException(e.getMessage(), e);
+		} catch (Exception e) {
+			throw new TableException(exMsg, e);
+		}
+	}
+
+	private void alterCatalogFunction(AlterFunctionOperation alterFunctionOperation) {
+		String exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString());
+		try {
+			CatalogFunction function = alterFunctionOperation.getCatalogFunction();
+			if (alterFunctionOperation.isTemporary()) {
+				throw new ValidationException(
+					"Alter temporary catalog function is not supported");
+			} else {
+				Catalog catalog = getCatalogOrThrowException(
+					alterFunctionOperation.getFunctionIdentifier().getCatalogName());
+				catalog.alterFunction(
+					alterFunctionOperation.getFunctionIdentifier().toObjectPath(),
+					function,
+					alterFunctionOperation.isIfExists());
+			}
+		} catch (ValidationException e) {
+			throw e;
+		}  catch (FunctionNotExistException e) {
+			throw new ValidationException(e.getMessage(), e);
+		} catch (Exception e) {
+			throw new TableException(exMsg, e);
+		}
+	}
+
+	private void dropCatalogFunction(DropFunctionOperation dropFunctionOperation) {
+
+		String exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString());
+		try {
+			if (dropFunctionOperation.isTemporary()) {
+				functionCatalog.dropTempCatalogFunction(
+					dropFunctionOperation.getFunctionIdentifier(),
+					dropFunctionOperation.isIfExists());
+			} else {
+				Catalog catalog = getCatalogOrThrowException
+					(dropFunctionOperation.getFunctionIdentifier().getCatalogName());
+
+				catalog.dropFunction(
+					dropFunctionOperation.getFunctionIdentifier().toObjectPath(),
+					dropFunctionOperation.isIfExists());
+			}
+		} catch (ValidationException e) {
+			throw e;
+		}  catch (FunctionNotExistException e) {
+			throw new ValidationException(e.getMessage(), e);
+		} catch (Exception e) {
+			throw new TableException(exMsg, e);
+		}
+	}
+
+	private void createSystemFunction(CreateTempSystemFunctionOperation operation) {
+		String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+		try {
+				boolean exist = functionCatalog.hasTemporarySystemFunction(operation.getFunctionName());
+				if (!exist) {
+					FunctionDefinition functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
+						operation.getFunctionName(),
+						operation.getFunctionClass());
+					registerSystemFunctionInFunctionCatalog(operation.getFunctionName(), functionDefinition);
+
+				} else if (!operation.isIgnoreIfExists()) {
+					throw new ValidationException(
+						String.format("Temporary system function %s is already defined",
+							operation.getFunctionName()));
+				}
+		} catch (ValidationException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new TableException(exMsg, e);
+		}
+	}
+
+	private void dropSystemFunction(DropTempSystemFunctionOperation operation) {
+		String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+		try {
+			functionCatalog.dropTempSystemFunction(
+				operation.getFunctionName(),
+				operation.isIfExists());
+		} catch (ValidationException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new TableException(exMsg, e);
+		}
+	}
+
+	private <T, ACC> void  registerCatalogFunctionInFunctionCatalog(
+		ObjectIdentifier functionIdentifier, FunctionDefinition functionDefinition) {
+		if (functionDefinition instanceof ScalarFunctionDefinition) {
+			ScalarFunctionDefinition scalarFunction = (ScalarFunctionDefinition) functionDefinition;
+			functionCatalog.registerTempCatalogScalarFunction(
+				functionIdentifier, scalarFunction.getScalarFunction());
+		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
+			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
+			AggregateFunction<T, ACC > aggregateFunction =
+				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
+				.getReturnTypeOfAggregateFunction(aggregateFunction);
+			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
+				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
+
+			functionCatalog.registerTempCatalogAggregateFunction(
+				functionIdentifier,
+				aggregateFunction,
+				typeInfo,
+				accTypeInfo);
+		} else if (functionDefinition instanceof TableFunctionDefinition) {
+			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
+			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
+				.getReturnTypeOfTableFunction(tableFunction);
+			functionCatalog.registerTempCatalogTableFunction(
+				functionIdentifier,
+				tableFunction,
+				typeInfo);
+		}
+	}
+
+	private <T, ACC> void  registerSystemFunctionInFunctionCatalog(
+		String functionName, FunctionDefinition functionDefinition) {
+
+		if (functionDefinition instanceof ScalarFunctionDefinition) {
+			ScalarFunctionDefinition scalarFunction = (ScalarFunctionDefinition) functionDefinition;
+			functionCatalog.registerTempSystemScalarFunction(
+				functionName, scalarFunction.getScalarFunction());
+		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
+			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
+			AggregateFunction<T, ACC > aggregateFunction =
+				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
+				.getReturnTypeOfAggregateFunction(aggregateFunction);
+			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
+				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
+			functionCatalog.registerTempSystemAggregateFunction(
+				functionName,
+				aggregateFunction,
+				typeInfo,
+				accTypeInfo);
+
+		} else if (functionDefinition instanceof TableFunctionDefinition) {
+			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
+			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
+				.getReturnTypeOfTableFunction(tableFunction);
+
+			functionCatalog.registerTempSystemTableFunction(
+				functionName,
+				tableFunction,
+				typeInfo);
+		}
+
 	}
 
 	protected TableImpl createTable(QueryOperation tableOperation) {

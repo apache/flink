@@ -106,7 +106,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 
 		else if (valueClass == Period.class && clazz == Integer.class) {
 			final Period period = (Period) value;
-			convertedValue = period.toTotalMonths();
+			convertedValue = (int) period.toTotalMonths();
 		}
 
 		else if (valueClass == Integer.class && clazz == Period.class) {
@@ -187,7 +187,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 			return false;
 		}
 		ValueLiteralExpression that = (ValueLiteralExpression) o;
-		return Objects.equals(value, that.value) && dataType.equals(that.dataType);
+		return Objects.deepEquals(value, that.value) && dataType.equals(that.dataType);
 	}
 
 	@Override

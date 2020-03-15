@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -88,7 +89,9 @@ public class PendingCheckpoint {
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 
-	private final List<MasterState> masterState;
+	private final List<MasterState> masterStates;
+
+	private final Set<String> notYetAcknowledgedMasterStates;
 
 	/** Set of acknowledged tasks. */
 	private final Set<ExecutionAttemptID> acknowledgedTasks;
@@ -122,6 +125,7 @@ public class PendingCheckpoint {
 			long checkpointId,
 			long checkpointTimestamp,
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
+			Collection<String> masterStateIdentifiers,
 			CheckpointProperties props,
 			CheckpointStorageLocation targetLocation,
 			Executor executor) {
@@ -138,7 +142,8 @@ public class PendingCheckpoint {
 		this.executor = Preconditions.checkNotNull(executor);
 
 		this.operatorStates = new HashMap<>();
-		this.masterState = new ArrayList<>();
+		this.masterStates = new ArrayList<>(masterStateIdentifiers.size());
+		this.notYetAcknowledgedMasterStates = new HashSet<>(masterStateIdentifiers);
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 		this.onCompletionPromise = new CompletableFuture<>();
 	}
@@ -173,8 +178,16 @@ public class PendingCheckpoint {
 		return operatorStates;
 	}
 
-	public boolean isFullyAcknowledged() {
-		return this.notYetAcknowledgedTasks.isEmpty() && !discarded;
+	public List<MasterState> getMasterStates() {
+		return masterStates;
+	}
+
+	public boolean areMasterStatesFullyAcknowledged() {
+		return notYetAcknowledgedMasterStates.isEmpty() && !discarded;
+	}
+
+	public boolean areTasksFullyAcknowledged() {
+		return notYetAcknowledgedTasks.isEmpty() && !discarded;
 	}
 
 	public boolean isAcknowledgedBy(ExecutionAttemptID executionAttemptId) {
@@ -247,12 +260,15 @@ public class PendingCheckpoint {
 	public CompletedCheckpoint finalizeCheckpoint() throws IOException {
 
 		synchronized (lock) {
-			checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet.");
+			checkState(areMasterStatesFullyAcknowledged(),
+				"Pending checkpoint has not been fully acknowledged by master states yet.");
+			checkState(areTasksFullyAcknowledged(),
+				"Pending checkpoint has not been fully acknowledged by tasks yet.");
 
 			// make sure we fulfill the promise with an exception if something fails
 			try {
 				// write out the metadata
-				final Savepoint savepoint = new SavepointV2(checkpointId, operatorStates.values(), masterState);
+				final Savepoint savepoint = new SavepointV2(checkpointId, operatorStates.values(), masterStates);
 				final CompletedCheckpointStorageLocation finalizedLocation;
 
 				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
@@ -266,7 +282,7 @@ public class PendingCheckpoint {
 						checkpointTimestamp,
 						System.currentTimeMillis(),
 						operatorStates,
-						masterState,
+						masterStates,
 						props,
 						finalizedLocation);
 
@@ -383,21 +399,22 @@ public class PendingCheckpoint {
 	}
 
 	/**
-	 * Adds a master state (state generated on the checkpoint coordinator) to
+	 * Acknowledges a master state (state generated on the checkpoint coordinator) to
 	 * the pending checkpoint.
 	 *
-	 * @param state The state to add
+	 * @param identifier The identifier of the master state
+	 * @param state The state to acknowledge
 	 */
-	public void addMasterState(MasterState state) {
-		checkNotNull(state);
+	public void acknowledgeMasterState(String identifier, @Nullable MasterState state) {
 
 		synchronized (lock) {
 			if (!discarded) {
-				masterState.add(state);
+				if (notYetAcknowledgedMasterStates.remove(identifier) && state != null) {
+					masterStates.add(state);
+				}
 			}
 		}
 	}
-
 
 	// ------------------------------------------------------------------------
 	//  Cancellation

@@ -35,6 +35,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for RequiredParameter class and its interactions with ParameterTool.
  */
+@Deprecated
 public class RequiredParametersTest extends TestLogger {
 
 	@Rule

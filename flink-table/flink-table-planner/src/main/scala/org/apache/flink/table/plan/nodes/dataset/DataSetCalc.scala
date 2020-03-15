@@ -105,7 +105,6 @@ class DataSetCalc(
     val genFunction = generateFunction(
       generator,
       ruleDescription,
-      new RowSchema(getInput.getRowType),
       new RowSchema(getRowType),
       projection,
       condition,

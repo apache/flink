@@ -30,6 +30,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.utils.TableConnectorUtils;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
@@ -37,6 +38,7 @@ import java.util.Objects;
 
 import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
+import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.normalizeTableSchema;
 import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -60,7 +62,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		int flushMaxSize,
 		long flushIntervalMills,
 		int maxRetryTime) {
-		this.schema = schema;
+		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 		this.options = options;
 		this.flushMaxSize = flushMaxSize;
 		this.flushIntervalMills = flushIntervalMills;
@@ -177,7 +179,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		 * required, table schema of this table source.
 		 */
 		public Builder setTableSchema(TableSchema schema) {
-			this.schema = schema;
+			this.schema = normalizeTableSchema(schema);
 			return this;
 		}
 

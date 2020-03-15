@@ -48,8 +48,11 @@ public interface FailoverStrategy {
 		 * Instantiates the {@link FailoverStrategy}.
 		 *
 		 * @param topology of the graph to failover
+		 * @param resultPartitionAvailabilityChecker to check whether a result partition is available
 		 * @return The instantiated failover strategy.
 		 */
-		FailoverStrategy create(FailoverTopology topology);
+		FailoverStrategy create(
+			FailoverTopology<?, ?> topology,
+			ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker);
 	}
 }

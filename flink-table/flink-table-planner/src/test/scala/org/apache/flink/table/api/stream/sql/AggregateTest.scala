@@ -26,9 +26,10 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{TableConfig, Types}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, UnresolvedIdentifier}
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.functions.{AggregateFunction, AggregateFunctionDefinition}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
@@ -67,14 +68,16 @@ class AggregateTest extends TableTestBase {
   @Test
   def testUserDefinedAggregateFunctionWithScalaAccumulator(): Unit = {
     val defaultCatalog = "default_catalog"
+    val config = new TableConfig
     val catalogManager = new CatalogManager(
       defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
-
-    val functionCatalog = new FunctionCatalog(catalogManager)
+    val moduleManager = new ModuleManager
+    val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
     val tablEnv = new StreamTableEnvironmentImpl(
       catalogManager,
+      moduleManager,
       functionCatalog,
-      new TableConfig,
+      config,
       Mockito.mock(classOf[StreamExecutionEnvironment]),
       Mockito.mock(classOf[Planner]),
       Mockito.mock(classOf[Executor]),
@@ -83,7 +86,7 @@ class AggregateTest extends TableTestBase {
 
     tablEnv.registerFunction("udag", new MyAgg)
     val aggFunctionDefinition = functionCatalog
-      .lookupFunction("udag").get()
+      .lookupFunction(UnresolvedIdentifier.of("udag")).get()
       .getFunctionDefinition
       .asInstanceOf[AggregateFunctionDefinition]
 
@@ -96,7 +99,7 @@ class AggregateTest extends TableTestBase {
 
     tablEnv.registerFunction("udag2", new MyAgg2)
     val aggFunctionDefinition2 = functionCatalog
-      .lookupFunction("udag2").get()
+      .lookupFunction(UnresolvedIdentifier.of("udag2")).get()
       .getFunctionDefinition
       .asInstanceOf[AggregateFunctionDefinition]
 

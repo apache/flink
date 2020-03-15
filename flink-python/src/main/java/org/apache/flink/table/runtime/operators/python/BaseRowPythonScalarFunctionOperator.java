@@ -19,7 +19,9 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -36,6 +38,9 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * The Python {@link ScalarFunction} operator for the blink planner.
@@ -67,12 +72,13 @@ public class BaseRowPythonScalarFunctionOperator
 	private transient Projection<BaseRow, BinaryRow> udfInputProjection;
 
 	public BaseRowPythonScalarFunctionOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		int forwardedFieldCnt) {
-		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFieldCnt);
+		int[] forwardedFields) {
+		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
@@ -110,15 +116,16 @@ public class BaseRowPythonScalarFunctionOperator
 	}
 
 	@Override
-	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(FnDataReceiver<BaseRow> resultReceiver) {
+	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
+			FnDataReceiver<BaseRow> resultReceiver,
+			PythonEnvironmentManager pythonEnvironmentManager) {
 		return new BaseRowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,
-			scalarFunctions[0].getPythonFunction().getPythonEnv(),
+			pythonEnvironmentManager,
 			udfInputType,
-			udfOutputType,
-			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories());
+			udfOutputType);
 	}
 
 	private Projection<BaseRow, BinaryRow> createUdfInputProjection() {
@@ -133,18 +140,16 @@ public class BaseRowPythonScalarFunctionOperator
 	}
 
 	private Projection<BaseRow, BinaryRow> createForwardedFieldProjection() {
-		final int[] fields = new int[forwardedFieldCnt];
-		for (int i = 0; i < fields.length; i++) {
-			fields[i] = i;
-		}
-
-		final RowType forwardedFieldType = new RowType(inputType.getFields().subList(0, forwardedFieldCnt));
+		final RowType forwardedFieldType = new RowType(
+			Arrays.stream(forwardedFields)
+				.mapToObj(i -> inputType.getFields().get(i))
+				.collect(Collectors.toList()));
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"ForwardedFieldProjection",
 			inputType,
 			forwardedFieldType,
-			fields);
+			forwardedFields);
 		// noinspection unchecked
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
 	}

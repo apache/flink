@@ -24,10 +24,11 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.sql.Timestamp
 
@@ -220,6 +221,29 @@ class MatchRecognizeValidationTest extends TableTestBase {
   // * features.                                                                           *
   // ***************************************************************************************
 
+  /** Python Function can not be used in MATCH_RECOGNIZE for now **/
+  @Test
+  def testMatchPythonFunction() = {
+    thrown.expectMessage("Python Function can not be used in MATCH_RECOGNIZE for now.")
+    thrown.expect(classOf[TableException])
+
+    streamUtil.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    val sql =
+      """SELECT T.aa as ta
+        |FROM MyTable
+        |MATCH_RECOGNIZE (
+        |  ORDER BY proctime
+        |  MEASURES
+        |    A.a as aa,
+        |    pyFunc(1,2) as bb
+        |  PATTERN (A B)
+        |  DEFINE
+        |    A AS a = 1,
+        |    B AS b = 'b'
+        |) AS T""".stripMargin
+    streamUtil.verifyExplain(sql)
+  }
+
   @Test
   def testAllRowsPerMatch(): Unit = {
     thrown.expectMessage("All rows per match mode is not supported yet.")
@@ -289,8 +313,6 @@ class MatchRecognizeValidationTest extends TableTestBase {
     streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
   }
 
-  @Ignore("Calcite doesn't throw exception when parse distinct aggregate, " +
-    "and doesn't provide information about distinct")
   @Test
   def testDistinctAggregationsNotSupported(): Unit = {
     thrown.expect(classOf[ValidationException])

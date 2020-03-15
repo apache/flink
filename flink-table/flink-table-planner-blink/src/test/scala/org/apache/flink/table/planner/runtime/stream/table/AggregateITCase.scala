@@ -95,7 +95,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((3, 2, "B"))
 
     val testAgg = new WeightedAvg
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('c)
       .select('c, 'a.count.distinct, 'a.sum.distinct,
         testAgg.distinct('a, 'b), testAgg.distinct('b, 'a), testAgg('a, 'b))
@@ -308,7 +308,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
 
     tEnv.registerTableSink("testSink", tableSink)
-    tEnv.insertInto(t, "testSink")
+    tEnv.insertInto("testSink", t)
     tEnv.execute("test")
 
     val expected = List("A,1", "B,2", "C,3")

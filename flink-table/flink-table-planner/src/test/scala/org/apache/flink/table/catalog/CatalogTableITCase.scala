@@ -24,19 +24,19 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvir
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory
 import org.apache.flink.types.Row
-
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Ignore, Test}
-
 import java.util
+
+import org.apache.flink.test.util.AbstractTestBase
 
 import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
-class CatalogTableITCase(isStreaming: Boolean) {
+class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
 
   private val batchExec: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
   private var batchEnv: BatchTableEnvironment = _
@@ -318,7 +318,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
-  @Test @Ignore // need to implement
+  @Test @Ignore("FLINK-14320") // need to implement
   def testStreamSourceTableWithRowtime(): Unit = {
     val sourceData = List(
       toRow(1, 1000),
@@ -329,10 +329,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sourceDDL =
       """
         |create table t1(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint,
-        |  primary key(a),
-        |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
+        |  WATERMARK FOR a AS a - interval '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -340,7 +339,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sinkDDL =
       """
         |create table t2(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint
         |) with (
         |  'connector' = 'COLLECTION'
@@ -349,7 +348,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val query =
       """
         |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
+        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
       """.stripMargin
 
     tableEnv.sqlUpdate(sourceDDL)
@@ -400,7 +399,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
-  @Test @Ignore // need to implement
+  @Test @Ignore("FLINK-14320") // need to implement
   def testBatchTableWithRowtime(): Unit = {
     val sourceData = List(
       toRow(1, 1000),
@@ -411,10 +410,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sourceDDL =
       """
         |create table t1(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint,
-        |  primary key(a),
-        |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
+        |  WATERMARK FOR a AS a - interval '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -422,7 +420,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sinkDDL =
       """
         |create table t2(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint
         |) with (
         |  'connector' = 'COLLECTION'
@@ -431,7 +429,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val query =
       """
         |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
+        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
       """.stripMargin
 
     tableEnv.sqlUpdate(sourceDDL)
@@ -535,6 +533,142 @@ class CatalogTableITCase(isStreaming: Boolean) {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+  }
+
+  @Test
+  def testAlterTable(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'k1' = 'v1'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl1)
+    tableEnv.sqlUpdate("alter table t1 rename to t2")
+    assert(tableEnv.listTables().sameElements(Array[String]("t2")))
+    tableEnv.sqlUpdate("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
+    val expectedProperties = new util.HashMap[String, String]()
+    expectedProperties.put("connector", "COLLECTION")
+    expectedProperties.put("k1", "a")
+    expectedProperties.put("k2", "b")
+    val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
+      .getProperties
+    assertEquals(expectedProperties, properties)
+  }
+
+  @Test
+  def testUseCatalog(): Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    assertEquals("cat1", tableEnv.getCurrentCatalog)
+    tableEnv.sqlUpdate("use catalog cat2")
+    assertEquals("cat2", tableEnv.getCurrentCatalog)
+  }
+
+  @Test
+  def testUseDatabase(): Unit = {
+    val catalog = new GenericInMemoryCatalog("cat1")
+    tableEnv.registerCatalog("cat1", catalog)
+    val catalogDB1 = new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1")
+    val catalogDB2 = new CatalogDatabaseImpl(new util.HashMap[String, String](), "db2")
+    catalog.createDatabase("db1", catalogDB1, true)
+    catalog.createDatabase("db2", catalogDB2, true)
+    tableEnv.sqlUpdate("use cat1.db1")
+    assertEquals("db1", tableEnv.getCurrentDatabase)
+    tableEnv.sqlUpdate("use db2")
+    assertEquals("db2", tableEnv.getCurrentDatabase)
+  }
+
+  @Test
+  def testCreateDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1 ")
+    tableEnv.sqlUpdate("create database if not exists db1 ")
+    try {
+      tableEnv.sqlUpdate("create database db1 ")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("create database cat2.db1 comment 'test_comment'" +
+                         " with ('k1' = 'v1', 'k2' = 'v2')")
+    val database = tableEnv.getCatalog("cat2").get().getDatabase("db1")
+    assertEquals("test_comment", database.getComment)
+    assertEquals(2, database.getProperties.size())
+    val expectedProperty = new util.HashMap[String, String]()
+    expectedProperty.put("k1", "v1")
+    expectedProperty.put("k2", "v2")
+    assertEquals(expectedProperty, database.getProperties)
+  }
+
+  @Test
+  def testDropDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1")
+    tableEnv.sqlUpdate("drop database db1")
+    tableEnv.sqlUpdate("drop database if exists db1")
+    try {
+      tableEnv.sqlUpdate("drop database db1")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("create database db1")
+    tableEnv.sqlUpdate("use db1")
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl1)
+    val ddl2 =
+      """
+        |create table t2(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl2)
+    try {
+      tableEnv.sqlUpdate("drop database db1")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("drop database db1 cascade")
+  }
+
+  @Test
+  def testAlterDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1 comment 'db1_comment' with ('k1' = 'v1')")
+    tableEnv.sqlUpdate("alter database db1 set ('k1' = 'a', 'k2' = 'b')")
+    val database = tableEnv.getCatalog("cat1").get().getDatabase("db1")
+    assertEquals("db1_comment", database.getComment)
+    assertEquals(2, database.getProperties.size())
+    val expectedProperty = new util.HashMap[String, String]()
+    expectedProperty.put("k1", "a")
+    expectedProperty.put("k2", "b")
+    assertEquals(expectedProperty, database.getProperties)
   }
 }
 

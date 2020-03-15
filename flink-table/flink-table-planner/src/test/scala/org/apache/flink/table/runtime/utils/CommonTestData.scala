@@ -59,6 +59,30 @@ object CommonTestData {
       .build()
   }
 
+  def getCsvTableSourceWithEmptyColumn: CsvTableSource = {
+    val csvRecords = Seq(
+      "First#Id#Score#Last",
+      "Mike#1#12.3#Smith",
+      "Bob#2##Taylor",
+      "% Just a comment",
+      "Leonard###"
+    )
+
+    val tempFilePath = writeToTempFile(csvRecords.mkString("$"), "csv-null-test", "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("first",Types.STRING)
+      .field("id",Types.INT)
+      .field("score",Types.DOUBLE)
+      .field("last",Types.STRING)
+      .fieldDelimiter("#")
+      .lineDelimiter("$")
+      .ignoreFirstLine()
+      .commentPrefix("%")
+      .emptyColumnAsNull()
+      .build()
+  }
+
   private def writeToTempFile(
       contents: String,
       filePrefix: String,

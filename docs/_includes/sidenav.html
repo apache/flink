@@ -69,7 +69,9 @@ level is determined by 'nav-pos'.
 {%- assign posStack = site.array -%}
 
 {%- assign elements = site.array -%}
-{%- assign children = (site.pages_by_language[page.language] | where: "nav-parent_id" , "root" | sort: "nav-pos") -%}
+{%- assign all_pages_by_nav_parent = (site.pages_by_language[page.language] | where_exp: "item", "item.nav-parent_id != nil" | group_by: "nav-parent_id") -%}
+{%- assign children = (all_pages_by_nav_parent | where: "name" , "root") -%}
+{%- assign children = (children[0].items | sort: "nav-pos") -%}
 {%- if children.size > 0 -%}
   {%- assign elements = elements | push: children -%}
 {%- endif -%}
@@ -78,7 +80,7 @@ level is determined by 'nav-pos'.
 {%- assign pos = 0 -%}
 
 <div class="sidenav-logo">
-  <p><a href="{{ baseurl_i18n }}"><img class="bottom" alt="Apache Flink" src="{{ site.baseurl }}/page/img/navbar-brand-logo.jpg"></a> v{{ site.version_title }}</p>
+  <p><a href="{{ baseurl_i18n }}/"><img class="bottom" alt="Apache Flink" src="{{ site.baseurl }}/page/img/navbar-brand-logo.jpg"></a> v{{ site.version_title }}</p>
 </div>
 <ul id="sidenav">
 {%- for i in (1..10000) -%}
@@ -107,12 +109,13 @@ level is determined by 'nav-pos'.
     {%- capture target -%}"{{ site.baseurl }}{{ this.url }}"{%- if active %} class="active"{%- endif -%}{%- endcapture -%}
     {%- capture overview_target -%}"{{ site.baseurl }}{{ this.url }}"{%- if this.url == page.url -%} class="active"{%- endif -%}{%- endcapture -%}
 
-    {% if this.section-break %}<hr class="section-break"></hr>{% endif %}
+    {% if this.section-break %}<hr class="section-break"></hr>{% endif -%}
 
     {%- assign pos = pos | plus: 1 -%}
     {%- if this.nav-id -%}
-      {%- assign children = (site.pages_by_language[page.language] | where: "nav-parent_id" , this.nav-id | sort: "nav-pos") -%}
+      {%- assign children = (all_pages_by_nav_parent | where: "name" , this.nav-id) -%}
       {%- if children.size > 0 -%}
+        {%- assign children = (children[0].items | sort: "nav-pos") -%}
         {%- capture collapse_target -%}"#collapse-{{ i }}" data-toggle="collapse"{%- if active -%} class="active"{%- endif -%}{%- endcapture -%}
         {%- capture expand -%}{%- unless active -%} <i class="fa fa-caret-down pull-right" aria-hidden="true" style="padding-top: 4px"></i>{%- endunless -%}{%- endcapture %}
 <li><a href={{ collapse_target }}>{{ title }}{{ expand }}</a><div class="collapse{% if active %} in{% endif %}" id="collapse-{{ i }}"><ul>

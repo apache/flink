@@ -22,14 +22,18 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.io.CollectionInputFormat
+import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema, Types}
+import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSourceFactory}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -44,7 +48,7 @@ import org.apache.flink.types.Row
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
-import java.util.{Collections, List => JList, Map => JMap}
+import java.util.{Collections, function, ArrayList => JArrayList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -146,7 +150,8 @@ class TestTableSourceWithTime[T](
     values: Seq[T],
     rowtime: String = null,
     proctime: String = null,
-    mapping: Map[String, String] = null)
+    mapping: Map[String, String] = null,
+    existingTs: String = null)
   extends StreamTableSource[T]
   with DefinedRowtimeAttributes
   with DefinedProctimeAttribute
@@ -161,9 +166,14 @@ class TestTableSourceWithTime[T](
   override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
     // return a RowtimeAttributeDescriptor if rowtime attribute is defined
     if (rowtime != null) {
+      val existingField = if (existingTs != null) {
+        existingTs
+      } else {
+        rowtime
+      }
       Collections.singletonList(new RowtimeAttributeDescriptor(
         rowtime,
-        new ExistingField(rowtime),
+        new ExistingField(existingField),
         new AscendingTimestamps))
     } else {
       Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]
@@ -332,6 +342,37 @@ class TestNestedProjectableTableSource(
   }
 }
 
+/** Table source factory to find and create [[TestProjectableTableSource]]. */
+class TestProjectableTableSourceFactory extends StreamTableSourceFactory[Row] {
+  override def createStreamTableSource(properties: JMap[String, String])
+  : StreamTableSource[Row] = {
+    val descriptorProps = new DescriptorProperties()
+    descriptorProps.putProperties(properties)
+    val isBounded = descriptorProps.getBoolean("is-bounded")
+    val tableSchema = descriptorProps.getTableSchema(Schema.SCHEMA)
+    // Build physical row type.
+    val schemaBuilder = TableSchema.builder()
+    tableSchema
+      .getTableColumns
+      .filter(c => !c.isGenerated)
+      .foreach(c => schemaBuilder.field(c.getName, c.getType))
+    val rowTypeInfo = schemaBuilder.build().toRowType
+    new TestProjectableTableSource(isBounded, tableSchema, rowTypeInfo, Seq())
+  }
+
+  override def requiredContext(): JMap[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestProjectableSource")
+    context
+  }
+
+  override def supportedProperties(): JList[String] = {
+    val supported = new JArrayList[String]()
+    supported.add("*")
+    supported
+  }
+}
+
 /**
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
@@ -364,9 +405,10 @@ class TestFilterableTableSource(
 
   override def explainSource(): String = {
     if (filterPredicates.nonEmpty) {
+      s"filterPushedDown=[$filterPushedDown], " +
       s"filter=[${filterPredicates.reduce((l, r) => unresolvedCall(AND, l, r)).toString}]"
     } else {
-      ""
+      s"filterPushedDown=[$filterPushedDown], filter=[]"
     }
   }
 
@@ -538,6 +580,29 @@ object TestFilterableTableSource {
   }
 }
 
+/** Table source factory to find and create [[TestFilterableTableSource]]. */
+class TestFilterableTableSourceFactory extends StreamTableSourceFactory[Row] {
+  override def createStreamTableSource(properties: JMap[String, String])
+    : StreamTableSource[Row] = {
+    val descriptorProps = new DescriptorProperties()
+    descriptorProps.putProperties(properties)
+    val isBounded = descriptorProps.getBoolean("is-bounded")
+    TestFilterableTableSource.apply(isBounded)
+  }
+
+  override def requiredContext(): JMap[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestFilterableSource")
+    context
+  }
+
+  override def supportedProperties(): JList[String] = {
+    val supported = new JArrayList[String]()
+    supported.add("*")
+    supported
+  }
+}
+
 /**
   * A data source that implements some very basic partitionable table source in-memory.
   *
@@ -546,7 +611,8 @@ object TestFilterableTableSource {
   */
 class TestPartitionableTableSource(
     override val isBounded: Boolean,
-    remainingPartitions: JList[JMap[String, String]] = null)
+    remainingPartitions: JList[JMap[String, String]],
+    isCatalogTable: Boolean)
   extends StreamTableSource[Row]
   with PartitionableTableSource {
 
@@ -566,18 +632,21 @@ class TestPartitionableTableSource(
     "part1=C,part2=1" -> Seq(row(7, "He", "C", 1), row(8, "Le", "C", 1))
   )
 
-  override def getPartitions: JList[JMap[String, String]] = List(
-    Map("part1"->"A", "part2"->"1").asJava,
-    Map("part1"->"A", "part2"->"2").asJava,
-    Map("part1"->"B", "part2"->"3").asJava,
-    Map("part1"->"C", "part2"->"1").asJava
-  ).asJava
-
-  override def getPartitionFieldNames: JList[String] = List("part1", "part2").asJava
+  override def getPartitions: JList[JMap[String, String]] = {
+    if (isCatalogTable) {
+      throw new RuntimeException("Should not expected.")
+    }
+    List(
+      Map("part1" -> "A", "part2" -> "1").asJava,
+      Map("part1" -> "A", "part2" -> "2").asJava,
+      Map("part1" -> "B", "part2" -> "3").asJava,
+      Map("part1" -> "C", "part2" -> "1").asJava
+    ).asJava
+  }
 
   override def applyPartitionPruning(
       remainingPartitions: JList[JMap[String, String]]): TableSource[_] = {
-    new TestPartitionableTableSource(isBounded, remainingPartitions)
+    new TestPartitionableTableSource(isBounded, remainingPartitions, isCatalogTable)
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
@@ -643,6 +712,41 @@ class TestDataTypeTableSource(
   override def getTableSchema: TableSchema = tableSchema
 }
 
+class TestDataTypeTableSourceWithTime(
+    tableSchema: TableSchema,
+    values: Seq[Row],
+    rowtime: String = null)
+  extends InputFormatTableSource[Row]
+  with DefinedRowtimeAttributes {
+
+  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
+    new CollectionInputFormat[Row](
+      values.asJava,
+      fromDataTypeToTypeInfo(getProducedDataType)
+        .createSerializer(new ExecutionConfig)
+        .asInstanceOf[TypeSerializer[Row]])
+  }
+
+  override def getReturnType: TypeInformation[Row] =
+    throw new RuntimeException("Should not invoke this deprecated method.")
+
+  override def getProducedDataType: DataType = tableSchema.toRowDataType
+
+  override def getTableSchema: TableSchema = tableSchema
+
+  override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
+    // return a RowtimeAttributeDescriptor if rowtime attribute is defined
+    if (rowtime != null) {
+      Collections.singletonList(new RowtimeAttributeDescriptor(
+        rowtime,
+        new ExistingField(rowtime),
+        new AscendingTimestamps))
+    } else {
+      Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]
+    }
+  }
+}
+
 class TestStreamTableSource(
     tableSchema: TableSchema,
     values: Seq[Row]) extends StreamTableSource[Row] {
@@ -654,4 +758,122 @@ class TestStreamTableSource(
   override def getReturnType: TypeInformation[Row] = tableSchema.toRowType
 
   override def getTableSchema: TableSchema = tableSchema
+}
+
+class TestFileInputFormatTableSource(
+    paths: Array[String],
+    tableSchema: TableSchema) extends InputFormatTableSource[Row] {
+
+  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
+    val format = new RowCsvInputFormat(null, tableSchema.getFieldTypes)
+    format.setFilePaths(paths: _*)
+    format
+  }
+
+  override def getReturnType: TypeInformation[Row] = tableSchema.toRowType
+
+  override def getTableSchema: TableSchema = tableSchema
+}
+
+class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
+
+  override def requiredContext(): util.Map[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestPartitionableSource")
+    context
+  }
+
+  override def supportedProperties(): util.List[String] = {
+    val supported = new util.ArrayList[String]()
+    supported.add("*")
+    supported
+  }
+
+  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
+    val dp = new DescriptorProperties()
+    dp.putProperties(properties)
+
+    val isBounded = dp.getBoolean("is-bounded")
+    val isCatalogTable = dp.getBoolean("is-catalog-table")
+    val remainingPartitions = dp.getOptionalArray("remaining-partition",
+      new function.Function[String, util.Map[String, String]] {
+      override def apply(t: String): util.Map[String, String] = {
+        dp.getString(t).split(",")
+            .map(kv => kv.split(":"))
+            .map(a => (a(0), a(1)))
+            .toMap[String, String]
+      }
+    }).orElse(null)
+    new TestPartitionableTableSource(
+      isBounded,
+      remainingPartitions,
+      isCatalogTable)
+  }
+}
+
+object TestPartitionableSourceFactory {
+  private val tableSchema: TableSchema = TableSchema.builder()
+    .field("id", DataTypes.INT())
+    .field("name", DataTypes.STRING())
+    .field("part1", DataTypes.STRING())
+    .field("part2", DataTypes.INT())
+    .build()
+
+  /**
+    * For java invoking.
+    */
+  def registerTableSource(
+      tEnv: TableEnvironment,
+      tableName: String,
+      isBounded: Boolean): Unit = {
+    registerTableSource(tEnv, tableName, isBounded, tableSchema = tableSchema)
+  }
+
+  def registerTableSource(
+      tEnv: TableEnvironment,
+      tableName: String,
+      isBounded: Boolean,
+      tableSchema: TableSchema = tableSchema,
+      remainingPartitions: JList[JMap[String, String]] = null): Unit = {
+    val properties = new DescriptorProperties()
+    properties.putString("is-bounded", isBounded.toString)
+    val isCatalogTable = true
+    properties.putBoolean("is-catalog-table", isCatalogTable)
+    properties.putString(CONNECTOR_TYPE, "TestPartitionableSource")
+    if (remainingPartitions != null) {
+      remainingPartitions.zipWithIndex.foreach { case (part, i) =>
+        properties.putString(
+          "remaining-partition." + i,
+          part.map {case (k, v) => s"$k:$v"}.reduce {(kv1, kv2) =>
+            s"$kv1,:$kv2"
+          }
+        )
+      }
+    }
+
+    val table = new CatalogTableImpl(
+      tableSchema,
+      util.Arrays.asList[String]("part1", "part2"),
+      properties.asMap(),
+      ""
+    )
+    val catalog = tEnv.getCatalog(tEnv.getCurrentCatalog).get()
+    val path = new ObjectPath(tEnv.getCurrentDatabase, tableName)
+    catalog.createTable(path, table, false)
+
+    if (isCatalogTable) {
+      val partitions = List(
+        Map("part1" -> "A", "part2" -> "1").asJava,
+        Map("part1" -> "A", "part2" -> "2").asJava,
+        Map("part1" -> "B", "part2" -> "3").asJava,
+        Map("part1" -> "C", "part2" -> "1").asJava
+      )
+      partitions.foreach(spec => catalog.createPartition(
+        path,
+        new CatalogPartitionSpec(new java.util.LinkedHashMap(spec)),
+        new CatalogPartitionImpl(Map[String, String](), ""),
+        true))
+    }
+
+  }
 }

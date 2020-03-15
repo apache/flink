@@ -386,6 +386,28 @@ class OverWindowITCase extends BatchTestBase {
         row(5, 5)
       )
     )
+
+    // deal with input with 0 as the first row's rank field
+    checkResult(
+      "SELECT f, dense_rank() over (order by f) FROM Table5",
+      Seq(
+        row(0, 1),
+        row(1, 2),
+        row(2, 3),
+        row(3, 4),
+        row(4, 5),
+        row(5, 6),
+        row(6, 7),
+        row(7, 8),
+        row(8, 9),
+        row(9, 10),
+        row(10, 11),
+        row(11, 12),
+        row(12, 13),
+        row(13, 14),
+        row(14, 15)
+      )
+    )
   }
 
   @Test
@@ -967,6 +989,29 @@ class OverWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, h, dense_rank() over (order by d, h desc) FROM Table5",
+      Seq(
+        row(1, 1, 1),
+        row(2, 2, 2),
+        row(2, 1, 3),
+        row(3, 3, 4),
+        row(3, 2, 5),
+        row(3, 2, 5),
+        row(4, 2, 6),
+        row(4, 2, 6),
+        row(4, 1, 7),
+        row(4, 1, 7),
+        row(5, 3, 8),
+        row(5, 3, 8),
+        row(5, 2, 9),
+        row(5, 2, 9),
+        row(5, 1, 10)
+      )
+    )
+
+    // test tinyint and smallint.
+    checkResult(
+      "SELECT d, h, dense_rank() over (order by cast(d as tinyint), cast(h as smallint) desc)" +
+          " FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 2),

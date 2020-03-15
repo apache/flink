@@ -27,6 +27,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -140,8 +141,7 @@ public class TestUtils {
 				bucketer,
 				writer,
 				bucketFactory,
-				PartFileConfig.DEFAULT_PART_PREFIX,
-				PartFileConfig.DEFAULT_PART_SUFFIX);
+				OutputFileConfig.builder().build());
 	}
 
 	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createTestSinkWithBulkEncoder(
@@ -152,16 +152,15 @@ public class TestUtils {
 			final BucketAssigner<Tuple2<String, Integer>, String> bucketer,
 			final BulkWriter.Factory<Tuple2<String, Integer>> writer,
 			final BucketFactory<Tuple2<String, Integer>, String> bucketFactory,
-			final String partFilePrefix,
-			final String partFileSuffix) throws Exception {
+			final OutputFileConfig outputFileConfig) throws Exception {
 
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 			.forBulkFormat(new Path(outDir.toURI()), writer)
 			.withBucketAssigner(bucketer)
 			.withBucketCheckInterval(bucketCheckInterval)
+			.withRollingPolicy(OnCheckpointRollingPolicy.build())
 			.withBucketFactory(bucketFactory)
-			.withPartFilePrefix(partFilePrefix)
-			.withPartFileSuffix(partFileSuffix)
+			.withOutputFileConfig(outputFileConfig)
 			.build();
 
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
@@ -184,8 +183,7 @@ public class TestUtils {
 				bucketer,
 				writer,
 				bucketFactory,
-				PartFileConfig.DEFAULT_PART_PREFIX,
-				PartFileConfig.DEFAULT_PART_SUFFIX);
+				OutputFileConfig.builder().build());
 	}
 
 	static <ID> OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createTestSinkWithCustomizedBulkEncoder(
@@ -196,16 +194,15 @@ public class TestUtils {
 			final BucketAssigner<Tuple2<String, Integer>, ID> bucketer,
 			final BulkWriter.Factory<Tuple2<String, Integer>> writer,
 			final BucketFactory<Tuple2<String, Integer>, ID> bucketFactory,
-			final String partFilePrefix,
-			final String partFileSuffix) throws Exception {
+			final OutputFileConfig outputFileConfig) throws Exception {
 
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 				.forBulkFormat(new Path(outDir.toURI()), writer)
 				.withNewBucketAssigner(bucketer)
+				.withRollingPolicy(OnCheckpointRollingPolicy.build())
 				.withBucketCheckInterval(bucketCheckInterval)
 				.withBucketFactory(bucketFactory)
-				.withPartFilePrefix(partFilePrefix)
-				.withPartFileSuffix(partFileSuffix)
+				.withOutputFileConfig(outputFileConfig)
 				.build();
 
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);

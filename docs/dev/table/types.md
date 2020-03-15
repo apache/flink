@@ -1,7 +1,7 @@
 ---
 title: "Data Types"
 nav-parent_id: tableapi
-nav-pos: 1
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -185,7 +185,7 @@ For the *Data Type Representation* column the table omits the prefix `org.apache
 | `OBJECT_ARRAY(...)` | `OBJECT_ARRAY<...>` | `ARRAY(`<br>`DATATYPE.bridgedTo(OBJECT.class))` | |
 | `MULTISET(...)` | | `MULTISET(...)` | |
 | `MAP(..., ...)` | `MAP<...,...>` | `MAP(...)` | |
-| other generic types | | `ANY(...)` | |
+| other generic types | | `RAW(...)` | |
 
 <span class="label label-danger">Attention</span> If there is a problem with the new type system. Users
 can fallback to type information defined in `org.apache.flink.table.api.Types` at any time.
@@ -218,7 +218,7 @@ The following data types are supported:
 | `MULTISET` | |
 | `MAP` | |
 | `ROW` | |
-| `ANY` | |
+| `RAW` | |
 
 Limitations
 -----------
@@ -1005,6 +1005,43 @@ equivalent to `ARRAY<INT>`.
 |:----------|:-----:|:------:|:----------------------------------|
 |*t*`[]`    | (X)   | (X)    | Depends on the subtype. *Default* |
 
+#### `MAP`
+
+Data type of an associative array that maps keys (including `NULL`) to values (including `NULL`). A map
+cannot contain duplicate keys; each key can map to at most one value.
+
+There is no restriction of element types; it is the responsibility of the user to ensure uniqueness.
+
+The map type is an extension to the SQL standard.
+
+**Declaration**
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="SQL" markdown="1">
+{% highlight text %}
+MAP<kt, vt>
+{% endhighlight %}
+</div>
+
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+DataTypes.MAP(kt, vt)
+{% endhighlight %}
+</div>
+
+</div>
+
+The type can be declared using `MAP<kt, vt>` where `kt` is the data type of the key elements
+and `vt` is the data type of the value elements.
+
+**Bridging to JVM Types**
+
+| Java Type                             | Input | Output | Remarks   |
+|:--------------------------------------|:-----:|:------:|:----------|
+| `java.util.Map<kt, vt>`               | X     | X      | *Default* |
+| *subclass* of `java.util.Map<kt, vt>` | X     |        |           |
+
 #### `MULTISET`
 
 Data type of a multiset (=bag). Unlike a set, it allows for multiple instances for each of its
@@ -1042,6 +1079,7 @@ equivalent to `MULTISET<INT>`.
 | Java Type                            | Input | Output | Remarks                                                  |
 |:-------------------------------------|:-----:|:------:|:---------------------------------------------------------|
 |`java.util.Map<t, java.lang.Integer>` | X     | X      | Assigns each value to an integer multiplicity. *Default* |
+| *subclass* of `java.util.Map<kt, java.lang.Integer>` | X     |        | Assigns each value to an integer multiplicity. |
 
 #### `ROW`
 
@@ -1159,12 +1197,12 @@ DataTypes.NULL()
 |`java.lang.Object` | X     | X      | *Default*                            |
 |*any class*        |       | (X)    | Any non-primitive type.              |
 
-#### `ANY`
+#### `RAW`
 
 Data type of an arbitrary serialized type. This type is a black box within the table ecosystem
 and is only deserialized at the edges.
 
-The any type is an extension to the SQL standard.
+The raw type is an extension to the SQL standard.
 
 **Declaration**
 
@@ -1172,25 +1210,25 @@ The any type is an extension to the SQL standard.
 
 <div data-lang="SQL" markdown="1">
 {% highlight text %}
-ANY('class', 'snapshot')
+RAW('class', 'snapshot')
 {% endhighlight %}
 </div>
 
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
-DataTypes.ANY(class, serializer)
+DataTypes.RAW(class, serializer)
 
-DataTypes.ANY(typeInfo)
+DataTypes.RAW(typeInfo)
 {% endhighlight %}
 </div>
 
 </div>
 
-The type can be declared using `ANY('class', 'snapshot')` where `class` is the originating class and
+The type can be declared using `RAW('class', 'snapshot')` where `class` is the originating class and
 `snapshot` is the serialized `TypeSerializerSnapshot` in Base64 encoding. Usually, the type string is not
 declared directly but is generated while persisting the type.
 
-In the API, the `ANY` type can be declared either by directly supplying a `Class` + `TypeSerializer` or
+In the API, the `RAW` type can be declared either by directly supplying a `Class` + `TypeSerializer` or
 by passing `TypeInformation` and let the framework extract `Class` + `TypeSerializer` from there.
 
 **Bridging to JVM Types**

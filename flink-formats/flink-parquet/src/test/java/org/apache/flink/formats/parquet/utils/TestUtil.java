@@ -210,6 +210,7 @@ public class TestUtil {
 			stringArray.add("String");
 
 			final NestedRecord nestedRecord = NestedRecord.newBuilder()
+				.setFoo(1L)
 				.setBar(bar)
 				.setNestedArray(nestedArray)
 				.setStrArray(stringArray)

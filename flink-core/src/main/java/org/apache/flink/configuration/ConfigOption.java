@@ -43,6 +43,8 @@ public class ConfigOption<T> {
 
 	private static final FallbackKey[] EMPTY = new FallbackKey[0];
 
+	static final Description EMPTY_DESCRIPTION = Description.builder().text("").build();
+
 	// ------------------------------------------------------------------------
 
 	/** The current key for that config option. */
@@ -57,51 +59,51 @@ public class ConfigOption<T> {
 	/** The description for this option. */
 	private final Description description;
 
+	/**
+	 * Type of the value that this ConfigOption describes.
+	 * <ul>
+	 *     <li>typeClass == atomic class (e.g. {@code Integer.class}) -> {@code ConfigOption<Integer>}</li>
+	 *     <li>typeClass == {@code Map.class} -> {@code ConfigOption<Map<String, String>>}</li>
+	 *     <li>typeClass == atomic class and isList == true for {@code ConfigOption<List<Integer>>}</li>
+	 * </ul>
+	 */
+	private final Class clazz;
+
+	private final boolean isList;
+
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Creates a new config option with no fallback keys.
-	 *
-	 * @param key The current key for that config option
-	 * @param defaultValue The default value for this option
-	 */
-	ConfigOption(String key, T defaultValue) {
-		this.key = checkNotNull(key);
-		this.description = Description.builder().text("").build();
-		this.defaultValue = defaultValue;
-		this.fallbackKeys = EMPTY;
+	Class getClazz() {
+		return clazz;
+	}
+
+	boolean isList() {
+		return isList;
 	}
 
 	/**
 	 * Creates a new config option with fallback keys.
 	 *
 	 * @param key The current key for that config option
+	 * @param clazz describes type of the ConfigOption, see description of the clazz field
 	 * @param description Description for that option
 	 * @param defaultValue The default value for this option
-	 * @param fallbackKeys The list of fallback keys, in the order to be checked
-	 * @deprecated use version with {@link Description} instead
-	 */
-	@Deprecated
-	ConfigOption(String key, String description, T defaultValue, FallbackKey... fallbackKeys) {
-		this.key = checkNotNull(key);
-		this.description = Description.builder().text(description).build();
-		this.defaultValue = defaultValue;
-		this.fallbackKeys = fallbackKeys == null || fallbackKeys.length == 0 ? EMPTY : fallbackKeys;
-	}
-
-	/**
-	 * Creates a new config option with fallback keys.
-	 *
-	 * @param key The current key for that config option
-	 * @param description Description for that option
-	 * @param defaultValue The default value for this option
+	 * @param isList tells if the ConfigOption describes a list option, see description of the clazz field
 	 * @param fallbackKeys The list of fallback keys, in the order to be checked
 	 */
-	ConfigOption(String key, Description description, T defaultValue, FallbackKey... fallbackKeys) {
+	ConfigOption(
+			String key,
+			Class clazz,
+			Description description,
+			T defaultValue,
+			boolean isList,
+			FallbackKey... fallbackKeys) {
 		this.key = checkNotNull(key);
 		this.description = description;
 		this.defaultValue = defaultValue;
 		this.fallbackKeys = fallbackKeys == null || fallbackKeys.length == 0 ? EMPTY : fallbackKeys;
+		this.clazz = checkNotNull(clazz);
+		this.isList = isList;
 	}
 
 	// ------------------------------------------------------------------------
@@ -124,7 +126,7 @@ public class ConfigOption<T> {
 		// put fallback keys first so that they are prioritized
 		final FallbackKey[] mergedAlternativeKeys = Stream.concat(newFallbackKeys, currentAlternativeKeys)
 			.toArray(FallbackKey[]::new);
-		return new ConfigOption<>(key, description, defaultValue, mergedAlternativeKeys);
+		return new ConfigOption<>(key, clazz, description, defaultValue, isList, mergedAlternativeKeys);
 	}
 
 	/**
@@ -145,7 +147,7 @@ public class ConfigOption<T> {
 		// put deprecated keys last so that they are de-prioritized
 		final FallbackKey[] mergedAlternativeKeys = Stream.concat(currentAlternativeKeys, newDeprecatedKeys)
 			.toArray(FallbackKey[]::new);
-		return new ConfigOption<>(key, description, defaultValue, mergedAlternativeKeys);
+		return new ConfigOption<>(key, clazz, description, defaultValue, isList, mergedAlternativeKeys);
 	}
 
 	/**
@@ -167,7 +169,7 @@ public class ConfigOption<T> {
 	 * @return A new config option, with given description.
 	 */
 	public ConfigOption<T> withDescription(final Description description) {
-		return new ConfigOption<>(key, description, defaultValue, fallbackKeys);
+		return new ConfigOption<>(key, clazz, description, defaultValue, isList, fallbackKeys);
 	}
 
 	// ------------------------------------------------------------------------
@@ -203,8 +205,7 @@ public class ConfigOption<T> {
 	 */
 	@Deprecated
 	public boolean hasDeprecatedKeys() {
-		return fallbackKeys == EMPTY ? false :
-			Arrays.stream(fallbackKeys).anyMatch(FallbackKey::isDeprecated);
+		return fallbackKeys != EMPTY && Arrays.stream(fallbackKeys).anyMatch(FallbackKey::isDeprecated);
 	}
 
 	/**
@@ -276,4 +277,5 @@ public class ConfigOption<T> {
 		return String.format("Key: '%s' , default: %s (fallback keys: %s)",
 				key, defaultValue, Arrays.toString(fallbackKeys));
 	}
+
 }

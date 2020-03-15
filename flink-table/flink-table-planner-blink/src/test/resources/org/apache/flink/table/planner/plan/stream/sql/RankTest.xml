@@ -529,42 +529,6 @@ GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], ac
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTopNOrderByIncrSum">
-    <Resource name="sql">
-      <![CDATA[
-SELECT *
-FROM (
-  SELECT a, b, sum_c,
-      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) AS row_num
-  FROM (
-SELECT a, b, incr_sum(c) as sum_c
-FROM MyTable
-GROUP BY a, b
-      ))
-WHERE row_num <= 10
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
-+- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      +- LogicalAggregate(group=[{0, 1}], sum_c=[INCR_SUM($2)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, INCR_SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
-      +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testTopNOrderBySumWithCaseWhen">
     <Resource name="sql">
       <![CDATA[

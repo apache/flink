@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.functions.{FunctionIdentifier, TableFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -41,7 +40,7 @@ import java.util
 /**
   * Calcite wrapper for user-defined table functions.
   *
-  * @param name               function name (used by SQL parser)
+  * @param identifier         function identifier to uniquely identify this function
   * @param udtf               user-defined table function to be called
   * @param implicitResultType Implicit result type information
   * @param typeFactory        type factory for converting Flink's between Calcite's types
@@ -49,7 +48,7 @@ import java.util
   * @return [[TableSqlFunction]]
   */
 class TableSqlFunction(
-    name: String,
+    identifier: FunctionIdentifier,
     displayName: String,
     val udtf: TableFunction[_],
     implicitResultType: DataType,
@@ -57,17 +56,18 @@ class TableSqlFunction(
     functionImpl: FlinkTableFunction,
     operandTypeInfer: Option[SqlOperandTypeChecker] = None)
   extends SqlUserDefinedTableFunction(
-    new SqlIdentifier(name, SqlParserPos.ZERO),
+    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
     ReturnTypes.CURSOR,
     // type inference has the UNKNOWN operand types.
-    createOperandTypeInference(name, udtf, typeFactory),
+    createOperandTypeInference(displayName, udtf, typeFactory),
     // only checker has the real operand types.
-    operandTypeInfer.getOrElse(createOperandTypeChecker(name, udtf)),
+    operandTypeInfer.getOrElse(createOperandTypeChecker(displayName, udtf)),
     null,
     functionImpl) {
 
   /**
-    * Get the user-defined table function.
+    * This is temporary solution for hive udf and should be removed once FLIP-65 is finished,
+    * please pass the non-null input arguments.
     */
   def makeFunction(constants: Array[AnyRef], argTypes: Array[LogicalType]): TableFunction[_] =
     udtf
@@ -145,7 +145,9 @@ object TableSqlFunction {
   * Operand type checker based on [[TableFunction]] given information.
   */
 class OperandTypeChecker(
-    name: String, udtf: TableFunction[_], methods: Array[Method]) extends SqlOperandTypeChecker {
+    name: String,
+    udtf: TableFunction[_],
+    methods: Array[Method]) extends SqlOperandTypeChecker {
 
   override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
     s"$opName[${signaturesToString(udtf, "eval")}]"

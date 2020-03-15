@@ -134,9 +134,9 @@ object FlinkStreamRuleSets {
     */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
     // push a filter into a join
-    FlinkFilterJoinRule.FILTER_ON_JOIN,
+    FilterJoinRule.FILTER_ON_JOIN,
     // push filter into the children of a join
-    FlinkFilterJoinRule.JOIN,
+    FilterJoinRule.JOIN,
     // push filter through an aggregation
     FilterAggregateTransposeRule.INSTANCE,
     // push a filter past a project
@@ -204,13 +204,13 @@ object FlinkStreamRuleSets {
     ProjectSetOpTransposeRule.INSTANCE
   )
 
-  val JOIN_REORDER_PERPARE_RULES: RuleSet = RuleSets.ofList(
+  val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge project to MultiJoin
     ProjectMultiJoinMergeRule.INSTANCE,
     // merge filter to MultiJoin
     FilterMultiJoinMergeRule.INSTANCE,
     // merge join to MultiJoin
-    FlinkJoinToMultiJoinRule.INSTANCE
+    JoinToMultiJoinRule.INSTANCE
   )
 
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
@@ -236,6 +236,7 @@ object FlinkStreamRuleSets {
 
     // join rules
     FlinkJoinPushExpressionsRule.INSTANCE,
+    SimplifyJoinConditionRule.INSTANCE,
 
     // remove union with only a single child
     UnionEliminatorRule.INSTANCE,
@@ -336,8 +337,18 @@ object FlinkStreamRuleSets {
     SplitAggregateRule.INSTANCE,
     // transpose calc past snapshot
     CalcSnapshotTransposeRule.INSTANCE,
+    // Rule that splits python ScalarFunctions from join conditions
+    SplitPythonConditionFromJoinRule.INSTANCE,
+    // Rule that splits python ScalarFunctions from
+    // java/scala ScalarFunctions in correlate conditions
+    SplitPythonConditionFromCorrelateRule.INSTANCE,
     // merge calc after calc transpose
-    FlinkCalcMergeRule.INSTANCE
+    FlinkCalcMergeRule.INSTANCE,
+    // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
+    PythonCalcSplitRule.SPLIT_CONDITION,
+    PythonCalcSplitRule.SPLIT_PROJECT,
+    PythonCalcSplitRule.PUSH_CONDITION,
+    PythonCalcSplitRule.REWRITE_PROJECT
   )
 
   /**
@@ -353,6 +364,7 @@ object FlinkStreamRuleSets {
     StreamExecValuesRule.INSTANCE,
     // calc
     StreamExecCalcRule.INSTANCE,
+    StreamExecPythonCalcRule.INSTANCE,
     // union
     StreamExecUnionRule.INSTANCE,
     // sort

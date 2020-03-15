@@ -66,7 +66,6 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutorFactory;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -157,7 +156,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				SimpleOperatorFactory.of(operator),
 				new MockEnvironmentBuilder()
 						.setTaskName("MockTask")
-						.setMemorySize(3 * 1024 * 1024)
+						.setManagedMemorySize(3 * 1024 * 1024)
 						.setInputSplitProvider(new MockInputSplitProvider())
 						.setBufferSize(1024)
 						.setMaxParallelism(maxParallelism)
@@ -198,7 +197,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				factory,
 				new MockEnvironmentBuilder()
 						.setTaskName("MockTask")
-						.setMemorySize(3 * 1024 * 1024)
+						.setManagedMemorySize(3 * 1024 * 1024)
 						.setInputSplitProvider(new MockInputSplitProvider())
 						.setBufferSize(1024)
 						.setMaxParallelism(maxParallelism)
@@ -255,7 +254,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			.setStreamTaskStateInitializer(streamTaskStateInitializer)
 			.setClosableRegistry(closableRegistry)
 			.setCheckpointStorage(checkpointStorage)
-			.setProcessingTimeService(processingTimeService)
+			.setTimerService(processingTimeService)
 			.setHandleAsyncException(handleAsyncException)
 			.build();
 	}
@@ -266,8 +265,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		ProcessingTimeService processingTimeService) {
 		return new StreamTaskStateInitializerImpl(
 			env,
-			stateBackend,
-			processingTimeService);
+			stateBackend);
 	}
 
 	public void setStateBackend(StateBackend stateBackend) {
@@ -290,6 +288,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
+	}
+
+	public StreamConfig getStreamConfig() {
+		return config;
 	}
 
 	/**
@@ -319,6 +321,18 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
+	 * Get the list of OUT values emitted by the operator.
+	 */
+	public List<OUT> extractOutputValues(){
+		List<StreamRecord<? extends OUT>> streamRecords = extractOutputStreamRecords();
+		List<OUT> outputValues = new ArrayList<>();
+		for (StreamRecord<? extends OUT> streamRecord : streamRecords) {
+			outputValues.add(streamRecord.getValue());
+		}
+		return outputValues;
+	}
+
+	/**
 	 * Calls {@link SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} ()}.
 	 */
 	public void setup() {
@@ -343,10 +357,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			setupCalled = true;
 			this.mockTask.init();
 		}
-	}
-
-	private MailboxExecutorFactory getMailboxExecutorFactory() {
-		return mockTask.getMailboxExecutorFactory();
 	}
 
 	/**

@@ -77,7 +77,7 @@ class DataStreamCorrelateRule
             new RowSchema(rel.getRowType),
             new RowSchema(join.getRowType),
             join.getJoinType,
-            description)
+            "DataStreamCorrelateRule")
       }
     }
     convertToCorrelate(right, None)

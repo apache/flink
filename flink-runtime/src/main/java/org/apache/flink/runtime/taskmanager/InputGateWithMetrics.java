@@ -46,8 +46,8 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return inputGate.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return inputGate.getAvailableFuture();
 	}
 
 	@Override
@@ -67,12 +67,12 @@ public class InputGateWithMetrics extends InputGate {
 
 	@Override
 	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
-		return updateMetrics(inputGate.getNext());
+		return inputGate.getNext().map(this::updateMetrics);
 	}
 
 	@Override
 	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
-		return updateMetrics(inputGate.pollNext());
+		return inputGate.pollNext().map(this::updateMetrics);
 	}
 
 	@Override
@@ -85,8 +85,8 @@ public class InputGateWithMetrics extends InputGate {
 		inputGate.close();
 	}
 
-	private Optional<BufferOrEvent> updateMetrics(Optional<BufferOrEvent> bufferOrEvent) {
-		bufferOrEvent.ifPresent(b -> numBytesIn.inc(b.getSize()));
+	private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {
+		numBytesIn.inc(bufferOrEvent.getSize());
 		return bufferOrEvent;
 	}
 }

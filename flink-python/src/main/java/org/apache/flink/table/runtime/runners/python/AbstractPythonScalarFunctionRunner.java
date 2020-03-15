@@ -23,10 +23,10 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.AbstractPythonFunctionRunner;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -78,11 +78,10 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 		String taskName,
 		FnDataReceiver<OUT> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
-		PythonEnv pythonEnv,
+		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType,
-		String[] tempDirs) {
-		super(taskName, resultReceiver, pythonEnv, StateRequestHandler.unsupported(), tempDirs);
+		RowType outputType) {
+		super(taskName, resultReceiver, environmentManager, StateRequestHandler.unsupported());
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
@@ -104,7 +103,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public ExecutableStage createExecutableStage() {
+	public ExecutableStage createExecutableStage() throws Exception {
 		RunnerApi.Components components =
 			RunnerApi.Components.newBuilder()
 				.putPcollections(
@@ -183,8 +182,10 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
 			if (input instanceof PythonFunctionInfo) {
 				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
-			} else {
+			} else if (input instanceof Integer) {
 				inputProto.setInputOffset((Integer) input);
+			} else {
+				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
 			}
 			builder.addInputs(inputProto);
 		}
@@ -211,7 +212,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 				RunnerApi.FunctionSpec.newBuilder()
 					.setUrn(SCHEMA_CODER_URN)
 					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-						BeamTypeUtils.toProtoType(rowType).getRowSchema().toByteArray()))
+						PythonTypeUtils.toProtoType(rowType).getRowSchema().toByteArray()))
 					.build())
 			.build();
 	}

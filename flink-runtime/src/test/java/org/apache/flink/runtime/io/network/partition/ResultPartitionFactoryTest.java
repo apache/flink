@@ -21,9 +21,7 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
@@ -100,15 +98,15 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			1,
 			1,
 			SEGMENT_SIZE,
-			releasePartitionOnConsumption);
+			releasePartitionOnConsumption,
+			false,
+			"LZ4");
 
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
-			new PartitionDescriptor(
-				new IntermediateDataSetID(),
-				new IntermediateResultPartitionID(),
-				partitionType,
-				1,
-				0),
+			PartitionDescriptorBuilder
+				.newBuilder()
+				.setPartitionType(partitionType)
+				.build(),
 			NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
 			1,
 			true

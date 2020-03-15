@@ -47,8 +47,8 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(RestartPipelinedRegionStrategy.class);
 
-	/** The topology containing info about all the vertices and edges. */
-	private final FailoverTopology topology;
+	/** The topology containing info about all the vertices and result partitions. */
+	private final FailoverTopology<?, ?> topology;
 
 	/** All failover regions. */
 	private final Set<FailoverRegion> regions;
@@ -63,21 +63,21 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	 * Creates a new failover strategy to restart pipelined regions that works on the given topology.
 	 * The result partitions are always considered to be available if no data consumption error happens.
 	 *
-	 * @param topology containing info about all the vertices and edges
+	 * @param topology containing info about all the vertices and result partitions
 	 */
 	@VisibleForTesting
-	public RestartPipelinedRegionStrategy(FailoverTopology topology) {
+	public RestartPipelinedRegionStrategy(FailoverTopology<?, ?> topology) {
 		this(topology, resultPartitionID -> true);
 	}
 
 	/**
 	 * Creates a new failover strategy to restart pipelined regions that works on the given topology.
 	 *
-	 * @param topology containing info about all the vertices and edges
+	 * @param topology containing info about all the vertices and result partitions
 	 * @param resultPartitionAvailabilityChecker helps to query result partition availability
 	 */
 	public RestartPipelinedRegionStrategy(
-		FailoverTopology topology,
+		FailoverTopology<?, ?> topology,
 		ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
 		this.topology = checkNotNull(topology);
@@ -95,15 +95,16 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	// ------------------------------------------------------------------------
 
 	private void buildFailoverRegions() {
-		final Set<Set<FailoverVertex>> distinctRegions = PipelinedRegionComputeUtil.computePipelinedRegions(topology);
+		final Set<? extends Set<? extends FailoverVertex<?, ?>>> distinctRegions =
+			PipelinedRegionComputeUtil.computePipelinedRegions(topology);
 
 		// creating all the failover regions and register them
-		for (Set<FailoverVertex> regionVertices : distinctRegions) {
+		for (Set<? extends FailoverVertex<?, ?>> regionVertices : distinctRegions) {
 			LOG.debug("Creating a failover region with {} vertices.", regionVertices.size());
 			final FailoverRegion failoverRegion = new FailoverRegion(regionVertices);
 			regions.add(failoverRegion);
-			for (FailoverVertex vertex : regionVertices) {
-				vertexToRegionMap.put(vertex.getExecutionVertexID(), failoverRegion);
+			for (FailoverVertex<?, ?> vertex : regionVertices) {
+				vertexToRegionMap.put(vertex.getId(), failoverRegion);
 			}
 		}
 
@@ -186,10 +187,10 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 			regionsToRestart.add(regionToRestart);
 
 			// if a needed input result partition is not available, its producer region is involved
-			for (FailoverVertex vertex : regionToRestart.getAllExecutionVertices()) {
-				for (FailoverEdge inEdge : vertex.getInputEdges()) {
-					if (!resultPartitionAvailabilityChecker.isAvailable(inEdge.getResultPartitionID())) {
-						FailoverRegion producerRegion = vertexToRegionMap.get(inEdge.getSourceVertex().getExecutionVertexID());
+			for (FailoverVertex<?, ?> vertex : regionToRestart.getAllExecutionVertices()) {
+				for (FailoverResultPartition<?, ?> consumedPartition : vertex.getConsumedResults()) {
+					if (!resultPartitionAvailabilityChecker.isAvailable(consumedPartition.getId())) {
+						FailoverRegion producerRegion = vertexToRegionMap.get(consumedPartition.getProducer().getId());
 						if (!visitedRegions.contains(producerRegion)) {
 							visitedRegions.add(producerRegion);
 							regionsToVisit.add(producerRegion);
@@ -199,12 +200,14 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 			}
 
 			// all consumer regions of an involved region should be involved
-			for (FailoverVertex vertex : regionToRestart.getAllExecutionVertices()) {
-				for (FailoverEdge outEdge : vertex.getOutputEdges()) {
-					FailoverRegion consumerRegion = vertexToRegionMap.get(outEdge.getTargetVertex().getExecutionVertexID());
-					if (!visitedRegions.contains(consumerRegion)) {
-						visitedRegions.add(consumerRegion);
-						regionsToVisit.add(consumerRegion);
+			for (FailoverVertex<?, ?> vertex : regionToRestart.getAllExecutionVertices()) {
+				for (FailoverResultPartition<?, ?> producedPartition : vertex.getProducedResults()) {
+					for (FailoverVertex<?, ?> consumerVertex : producedPartition.getConsumers()) {
+						FailoverRegion consumerRegion = vertexToRegionMap.get(consumerVertex.getId());
+						if (!visitedRegions.contains(consumerRegion)) {
+							visitedRegions.add(consumerRegion);
+							regionsToVisit.add(consumerRegion);
+						}
 					}
 				}
 			}
@@ -255,6 +258,20 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 
 		public void removeResultPartitionFromFailedState(IntermediateResultPartitionID resultPartitionID) {
 			failedPartitions.remove(resultPartitionID);
+		}
+	}
+
+	/**
+	 * The factory to instantiate {@link RestartPipelinedRegionStrategy}.
+	 */
+	public static class Factory implements FailoverStrategy.Factory {
+
+		@Override
+		public FailoverStrategy create(
+				final FailoverTopology<?, ?> topology,
+				final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
+
+			return new RestartPipelinedRegionStrategy(topology, resultPartitionAvailabilityChecker);
 		}
 	}
 }

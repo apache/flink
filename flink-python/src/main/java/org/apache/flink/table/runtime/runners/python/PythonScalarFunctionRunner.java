@@ -19,15 +19,15 @@
 package org.apache.flink.table.runtime.runners.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
@@ -41,22 +41,21 @@ public class PythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunn
 		String taskName,
 		FnDataReceiver<Row> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
-		PythonEnv pythonEnv,
+		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType,
-		String[] tempDirs) {
-		super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
+		RowType outputType) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public Coder<Row> getInputCoder() {
-		return (Coder<Row>) BeamTypeUtils.toCoder(getInputType());
+	public RowSerializer getInputTypeSerializer() {
+		return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public Coder<Row> getOutputCoder() {
-		return (Coder<Row>) BeamTypeUtils.toCoder(getOutputType());
+	public RowSerializer getOutputTypeSerializer() {
+		return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getOutputType());
 	}
 }

@@ -40,6 +40,10 @@ public final class ScalarFunctionDefinition implements FunctionDefinition {
 		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
 	}
 
+	public String getName() {
+		return name;
+	}
+
 	public ScalarFunction getScalarFunction() {
 		return scalarFunction;
 	}

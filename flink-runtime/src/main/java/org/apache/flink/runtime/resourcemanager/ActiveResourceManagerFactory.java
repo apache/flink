@@ -19,19 +19,16 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 
 import javax.annotation.Nullable;
 
@@ -53,34 +50,25 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
-			JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
+			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
 		return createActiveResourceManager(
 			createActiveResourceManagerConfiguration(configuration),
 			resourceId,
 			rpcService,
 			highAvailabilityServices,
 			heartbeatServices,
-			metricRegistry,
 			fatalErrorHandler,
 			clusterInformation,
 			webInterfaceUrl,
-			jobManagerMetricGroup);
+			resourceManagerMetricGroup);
 	}
 
 	public static Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
-		final int taskManagerMemoryMB = ConfigurationUtils.getTaskManagerHeapMemory(originalConfiguration).getMebiBytes();
-		final long cutoffMB = ContaineredTaskManagerParameters.calculateCutoffMB(originalConfiguration, taskManagerMemoryMB);
-		final long processMemoryBytes = (taskManagerMemoryMB - cutoffMB) << 20; // megabytes to bytes
-		final long managedMemoryBytes = TaskManagerServices.getManagedMemoryFromProcessMemory(originalConfiguration, processMemoryBytes);
-
-		final Configuration resourceManagerConfig = new Configuration(originalConfiguration);
-		resourceManagerConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, managedMemoryBytes + "b");
-
-		return resourceManagerConfig;
+		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+			originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
 
 	protected abstract ResourceManager<T> createActiveResourceManager(
@@ -89,9 +77,8 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler,
 		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl,
-		JobManagerMetricGroup jobManagerMetricGroup) throws Exception;
+		ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception;
 }

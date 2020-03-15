@@ -25,6 +25,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 
@@ -35,6 +36,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -217,6 +220,23 @@ public class ReporterSetupTest extends TestLogger {
 		Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", null));
 		Assert.assertEquals("value3", setup.getConfiguration().getString("arg3", null));
 		Assert.assertEquals(TestReporter2.class.getName(), setup.getConfiguration().getString("class", null));
+	}
+
+	@Test
+	public void testVariableExclusionParsing() throws Exception {
+		final String excludedVariable1 = "foo";
+		final String excludedVariable2 = "foo";
+		final Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, TestReporterFactory.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_EXCLUDED_VARIABLES, excludedVariable1 + ";" + excludedVariable2);
+
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+
+		assertEquals(1, reporterSetups.size());
+
+		final ReporterSetup reporterSetup = reporterSetups.get(0);
+
+		assertThat(reporterSetup.getExcludedVariables(), hasItems(ScopeFormat.asVariable(excludedVariable1), ScopeFormat.asVariable(excludedVariable2)));
 	}
 
 	/**

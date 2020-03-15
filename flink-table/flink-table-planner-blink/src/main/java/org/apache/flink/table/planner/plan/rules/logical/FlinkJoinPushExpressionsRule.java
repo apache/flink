@@ -17,10 +17,9 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.RelFactories;
@@ -66,7 +65,7 @@ public class FlinkJoinPushExpressionsRule extends RelOptRule {
 		Join join = call.rel(0);
 
 		// Push expression in join condition into Project below Join.
-		RelNode newJoin = FlinkRelOptUtil.pushDownJoinConditions(join, call.builder());
+		RelNode newJoin = RelOptUtil.pushDownJoinConditions(join, call.builder());
 
 		// If the join is the same, we bail out
 		if (newJoin instanceof Join) {

@@ -33,6 +33,7 @@ import org.apache.flink.table.descriptors.BatchTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.sinks.TableSink;
 
 import java.lang.reflect.Constructor;
@@ -108,24 +109,50 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	<T> Table fromDataSet(DataSet<T> dataSet, String fields);
 
 	/**
-	 * Registers the given {@link DataSet} as table in the
-	 * {@link TableEnvironment}'s catalog.
-	 * Registered tables can be referenced in SQL queries.
+	 * Creates a view from the given {@link DataSet}.
+	 * Registered views can be referenced in SQL queries.
 	 *
-	 * The field names of the {@link Table} are automatically derived from the type of the{@link DataSet}.
+	 * <p>The field names of the {@link Table} are automatically derived
+	 * from the type of the {@link DataSet}.
+	 *
+	 * <p>The view is registered in the namespace of the current catalog and database. To register the view in
+	 * a different catalog use {@link #createTemporaryView(String, DataSet)}.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
 	 *
 	 * @param name The name under which the {@link DataSet} is registered in the catalog.
 	 * @param dataSet The {@link DataSet} to register.
 	 * @param <T> The type of the {@link DataSet} to register.
+	 * @deprecated use {@link #createTemporaryView(String, DataSet)}
 	 */
+	@Deprecated
 	<T> void registerDataSet(String name, DataSet<T> dataSet);
 
 	/**
-	 * Registers the given {@link DataSet} as table with specified field names in the
-	 * {@link TableEnvironment}'s catalog.
-	 * Registered tables can be referenced in SQL queries.
+	 * Creates a view from the given {@link DataSet} in a given path.
+	 * Registered views can be referenced in SQL queries.
 	 *
-	 * Example:
+	 * <p>The field names of the {@link Table} are automatically derived
+	 * from the type of the {@link DataSet}.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the view is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataSet The {@link DataSet} out of which to create the view.
+	 * @param <T> The type of the {@link DataSet}.
+	 */
+	<T> void createTemporaryView(String path, DataSet<T> dataSet);
+
+	/**
+	 * Creates a view from the given {@link DataSet} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -134,12 +161,46 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * }
 	 * </pre>
 	 *
+	 * <p>The view is registered in the namespace of the current catalog and database. To register the view in
+	 * a different catalog use {@link #createTemporaryView(String, DataSet)}.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name The name under which the {@link DataSet} is registered in the catalog.
 	 * @param dataSet The {@link DataSet} to register.
-	 * @param fields The field names of the registered table.
+	 * @param fields The field names of the registered view.
 	 * @param <T> The type of the {@link DataSet} to register.
+	 * @deprecated use {@link #createTemporaryView(String, DataSet, String)}
 	 */
+	@Deprecated
 	<T> void registerDataSet(String name, DataSet<T> dataSet, String fields);
+
+	/**
+	 * Creates a view from the given {@link DataSet} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   tableEnv.createTemporaryView("cat.db.myTable", set, "a, b");
+	 * }
+	 * </pre>
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the view is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataSet The {@link DataSet} out of which to create the view.
+	 * @param fields The field names of the registered view.
+	 * @param <T> The type of the {@link DataSet}.
+	 */
+	<T> void createTemporaryView(String path, DataSet<T> dataSet, String fields);
 
 	/**
 	 * Converts the given {@link Table} into a {@link DataSet} of a specified type.
@@ -248,7 +309,9 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
 	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
 	 *        {@link Table} is written.
+	 * @deprecated use {@link #insertInto(String, Table)}
 	 */
+	@Deprecated
 	void insertInto(Table table, BatchQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
 
 	/**
@@ -327,13 +390,14 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	static BatchTableEnvironment create(ExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
 		try {
 			Class<?> clazz = Class.forName("org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl");
-			Constructor con = clazz.getConstructor(ExecutionEnvironment.class, TableConfig.class, CatalogManager.class);
+			Constructor con = clazz.getConstructor(ExecutionEnvironment.class, TableConfig.class, CatalogManager.class, ModuleManager.class);
 			String defaultCatalog = "default_catalog";
 			CatalogManager catalogManager = new CatalogManager(
 				defaultCatalog,
 				new GenericInMemoryCatalog(defaultCatalog, "default_database")
 			);
-			return (BatchTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager);
+			ModuleManager moduleManager = new ModuleManager();
+			return (BatchTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager);
 		} catch (Throwable t) {
 			throw new TableException("Create BatchTableEnvironment failed.", t);
 		}

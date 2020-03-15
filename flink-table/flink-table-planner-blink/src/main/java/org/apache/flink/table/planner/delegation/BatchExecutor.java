@@ -20,21 +20,11 @@ package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil;
-
-import java.util.List;
+import org.apache.flink.table.planner.utils.ExecutorUtils;
 
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
@@ -50,59 +40,18 @@ public class BatchExecutor extends ExecutorBase {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		StreamGraph streamGraph = generateStreamGraph(jobName);
-		return execEnv.execute(streamGraph);
-	}
-
-	/**
-	 * Sets batch configs.
-	 */
-	private void setBatchProperties(StreamExecutionEnvironment execEnv) {
-		ExecutionConfig executionConfig = execEnv.getConfig();
-		executionConfig.enableObjectReuse();
-		executionConfig.setLatencyTrackingInterval(-1);
-		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		execEnv.setBufferTimeout(-1);
-		if (isShuffleModeAllBatch()) {
-			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
-		}
+		StreamGraph streamGraph = getStreamGraph(jobName);
+		return getExecutionEnvironment().execute(streamGraph);
 	}
 
 	@Override
-	public StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
+	public StreamGraph getStreamGraph(String jobName) {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		setBatchProperties(execEnv);
-		transformations.forEach(execEnv::addOperator);
-		StreamGraph streamGraph;
-		streamGraph = execEnv.getStreamGraph(getNonEmptyJobName(jobName));
-		// All transformations should set managed memory size.
-		ResourceSpec managedResourceSpec = NodeResourceUtil.fromManagedMem(0);
-		streamGraph.getStreamNodes().forEach(sn -> {
-			if (sn.getMinResources().equals(ResourceSpec.DEFAULT)) {
-				sn.setResources(managedResourceSpec, managedResourceSpec);
-			}
-		});
-		streamGraph.setChaining(true);
-		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
-		streamGraph.setStateBackend(null);
-		if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
-			throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
-		}
-		if (isShuffleModeAllBatch()) {
-			streamGraph.setBlockingConnectionsBetweenChains(true);
-		}
+		ExecutorUtils.setBatchProperties(execEnv, tableConfig);
+		StreamGraph streamGraph = execEnv.getStreamGraph();
+		streamGraph.setJobName(getNonEmptyJobName(jobName));
+		ExecutorUtils.setBatchProperties(streamGraph, tableConfig);
 		return streamGraph;
 	}
 
-	private boolean isShuffleModeAllBatch() {
-		String value = tableConfig.getConfiguration().getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE);
-		if (value.equalsIgnoreCase(ShuffleMode.BATCH.toString())) {
-			return true;
-		} else if (!value.equalsIgnoreCase(ShuffleMode.PIPELINED.toString())) {
-			throw new IllegalArgumentException(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.key() +
-					" can only be set to " + ShuffleMode.BATCH.toString() + " or " + ShuffleMode.PIPELINED.toString());
-		}
-		return false;
-	}
 }

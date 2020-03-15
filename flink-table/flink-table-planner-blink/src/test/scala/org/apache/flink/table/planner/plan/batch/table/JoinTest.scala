@@ -199,6 +199,16 @@ class JoinTest extends TableTestBase {
       .where('a < 'd)
       .select('c, 'g))
   }
+
+  @Test
+  def testUDFInJoinCondition(): Unit = {
+    val util = batchTestUtil()
+    val ds1 = util.addTableSource[(Int, Long, String)]("left",'a, 'b, 'c)
+    val ds2 = util.addTableSource[(Int, Long, String)]("right",'d, 'e, 'f)
+
+    val joinT = ds1.join(ds2, 'b === 'e && Merger('a, 'd) === 10)
+    util.verifyPlan(joinT)
+  }
 }
 
 object JoinTest {

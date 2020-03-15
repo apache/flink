@@ -20,21 +20,25 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -127,6 +131,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -227,18 +232,15 @@ public class RestClusterClientTest extends TestLogger {
 			submitHandler,
 			terminationHandler,
 			testJobExecutionResultHandler)) {
-			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			try {
+			try (RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
 				Assert.assertFalse(submitHandler.jobSubmitted);
-				restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+				ClientUtils.submitJobAndWaitForResult(restClusterClient, jobGraph, ClassLoader.getSystemClassLoader());
 				Assert.assertTrue(submitHandler.jobSubmitted);
 
 				Assert.assertFalse(terminationHandler.jobCanceled);
-				restClusterClient.cancel(jobId);
+				restClusterClient.cancel(jobId).get();
 				Assert.assertTrue(terminationHandler.jobCanceled);
-			} finally {
-				restClusterClient.close();
 			}
 		}
 	}
@@ -256,8 +258,7 @@ public class RestClusterClientTest extends TestLogger {
 			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
 			try {
-				restClusterClient.setDetached(true);
-				final JobSubmissionResult jobSubmissionResult = restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+				final JobSubmissionResult jobSubmissionResult = ClientUtils.submitJob(restClusterClient, jobGraph);
 
 				// if the detached mode didn't work, then we would not reach this point because the execution result
 				// retrieval would have failed.
@@ -364,9 +365,7 @@ public class RestClusterClientTest extends TestLogger {
 			try {
 				JobExecutionResult jobExecutionResult;
 
-				jobExecutionResult = (JobExecutionResult) restClusterClient.submitJob(
-					jobGraph,
-					ClassLoader.getSystemClassLoader());
+				jobExecutionResult = ClientUtils.submitJobAndWaitForResult(restClusterClient, jobGraph, ClassLoader.getSystemClassLoader());
 				assertThat(jobExecutionResult.getJobID(), equalTo(jobId));
 				assertThat(jobExecutionResult.getNetRuntime(), equalTo(Long.MAX_VALUE));
 				assertThat(
@@ -374,7 +373,7 @@ public class RestClusterClientTest extends TestLogger {
 					equalTo(Collections.singletonMap("testName", 1.0)));
 
 				try {
-					restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+					ClientUtils.submitJobAndWaitForResult(restClusterClient, jobGraph, ClassLoader.getSystemClassLoader());
 					fail("Expected exception not thrown.");
 				} catch (final ProgramInvocationException e) {
 					final Optional<RuntimeException> cause = ExceptionUtils.findThrowable(e, RuntimeException.class);
@@ -514,21 +513,15 @@ public class RestClusterClientTest extends TestLogger {
 		TestAccumulatorHandler accumulatorHandler = new TestAccumulatorHandler();
 
 		try (TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(accumulatorHandler)){
-			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			try {
+			try (RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
 				JobID id = new JobID();
+				Map<String, Object> accumulators = restClusterClient.getAccumulators(id).get();
+				assertNotNull(accumulators);
+				assertEquals(1, accumulators.size());
 
-				{
-					Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id);
-					assertNotNull(accumulators);
-					assertEquals(1, accumulators.size());
-
-					assertEquals(true, accumulators.containsKey("testKey"));
-					assertEquals("testValue", accumulators.get("testKey").get().toString());
-				}
-			} finally {
-				restClusterClient.close();
+				assertTrue(accumulators.containsKey("testKey"));
+				assertEquals("testValue", accumulators.get("testKey").toString());
 			}
 		}
 	}
@@ -555,9 +548,16 @@ public class RestClusterClientTest extends TestLogger {
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
+		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-		final RestClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+		final ClusterClientFactory<StandaloneClusterId> clusterFactory = serviceLoader.getClusterClientFactory(executorConfig);
+		checkState(clusterFactory != null);
+
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = clusterFactory.createClusterDescriptor(executorConfig);
+		final RestClusterClient<?> clusterClient = (RestClusterClient<?>) clusterDescriptor
+				.retrieve(clusterFactory.getClusterId(executorConfig))
+				.getClusterClient();
 
 		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
 		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
@@ -594,7 +594,7 @@ public class RestClusterClientTest extends TestLogger {
 			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
 			try {
-				restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+				ClientUtils.submitJobAndWaitForResult(restClusterClient, jobGraph, ClassLoader.getSystemClassLoader());
 			} catch (final ProgramInvocationException expected) {
 				// expected
 			} finally {

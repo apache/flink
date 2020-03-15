@@ -21,6 +21,8 @@ package org.apache.flink.yarn.configuration;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -60,14 +62,15 @@ public class YarnConfigOptions {
 	/**
 	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
 	 * in the path. They can be positioned at the beginning ("FIRST"), at the end ("LAST"), or be positioned based on
-	 * their name ("ORDER").
+	 * their name ("ORDER"). "DISABLED" means the user-jars are excluded from the system class path.
 	 */
 	public static final ConfigOption<String> CLASSPATH_INCLUDE_USER_JAR =
 		key("yarn.per-job-cluster.include-user-jar")
 			.defaultValue("ORDER")
 			.withDescription("Defines whether user-jars are included in the system class path for per-job-clusters as" +
 				" well as their positioning in the path. They can be positioned at the beginning (\"FIRST\"), at the" +
-				" end (\"LAST\"), or be positioned based on their name (\"ORDER\").");
+				" end (\"LAST\"), or be positioned based on their name (\"ORDER\"). \"DISABLED\" means the user-jars" +
+				" are excluded from the system class path.");
 
 	/**
 	 * The vcores exposed by YARN.
@@ -204,6 +207,52 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
+	// ----------------------- YARN CLI OPTIONS ------------------------------------
+
+	public static final ConfigOption<List<String>> SHIP_DIRECTORIES =
+			key("yarn.ship-directories")
+				.stringType()
+				.asList()
+				.noDefaultValue()
+				.withDescription("A semicolon-separated list of directories to be shipped to the YARN cluster.");
+
+	public static final ConfigOption<String> FLINK_DIST_JAR =
+			key("yarn.flink-dist-jar")
+				.stringType()
+				.noDefaultValue()
+				.withDescription("The location of the Flink dist jar.");
+
+	public static final ConfigOption<String> APPLICATION_ID =
+			key("yarn.application.id")
+				.stringType()
+				.noDefaultValue()
+				.withDescription("The YARN application id of the running yarn cluster." +
+						" This is the YARN cluster where the pipeline is going to be executed.");
+
+	public static final ConfigOption<String> APPLICATION_QUEUE =
+			key("yarn.application.queue")
+				.stringType()
+				.noDefaultValue()
+				.withDescription("The YARN queue on which to put the current pipeline.");
+
+	public static final ConfigOption<String> APPLICATION_NAME =
+			key("yarn.application.name")
+				.stringType()
+				.noDefaultValue()
+				.withDescription("A custom name for your YARN application.");
+
+	public static final ConfigOption<String> APPLICATION_TYPE =
+			key("yarn.application.type")
+				.stringType()
+				.noDefaultValue()
+				.withDescription("A custom type for your YARN application..");
+
+	public static final ConfigOption<String> NODE_LABEL =
+			key("yarn.application.node-label")
+				.stringType()
+				.noDefaultValue()
+				.withDescription("Specify YARN node label for the YARN application.");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
@@ -211,6 +260,7 @@ public class YarnConfigOptions {
 
 	/** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
 	public enum UserJarInclusion {
+		DISABLED,
 		FIRST,
 		LAST,
 		ORDER

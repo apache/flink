@@ -42,7 +42,6 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.PREDEFINED;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.ANY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
@@ -56,6 +55,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SMALLINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SYMBOL;
@@ -268,8 +268,8 @@ public final class LogicalTypeCasts {
 		} else if (sourceRoot == NULL) {
 			// null can be cast to an arbitrary type
 			return true;
-		} else if (sourceRoot == ANY || targetRoot == ANY) {
-			// the two any types are not equal (from initial invariant), casting is not possible
+		} else if (sourceRoot == RAW || targetRoot == RAW) {
+			// the two raw types are not equal (from initial invariant), casting is not possible
 			return false;
 		} else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {
 			// the two symbol types are not equal (from initial invariant), casting is not possible

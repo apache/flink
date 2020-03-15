@@ -71,7 +71,8 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		}
 
 		String name = opName.getSimple();
-		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(name);
+		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(
+			UnresolvedIdentifier.of(name));
 
 		candidateFunction.flatMap(lookupResult ->
 			convertToSqlFunction(category, name, lookupResult.getFunctionDefinition())

@@ -61,6 +61,31 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   }
 
   @Test
+  def testFirstRowOnBuiltinProctime(): Unit = {
+    val t = failingDataSource(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("T", t)
+
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY b ORDER BY proctime()) as rowNum
+        |  FROM T
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,1,Hi", "2,2,Hello", "4,3,Hello world, how are you?",
+      "7,4,Comment#1", "11,5,Comment#5", "16,6,Comment#10")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testLastRowOnProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
@@ -72,6 +97,31 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
         |FROM (
         |  SELECT *,
         |    ROW_NUMBER() OVER (PARTITION BY b ORDER BY proctime DESC) as rowNum
+        |  FROM T
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,1,Hi", "3,2,Hello world", "6,3,Luke Skywalker",
+      "10,4,Comment#4", "15,5,Comment#9", "21,6,Comment#15")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testLastRowOnBuiltinProctime(): Unit = {
+    val t = failingDataSource(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("T", t)
+
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY b ORDER BY proctime() DESC) as rowNum
         |  FROM T
         |)
         |WHERE rowNum = 1

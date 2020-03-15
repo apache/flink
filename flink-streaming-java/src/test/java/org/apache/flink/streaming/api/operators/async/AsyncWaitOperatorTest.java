@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -49,9 +48,8 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
-import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
-import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
@@ -63,13 +61,16 @@ import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -99,6 +100,9 @@ import static org.junit.Assert.assertTrue;
  */
 public class AsyncWaitOperatorTest extends TestLogger {
 	private static final long TIMEOUT = 1000L;
+
+	@Rule
+	public Timeout timeoutRule = new Timeout(10, TimeUnit.SECONDS);
 
 	private static class MyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
 		private static final long serialVersionUID = 8522411971886428444L;
@@ -165,7 +169,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * This function is used in the testStateSnapshotAndRestore, ensuring
-	 * that {@link StreamElementQueueEntry} can stay
+	 * that {@link StreamElement} can stay
 	 * in the {@link StreamElementQueue} to be
 	 * snapshotted while checkpointing.
 	 */
@@ -197,30 +201,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		public static void countDown() {
 			latch.countDown();
-		}
-	}
-
-	/**
-	 * AsyncFunction supports a specific delay(ms) before async invocation.
-	 */
-	private static class DelayedAsyncFunction extends MyAsyncFunction {
-
-		private final long delayed;
-
-		public DelayedAsyncFunction(long delayed) {
-			this.delayed = delayed;
-		}
-
-		@Override
-		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
-			executorService.submit(() -> {
-				try {
-					Thread.sleep(delayed);
-				} catch (InterruptedException e) {
-					resultFuture.completeExceptionally(e);
-				}
-				resultFuture.complete(Collections.singletonList(input * 2));
-			});
 		}
 	}
 
@@ -469,7 +449,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		List<Object> expectedOutput = new LinkedList<>();
 		expectedOutput.add(new StreamRecord<>(22, initialTimestamp));
 		expectedOutput.add(new StreamRecord<>(26, initialTimestamp + 1L));
 		expectedOutput.add(new StreamRecord<>(30, initialTimestamp + 2L));
@@ -734,7 +714,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * <p>Note that this test does not enforce the exact strict ordering because with the fix it is no
 	 * longer possible. However, it provokes the described situation without the fix.
 	 */
-	@Test(timeout = 10000L)
+	@Test
 	public void testClosingWithBlockedEmitter() throws Exception {
 
 		JobVertex chainedVertex = createChainedVertex(new MyAsyncFunction(), new EmitterBlockingFunction());
@@ -770,7 +750,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-5652
 	 * Tests that registered timers are properly canceled upon completion of a
-	 * {@link StreamRecordQueueEntry} in order to avoid resource leaks because TriggerTasks hold
+	 * {@link StreamElement} in order to avoid resource leaks because TriggerTasks hold
 	 * a reference on the StreamRecordQueueEntry.
 	 */
 	@Test
@@ -801,7 +781,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
-	@Test(timeout = 2000)
+	@Test
 	public void testOrderedWaitUserExceptionHandling() throws Exception {
 		testUserExceptionHandling(AsyncDataStream.OutputMode.ORDERED);
 	}
@@ -812,7 +792,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
-	@Test(timeout = 2000)
+	@Test
 	public void testUnorderedWaitUserExceptionHandling() throws Exception {
 		testUserExceptionHandling(AsyncDataStream.OutputMode.UNORDERED);
 	}
@@ -910,7 +890,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final OperatorSubtaskState snapshot;
 
-		final ArrayList<Integer> expectedOutput = new ArrayList<>(capacity + 1);
+		final ArrayList<Integer> expectedOutput = new ArrayList<>(capacity);
 
 		try {
 			synchronized (snapshotHarness.getCheckpointLock()) {
@@ -919,24 +899,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 					expectedOutput.add(i);
 				}
 			}
-
-			expectedOutput.add(capacity);
-
-			final OneShotLatch lastElement = new OneShotLatch();
-
-			final CheckedThread lastElementWriter = new CheckedThread() {
-				@Override
-				public void go() throws Exception {
-					synchronized (snapshotHarness.getCheckpointLock()) {
-						lastElement.trigger();
-						snapshotHarness.processElement(capacity, 0L);
-					}
-				}
-			};
-
-			lastElementWriter.start();
-
-			lastElement.await();
 
 			synchronized (snapshotHarness.getCheckpointLock()) {
 				// execute the snapshot within the checkpoint lock, because then it is guaranteed
@@ -1035,44 +997,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		factory.setChainingStrategy(ChainingStrategy.ALWAYS);
 
 		return in.transform("async wait operator", outTypeInfo, factory);
-	}
-
-	/**
-	 * Delay a while before async invocation to check whether end input waits for all elements finished or not.
-	 */
-	@Test
-	public void testEndInput() throws Exception {
-		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-			createTestHarness(new DelayedAsyncFunction(10), -1, 2, AsyncDataStream.OutputMode.ORDERED);
-
-		final long initialTime = 0L;
-		final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
-		expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
-		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
-
-		testHarness.open();
-
-		try {
-			synchronized (testHarness.getCheckpointLock()) {
-				testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
-				testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
-				testHarness.processWatermark(new Watermark(initialTime + 2));
-				testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
-			}
-
-			// wait until all async collectors in the buffer have been emitted out.
-			synchronized (testHarness.getCheckpointLock()) {
-				testHarness.endInput();
-			}
-
-			TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());
-		} finally {
-			synchronized (testHarness.getCheckpointLock()) {
-				testHarness.close();
-			}
-		}
 	}
 
 	private static <OUT> OneInputStreamOperatorTestHarness<Integer, OUT> createTestHarness(

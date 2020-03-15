@@ -33,8 +33,8 @@ import org.apache.flink.streaming.api.operators.MockStreamStatusMaintainer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.TimerService;
 
 import java.util.Collections;
 import java.util.Map;
@@ -52,7 +52,7 @@ public class MockStreamTaskBuilder {
 	private CloseableRegistry closableRegistry = new CloseableRegistry();
 	private StreamStatusMaintainer streamStatusMaintainer = new MockStreamStatusMaintainer();
 	private CheckpointStorageWorkerView checkpointStorage;
-	private ProcessingTimeService processingTimeService = new TestProcessingTimeService();
+	private TimerService timerService = new TestProcessingTimeService();
 	private StreamTaskStateInitializer streamTaskStateInitializer;
 	private BiConsumer<String, Throwable> handleAsyncException = (message, throwable) -> { };
 	private Map<String, Accumulator<?, ?>> accumulatorMap = Collections.emptyMap();
@@ -62,7 +62,7 @@ public class MockStreamTaskBuilder {
 
 		StateBackend stateBackend = new MemoryStateBackend();
 		this.checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
-		this.streamTaskStateInitializer = new StreamTaskStateInitializerImpl(environment, stateBackend, processingTimeService);
+		this.streamTaskStateInitializer = new StreamTaskStateInitializerImpl(environment, stateBackend);
 	}
 
 	public MockStreamTaskBuilder setName(String name) {
@@ -105,8 +105,8 @@ public class MockStreamTaskBuilder {
 		return this;
 	}
 
-	public MockStreamTaskBuilder setProcessingTimeService(ProcessingTimeService processingTimeService) {
-		this.processingTimeService = processingTimeService;
+	public MockStreamTaskBuilder setTimerService(TimerService timerService) {
+		this.timerService = timerService;
 		return this;
 	}
 
@@ -126,7 +126,7 @@ public class MockStreamTaskBuilder {
 			closableRegistry,
 			streamStatusMaintainer,
 			checkpointStorage,
-			processingTimeService,
+			timerService,
 			handleAsyncException,
 			accumulatorMap);
 	}

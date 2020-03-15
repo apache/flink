@@ -19,32 +19,24 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
-import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -65,7 +57,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 
 	/**
 	 * Tests that {@link CheckpointCoordinator#abortPendingCheckpoints(CheckpointException)}
-	 * called by {@link AdaptedRestartPipelinedRegionStrategyNG} or {@link FailoverRegion} could handle
+	 * called by {@link AdaptedRestartPipelinedRegionStrategyNG} could handle
 	 * the {@code currentPeriodicTrigger} null situation well.
 	 */
 	@Test
@@ -91,23 +83,18 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
+			manualThreadExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			mock(CheckpointFailureManager.class));
 
 		// switch current execution's state to running to allow checkpoint could be triggered.
 		mockExecutionRunning(executionVertex);
 
-		// use manual checkpoint timer to trigger period checkpoints as we expect.
-		ManualCheckpointTimer manualCheckpointTimer = new ManualCheckpointTimer(manualThreadExecutor);
-		// set the init delay as 0 to ensure first checkpoint could be triggered once we trigger the manual executor
-		// this is used to avoid the randomness of when to trigger the first checkpoint (introduced via FLINK-9352)
-		manualCheckpointTimer.setManualDelay(0L);
-		Whitebox.setInternalState(checkpointCoordinator, "timer", manualCheckpointTimer);
-
 		checkpointCoordinator.startCheckpointScheduler();
 		assertTrue(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
-		manualThreadExecutor.triggerAll();
-		manualThreadExecutor.triggerScheduledTasks();
+		// only trigger the periodic scheduling
+		// we can't trigger all scheduled task, because there is also a cancellation scheduled
+		manualThreadExecutor.triggerPeriodicScheduledTasks();
 		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
 		for (int i = 1; i < maxConcurrentCheckpoints; i++) {
@@ -140,47 +127,5 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 
 	private void mockExecutionRunning(ExecutionVertex executionVertex) {
 		when(executionVertex.getCurrentExecutionAttempt().getState()).thenReturn(ExecutionState.RUNNING);
-	}
-
-	public static class ManualCheckpointTimer extends ScheduledThreadPoolExecutor {
-		private final ScheduledExecutor scheduledExecutor;
-		private long manualDelay = 0;
-
-		ManualCheckpointTimer(final ScheduledExecutor scheduledExecutor) {
-			super(0);
-			this.scheduledExecutor = scheduledExecutor;
-		}
-
-		void setManualDelay(long manualDelay) {
-			this.manualDelay = manualDelay;
-		}
-
-		@Override
-		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-			// used as checkpoint canceller, as we don't want pending checkpoint cancelled, this should never be scheduled.
-			return new NeverCompleteFuture(delay);
-		}
-
-		@Override
-		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
-			// used to schedule periodic checkpoints.
-			// this would use configured 'manualDelay' to let the task schedule with the wanted delay.
-			return scheduledExecutor.scheduleWithFixedDelay(command, manualDelay, period, unit);
-		}
-
-		@Override
-		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void execute(Runnable command) {
-			scheduledExecutor.execute(command);
-		}
 	}
 }

@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -28,6 +26,7 @@ import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import org.slf4j.Logger;
@@ -45,40 +44,28 @@ public class TaskExecutorToResourceManagerConnection
 
 	private final RpcService rpcService;
 
-	private final String taskManagerAddress;
-
-	private final ResourceID taskManagerResourceId;
-
 	private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
-	private final int dataPort;
-
-	private final HardwareDescription hardwareDescription;
-
 	private final RegistrationConnectionListener<TaskExecutorToResourceManagerConnection, TaskExecutorRegistrationSuccess> registrationListener;
+
+	private final TaskExecutorRegistration taskExecutorRegistration;
 
 	public TaskExecutorToResourceManagerConnection(
 			Logger log,
 			RpcService rpcService,
-			String taskManagerAddress,
-			ResourceID taskManagerResourceId,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-			int dataPort,
-			HardwareDescription hardwareDescription,
 			String resourceManagerAddress,
 			ResourceManagerId resourceManagerId,
 			Executor executor,
-			RegistrationConnectionListener<TaskExecutorToResourceManagerConnection, TaskExecutorRegistrationSuccess> registrationListener) {
+			RegistrationConnectionListener<TaskExecutorToResourceManagerConnection, TaskExecutorRegistrationSuccess> registrationListener,
+			TaskExecutorRegistration taskExecutorRegistration) {
 
 		super(log, resourceManagerAddress, resourceManagerId, executor);
 
 		this.rpcService = checkNotNull(rpcService);
-		this.taskManagerAddress = checkNotNull(taskManagerAddress);
-		this.taskManagerResourceId = checkNotNull(taskManagerResourceId);
 		this.retryingRegistrationConfiguration = checkNotNull(retryingRegistrationConfiguration);
-		this.dataPort = dataPort;
-		this.hardwareDescription = checkNotNull(hardwareDescription);
 		this.registrationListener = checkNotNull(registrationListener);
+		this.taskExecutorRegistration = checkNotNull(taskExecutorRegistration);
 	}
 
 	@Override
@@ -89,10 +76,7 @@ public class TaskExecutorToResourceManagerConnection
 			getTargetAddress(),
 			getTargetLeaderId(),
 			retryingRegistrationConfiguration,
-			taskManagerAddress,
-			taskManagerResourceId,
-			dataPort,
-			hardwareDescription);
+			taskExecutorRegistration);
 	}
 
 	@Override
@@ -117,13 +101,7 @@ public class TaskExecutorToResourceManagerConnection
 	private static class ResourceManagerRegistration
 			extends RetryingRegistration<ResourceManagerId, ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
-		private final String taskExecutorAddress;
-
-		private final ResourceID resourceID;
-
-		private final int dataPort;
-
-		private final HardwareDescription hardwareDescription;
+		private final TaskExecutorRegistration taskExecutorRegistration;
 
 		ResourceManagerRegistration(
 				Logger log,
@@ -131,16 +109,10 @@ public class TaskExecutorToResourceManagerConnection
 				String targetAddress,
 				ResourceManagerId resourceManagerId,
 				RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-				String taskExecutorAddress,
-				ResourceID resourceID,
-				int dataPort,
-				HardwareDescription hardwareDescription) {
+				TaskExecutorRegistration taskExecutorRegistration) {
 
 			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, resourceManagerId, retryingRegistrationConfiguration);
-			this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
-			this.resourceID = checkNotNull(resourceID);
-			this.dataPort = dataPort;
-			this.hardwareDescription = checkNotNull(hardwareDescription);
+			this.taskExecutorRegistration = taskExecutorRegistration;
 		}
 
 		@Override
@@ -149,10 +121,7 @@ public class TaskExecutorToResourceManagerConnection
 
 			Time timeout = Time.milliseconds(timeoutMillis);
 			return resourceManager.registerTaskExecutor(
-				taskExecutorAddress,
-				resourceID,
-				dataPort,
-				hardwareDescription,
+				taskExecutorRegistration,
 				timeout);
 		}
 	}

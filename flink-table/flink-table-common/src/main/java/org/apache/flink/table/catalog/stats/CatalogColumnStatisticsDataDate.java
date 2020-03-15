@@ -38,16 +38,16 @@ public class CatalogColumnStatisticsDataDate extends CatalogColumnStatisticsData
 	/**
 	 * number of distinct values.
 	 */
-	private final long ndv;
+	private final Long ndv;
 
-	public CatalogColumnStatisticsDataDate(Date min, Date max, long ndv, long nullCount) {
+	public CatalogColumnStatisticsDataDate(Date min, Date max, Long ndv, Long nullCount) {
 		super(nullCount);
 		this.min = min;
 		this.max = max;
 		this.ndv = ndv;
 	}
 
-	public CatalogColumnStatisticsDataDate(Date min, Date max, long ndv, long nullCount, Map<String, String> properties) {
+	public CatalogColumnStatisticsDataDate(Date min, Date max, Long ndv, Long nullCount, Map<String, String> properties) {
 		super(nullCount, properties);
 		this.min = min;
 		this.max = max;
@@ -62,7 +62,7 @@ public class CatalogColumnStatisticsDataDate extends CatalogColumnStatisticsData
 		return max;
 	}
 
-	public long getNdv() {
+	public Long getNdv() {
 		return ndv;
 	}
 

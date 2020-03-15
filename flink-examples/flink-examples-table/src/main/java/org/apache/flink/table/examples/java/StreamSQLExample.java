@@ -18,15 +18,20 @@
 
 package org.apache.flink.table.examples.java;
 
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Simple example for demonstrating the use of SQL on a Stream Table in Java.
+ *
+ * <p>Usage: <code>StreamSQLExample --planner &lt;blink|flink&gt;</code><br>
  *
  * <p>This example shows how to:
  *  - Convert DataStreams to Tables
@@ -42,9 +47,26 @@ public class StreamSQLExample {
 
 	public static void main(String[] args) throws Exception {
 
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		String planner = params.has("planner") ? params.get("planner") : "flink";
+
 		// set up execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+		StreamTableEnvironment tEnv;
+		if (Objects.equals(planner, "blink")) {	// use blink planner in streaming mode
+			EnvironmentSettings settings = EnvironmentSettings.newInstance()
+				.useBlinkPlanner()
+				.inStreamingMode()
+				.build();
+			tEnv = StreamTableEnvironment.create(env, settings);
+		} else if (Objects.equals(planner, "flink")) {	// use flink planner in streaming mode
+			tEnv = StreamTableEnvironment.create(env);
+		} else {
+			System.err.println("The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', " +
+				"where planner (it is either flink or blink, and the default is flink) indicates whether the " +
+				"example uses flink planner or blink planner.");
+			return;
+		}
 
 		DataStream<Order> orderA = env.fromCollection(Arrays.asList(
 			new Order(1L, "beer", 3),

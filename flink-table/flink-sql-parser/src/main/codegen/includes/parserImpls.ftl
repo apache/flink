@@ -16,17 +16,344 @@
 -->
 
 /**
-* Parse a nullable option, default to be nullable.
+* Parse a "Show Catalogs" metadata query command.
 */
-boolean NullableOpt() :
+SqlShowCatalogs SqlShowCatalogs() :
 {
 }
 {
-    <NULL> { return true; }
-|
-    <NOT> <NULL> { return false; }
-|
-    { return true; }
+    <SHOW> <CATALOGS>
+    {
+        return new SqlShowCatalogs(getPos());
+    }
+}
+
+SqlDescribeCatalog SqlDescribeCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <DESCRIBE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlDescribeCatalog(pos, catalogName);
+    }
+
+}
+
+SqlUseCatalog SqlUseCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <USE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlUseCatalog(pos, catalogName);
+    }
+}
+
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowDatabases SqlShowDatabases() :
+{
+}
+{
+    <SHOW> <DATABASES>
+    {
+        return new SqlShowDatabases(getPos());
+    }
+}
+
+SqlUseDatabase SqlUseDatabase() :
+{
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
+}
+{
+    <USE> { pos = getPos();}
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlUseDatabase(pos, databaseName);
+    }
+}
+
+/**
+* Parses a create database statement.
+* CREATE DATABASE database_name [COMMENT database_comment] [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateDatabase(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier databaseName;
+    SqlCharStringLiteral comment = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
+}
+{
+    <DATABASE> { startPos = getPos(); }
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    databaseName = CompoundIdentifier()
+    [ <COMMENT> <QUOTED_STRING>
+        {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+
+    { return new SqlCreateDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList,
+                    comment,
+                    ifNotExists); }
+
+}
+
+SqlAlterDatabase SqlAlterDatabase() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier databaseName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <DATABASE> { startPos = getPos(); }
+    databaseName = CompoundIdentifier()
+    <SET>
+    propertyList = TableProperties()
+    {
+        return new SqlAlterDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList);
+    }
+}
+
+SqlDrop SqlDropDatabase(Span s, boolean replace) :
+{
+    SqlIdentifier databaseName = null;
+    boolean ifExists = false;
+    boolean cascade = false;
+}
+{
+    <DATABASE>
+
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+
+    databaseName = CompoundIdentifier()
+    [
+                <RESTRICT> { cascade = false; }
+        |
+                <CASCADE>  { cascade = true; }
+    ]
+
+    {
+         return new SqlDropDatabase(s.pos(), databaseName, ifExists, cascade);
+    }
+}
+
+SqlDescribeDatabase SqlDescribeDatabase() :
+{
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    <DESCRIBE> <DATABASE> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlDescribeDatabase(pos, databaseName, isExtended);
+    }
+
+}
+
+SqlCreate SqlCreateFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+    String functionLanguage = null;
+    boolean ifNotExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [ <TEMPORARY>   {isTemporary = true;}
+        [ <SYSTEM>   { isSystemFunction = true; } ]
+    ]
+
+    <FUNCTION>
+
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        functionClassName = SqlLiteral.createCharString(p, getPos());
+    }
+    [<LANGUAGE>
+        (
+            <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, functionLanguage,
+                ifNotExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlDrop SqlDropFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [ <TEMPORARY> {isTemporary = true;}
+        [  <SYSTEM>   { isSystemFunction = true; }  ]
+    ]
+    <FUNCTION>
+
+    [ <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    {
+        return new SqlDropFunction(s.pos(), functionIdentifier, ifExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlAlterFunction SqlAlterFunction() :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+    String functionLanguage = null;
+    SqlParserPos startPos;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    <ALTER>
+
+    [ <TEMPORARY> { isTemporary = true; }
+        [  <SYSTEM>   { isSystemFunction = true; } ]
+    ]
+
+    <FUNCTION> { startPos = getPos(); }
+
+    [ <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        functionClassName = SqlLiteral.createCharString(p, getPos());
+    }
+
+    [<LANGUAGE>
+        (   <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlAlterFunction(startPos.plus(getPos()), functionIdentifier, functionClassName,
+            functionLanguage, ifExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlShowFunctions SqlShowFunctions() :
+{
+    SqlIdentifier database = null;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <FUNCTIONS> { pos = getPos();}
+    [database = CompoundIdentifier()]
+    {
+        return new SqlShowFunctions(pos, database);
+    }
+}
+
+/**
+* Parse a "Show Tables" metadata query command.
+*/
+SqlShowTables SqlShowTables() :
+{
+}
+{
+    <SHOW> <TABLES>
+    {
+        return new SqlShowTables(getPos());
+    }
+}
+
+/**
+ * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
+ */
+SqlRichDescribeTable SqlRichDescribeTable() :
+{
+    SqlIdentifier tableName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    <DESCRIBE> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    tableName = CompoundIdentifier()
+    {
+        return new SqlRichDescribeTable(pos, tableName, isExtended);
+    }
+}
+
+SqlAlterTable SqlAlterTable() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier tableIdentifier;
+    SqlIdentifier newTableIdentifier = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <TABLE> { startPos = getPos(); }
+        tableIdentifier = CompoundIdentifier()
+    (
+        <RENAME> <TO>
+        newTableIdentifier = CompoundIdentifier()
+        {
+            return new SqlAlterTableRename(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        newTableIdentifier);
+        }
+    |
+        <SET>
+        propertyList = TableProperties()
+        {
+            return new SqlAlterTableProperties(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        propertyList);
+        }
+    )
 }
 
 void TableColumn(TableCreationContext context) :
@@ -41,20 +368,41 @@ void TableColumn(TableCreationContext context) :
         UniqueKey(context.uniqueKeysList)
     |
         ComputedColumn(context)
+    |
+        Watermark(context)
     )
+}
+
+void Watermark(TableCreationContext context) :
+{
+    SqlIdentifier eventTimeColumnName;
+    SqlParserPos pos;
+    SqlNode watermarkStrategy;
+}
+{
+    <WATERMARK> {pos = getPos();} <FOR>
+    eventTimeColumnName = CompoundIdentifier()
+    <AS>
+    watermarkStrategy = Expression(ExprContext.ACCEPT_NON_QUERY) {
+        if (context.watermark != null) {
+            throw SqlUtil.newContextException(pos,
+                ParserResource.RESOURCE.multipleWatermarksUnsupported());
+        } else {
+            context.watermark = new SqlWatermark(pos, eventTimeColumnName, watermarkStrategy);
+        }
+    }
 }
 
 void ComputedColumn(TableCreationContext context) :
 {
     SqlNode identifier;
     SqlNode expr;
-    boolean hidden = false;
     SqlParserPos pos;
 }
 {
     identifier = SimpleIdentifier() {pos = getPos();}
     <AS>
-    expr = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+    expr = Expression(ExprContext.ACCEPT_NON_QUERY) {
         expr = SqlStdOperatorTable.AS.createCall(Span.of(identifier, expr).pos(), expr, identifier);
         context.columnList.add(expr);
     }
@@ -69,8 +417,7 @@ void TableColumn2(List<SqlNode> list) :
 }
 {
     name = SimpleIdentifier()
-    <#-- #FlinkDataType already takes care of the nullable attribute. -->
-    type = FlinkDataType()
+    type = ExtendedDataType()
     [ <COMMENT> <QUOTED_STRING> {
         String p = SqlParserUtil.parseString(token.image);
         comment = SqlLiteral.createCharString(p, getPos());
@@ -78,6 +425,35 @@ void TableColumn2(List<SqlNode> list) :
     {
         SqlTableColumn tableColumn = new SqlTableColumn(name, type, comment, getPos());
         list.add(tableColumn);
+    }
+}
+
+/**
+* Different with {@link #DataType()}, we support a [ NULL | NOT NULL ] suffix syntax for both the
+* collection element data type and the data type itself.
+*
+* <p>See {@link #SqlDataTypeSpec} for the syntax details of {@link #DataType()}.
+*/
+SqlDataTypeSpec ExtendedDataType() :
+{
+    SqlTypeNameSpec typeName;
+    final Span s;
+    boolean elementNullable = true;
+    boolean nullable = true;
+}
+{
+    <#-- #DataType does not take care of the nullable attribute. -->
+    typeName = TypeName() {
+        s = span();
+    }
+    (
+        LOOKAHEAD(3)
+        elementNullable = NullableOptDefaultTrue()
+        typeName = ExtendedCollectionsTypeName(typeName, elementNullable)
+    )*
+    nullable = NullableOptDefaultTrue()
+    {
+        return new SqlDataTypeSpec(typeName, s.end(this)).withNullable(nullable);
     }
 }
 
@@ -159,8 +535,9 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
-    SqlNodeList primaryKeyList = null;
-    List<SqlNodeList> uniqueKeysList = null;
+    SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
+    List<SqlNodeList> uniqueKeysList = new ArrayList<SqlNodeList>();
+    SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
 
@@ -183,6 +560,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
             columnList = new SqlNodeList(ctx.columnList, pos);
             primaryKeyList = ctx.primaryKeyList;
             uniqueKeysList = ctx.uniqueKeysList;
+            watermark = ctx.watermark;
         }
         <RPAREN>
     ]
@@ -192,7 +570,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     }]
     [
         <PARTITIONED> <BY>
-        partitionColumns = ParenthesizedSimpleIdentifierList()
+        partitionColumns = ParenthesizedSimpleIdentifierList() {
+            if (!((FlinkSqlConformance) this.conformance).allowCreatePartitionedTable()) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.createPartitionedTableIsOnlyAllowedForHive());
+            }
+        }
     ]
     [
         <WITH>
@@ -206,6 +589,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
                 uniqueKeysList,
                 propertyList,
                 partitionColumns,
+                watermark,
                 comment);
     }
 }
@@ -257,10 +641,9 @@ SqlNode RichSqlInsert() :
         <INTO>
     |
         <OVERWRITE> {
-            if (!((FlinkSqlConformance) this.conformance).allowInsertOverwrite()) {
-                throw new ParseException("OVERWRITE expression is only allowed for HIVE dialect");
-            } else if (RichSqlInsert.isUpsert(keywords)) {
-                throw new ParseException("OVERWRITE expression is only used with INSERT mode");
+            if (RichSqlInsert.isUpsert(keywords)) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
             }
             extendedKeywords.add(RichSqlInsertKeyword.OVERWRITE.symbol(getPos()));
         }
@@ -291,11 +674,7 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
-        <PARTITION> PartitionSpecCommaList(partitionList) {
-            if (!((FlinkSqlConformance) this.conformance).allowInsertIntoPartition()) {
-                throw new ParseException("PARTITION expression is only allowed for HIVE dialect");
-            }
-        }
+        <PARTITION> PartitionSpecCommaList(partitionList)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
@@ -375,210 +754,100 @@ SqlDrop SqlDropView(Span s, boolean replace) :
     }
 }
 
-SqlIdentifier FlinkCollectionsTypeName() :
+/**
+* A sql type name extended basic data type, it has a counterpart basic
+* sql type name but always represents as a special alias compared with the standard name.
+*
+* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
+* and BYTES is synonym of VARBINARY(INT_MAX).
+*/
+SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
-}
-{
-    LOOKAHEAD(2)
-    <MULTISET> {
-        return new SqlIdentifier(SqlTypeName.MULTISET.name(), getPos());
-    }
-|
-    <ARRAY> {
-        return new SqlIdentifier(SqlTypeName.ARRAY.name(), getPos());
-    }
-}
-
-SqlIdentifier FlinkTypeName() :
-{
-    final SqlTypeName sqlTypeName;
-    final SqlIdentifier typeName;
-    final Span s = Span.of();
+    final SqlTypeName typeName;
+    final String typeAlias;
+    int precision = -1;
 }
 {
     (
-<#-- additional types are included here -->
-<#-- make custom data types in front of Calcite core data types -->
-<#list parser.flinkDataTypeParserMethods as method>
-    <#if (method?index > 0)>
-    |
-    </#if>
-        LOOKAHEAD(2)
-        typeName = ${method}
-</#list>
-    |
-        LOOKAHEAD(2)
-        sqlTypeName = SqlTypeName(s) {
-            typeName = new SqlIdentifier(sqlTypeName.name(), s.end(this));
+        <STRING> {
+            typeName = SqlTypeName.VARCHAR;
+            typeAlias = token.image;
+            precision = Integer.MAX_VALUE;
         }
     |
-        LOOKAHEAD(2)
-        typeName = FlinkCollectionsTypeName()
-    |
-        typeName = CompoundIdentifier() {
-            throw new ParseException("UDT in DDL is not supported yet.");
+        <BYTES> {
+            typeName = SqlTypeName.VARBINARY;
+            typeAlias = token.image;
+            precision = Integer.MAX_VALUE;
         }
     )
     {
-        return typeName;
+        return new ExtendedSqlBasicTypeNameSpec(typeAlias, typeName, precision, getPos());
+    }
+}
+
+/*
+* Parses collection type name that does not belong to standard SQL, i.e. ARRAY&lt;INT NOT NULL&gt;.
+*/
+SqlTypeNameSpec CustomizedCollectionsTypeName() :
+{
+    final SqlTypeName collectionTypeName;
+    final SqlTypeNameSpec elementTypeName;
+    boolean elementNullable = true;
+}
+{
+    (
+        <ARRAY> {
+            collectionTypeName = SqlTypeName.ARRAY;
+        }
+    |
+        <MULTISET> {
+            collectionTypeName = SqlTypeName.MULTISET;
+        }
+    )
+    <LT>
+    elementTypeName = TypeName()
+    elementNullable = NullableOptDefaultTrue()
+    <GT>
+    {
+        return new ExtendedSqlCollectionTypeNameSpec(
+            elementTypeName,
+            elementNullable,
+            collectionTypeName,
+            false,
+            getPos());
     }
 }
 
 /**
-* Parse a Flink data type with nullable options, NULL -> nullable, NOT NULL -> not nullable.
-* Default to be nullable.
+* Parse a collection type name, the input element type name may
+* also be a collection type. Different with #CollectionsTypeName,
+* the element type can have a [ NULL | NOT NULL ] suffix, default is NULL(nullable).
 */
-SqlDataTypeSpec FlinkDataType() :
+SqlTypeNameSpec ExtendedCollectionsTypeName(
+        SqlTypeNameSpec elementTypeName,
+        boolean elementNullable) :
 {
-    final SqlIdentifier typeName;
-    SqlIdentifier collectionTypeName = null;
-    int scale = -1;
-    int precision = -1;
-    String charSetName = null;
-    final Span s;
-    boolean nullable = true;
-    boolean elementNullable = true;
+    final SqlTypeName collectionTypeName;
 }
 {
-    typeName = FlinkTypeName() {
-        s = span();
-    }
-    [
-        <LPAREN>
-        precision = UnsignedIntLiteral()
-        [
-            <COMMA>
-            scale = UnsignedIntLiteral()
-        ]
-        <RPAREN>
-    ]
-    elementNullable = NullableOpt()
-    [
-        collectionTypeName = FlinkCollectionsTypeName()
-        nullable = NullableOpt()
-    ]
-    {
-        if (null != collectionTypeName) {
-            return new FlinkSqlDataTypeSpec(
-                    collectionTypeName,
-                    typeName,
-                    precision,
-                    scale,
-                    charSetName,
-                    nullable,
-                    elementNullable,
-                    s.end(collectionTypeName));
-        }
-        nullable = elementNullable;
-        return new FlinkSqlDataTypeSpec(typeName,
-                precision,
-                scale,
-                charSetName,
-                null,
-                nullable,
-                elementNullable,
-                s.end(this));
-    }
-}
-
-SqlIdentifier SqlStringType() :
-{
-}
-{
-    <STRING> { return new SqlStringType(getPos()); }
-}
-
-SqlIdentifier SqlBytesType() :
-{
-}
-{
-    <BYTES> { return new SqlBytesType(getPos()); }
-}
-
-boolean WithLocalTimeZone() :
-{
-}
-{
-    <WITHOUT> <TIME> <ZONE> { return false; }
-|
-    <WITH>
     (
-         <LOCAL> <TIME> <ZONE> { return true; }
+        <MULTISET> { collectionTypeName = SqlTypeName.MULTISET; }
     |
-        <TIME> <ZONE> {
-            throw new ParseException("'WITH TIME ZONE' is not supported yet, options: " +
-                "'WITHOUT TIME ZONE', 'WITH LOCAL TIME ZONE'.");
-        }
+         <ARRAY> { collectionTypeName = SqlTypeName.ARRAY; }
     )
-|
-    { return false; }
-}
-
-SqlIdentifier SqlTimeType() :
-{
-    int precision = -1;
-    boolean withLocalTimeZone = false;
-}
-{
-    <TIME>
-    (
-        <LPAREN> precision = UnsignedIntLiteral() <RPAREN>
-    |
-        { precision = -1; }
-    )
-    withLocalTimeZone = WithLocalTimeZone()
-    { return new SqlTimeType(getPos(), precision, withLocalTimeZone); }
-}
-
-SqlIdentifier SqlTimestampType() :
-{
-    int precision = -1;
-    boolean withLocalTimeZone = false;
-}
-{
-    <TIMESTAMP>
-    (
-        <LPAREN> precision = UnsignedIntLiteral() <RPAREN>
-    |
-        { precision = -1; }
-    )
-    withLocalTimeZone = WithLocalTimeZone()
-    { return new SqlTimestampType(getPos(), precision, withLocalTimeZone); }
-}
-
-SqlIdentifier SqlArrayType() :
-{
-    SqlParserPos pos;
-    SqlDataTypeSpec elementType;
-    boolean nullable = true;
-}
-{
-    <ARRAY> { pos = getPos(); }
-    <LT>
-    elementType = FlinkDataType()
-    <GT>
     {
-        return new SqlArrayType(pos, elementType);
+        return new ExtendedSqlCollectionTypeNameSpec(
+             elementTypeName,
+             elementNullable,
+             collectionTypeName,
+             true,
+             getPos());
     }
 }
 
-SqlIdentifier SqlMultisetType() :
-{
-    SqlParserPos pos;
-    SqlDataTypeSpec elementType;
-    boolean nullable = true;
-}
-{
-    <MULTISET> { pos = getPos(); }
-    <LT>
-    elementType = FlinkDataType()
-    <GT>
-    {
-        return new SqlMultisetType(pos, elementType);
-    }
-}
-
-SqlIdentifier SqlMapType() :
+/** Parses a SQL map type, e.g. MAP&lt;INT NOT NULL, VARCHAR NULL&gt;. */
+SqlTypeNameSpec SqlMapTypeName() :
 {
     SqlDataTypeSpec keyType;
     SqlDataTypeSpec valType;
@@ -587,30 +856,33 @@ SqlIdentifier SqlMapType() :
 {
     <MAP>
     <LT>
-    keyType = FlinkDataType()
+    keyType = ExtendedDataType()
     <COMMA>
-    valType = FlinkDataType()
+    valType = ExtendedDataType()
     <GT>
     {
-        return new SqlMapType(getPos(), keyType, valType);
+        return new SqlMapTypeNameSpec(keyType, valType, getPos());
     }
 }
 
 /**
-* Parse a "name1 type1 ['i'm a comment'], name2 type2 ..." list.
+* Parse a "name1 type1 [ NULL | NOT NULL] [ comment ]
+* [, name2 type2 [ NULL | NOT NULL] [ comment ] ]* ..." list.
+* The comment and NULL syntax doest not belong to standard SQL.
 */
-void FieldNameTypeCommaList(
+void ExtendedFieldNameTypeCommaList(
         List<SqlIdentifier> fieldNames,
         List<SqlDataTypeSpec> fieldTypes,
         List<SqlCharStringLiteral> comments) :
 {
     SqlIdentifier fName;
     SqlDataTypeSpec fType;
+    boolean nullable;
 }
 {
     [
         fName = SimpleIdentifier()
-        fType = FlinkDataType()
+        fType = ExtendedDataType()
         {
             fieldNames.add(fName);
             fieldTypes.add(fType);
@@ -627,7 +899,7 @@ void FieldNameTypeCommaList(
     (
         <COMMA>
         fName = SimpleIdentifier()
-        fType = FlinkDataType()
+        fType = ExtendedDataType()
         {
             fieldNames.add(fName);
             fieldTypes.add(fType);
@@ -644,26 +916,42 @@ void FieldNameTypeCommaList(
 }
 
 /**
-* Parse Row type, we support both Row(name1 type1, name2 type2) and Row<name1 type1, name2 type2>.
-* Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
-* i.e. Row(f0 int not null, f1 varchar null).
+* Parse Row type, we support both Row(name1 type1, name2 type2)
+* and Row&lt;name1 type1, name2 type2&gt;.
+* Every item type can have a suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
+* i.e. Row(f0 int not null, f1 varchar null). Default is nullable.
+*
+* <p>The difference with {@link #SqlRowTypeName()}:
+* <ul>
+*   <li>Support comment syntax for every field</li>
+*   <li>Field data type default is nullable</li>
+*   <li>Support ROW type with empty fields, e.g. ROW()</li>
+* </ul>
 */
-SqlIdentifier SqlRowType() :
+SqlTypeNameSpec ExtendedSqlRowTypeName() :
 {
     List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
     List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
     List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+    final boolean unparseAsStandard;
 }
 {
     <ROW>
     (
-        <NE>
+        <NE> { unparseAsStandard = false; }
     |
-        <LT> FieldNameTypeCommaList(fieldNames, fieldTypes, comments) <GT>
+        <LT> ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments) <GT>
+        { unparseAsStandard = false; }
     |
-        <LPAREN> FieldNameTypeCommaList(fieldNames, fieldTypes, comments) <RPAREN>
+        <LPAREN> ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments) <RPAREN>
+        { unparseAsStandard = true; }
     )
     {
-        return new SqlRowType(getPos(), fieldNames, fieldTypes, comments);
+        return new ExtendedSqlRowTypeNameSpec(
+            getPos(),
+            fieldNames,
+            fieldTypes,
+            comments,
+            unparseAsStandard);
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -27,20 +28,24 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
+import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
@@ -53,6 +58,8 @@ import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -70,13 +77,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link SingleInputGate}.
@@ -123,6 +123,42 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 		for (TestInputChannel ic : inputChannels) {
 			ic.assertReturnedEventsAreRecycled();
+		}
+	}
+
+	/**
+	 * Tests that the compressed buffer will be decompressed after calling {@link SingleInputGate#getNext()}.
+	 */
+	@Test
+	public void testGetCompressedBuffer() throws Exception {
+		int bufferSize = 1024;
+		String compressionCodec = "LZ4";
+		BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
+		BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
+
+		try (SingleInputGate inputGate = new SingleInputGateBuilder().setBufferDecompressor(decompressor).build()) {
+			TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
+
+			MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+			for (int i = 0; i < bufferSize; i += 8) {
+				segment.putLongLittleEndian(i, i);
+			}
+			Buffer uncompressedBuffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
+			uncompressedBuffer.setSize(bufferSize);
+			Buffer compressedBuffer = compressor.compressToOriginalBuffer(uncompressedBuffer);
+			assertTrue(compressedBuffer.isCompressed());
+
+			inputChannel.read(compressedBuffer);
+			inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+			inputGate.notifyChannelNonEmpty(inputChannel);
+
+			Optional<BufferOrEvent> bufferOrEvent = inputGate.getNext();
+			assertTrue(bufferOrEvent.isPresent());
+			assertTrue(bufferOrEvent.get().isBuffer());
+			ByteBuffer buffer = bufferOrEvent.get().getBuffer().getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
+			for (int i = 0; i < bufferSize; i += 8) {
+				assertEquals(i, buffer.getLong());
+			}
 		}
 	}
 
@@ -178,18 +214,9 @@ public class SingleInputGateTest extends InputGateTestBase {
 	@Test
 	public void testBackwardsEventWithUninitializedChannel() throws Exception {
 		// Setup environment
-		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-		when(taskEventDispatcher.publish(any(ResultPartitionID.class), any(TaskEvent.class))).thenReturn(true);
+		TestingTaskEventPublisher taskEventPublisher = new TestingTaskEventPublisher();
 
-		final ResultSubpartitionView iterator = mock(ResultSubpartitionView.class);
-		when(iterator.getNextBuffer()).thenReturn(
-			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), false, 0, false));
-
-		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-		when(partitionManager.createSubpartitionView(
-			any(ResultPartitionID.class),
-			anyInt(),
-			any(BufferAvailabilityListener.class))).thenReturn(iterator);
+		TestingResultPartitionManager partitionManager = new TestingResultPartitionManager(new NoOpResultSubpartitionView());
 
 		// Setup reader with one local and one unknown input channel
 
@@ -202,7 +229,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			InputChannelBuilder.newBuilder()
 				.setPartitionId(localPartitionId)
 				.setPartitionManager(partitionManager)
-				.setTaskEventPublisher(taskEventDispatcher)
+				.setTaskEventPublisher(taskEventPublisher)
 				.buildLocalAndSetToGate(inputGate);
 
 			// Unknown
@@ -212,28 +239,28 @@ public class SingleInputGateTest extends InputGateTestBase {
 				.setChannelIndex(1)
 				.setPartitionId(unknownPartitionId)
 				.setPartitionManager(partitionManager)
-				.setTaskEventPublisher(taskEventDispatcher)
+				.setTaskEventPublisher(taskEventPublisher)
 				.buildUnknownAndSetToGate(inputGate);
 
 			inputGate.setup();
 
 			// Only the local channel can request
-			verify(partitionManager, times(1)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
+			assertEquals(1, partitionManager.counter);
 
 			// Send event backwards and initialize unknown channel afterwards
 			final TaskEvent event = new TestTaskEvent();
 			inputGate.sendTaskEvent(event);
 
 			// Only the local channel can send out the event
-			verify(taskEventDispatcher, times(1)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
+			assertEquals(1, taskEventPublisher.counter);
 
 			// After the update, the pending event should be send to local channel
 
 			ResourceID location = ResourceID.generate();
 			inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(unknownPartitionId.getPartitionId(), location));
 
-			verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
-			verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
+			assertEquals(2, partitionManager.counter);
+			assertEquals(2, taskEventPublisher.counter);
 		}
 		finally {
 			inputGate.close();
@@ -251,7 +278,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	public void testUpdateChannelBeforeRequest() throws Exception {
 		SingleInputGate inputGate = createInputGate(1);
 
-		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+		TestingResultPartitionManager partitionManager = new TestingResultPartitionManager(new NoOpResultSubpartitionView());
 
 		InputChannel unknown = InputChannelBuilder.newBuilder()
 			.setPartitionManager(partitionManager)
@@ -262,8 +289,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		ResourceID location = ResourceID.generate();
 		inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(resultPartitionID.getPartitionId(), location));
 
-		verify(partitionManager, never()).createSubpartitionView(
-			any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
+		assertEquals(0, partitionManager.counter);
 	}
 
 	/**
@@ -354,7 +380,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 		final NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder()
 			.setPartitionRequestInitialBackoff(initialBackoff)
 			.setPartitionRequestMaxBackoff(maxBackoff)
-			.setIsCreditBased(enableCreditBasedFlowControl)
 			.build();
 
 		SingleInputGate gate = new SingleInputGateFactory(
@@ -429,17 +454,13 @@ public class SingleInputGateTest extends InputGateTestBase {
 			inputGate.setup();
 
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
-			if (enableCreditBasedFlowControl) {
-				// only the exclusive buffers should be assigned/available now
-				assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
+			// only the exclusive buffers should be assigned/available now
+			assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
 
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
-					bufferPool.getNumberOfAvailableMemorySegments());
-				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			} else {
-				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			}
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+				bufferPool.getNumberOfAvailableMemorySegments());
+			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
+			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
 		} finally {
 			inputGate.close();
 			network.close();
@@ -464,33 +485,25 @@ public class SingleInputGateTest extends InputGateTestBase {
 			inputGate.setup();
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 
-			if (enableCreditBasedFlowControl) {
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
-					bufferPool.getNumberOfAvailableMemorySegments());
-				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			} else {
-				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			}
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
+				bufferPool.getNumberOfAvailableMemorySegments());
+			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
+			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
 
 			// Trigger updates to remote input channel from unknown input channel
 			inputGate.updateInputChannel(
 				ResourceID.generate(),
 				createRemoteWithIdAndLocation(resultPartitionId.getPartitionId(), ResourceID.generate()));
 
-			if (enableCreditBasedFlowControl) {
-				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
-					.get(resultPartitionId.getPartitionId());
-				// only the exclusive buffers should be assigned/available now
-				assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
+			RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
+				.get(resultPartitionId.getPartitionId());
+			// only the exclusive buffers should be assigned/available now
+			assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
 
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
-					bufferPool.getNumberOfAvailableMemorySegments());
-				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			} else {
-				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			}
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+				bufferPool.getNumberOfAvailableMemorySegments());
+			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
+			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
 		} finally {
 			inputGate.close();
 			network.close();
@@ -594,7 +607,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			remoteInputChannel.onBuffer(TestBufferFactory.createBuffer(1), 0, 0);
 			assertEquals(1, inputGate.getNumberOfQueuedBuffers());
 
-			resultPartition.addBufferConsumer(BufferBuilderTestUtils.createFilledBufferConsumer(1), 0);
+			resultPartition.addBufferConsumer(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(1), 0);
 			assertEquals(2, inputGate.getNumberOfQueuedBuffers());
 		} finally {
 			resultPartition.release();
@@ -605,7 +618,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 	/**
 	 * Tests that if the {@link PartitionNotFoundException} is set onto one {@link InputChannel},
-	 * then it would be thrown directly via {@link SingleInputGate#getNextBufferOrEvent()}. So we
+	 * then it would be thrown directly via {@link SingleInputGate#getNext()}. So we
 	 * could confirm the {@link SingleInputGate} would not swallow or transform the original exception.
 	 */
 	@Test
@@ -695,9 +708,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	}
 
 	private NettyShuffleEnvironment createNettyShuffleEnvironment() {
-		return new NettyShuffleEnvironmentBuilder()
-			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build();
+		return new NettyShuffleEnvironmentBuilder().build();
 	}
 
 	static void verifyBufferOrEvent(
@@ -713,6 +724,41 @@ public class SingleInputGateTest extends InputGateTestBase {
 		assertEquals(expectedMoreAvailable, bufferOrEvent.get().moreAvailable());
 		if (!expectedMoreAvailable) {
 			assertFalse(inputGate.pollNext().isPresent());
+		}
+	}
+
+	/**
+	 * A testing implementation of {@link ResultPartitionManager} which counts the number of
+	 * {@link ResultSubpartitionView} created.
+	 */
+	public static class TestingResultPartitionManager extends ResultPartitionManager {
+		private int counter = 0;
+		private final ResultSubpartitionView subpartitionView;
+
+		public TestingResultPartitionManager(ResultSubpartitionView subpartitionView) {
+			this.subpartitionView = subpartitionView;
+		}
+
+		@Override
+		public ResultSubpartitionView createSubpartitionView(
+				ResultPartitionID partitionId,
+				int subpartitionIndex,
+				BufferAvailabilityListener availabilityListener) throws IOException {
+			++counter;
+			return subpartitionView;
+		}
+	}
+
+	/**
+	 * A testing implementation of {@link TaskEventPublisher} which counts the number of publish times.
+	 */
+	private static class TestingTaskEventPublisher implements TaskEventPublisher {
+		private int counter = 0;
+
+		@Override
+		public boolean publish(ResultPartitionID partitionId, TaskEvent event) {
+			++counter;
+			return true;
 		}
 	}
 }

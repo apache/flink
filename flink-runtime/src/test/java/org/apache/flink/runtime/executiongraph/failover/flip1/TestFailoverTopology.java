@@ -25,24 +25,26 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.UUID;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * A FailoverTopology implementation for tests.
+ * A {@link FailoverTopology} implementation for tests.
  */
-public class TestFailoverTopology implements FailoverTopology {
+public class TestFailoverTopology
+	implements FailoverTopology<TestFailoverTopology.TestFailoverVertex, TestFailoverTopology.TestFailoverResultPartition> {
 
-	private final Collection<FailoverVertex> vertices;
+	private final Collection<TestFailoverVertex> vertices;
 	private final boolean containsCoLocationConstraints;
 
-	public TestFailoverTopology(Collection<FailoverVertex> vertices, boolean containsCoLocationConstraints) {
+	public TestFailoverTopology(Collection<TestFailoverVertex> vertices, boolean containsCoLocationConstraints) {
 		this.vertices = vertices;
 		this.containsCoLocationConstraints = containsCoLocationConstraints;
 	}
 
 	@Override
-	public Iterable<? extends FailoverVertex> getFailoverVertices() {
-		return vertices::iterator;
+	public Iterable<TestFailoverVertex> getVertices() {
+		return vertices;
 	}
 
 	@Override
@@ -51,83 +53,83 @@ public class TestFailoverTopology implements FailoverTopology {
 	}
 
 	/**
-	 * A FailoverVertex implementation for tests.
+	 * A {@link FailoverVertex} implementation for tests.
 	 */
-	public static class TestFailoverVertex implements FailoverVertex {
+	public static class TestFailoverVertex
+		implements FailoverVertex<TestFailoverVertex, TestFailoverResultPartition> {
 
-		private final Collection<FailoverEdge> inputEdges = new ArrayList<>();
-		private final Collection<FailoverEdge> outputEdges = new ArrayList<>();
+		private final Collection<TestFailoverResultPartition> consumedPartitions = new ArrayList<>();
+		private final Collection<TestFailoverResultPartition> producedPartitions = new ArrayList<>();
 		private final ExecutionVertexID id;
-		private final String name;
 
-		public TestFailoverVertex(ExecutionVertexID id, String name) {
+		public TestFailoverVertex(ExecutionVertexID id) {
 			this.id = id;
-			this.name = name;
 		}
 
-		void addInputEdge(FailoverEdge edge) {
-			inputEdges.add(edge);
+		void addConsumedPartition(TestFailoverResultPartition partition) {
+			consumedPartitions.add(partition);
 		}
 
-		void addOuputEdge(FailoverEdge edge) {
-			outputEdges.add(edge);
+		void addProducedPartition(TestFailoverResultPartition partition) {
+			producedPartitions.add(partition);
 		}
 
-		public ExecutionVertexID getExecutionVertexID() {
+		public ExecutionVertexID getId() {
 			return id;
 		}
 
 		@Override
-		public String getExecutionVertexName() {
-			return name;
+		public Iterable<TestFailoverResultPartition> getConsumedResults() {
+			return consumedPartitions;
 		}
 
 		@Override
-		public Iterable<? extends FailoverEdge> getInputEdges() {
-			return inputEdges::iterator;
-		}
-
-		@Override
-		public Iterable<? extends FailoverEdge> getOutputEdges() {
-			return outputEdges::iterator;
+		public Iterable<TestFailoverResultPartition> getProducedResults() {
+			return producedPartitions;
 		}
 	}
 
 	/**
-	 * A FailoverEdge implementation for tests.
+	 * A {@link FailoverResultPartition} implementation for tests.
 	 */
-	public static class TestFailoverEdge implements FailoverEdge {
+	public static class TestFailoverResultPartition
+		implements FailoverResultPartition<TestFailoverVertex, TestFailoverResultPartition> {
 
 		private final IntermediateResultPartitionID resultPartitionID;
 		private final ResultPartitionType resultPartitionType;
-		private final FailoverVertex sourceVertex;
-		private final FailoverVertex targetVertex;
+		private final TestFailoverVertex producer;
+		private final List<TestFailoverVertex> consumers;
 
-		public TestFailoverEdge(IntermediateResultPartitionID resultPartitionID, ResultPartitionType resultPartitionType, FailoverVertex sourceVertex, FailoverVertex targetVertex) {
+		public TestFailoverResultPartition(
+				IntermediateResultPartitionID resultPartitionID,
+				ResultPartitionType resultPartitionType,
+				TestFailoverVertex producer,
+				TestFailoverVertex consumer) {
+
 			this.resultPartitionID = resultPartitionID;
 			this.resultPartitionType = resultPartitionType;
-			this.sourceVertex = sourceVertex;
-			this.targetVertex = targetVertex;
+			this.producer = producer;
+			this.consumers = Collections.singletonList(consumer);
 		}
 
 		@Override
-		public IntermediateResultPartitionID getResultPartitionID() {
+		public IntermediateResultPartitionID getId() {
 			return resultPartitionID;
 		}
 
 		@Override
-		public ResultPartitionType getResultPartitionType() {
+		public ResultPartitionType getResultType() {
 			return resultPartitionType;
 		}
 
 		@Override
-		public FailoverVertex getSourceVertex() {
-			return sourceVertex;
+		public TestFailoverVertex getProducer() {
+			return producer;
 		}
 
 		@Override
-		public FailoverVertex getTargetVertex() {
-			return targetVertex;
+		public Iterable<TestFailoverVertex> getConsumers() {
+			return consumers;
 		}
 	}
 
@@ -136,30 +138,26 @@ public class TestFailoverTopology implements FailoverTopology {
 	 */
 	public static class Builder {
 		private boolean containsCoLocationConstraints = false;
-		private Collection<FailoverVertex> vertices = new ArrayList<>();
+		private Collection<TestFailoverVertex> vertices = new ArrayList<>();
 
 		public TestFailoverVertex newVertex() {
-			return newVertex(UUID.randomUUID().toString());
-		}
-
-		public TestFailoverVertex newVertex(String name) {
-			TestFailoverVertex testFailoverVertex = new TestFailoverVertex(new ExecutionVertexID(new JobVertexID(), 0), name);
+			TestFailoverVertex testFailoverVertex = new TestFailoverVertex(new ExecutionVertexID(new JobVertexID(), 0));
 			vertices.add(testFailoverVertex);
 			return testFailoverVertex;
 		}
 
 		public Builder connect(TestFailoverVertex source, TestFailoverVertex target, ResultPartitionType partitionType) {
-			FailoverEdge edge = new TestFailoverEdge(new IntermediateResultPartitionID(), partitionType, source, target);
-			source.addOuputEdge(edge);
-			target.addInputEdge(edge);
+			TestFailoverResultPartition partition = new TestFailoverResultPartition(new IntermediateResultPartitionID(), partitionType, source, target);
+			source.addProducedPartition(partition);
+			target.addConsumedPartition(partition);
 
 			return this;
 		}
 
 		public Builder connect(TestFailoverVertex source, TestFailoverVertex target, ResultPartitionType partitionType, IntermediateResultPartitionID partitionID) {
-			FailoverEdge edge = new TestFailoverEdge(partitionID, partitionType, source, target);
-			source.addOuputEdge(edge);
-			target.addInputEdge(edge);
+			TestFailoverResultPartition partition = new TestFailoverResultPartition(partitionID, partitionType, source, target);
+			source.addProducedPartition(partition);
+			target.addConsumedPartition(partition);
 
 			return this;
 		}
@@ -169,7 +167,7 @@ public class TestFailoverTopology implements FailoverTopology {
 			return this;
 		}
 
-		public FailoverTopology build() {
+		public TestFailoverTopology build() {
 			return new TestFailoverTopology(vertices, containsCoLocationConstraints);
 		}
 	}

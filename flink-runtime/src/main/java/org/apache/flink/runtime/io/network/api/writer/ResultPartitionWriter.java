@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -34,7 +35,7 @@ import java.io.IOException;
  * In this case {@link ResultPartitionWriter#fail(Throwable)} still needs to be called afterwards to fully release
  * all resources associated the the partition and propagate failure cause to the consumer if possible.
  */
-public interface ResultPartitionWriter extends AutoCloseable {
+public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvider {
 
 	/**
 	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.

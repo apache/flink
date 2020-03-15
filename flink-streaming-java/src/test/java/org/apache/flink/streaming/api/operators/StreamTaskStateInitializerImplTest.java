@@ -93,6 +93,7 @@ public class StreamTaskStateInitializerImplTest {
 		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
 			streamOperator.getOperatorID(),
 			streamOperator.getClass().getSimpleName(),
+			new TestProcessingTimeService(),
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
@@ -201,6 +202,7 @@ public class StreamTaskStateInitializerImplTest {
 		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
 			streamOperator.getOperatorID(),
 			streamOperator.getClass().getSimpleName(),
+			new TestProcessingTimeService(),
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
@@ -268,22 +270,19 @@ public class StreamTaskStateInitializerImplTest {
 		DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
 		dummyEnvironment.setTaskStateManager(taskStateManager);
 
-		ProcessingTimeService processingTimeService = new TestProcessingTimeService();
-
 		if (createTimerServiceManager) {
 			return new StreamTaskStateInitializerImpl(
 				dummyEnvironment,
-				stateBackend,
-				processingTimeService);
+				stateBackend);
 		} else {
 			return new StreamTaskStateInitializerImpl(
 				dummyEnvironment,
-				stateBackend,
-				processingTimeService) {
+				stateBackend) {
 				@Override
 				protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 					AbstractKeyedStateBackend<K> keyedStatedBackend,
 					KeyContext keyContext,
+					ProcessingTimeService processingTimeService,
 					Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 					return null;
 				}

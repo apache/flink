@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -30,14 +31,13 @@ import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
-import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -294,6 +294,23 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		assertNotEquals(globalModVersionBeforeFailure, globalModVersionAfterFailure);
 	}
 
+	@Test
+	public void testCountingRestarts() throws Exception {
+		final JobGraph jobGraph = createStreamingJobGraph();
+		final ExecutionGraph eg = createExecutionGraph(jobGraph);
+
+		final Iterator<ExecutionVertex> vertexIterator = eg.getAllExecutionVertices().iterator();
+		final ExecutionVertex ev11 = vertexIterator.next();
+
+		// trigger task failure for fine grained recovery
+		ev11.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
+		assertEquals(1, eg.getNumberOfRestarts());
+
+		// trigger global failover
+		eg.failGlobal(new Exception("Force failover global"));
+		assertEquals(2, eg.getNumberOfRestarts());
+	}
+
 	// ------------------------------- Test Utils -----------------------------------------
 
 	/**
@@ -368,12 +385,14 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 			final JobGraph jobGraph,
 			final RestartStrategy restartStrategy) throws Exception {
 
-		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			jobGraph.getJobID(),
 			NettyShuffleMaster.INSTANCE,
 			ignored -> Optional.empty());
 
-		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobGraph)
+		final ExecutionGraph eg = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
 			.setRestartStrategy(restartStrategy)
 			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
 			.setPartitionTracker(partitionTracker)

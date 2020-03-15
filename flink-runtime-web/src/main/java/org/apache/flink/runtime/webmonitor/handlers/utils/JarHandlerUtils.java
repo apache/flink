@@ -112,18 +112,20 @@ public class JarHandlerUtils {
 			return new JarHandlerContext(jarFile, entryClass, programArgs, parallelism, jobId);
 		}
 
-		public JobGraph toJobGraph(Configuration configuration) {
+		public JobGraph toJobGraph(Configuration configuration, boolean suppressOutput) {
 			if (!Files.exists(jarFile)) {
 				throw new CompletionException(new RestHandlerException(
 					String.format("Jar file %s does not exist", jarFile), HttpResponseStatus.BAD_REQUEST));
 			}
 
 			try {
-				final PackagedProgram packagedProgram = new PackagedProgram(
-					jarFile.toFile(),
-					entryClass,
-					programArgs.toArray(new String[0]));
-				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId);
+				final PackagedProgram packagedProgram = PackagedProgram.newBuilder()
+					.setJarFile(jarFile.toFile())
+					.setEntryPointClassName(entryClass)
+					.setConfiguration(configuration)
+					.setArguments(programArgs.toArray(new String[0]))
+					.build();
+				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId, suppressOutput);
 			} catch (final ProgramInvocationException e) {
 				throw new CompletionException(e);
 			}

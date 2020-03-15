@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
@@ -73,7 +74,7 @@ public class SortMergeJoinIteratorTest {
 
 	@Before
 	public void before() throws MemoryAllocationException {
-		this.memManager = new MemoryManager(MEMORY_SIZE, 1);
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.ioManager = new IOManagerAsync();
 		this.serializer = new BinaryRowSerializer(1);
 	}

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -31,12 +32,18 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
+import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -44,6 +51,8 @@ import org.apache.flink.types.Row;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -108,6 +117,30 @@ public class DataFormatConvertersTest {
 			BinaryString.fromString("hahah")
 	};
 
+	private DataType[] dataTypes = new DataType[] {
+		DataTypes.TIMESTAMP(9).bridgedTo(LocalDateTime.class),
+		DataTypes.TIMESTAMP(9).bridgedTo(Timestamp.class),
+		DataTypes.TIMESTAMP(3),
+		new AtomicDataType(
+			new LegacyTypeInformationType<>(
+				LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
+				SqlTimeTypeInfo.TIMESTAMP)),
+		new AtomicDataType(
+			new LegacyTypeInformationType<>(
+				LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
+				new LegacyTimestampTypeInfo(7))),
+		DataTypes.TIMESTAMP(3).bridgedTo(SqlTimestamp.class)
+	};
+
+	private Object[] dataValues = new Object[] {
+		LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789),
+		Timestamp.valueOf("1970-01-01 00:00:00.123456789"),
+		LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123),
+		Timestamp.valueOf("1970-01-01 00:00:00.123"),
+		Timestamp.valueOf("1970-01-01 00:00:00.1234567"),
+		SqlTimestamp.fromEpochMillis(1000L)
+	};
+
 	private static DataFormatConverter getConverter(TypeInformation typeInfo) {
 		return getConverterForDataType(TypeConversions.fromLegacyInfoToDataType(typeInfo));
 	}
@@ -116,6 +149,17 @@ public class DataFormatConvertersTest {
 		DataFormatConverter converter = getConverter(typeInfo);
 		Assert.assertTrue(Arrays.deepEquals(
 				new Object[] {converter.toExternal(converter.toInternal(value))}, new Object[] {value}));
+	}
+
+	private static DataFormatConverter getConverter(DataType dataType) {
+		return getConverterForDataType(dataType);
+	}
+
+	private static void testDataType(DataType dataType, Object value) {
+		DataFormatConverter converter = getConverter(dataType);
+		Assert.assertTrue(Arrays.deepEquals(
+			new Object[] {converter.toExternal(converter.toInternal(value))}, new Object[]{value}
+		));
 	}
 
 	@Test
@@ -160,6 +204,13 @@ public class DataFormatConvertersTest {
 		test(tupleTypeInfo, tuple2);
 
 		test(TypeExtractor.createTypeInfo(MyPojo.class), new MyPojo(1, 3));
+	}
+
+	@Test
+	public void testDataTypes() {
+		for (int i = 0; i < dataTypes.length; i++) {
+			testDataType(dataTypes[i], dataValues[i]);
+		}
 	}
 
 	/**

@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
@@ -43,7 +44,7 @@ public class HashAggTest {
 	private static final int MEMORY_SIZE = 1024 * 1024 * 32;
 
 	private Map<Integer, Long> outputMap = new HashMap<>();
-	private MemoryManager memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+	private MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 	private IOManager ioManager;
 	private SumHashAggTestOperator operator;
 

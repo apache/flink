@@ -19,26 +19,22 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.flink.optimizer.plan.FlinkPlan;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.StreamingPlan;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import javax.annotation.Nullable;
-
-import java.net.URISyntaxException;
-import java.net.URL;
 
 /**
  * Utility class for {@link PackagedProgram} related operations.
  */
 public class PackagedProgramUtils {
+
+	private static final String PYTHON_DRIVER_CLASS_NAME = "org.apache.flink.client.python.PythonDriver";
+
+	private static final String PYTHON_GATEWAY_CLASS_NAME = "org.apache.flink.client.python.PythonGatewayServer";
 
 	/**
 	 * Creates a {@link JobGraph} with a specified {@link JobID}
@@ -55,34 +51,17 @@ public class PackagedProgramUtils {
 			PackagedProgram packagedProgram,
 			Configuration configuration,
 			int defaultParallelism,
-			@Nullable JobID jobID) throws ProgramInvocationException {
-		Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
-		final Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
+			@Nullable JobID jobID,
+			boolean suppressOutput) throws ProgramInvocationException {
+		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, defaultParallelism, suppressOutput);
+		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
 
-		final OptimizerPlanEnvironment optimizerPlanEnvironment = new OptimizerPlanEnvironment(optimizer);
-		optimizerPlanEnvironment.setParallelism(defaultParallelism);
-
-		final FlinkPlan flinkPlan = optimizerPlanEnvironment.getOptimizedPlan(packagedProgram);
-
-		final JobGraph jobGraph;
-
-		if (flinkPlan instanceof StreamingPlan) {
-			jobGraph = ((StreamingPlan) flinkPlan).getJobGraph(jobID);
-			jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
-		} else {
-			final JobGraphGenerator jobGraphGenerator = new JobGraphGenerator(configuration);
-			jobGraph = jobGraphGenerator.compileJobGraph((OptimizedPlan) flinkPlan, jobID);
+		if (jobID != null) {
+			jobGraph.setJobID(jobID);
 		}
-
-		for (URL url : packagedProgram.getAllLibraries()) {
-			try {
-				jobGraph.addJar(new Path(url.toURI()));
-			} catch (URISyntaxException e) {
-				throw new ProgramInvocationException("Invalid URL for jar file: " + url + '.', jobGraph.getJobID(), e);
-			}
-		}
-
+		jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
 		jobGraph.setClasspaths(packagedProgram.getClasspaths());
+		jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
 
 		return jobGraph;
 	}
@@ -94,14 +73,40 @@ public class PackagedProgramUtils {
 	 * @param packagedProgram to extract the JobGraph from
 	 * @param configuration to use for the optimizer and job graph generator
 	 * @param defaultParallelism for the JobGraph
+	 * @param suppressOutput Whether to suppress stdout/stderr during interactive JobGraph creation.
 	 * @return JobGraph extracted from the PackagedProgram
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
 	public static JobGraph createJobGraph(
-		PackagedProgram packagedProgram,
-		Configuration configuration,
-		int defaultParallelism) throws ProgramInvocationException {
-		return createJobGraph(packagedProgram, configuration, defaultParallelism, null);
+			PackagedProgram packagedProgram,
+			Configuration configuration,
+			int defaultParallelism,
+			boolean suppressOutput) throws ProgramInvocationException {
+		return createJobGraph(packagedProgram, configuration, defaultParallelism, null, suppressOutput);
+	}
+
+	public static Pipeline getPipelineFromProgram(
+			PackagedProgram prog,
+			int parallelism,
+			boolean suppressOutput) throws CompilerException, ProgramInvocationException {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
+
+			// temporary hack to support the optimizer plan preview
+			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment();
+			if (parallelism > 0) {
+				env.setParallelism(parallelism);
+			}
+			return env.getPipeline(prog, suppressOutput);
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
+	}
+
+	public static Boolean isPython(String entryPointClassName) {
+		return (entryPointClassName != null) &&
+			(entryPointClassName.equals(PYTHON_DRIVER_CLASS_NAME) || entryPointClassName.equals(PYTHON_GATEWAY_CLASS_NAME));
 	}
 
 	private PackagedProgramUtils() {}

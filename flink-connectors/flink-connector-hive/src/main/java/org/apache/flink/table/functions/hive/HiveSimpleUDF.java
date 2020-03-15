@@ -57,7 +57,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 	private transient GenericUDFUtils.ConversionHelper conversionHelper;
 	private transient HiveObjectConversion[] conversions;
 	private transient boolean allIdentityConverter;
-	private transient HiveShim hiveShim;
+	private HiveShim hiveShim;
 
 	public HiveSimpleUDF(HiveFunctionWrapper<UDF> hiveFunctionWrapper, HiveShim hiveShim) {
 		super(hiveFunctionWrapper);
@@ -74,7 +74,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 		List<TypeInfo> typeInfos = new ArrayList<>();
 
 		for (DataType arg : argTypes) {
-			typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arg));
+			typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arg, false));
 		}
 
 		try {
@@ -90,7 +90,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 			conversionHelper = new GenericUDFUtils.ConversionHelper(method, argInspectors);
 			conversions = new HiveObjectConversion[argInspectors.length];
 			for (int i = 0; i < argInspectors.length; i++) {
-				conversions[i] = HiveInspectors.getConversion(argInspectors[i], argTypes[i].getLogicalType());
+				conversions[i] = HiveInspectors.getConversion(argInspectors[i], argTypes[i].getLogicalType(), hiveShim);
 			}
 
 			allIdentityConverter = Arrays.stream(conversions)
@@ -113,7 +113,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 
 		try {
 			Object result = FunctionRegistry.invoke(method, function, conversionHelper.convertIfNecessary(args));
-			return HiveInspectors.toFlinkObject(returnInspector, result);
+			return HiveInspectors.toFlinkObject(returnInspector, result, hiveShim);
 		} catch (HiveException e) {
 			throw new FlinkHiveUDFException(e);
 		}
@@ -124,12 +124,12 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 		try {
 			List<TypeInfo> argTypeInfo = new ArrayList<>();
 			for (DataType argType : argTypes) {
-				argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType));
+				argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType, false));
 			}
 			Class returnType = hiveFunctionWrapper.createFunction()
 				.getResolver().getEvalMethod(argTypeInfo).getReturnType();
 
-			return HiveInspectors.toFlinkType(
+			return HiveTypeUtil.toFlinkType(
 				HiveInspectors.getObjectInspector(hiveShim, returnType));
 		} catch (UDFArgumentException e) {
 			throw new FlinkHiveUDFException(e);

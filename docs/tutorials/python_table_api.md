@@ -23,24 +23,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+This walkthrough will quickly get you started building a pure Python Flink project.
+
+<span class="label label-info">Note</span> Python 3.5 or higher is required to run PyFlink. Run the following command to confirm that the command “python” in current environment points to Python 3.5+:
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+{% endhighlight %}
+
 * This will be replaced by the TOC
 {:toc}
 
-In this guide we will start from scratch and go from setting up a Flink Python project
-to running a Python Table API program.
-
 ## Setting up a Python Project
 
-Firstly, you can fire up your favorite IDE and create a Python project and then
-you need to install the PyFlink package. Please
-see [Build PyFlink]({{ site.baseurl }}/flinkDev/building.html#build-pyflink)
-for more details about this.
+You can begin by creating a Python project and installing the PyFlink package.
+PyFlink is available via PyPi and can be easily installed using `pip`.
+
+{% highlight bash %}
+$ python -m pip install apache-flink
+{% endhighlight %}
+
+You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).
 
 ## Writing a Flink Python Table API Program
 
-The first step in a Flink Python Table API program is to create a `BatchTableEnvironment`
-(or `StreamTableEnvironment` if you are writing a streaming job). It is the main entry point
-for Python Table API jobs.
+Table API applications begin by declaring a table environment; either a `BatchTableEvironment` for batch applications or `StreamTableEnvironment` for streaming applications.
+This serves as the main entry point for interacting with the Flink runtime.
+It can be used for setting execution parameters such as restart strategy, default parallelism, etc.
+The table config allows setting Table API specific configurations.
 
 {% highlight python %}
 exec_env = ExecutionEnvironment.get_execution_environment()
@@ -49,22 +60,15 @@ t_config = TableConfig()
 t_env = BatchTableEnvironment.create(exec_env, t_config)
 {% endhighlight %}
 
-The `ExecutionEnvironment` (or `StreamExecutionEnvironment` if you are writing a streaming job)
-can be used to set execution parameters, such as the restart strategy, default parallelism, etc.
-
-The `TableConfig` can be used by setting the parameters such as the built-in catalog name, the
-threshold where generating code, etc.
-
-Next we will create a source table and a sink table.
+The the table environment created, you can declare source and sink tables.
 
 {% highlight python %}
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
-                 .line_delimiter(' ')
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
-    .register_table_source('mySource')
+    .create_temporary_table('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
@@ -74,34 +78,31 @@ t_env.connect(FileSystem().path('/tmp/output')) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
                  .field('count', DataTypes.BIGINT())) \
-    .register_table_sink('mySink')
+    .create_temporary_table('mySink')
 {% endhighlight %}
 
-This registers a table named `mySource` and a table named `mySink` in the
-`ExecutionEnvironment`. The table `mySource` has only one column: word.
-It represents the words read from file `/tmp/input`. The table `mySink` has two columns:
-word and count. It writes data to file `/tmp/output`, with `\t` as the field delimiter.
+This registers a table named `mySource` and a table named `mySink` in the execution environment.
+The table `mySource` has only one column, word, and it consumes strings read from file `/tmp/input`.
+The table `mySink` has two columns, word and count, and writes data to the file `/tmp/output`, with `\t` as the field delimiter.
 
-Then we need to create a job which reads input from table `mySource`, preforms some
-operations and writes the results to table `mySink`.
+You can now create a job which reads input from table `mySource`, preforms some transformations, and writes the results to table `mySink`.
 
 {% highlight python %}
-t_env.scan('mySource') \
+t_env.from_path('mySource') \
     .group_by('word') \
     .select('word, count(1)') \
     .insert_into('mySink')
 {% endhighlight %}
 
-The last thing is to start the actual Flink Python Table API job. All operations, such as
-creating sources, transformations and sinks only build up a graph of internal operations.
-Only when `t_env.execute(job_name)` is called, this graph of operations will be thrown on a cluster or
-executed on your local machine.
+Finally you must execute the actual Flink Python Table API job.
+All operations, such as creating sources, transformations and sinks are lazy.
+Only when `t_env.execute(job_name)` is called will the job be run.
 
 {% highlight python %}
 t_env.execute("tutorial_job")
 {% endhighlight %}
 
-The complete code so far is as follows:
+The complete code so far:
 
 {% highlight python %}
 from pyflink.dataset import ExecutionEnvironment
@@ -115,11 +116,10 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
-                 .line_delimiter(' ')
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
-    .register_table_source('mySource')
+    .create_temporary_table('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
@@ -129,9 +129,9 @@ t_env.connect(FileSystem().path('/tmp/output')) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
                  .field('count', DataTypes.BIGINT())) \
-    .register_table_sink('mySink')
+    .create_temporary_table('mySink')
 
-t_env.scan('mySource') \
+t_env.from_path('mySource') \
     .group_by('word') \
     .select('word, count(1)') \
     .insert_into('mySink')
@@ -140,9 +140,13 @@ t_env.execute("tutorial_job")
 {% endhighlight %}
 
 ## Executing a Flink Python Table API Program
+Firstly, you need to prepare input data in the "/tmp/input" file. You can choose the following command line to prepare the input data:
 
-You can run this example in your IDE or on the command line (suppose the job script file is
-WordCount.py):
+{% highlight bash %}
+$ echo "flink\npyflink\nflink" > /tmp/input
+{% endhighlight %}
+
+Next, you can run this example on the command line (Note: if the result file "/tmp/output" has already existed, you need to remove the file before running the example):
 
 {% highlight bash %}
 $ python WordCount.py
@@ -152,6 +156,14 @@ The command builds and runs the Python Table API program in a local mini cluster
 You can also submit the Python Table API program to a remote cluster, you can refer
 [Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples)
 for more details.
+
+Finally, you can see the execution result on the command line:
+
+{% highlight bash %}
+$ cat /tmp/output
+flink	2
+pyflink	1
+{% endhighlight %}
 
 This should get you started with writing your own Flink Python Table API programs.
 To learn more about the Python Table API, you can refer

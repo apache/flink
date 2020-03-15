@@ -34,9 +34,6 @@ import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -54,10 +51,10 @@ public class InputDependencyConstraintCheckerTest extends TestLogger {
 	}
 
 	@Test
-	public void testCheckEmptyPipelinedInput() {
+	public void testCheckCreatedPipelinedInput() {
 		final List<TestingSchedulingResultPartition> partitions = addResultPartition()
 			.withPartitionType(PIPELINED)
-			.withPartitionState(EMPTY)
+			.withPartitionState(ResultPartitionState.CREATED)
 			.finish();
 		final TestingSchedulingExecutionVertex vertex = addSchedulingExecutionVertex()
 			.withConsumedPartitions(partitions)
@@ -69,10 +66,10 @@ public class InputDependencyConstraintCheckerTest extends TestLogger {
 	}
 
 	@Test
-	public void testCheckProducingPipelinedInput() {
+	public void testCheckConsumablePipelinedInput() {
 		final List<TestingSchedulingResultPartition> partitions = addResultPartition()
 			.withPartitionType(PIPELINED)
-			.withPartitionState(PRODUCING)
+			.withPartitionState(ResultPartitionState.CONSUMABLE)
 			.finish();
 		final TestingSchedulingExecutionVertex vertex = addSchedulingExecutionVertex()
 			.withConsumedPartitions(partitions)
@@ -242,7 +239,7 @@ public class InputDependencyConstraintCheckerTest extends TestLogger {
 		List<TestingSchedulingResultPartition> partitions) {
 
 		InputDependencyConstraintChecker inputChecker = new InputDependencyConstraintChecker();
-		for (SchedulingResultPartition partition : partitions) {
+		for (SchedulingResultPartition<?, ?> partition : partitions) {
 			inputChecker.addSchedulingResultPartition(partition);
 		}
 		return inputChecker;
@@ -252,7 +249,7 @@ public class InputDependencyConstraintCheckerTest extends TestLogger {
 		private int dataSetCnt = 1;
 		private int partitionCntPerDataSet = 1;
 		private ResultPartitionType partitionType = BLOCKING;
-		private SchedulingResultPartition.ResultPartitionState partitionState = DONE;
+		private ResultPartitionState partitionState = ResultPartitionState.CONSUMABLE;
 
 		TestingSchedulingResultPartitionBuilder withDataSetCnt(int dataSetCnt) {
 			this.dataSetCnt = dataSetCnt;
@@ -269,7 +266,7 @@ public class InputDependencyConstraintCheckerTest extends TestLogger {
 			return this;
 		}
 
-		TestingSchedulingResultPartitionBuilder withPartitionState(SchedulingResultPartition.ResultPartitionState state) {
+		TestingSchedulingResultPartitionBuilder withPartitionState(ResultPartitionState state) {
 			this.partitionState = state;
 			return this;
 		}

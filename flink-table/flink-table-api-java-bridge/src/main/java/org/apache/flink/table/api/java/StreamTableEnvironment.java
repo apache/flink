@@ -39,7 +39,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.sinks.TableSink;
 
 /**
- * This table environment is the entry point and central context for creating Table & SQL
+ * This table environment is the entry point and central context for creating Table and SQL
  * API programs that integrate with the Java-specific {@link DataStream} API.
  *
  * <p>It is unified for bounded and unbounded data processing.
@@ -60,7 +60,7 @@ import org.apache.flink.table.sinks.TableSink;
 public interface StreamTableEnvironment extends TableEnvironment {
 
 	/**
-	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * Creates a table environment that is the entry point and central context for creating Table and SQL
 	 * API programs that integrate with the Java-specific {@link DataStream} API.
 	 *
 	 * <p>It is unified for bounded and unbounded data processing.
@@ -86,7 +86,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	}
 
 	/**
-	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * Creates a table environment that is the entry point and central context for creating Table and SQL
 	 * API programs that integrate with the Java-specific {@link DataStream} API.
 	 *
 	 * <p>It is unified for bounded and unbounded data processing.
@@ -117,7 +117,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	}
 
 	/**
-	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * Creates a table environment that is the entry point and central context for creating Table and SQL
 	 * API programs that integrate with the Java-specific {@link DataStream} API.
 	 *
 	 * <p>It is unified for bounded and unbounded data processing.
@@ -164,7 +164,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param name The name under which the function is registered.
 	 * @param aggregateFunction The AggregateFunction to register.
 	 * @param <T> The type of the output value.
-	 * @tparam ACC The type of aggregate accumulator.
+	 * @param <ACC> The type of aggregate accumulator.
 	 */
 	<T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);
 
@@ -175,7 +175,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param name The name under which the function is registered.
 	 * @param tableAggregateFunction The TableAggregateFunction to register.
 	 * @param <T> The type of the output value.
-	 * @tparam ACC The type of aggregate accumulator.
+	 * @param <ACC> The type of aggregate accumulator.
 	 */
 	<T, ACC> void registerFunction(String name, TableAggregateFunction<T, ACC> tableAggregateFunction);
 
@@ -194,7 +194,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	/**
 	 * Converts the given {@link DataStream} into a {@link Table} with specified field names.
 	 *
-	 * Example:
+	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -211,43 +211,103 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	<T> Table fromDataStream(DataStream<T> dataStream, String fields);
 
 	/**
-	 * Registers the given {@link DataStream} as table in the {@link TableEnvironment}'s catalog.
-	 * Registered tables can be referenced in SQL queries.
+	 * Creates a view from the given {@link DataStream}.
+	 * Registered views can be referenced in SQL queries.
 	 *
-	 * The field names of the {@link Table} are automatically derived
+	 * <p>The field names of the {@link Table} are automatically derived
 	 * from the type of the {@link DataStream}.
+	 *
+	 * <p>The view is registered in the namespace of the current catalog and database. To register the view in
+	 * a different catalog use {@link #createTemporaryView(String, DataStream)}.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
 	 *
 	 * @param name The name under which the {@link DataStream} is registered in the catalog.
 	 * @param dataStream The {@link DataStream} to register.
 	 * @param <T> The type of the {@link DataStream} to register.
+	 * @deprecated use {@link #createTemporaryView(String, DataStream)}
 	 */
+	@Deprecated
 	<T> void registerDataStream(String name, DataStream<T> dataStream);
 
 	/**
-	 * Registers the given {@link DataStream} as table with specified field names in the
-	 * {@link TableEnvironment}'s catalog.
-	 * Registered tables can be referenced in SQL queries.
+	 * Creates a view from the given {@link DataStream} in a given path.
+	 * Registered views can be referenced in SQL queries.
 	 *
-	 * Example:
+	 * <p>The field names of the {@link Table} are automatically derived
+	 * from the type of the {@link DataStream}.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the {@link DataStream} is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataStream The {@link DataStream} out of which to create the view.
+	 * @param <T> The type of the {@link DataStream}.
+	 */
+	<T> void createTemporaryView(String path, DataStream<T> dataStream);
+
+	/**
+	 * Creates a view from the given {@link DataStream} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   DataStream<Tuple2<String, Long>> set = ...
-	 *   tableEnv.registerDataStream("myTable", set, "a, b")
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   tableEnv.registerDataStream("myTable", stream, "a, b")
 	 * }
 	 * </pre>
 	 *
+	 * <p>The view is registered in the namespace of the current catalog and database. To register the view in
+	 * a different catalog use {@link #createTemporaryView(String, DataStream)}.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name The name under which the {@link DataStream} is registered in the catalog.
 	 * @param dataStream The {@link DataStream} to register.
-	 * @param fields The field names of the registered table.
+	 * @param fields The field names of the registered view.
 	 * @param <T> The type of the {@link DataStream} to register.
+	 * @deprecated use {@link #createTemporaryView(String, DataStream, String)}
 	 */
+	@Deprecated
 	<T> void registerDataStream(String name, DataStream<T> dataStream, String fields);
+
+	/**
+	 * Creates a view from the given {@link DataStream} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   tableEnv.createTemporaryView("cat.db.myTable", stream, "a, b")
+	 * }
+	 * </pre>
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the {@link DataStream} is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataStream The {@link DataStream} out of which to create the view.
+	 * @param fields The field names of the created view.
+	 * @param <T> The type of the {@link DataStream}.
+	 */
+	<T> void createTemporaryView(String path, DataStream<T> dataStream, String fields);
 
 	/**
 	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
 	 *
-	 * The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
+	 * <p>The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
 	 * by update or delete changes, the conversion will fail.
 	 *
 	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
@@ -267,7 +327,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	/**
 	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
 	 *
-	 * The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
+	 * <p>The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
 	 * by update or delete changes, the conversion will fail.
 	 *
 	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
@@ -443,7 +503,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 *       .field("count", "DECIMAL")
 	 *       .field("proc-time", "TIMESTAMP").proctime())
 	 *   .inAppendMode()
-	 *   .registerSource("MyTable")
+	 *   .createTemporaryTable("MyTable")
 	 * }
 	 * </pre>
 	 *
@@ -489,7 +549,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
 	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
 	 *        {@link Table} is written.
+	 * @deprecated use {@link #insertInto(String, Table)}
 	 */
+	@Deprecated
 	void insertInto(Table table, StreamQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
 
 	/**

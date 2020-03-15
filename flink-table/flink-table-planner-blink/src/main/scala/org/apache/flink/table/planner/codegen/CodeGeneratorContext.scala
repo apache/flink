@@ -108,6 +108,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   private var currentMethodNameForLocalVariables = "DEFAULT"
 
+  /**
+   * Flag that indicates whether the generated code is split into several methods.
+   */
+  private var isCodeSplit = false
+
   // map of local variable statements. It will be placed in method if method code not excess
   // max code length, otherwise will be placed in member area of the class. The statements
   // are maintained for multiple methods, so that it's a map from method_name to variables.
@@ -143,6 +148,13 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableLocalVariableStatements(methodName) = mutable.LinkedHashSet[String]()
   }
 
+  /**
+   * Set the flag [[isCodeSplit]] to be true, which indicates the generated code is split into
+   * several methods.
+   */
+  def setCodeSplit(): Unit = {
+    isCodeSplit = true
+  }
 
   /**
     * Adds a reusable local variable statement with the given type term and field name.
@@ -197,7 +209,15 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         (e.g. member variables and their initialization)
     */
   def reuseMemberCode(): String = {
-    reusableMemberStatements.mkString("\n")
+    val result = reusableMemberStatements.mkString("\n")
+    if (isCodeSplit) {
+      val localVariableAsMember = reusableLocalVariableStatements.map(
+        statements => statements._2.map("private " + _).mkString("\n")
+      ).mkString("\n")
+      result + "\n" + localVariableAsMember
+    } else {
+      result
+    }
   }
 
   /**
@@ -205,7 +225,9 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         if generated code is split or in local variables of method
     */
   def reuseLocalVariableCode(methodName: String = null): String = {
-    if (methodName == null) {
+    if (isCodeSplit) {
+      GeneratedExpression.NO_CODE
+    } else if (methodName == null) {
       reusableLocalVariableStatements(currentMethodNameForLocalVariables).mkString("\n")
     } else {
       reusableLocalVariableStatements(methodName).mkString("\n")
@@ -408,9 +430,13 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   def addReusableTimestamp(): String = {
     val fieldTerm = s"timestamp"
+
+    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
+
     val field =
       s"""
-         |final long $fieldTerm = java.lang.System.currentTimeMillis();
+         |$fieldTerm =
+         |  $SQL_TIMESTAMP.fromEpochMillis(java.lang.System.currentTimeMillis());
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -431,7 +457,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
     val field =
       s"""
-         |$fieldTerm = (int) ($timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+         |$fieldTerm = (int) ($timestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
          |if (time < 0) {
          |  time += ${DateTimeUtils.MILLIS_PER_DAY};
          |}
@@ -449,12 +475,14 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val timestamp = addReusableTimestamp()
 
     // declaration
-    reusableMemberStatements.add(s"private long $fieldTerm;")
+    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
 
     // assignment
     val field =
       s"""
-         |$fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset($timestamp);
+         |$fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(
+         |  $timestamp.getMillisecond() +
+         |  java.util.TimeZone.getDefault().getOffset($timestamp.getMillisecond()));
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -475,7 +503,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
     val field =
     s"""
-       |$fieldTerm = (int) ($localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+       |$fieldTerm = (int) ($localtimestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
        |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -497,7 +525,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
     val field =
       s"""
-         |$fieldTerm = (int) ($timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
+         |$fieldTerm = (int) ($timestamp.getMillisecond() / ${DateTimeUtils.MILLIS_PER_DAY});
          |if ($time < 0) {
          |  $fieldTerm -= 1;
          |}
@@ -611,7 +639,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
       contextTerm: String = null): String = {
-    val classQualifier = function.getClass.getCanonicalName
+    val classQualifier = function.getClass.getName
     val fieldTerm = CodeGenUtils.udfFieldName(function)
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)

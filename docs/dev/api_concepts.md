@@ -216,8 +216,19 @@ Once you specified the complete program you need to **trigger the program execut
 Depending on the type of the `ExecutionEnvironment` the execution will be triggered on your local
 machine or submit your program for execution on a cluster.
 
-The `execute()` method is returning a `JobExecutionResult`, this contains execution
+The `execute()` method will wait for the job to finish and then return a `JobExecutionResult`, this contains execution
 times and accumulator results.
+
+If you don't want to wait for the job to finish, you can trigger asynchronous job execution by calling
+`executeAysnc()` on the `StreamExecutionEnvironment`. It will return a `JobClient` with which you can
+communicate with the job you just submitted. For instance, here is how to implement the semantics
+of `execute()` by using `executeAsync()`.
+
+{% highlight java %}
+final JobClient jobClient = env.executeAsync();
+
+final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+{% endhighlight %}
 
 Please see the [Streaming Guide]({{ site.baseurl }}/dev/datastream_api.html)
 for information about streaming data sources and sink and for more in-depths information

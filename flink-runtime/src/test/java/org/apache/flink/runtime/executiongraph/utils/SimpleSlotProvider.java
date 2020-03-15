@@ -77,7 +77,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i),
 				0,
 				taskManagerGateway,
-				ResourceProfile.UNKNOWN);
+				ResourceProfile.ANY);
 			slots.add(as);
 		}
 
@@ -89,7 +89,6 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
-			boolean allowQueued,
 			Time allocationTimeout) {
 		final SlotContext slot;
 
@@ -106,12 +105,12 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 					.setSlotNumber(slot.getPhysicalSlotNumber())
 					.setAllocationId(slot.getAllocationId())
 					.setSlotRequestId(slotRequestId)
+					.setSlotSharingGroupId(task.getSlotSharingGroupId())
 					.setSlotOwner(this)
 					.createTestingLogicalSlot();
 				allocatedSlots.put(slotRequestId, slot);
 				return CompletableFuture.completedFuture(result);
-			}
-			else {
+			} else {
 				return FutureUtils.completedExceptionally(new NoResourceAvailableException());
 			}
 		}
@@ -138,7 +137,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				logicalSlot.getTaskManagerLocation(),
 				logicalSlot.getPhysicalSlotNumber(),
 				logicalSlot.getTaskManagerGateway(),
-				ResourceProfile.UNKNOWN);
+				ResourceProfile.ANY);
 
 			slots.add(as);
 			allocatedSlots.remove(logicalSlot.getSlotRequestId());

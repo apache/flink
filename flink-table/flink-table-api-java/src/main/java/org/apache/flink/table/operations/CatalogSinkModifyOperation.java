@@ -19,11 +19,11 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,27 +33,28 @@ import java.util.Map;
 @Internal
 public class CatalogSinkModifyOperation implements ModifyOperation {
 
+	private final ObjectIdentifier tableIdentifier;
 	private final Map<String, String> staticPartitions;
-	private final List<String> tablePath;
 	private final QueryOperation child;
 	private final boolean overwrite;
 
-	public CatalogSinkModifyOperation(List<String> tablePath, QueryOperation child) {
-		this(tablePath, child, new HashMap<>(), false);
+	public CatalogSinkModifyOperation(ObjectIdentifier tableIdentifier, QueryOperation child) {
+		this(tableIdentifier, child, new HashMap<>(), false);
 	}
 
-	public CatalogSinkModifyOperation(List<String> tablePath,
+	public CatalogSinkModifyOperation(
+			ObjectIdentifier tableIdentifier,
 			QueryOperation child,
 			Map<String, String> staticPartitions,
 			boolean overwrite) {
-		this.tablePath = tablePath;
+		this.tableIdentifier = tableIdentifier;
 		this.child = child;
 		this.staticPartitions = staticPartitions;
 		this.overwrite = overwrite;
 	}
 
-	public List<String> getTablePath() {
-		return tablePath;
+	public ObjectIdentifier getTableIdentifier() {
+		return tableIdentifier;
 	}
 
 	public Map<String, String> getStaticPartitions() {
@@ -77,7 +78,7 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("tablePath", tablePath);
+		params.put("identifier", tableIdentifier);
 		params.put("staticPartitions", staticPartitions);
 		params.put("overwrite", overwrite);
 

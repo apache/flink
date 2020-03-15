@@ -16,6 +16,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testMiniBatchOnDataStreamWithRowTime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT long,
+  COUNT(str) as cnt,
+  TUMBLE_END(rowtime, INTERVAL '10' SECOND) as rt
+FROM T1
+GROUP BY long, TUMBLE(rowtime, INTERVAL '10' SECOND)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(long=[$0], cnt=[$2], rt=[TUMBLE_END($1)])
++- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
+   +- LogicalProject(long=[$0], $f1=[TUMBLE($3, 10000:INTERVAL SECOND)], str=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[long, cnt, w$end AS rt])
++- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 10000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, COUNT(str) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+   +- Exchange(distribution=[hash[long]])
+      +- Calc(select=[long, rowtime, str])
+         +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, str, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMiniBatchOnly">
     <Resource name="sql">
       <![CDATA[SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable1 GROUP BY b]]>
@@ -33,7 +61,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
 +- Exchange(distribution=[hash[b]])
    +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
       +- Calc(select=[b, a, c])
-         +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], miniBatchInterval=[Proctime, 1000ms])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -62,9 +90,9 @@ LogicalProject(b=[$0], EXPR$1=[$2], EXPR$2=[TUMBLE_START($1)], EXPR$3=[TUMBLE_EN
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT($2)])
    +- LogicalProject(b=[$1], $f1=[TUMBLE($4, 5000:INTERVAL SECOND)], a=[$0])
       +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 5000:INTERVAL SECOND)), <=($4, +($9, 10000:INTERVAL SECOND)))], joinType=[inner])
-         :- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+         :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-         +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -77,11 +105,11 @@ Calc(select=[b, EXPR$1, w$start AS EXPR$2, w$end AS EXPR$3])
          +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 5000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
             :- Exchange(distribution=[hash[a]])
             :  +- Calc(select=[a, b, rowtime])
-            :     +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+            :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
             :        +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, rowtime])
-                  +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
                      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -122,12 +150,12 @@ LogicalProject(b=[$0], EXPR$1=[COUNT($1) OVER (PARTITION BY $0 ORDER BY $2 NULLS
    :- LogicalProject(b=[$0], a=[$2], rt=[TUMBLE_ROWTIME($1)])
    :  +- LogicalAggregate(group=[{0, 1}], a=[COUNT($2)])
    :     +- LogicalProject(b=[$1], $f1=[TUMBLE($4, 5000:INTERVAL SECOND)], a=[$0])
-   :        +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+   :        +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
    :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalProject(b=[$0], a=[$2], rt=[HOP_ROWTIME($1)])
       +- LogicalAggregate(group=[{0, 1}], a=[COUNT($2)])
          +- LogicalProject(b=[$1], $f1=[HOP($4, 5000:INTERVAL SECOND, 6000:INTERVAL SECOND)], a=[$0])
-            +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -143,14 +171,14 @@ Calc(select=[b, w0$o0 AS $1])
             :     +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             :        +- Exchange(distribution=[hash[b]])
             :           +- Calc(select=[b, rowtime, a])
-            :              +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+            :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
             :                 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[b, a, w$rowtime AS rt])
                   +- GroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, rowtime, 6000, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
                      +- Exchange(distribution=[hash[b]])
                         +- Calc(select=[b, rowtime, a])
-                           +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+                           +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
                               +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -187,21 +215,21 @@ LogicalProject(a=[$0], b=[$1])
       +- LogicalProject(b=[$0], a=[$2])
          +- LogicalAggregate(group=[{0, 1}], a=[COUNT($2)])
             +- LogicalProject(b=[$1], $f1=[HOP($4, 5000:INTERVAL SECOND, 6000:INTERVAL SECOND)], a=[$0])
-               +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- Join(joinType=[InnerJoin], where=[=(a0, a1)], select=[a, b, a0, b0, a1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a0, a1)], select=[a, b, a0, b0, a1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[a0]])
    :  +- Calc(select=[a, b, CAST(a) AS a0])
    :     +- GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count$0) AS b])
    :        +- Exchange(distribution=[hash[a]])
    :           +- LocalGroupAggregate(groupBy=[a], select=[a, COUNT(b) AS count$0])
    :              +- Calc(select=[a, b])
-   :                 +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], miniBatchInterval=[Proctime, 6000ms])
+   :                 +- MiniBatchAssigner(interval=[6000ms], mode=[ProcTime])
    :                    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(count1$0) AS a])
@@ -210,7 +238,7 @@ Calc(select=[a, b])
                +- GroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, rowtime, 6000, 5000)], select=[b, COUNT(a) AS a])
                   +- Exchange(distribution=[hash[b]])
                      +- Calc(select=[b, rowtime, a])
-                        +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
                            +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -218,94 +246,88 @@ Calc(select=[a, b])
   <TestCase name="testMultipleWindowAggregates">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[appendSink1], fields=[a, b])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- LogicalProject(id1=[$1], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject($f0=[HOP($2, 12000:INTERVAL SECOND, 4000:INTERVAL SECOND)], id1=[$0], text=[$1], $f3=[_UTF-16LE'*'])
-         +- LogicalProject(id1=[$1], text=[$2], ts=[TUMBLE_ROWTIME($0)])
-            +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
-               +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
-                  +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
-                     +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
-                        +- LogicalJoin(condition=[true], joinType=[inner])
-                           :- LogicalWatermarkAssigner(fields=[id1, rowtime, text], rowtimeField=[rowtime], watermarkDelay=[0])
-                           :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-                           +- LogicalWatermarkAssigner(fields=[id2, rowtime, cnt, name, goods], rowtimeField=[rowtime], watermarkDelay=[0])
-                              +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject($f0=[HOP(TUMBLE_ROWTIME($0), 12000:INTERVAL SECOND, 4000:INTERVAL SECOND)], id1=[$1], text=[$2], $f3=[_UTF-16LE'*'])
+         +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
+            +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
+               +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
+                  +- LogicalJoin(condition=[true], joinType=[inner])
+                     :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
+                     :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+                     +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(name=[appendSink2], fields=[a, b])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- LogicalProject(id1=[$1], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject($f0=[TUMBLE($1, 9000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'-'])
-         +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
+         +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
+               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
++- LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
+   +- LogicalProject(id1=[$1], text=[$2])
+      +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
+         +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
             +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
                +- LogicalJoin(condition=[true], joinType=[inner])
-                  :- LogicalWatermarkAssigner(fields=[id1, rowtime, text], rowtimeField=[rowtime], watermarkDelay=[0])
+                  :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
                   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-                  +- LogicalWatermarkAssigner(fields=[id2, rowtime, cnt, name, goods], rowtimeField=[rowtime], watermarkDelay=[0])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(name=[appendSink3], fields=[a, b])
-+- LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
-   +- LogicalProject(id1=[$0], text=[$1])
-      +- LogicalProject(id1=[$1], text=[$2], ts=[TUMBLE_ROWTIME($0)])
-         +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
-            +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
-               +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
-                  +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
-                     +- LogicalJoin(condition=[true], joinType=[inner])
-                        :- LogicalWatermarkAssigner(fields=[id1, rowtime, text], rowtimeField=[rowtime], watermarkDelay=[0])
-                        :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-                        +- LogicalWatermarkAssigner(fields=[id2, rowtime, cnt, name, goods], rowtimeField=[rowtime], watermarkDelay=[0])
-                           +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-
 == Optimized Logical Plan ==
-Calc(select=[id1, rowtime AS ts, text], reuse_id=[1])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods])
-   :- Exchange(distribution=[hash[id1]])
-   :  +- WatermarkAssigner(fields=[id1, rowtime, text], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
-   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
-   +- Exchange(distribution=[hash[id2]])
-      +- WatermarkAssigner(fields=[id2, rowtime, cnt, name, goods], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
-         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
+WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods], reuse_id=[1])
+:- Exchange(distribution=[hash[id1]])
+:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+:     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
++- Exchange(distribution=[hash[id2]])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+      +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
 
-GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 6000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], reuse_id=[2])
-+- Exchange(distribution=[hash[id1]])
-   +- Calc(select=[ts, id1, text, _UTF-16LE'#' AS $f3])
-      +- Reused(reference_id=[1])
+Exchange(distribution=[hash[id1]], reuse_id=[2])
++- Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
+   +- Reused(reference_id=[1])
 
-Sink(name=[appendSink1], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+Sink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, $f0, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[w$rowtime AS ts, id1, text, _UTF-16LE'*' AS $f3])
-         +- Reused(reference_id=[2])
+      +- Calc(select=[w$rowtime AS $f0, id1, text, _UTF-16LE'*' AS $f3])
+         +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+            +- Reused(reference_id=[2])
 
-Sink(name=[appendSink2], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 9000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+Sink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 9000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[ts, id1, text, _UTF-16LE'-' AS $f3])
+      +- Calc(select=[rowtime, id1, text, _UTF-16LE'-' AS $f3])
          +- Reused(reference_id=[1])
 
-Sink(name=[appendSink3], fields=[a, b])
+Sink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
 +- GlobalGroupAggregate(groupBy=[id1], select=[id1, COUNT(count$0) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- LocalGroupAggregate(groupBy=[id1], select=[id1, COUNT(text) AS count$0])
-         +- Calc(select=[id1, text])
+         +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], select=[id1, LISTAGG(text, $f3) AS text])
             +- Reused(reference_id=[2])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, rowtime, text])
 		ship_strategy : FORWARD
 
 		 : Operator
-			content : WatermarkAssigner(fields=[id1, rowtime, text], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+			content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 			ship_strategy : FORWARD
 
 			 : Operator
@@ -313,7 +335,7 @@ Sink(name=[appendSink3], fields=[a, b])
 				ship_strategy : FORWARD
 
 				 : Operator
-					content : WatermarkAssigner(fields=[id2, rowtime, cnt, name, goods], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+					content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 					ship_strategy : FORWARD
 
 					 : Operator
@@ -321,59 +343,59 @@ Sink(name=[appendSink3], fields=[a, b])
 						ship_strategy : HASH
 
 						 : Operator
-							content : Calc(select=[id1, rowtime AS ts, text])
+							content : Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
 							ship_strategy : FORWARD
 
 							 : Operator
-								content : Calc(select=[ts, id1, text, _UTF-16LE'#' AS $f3])
-								ship_strategy : FORWARD
+								content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+								ship_strategy : HASH
 
 								 : Operator
-									content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 6000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
-									ship_strategy : HASH
+									content : Calc(select=[w$rowtime AS $f0, id1, text, _UTF-16LE'*' AS $f3])
+									ship_strategy : FORWARD
 
 									 : Operator
-										content : Calc(select=[w$rowtime AS ts, id1, text, _UTF-16LE'*' AS $f3])
-										ship_strategy : FORWARD
+										content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, $f0, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+										ship_strategy : HASH
 
 										 : Operator
-											content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-											ship_strategy : HASH
+											content : SinkConversionToRow
+											ship_strategy : FORWARD
 
 											 : Operator
-												content : SinkConversionToRow
+												content : Calc(select=[rowtime, id1, text, _UTF-16LE'-' AS $f3])
 												ship_strategy : FORWARD
 
 												 : Operator
-													content : Calc(select=[ts, id1, text, _UTF-16LE'-' AS $f3])
-													ship_strategy : FORWARD
+													content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 9000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+													ship_strategy : HASH
 
 													 : Operator
-														content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 9000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-														ship_strategy : HASH
+														content : SinkConversionToRow
+														ship_strategy : FORWARD
 
 														 : Operator
-															content : SinkConversionToRow
-															ship_strategy : FORWARD
+															content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], select=[id1, LISTAGG(text, $f3) AS text])
+															ship_strategy : HASH
 
 															 : Operator
-																content : Calc(select=[id1, text])
+																content : LocalGroupAggregate(groupBy=[id1], select=[id1, COUNT(text) AS count$0])
 																ship_strategy : FORWARD
 
 																 : Operator
-																	content : LocalGroupAggregate(groupBy=[id1], select=[id1, COUNT(text) AS count$0])
-																	ship_strategy : FORWARD
+																	content : GlobalGroupAggregate(groupBy=[id1], select=[id1, COUNT(count$0) AS EXPR$1])
+																	ship_strategy : HASH
 
 																	 : Operator
-																		content : GlobalGroupAggregate(groupBy=[id1], select=[id1, COUNT(count$0) AS EXPR$1])
-																		ship_strategy : HASH
+																		content : SinkConversionToTuple2
+																		ship_strategy : FORWARD
 
 																		 : Operator
-																			content : SinkConversionToTuple2
+																			content : Map
 																			ship_strategy : FORWARD
 
-																			 : Operator
-																				content : Map
+																			 : Data Sink
+																				content : Sink: TestingAppendTableSink
 																				ship_strategy : FORWARD
 
 																				 : Data Sink
@@ -381,13 +403,42 @@ Sink(name=[appendSink3], fields=[a, b])
 																					ship_strategy : FORWARD
 
 																					 : Data Sink
-																						content : Sink: TestingAppendTableSink
+																						content : Sink: TestingRetractTableSink
 																						ship_strategy : FORWARD
 
-																						 : Data Sink
-																							content : Sink: TestingRetractTableSink
-																							ship_strategy : FORWARD
-
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverWindowMiniBatchOnDataStreamWithRowTime">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT cnt, COUNT(`int`)
+ FROM (
+   SELECT `int`,
+    COUNT(str) OVER
+      (PARTITION BY long ORDER BY rowtime ROWS BETWEEN 5 preceding AND CURRENT ROW) as cnt
+   FROM T1
+ )
+ GROUP BY cnt
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
++- LogicalProject(cnt=[COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)], int=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
++- Exchange(distribution=[hash[cnt]])
+   +- LocalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(int) AS count$0])
+      +- Calc(select=[w0$o0 AS cnt, int])
+         +- OverAggregate(partitionBy=[long], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[long, int, str, rowtime, COUNT(str) AS w0$o0])
+            +- Exchange(distribution=[hash[long]])
+               +- MiniBatchAssigner(interval=[3000ms], mode=[RowTime])
+                  +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, str, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -399,7 +450,7 @@ Sink(name=[appendSink3], fields=[a, b])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
 +- LogicalProject(b=[$1], a=[$0], c=[$2])
-   +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -409,8 +460,9 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
 +- Exchange(distribution=[hash[b]])
    +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
       +- Calc(select=[b, a, c])
-         +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[Proctime, 1000ms])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -430,7 +482,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- LogicalProject(cnt=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)], c=[$2])
-   +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -443,8 +495,53 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
          +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
             +- Exchange(distribution=[hash[c]])
                +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[Rowtime, 1000ms])
-                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                        +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalTableFunctionJoinWithMiniBatch">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT r_a, COUNT(o_a)
+ FROM (
+   SELECT o.a as o_a, r.a as r_a
+   FROM Orders As o,
+   LATERAL TABLE (Rates(o.rowtime)) as r
+   WHERE o.b = r.b
+ )
+ GROUP BY r_a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
++- LogicalProject(r_a=[$5], o_a=[$0])
+   +- LogicalFilter(condition=[=($1, $6)])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{4}])
+         :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+         +- LogicalTableFunctionScan(invocation=[Rates($cor0.rowtime)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIME ATTRIBUTE(PROCTIME) proctime, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(count$0) AS EXPR$1])
++- Exchange(distribution=[hash[r_a]])
+   +- LocalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(o_a) AS count$0])
+      +- Calc(select=[a0 AS r_a, a AS o_a])
+         +- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, b0), =(b, b0))], select=[a, b, rowtime, a0, b0, rowtime0])
+            :- Exchange(distribution=[hash[b]])
+            :  +- Calc(select=[a, b, rowtime])
+            :     +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+            :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+            :           +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[hash[b]])
+               +- Calc(select=[a, b, rowtime])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                        +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -468,9 +565,9 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- LogicalProject(b=[$1], a=[$0])
    +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 5000:INTERVAL SECOND)), <=($4, +($9, 10000:INTERVAL SECOND)))], joinType=[inner])
-      :- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+      :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-      +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -483,12 +580,14 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(count$0) AS EXPR$1])
          +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 5000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
             :- Exchange(distribution=[hash[a]])
             :  +- Calc(select=[a, b, rowtime])
-            :     +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[Rowtime, 1000ms])
-            :        +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
+            :     +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+            :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+            :           +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, rowtime])
-                  +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[Rowtime, 1000ms])
-                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                        +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -514,7 +613,7 @@ LogicalProject(b=[$0], EXPR$1=[$2])
    +- LogicalProject(b=[$0], $f1=[TUMBLE(TUMBLE_ROWTIME($1), 5000:INTERVAL SECOND)], cnt=[$2])
       +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
          +- LogicalProject(b=[$1], $f1=[TUMBLE($4, 10000:INTERVAL SECOND)], a=[$0])
-            +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -526,7 +625,7 @@ GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, $f1, 5000)], 
       +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 10000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
          +- Exchange(distribution=[hash[b]])
             +- Calc(select=[b, rowtime, a])
-               +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
                   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -552,7 +651,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
 +- LogicalProject(b=[$0], cnt=[$2])
    +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
       +- LogicalProject(b=[$1], $f1=[HOP($4, 5000:INTERVAL SECOND, 6000:INTERVAL SECOND)], a=[$0])
-         +- LogicalWatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -564,7 +663,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, $SUM0_RETRACT(sum$0) AS EXPR$1])
       +- GroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, rowtime, 6000, 5000)], select=[b, COUNT(a) AS cnt], emit=[early delay 500 millisecond])
          +- Exchange(distribution=[hash[b]])
             +- Calc(select=[b, rowtime, a])
-               +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
                   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

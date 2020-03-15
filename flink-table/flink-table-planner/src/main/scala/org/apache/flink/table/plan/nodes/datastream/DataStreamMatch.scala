@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import java.lang.{Boolean => JBoolean, Long => JLong}
 import java.util
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel._
@@ -43,6 +42,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.windowing.time.Time
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.MatchCodeGenerator
@@ -50,6 +50,7 @@ import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.CommonMatchRecognize
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
 import org.apache.flink.table.plan.util.RexDefaultVisitor
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.`match`._
@@ -59,6 +60,8 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{RowKeySelector, RowtimeProcessFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.MathUtils
+
+import org.apache.calcite.util.ImmutableBitSet
 
 /**
   * Flink RelNode which matches along with LogicalMatch.
@@ -73,6 +76,11 @@ class DataStreamMatch(
   extends SingleRel(cluster, traitSet, inputNode)
   with CommonMatchRecognize
   with DataStreamRel {
+
+  if (logicalMatch.measures.values().exists(containsPythonCall) ||
+    logicalMatch.patternDefinitions.values().exists(containsPythonCall)) {
+    throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
+  }
 
   override def needsUpdatesAsRetraction = true
 
@@ -236,12 +244,10 @@ class DataStreamMatch(
     }
   }
 
-  private def applyPartitioning(partitionKeys: util.List[RexNode], inputDs: DataStream[Row])
+  private def applyPartitioning(partitionKeys: ImmutableBitSet, inputDs: DataStream[Row])
     : DataStream[Row] = {
     if (partitionKeys.size() > 0) {
-      val keys = partitionKeys.asScala.map {
-        case ref: RexInputRef => ref.getIndex
-      }.toArray
+      val keys = partitionKeys.toArray
       val keySelector = new RowKeySelector(keys, inputSchema.projectedTypeInfo(keys))
       inputDs.keyBy(keySelector)
     } else {

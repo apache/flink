@@ -74,7 +74,8 @@ make_binary_release() {
   # enable release profile here (to check for the maven version)
   $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
-  cd flink-dist/target/flink-*-bin/
+  cd flink-dist/target/flink-${RELEASE_VERSION}-bin
+  ${FLINK_DIR}/tools/releasing/collect_license_files.sh ./flink-${RELEASE_VERSION} ./flink-${RELEASE_VERSION}
   tar czf "${dir_name}.tgz" flink-*
 
   cp flink-*.tgz ${RELEASE_DIR}
@@ -91,7 +92,11 @@ make_binary_release() {
 
 make_python_release() {
   cd flink-python/
+  # use lint-python.sh script to create a python environment.
+  dev/lint-python.sh -s basic
+  source dev/.conda/bin/activate
   python setup.py sdist
+  conda deactivate
   cd dist/
   pyflink_actual_name=`echo *.tar.gz`
   PYFLINK_VERSION=${RELEASE_VERSION/-SNAPSHOT/.dev0}

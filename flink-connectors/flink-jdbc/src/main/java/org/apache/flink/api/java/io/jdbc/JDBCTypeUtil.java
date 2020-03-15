@@ -22,7 +22,13 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,7 +57,7 @@ class JDBCTypeUtil {
 		m.put(SHORT_TYPE_INFO, Types.SMALLINT);
 		m.put(INT_TYPE_INFO, Types.INTEGER);
 		m.put(LONG_TYPE_INFO, Types.BIGINT);
-		m.put(FLOAT_TYPE_INFO, Types.FLOAT);
+		m.put(FLOAT_TYPE_INFO, Types.REAL);
 		m.put(DOUBLE_TYPE_INFO, Types.DOUBLE);
 		m.put(SqlTimeTypeInfo.DATE, Types.DATE);
 		m.put(SqlTimeTypeInfo.TIME, Types.TIME);
@@ -100,4 +106,31 @@ class JDBCTypeUtil {
 		return SQL_TYPE_NAMES.get(typeInformationToSqlType(type));
 	}
 
+	/**
+	 * The original table schema may contain generated columns which shouldn't be produced/consumed
+	 * by TableSource/TableSink. And the original TIMESTAMP/DATE/TIME types uses LocalDateTime/LocalDate/LocalTime
+	 * as the conversion classes, however, JDBC connector uses Timestamp/Date/Time classes. So that
+	 * we bridge them to the expected conversion classes.
+	 */
+	static TableSchema normalizeTableSchema(TableSchema schema) {
+		TableSchema.Builder physicalSchemaBuilder = TableSchema.builder();
+		schema.getTableColumns()
+			.forEach(c -> {
+				if (!c.isGenerated()) {
+					LogicalTypeRoot root = c.getType().getLogicalType().getTypeRoot();
+					final DataType type;
+					if (root == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
+						type = c.getType().bridgedTo(Timestamp.class);
+					} else if (root == LogicalTypeRoot.DATE) {
+						type = c.getType().bridgedTo(Date.class);
+					} else if (root == LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE) {
+						type = c.getType().bridgedTo(Time.class);
+					} else {
+						type = c.getType();
+					}
+					physicalSchemaBuilder.field(c.getName(), type);
+				}
+			});
+		return physicalSchemaBuilder.build();
+	}
 }

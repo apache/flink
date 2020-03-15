@@ -27,7 +27,7 @@ DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a,
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -53,7 +53,7 @@ Calc(select=[EXPR$0], updateAsRetraction=[false], accMode=[Acc]): rowcount = , c
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -85,7 +85,7 @@ DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a,
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -105,7 +105,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
@@ -125,7 +125,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
@@ -151,7 +151,7 @@ Calc(select=[EXPR$0])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -185,7 +185,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -211,7 +211,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], updateAsRetraction=[false], accM
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -243,10 +243,10 @@ Calc(select=[a, b, c, e, f])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -283,10 +283,10 @@ Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): r
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -318,10 +318,10 @@ Calc(select=[a, b, c, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcoun
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -345,14 +345,14 @@ Calc(select=[a, b, c, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcoun
   <TestCase name="testExplainWithMultiSinks[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[upsertSink1], fields=[a, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalSink(name=[upsertSink2], fields=[a, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -365,17 +365,17 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], reuse_id=[1])
    +- Calc(select=[a])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-Sink(name=[upsertSink1], fields=[a, cnt])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[>(cnt, 10)])
    +- Reused(reference_id=[1])
 
-Sink(name=[upsertSink2], fields=[a, cnt])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[<(cnt, 10)])
    +- Reused(reference_id=[1])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -427,14 +427,14 @@ Sink(name=[upsertSink2], fields=[a, cnt])
   <TestCase name="testExplainWithMultiSinks[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[upsertSink1], fields=[a, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalSink(name=[upsertSink2], fields=[a, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -447,17 +447,17 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[fal
    +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-Sink(name=[upsertSink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[>(cnt, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Reused(reference_id=[1])
 
-Sink(name=[upsertSink2], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[<(cnt, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Reused(reference_id=[1])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -509,19 +509,19 @@ Sink(name=[upsertSink2], fields=[a, cnt], updateAsRetraction=[false], accMode=[A
   <TestCase name="testExplainWithSingleSink[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[appendSink], fields=[a, b, c])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
-Sink(name=[appendSink], fields=[a, b, c])
+Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[>(a, 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -545,19 +545,19 @@ Sink(name=[appendSink], fields=[a, b, c])
   <TestCase name="testExplainWithSingleSink[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[appendSink], fields=[a, b, c])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
-Sink(name=[appendSink], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, b, c], where=[>(a, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -592,7 +592,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -619,7 +619,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], ac
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -635,65 +635,62 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], ac
   <TestCase name="testMiniBatchIntervalInfer[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[appendSink1], fields=[a, b])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[TUMBLE($1, 8000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'#'])
-         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
-            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-               +- LogicalJoin(condition=[true], joinType=[inner])
-                  :- LogicalWatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-                  +- LogicalWatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[TUMBLE($2, 8000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'#'])
+         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(name=[appendSink2], fields=[a, b])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'*'])
-         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
-            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-               +- LogicalJoin(condition=[true], joinType=[inner])
-                  :- LogicalWatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-                  +- LogicalWatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[HOP($2, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'*'])
+         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 == Optimized Logical Plan ==
-Calc(select=[id1, rowtime AS ts, text], updateAsRetraction=[true], accMode=[Acc], reuse_id=[1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   :- Exchange(distribution=[hash[id1]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   :  +- WatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- Exchange(distribution=[hash[id2]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- WatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], updateAsRetraction=[true], accMode=[Acc], reuse_id=[1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:- Exchange(distribution=[hash[id1]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Exchange(distribution=[hash[id2]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-Sink(name=[appendSink1], fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
          +- Reused(reference_id=[1])
 
-Sink(name=[appendSink2], fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
          +- Reused(reference_id=[1])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, text, rowtime])
 		ship_strategy : FORWARD
 
 		 : Operator
-			content : WatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+			content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 			ship_strategy : FORWARD
 
 			 : Operator
@@ -701,7 +698,7 @@ Sink(name=[appendSink2], fields=[a, b], updateAsRetraction=[false], accMode=[Acc
 				ship_strategy : FORWARD
 
 				 : Operator
-					content : WatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+					content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 					ship_strategy : FORWARD
 
 					 : Operator
@@ -709,40 +706,36 @@ Sink(name=[appendSink2], fields=[a, b], updateAsRetraction=[false], accMode=[Acc
 						ship_strategy : HASH
 
 						 : Operator
-							content : Calc(select=[id1, rowtime AS ts, text])
+							content : Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
 							ship_strategy : FORWARD
 
 							 : Operator
-								content : Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3])
-								ship_strategy : FORWARD
+								content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+								ship_strategy : HASH
 
 								 : Operator
-									content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-									ship_strategy : HASH
+									content : SinkConversionToRow
+									ship_strategy : FORWARD
 
 									 : Operator
-										content : SinkConversionToRow
+										content : Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
 										ship_strategy : FORWARD
 
 										 : Operator
-											content : Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3])
-											ship_strategy : FORWARD
+											content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+											ship_strategy : HASH
 
 											 : Operator
-												content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-												ship_strategy : HASH
+												content : SinkConversionToRow
+												ship_strategy : FORWARD
 
-												 : Operator
-													content : SinkConversionToRow
+												 : Data Sink
+													content : Sink: TestingAppendTableSink
 													ship_strategy : FORWARD
 
 													 : Data Sink
 														content : Sink: TestingAppendTableSink
 														ship_strategy : FORWARD
-
-														 : Data Sink
-															content : Sink: TestingAppendTableSink
-															ship_strategy : FORWARD
 
 ]]>
     </Resource>
@@ -763,10 +756,10 @@ Union(all=[true], union=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -782,65 +775,62 @@ Union(all=[true], union=[a, b, c])
   <TestCase name="testMiniBatchIntervalInfer[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[appendSink1], fields=[a, b])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[TUMBLE($1, 8000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'#'])
-         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
-            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-               +- LogicalJoin(condition=[true], joinType=[inner])
-                  :- LogicalWatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-                  +- LogicalWatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[TUMBLE($2, 8000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'#'])
+         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(name=[appendSink2], fields=[a, b])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
-      +- LogicalProject(id1=[$0], $f1=[HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'*'])
-         +- LogicalProject(id1=[$0], ts=[$2], text=[$1])
-            +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
-               +- LogicalJoin(condition=[true], joinType=[inner])
-                  :- LogicalWatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                  :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-                  +- LogicalWatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(id1=[$0], $f1=[HOP($2, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$1], $f3=[_UTF-16LE'*'])
+         +- LogicalFilter(condition=[AND(=($0, $3), >($2, -($7, 300000:INTERVAL MINUTE)), <($2, +($7, 180000:INTERVAL MINUTE)))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL MILLISECOND)])
+               :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 == Optimized Logical Plan ==
-Calc(select=[id1, rowtime AS ts, text], reuse_id=[1])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])
-   :- Exchange(distribution=[hash[id1]])
-   :  +- WatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
-   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
-   +- Exchange(distribution=[hash[id2]])
-      +- WatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
-         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], reuse_id=[1])
+:- Exchange(distribution=[hash[id1]])
+:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+:     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
++- Exchange(distribution=[hash[id2]])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+      +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
-Sink(name=[appendSink1], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+Sink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3])
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
          +- Reused(reference_id=[1])
 
-Sink(name=[appendSink2], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+Sink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3])
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
          +- Reused(reference_id=[1])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, text, rowtime])
 		ship_strategy : FORWARD
 
 		 : Operator
-			content : WatermarkAssigner(fields=[id1, text, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+			content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 			ship_strategy : FORWARD
 
 			 : Operator
@@ -848,7 +838,7 @@ Sink(name=[appendSink2], fields=[a, b])
 				ship_strategy : FORWARD
 
 				 : Operator
-					content : WatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
+					content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 					ship_strategy : FORWARD
 
 					 : Operator
@@ -856,40 +846,36 @@ Sink(name=[appendSink2], fields=[a, b])
 						ship_strategy : HASH
 
 						 : Operator
-							content : Calc(select=[id1, rowtime AS ts, text])
+							content : Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
 							ship_strategy : FORWARD
 
 							 : Operator
-								content : Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3])
-								ship_strategy : FORWARD
+								content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+								ship_strategy : HASH
 
 								 : Operator
-									content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-									ship_strategy : HASH
+									content : SinkConversionToRow
+									ship_strategy : FORWARD
 
 									 : Operator
-										content : SinkConversionToRow
+										content : Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
 										ship_strategy : FORWARD
 
 										 : Operator
-											content : Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3])
-											ship_strategy : FORWARD
+											content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+											ship_strategy : HASH
 
 											 : Operator
-												content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-												ship_strategy : HASH
+												content : SinkConversionToRow
+												ship_strategy : FORWARD
 
-												 : Operator
-													content : SinkConversionToRow
+												 : Data Sink
+													content : Sink: TestingAppendTableSink
 													ship_strategy : FORWARD
 
 													 : Data Sink
 														content : Sink: TestingAppendTableSink
 														ship_strategy : FORWARD
-
-														 : Data Sink
-															content : Sink: TestingAppendTableSink
-															ship_strategy : FORWARD
 
 ]]>
     </Resource>

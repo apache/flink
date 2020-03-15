@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -33,14 +34,14 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 
-import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -54,6 +55,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param slotId slot id for the request
 	 * @param jobId for which to request a slot
 	 * @param allocationId id for the request
+	 * @param resourceProfile of requested slot, used only for dynamic slot allocation and will be ignored otherwise
 	 * @param targetAddress to which to offer the requested slots
 	 * @param resourceManagerId current leader id of the ResourceManager
 	 * @param timeout for the operation
@@ -63,16 +65,14 @@ public interface TaskExecutorGateway extends RpcGateway {
 		SlotID slotId,
 		JobID jobId,
 		AllocationID allocationId,
+		ResourceProfile resourceProfile,
 		String targetAddress,
 		ResourceManagerId resourceManagerId,
 		@RpcTimeout Time timeout);
 
-	CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+	CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
 		ExecutionAttemptID executionAttemptId,
-		int sampleId,
-		int numSamples,
-		Time delayBetweenSamples,
-		int maxStackTraceDepth,
+		int requestId,
 		@RpcTimeout Time timeout);
 
 	/**
@@ -102,12 +102,12 @@ public interface TaskExecutorGateway extends RpcGateway {
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Batch release intermediate result partitions.
-	 *
+	 * Batch release/promote intermediate result partitions.
 	 * @param jobId id of the job that the partitions belong to
-	 * @param partitionIds partition ids to release
+	 * @param partitionToRelease partition ids to release
+	 * @param partitionsToPromote partitions ids to promote
 	 */
-	void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds);
+	void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote);
 
 	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID

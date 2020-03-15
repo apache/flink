@@ -25,6 +25,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListener;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -172,11 +173,10 @@ public class ZooKeeperUtils {
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
-	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 		final CuratorFramework client,
-		final Configuration configuration) throws Exception {
+		final Configuration configuration) {
 		return createLeaderRetrievalService(client, configuration, "");
 	}
 
@@ -346,7 +346,7 @@ public class ZooKeeperUtils {
 
 		checkpointIdCounterPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
-		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath);
+		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath, new DefaultLastStateConnectionStateListener());
 	}
 
 	/**

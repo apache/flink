@@ -19,26 +19,28 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -52,6 +54,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -61,6 +64,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -92,6 +96,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Integration tests for {@link org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore}.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
@@ -207,8 +212,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 		JobID jobID = Preconditions.checkNotNull(jobGraph.getJobID());
 
-		clusterClient.setDetached(true);
-		clusterClient.submitJob(jobGraph, ZooKeeperHighAvailabilityITCase.class.getClassLoader());
+		ClientUtils.submitJob(clusterClient, jobGraph);
 
 		// wait until we did some checkpoints
 		waitForCheckpointLatch.await();
@@ -424,10 +428,10 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 	}
 
 	/**
-	 * Reporter that exposes the {@link NumberOfFullRestartsGauge} metric.
+	 * Reporter that exposes the {@code numRestarts} metric.
 	 */
 	public static class RestartReporter implements MetricReporter {
-		static volatile NumberOfFullRestartsGauge numRestarts = null;
+		static volatile Gauge<Long> numRestarts = null;
 
 		@Override
 		public void open(MetricConfig metricConfig) {
@@ -438,9 +442,9 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		}
 
 		@Override
-		public void notifyOfAddedMetric(Metric metric, String s, MetricGroup metricGroup) {
-			if (metric instanceof NumberOfFullRestartsGauge) {
-				numRestarts = (NumberOfFullRestartsGauge) metric;
+		public void notifyOfAddedMetric(Metric metric, String name, MetricGroup metricGroup) {
+			if (name.equals(MetricNames.NUM_RESTARTS)) {
+				numRestarts = (Gauge<Long>) metric;
 			}
 		}
 

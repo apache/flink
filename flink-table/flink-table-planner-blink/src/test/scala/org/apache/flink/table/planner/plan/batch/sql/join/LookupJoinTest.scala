@@ -23,6 +23,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Assert.{assertTrue, fail}
@@ -105,6 +106,22 @@ class LookupJoinTest extends TableTestBase {
         "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
       classOf[TableException]
     )
+  }
+
+  @Test
+  def testPythonUDFInJoinCondition(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Only inner join condition with equality predicates supports the " +
+      "Python UDF taking the inputs from the left table and the right table at the same time, " +
+      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+    testUtil.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |LEFT OUTER JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id AND D.age = 10 AND pyFunc(D.age, T.a) > 100
+      """.stripMargin
+    testUtil.verifyPlan(sql)
   }
 
   @Test

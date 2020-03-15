@@ -651,19 +651,18 @@ Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(b=[$1], y=[$5])
-+- LogicalJoin(condition=[AND(=($0, $6), $3)], joinType=[left])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[<($1, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
+LogicalProject(b=[$1], y=[$4])
++- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, $f3, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, b, <(b, 2) AS $f3])
+   :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
@@ -1005,21 +1004,20 @@ Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(b=[$1], x=[$3])
-+- LogicalJoin(condition=[AND(=($0, $5), $6)], joinType=[right])
++- LogicalJoin(condition=[AND(=($0, $5), <($3, 2))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject(x=[$0], y=[$1], z=[$2], $f3=[<($0, 2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, x])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, x, z, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- Calc(select=[x, z, <(x, 2) AS $f3])
+      +- Calc(select=[x, z])
          +- TableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
@@ -1061,11 +1059,11 @@ ON (src1.key = src2.key AND src2.key > 10)
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(key=[$0], v=[$1], key0=[$2], v0=[$3])
-+- LogicalJoin(condition=[AND(=($0, $2), $4)], joinType=[left])
++- LogicalJoin(condition=[AND(=($0, $2), >($2, 10))], joinType=[left])
    :- LogicalProject(key=[$0], v=[$1])
    :  +- LogicalFilter(condition=[=($0, 0)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]])
-   +- LogicalProject(key=[$0], v=[$1], $f2=[>($0, 10)])
+   +- LogicalProject(key=[$0], v=[$1])
       +- LogicalFilter(condition=[=($0, 0)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]])
 ]]>

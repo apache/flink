@@ -25,16 +25,16 @@ import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregat
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
-
 import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode, RexProgram, RexWindowBound}
+import org.apache.calcite.rex.{RexCall, RexDigestIncludeType, RexInputRef, RexLiteral, RexNode, RexProgram, RexWindowBound}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
 
+import java.io.{PrintWriter, StringWriter}
 import java.util
 import java.util.{SortedSet => JSortedSet}
 
@@ -65,6 +65,13 @@ object RelExplainUtil {
   def fieldToString(fieldIndices: Array[Int], inputType: RelDataType): String = {
     val fieldNames = inputType.getFieldNames
     fieldIndices.map(fieldNames(_)).mkString(", ")
+  }
+
+  /**
+    * Returns the Java string representation of this literal.
+    */
+  def literalToString(literal: RexLiteral): String = {
+    literal.computeDigest(RexDigestIncludeType.NO_TYPE)
   }
 
   /**

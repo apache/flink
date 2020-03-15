@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -76,7 +77,7 @@ public class CsvOutputFormatITCase extends AbstractTestBase {
 			OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
 			fail("File should exist.");
 		} catch (Exception e) {
-			assertTrue(e.getCause().getMessage().contains("File already exists"));
+			assertTrue(findThrowableWithMessage(e, "File already exists").isPresent());
 		}
 	}
 
@@ -87,7 +88,7 @@ public class CsvOutputFormatITCase extends AbstractTestBase {
 			OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
 			fail("File should exist");
 		} catch (Exception e) {
-			assertTrue(e.getCause().getMessage().contains("File already exists"));
+			assertTrue(findThrowableWithMessage(e, "File already exists").isPresent());
 		}
 	}
 
@@ -98,7 +99,7 @@ public class CsvOutputFormatITCase extends AbstractTestBase {
 			OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, "\n", ",");
 			fail("File should exist.");
 		} catch (Exception e) {
-			assertTrue(e.getCause().getMessage().contains("File already exists"));
+			assertTrue(findThrowableWithMessage(e, "File already exists").isPresent());
 		}
 	}
 

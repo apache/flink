@@ -30,22 +30,28 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link AbstractMetricGroup}.
  */
-public class AbstractMetricGroupTest {
+public class AbstractMetricGroupTest extends TestLogger {
 	/**
 	 * Verifies that no {@link NullPointerException} is thrown when {@link AbstractMetricGroup#getAllVariables()} is
 	 * called and the parent is null.
@@ -68,6 +74,22 @@ public class AbstractMetricGroupTest {
 		assertTrue(group.getAllVariables().isEmpty());
 
 		registry.shutdown().get();
+	}
+
+	@Test
+	public void testGetAllVariablesWithOutExclusions() {
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
+
+		AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
+		assertThat(group.getAllVariables(), IsMapContaining.hasKey(ScopeFormat.SCOPE_HOST));
+	}
+
+	@Test
+	public void testGetAllVariablesWithExclusions() {
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
+
+		AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
+		assertEquals(group.getAllVariables(-1, Collections.singleton(ScopeFormat.SCOPE_HOST)).size(), 0);
 	}
 
 	// ========================================================================
@@ -265,8 +287,8 @@ public class AbstractMetricGroupTest {
 			// no caching should occur
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B));
 			// invalid reporter indices do not throw errors
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1));
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
+			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1, '.'));
+			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2, '.'));
 		} finally {
 			testRegistry.shutdown().get();
 		}
@@ -322,11 +344,6 @@ public class AbstractMetricGroupTest {
 
 		@Override
 		public char getDelimiter() {
-			return 0;
-		}
-
-		@Override
-		public char getDelimiter(int index) {
 			return 0;
 		}
 

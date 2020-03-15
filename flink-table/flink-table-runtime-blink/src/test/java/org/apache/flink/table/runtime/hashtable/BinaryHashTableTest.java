@@ -22,11 +22,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -132,7 +132,7 @@ public class BinaryHashTableTest {
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
-		MemoryManager memManager = new MemoryManager(896 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 		// ----------------------------------------------------------------------------------------
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer, this.probeSideSerializer,
@@ -218,7 +218,11 @@ public class BinaryHashTableTest {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memManager = new MemoryManager(200 * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+		MemoryManager memManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(200 * PAGE_SIZE)
+			.setPageSize(PAGE_SIZE)
+			.build();
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer,
 				this.probeSideSerializer,
@@ -257,7 +261,7 @@ public class BinaryHashTableTest {
 		HashMap<Integer, Long> map = new HashMap<>(numKeys);
 
 		// ----------------------------------------------------------------------------------------
-		MemoryManager memManager = new MemoryManager(896 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer, this.probeSideSerializer,
 				new MyProjection(), new MyProjection(), memManager,
@@ -332,7 +336,7 @@ public class BinaryHashTableTest {
 
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<>(numKeys);
-		MemoryManager memManager = new MemoryManager(896 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 		// ----------------------------------------------------------------------------------------
 
 		final BinaryHashTable table = newBinaryHashTable(
@@ -450,7 +454,7 @@ public class BinaryHashTableTest {
 		HashMap<Integer, Long> map = new HashMap<>(numKeys);
 
 		// ----------------------------------------------------------------------------------------
-		MemoryManager memManager = new MemoryManager(896 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer, this.probeSideSerializer,
 				new MyProjection(), new MyProjection(), memManager,
@@ -529,7 +533,7 @@ public class BinaryHashTableTest {
 		probes.add(probe3);
 		MutableObjectIterator<BinaryRow> probeInput = new UnionIterator<>(probes);
 		// ----------------------------------------------------------------------------------------
-		MemoryManager memManager = new MemoryManager(896 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer, this.probeSideSerializer,
 				new MyProjection(), new MyProjection(), memManager,
@@ -562,7 +566,7 @@ public class BinaryHashTableTest {
 
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(
 				numBuildKeys, numBuildVals, false);
-		MemoryManager memManager = new MemoryManager(128 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(128 * PAGE_SIZE).build();
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer, this.probeSideSerializer,
 				new MyProjection(), new MyProjection(), memManager,
@@ -593,7 +597,7 @@ public class BinaryHashTableTest {
 
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(
 				numBuildKeys, numBuildVals, false);
-		MemoryManager memManager = new MemoryManager(96 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(96 * PAGE_SIZE).build();
 		final BinaryHashTable table = new BinaryHashTable(conf, new Object(),
 				this.buildSideSerializer, this.probeSideSerializer,
 				new MyProjection(), new MyProjection(), memManager, 96 * PAGE_SIZE,
@@ -622,7 +626,7 @@ public class BinaryHashTableTest {
 		final int numProbeVals = 1;
 
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numBuildKeys, numBuildVals, false);
-		MemoryManager memManager = new MemoryManager(85 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(85 * PAGE_SIZE).build();
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer, this.probeSideSerializer,
 				new MyProjection(), new MyProjection(), memManager,
@@ -653,7 +657,7 @@ public class BinaryHashTableTest {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memManager = new MemoryManager(35 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(35 * PAGE_SIZE).build();
 		// ----------------------------------------------------------------------------------------
 
 		final BinaryHashTable table = new BinaryHashTable(conf, new Object(),
@@ -694,7 +698,7 @@ public class BinaryHashTableTest {
 
 		// create a probe input that gives 20000 pairs with 1 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
-		MemoryManager memManager = new MemoryManager(35 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(35 * PAGE_SIZE).build();
 		// allocate the memory for the HashTable
 		final BinaryHashTable table = new BinaryHashTable(conf, new Object(),
 				this.buildSideSerializer, this.probeSideSerializer,
@@ -727,7 +731,7 @@ public class BinaryHashTableTest {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memManager = new MemoryManager(35 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(35 * PAGE_SIZE).build();
 		final BinaryHashTable table = newBinaryHashTable(
 				this.buildSideSerializer, this.probeSideSerializer,
 				new MyProjection(), new MyProjection(), memManager,
@@ -746,7 +750,7 @@ public class BinaryHashTableTest {
 	public void testRepeatBuildJoin() throws Exception {
 		final int numKeys = 500;
 		final int probeValsPerKey = 1;
-		MemoryManager memManager = new MemoryManager(40 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(40 * PAGE_SIZE).build();
 		MutableObjectIterator<BinaryRow> buildInput = new MutableObjectIterator<BinaryRow>() {
 
 			int cnt = 0;
@@ -815,7 +819,7 @@ public class BinaryHashTableTest {
 				return row;
 			}
 		};
-		MemoryManager memManager = new MemoryManager(35 * PAGE_SIZE, 1);
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(35 * PAGE_SIZE).build();
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		final BinaryHashTable table = new BinaryHashTable(
@@ -842,6 +846,22 @@ public class BinaryHashTableTest {
 
 		table.close();
 		table.free();
+	}
+
+	@Test
+	public void testBinaryHashBucketAreaNotEnoughMem() throws IOException {
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(35 * PAGE_SIZE).build();
+		BinaryHashTable table = newBinaryHashTable(
+				this.buildSideSerializer, this.probeSideSerializer,
+				new MyProjection(), new MyProjection(), memManager,
+				35 * PAGE_SIZE, ioManager);
+		BinaryHashBucketArea area = new BinaryHashBucketArea(table, 100, 1, false);
+		for (int i = 0; i < 100000; i++) {
+			area.insertToBucket(i, i, true);
+		}
+		area.freeMemory();
+		table.close();
+		Assert.assertEquals(35, table.getFreedMemory().size());
 	}
 
 	// ============================================================================================

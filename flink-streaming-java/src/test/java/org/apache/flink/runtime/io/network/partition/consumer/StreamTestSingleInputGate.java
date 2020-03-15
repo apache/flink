@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -38,7 +39,6 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 
 /**
@@ -106,11 +106,12 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					delegate.setInstance(inputElement);
 					recordSerializer.serializeRecord(delegate);
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
+					BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 					recordSerializer.copyToBufferBuilder(bufferBuilder);
 					bufferBuilder.finish();
 
 					// Call getCurrentBuffer to ensure size is set
-					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
+					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), moreAvailable, 0));
 				} else if (input != null && input.isEvent()) {
 					AbstractEvent event = input.getEvent();
 					if (event instanceof EndOfPartitionEvent) {

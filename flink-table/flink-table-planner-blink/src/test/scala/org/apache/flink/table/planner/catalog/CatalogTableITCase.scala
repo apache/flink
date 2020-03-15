@@ -20,22 +20,33 @@ package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
+import org.apache.flink.table.catalog.{CatalogDatabaseImpl, CatalogFunctionImpl, GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
+import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+import org.apache.flink.util.FileUtils
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, fail}
+import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Rule, Test}
 
+import java.io.File
 import java.util
+import java.math.{BigDecimal => JBigDecimal}
+import java.net.URI
 
 import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
-class CatalogTableITCase(isStreamingMode: Boolean) {
+class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
+  //~ Instance fields --------------------------------------------------------
 
   private val settings = if (isStreamingMode) {
     EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
@@ -45,23 +56,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
 
   private val tableEnv: TableEnvironment = TableEnvironmentImpl.create(settings)
 
-  private val SOURCE_DATA = List(
-    toRow(1, "a"),
-    toRow(2, "b"),
-    toRow(3, "c")
-  )
+  var _expectedEx: ExpectedException = ExpectedException.none
 
-  private val DIM_DATA = List(
-    toRow(1, "aDim"),
-    toRow(2, "bDim"),
-    toRow(3, "cDim")
-  )
-
-  implicit def rowOrdering: Ordering[Row] = Ordering.by((r : Row) => {
-    val builder = new StringBuilder
-    0 until r.getArity foreach(idx => builder.append(r.getField(idx)))
-    builder.toString()
-  })
+  @Rule
+  def expectedEx: ExpectedException = _expectedEx
 
   @Before
   def before(): Unit = {
@@ -69,8 +67,22 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
       .getConfiguration
       .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     TestCollectionTableFactory.reset()
-    TestCollectionTableFactory.isStreaming = isStreamingMode
+
+    val func = new CatalogFunctionImpl(
+      classOf[JavaFunc0].getName)
+    tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().createFunction(
+      new ObjectPath(tableEnv.getCurrentDatabase, "myfunc"),
+      func,
+      true)
   }
+
+  //~ Tools ------------------------------------------------------------------
+
+  implicit def rowOrdering: Ordering[Row] = Ordering.by((r : Row) => {
+    val builder = new StringBuilder
+    0 until r.getArity foreach(idx => builder.append(r.getField(idx)))
+    builder.toString()
+  })
 
   def toRow(args: Any*):Row = {
     val row = new Row(args.length)
@@ -84,9 +96,170 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     tableEnv.execute(name)
   }
 
+  //~ Tests ------------------------------------------------------------------
+
+  private def testUdf(funcPrefix: String): Unit = {
+    val sinkDDL =
+      s"""
+        |create table sinkT(
+        |  a bigint
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = '$isStreamingMode'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(s"insert into sinkT select ${funcPrefix}myfunc(cast(1 as bigint))")
+    tableEnv.execute("")
+    assertEquals(Seq(toRow(2L)), TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
+  def testUdfWithFullIdentifier(): Unit = {
+    testUdf("default_catalog.default_database.")
+  }
+
+  @Test
+  def testUdfWithDatabase(): Unit = {
+    testUdf("default_database.")
+  }
+
+  @Test
+  def testUdfWithNon(): Unit = {
+    testUdf("")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testUdfWithWrongCatalog(): Unit = {
+    testUdf("wrong_catalog.default_database.")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testUdfWithWrongDatabase(): Unit = {
+    testUdf("default_catalog.wrong_database.")
+  }
+
   @Test
   def testInsertInto(): Unit = {
     val sourceData = List(
+      toRow(1, "1000", 2, new JBigDecimal("10.001")),
+      toRow(2, "1", 3, new JBigDecimal("10.001")),
+      toRow(3, "2000", 4, new JBigDecimal("10.001")),
+      toRow(1, "2", 2, new JBigDecimal("10.001")),
+      toRow(2, "3000", 3, new JBigDecimal("10.001"))
+    )
+    TestCollectionTableFactory.initData(sourceData)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  b varchar,
+        |  c int,
+        |  d DECIMAL(10, 3)
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  b varchar,
+        |  c int,
+        |  d DECIMAL(10, 3)
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select t1.a, t1.b, (t1.a + 1) as c , d from t1
+      """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
+  def testReadWriteCsvUsingDDL(): Unit = {
+    val csvRecords = Seq(
+      "2.02,Euro,2019-12-12 00:00:01.001001",
+      "1.11,US Dollar,2019-12-12 00:00:02.002001",
+      "50,Yen,2019-12-12 00:00:04.004001",
+      "3.1,Euro,2019-12-12 00:00:05.005001",
+      "5.33,US Dollar,2019-12-12 00:00:06.006001"
+    )
+    val tempFilePath = createTempFile(
+      "csv-order-test",
+      csvRecords.mkString("#"))
+    val sourceDDL =
+      s"""
+       |CREATE TABLE T1 (
+       |  price DECIMAL(10, 2),
+       |  currency STRING,
+       |  ts6 TIMESTAMP(6),
+       |  ts AS CAST(ts6 AS TIMESTAMP(3)),
+       |  WATERMARK FOR ts AS ts
+       |) WITH (
+       |  'connector.type' = 'filesystem',
+       |  'connector.path' = '$tempFilePath',
+       |  'format.type' = 'csv',
+       |  'format.field-delimiter' = ',',
+       |  'format.line-delimiter' = '#'
+       |)
+     """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+
+    val sinkFilePath = getTempFilePath("csv-order-sink")
+    val sinkDDL =
+      s"""
+        |CREATE TABLE T2 (
+        |  window_end TIMESTAMP(3),
+        |  max_ts TIMESTAMP(6),
+        |  counter BIGINT,
+        |  total_price DECIMAL(10, 2)
+        |) with (
+        |  'connector.type' = 'filesystem',
+        |  'connector.path' = '$sinkFilePath',
+        |  'format.type' = 'csv',
+        |  'format.field-delimiter' = ','
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(sinkDDL)
+
+    val query =
+      """
+        |INSERT INTO T2
+        |SELECT
+        |  TUMBLE_END(ts, INTERVAL '5' SECOND),
+        |  MAX(ts6),
+        |  COUNT(*),
+        |  MAX(price)
+        |FROM T1
+        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
+      """.stripMargin
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+
+    val expected =
+      "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
+      "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
+    assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
+  }
+
+  @Test
+  def testInsertSourceTableExpressionFields(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000"),
+      toRow(2, "1"),
+      toRow(3, "2000"),
+      toRow(1, "2"),
+      toRow(2, "3000")
+    )
+    val expected = List(
       toRow(1, "1000", 2),
       toRow(2, "1", 3),
       toRow(3, "2000", 4),
@@ -99,7 +272,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |create table t1(
         |  a int,
         |  b varchar,
-        |  c int
+        |  c as a + 1
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -117,25 +290,88 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     val query =
       """
         |insert into t2
-        |select t1.a, t1.b, (t1.a + 1) as c from t1
+        |select t1.a, t1.b, t1.c from t1
       """.stripMargin
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)
     tableEnv.sqlUpdate(query)
     execJob("testJob")
-    assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Ignore // need to implement
+  // Test the computation expression in front of referenced columns.
   @Test
-  def testInsertTargetTableWithComputedColumn(): Unit = {
-    TestCollectionTableFactory.initData(SOURCE_DATA)
+  def testInsertSourceTableExpressionFieldsBeforeReferences(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000"),
+      toRow(2, "1"),
+      toRow(3, "2000"),
+      toRow(2, "2"),
+      toRow(2, "3000")
+    )
+    val expected = List(
+      toRow(101, 1, "1000"),
+      toRow(102, 2, "1"),
+      toRow(103, 3, "2000"),
+      toRow(102, 2, "2"),
+      toRow(102, 2, "3000")
+    )
+    TestCollectionTableFactory.initData(sourceData)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  c as a + 100,
+        |  a int,
+        |  b varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  c int,
+        |  a int,
+        |  b varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select t1.c, t1.a, t1.b from t1
+      """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
+  def testInsertSourceTableWithFuncField(): Unit = {
+    val sourceData = List(
+      toRow(1, "1990-02-10 12:34:56"),
+      toRow(2, "2019-09-10 09:23:41"),
+      toRow(3, "2019-09-10 09:23:42"),
+      toRow(1, "2019-09-10 09:23:43"),
+      toRow(2, "2019-09-10 09:23:44")
+    )
+    val expected = List(
+      toRow(1, "1990-02-10 12:34:56", localDateTime("1990-02-10 12:34:56")),
+      toRow(2, "2019-09-10 09:23:41", localDateTime("2019-09-10 09:23:41")),
+      toRow(3, "2019-09-10 09:23:42", localDateTime("2019-09-10 09:23:42")),
+      toRow(1, "2019-09-10 09:23:43", localDateTime("2019-09-10 09:23:43")),
+      toRow(2, "2019-09-10 09:23:44", localDateTime("2019-09-10 09:23:44"))
+    )
+    TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
         |create table t1(
         |  a int,
         |  b varchar,
-        |  c int
+        |  c as to_timestamp(b)
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -145,21 +381,166 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |create table t2(
         |  a int,
         |  b varchar,
-        |  c as a + 1
+        |  c timestamp(3)
         |) with (
         |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
       """
-        |insert into t2(a, b)
-        |select t1.a, t1.b from t1
+        |insert into t2
+        |select t1.a, t1.b, t1.c from t1
       """.stripMargin
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)
     tableEnv.sqlUpdate(query)
     execJob("testJob")
-    assertEquals(SOURCE_DATA.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
+  def testInsertSourceTableWithUserDefinedFuncField(): Unit = {
+    val sourceData = List(
+      toRow(1, "1990-02-10 12:34:56"),
+      toRow(2, "2019-09-10 9:23:41"),
+      toRow(3, "2019-09-10 9:23:42"),
+      toRow(1, "2019-09-10 9:23:43"),
+      toRow(2, "2019-09-10 9:23:44")
+    )
+    val expected = List(
+      toRow(1, "1990-02-10 12:34:56", 1, "1990-02-10 12:34:56"),
+      toRow(2, "2019-09-10 9:23:41", 2, "2019-09-10 9:23:41"),
+      toRow(3, "2019-09-10 9:23:42", 3, "2019-09-10 9:23:42"),
+      toRow(1, "2019-09-10 9:23:43", 1, "2019-09-10 9:23:43"),
+      toRow(2, "2019-09-10 9:23:44", 2, "2019-09-10 9:23:44")
+    )
+    TestCollectionTableFactory.initData(sourceData)
+    tableEnv.registerFunction("my_udf", Func0)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  `time` varchar,
+        |  c as my_udf(a),
+        |  d as `time`
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  `time` varchar,
+        |  c int not null,
+        |  d varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select t1.a, t1.`time`, t1.c, t1.d from t1
+      """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
+  def testInsertSinkTableExpressionFields(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000"),
+      toRow(2, "1"),
+      toRow(3, "2000"),
+      toRow(1, "2"),
+      toRow(2, "3000")
+    )
+    val expected = List(
+      toRow(1, 2),
+      toRow(1, 2),
+      toRow(2, 3),
+      toRow(2, 3),
+      toRow(3, 4)
+    )
+    TestCollectionTableFactory.initData(sourceData)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  b varchar,
+        |  c as a + 1
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  b as c - 1,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select t1.a, t1.c from t1
+      """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
+  def testInsertSinkTableWithUnmatchedFields(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000"),
+      toRow(2, "1"),
+      toRow(3, "2000"),
+      toRow(1, "2"),
+      toRow(2, "3000")
+    )
+    TestCollectionTableFactory.initData(sourceData)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  b varchar,
+        |  c as a + 1
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  b as cast(a as varchar(20)) || cast(c as varchar(20)),
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select t1.a, t1.b from t1
+      """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage("Field types of query result and registered TableSink "
+      + "default_catalog.default_database.t2 do not match.")
+    execJob("testJob")
   }
 
   @Test
@@ -265,170 +646,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test @Ignore // need to implement
-  def testStreamSourceTableWithProctime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a int,
-        |  b int,
-        |  c as proctime,
-        |  primary key(a)
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a int,
-        |  b int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
-  @Test @Ignore // need to implement
-  def testStreamSourceTableWithRowtime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a bigint,
-        |  b bigint,
-        |  primary key(a),
-        |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a bigint,
-        |  b bigint
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
-  @Test @Ignore // need to implement
-  def testBatchSourceTableWithProctime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a int,
-        |  b int,
-        |  c as proctime,
-        |  primary key(a)
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a int,
-        |  b int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
-  @Test @Ignore // need to implement
-  def testBatchTableWithRowtime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a bigint,
-        |  b bigint,
-        |  primary key(a),
-        |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a bigint,
-        |  b bigint
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
   @Test
   def testDropTableWithFullPath(): Unit = {
     val ddl1 =
@@ -523,6 +740,142 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+  }
+
+  @Test
+  def testAlterTable(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'k1' = 'v1'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl1)
+    tableEnv.sqlUpdate("alter table t1 rename to t2")
+    assert(tableEnv.listTables().sameElements(Array[String]("t2")))
+    tableEnv.sqlUpdate("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
+    val expectedProperties = new util.HashMap[String, String]()
+    expectedProperties.put("connector", "COLLECTION")
+    expectedProperties.put("k1", "a")
+    expectedProperties.put("k2", "b")
+    val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
+      .getProperties
+    assertEquals(expectedProperties, properties)
+  }
+
+  @Test
+  def testUseCatalog(): Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    assertEquals("cat1", tableEnv.getCurrentCatalog)
+    tableEnv.sqlUpdate("use catalog cat2")
+    assertEquals("cat2", tableEnv.getCurrentCatalog)
+  }
+
+  @Test
+  def testUseDatabase(): Unit = {
+    val catalog = new GenericInMemoryCatalog("cat1")
+    tableEnv.registerCatalog("cat1", catalog)
+    val catalogDB1 = new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1")
+    val catalogDB2 = new CatalogDatabaseImpl(new util.HashMap[String, String](), "db2")
+    catalog.createDatabase("db1", catalogDB1, true)
+    catalog.createDatabase("db2", catalogDB2, true)
+    tableEnv.sqlUpdate("use cat1.db1")
+    assertEquals("db1", tableEnv.getCurrentDatabase)
+    tableEnv.sqlUpdate("use db2")
+    assertEquals("db2", tableEnv.getCurrentDatabase)
+  }
+
+  @Test
+  def testCreateDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1 ")
+    tableEnv.sqlUpdate("create database if not exists db1 ")
+    try {
+      tableEnv.sqlUpdate("create database db1 ")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("create database cat2.db1 comment 'test_comment'" +
+                         " with ('k1' = 'v1', 'k2' = 'v2')")
+    val database = tableEnv.getCatalog("cat2").get().getDatabase("db1")
+    assertEquals("test_comment", database.getComment)
+    assertEquals(2, database.getProperties.size())
+    val expectedProperty = new util.HashMap[String, String]()
+    expectedProperty.put("k1", "v1")
+    expectedProperty.put("k2", "v2")
+    assertEquals(expectedProperty, database.getProperties)
+  }
+
+  @Test
+  def testDropDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1")
+    tableEnv.sqlUpdate("drop database db1")
+    tableEnv.sqlUpdate("drop database if exists db1")
+    try {
+      tableEnv.sqlUpdate("drop database db1")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("create database db1")
+    tableEnv.sqlUpdate("use db1")
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl1)
+    val ddl2 =
+      """
+        |create table t2(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl2)
+    try {
+      tableEnv.sqlUpdate("drop database db1")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("drop database db1 cascade")
+  }
+
+  @Test
+  def testAlterDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1 comment 'db1_comment' with ('k1' = 'v1')")
+    tableEnv.sqlUpdate("alter database db1 set ('k1' = 'a', 'k2' = 'b')")
+    val database = tableEnv.getCatalog("cat1").get().getDatabase("db1")
+    assertEquals("db1_comment", database.getComment)
+    assertEquals(2, database.getProperties.size())
+    val expectedProperty = new util.HashMap[String, String]()
+    expectedProperty.put("k1", "a")
+    expectedProperty.put("k2", "b")
+    assertEquals(expectedProperty, database.getProperties)
   }
 }
 

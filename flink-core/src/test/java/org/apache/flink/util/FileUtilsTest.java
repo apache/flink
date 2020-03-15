@@ -33,21 +33,29 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -194,6 +202,22 @@ public class FileUtilsTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Deleting a symbolic link directory should not delete the files in it.
+	 */
+	@Test
+	public void testDeleteSymbolicLinkDirectory() throws Exception {
+		// creating a directory to which the test creates a symbolic link
+		File linkedDirectory = tmp.newFolder();
+		File fileInLinkedDirectory = new File(linkedDirectory, "child");
+		fileInLinkedDirectory.createNewFile();
+		File symbolicLink = new File(tmp.getRoot(), "symLink");
+		Files.createSymbolicLink(symbolicLink.toPath(), linkedDirectory.toPath());
+
+		FileUtils.deleteDirectory(symbolicLink);
+		assertTrue(fileInLinkedDirectory.exists());
+	}
+
 	@Ignore
 	@Test
 	public void testDeleteDirectoryConcurrently() throws Exception {
@@ -217,46 +241,85 @@ public class FileUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testCompression() throws IOException {
-		final String testFileContent = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
-			+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
-			+ "RAPHAEL: Die Sonne toent, nach alter Weise, In Brudersphaeren Wettgesang,\n"
-			+ "Und ihre vorgeschriebne Reise Vollendet sie mit Donnergang. Ihr Anblick\n"
-			+ "gibt den Engeln Staerke, Wenn keiner Sie ergruenden mag; die unbegreiflich\n"
-			+ "hohen Werke Sind herrlich wie am ersten Tag.\n"
-			+ "GABRIEL: Und schnell und unbegreiflich schnelle Dreht sich umher der Erde\n"
-			+ "Pracht; Es wechselt Paradieseshelle Mit tiefer, schauervoller Nacht. Es\n"
-			+ "schaeumt das Meer in breiten Fluessen Am tiefen Grund der Felsen auf, Und\n"
-			+ "Fels und Meer wird fortgerissen Im ewig schnellem Sphaerenlauf.\n"
-			+ "MICHAEL: Und Stuerme brausen um die Wette Vom Meer aufs Land, vom Land\n"
-			+ "aufs Meer, und bilden wuetend eine Kette Der tiefsten Wirkung rings umher.\n"
-			+ "Da flammt ein blitzendes Verheeren Dem Pfade vor des Donnerschlags. Doch\n"
-			+ "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.";
+	public void testCompressionOnAbsolutePath() throws IOException {
+		verifyDirectoryCompression(tmp.newFolder("compressDir").toPath());
+	}
 
+	@Test
+	public void testCompressionOnRelativePath() throws IOException {
 		final java.nio.file.Path compressDir = tmp.newFolder("compressDir").toPath();
-		final java.nio.file.Path extractDir = tmp.newFolder("extractDir").toPath();
+		final java.nio.file.Path relativeCompressDir =
+			Paths.get(new File("").getAbsolutePath()).relativize(compressDir);
 
-		final java.nio.file.Path originalDir = Paths.get("rootDir");
-		final java.nio.file.Path emptySubDir = originalDir.resolve("emptyDir");
-		final java.nio.file.Path fullSubDir = originalDir.resolve("fullDir");
-		final java.nio.file.Path file1 = originalDir.resolve("file1");
-		final java.nio.file.Path file2 = originalDir.resolve("file2");
-		final java.nio.file.Path file3 = fullSubDir.resolve("file3");
+		verifyDirectoryCompression(relativeCompressDir);
+	}
 
-		Files.createDirectory(compressDir.resolve(originalDir));
-		Files.createDirectory(compressDir.resolve(emptySubDir));
-		Files.createDirectory(compressDir.resolve(fullSubDir));
-		Files.copy(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), compressDir.resolve(file1));
-		Files.createFile(compressDir.resolve(file2));
-		Files.copy(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), compressDir.resolve(file3));
+	@Test
+	public void testListFilesInPathWithoutAnyFileReturnEmptyList() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_0").toPath();
 
-		final Path zip = FileUtils.compressDirectory(
-			new Path(compressDir.resolve(originalDir).toString()),
-			new Path(compressDir.resolve(originalDir) + ".zip"));
+		assertThat(FileUtils.listFilesInDirectory(testDir, FileUtils::isJarFile), is(empty()));
+	}
 
-		FileUtils.expandDirectory(zip, new Path(extractDir.toAbsolutePath().toString()));
+	@Test
+	public void testListFilesInPath() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_1").toPath();
+		final Collection<java.nio.file.Path> testFiles = prepareTestFiles(testDir);
 
-		assertDirEquals(compressDir.resolve(originalDir), extractDir.resolve(originalDir));
+		final Collection<java.nio.file.Path> filesInDirectory = FileUtils.listFilesInDirectory(testDir, FileUtils::isJarFile);
+		assertThat(filesInDirectory, containsInAnyOrder(testFiles.toArray()));
+	}
+
+	@Test
+	public void testRelativizeOfAbsolutePath() throws IOException {
+		final java.nio.file.Path absolutePath = tmp.newFolder().toPath().toAbsolutePath();
+
+		final java.nio.file.Path rootPath = tmp.getRoot().toPath();
+		final java.nio.file.Path relativePath = FileUtils.relativizePath(rootPath, absolutePath);
+		assertFalse(relativePath.isAbsolute());
+		assertThat(rootPath.resolve(relativePath), is(absolutePath));
+	}
+
+	@Test
+	public void testRelativizeOfRelativePath() {
+		final java.nio.file.Path path = Paths.get("foobar");
+		assertFalse(path.isAbsolute());
+
+		final java.nio.file.Path relativePath = FileUtils.relativizePath(tmp.getRoot().toPath(), path);
+		assertThat(relativePath, is(path));
+	}
+
+	@Test
+	public void testAbsolutePathToURL() throws MalformedURLException {
+		final java.nio.file.Path absolutePath = tmp.getRoot().toPath().toAbsolutePath();
+		final URL absoluteURL = FileUtils.toURL(absolutePath);
+
+		final java.nio.file.Path transformedURL = Paths.get(absoluteURL.getPath());
+		assertThat(transformedURL, is(absolutePath));
+	}
+
+	@Test
+	public void testRelativePathToURL() throws MalformedURLException {
+		final java.nio.file.Path relativePath = Paths.get("foobar");
+		assertFalse(relativePath.isAbsolute());
+
+		final URL relativeURL = FileUtils.toURL(relativePath);
+		final java.nio.file.Path transformedPath = Paths.get(relativeURL.getPath());
+
+		assertThat(transformedPath, is(relativePath));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testListDirFailsIfDirectoryDoesNotExist() throws IOException {
+		final String fileName = "_does_not_exists_file";
+		FileUtils.listFilesInDirectory(tmp.getRoot().toPath().resolve(fileName), FileUtils::isJarFile);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testListAFileFailsBecauseDirectoryIsExpected() throws IOException {
+		final String fileName = "a.jar";
+		final File file = tmp.newFile(fileName);
+		FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
 	}
 
 	// ------------------------------------------------------------------------
@@ -310,6 +373,79 @@ public class FileUtilsTest extends TestLogger {
 				generateRandomDirs(subdir, numFiles, numDirs, depth - 1);
 			}
 		}
+	}
+
+	/**
+	 * Generate some files in the directory {@code dir}.
+	 * @param dir the directory where the files are generated
+	 * @return The list of generated files
+	 * @throws IOException if I/O error occurs while generating the files
+	 */
+	public static Collection<java.nio.file.Path> prepareTestFiles(final java.nio.file.Path dir) throws IOException {
+		final java.nio.file.Path jobSubDir1 = Files.createDirectory(dir.resolve("_sub_dir1"));
+		final java.nio.file.Path jobSubDir2 = Files.createDirectory(dir.resolve("_sub_dir2"));
+		final java.nio.file.Path jarFile1 = Files.createFile(dir.resolve("file1.jar"));
+		final java.nio.file.Path jarFile2 = Files.createFile(dir.resolve("file2.jar"));
+		final java.nio.file.Path jarFile3 = Files.createFile(jobSubDir1.resolve("file3.jar"));
+		final java.nio.file.Path jarFile4 = Files.createFile(jobSubDir2.resolve("file4.jar"));
+		final Collection<java.nio.file.Path> jarFiles = new ArrayList<>();
+
+		Files.createFile(dir.resolve("file1.txt"));
+		Files.createFile(jobSubDir2.resolve("file2.txt"));
+
+		jarFiles.add(jarFile1);
+		jarFiles.add(jarFile2);
+		jarFiles.add(jarFile3);
+		jarFiles.add(jarFile4);
+		return jarFiles;
+	}
+
+	/**
+	 * Generate some directories in a original directory based on the {@code compressDir}.
+	 * @param compressDir the path of the directory where the test directories are generated
+	 * @throws IOException if I/O error occurs while generating the directories
+	 */
+	private void verifyDirectoryCompression(final java.nio.file.Path compressDir) throws IOException {
+		final String testFileContent = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
+			+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
+			+ "RAPHAEL: Die Sonne toent, nach alter Weise, In Brudersphaeren Wettgesang,\n"
+			+ "Und ihre vorgeschriebne Reise Vollendet sie mit Donnergang. Ihr Anblick\n"
+			+ "gibt den Engeln Staerke, Wenn keiner Sie ergruenden mag; die unbegreiflich\n"
+			+ "hohen Werke Sind herrlich wie am ersten Tag.\n"
+			+ "GABRIEL: Und schnell und unbegreiflich schnelle Dreht sich umher der Erde\n"
+			+ "Pracht; Es wechselt Paradieseshelle Mit tiefer, schauervoller Nacht. Es\n"
+			+ "schaeumt das Meer in breiten Fluessen Am tiefen Grund der Felsen auf, Und\n"
+			+ "Fels und Meer wird fortgerissen Im ewig schnellem Sphaerenlauf.\n"
+			+ "MICHAEL: Und Stuerme brausen um die Wette Vom Meer aufs Land, vom Land\n"
+			+ "aufs Meer, und bilden wuetend eine Kette Der tiefsten Wirkung rings umher.\n"
+			+ "Da flammt ein blitzendes Verheeren Dem Pfade vor des Donnerschlags. Doch\n"
+			+ "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.";
+
+		final java.nio.file.Path extractDir = tmp.newFolder("extractDir").toPath();
+
+		final java.nio.file.Path originalDir = Paths.get("rootDir");
+		final java.nio.file.Path emptySubDir = originalDir.resolve("emptyDir");
+		final java.nio.file.Path fullSubDir = originalDir.resolve("fullDir");
+		final java.nio.file.Path file1 = originalDir.resolve("file1");
+		final java.nio.file.Path file2 = originalDir.resolve("file2");
+		final java.nio.file.Path file3 = fullSubDir.resolve("file3");
+
+		Files.createDirectory(compressDir.resolve(originalDir));
+		Files.createDirectory(compressDir.resolve(emptySubDir));
+		Files.createDirectory(compressDir.resolve(fullSubDir));
+		Files.copy(
+			new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), compressDir.resolve(file1));
+		Files.createFile(compressDir.resolve(file2));
+		Files.copy(
+			new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), compressDir.resolve(file3));
+
+		final Path zip = FileUtils.compressDirectory(
+			new Path(compressDir.resolve(originalDir).toString()),
+			new Path(compressDir.resolve(originalDir) + ".zip"));
+
+		FileUtils.expandDirectory(zip, new Path(extractDir.toAbsolutePath().toString()));
+
+		assertDirEquals(compressDir.resolve(originalDir), extractDir.resolve(originalDir));
 	}
 
 	/**

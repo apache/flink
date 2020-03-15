@@ -56,8 +56,8 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(RuleSets.ofList(
               AggregateReduceGroupingRule.INSTANCE,
-              FlinkFilterJoinRule.FILTER_ON_JOIN,
-              FlinkFilterJoinRule.JOIN,
+              FilterJoinRule.FILTER_ON_JOIN,
+              FilterJoinRule.JOIN,
               FilterAggregateTransposeRule.INSTANCE,
               FilterProjectTransposeRule.INSTANCE,
               FilterMergeRule.INSTANCE,

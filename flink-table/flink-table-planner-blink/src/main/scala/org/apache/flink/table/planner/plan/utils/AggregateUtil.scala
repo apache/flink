@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
@@ -39,21 +39,18 @@ import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
-
 import java.time.Duration
 import java.util
 
@@ -497,15 +494,25 @@ object AggregateUtil extends Enumeration {
 
       case DATE => DataTypes.INT
       case TIME_WITHOUT_TIME_ZONE => DataTypes.INT
-      case TIMESTAMP_WITHOUT_TIME_ZONE => DataTypes.BIGINT
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = argTypes(0).asInstanceOf[TimestampType]
+        DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
 
       case INTERVAL_YEAR_MONTH => DataTypes.INT
       case INTERVAL_DAY_TIME => DataTypes.BIGINT
 
-      case VARCHAR | CHAR => fromLegacyInfoToDataType(BinaryStringTypeInfo.INSTANCE)
+      case VARCHAR =>
+        val dt = argTypes(0).asInstanceOf[VarCharType]
+        DataTypes.VARCHAR(dt.getLength).bridgedTo(classOf[BinaryString])
+      case CHAR =>
+        val dt = argTypes(0).asInstanceOf[CharType]
+        DataTypes.CHAR(dt.getLength).bridgedTo(classOf[BinaryString])
       case DECIMAL =>
         val dt = argTypes(0).asInstanceOf[DecimalType]
-        DataTypes.DECIMAL(dt.getPrecision, dt.getScale)
+        DataTypes.DECIMAL(dt.getPrecision, dt.getScale).bridgedTo(classOf[Decimal])
       case t =>
         throw new TableException(s"Distinct aggregate function does not support type: $t.\n" +
           s"Please re-check the data type.")
@@ -747,7 +754,7 @@ object AggregateUtil extends Enumeration {
   private[flink] def isTableAggregate(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls
       .filter(e => e.getAggregation.isInstanceOf[AggSqlFunction])
-      .map(e => e.getAggregation.asInstanceOf[AggSqlFunction].makeFunction(null, null))
+      .map(e => e.getAggregation.asInstanceOf[AggSqlFunction].aggregateFunction)
       .exists(_.isInstanceOf[TableAggregateFunction[_, _]])
   }
 }

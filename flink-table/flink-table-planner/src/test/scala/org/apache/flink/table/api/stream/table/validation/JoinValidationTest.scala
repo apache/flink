@@ -23,9 +23,11 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.stream.table.validation.JoinValidationTest.WithoutEqualsHashCode
 import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
+import org.hamcrest.Matchers
 import org.junit.Test
 
 class JoinValidationTest extends TableTestBase {
@@ -227,6 +229,21 @@ class JoinValidationTest extends TableTestBase {
     val in2 = tEnv2.fromDataStream(ds2, 'd, 'e, 'f, 'g, 'c)
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where("a === d").select("g.count")
+  }
+
+  /**
+    * Currently only the inner join condition can support the Python UDF taking the inputs from
+    * the left table and the right table at the same time.
+    */
+  @Test
+  def testOuterJoinWithPythonFunctionInCondition(): Unit = {
+    expectedException.expectCause(Matchers.isA(classOf[TableException]))
+    val util = streamTestUtil()
+    val left = util.addTable[(Int, Int, String)]('a, 'b, 'c)
+    val right = util.addTable[(Int, Int, String)]('d, 'e, 'f)
+    val pyFunc = new PythonScalarFunction("pyFunc")
+    val result = left.leftOuterJoin(right, 'a === 'd && pyFunc('a, 'd) === 'a + 'd)
+    util.verifyTable(result, "")
   }
 }
 

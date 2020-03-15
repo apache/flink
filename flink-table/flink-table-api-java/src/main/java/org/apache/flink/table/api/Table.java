@@ -821,12 +821,10 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
+	 * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written.
 	 */
-	void insertInto(String tablePath, String... tablePathContinued);
+	void insertInto(String tablePath);
 
 	/**
 	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name
@@ -840,7 +838,7 @@ public interface Table {
 	 *
 	 * @param tableName The name of the {@link TableSink} to which the {@link Table} is written.
 	 * @param conf The {@link QueryConfig} to use.
-	 * @deprecated use {@link #insertInto(QueryConfig, String, String...)}
+	 * @deprecated use {@link #insertInto(String)}
 	 */
 	@Deprecated
 	void insertInto(String tableName, QueryConfig conf);
@@ -860,7 +858,9 @@ public interface Table {
 	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
 	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
 	 *        {@link Table} is written.
+	 * @deprecated use {@link #insertInto(String)}
 	 */
+	@Deprecated
 	void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued);
 
 	/**

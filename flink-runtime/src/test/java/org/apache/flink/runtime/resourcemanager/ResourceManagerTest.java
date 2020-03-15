@@ -20,9 +20,6 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -33,7 +30,6 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -42,7 +38,6 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -165,11 +160,15 @@ public class ResourceManagerTest extends TestLogger {
 	}
 
 	private void registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, ResourceID taskExecutorId, String taskExecutorAddress) throws Exception {
-		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(
+		TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
 			taskExecutorAddress,
 			taskExecutorId,
 			dataPort,
 			hardwareDescription,
+			ResourceProfile.ZERO,
+			ResourceProfile.ZERO);
+		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(
+			taskExecutorRegistration,
 			TestingUtils.TIMEOUT());
 
 		assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
@@ -262,10 +261,9 @@ public class ResourceManagerTest extends TestLogger {
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
-			NoOpMetricRegistry.INSTANCE,
 			jobLeaderIdService,
 			testingFatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 
 		resourceManager.start();
 
@@ -274,25 +272,5 @@ public class ResourceManagerTest extends TestLogger {
 		resourceManagerLeaderElectionService.isLeader(resourceManagerId.toUUID()).get();
 
 		return resourceManager;
-	}
-
-	/**
-	 * Tests that RM and TM create the same slot resource profiles.
-	 */
-	@Test
-	public void testCreateWorkerSlotProfiles() {
-		final Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "100m");
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 5);
-
-		final ResourceProfile rmCalculatedResourceProfile =
-			ResourceManager.createWorkerSlotProfiles(config).iterator().next();
-
-		final ResourceProfile tmCalculatedResourceProfile =
-			TaskManagerServices.computeSlotResourceProfile(
-				config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS),
-				MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes());
-
-		assertEquals(rmCalculatedResourceProfile, tmCalculatedResourceProfile);
 	}
 }

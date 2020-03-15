@@ -16,32 +16,35 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
-. "$bin"/find-flink-home.sh
+python=${python:-python}
 
-_FLINK_HOME_DETERMINED=1
-
-. "$FLINK_HOME"/bin/config.sh
-
-if [[ "$FLINK_IDENT_STRING" = "" ]]; then
-    FLINK_IDENT_STRING="$USER"
+if [[ "$FLINK_TESTING" = "1" ]]; then
+    ACTUAL_FLINK_HOME=`cd $FLINK_HOME; pwd -P`
+    FLINK_SOURCE_ROOT_DIR=`cd $ACTUAL_FLINK_HOME/../../../../; pwd`
+    FLINK_PYTHON="${FLINK_SOURCE_ROOT_DIR}/flink-python"
+    if [[ -f "${FLINK_PYTHON}/pyflink/fn_execution/boot.py" ]]; then
+        # use pyflink source code to override the pyflink.zip in PYTHONPATH
+        # to ensure loading latest code
+        export PYTHONPATH="$FLINK_PYTHON:$PYTHONPATH"
+    fi
 fi
 
-if [[ "$python" = "" ]]; then
-    python="python"
+if [[ "$_PYTHON_WORKING_DIR" != "" ]]; then
+    # set current working directory to $_PYTHON_WORKING_DIR
+    cd "$_PYTHON_WORKING_DIR"
+    if [[ "$python" == ${_PYTHON_WORKING_DIR}* ]]; then
+        # The file extracted from archives may not preserve its original permission.
+        # Set minimum execution permission to prevent from permission denied error.
+        chmod +x "$python"
+    fi
 fi
 
-# Add pyflink & py4j to PYTHONPATH
-PYFLINK_ZIP="$FLINK_OPT_DIR/python/pyflink.zip"
-if [[ ! ${PYTHONPATH} =~ ${PYFLINK_ZIP} ]]; then
-    export PYTHONPATH="$PYFLINK_ZIP:$PYTHONPATH"
+if [[ "$FLINK_LOG_DIR" != "" ]]; then
+    if [[ "$FLINK_IDENT_STRING" = "" ]]; then
+        FLINK_IDENT_STRING="$USER"
+    fi
+    log="$FLINK_LOG_DIR/flink-$USER-python-udf-boot-$HOSTNAME.log"
+    ${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}
+else
+    ${python} -m pyflink.fn_execution.boot $@
 fi
-PY4J_ZIP=`echo "$FLINK_OPT_DIR"/python/py4j-*-src.zip`
-if [[ ! ${PYTHONPATH} =~ ${PY4J_ZIP} ]]; then
-    export PYTHONPATH="$PY4J_ZIP:$PYTHONPATH"
-fi
-
-log="$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-python-udf-boot-$HOSTNAME.log"
-
-${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}

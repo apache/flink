@@ -27,7 +27,9 @@ import java.time.Duration;
 public class NoOrFixedIfCheckpointingEnabledRestartStrategyFactory extends RestartStrategyFactory {
 	private static final long serialVersionUID = -1809462525812787862L;
 
-	private static final long DEFAULT_RESTART_DELAY = Duration.ofSeconds(1L).toMillis();
+	public static final int DEFAULT_RESTART_ATTEMPTS = Integer.MAX_VALUE;
+
+	public static final long DEFAULT_RESTART_DELAY = Duration.ofSeconds(1L).toMillis();
 
 	@Override
 	public RestartStrategy createRestartStrategy() {
@@ -36,7 +38,7 @@ public class NoOrFixedIfCheckpointingEnabledRestartStrategyFactory extends Resta
 
 	RestartStrategy createRestartStrategy(boolean isCheckpointingEnabled) {
 		if (isCheckpointingEnabled) {
-			return new FixedDelayRestartStrategy(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY);
+			return new FixedDelayRestartStrategy(DEFAULT_RESTART_ATTEMPTS, DEFAULT_RESTART_DELAY);
 		} else {
 			return new NoRestartStrategy();
 		}

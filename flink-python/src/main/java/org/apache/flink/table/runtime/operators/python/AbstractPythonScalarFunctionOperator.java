@@ -19,16 +19,20 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -87,9 +91,9 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	protected final int[] udfInputOffsets;
 
 	/**
-	 * The number of forwarded fields in the input element.
+	 * The offset of the fields which should be forwarded.
 	 */
-	protected final int forwardedFieldCnt;
+	protected final int[] forwardedFields;
 
 	/**
 	 * The udf input logical type.
@@ -113,16 +117,18 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	protected transient LinkedBlockingQueue<UDFOUT> udfResultQueue;
 
 	AbstractPythonScalarFunctionOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		int forwardedFieldCnt) {
+		int[] forwardedFields) {
+		super(config);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
 		this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
-		this.forwardedFieldCnt = forwardedFieldCnt;
+		this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
 	}
 
 	@Override
@@ -133,7 +139,7 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 			Arrays.stream(udfInputOffsets)
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
-		udfOutputType = new RowType(outputType.getFields().subList(forwardedFieldCnt, outputType.getFieldCount()));
+		udfOutputType = new RowType(outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
 		super.open();
 	}
 
@@ -145,13 +151,21 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	}
 
 	@Override
-	public PythonFunctionRunner<IN> createPythonFunctionRunner() {
+	public PythonEnv getPythonEnv() {
+		return scalarFunctions[0].getPythonFunction().getPythonEnv();
+	}
+
+	@Override
+	public PythonFunctionRunner<IN> createPythonFunctionRunner() throws IOException {
 		final FnDataReceiver<UDFOUT> udfResultReceiver = input -> {
 			// handover to queue, do not block the result receiver thread
 			udfResultQueue.put(input);
 		};
 
-		return new ProjectUdfInputPythonScalarFunctionRunner(createPythonFunctionRunner(udfResultReceiver));
+		return new ProjectUdfInputPythonScalarFunctionRunner(
+			createPythonFunctionRunner(
+				udfResultReceiver,
+				createPythonEnvironmentManager()));
 	}
 
 	/**
@@ -162,7 +176,9 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 
 	public abstract UDFIN getUdfInput(IN element);
 
-	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(FnDataReceiver<UDFOUT> resultReceiver);
+	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(
+			FnDataReceiver<UDFOUT> resultReceiver,
+			PythonEnvironmentManager pythonEnvironmentManager);
 
 	private class ProjectUdfInputPythonScalarFunctionRunner implements PythonFunctionRunner<IN> {
 

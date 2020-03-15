@@ -17,11 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestPartitionableTableSource}
+import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestPartitionableSourceFactory}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.rules.FilterProjectTransposeRule
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
@@ -40,11 +42,30 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(PushPartitionIntoTableSourceScanRule.INSTANCE))
+        .add(RuleSets.ofList(PushPartitionIntoTableSourceScanRule.INSTANCE,
+          FilterProjectTransposeRule.INSTANCE))
         .build()
     )
 
-    util.tableEnv.registerTableSource("MyTable", new TestPartitionableTableSource(true))
+    val tableSchema = TableSchema.builder()
+      .field("id", DataTypes.INT())
+      .field("name", DataTypes.STRING())
+      .field("part1", DataTypes.STRING())
+      .field("part2", DataTypes.INT())
+      .build()
+
+    val tableSchema2 = TableSchema.builder()
+      .field("id", DataTypes.INT())
+      .field("name", DataTypes.STRING())
+      .field("part1", DataTypes.STRING())
+      .field("part2", DataTypes.INT())
+      .field("virtualField", DataTypes.INT(), "`part2` + 1")
+      .build()
+
+    TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "MyTable",
+      tableSchema = tableSchema, isBounded = true)
+    TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "VirtualTable",
+      tableSchema = tableSchema2, isBounded = true)
   }
 
   @Test
@@ -53,8 +74,18 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testNoPartitionFieldPredicateWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2")
+  }
+
+  @Test
   def testOnlyPartitionFieldPredicate1(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE part1 = 'A'")
+  }
+
+  @Test
+  def testOnlyPartitionFieldPredicate1WithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE part1 = 'A'")
   }
 
   @Test
@@ -63,8 +94,18 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testOnlyPartitionFieldPredicate2WithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE part2 > 1")
+  }
+
+  @Test
   def testOnlyPartitionFieldPredicate3(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1")
+  }
+
+  @Test
+  def testOnlyPartitionFieldPredicate3WithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1")
   }
 
   @Test
@@ -73,8 +114,18 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testOnlyPartitionFieldPredicate4WithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1")
+  }
+
+  @Test
   def testPartitionFieldPredicateAndOtherPredicate(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A'")
+  }
+
+  @Test
+  def testPartitionFieldPredicateAndOtherPredicateWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A'")
   }
 
   @Test
@@ -83,14 +134,30 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testPartitionFieldPredicateOrOtherPredicateWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A'")
+  }
+
+  @Test
   def testPartialPartitionFieldPredicatePushDown(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
+  }
+
+  @Test
+  def testPartialPartitionFieldPredicatePushDownWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
   }
 
   @Test
   def testWithUdf(): Unit = {
     util.addFunction("MyUdf", Func1)
     util.verifyPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
+  }
+
+  @Test
+  def testWithUdfAndVirtualColumn(): Unit = {
+    util.addFunction("MyUdf", Func1)
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
 }

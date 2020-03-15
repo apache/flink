@@ -334,7 +334,7 @@ in its "at-least-once" mode, there is a chance that you will see some duplicate 
 ### Upgrading & Rescaling a Job
 
 Upgrading a Flink Job always involves two steps: First, the Flink Job is gracefully stopped with a
-[Savepoint]({{site.base_url}}/ops/state/savepoints.html). A Savepoint is a consistent snapshot of 
+[Savepoint]({{ site.baseurl }}/ops/state/savepoints.html). A Savepoint is a consistent snapshot of 
 the complete application state at a well-defined, globally consistent point in time (similar to a 
 checkpoint). Second, the upgraded Flink Job is started from the Savepoint. In this context "upgrade" 
 can mean different things including the following:
@@ -794,7 +794,7 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-Please consult the [REST API reference](https://ci.apache.org/projects/flink/flink-docs-release-1.8/monitoring/rest_api.html#api)
+Please consult the [REST API reference]({{ site.baseurl }}/monitoring/rest_api.html#api)
 for a complete list of possible queries including how to query metrics of different scopes (e.g. 
 TaskManager metrics);
 

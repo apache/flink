@@ -38,6 +38,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -130,6 +131,9 @@ public abstract class YarnTestBase extends TestLogger {
 		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
 		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
 		"java.io.IOException: Connection reset by peer",
+
+		// filter out expected ResourceManagerException caused by intended shutdown request
+		YarnResourceManager.ERROR_MASSAGE_ON_SHUTDOWN_REQUEST,
 
 		// this can happen in Akka 2.4 on shutdown.
 		"java.util.concurrent.RejectedExecutionException: Worker has already been shutdown",
@@ -301,12 +305,12 @@ public abstract class YarnTestBase extends TestLogger {
 
 	@Nonnull
 	YarnClusterDescriptor createYarnClusterDescriptor(org.apache.flink.configuration.Configuration flinkConfiguration) {
-		final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
-			flinkConfiguration,
-			YARN_CONFIGURATION,
-			CliFrontend.getConfigurationDirectoryFromEnv(),
-			yarnClient,
-			true);
+		final YarnClusterDescriptor yarnClusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
+				tempConfPathForSecureRun.getAbsolutePath(),
+				flinkConfiguration,
+				YARN_CONFIGURATION,
+				yarnClient,
+				true);
 		yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.toURI()));
 		yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkLibFolder));
 		return yarnClusterDescriptor;
@@ -996,6 +1000,29 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static boolean isOnTravis() {
 		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
+	}
+
+	protected void waitApplicationFinishedElseKillIt(
+		ApplicationId applicationId,
+		Duration timeout,
+		YarnClusterDescriptor yarnClusterDescriptor,
+		int sleepIntervalInMS) throws Exception {
+		Deadline deadline = Deadline.now().plus(timeout);
+		YarnApplicationState state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
+
+		while (state != YarnApplicationState.FINISHED) {
+			if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
+				Assert.fail("Application became FAILED or KILLED while expecting FINISHED");
+			}
+
+			if (deadline.isOverdue()) {
+				yarnClusterDescriptor.killCluster(applicationId);
+				Assert.fail("Application didn't finish before timeout");
+			}
+
+			sleep(sleepIntervalInMS);
+			state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
+		}
 	}
 
 	/**

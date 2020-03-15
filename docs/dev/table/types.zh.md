@@ -1,7 +1,7 @@
 ---
 title: "Data Types"
 nav-parent_id: tableapi
-nav-pos: 1
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -1005,6 +1005,43 @@ equivalent to `ARRAY<INT>`.
 |:----------|:-----:|:------:|:----------------------------------|
 |*t*`[]`    | (X)   | (X)    | Depends on the subtype. *Default* |
 
+#### `MAP`
+
+Data type of an associative array that maps keys (including `NULL`) to values (including `NULL`). A map
+cannot contain duplicate keys; each key can map to at most one value.
+
+There is no restriction of element types; it is the responsibility of the user to ensure uniqueness.
+
+The map type is an extension to the SQL standard.
+
+**Declaration**
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="SQL" markdown="1">
+{% highlight text %}
+MAP<kt, vt>
+{% endhighlight %}
+</div>
+
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+DataTypes.MAP(kt, vt)
+{% endhighlight %}
+</div>
+
+</div>
+
+The type can be declared using `MAP<kt, vt>` where `kt` is the data type of the key elements
+and `vt` is the data type of the value elements.
+
+**Bridging to JVM Types**
+
+| Java Type                             | Input | Output | Remarks   |
+|:--------------------------------------|:-----:|:------:|:----------|
+| `java.util.Map<kt, vt>`               | X     | X      | *Default* |
+| *subclass* of `java.util.Map<kt, vt>` | X     |        |           |
+
 #### `MULTISET`
 
 Data type of a multiset (=bag). Unlike a set, it allows for multiple instances for each of its
@@ -1042,6 +1079,7 @@ equivalent to `MULTISET<INT>`.
 | Java Type                            | Input | Output | Remarks                                                  |
 |:-------------------------------------|:-----:|:------:|:---------------------------------------------------------|
 |`java.util.Map<t, java.lang.Integer>` | X     | X      | Assigns each value to an integer multiplicity. *Default* |
+| *subclass* of `java.util.Map<kt, java.lang.Integer>` | X     |        | Assigns each value to an integer multiplicity. |
 
 #### `ROW`
 

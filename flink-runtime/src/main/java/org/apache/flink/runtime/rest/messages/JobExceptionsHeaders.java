@@ -20,13 +20,14 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
+import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * Message headers for the {@link JobExceptionsHandler}.
  */
-public class JobExceptionsHeaders implements MessageHeaders<EmptyRequestBody, JobExceptionsInfo, JobMessageParameters> {
+public class JobExceptionsHeaders implements MessageHeaders<EmptyRequestBody, JobExceptionsInfo, JobExceptionsMessageParameters> {
 
 	private static final JobExceptionsHeaders INSTANCE = new JobExceptionsHeaders();
 
@@ -50,8 +51,8 @@ public class JobExceptionsHeaders implements MessageHeaders<EmptyRequestBody, Jo
 	}
 
 	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
+	public JobExceptionsMessageParameters getUnresolvedMessageParameters() {
+		return new JobExceptionsMessageParameters();
 	}
 
 	@Override

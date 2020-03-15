@@ -49,7 +49,7 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 
 If you want to follow along, you will require a computer with: 
 
-* Java 8 
+* Java 8 or 11
 * Maven 
 
 A provided Flink Maven Archetype will create a skeleton project with all the necessary dependencies quickly:
@@ -189,7 +189,7 @@ The spend report (`spend_report`) table logs each row with log level **INFO**, i
 
 #### Registering A UDF
 
-Along with the tables, a [user-defined function]({{ site.baseurl }}/dev/table/udfs.html) is registered for working with timestamps.
+Along with the tables, a [user-defined function]({{ site.baseurl }}/dev/table/functions/udfs.html) is registered for working with timestamps.
 This function takes a timestamp and rounds it down to the nearest hour.
 
 <div class="codetabs" markdown="1">
@@ -256,7 +256,7 @@ Now with the skeleton of a Job set-up, you are ready to add some business logic.
 The goal is to build a report that shows the total spend for each account across each hour of the day.
 Just like a SQL query, Flink can select the required fields and group by your keys.
 Because the timestamp field has millisecond granularity, you can use the UDF to round it down to the nearest hour.
-Finally, select all the fields, summing the total spend per account-hour pair with the built-in `sum` [aggregate function]({{ site.baseurl }}/dev/table/functions.html#aggregate-functions).
+Finally, select all the fields, summing the total spend per account-hour pair with the built-in `sum` [aggregate function]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#aggregate-functions).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -302,7 +302,7 @@ This query consumes all records from the `transactions` table, calculates the re
 ## Adding Windows
 
 Grouping data based on time is a typical operation in data processing, especially when working with infinite streams.
-A grouping based on time is called a [window]({{ site.baseurl }} /dev/stream/operators/windows.html) and Flink offers flexible windowing semantics.
+A grouping based on time is called a [window]({{ site.baseurl }}/dev/stream/operators/windows.html) and Flink offers flexible windowing semantics.
 The most basic type of window is called a `Tumble` window, which has a fixed size and whose buckets do not overlap.
 
 <div class="codetabs" markdown="1">

@@ -87,6 +87,7 @@ under the License.
 		<module>flink-python</module>
 		<module>flink-ml-parent</module>
 		<module>flink-walkthroughs</module>
+		<module>flink-kubernetes</module>
 	</modules>
 
 	<properties>
@@ -102,7 +103,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
-		<flink.shaded.version>8.0</flink.shaded.version>
+		<flink.shaded.version>9.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
@@ -121,10 +122,12 @@ under the License.
 		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
-		<jackson.version>2.9.8</jackson.version>
+		<jackson.version>2.10.1</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
+		<javax.activation.api.version>1.2.0</javax.activation.api.version>
+		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.2</powermock.version>
@@ -140,15 +143,16 @@ under the License.
 			Starting Hadoop 3, org.apache.kerby will be used instead of MiniKDC. We may have
 			to revisit the impact at that time.
 		-->
-		<minikdc.version>2.7.2</minikdc.version>
+		<minikdc.version>3.2.0</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
+		<orc.version>1.4.3</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<jamicmp.referenceVersion>1.8.0</jamicmp.referenceVersion>
+		<japicmp.referenceVersion>1.9.1</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<test.scheduler.type></test.scheduler.type>
 		<test.groups></test.groups>
@@ -383,6 +387,43 @@ under the License.
 				<version>1.1.3</version>
 			</dependency>
 
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<!-- https://issues.apache.org/jira/browse/FLINK-15868 -->
+			<dependency>
+				<groupId>com.fasterxml.jackson.dataformat</groupId>
+				<artifactId>jackson-dataformat-cbor</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.dataformat</groupId>
+				<artifactId>jackson-dataformat-smile</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.dataformat</groupId>
+				<artifactId>jackson-dataformat-yaml</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
 			<!-- For dependency convergence -->
 			<dependency>
 				<groupId>junit</groupId>
@@ -545,12 +586,6 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-camel_${scala.binary.version}</artifactId>
-				<version>${akka.version}</version>
-			</dependency>
-
-			<dependency>
 				<groupId>org.scala-lang.modules</groupId>
 				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
 				<version>1.1.1</version>
@@ -608,6 +643,24 @@ under the License.
 				</exclusions>
 			</dependency>
 
+			<dependency>
+				<!-- For dependency convergence
+					On Java 8- this dependency is bundled with the JDK
+					On Java 11+ this dependency is bundled in flink-dist -->
+				<groupId>javax.xml.bind</groupId>
+				<artifactId>jaxb-api</artifactId>
+				<version>${jaxb.api.version}</version>
+			</dependency>
+
+			<dependency>
+				<!-- For dependency convergence
+					On Java 8- this dependency is bundled with the JDK
+					On Java 11+ this dependency is bundled in flink-dist -->
+				<groupId>javax.activation</groupId>
+				<artifactId>javax.activation-api</artifactId>
+				<version>${javax.activation.api.version}</version>
+			</dependency>
+
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
 			 version is used by the shaded hadoop jars and the flink-yarn-test project because of MNG-5899.
 
@@ -642,14 +695,14 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scheduler-ng</id>
+			<id>legacy-scheduler</id>
 			<properties>
-				<scheduler.type>ng</scheduler.type>
-				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG</test.groups>
+				<test.scheduler.type>legacy</test.scheduler.type>
+				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler</test.groups>
 			</properties>
 			<activation>
 				<property>
-					<name>scheduler-ng</name>
+					<name>legacy-scheduler</name>
 				</property>
 			</activation>
 		</profile>
@@ -1342,9 +1395,6 @@ under the License.
 						<!-- generated contents -->
 						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
-						<!-- old version -->
-						<exclude>flink-runtime-web/web-dashboard/old-version/**</exclude>
-
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
 						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
@@ -1366,6 +1416,8 @@ under the License.
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-0.11/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
+						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
+						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/*-snapshot</exclude>
@@ -1589,6 +1641,7 @@ under the License.
 								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
 									<projectName>Apache Flink</projectName>
+									<encoding>UTF-8</encoding>
 								</transformer>
 							</transformers>
 						</configuration>
@@ -1685,7 +1738,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.2.1</version>
+					<version>3.1.1</version>
 				</plugin>
 
 				<plugin>
@@ -1818,7 +1871,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>${jamicmp.referenceVersion}</version>
+								<version>${japicmp.referenceVersion}</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>

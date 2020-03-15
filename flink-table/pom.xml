@@ -50,5 +50,6 @@ under the License.
 	<properties>
 		<!-- When updating Janino, make sure that Calcite supports it as well. -->
 		<janino.version>3.0.9</janino.version>
+		<calcite.version>1.21.0</calcite.version>
 	</properties>
 </project>

@@ -20,12 +20,16 @@ package org.apache.flink.api.common.python;
 import org.apache.flink.api.common.python.pickle.ArrayConstructor;
 import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
 
+import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -68,6 +72,77 @@ public final class PythonBridgeUtils {
 			}
 		}
 		return unpickledData;
+	}
+
+	public static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName) {
+		byte type;
+		Object value;
+		Pickler pickler = new Pickler();
+		if (o.getValue3() == null) {
+			type = 0;
+			value = null;
+		} else {
+			switch (typeName) {
+				case TINYINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).byteValueExact();
+					break;
+				case SMALLINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).shortValueExact();
+					break;
+				case INTEGER:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).intValueExact();
+					break;
+				case BIGINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).longValueExact();
+					break;
+				case FLOAT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).floatValue();
+					break;
+				case DOUBLE:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).doubleValue();
+					break;
+				case DECIMAL:
+				case BOOLEAN:
+					type = 0;
+					value = o.getValue3();
+					break;
+				case CHAR:
+				case VARCHAR:
+					type = 0;
+					value = o.getValue3().toString();
+					break;
+				case DATE:
+					type = 1;
+					value = o.getValue3();
+					break;
+				case TIME:
+					type = 2;
+					value = o.getValue3();
+					break;
+				case TIMESTAMP:
+					type = 3;
+					value = o.getValue3();
+					break;
+				default:
+					throw new RuntimeException("Unsupported type " + typeName);
+			}
+		}
+		byte[] pickledData;
+		try {
+			pickledData = pickler.dumps(value);
+		} catch (IOException e) {
+			throw new RuntimeException("Pickle Java object failed", e);
+		}
+		byte[] typePickledData = new byte[pickledData.length + 1];
+		typePickledData[0] = type;
+		System.arraycopy(pickledData, 0, typePickledData, 1, pickledData.length);
+		return typePickledData;
 	}
 
 	private static List<byte[]> readPickledBytes(final String fileName) throws IOException {

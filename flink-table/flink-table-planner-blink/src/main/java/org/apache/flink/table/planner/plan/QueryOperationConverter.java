@@ -22,8 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -33,6 +36,7 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
@@ -52,6 +56,7 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
@@ -71,10 +76,11 @@ import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable;
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable;
+import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -86,14 +92,17 @@ import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -276,7 +285,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
 
 			TableSqlFunction sqlFunction = new TableSqlFunction(
-					tableFunction.functionIdentifier(),
+					FunctionIdentifier.of(tableFunction.functionIdentifier()),
 					tableFunction.toString(),
 					tableFunction,
 					resultType,
@@ -297,7 +306,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visit(CatalogQueryOperation catalogTable) {
-			ObjectIdentifier objectIdentifier = catalogTable.getObjectIdentifier();
+			ObjectIdentifier objectIdentifier = catalogTable.getTableIdentifier();
 			return relBuilder.scan(
 				objectIdentifier.getCatalogName(),
 				objectIdentifier.getDatabaseName(),
@@ -316,13 +325,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				return convertToDataStreamScan(
 					dataStreamQueryOperation.getDataStream(),
 					dataStreamQueryOperation.getFieldIndices(),
-					dataStreamQueryOperation.getTableSchema());
+					dataStreamQueryOperation.getTableSchema(),
+					dataStreamQueryOperation.getIdentifier());
 			} else if (other instanceof ScalaDataStreamQueryOperation) {
 				ScalaDataStreamQueryOperation dataStreamQueryOperation = (ScalaDataStreamQueryOperation<?>) other;
 				return convertToDataStreamScan(
 					dataStreamQueryOperation.getDataStream(),
 					dataStreamQueryOperation.getFieldIndices(),
-					dataStreamQueryOperation.getTableSchema());
+					dataStreamQueryOperation.getTableSchema(),
+					dataStreamQueryOperation.getIdentifier());
 			}
 
 			throw new TableException("Unknown table operation: " + other);
@@ -341,56 +352,94 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			}
 
 			FlinkStatistic statistic;
-			List<String> names;
+			ObjectIdentifier tableIdentifier;
 			if (tableSourceOperation instanceof RichTableSourceQueryOperation &&
-				((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName() != null) {
+				((RichTableSourceQueryOperation<U>) tableSourceOperation).getIdentifier() != null) {
+				tableIdentifier = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getIdentifier();
 				statistic = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getStatistic();
-				names = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName();
 			} else {
 				statistic = FlinkStatistic.UNKNOWN();
 				// TableSourceScan requires a unique name of a Table for computing a digest.
 				// We are using the identity hash of the TableSource object.
 				String refId = "Unregistered_TableSource_" + System.identityHashCode(tableSource);
-				names = Collections.singletonList(refId);
+				CatalogManager catalogManager = relBuilder.getCluster().getPlanner().getContext()
+						.unwrap(FlinkContext.class).getCatalogManager();
+				tableIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(refId));
 			}
 
-			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(tableSource, !isBatch, statistic);
-			FlinkRelOptTable table = FlinkRelOptTable.create(
+			RelDataType rowType = TableSourceUtil.getSourceRowType(relBuilder.getTypeFactory(),
+				tableSourceOperation.getTableSchema(),
+				scala.Option.apply(tableSource),
+				!isBatch);
+			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(
 				relBuilder.getRelOptSchema(),
-				tableSourceTable.getRowType(relBuilder.getTypeFactory()),
-				names,
-				tableSourceTable);
-			return LogicalTableScan.create(relBuilder.getCluster(), table);
+				tableIdentifier,
+				rowType,
+				statistic,
+				tableSource,
+				!isBatch,
+				ConnectorCatalogTable.source(tableSource, isBatch));
+			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable);
 		}
 
 		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> operation) {
-			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
-					operation.getDataStream(),
-					operation.isProducesUpdates(),
-					operation.isAccRetract(),
-					operation.getFieldIndices(),
-					operation.getTableSchema().getFieldNames(),
-					operation.getStatistic(),
-					scala.Option.apply(operation.getFieldNullables()));
-
 			List<String> names;
-			if (operation.getQualifiedName() != null) {
-				names = operation.getQualifiedName();
+			ObjectIdentifier identifier = operation.getIdentifier();
+			if (identifier != null) {
+				names = Arrays.asList(
+					identifier.getCatalogName(),
+					identifier.getDatabaseName(),
+					identifier.getObjectName());
 			} else {
 				String refId = String.format("Unregistered_DataStream_%s", operation.getDataStream().getId());
 				names = Collections.singletonList(refId);
 			}
 
-			FlinkRelOptTable table = FlinkRelOptTable.create(
-					relBuilder.getRelOptSchema(),
-					dataStreamTable.getRowType(relBuilder.getTypeFactory()),
-					names,
-					dataStreamTable);
-			return LogicalTableScan.create(relBuilder.getCluster(), table);
+			final RelDataType rowType = DataStreamTable$.MODULE$
+				.getRowType(relBuilder.getTypeFactory(),
+					operation.getDataStream(),
+					operation.getTableSchema().getFieldNames(),
+					operation.getFieldIndices(),
+					scala.Option.apply(operation.getFieldNullables()));
+			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
+				relBuilder.getRelOptSchema(),
+				names,
+				rowType,
+				operation.getDataStream(),
+				operation.isProducesUpdates(),
+				operation.isAccRetract(),
+				operation.getFieldIndices(),
+				operation.getTableSchema().getFieldNames(),
+				operation.getStatistic(),
+				scala.Option.apply(operation.getFieldNullables()));
+			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable);
 		}
 
-		private RelNode convertToDataStreamScan(DataStream<?> dataStream, int[] fieldIndices, TableSchema tableSchema) {
+		private RelNode convertToDataStreamScan(
+				DataStream<?> dataStream,
+				int[] fieldIndices,
+				TableSchema tableSchema,
+				Optional<ObjectIdentifier> identifier) {
+			List<String> names;
+			if (identifier.isPresent()) {
+				names = Arrays.asList(
+					identifier.get().getCatalogName(),
+					identifier.get().getDatabaseName(),
+					identifier.get().getObjectName());
+			} else {
+				String refId = String.format("Unregistered_DataStream_%s", dataStream.getId());
+				names = Collections.singletonList(refId);
+			}
+				final RelDataType rowType = DataStreamTable$.MODULE$
+					.getRowType(relBuilder.getTypeFactory(),
+						dataStream,
+						tableSchema.getFieldNames(),
+						fieldIndices,
+						scala.Option.empty());
 			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
+				relBuilder.getRelOptSchema(),
+				names,
+				rowType,
 				dataStream,
 				false,
 				false,
@@ -398,14 +447,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				tableSchema.getFieldNames(),
 				FlinkStatistic.UNKNOWN(),
 				scala.Option.empty());
-
-			String refId = String.format("Unregistered_DataStream_%s", dataStream.getId());
-			FlinkRelOptTable table = FlinkRelOptTable.create(
-				relBuilder.getRelOptSchema(),
-				dataStreamTable.getRowType(relBuilder.getTypeFactory()),
-				Collections.singletonList(refId),
-				dataStreamTable);
-			return LogicalTableScan.create(relBuilder.getCluster(), table);
+			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable);
 		}
 
 		private List<RexNode> convertToRexNodes(List<ResolvedExpression> expressions) {
@@ -471,9 +513,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				return new RexNodeExpression(convertedNode, ((ResolvedExpression) expr).getOutputDataType());
 			}).collect(Collectors.toList());
 
-			CallExpression newCall = new CallExpression(
-					callExpression.getObjectIdentifier().get(), callExpression.getFunctionDefinition(), newChildren,
+			CallExpression newCall;
+			if (callExpression.getFunctionIdentifier().isPresent()) {
+				newCall = new CallExpression(
+					callExpression.getFunctionIdentifier().get(), callExpression.getFunctionDefinition(), newChildren,
 					callExpression.getOutputDataType());
+			} else {
+				newCall = new CallExpression(
+					callExpression.getFunctionDefinition(), newChildren, callExpression.getOutputDataType());
+			}
 			return convertExprToRexNode(newCall);
 		}
 

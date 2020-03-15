@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -51,6 +52,11 @@ import java.util.Properties;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
@@ -75,12 +81,12 @@ import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_DELA
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_SERIALIZED;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_FROM;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
  * Factory for creating configured instances of {@link KafkaTableSourceBase}.
@@ -92,7 +98,6 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND); // append mode
 		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA); // kafka
 		context.put(CONNECTOR_VERSION, kafkaVersion()); // version
 		context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
@@ -102,22 +107,29 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	@Override
 	public List<String> supportedProperties() {
 		List<String> properties = new ArrayList<>();
+		// update mode
+		properties.add(UPDATE_MODE);
 
 		// kafka
 		properties.add(CONNECTOR_TOPIC);
 		properties.add(CONNECTOR_PROPERTIES);
 		properties.add(CONNECTOR_PROPERTIES + ".#." + CONNECTOR_PROPERTIES_KEY);
 		properties.add(CONNECTOR_PROPERTIES + ".#." + CONNECTOR_PROPERTIES_VALUE);
+		properties.add(CONNECTOR_PROPERTIES + ".*");
 		properties.add(CONNECTOR_STARTUP_MODE);
+		properties.add(CONNECTOR_SPECIFIC_OFFSETS);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_PARTITION);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_OFFSET);
 		properties.add(CONNECTOR_SINK_PARTITIONER);
 		properties.add(CONNECTOR_SINK_PARTITIONER_CLASS);
 
 		// schema
+		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 		properties.add(SCHEMA + ".#." + SCHEMA_FROM);
+		// computed column
+		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
 
 		// time attributes
 		properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
@@ -129,6 +141,11 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
+
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
 		// format wildcard
 		properties.add(FORMAT + ".*");
@@ -145,7 +162,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final StartupOptions startupOptions = getStartupOptions(descriptorProperties, topic);
 
 		return createKafkaTableSource(
-			descriptorProperties.getTableSchema(SCHEMA),
+			TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA)),
 			SchemaValidator.deriveProctimeAttribute(descriptorProperties),
 			SchemaValidator.deriveRowtimeAttributes(descriptorProperties),
 			SchemaValidator.deriveFieldMapping(
@@ -162,7 +179,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA);
+		final TableSchema schema = TableSchemaUtils.getPhysicalSchema(
+			descriptorProperties.getTableSchema(SCHEMA));
 		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(descriptorProperties);
 		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors =
@@ -274,13 +292,25 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 	private Properties getKafkaProperties(DescriptorProperties descriptorProperties) {
 		final Properties kafkaProperties = new Properties();
-		final List<Map<String, String>> propsList = descriptorProperties.getFixedIndexedProperties(
-			CONNECTOR_PROPERTIES,
-			Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
-		propsList.forEach(kv -> kafkaProperties.put(
-			descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
-			descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
-		));
+
+		if (KafkaValidator.hasConciseKafkaProperties(descriptorProperties)) {
+			descriptorProperties.asMap().keySet()
+				.stream()
+				.filter(key -> key.startsWith(CONNECTOR_PROPERTIES))
+				.forEach(key -> {
+					final String value = descriptorProperties.getString(key);
+					final String subKey = key.substring((CONNECTOR_PROPERTIES + '.').length());
+					kafkaProperties.put(subKey, value);
+				});
+		} else {
+			final List<Map<String, String>> propsList = descriptorProperties.getFixedIndexedProperties(
+				CONNECTOR_PROPERTIES,
+				Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
+			propsList.forEach(kv -> kafkaProperties.put(
+				descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
+				descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
+			));
+		}
 		return kafkaProperties;
 	}
 
@@ -302,15 +332,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 						return StartupMode.GROUP_OFFSETS;
 
 					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
-						final List<Map<String, String>> offsetList = descriptorProperties.getFixedIndexedProperties(
-							CONNECTOR_SPECIFIC_OFFSETS,
-							Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-						offsetList.forEach(kv -> {
-							final int partition = descriptorProperties.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
-							final long offset = descriptorProperties.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-							final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
-							specificOffsets.put(topicPartition, offset);
-						});
+						buildSpecificOffsets(descriptorProperties, topic, specificOffsets);
 						return StartupMode.SPECIFIC_OFFSETS;
 					default:
 						throw new TableException("Unsupported startup mode. Validator should have checked that.");
@@ -320,6 +342,26 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		options.startupMode = startupMode;
 		options.specificOffsets = specificOffsets;
 		return options;
+	}
+
+	private void buildSpecificOffsets(DescriptorProperties descriptorProperties, String topic, Map<KafkaTopicPartition, Long> specificOffsets) {
+		if (descriptorProperties.containsKey(CONNECTOR_SPECIFIC_OFFSETS)) {
+			final Map<Integer, Long> offsetMap = KafkaValidator.validateAndParseSpecificOffsetsString(descriptorProperties);
+			offsetMap.forEach((partition, offset) -> {
+				final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
+				specificOffsets.put(topicPartition, offset);
+			});
+		} else {
+			final List<Map<String, String>> offsetList = descriptorProperties.getFixedIndexedProperties(
+					CONNECTOR_SPECIFIC_OFFSETS,
+					Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+			offsetList.forEach(kv -> {
+				final int partition = descriptorProperties.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
+				final long offset = descriptorProperties.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+				final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
+				specificOffsets.put(topicPartition, offset);
+			});
+		}
 	}
 
 	@SuppressWarnings("unchecked")

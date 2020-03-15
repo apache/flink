@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import java.util.Arrays;
 
@@ -284,9 +285,15 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
 
 		private static final long serialVersionUID = 320495723666949978L;
 
+		private final TimestampType type;
+
+		public TimestampSingleValueAggFunction(TimestampType type) {
+			this.type = type;
+		}
+
 		@Override
 		public DataType getResultType() {
-			return DataTypes.TIMESTAMP(3);
+			return DataTypes.TIMESTAMP(type.getPrecision());
 		}
 	}
 }

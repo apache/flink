@@ -78,6 +78,15 @@ catalogs: [] # empty list
 #    hive-conf-dir: /opt/hive_conf/
 #    default-database: ...
 
+#==============================================================================
+# Modules
+#==============================================================================
+
+# Define modules here.
+
+#modules: # note the following modules will be of the order they are specified
+#  - name: core
+#    type: core
 
 #==============================================================================
 # Execution properties
@@ -87,8 +96,8 @@ catalogs: [] # empty list
 
 execution:
   # select the implementation responsible for planning table programs
-  # possible values are 'old' (used by default) or 'blink'
-  planner: old
+  # possible values are 'blink' (used by default) or 'old'
+  planner: blink
   # 'batch' or 'streaming' execution
   type: streaming
   # allow 'event-time' or only 'processing-time' in sources

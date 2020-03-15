@@ -25,66 +25,65 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotSharingManager;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 /**
  * Test base for scheduler related test cases. The test are
  * executed with the {@link SlotPool}.
  */
-public class SchedulerTestBase extends TestLogger {
+public abstract class SchedulerTestBase extends TestLogger {
 
-	protected TestingSlotProvider testingSlotProvider;
+	protected TestingSlotPoolSlotProvider testingSlotProvider;
+
+	private TestingSlotPoolImpl slotPool;
+
+	private Scheduler scheduler;
+
+	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
 	@Before
 	public void setup() throws Exception {
 		final JobID jobId = new JobID();
-		final SlotPool slotPool = new TestingSlotPoolImpl(jobId);
-		final TestingScheduler testingScheduler = new TestingScheduler(
-			new HashMap<>(16),
-			LocationPreferenceSlotSelectionStrategy.INSTANCE,
-			slotPool);
+		slotPool = new TestingSlotPoolImpl(jobId);
+		scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 
-		testingSlotProvider = new TestingSlotPoolSlotProvider(slotPool, testingScheduler);
+		testingSlotProvider = new TestingSlotPoolSlotProvider();
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final String jobManagerAddress = "localhost";
-		ComponentMainThreadExecutor executor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
-		slotPool.start(jobMasterId, jobManagerAddress, executor);
-		testingScheduler.start(executor);
+		componentMainThreadExecutor = getComponentMainThreadExecutor();
+		slotPool.start(jobMasterId, jobManagerAddress, componentMainThreadExecutor);
+		scheduler.start(componentMainThreadExecutor);
 	}
+
+	protected abstract ComponentMainThreadExecutor getComponentMainThreadExecutor();
 
 	@After
 	public void teardown() throws Exception {
@@ -94,33 +93,18 @@ public class SchedulerTestBase extends TestLogger {
 		}
 	}
 
-	protected interface TestingSlotProvider extends SlotProvider {
-		TaskManagerLocation addTaskManager(int numberSlots);
-
-		void releaseTaskManager(ResourceID resourceId);
-
-		int getNumberOfAvailableSlots();
-
-		int getNumberOfLocalizedAssignments();
-
-		int getNumberOfNonLocalizedAssignments();
-
-		int getNumberOfUnconstrainedAssignments();
-
-		int getNumberOfHostLocalizedAssignments();
-
-		int getNumberOfSlots(SlotSharingGroup slotSharingGroup);
-
-		int getNumberOfAvailableSlotsForGroup(SlotSharingGroup slotSharingGroup, JobVertexID jobVertexId);
-
-		void shutdown() throws Exception;
+	protected final <T> T supplyInMainThreadExecutor(Supplier<T> supplier) {
+		return CompletableFuture.supplyAsync(supplier, componentMainThreadExecutor).join();
 	}
 
-	private static final class TestingSlotPoolSlotProvider implements TestingSlotProvider {
+	protected final void runInMainThreadExecutor(Runnable runnable) {
+		CompletableFuture.runAsync(runnable, componentMainThreadExecutor).join();
+	}
 
-		private final SlotPool slotPool;
-
-		private final TestingScheduler scheduler;
+	/**
+	 * A test implementation of {@link SlotProvider}.
+	 */
+	protected final class TestingSlotPoolSlotProvider implements SlotProvider {
 
 		private final AtomicInteger numberOfLocalizedAssignments;
 
@@ -130,25 +114,19 @@ public class SchedulerTestBase extends TestLogger {
 
 		private final AtomicInteger numberOfHostLocalizedAssignments;
 
-		private TestingSlotPoolSlotProvider(SlotPool slotPool, TestingScheduler testingScheduler) {
-			this.slotPool = Preconditions.checkNotNull(slotPool);
-
-			this.scheduler = testingScheduler;
-
+		private TestingSlotPoolSlotProvider() {
 			this.numberOfLocalizedAssignments = new AtomicInteger();
 			this.numberOfNonLocalizedAssignments = new AtomicInteger();
 			this.numberOfUnconstrainedAssignments = new AtomicInteger();
 			this.numberOfHostLocalizedAssignments = new AtomicInteger();
 		}
 
-		@Override
 		public TaskManagerLocation addTaskManager(int numberSlots) {
 			final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 			final ResourceID resourceId = taskManagerLocation.getResourceID();
-			final SlotPool slotPoolGateway = slotPool;
 
 			try {
-				slotPoolGateway.registerTaskManager(resourceId);
+				supplyInMainThreadExecutor(() -> slotPool.registerTaskManager(resourceId));
 			} catch (Exception e) {
 				throw new RuntimeException("Unexpected exception occurred. This indicates a programming bug.", e);
 			}
@@ -168,10 +146,10 @@ public class SchedulerTestBase extends TestLogger {
 			final Collection<SlotOffer> acceptedSlotOffers;
 
 			try {
-				acceptedSlotOffers = slotPoolGateway.offerSlots(
+				acceptedSlotOffers = supplyInMainThreadExecutor(() -> slotPool.offerSlots(
 					taskManagerLocation,
 					taskManagerGateway,
-					slotOffers);
+					slotOffers));
 			} catch (Exception e) {
 				throw new RuntimeException("Unexpected exception occurred. This indicates a programming bug.", e);
 			}
@@ -181,53 +159,36 @@ public class SchedulerTestBase extends TestLogger {
 			return taskManagerLocation;
 		}
 
-		@Override
 		public void releaseTaskManager(ResourceID resourceId) {
 			try {
-				slotPool.releaseTaskManager(resourceId, null);
+				supplyInMainThreadExecutor(() -> slotPool.releaseTaskManager(resourceId, null));
 			} catch (Exception e) {
 				throw new RuntimeException("Should not have happened.", e);
 			}
 		}
 
-		@Override
 		public int getNumberOfAvailableSlots() {
-			return slotPool.getAvailableSlotsInformation().size();
+			return supplyInMainThreadExecutor(() -> slotPool.getAvailableSlotsInformation().size());
 		}
 
-		@Override
 		public int getNumberOfLocalizedAssignments() {
 			return numberOfLocalizedAssignments.get();
 		}
 
-		@Override
 		public int getNumberOfNonLocalizedAssignments() {
 			return numberOfNonLocalizedAssignments.get();
 		}
 
-		@Override
 		public int getNumberOfUnconstrainedAssignments() {
 			return numberOfUnconstrainedAssignments.get();
 		}
 
-		@Override
 		public int getNumberOfHostLocalizedAssignments() {
 			return numberOfHostLocalizedAssignments.get();
 		}
 
-		@Override
-		public int getNumberOfSlots(SlotSharingGroup slotSharingGroup) {
-				return scheduler.getNumberOfSharedSlots(slotSharingGroup.getSlotSharingGroupId());
-		}
-
-		@Override
-		public int getNumberOfAvailableSlotsForGroup(SlotSharingGroup slotSharingGroup, JobVertexID jobVertexId) {
-				return scheduler.getNumberOfAvailableSlotsForGroup(slotSharingGroup.getSlotSharingGroupId(), jobVertexId);
-		}
-
-		@Override
 		public void shutdown() {
-			slotPool.close();
+			runInMainThreadExecutor(() -> slotPool.close());
 		}
 
 		@Override
@@ -235,9 +196,8 @@ public class SchedulerTestBase extends TestLogger {
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
-			boolean allowQueued,
 			Time allocationTimeout) {
-			return scheduler.allocateSlot(task, allowQueued, slotProfile, allocationTimeout).thenApply(
+			return supplyInMainThreadExecutor(() -> scheduler.allocateSlot(task, slotProfile, allocationTimeout).thenApply(
 				(LogicalSlot logicalSlot) -> {
 					switch (logicalSlot.getLocality()) {
 						case LOCAL:
@@ -257,57 +217,17 @@ public class SchedulerTestBase extends TestLogger {
 					}
 
 					return logicalSlot;
-				});
+				}));
 		}
 
 		@Override
 		public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+
+		}
+
+		public TestingSlotPoolImpl getSlotPool() {
+			return slotPool;
 		}
 	}
 
-
-	/**
-	 * Test implementation of scheduler that offers a bit more introspection.
-	 */
-	private static final class TestingScheduler extends SchedulerImpl {
-
-		private final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagersMap;
-
-		public TestingScheduler(
-			@Nonnull Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagersMap,
-			@Nonnull SlotSelectionStrategy slotSelectionStrategy,
-			@Nonnull SlotPool slotPoolGateway) {
-
-			super(slotSelectionStrategy, slotPoolGateway, slotSharingManagersMap);
-			this.slotSharingManagersMap = slotSharingManagersMap;
-		}
-
-		public int getNumberOfSharedSlots(SlotSharingGroupId slotSharingGroupId) {
-			final SlotSharingManager multiTaskSlotManager = slotSharingManagersMap.get(slotSharingGroupId);
-
-			if (multiTaskSlotManager != null) {
-				return multiTaskSlotManager.getResolvedRootSlots().size();
-			} else {
-				throw new FlinkRuntimeException("No MultiTaskSlotManager registered under " + slotSharingGroupId + '.');
-			}
-		}
-
-		public int getNumberOfAvailableSlotsForGroup(SlotSharingGroupId slotSharingGroupId, JobVertexID jobVertexId) {
-			final SlotSharingManager multiTaskSlotManager = slotSharingManagersMap.get(slotSharingGroupId);
-
-			if (multiTaskSlotManager != null) {
-				int availableSlots = 0;
-
-				for (SlotSharingManager.MultiTaskSlot multiTaskSlot : multiTaskSlotManager.getResolvedRootSlots()) {
-					if (!multiTaskSlot.contains(jobVertexId)) {
-						availableSlots++;
-					}
-				}
-
-				return availableSlots;
-			} else {
-				throw new FlinkRuntimeException("No MultiTaskSlotmanager registered under " + slotSharingGroupId + '.');
-			}
-		}
-	}
 }

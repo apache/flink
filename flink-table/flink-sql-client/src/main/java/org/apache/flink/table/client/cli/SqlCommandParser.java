@@ -99,6 +99,10 @@ public final class SqlCommandParser {
 			"SHOW\\s+FUNCTIONS",
 			NO_OPERANDS),
 
+		SHOW_MODULES(
+			"SHOW\\s+MODULES",
+			NO_OPERANDS),
+
 		USE_CATALOG(
 			"USE\\s+CATALOG\\s+(.*)",
 			SINGLE_OPERAND),
@@ -116,12 +120,20 @@ public final class SqlCommandParser {
 			SINGLE_OPERAND),
 
 		SELECT(
-			"(SELECT.*)",
+			"(WITH.*SELECT.*|SELECT.*)",
 			SINGLE_OPERAND),
 
 		INSERT_INTO(
 			"(INSERT\\s+INTO.*)",
 			SINGLE_OPERAND),
+
+		INSERT_OVERWRITE(
+			"(INSERT\\s+OVERWRITE.*)",
+			SINGLE_OPERAND),
+
+		CREATE_TABLE("(CREATE\\s+TABLE\\s+.*)", SINGLE_OPERAND),
+
+		DROP_TABLE("(DROP\\s+TABLE\\s+.*)", SINGLE_OPERAND),
 
 		CREATE_VIEW(
 			"CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*)",
@@ -132,9 +144,25 @@ public final class SqlCommandParser {
 				return Optional.of(new String[]{operands[0], operands[1]});
 			}),
 
+		CREATE_DATABASE(
+				"(CREATE\\s+DATABASE\\s+.*)",
+				SINGLE_OPERAND),
+
+		DROP_DATABASE(
+				"(DROP\\s+DATABASE\\s+.*)",
+				SINGLE_OPERAND),
+
 		DROP_VIEW(
 			"DROP\\s+VIEW\\s+(.*)",
 			SINGLE_OPERAND),
+
+		ALTER_DATABASE(
+				"(ALTER\\s+DATABASE\\s+.*)",
+				SINGLE_OPERAND),
+
+		ALTER_TABLE(
+				"(ALTER\\s+TABLE\\s+.*)",
+				SINGLE_OPERAND),
 
 		SET(
 			"SET(\\s+(\\S+)\\s*=(.*))?", // whitespace is only ignored on the left side of '='

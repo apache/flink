@@ -66,6 +66,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			unionedInputGate1,
 			unionedInputGate2,
 			getEnvironment().getTaskManagerInfo().getConfiguration(),
+			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId());
 		checkState(checkpointedInputGates.length == 2);
 

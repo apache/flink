@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 
 import java.io.{BufferedReader, File, FileOutputStream}
 
-import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
+import org.apache.flink.api.java.{JarHelper, ScalaShellEnvironment, ScalaShellStreamEnvironment}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
@@ -30,63 +30,53 @@ import scala.tools.nsc.interpreter._
 
 
 class FlinkILoop(
-    val host: String,
-    val port: Int,
-    val clientConfig: Configuration,
+    val flinkConfig: Configuration,
     val externalJars: Option[Array[String]],
     in0: Option[BufferedReader],
     out0: JPrintWriter)
   extends ILoop(in0, out0) {
 
   def this(
-    host: String,
-    port: Int,
-    clientConfig: Configuration,
+    flinkConfig: Configuration,
     externalJars: Option[Array[String]],
     in0: BufferedReader,
     out: JPrintWriter) {
-    this(host, port, clientConfig, externalJars, Some(in0), out)
+    this(flinkConfig, externalJars, Some(in0), out)
   }
 
   def this(
-    host: String,
-    port: Int,
-    clientConfig: Configuration,
+    flinkConfig: Configuration,
     externalJars: Option[Array[String]]) {
-    this(host, port, clientConfig, externalJars, None, new JPrintWriter(Console.out, true))
+    this(flinkConfig, externalJars, None, new JPrintWriter(Console.out, true))
   }
-  
+
   def this(
-    host: String,
-    port: Int,
-    clientConfig: Configuration,
+    flinkConfig: Configuration,
     in0: BufferedReader,
     out: JPrintWriter){
-    this(host, port, clientConfig, None, in0, out)
+    this(flinkConfig, None, in0, out)
   }
 
   // remote environment
-  private val (remoteBenv: ScalaShellRemoteEnvironment,
-  remoteSenv: ScalaShellRemoteStreamEnvironment) = {
+  private val (remoteBenv: ScalaShellEnvironment,
+  remoteSenv: ScalaShellStreamEnvironment) = {
     // allow creation of environments
-    ScalaShellRemoteEnvironment.resetContextEnvironments()
-    
+    ScalaShellEnvironment.resetContextEnvironments()
+    ScalaShellStreamEnvironment.resetContextEnvironments()
+
     // create our environment that submits against the cluster (local or remote)
-    val remoteBenv = new ScalaShellRemoteEnvironment(
-      host,
-      port,
+    val remoteBenv = new ScalaShellEnvironment(
+      flinkConfig,
       this,
-      clientConfig,
       this.getExternalJars(): _*)
-    val remoteSenv = new ScalaShellRemoteStreamEnvironment(
-      host,
-      port,
+    val remoteSenv = new ScalaShellStreamEnvironment(
+      flinkConfig,
       this,
-      clientConfig,
       getExternalJars(): _*)
     // prevent further instantiation of environments
-    ScalaShellRemoteEnvironment.disableAllContextAndOtherEnvironments()
-    
+    ScalaShellEnvironment.disableAllContextAndOtherEnvironments()
+    ScalaShellStreamEnvironment.disableAllContextAndOtherEnvironments()
+
     (remoteBenv,remoteSenv)
   }
 

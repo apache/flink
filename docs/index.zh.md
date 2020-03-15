@@ -30,14 +30,32 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
 
 ## 初步印象
 
-- **概念**: 从 Flink 的 [数据流编程模型](concepts/programming-model.html) 和 [分布式执行环境](concepts/runtime.html) 开始了解最基本的概念。这能帮助你理解本文档的其他部分，包括如何搭建环境，进行程序编写等。建议你首先阅读此部分。
-- **教程**:
-  * [实现并运行一个 DataStream 作业](./getting-started/tutorials/datastream_api.html)
-  * [搭建一个本地 Flink 集群](./getting-started/tutorials/local_setup.html)
+* **代码练习**: 跟随分步指南通过 Flink API 实现简单应用或查询。
+  * [实现 DataStream 应用](./getting-started/walkthroughs/datastream_api.html)
+  * [书写 Table API 查询](./getting-started/walkthroughs/table_api.html)
 
-- **编程指南**: 你可以从 [基本 API 概念](dev/api_concepts.html), [DataStream API](dev/datastream_api.html) 以及 [DataSet API](dev/batch/index.html) 着手学习如何编写你的第一个 Flink 作业。
+* **Docker 游乐场**: 你只需花几分钟搭建 Flink 沙盒环境，就可以探索和使用 Flink 了。
+  * [运行与管理 Flink 流处理应用](./getting-started/docker-playgrounds/flink-operations-playground.html)
+
+* **教程**: 在你的本地机器上安装 Flink。
+  * [搭建本地 Flink 集群](./getting-started/tutorials/local_setup.html)
+
+* **概念**: 学习 Flink 的基本概念能更好地理解文档。
+  * [数据流编程模型](concepts/programming-model.html)
+  * [分布式执行](concepts/runtime.html)
+  * [术语表](concepts/glossary.html)
+
+## API 参考
+
+API 参考列举并解释了 Flink API 的所有功能。
+
+* [基本 API 概念](dev/api_concepts.html)
+* [DataStream API](dev/datastream_api.html)
+* [DataSet API](dev/batch/index.html)
+* [Table API &amp; SQL](dev/table/index.html)
 
 ## 部署
+
 在线上环境运行你的 Flink 作业之前，请阅读 [生产环境注意事项检查清单](ops/production_ready.html)。
 
 ## 发布日志

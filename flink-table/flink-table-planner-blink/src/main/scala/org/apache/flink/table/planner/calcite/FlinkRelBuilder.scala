@@ -18,19 +18,16 @@
 
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
 import org.apache.flink.table.planner.expressions.{PlannerWindowProperty, WindowProperty}
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWindowAggregate, LogicalWindowTableAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -61,7 +58,7 @@ class FlinkRelBuilder(
   require(context != null)
 
   private val toRelNodeConverter = {
-    val functionCatalog = context.asInstanceOf[FlinkContext].getFunctionCatalog
+    val functionCatalog = context.unwrap(classOf[FlinkContext]).getFunctionCatalog
     new QueryOperationConverter(this, functionCatalog)
   }
 
@@ -77,9 +74,9 @@ class FlinkRelBuilder(
     Util.first(context.unwrap(classOf[SinkFactory]), FlinkRelFactories.DEFAULT_SINK_FACTORY)
   }
 
-  def getRelOptSchema: RelOptSchema = relOptSchema
+  override def getRelOptSchema: RelOptSchema = relOptSchema
 
-  def getCluster: RelOptCluster = relOptCluster
+  override def getCluster: RelOptCluster = relOptCluster
 
   override def getTypeFactory: FlinkTypeFactory =
     super.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -147,6 +144,17 @@ class FlinkRelBuilder(
     }
   }
 
+  /**
+    * Build watermark assigner relation node.
+    */
+  def watermark(rowtimeFieldIndex: Int, watermarkExpr: RexNode): RelBuilder = {
+    val input = build()
+    val watermarkAssigner = LogicalWatermarkAssigner
+      .create(cluster, input, rowtimeFieldIndex, watermarkExpr)
+    push(watermarkAssigner)
+    this
+  }
+
   def queryOperation(queryOperation: QueryOperation): RelBuilder = {
     val relNode = queryOperation.accept(toRelNodeConverter)
     push(relNode)
@@ -167,26 +175,18 @@ object FlinkRelBuilder {
 
   def proto(context: Context): RelBuilderFactory = new RelBuilderFactory() {
     def create(cluster: RelOptCluster, schema: RelOptSchema): RelBuilder = {
+      val clusterContext = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+      val mergedContext = Contexts.chain(context, clusterContext)
 
-      val clusterContext = cluster.getPlanner.getContext.asInstanceOf[FlinkContext]
-
-      val mergedContext = new FlinkContext {
-
-        override def getTableConfig: TableConfig = clusterContext.getTableConfig
-
-        override def getFunctionCatalog: FunctionCatalog = clusterContext.getFunctionCatalog
-
-        override def unwrap[C](clazz: Class[C]): C = context.unwrap(clazz)
-      }
       new FlinkRelBuilder(mergedContext, cluster, schema)
     }
   }
 
-  def of(cluster: RelOptCluster, relTable: RelOptTable): FlinkRelBuilder = {
+  def of(cluster: RelOptCluster, relOptSchema: RelOptSchema): FlinkRelBuilder = {
     val clusterContext = cluster.getPlanner.getContext
     new FlinkRelBuilder(
       clusterContext,
       cluster,
-      relTable.getRelOptSchema)
+      relOptSchema)
   }
 }
