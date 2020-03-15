@@ -246,9 +246,13 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	@Override
 	public void onFatalError(Throwable exception) {
-		LOG.error("Fatal error occurred while executing the TaskManager. Shutting it down...", exception);
+		Throwable enrichedException = ExceptionUtils.enrichTaskManagerOutOfMemoryError(exception);
+		LOG.error("Fatal error occurred while executing the TaskManager. Shutting it down...", enrichedException);
 
-		if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
+		// In case of the Metaspace OutOfMemoryError, we expect that the graceful shutdown is possible,
+		// as it does not usually require more class loading to fail again with the Metaspace OutOfMemoryError.
+		if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(enrichedException) &&
+				!ExceptionUtils.isMetaspaceOutOfMemoryError(enrichedException)) {
 			terminateJVM();
 		} else {
 			closeAsync();
