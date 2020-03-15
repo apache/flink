@@ -55,7 +55,7 @@ public class BashJavaUtils {
 	private static void getTmResourceParams(String[] args) throws Exception {
 		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
 		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
+		System.out.println(EXECUTION_PREFIX + MemoryProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
 		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
 	}
 

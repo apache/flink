@@ -192,7 +192,7 @@ public class ConfigurationUtils {
 	}
 
 	@VisibleForTesting
-	public static Map<String, String> parseTmResourceJvmParams(String jvmParamsStr) {
+	public static Map<String, String> parseJvmArgString(String jvmParamsStr) {
 		final String xmx = "-Xmx";
 		final String xms = "-Xms";
 		final String maxDirect = "-XX:MaxDirectMemorySize=";
