@@ -109,7 +109,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		final Container resultedMainContainer = resultPodSpec.getContainers().get(0);
 		assertEquals(KubernetesJobManagerParameters.JOB_MANAGER_MAIN_CONTAINER_NAME, resultedMainContainer.getName());
 		assertEquals(CONTAINER_IMAGE, resultedMainContainer.getImage());
-		assertEquals(CONTAINER_IMAGE_PULL_POLICY, resultedMainContainer.getImagePullPolicy());
+		assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), resultedMainContainer.getImagePullPolicy());
 
 		assertEquals(3, resultedMainContainer.getEnv().size());
 		assertTrue(resultedMainContainer.getEnv()

@@ -77,8 +77,8 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 	}
 
 	@Override
-	public String getImagePullPolicy() {
-		return flinkConfig.getString(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY);
+	public KubernetesConfigOptions.ImagePullPolicy getImagePullPolicy() {
+		return flinkConfig.get(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY);
 	}
 
 	@Override

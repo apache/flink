@@ -46,7 +46,8 @@ public class KubernetesTestBase extends TestLogger {
 	protected static final String NAMESPACE = "test";
 	protected static final String CLUSTER_ID = "my-flink-cluster1";
 	protected static final String CONTAINER_IMAGE = "flink-k8s-test:latest";
-	protected static final String CONTAINER_IMAGE_PULL_POLICY = "IfNotPresent";
+	protected static final KubernetesConfigOptions.ImagePullPolicy CONTAINER_IMAGE_PULL_POLICY =
+		KubernetesConfigOptions.ImagePullPolicy.IfNotPresent;
 
 	@Rule
 	public MixedKubernetesServer server = new MixedKubernetesServer(true, true);
@@ -67,7 +68,7 @@ public class KubernetesTestBase extends TestLogger {
 		flinkConfig.setString(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
 		flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
 		flinkConfig.setString(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
-		flinkConfig.setString(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
+		flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
 
 		flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
 		writeFlinkConfiguration();
