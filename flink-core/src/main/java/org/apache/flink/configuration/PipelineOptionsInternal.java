@@ -16,23 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.testutils;
+package org.apache.flink.configuration;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.annotation.Internal;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * Simple test program that exposes passed arguments.
+ * Pipeline options that are not meant to be used by the user.
  */
-public class ParameterProgram {
+@Internal
+public class PipelineOptionsInternal {
 
-	public static volatile String[] actualArguments = null;
-
-	public static void main(String[] args) throws Exception {
-		actualArguments = args;
-
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements("hello", "world").output(new DiscardingOutputFormat<>());
-		env.execute();
-	}
+	public static final ConfigOption<String> PIPELINE_FIXED_JOB_ID =
+			key("$internal.pipeline.job-id")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("**DO NOT USE** The static JobId to be used for the specific pipeline. " +
+							"For fault-tolerance, this value needs to stay the same across runs.");
 }
