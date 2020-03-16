@@ -34,7 +34,9 @@ import org.apache.flink.kubernetes.kubeclient.resources.ActionWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesDeployment;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TimeUtils;
@@ -47,7 +49,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
@@ -55,7 +56,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -241,36 +241,12 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	}
 
 	@Override
-	public void watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler callbackHandler) {
-		final Watcher<Pod> watcher = new Watcher<Pod>() {
-			@Override
-			public void eventReceived(Action action, Pod pod) {
-				LOG.debug("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
-				switch (action) {
-					case ADDED:
-						callbackHandler.onAdded(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
-						break;
-					case MODIFIED:
-						callbackHandler.onModified(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
-						break;
-					case ERROR:
-						callbackHandler.onError(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
-						break;
-					case DELETED:
-						callbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
-						break;
-					default:
-						LOG.debug("Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
-						break;
-				}
-			}
-
-			@Override
-			public void onClose(KubernetesClientException e) {
-				LOG.error("The pods watcher is closing.", e);
-			}
-		};
-		this.internalClient.pods().withLabels(labels).watch(watcher);
+	public KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler podCallbackHandler) {
+		return new KubernetesWatch(
+			flinkConfig,
+			this.internalClient.pods()
+				.withLabels(labels)
+				.watch(new KubernetesPodsWatcher(flinkConfig, podCallbackHandler)));
 	}
 
 	@Override

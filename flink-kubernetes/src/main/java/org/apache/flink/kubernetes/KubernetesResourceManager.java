@@ -26,6 +26,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfig
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.taskmanager.KubernetesTaskExecutorRunner;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,6 +98,8 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	/** The number of pods requested, but not yet granted. */
 	private int numPendingPodRequests = 0;
 
+	private KubernetesWatch podsWatch;
+
 	public KubernetesResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
@@ -144,21 +148,27 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	protected void initialize() throws ResourceManagerException {
 		recoverWorkerNodesFromPreviousAttempts();
 
-		kubeClient.watchPodsAndDoCallback(getTaskManagerLabels(), this);
+		podsWatch = kubeClient.watchPodsAndDoCallback(getTaskManagerLabels(), this);
 	}
 
 	@Override
 	public CompletableFuture<Void> onStop() {
 		// shut down all components
-		Throwable exception = null;
+		Throwable throwable = null;
+
+		try {
+			podsWatch.close();
+		} catch (Throwable t) {
+			throwable = t;
+		}
 
 		try {
 			kubeClient.close();
 		} catch (Throwable t) {
-			exception = t;
+			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 		}
 
-		return getStopTerminationFutureOrCompletedExceptionally(exception);
+		return getStopTerminationFutureOrCompletedExceptionally(throwable);
 	}
 
 	@Override
@@ -222,6 +232,11 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	@Override
 	public void onError(List<KubernetesPod> pods) {
 		runAsync(() -> pods.forEach(this::removePodIfTerminated));
+	}
+
+	@Override
+	public void handleFatalError(Throwable throwable) {
+		onFatalError(throwable);
 	}
 
 	@VisibleForTesting
