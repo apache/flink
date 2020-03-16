@@ -51,6 +51,11 @@ public class Constants {
 	public static final int BLOB_SERVER_PORT = 6124;
 	public static final int TASK_MANAGER_RPC_PORT = 6122;
 
+	public static final String JOB_MANAGER_RPC_PORT_NAME = "jobmanager-rpc";
+	public static final String BLOB_SERVER_PORT_NAME = "blobserver";
+	public static final String REST_PORT_NAME = "rest";
+	public static final String TASK_MANAGER_RPC_PORT_NAME = "taskmanager-rpc";
+
 	public static final String RESOURCE_NAME_MEMORY = "memory";
 
 	public static final String RESOURCE_NAME_CPU = "cpu";

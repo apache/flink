@@ -102,12 +102,15 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 	public void testMainContainerPorts() {
 		final List<ContainerPort> expectedContainerPorts = Arrays.asList(
 			new ContainerPortBuilder()
+				.withName(Constants.REST_PORT_NAME)
 				.withContainerPort(REST_PORT)
 			.build(),
 			new ContainerPortBuilder()
+				.withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
 				.withContainerPort(RPC_PORT)
 			.build(),
 			new ContainerPortBuilder()
+				.withName(Constants.BLOB_SERVER_PORT_NAME)
 				.withContainerPort(BLOB_SERVER_PORT)
 			.build());
 
