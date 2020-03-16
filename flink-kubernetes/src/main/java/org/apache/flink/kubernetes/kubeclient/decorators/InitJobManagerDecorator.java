@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
@@ -98,13 +99,16 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
 	private List<ContainerPort> getContainerPorts() {
 		return Arrays.asList(
 			new ContainerPortBuilder()
+				.withName(Constants.REST_PORT_NAME)
 				.withContainerPort(kubernetesJobManagerParameters.getRestPort())
 				.build(),
 			new ContainerPortBuilder()
+				.withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
 				.withContainerPort(kubernetesJobManagerParameters.getRPCPort())
 				.build(),
-			new ContainerPortBuilder().
-				withContainerPort(kubernetesJobManagerParameters.getBlobServerPort())
+			new ContainerPortBuilder()
+				.withName(Constants.BLOB_SERVER_PORT_NAME)
+				.withContainerPort(kubernetesJobManagerParameters.getBlobServerPort())
 				.build());
 	}
 
