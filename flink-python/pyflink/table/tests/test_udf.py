@@ -176,14 +176,14 @@ class UserDefinedFunctionTests(object):
                                                       DataTypes.SMALLINT(),
                                                       DataTypes.INT(),
                                                       DataTypes.BIGINT(),
-                                                      DataTypes.DECIMAL(20, 10),
+                                                      DataTypes.DECIMAL(38, 18),
                                                       DataTypes.FLOAT(),
                                                       DataTypes.DOUBLE(),
                                                       DataTypes.BOOLEAN(),
                                                       DataTypes.STRING(),
                                                       DataTypes.DATE(),
                                                       DataTypes.TIME(),
-                                                      DataTypes.TIMESTAMP()],
+                                                      DataTypes.TIMESTAMP(3)],
                                          result_type=DataTypes.BIGINT()))
 
         self.t_env.register_function(
@@ -388,10 +388,10 @@ class UserDefinedFunctionTests(object):
             "date_func", udf(date_func, [DataTypes.DATE()], DataTypes.DATE()))
 
         self.t_env.register_function(
-            "time_func", udf(time_func, [DataTypes.TIME(3)], DataTypes.TIME(3)))
+            "time_func", udf(time_func, [DataTypes.TIME()], DataTypes.TIME()))
 
         self.t_env.register_function(
-            "timestamp_func", udf(timestamp_func, [DataTypes.TIMESTAMP()], DataTypes.TIMESTAMP()))
+            "timestamp_func", udf(timestamp_func, [DataTypes.TIMESTAMP(3)], DataTypes.TIMESTAMP(3)))
 
         self.t_env.register_function(
             "array_func", udf(array_func, [DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT()))],
@@ -414,8 +414,8 @@ class UserDefinedFunctionTests(object):
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
              DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT(),
              DataTypes.FLOAT(), DataTypes.DOUBLE(), DataTypes.BYTES(),
-             DataTypes.STRING(), DataTypes.DATE(), DataTypes.TIME(3),
-             DataTypes.TIMESTAMP(), DataTypes.ARRAY(DataTypes.BIGINT()),
+             DataTypes.STRING(), DataTypes.DATE(), DataTypes.TIME(),
+             DataTypes.TIMESTAMP(3), DataTypes.ARRAY(DataTypes.BIGINT()),
              DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING()),
              DataTypes.DECIMAL(38, 18), DataTypes.DECIMAL(38, 18)])
         self.t_env.register_table_sink("Results", table_sink)
@@ -441,8 +441,8 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("i", DataTypes.BYTES()),
                  DataTypes.FIELD("j", DataTypes.STRING()),
                  DataTypes.FIELD("k", DataTypes.DATE()),
-                 DataTypes.FIELD("l", DataTypes.TIME(3)),
-                 DataTypes.FIELD("m", DataTypes.TIMESTAMP()),
+                 DataTypes.FIELD("l", DataTypes.TIME()),
+                 DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
                  DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT()))),
                  DataTypes.FIELD("o", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())),
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
