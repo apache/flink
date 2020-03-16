@@ -29,6 +29,11 @@ schedules:
     - master
   always: true # run even if there were no changes to the mentioned branches
 
+trigger:
+  branches:
+    include:
+    - '*'  # must quote since "*" is a YAML reserved character; we want a string
+
 resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
