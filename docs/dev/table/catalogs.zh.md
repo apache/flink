@@ -1,5 +1,5 @@
 ---
-title: "目录"
+title: "Catalogs"
 nav-parent_id: tableapi
 nav-pos: 80
 ---
@@ -25,7 +25,7 @@ under the License.
 目录提供了元数据信息，例如数据库、表、分区、视图以及数据库或其他外部系统中存储的函数和信息。
 
 数据处理最关键的方面之一是管理元数据。
-目录可以是临时元数据，例如临时表、针对表环境注册的 UDF。
+元数据可以是临时的，例如临时表、或者通过 TableEnvironment 注册的 UDF。
 元数据也可以是持久化的，例如 Hive Metastore 中的元数据。目录提供了一个统一的API，用于管理元数据，并使其可以从 Table API 和 SQL 查询语句中来访问。
 
 * This will be replaced by the TOC
@@ -33,14 +33,14 @@ under the License.
 
 ## 目录 (catalog) 类型
 
-### GenericInMemory 目录
+### GenericInMemoryCatalog
 
-GenericInMemory 目录是内存中实现的目录，所有对象只在 session 的存活期内可用。
+`GenericInMemoryCatalog` 是基于内存实现的 Catalog，所有元数据只在 session 的生命周期内可用。
 
-### Hive 目录
+### HiveCatalog
 
 `HiveCatalog` 有两个用途：作为原生 Flink 元数据的持久化存储，以及作为读写现有 Hive 元数据的接口。 
-Flink 的 [Hive 文档]({{ site.baseurl }}/zh/dev/table/hive/index.html) 提供了有关设置 HiveCatalog 以及访问现有 Hive 元数据的详细信息。
+Flink 的 [Hive 文档]({{ site.baseurl }}/zh/dev/table/hive/index.html) 提供了有关设置 `HiveCatalog` 以及访问现有 Hive 元数据的详细信息。
 
 
 <span class="label label-danger">警告</span> Hive Metastore 以小写形式存储所有元数据对象名称。而 `GenericInMemoryCatalog` 区分大小写。
