@@ -22,16 +22,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-目录提供了元数据信息，例如数据库、表、分区、视图以及数据库或其他外部系统中存储的函数和信息。
+Catalog 提供了元数据信息，例如数据库、表、分区、视图以及数据库或其他外部系统中存储的函数和信息。
 
 数据处理最关键的方面之一是管理元数据。
 元数据可以是临时的，例如临时表、或者通过 TableEnvironment 注册的 UDF。
-元数据也可以是持久化的，例如 Hive Metastore 中的元数据。目录提供了一个统一的API，用于管理元数据，并使其可以从 Table API 和 SQL 查询语句中来访问。
+元数据也可以是持久化的，例如 Hive Metastore 中的元数据。Catalog 提供了一个统一的API，用于管理元数据，并使其可以从 Table API 和 SQL 查询语句中来访问。
 
 * This will be replaced by the TOC
 {:toc}
 
-## 目录 (catalog) 类型
+## Catalog 类型
 
 ### GenericInMemoryCatalog
 
@@ -45,15 +45,15 @@ Flink 的 [Hive 文档]({{ site.baseurl }}/zh/dev/table/hive/index.html) 提供�
 
 <span class="label label-danger">警告</span> Hive Metastore 以小写形式存储所有元数据对象名称。而 `GenericInMemoryCatalog` 区分大小写。
 
-### 用户自定义目录
+### 用户自定义 Catalog
 
-目录是可扩展的，用户可以通过实现 `Catalog` 接口来开发自定义目录。
+Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自定义 Catalog。
 想要在 SQL CLI 中使用自定义 Catalog，用户除了需要实现自定义的 Catalog 之外，还需要为这个 Catalog 实现对应的 `CatalogFactory` 接口。
 
-目录工厂定义了一组属性，用于 SQL CLI 启动时配置目录。
-这组属性集将传递给发现服务，在该服务中，服务会尝试将属性关联到 `CatalogFactory` 并初始化相应的目录实例。
+`CatalogFactory` 定义了一组属性，用于 SQL CLI 启动时配置 Catalog。
+这组属性集将传递给发现服务，在该服务中，服务会尝试将属性关联到 `CatalogFactory` 并初始化相应的 Catalog 实例。
 
-## 如何创建 Flink 表并将其注册到目录
+## 如何创建 Flink 表并将其注册到 Catalog
 
 ### 使用 SQL DDL
 
@@ -100,7 +100,7 @@ mytable
 
 ### 使用 Java/Scala/Python API
 
-用户可以用编程的方式使用Java、Scala 或者 Python API 来创建目录表。
+用户可以用编程的方式使用Java、Scala 或者 Python API 来创建 Catalog 表。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -140,9 +140,9 @@ List<String> tables = catalog.listTables("mydb"); // tables should contain "myta
 </div>
 </div>
 
-## 目录 API
+## Catalog API
 
-注意：这里只列出了编程方式的目录 API，用户可以使用 SQL DDL 实现许多相同的功能。
+注意：这里只列出了编程方式的 Catalog API，用户可以使用 SQL DDL 实现许多相同的功能。
 关于 DDL 的详细信息请参考 [SQL CREATE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html)。
 
 
@@ -299,12 +299,12 @@ catalog.listFunctions("mydb");
 </div>
 
 
-## 通过 Table API 和 SQL 操作 Catalog
+## 通过 Table API 和 SQL Client 操作 Catalog
 
-### 注册目录
+### 注册 Catalog
 
-用户可以访问默认创建的内存目录 `default_catalog`，这个目录默认拥有一个默认数据库 `default_database`。
-用户也可以注册其他的目录到现有的 Flink 会话中。
+用户可以访问默认创建的内存 Catalog `default_catalog`，这个 Catalog 默认拥有一个默认数据库 `default_database`。
+用户也可以注册其他的 Catalog 到现有的 Flink 会话中。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -314,7 +314,7 @@ tableEnv.registerCatalog(new CustomCatalog("myCatalog"));
 </div>
 <div data-lang="YAML" markdown="1">
 
-使用 YAML 定义的目录必须提供 `type` 属性，以表示指定的目录类型。
+使用 YAML 定义的 Catalog 必须提供 `type` 属性，以表示指定的 Catalog 类型。
 以下几种类型可以直接使用。
 
 <table class="table table-bordered">
@@ -345,9 +345,9 @@ catalogs:
 </div>
 </div>
 
-### 修改当前的目录和数据库
+### 修改当前的 Catalog 和数据库
 
-Flink 始终在当前的目录和数据库中寻找表、视图和 UDF。 
+Flink 始终在当前的 Catalog 和数据库中寻找表、视图和 UDF。 
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -364,7 +364,7 @@ Flink SQL> USE myDB;
 </div>
 </div>
 
-通过提供全限定名 `catalog.database.object` 来访问不在当前目录中的元数据信息。
+通过提供全限定名 `catalog.database.object` 来访问不在当前 Catalog 中的元数据信息。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -379,7 +379,7 @@ Flink SQL> SELECT * FROM not_the_current_catalog.not_the_current_db.my_table;
 </div>
 </div>
 
-### 列出可用的目录
+### 列出可用的 Catalog
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
