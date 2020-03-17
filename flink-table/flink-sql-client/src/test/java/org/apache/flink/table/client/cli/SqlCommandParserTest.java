@@ -42,6 +42,9 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("  SHOW   TABLES   ", new SqlCommandCall(SqlCommand.SHOW_TABLES));
 		testValidSqlCommand("SHOW FUNCTIONS", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
 		testValidSqlCommand("  SHOW    FUNCTIONS   ", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
+		testValidSqlCommand("DESC MyTable", new SqlCommandCall(SqlCommand.DESC, new String[]{"MyTable"}));
+		testValidSqlCommand("DESC         MyTable     ", new SqlCommandCall(SqlCommand.DESC, new String[]{"MyTable"}));
+		testInvalidSqlCommand("DESC  "); // no table name
 		testValidSqlCommand("DESCRIBE MyTable", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"MyTable"}));
 		testValidSqlCommand("DESCRIBE         MyTable     ", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"MyTable"}));
 		testInvalidSqlCommand("DESCRIBE  "); // no table name
