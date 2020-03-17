@@ -146,6 +146,16 @@ public enum FlinkSqlConformance implements SqlConformance {
 		return false;
 	}
 
+	@Override
+	public boolean allowPluralTimeUnits() {
+		return false;
+	}
+
+	@Override
+	public boolean allowQualifyingCommonColumn() {
+		return true;
+	}
+
 	/**
 	 * Whether to allow "create table T(i int, j int) partitioned by (i)" grammar.
 	 */

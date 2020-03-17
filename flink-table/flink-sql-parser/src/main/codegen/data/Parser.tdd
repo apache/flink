@@ -21,69 +21,70 @@
 
   # List of additional classes and packages to import.
   # Example. "org.apache.calcite.sql.*", "java.util.List".
+  # Please keep the import classes in alphabetical order if new class is added.
   imports: [
-    "org.apache.calcite.sql.ExtendedSqlRowTypeNameSpec",
-    "org.apache.calcite.sql.SqlMapTypeNameSpec",
-    "org.apache.flink.sql.parser.ddl.SqlCreateTable",
+    "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
+    "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTable"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
+    "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
+    "org.apache.flink.sql.parser.ddl.SqlCreateDatabase"
+    "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
+    "org.apache.flink.sql.parser.ddl.SqlCreateTable"
+    "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext"
+    "org.apache.flink.sql.parser.ddl.SqlCreateView"
+    "org.apache.flink.sql.parser.ddl.SqlDropDatabase"
+    "org.apache.flink.sql.parser.ddl.SqlDropFunction"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
-    "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
-    "org.apache.flink.sql.parser.ddl.SqlCreateView",
-    "org.apache.flink.sql.parser.ddl.SqlDropView",
-    "org.apache.flink.sql.parser.ddl.SqlTableColumn",
-    "org.apache.flink.sql.parser.ddl.SqlTableOption",
-    "org.apache.flink.sql.parser.ddl.SqlWatermark",
-    "org.apache.flink.sql.parser.ddl.SqlUseCatalog",
-    "org.apache.flink.sql.parser.ddl.SqlUseDatabase",
-    "org.apache.flink.sql.parser.ddl.SqlCreateDatabase",
-    "org.apache.flink.sql.parser.ddl.SqlDropDatabase",
-    "org.apache.flink.sql.parser.ddl.SqlAlterDatabase",
-    "org.apache.flink.sql.parser.ddl.SqlAlterFunction",
-    "org.apache.flink.sql.parser.ddl.SqlCreateFunction",
-    "org.apache.flink.sql.parser.ddl.SqlDropFunction",
-    "org.apache.flink.sql.parser.ddl.SqlAlterTable",
-    "org.apache.flink.sql.parser.ddl.SqlAlterTableRename",
-    "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties",
-    "org.apache.flink.sql.parser.ddl.SqlCreateCatalog",
-    "org.apache.flink.sql.parser.dml.RichSqlInsert",
-    "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
-    "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
-    "org.apache.flink.sql.parser.dql.SqlDescribeCatalog",
-    "org.apache.flink.sql.parser.dql.SqlShowDatabases",
-    "org.apache.flink.sql.parser.dql.SqlShowFunctions",
-    "org.apache.flink.sql.parser.dql.SqlDescribeDatabase",
-    "org.apache.flink.sql.parser.dql.SqlShowTables",
-    "org.apache.flink.sql.parser.dql.SqlRichDescribeTable",
-    "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
-    "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
-    "org.apache.flink.sql.parser.utils.SqlTimeUnit",
-    "org.apache.flink.sql.parser.utils.ParserResource",
-    "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
-    "org.apache.flink.sql.parser.SqlProperty",
-    "org.apache.calcite.sql.SqlDrop",
-    "org.apache.calcite.sql.SqlCreate",
-    "java.util.List",
+    "org.apache.flink.sql.parser.ddl.SqlDropView"
+    "org.apache.flink.sql.parser.ddl.SqlTableColumn"
+    "org.apache.flink.sql.parser.ddl.SqlTableOption"
+    "org.apache.flink.sql.parser.ddl.SqlUseCatalog"
+    "org.apache.flink.sql.parser.ddl.SqlUseDatabase"
+    "org.apache.flink.sql.parser.ddl.SqlWatermark"
+    "org.apache.flink.sql.parser.dml.RichSqlInsert"
+    "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
+    "org.apache.flink.sql.parser.dql.SqlDescribeCatalog"
+    "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
+    "org.apache.flink.sql.parser.dql.SqlShowCatalogs"
+    "org.apache.flink.sql.parser.dql.SqlShowDatabases"
+    "org.apache.flink.sql.parser.dql.SqlShowFunctions"
+    "org.apache.flink.sql.parser.dql.SqlShowTables"
+    "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
+    "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
+    "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
+    "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
+    "org.apache.flink.sql.parser.utils.SqlTimeUnit"
+    "org.apache.flink.sql.parser.utils.ParserResource"
+    "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
+    "org.apache.flink.sql.parser.SqlProperty"
+    "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
+    "org.apache.calcite.sql.SqlCreate"
+    "org.apache.calcite.sql.SqlDrop"
+    "java.util.List"
     "java.util.ArrayList"
   ]
 
   # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is not a reserved
   # keyword, please also add it to 'nonReservedKeywords' section.
   keywords: [
-    "COMMENT",
-    "PARTITIONED",
-    "IF",
-    "WATERMARK",
-    "OVERWRITE",
-    "STRING",
-    "BYTES",
-    "RAW",
-    "CATALOGS",
-    "USE",
-    "DATABASES",
-    "FUNCTIONS",
-    "EXTENDED",
-    "SCALA",
-    "TABLES",
+    "BYTES"
+    "CATALOGS"
+    "COMMENT"
+    "DATABASES"
+    "EXTENDED"
+    "FUNCTIONS"
+    "IF"
+    "OVERWRITE"
+    "PARTITIONED"
+    "RAW"
     "RENAME"
+    "SCALA"
+    "STRING"
+    "TABLES"
+    "USE"
+    "WATERMARK"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -109,15 +110,14 @@
     "C"
     "CASCADE"
     "CATALOG"
-    "CATALOGS"
     "CATALOG_NAME"
     "CENTURY"
     "CHAIN"
+    "CHARACTERISTICS"
+    "CHARACTERS"
     "CHARACTER_SET_CATALOG"
     "CHARACTER_SET_NAME"
     "CHARACTER_SET_SCHEMA"
-    "CHARACTERISTICS"
-    "CHARACTERS"
     "CLASS_ORIGIN"
     "COBOL"
     "COLLATION"
@@ -128,22 +128,22 @@
     "COMMAND_FUNCTION"
     "COMMAND_FUNCTION_CODE"
     "COMMITTED"
-    "CONDITION_NUMBER"
     "CONDITIONAL"
+    "CONDITION_NUMBER"
     "CONNECTION"
     "CONNECTION_NAME"
     "CONSTRAINT_CATALOG"
     "CONSTRAINT_NAME"
-    "CONSTRAINT_SCHEMA"
     "CONSTRAINTS"
+    "CONSTRAINT_SCHEMA"
     "CONSTRUCTOR"
     "CONTINUE"
     "CURSOR_NAME"
     "DATA"
     "DATABASE"
-    "DATABASES"
     "DATETIME_INTERVAL_CODE"
     "DATETIME_INTERVAL_PRECISION"
+    "DAYS"
     "DECADE"
     "DEFAULTS"
     "DEFERRABLE"
@@ -169,7 +169,6 @@
     "EXCEPTION"
     "EXCLUDE"
     "EXCLUDING"
-    "EXTENDED"
     "FINAL"
     "FIRST"
     "FOLLOWING"
@@ -177,7 +176,6 @@
     "FORTRAN"
     "FOUND"
     "FRAC_SECOND"
-    "FUNCTIONS"
     "G"
     "GENERAL"
     "GENERATED"
@@ -186,6 +184,7 @@
     "GOTO"
     "GRANTED"
     "HIERARCHY"
+    "HOURS"
     "IGNORE"
     "IMMEDIATE"
     "IMMEDIATELY"
@@ -198,8 +197,8 @@
     "INSTANTIABLE"
     "INVOKER"
     "ISODOW"
-    "ISOYEAR"
     "ISOLATION"
+    "ISOYEAR"
     "JAVA"
     "JSON"
     "K"
@@ -213,15 +212,18 @@
     "LIBRARY"
     "LOCATOR"
     "M"
+    "MAP"
     "MATCHED"
     "MAXVALUE"
-    "MICROSECOND"
     "MESSAGE_LENGTH"
     "MESSAGE_OCTET_LENGTH"
     "MESSAGE_TEXT"
-    "MILLISECOND"
+    "MICROSECOND"
     "MILLENNIUM"
+    "MILLISECOND"
+    "MINUTES"
     "MINVALUE"
+    "MONTHS"
     "MORE_"
     "MUMPS"
     "NAME"
@@ -265,7 +267,6 @@
     "QUARTER"
     "READ"
     "RELATIVE"
-    "RENAME"
     "REPEATABLE"
     "REPLACE"
     "RESPECT"
@@ -289,6 +290,7 @@
     "SCOPE_CATALOGS"
     "SCOPE_NAME"
     "SCOPE_SCHEMA"
+    "SECONDS"
     "SECTION"
     "SECURITY"
     "SELF"
@@ -329,8 +331,8 @@
     "SQL_INTERVAL_YEAR"
     "SQL_INTERVAL_YEAR_TO_MONTH"
     "SQL_LONGVARBINARY"
-    "SQL_LONGVARNCHAR"
     "SQL_LONGVARCHAR"
+    "SQL_LONGVARNCHAR"
     "SQL_NCHAR"
     "SQL_NCLOB"
     "SQL_NUMERIC"
@@ -358,7 +360,6 @@
     "STYLE"
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
-    "TABLES"
     "TABLE_NAME"
     "TEMPORARY"
     "TIES"
@@ -374,6 +375,7 @@
     "TRIGGER_CATALOG"
     "TRIGGER_NAME"
     "TRIGGER_SCHEMA"
+    "TUMBLE"
     "TYPE"
     "UNBOUNDED"
     "UNCOMMITTED"
@@ -381,45 +383,54 @@
     "UNDER"
     "UNNAMED"
     "USAGE"
-    "USE"
     "USER_DEFINED_TYPE_CATALOG"
     "USER_DEFINED_TYPE_CODE"
     "USER_DEFINED_TYPE_NAME"
     "USER_DEFINED_TYPE_SCHEMA"
-    "UTF8"
     "UTF16"
     "UTF32"
+    "UTF8"
     "VERSION"
     "VIEW"
     "WEEK"
-    "WRAPPER"
     "WORK"
+    "WRAPPER"
     "WRITE"
     "XML"
-    "ZONE",
+    "YEARS"
+    "ZONE"
+  ]
 
+  # List of non-reserved keywords to add;
+  # items in this list become non-reserved
+  nonReservedKeywordsToAdd: [
     # not in core, added in Flink
-    "PARTITIONED",
-    "IF",
+    "IF"
     "OVERWRITE"
+    "PARTITIONED"
+  ]
+
+  # List of non-reserved keywords to remove;
+  # items in this list become reserved
+  nonReservedKeywordsToRemove: [
   ]
 
   # List of methods for parsing custom SQL statements.
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
-    "RichSqlInsert()",
-    "SqlShowCatalogs()",
-    "SqlDescribeCatalog()",
-    "SqlUseCatalog()",
-    "SqlShowDatabases()",
-    "SqlUseDatabase()",
-    "SqlAlterDatabase()",
-    "SqlDescribeDatabase()",
-    "SqlAlterFunction()",
-    "SqlShowFunctions()",
-    "SqlShowTables()",
-    "SqlRichDescribeTable()",
+    "RichSqlInsert()"
+    "SqlShowCatalogs()"
+    "SqlDescribeCatalog()"
+    "SqlUseCatalog()"
+    "SqlShowDatabases()"
+    "SqlUseDatabase()"
+    "SqlAlterDatabase()"
+    "SqlDescribeDatabase()"
+    "SqlAlterFunction()"
+    "SqlShowFunctions()"
+    "SqlShowTables()"
+    "SqlRichDescribeTable()"
     "SqlAlterTable()"
   ]
 
@@ -433,9 +444,9 @@
   # Return type of method implementation should be "SqlTypeNameSpec".
   # Example: SqlParseTimeStampZ().
   dataTypeParserMethods: [
-    "ExtendedSqlBasicTypeName()",
-    "CustomizedCollectionsTypeName()",
-    "SqlMapTypeName()",
+    "ExtendedSqlBasicTypeName()"
+    "CustomizedCollectionsTypeName()"
+    "SqlMapTypeName()"
     "ExtendedSqlRowTypeName()"
   ]
 
@@ -454,18 +465,18 @@
   # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
-    "SqlCreateCatalog",
-    "SqlCreateTable",
-    "SqlCreateView",
-    "SqlCreateDatabase",
+    "SqlCreateCatalog"
+    "SqlCreateTable"
+    "SqlCreateView"
+    "SqlCreateDatabase"
     "SqlCreateFunction"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
-    "SqlDropTable",
-    "SqlDropView",
+    "SqlDropTable"
+    "SqlDropView"
     "SqlDropDatabase"
     "SqlDropFunction"
   ]
