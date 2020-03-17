@@ -44,7 +44,7 @@ import java.util.concurrent.BlockingQueue;
 public class JobLeaderServiceTest extends TestLogger {
 
 	@ClassRule
-	public static TestingRpcServiceResource rpcServiceResource = new TestingRpcServiceResource();
+	public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE = new TestingRpcServiceResource();
 
 	/**
 	 * Tests that we can concurrently modify the JobLeaderService and complete the leader retrieval operation.
@@ -71,7 +71,7 @@ public class JobLeaderServiceTest extends TestLogger {
 
 		jobLeaderService.start(
 			"foobar",
-			rpcServiceResource.getTestingRpcService(),
+			RPC_SERVICE_RESOURCE.getTestingRpcService(),
 			haServices,
 			jobLeaderListener);
 
