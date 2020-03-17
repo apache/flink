@@ -48,6 +48,8 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNoException;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for verifying file staging during submission to YARN works with the S3A file system.
@@ -160,8 +162,12 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 
 		assumeFalse(fs.exists(basePath));
 
+		// mock the test bucket path as home dir.
+		org.apache.hadoop.fs.FileSystem spyFileSystem = spy(fs.getHadoopFileSystem());
+		when(spyFileSystem.getHomeDirectory()).thenReturn(new org.apache.hadoop.fs.Path(basePath.toUri()));
+
 		try {
-			YarnFileStageTest.testCopyFromLocalRecursive(fs.getHadoopFileSystem(),
+			YarnFileStageTest.testCopyFromLocalRecursive(spyFileSystem,
 				Path.CUR_DIR, tempFolder, false);
 		} finally {
 			// clean up
