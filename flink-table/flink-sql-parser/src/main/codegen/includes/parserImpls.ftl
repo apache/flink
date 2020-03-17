@@ -119,7 +119,10 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 }
 {
     <DATABASE> { startPos = getPos(); }
-    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
     databaseName = CompoundIdentifier()
     [ <COMMENT> <QUOTED_STRING>
         {
@@ -217,7 +220,10 @@ SqlCreate SqlCreateFunction(Span s, boolean replace) :
 
     <FUNCTION>
 
-    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
 
     functionIdentifier = CompoundIdentifier()
 
@@ -248,12 +254,13 @@ SqlDrop SqlDropFunction(Span s, boolean replace) :
     boolean isSystemFunction = false;
 }
 {
-    [ <TEMPORARY> {isTemporary = true;}
+    [
+        <TEMPORARY> {isTemporary = true;}
         [  <SYSTEM>   { isSystemFunction = true; }  ]
     ]
     <FUNCTION>
 
-    [ <IF> <EXISTS> { ifExists = true; } ]
+    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
 
     functionIdentifier = CompoundIdentifier()
 
@@ -281,7 +288,7 @@ SqlAlterFunction SqlAlterFunction() :
 
     <FUNCTION> { startPos = getPos(); }
 
-    [ <IF> <EXISTS> { ifExists = true; } ]
+    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
 
     functionIdentifier = CompoundIdentifier()
 
@@ -806,7 +813,7 @@ SqlTypeNameSpec ExtendedSqlBasicTypeName() :
         }
     )
     {
-        return new ExtendedSqlBasicTypeNameSpec(typeAlias, typeName, precision, getPos());
+        return new SqlAlienSystemTypeNameSpec(typeAlias, typeName, precision, getPos());
     }
 }
 
