@@ -33,7 +33,7 @@ public class DayPartitionCommitTrigger implements PartitionCommitTrigger {
 	public boolean canCommit(LinkedHashMap<String, String> partitionSpec, long watermark) {
 		Iterator<String> iter = partitionSpec.values().iterator();
 		String day = iter.hasNext() ? iter.next() : null;
-		return watermark > dayToMillisecond(day) + SqlDateTimeUtils.MILLIS_PER_DAY;
+		return watermark >= dayToMillisecond(day) + SqlDateTimeUtils.MILLIS_PER_DAY;
 	}
 
 	protected long dayToMillisecond(String dayField) {

@@ -24,8 +24,10 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.descriptors.FileSystemValidator;
 import org.apache.flink.table.filesystem.FileSystemCommitterTest;
 import org.apache.flink.table.filesystem.RowPartitionComputer;
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.commons.io.FileUtils;
@@ -49,6 +51,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Test for {@link FileSystemStreamingSink}.
  */
 public class FileSystemStreamingSinkTest {
+
+	private static final String SUCCESS_NAME = "_my_success";
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
@@ -81,39 +85,45 @@ public class FileSystemStreamingSinkTest {
 			testHarness.setup();
 			testHarness.open();
 
-			testHarness.processElement(new StreamRecord<>(Row.of("a1", 1, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("a2", 2, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("a3", 3, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("a2", 2, "p2"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("a1", 1, "2020-01-01"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("a2", 2, "2020-01-01"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("a3", 3, "2020-01-01"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("a2", 2, "2020-01-02"), 1L));
 
 			testHarness.snapshot(1L, 1L);
 
-			testHarness.processElement(new StreamRecord<>(Row.of("test1", 2, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("test1", 3, "p1"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test1", 2, "2020-01-01"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test1", 3, "2020-01-01"), 1L));
+
+			testHarness.processWatermark(
+					SqlDateTimeUtils.dateStringToUnixDate("2020-01-02") *
+							SqlDateTimeUtils.MILLIS_PER_DAY);
+			testHarness.processElement(new StreamRecord<>(Row.of("test1", 3, "2020-01-02"), 1L));
 
 			snapshot = testHarness.snapshot(2L, 1L);
 
 			Assert.assertEquals(2, getFileContentByPath(new File(tmpFile, "cp-1")).size());
-			Assert.assertEquals(1, getFileContentByPath(new File(tmpFile, "cp-2")).size());
+			Assert.assertEquals(2, getFileContentByPath(new File(tmpFile, "cp-2")).size());
 
-			testHarness.processElement(new StreamRecord<>(Row.of("test1", 2, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("test1", 3, "p1"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test1", 2, "2020-01-02"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test1", 3, "2020-01-02"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test1", 4, "2020-01-03"), 1L));
 
 			testHarness.notifyOfCompletedCheckpoint(2);
 
-			LinkedHashMap<String, String> part1 = new LinkedHashMap<>();
-			part1.put("c", "p1");
-			LinkedHashMap<String, String> part2 = new LinkedHashMap<>();
-			part2.put("c", "p2");
+			LinkedHashMap<String, String> part = new LinkedHashMap<>();
+			part.put("c", "2020-01-01");
 			Set<LinkedHashMap<String, String>> partitionCreated = new HashSet<>();
-			partitionCreated.add(part1);
-			partitionCreated.add(part2);
+			partitionCreated.add(part);
 			Assert.assertEquals(partitionCreated, msFactory.partitionCreated);
+
+			Assert.assertTrue(successFileExist(new File(outputFile, "c=2020-01-01")));
 
 			testHarness.snapshot(3L, 1L);
 
-			Assert.assertEquals(1, getFileContentByPath(new File(tmpFile, "cp-3")).size());
-			Assert.assertEquals(3, getFileContentByPath(outputFile).size());
+			Assert.assertEquals(2, getFileContentByPath(new File(tmpFile, "cp-3")).size());
+			Assert.assertEquals(2, getFileContentByPath(new File(outputFile, "c=2020-01-01")).size());
+			Assert.assertEquals(2, getFileContentByPath(new File(outputFile, "c=2020-01-02")).size());
 		}
 
 		try (OneInputStreamOperatorTestHarness<Row, Object> testHarness = createSink(true)) {
@@ -126,39 +136,50 @@ public class FileSystemStreamingSinkTest {
 			Assert.assertEquals(0, getFileContentByPath(new File(tmpFile, "cp-1")).size());
 			Assert.assertEquals(0, getFileContentByPath(new File(tmpFile, "cp-2")).size());
 
-			testHarness.processElement(new StreamRecord<>(Row.of("a4", 1, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("a5", 2, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("a6", 3, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("a4", 2, "p3"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("a4", 1, "2020-01-03"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("a5", 2, "2020-01-03"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("a6", 3, "2020-01-03"), 1L));
+
+			testHarness.processWatermark(
+					SqlDateTimeUtils.dateStringToUnixDate("2020-01-04") *
+							SqlDateTimeUtils.MILLIS_PER_DAY);
+			testHarness.processElement(new StreamRecord<>(Row.of("a4", 2, "2020-01-04"), 1L));
 
 			testHarness.snapshot(3L, 1L);
 
 			Assert.assertEquals(2, getFileContentByPath(new File(tmpFile, "cp-3")).size());
-			Assert.assertEquals(3, getFileContentByPath(outputFile).size());
+			Assert.assertEquals(4, getFileContentByPath(outputFile).size());
 
-			testHarness.processElement(new StreamRecord<>(Row.of("test7", 2, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("test8", 3, "p1"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test7", 2, "2020-01-04"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test8", 3, "2020-01-04"), 1L));
 
 			testHarness.snapshot(4L, 1L);
 
-			testHarness.processElement(new StreamRecord<>(Row.of("test7", 2, "p1"), 1L));
-			testHarness.processElement(new StreamRecord<>(Row.of("test8", 3, "p1"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test7", 2, "2020-01-04"), 1L));
+			testHarness.processElement(new StreamRecord<>(Row.of("test8", 3, "2020-01-05"), 1L));
 
 			testHarness.notifyOfCompletedCheckpoint(4);
 
 			LinkedHashMap<String, String> part1 = new LinkedHashMap<>();
-			part1.put("c", "p1");
+			part1.put("c", "2020-01-01");
 			LinkedHashMap<String, String> part2 = new LinkedHashMap<>();
-			part2.put("c", "p2");
+			part2.put("c", "2020-01-02");
 			LinkedHashMap<String, String> part3 = new LinkedHashMap<>();
-			part3.put("c", "p3");
+			part3.put("c", "2020-01-03");
 			Set<LinkedHashMap<String, String>> partitionCreated = new HashSet<>();
 			partitionCreated.add(part1);
 			partitionCreated.add(part2);
 			partitionCreated.add(part3);
 			Assert.assertEquals(partitionCreated, msFactory.partitionCreated);
 
-			Assert.assertEquals(6, getFileContentByPath(outputFile).size());
+			Assert.assertTrue(successFileExist(new File(outputFile, "c=2020-01-01")));
+			Assert.assertTrue(successFileExist(new File(outputFile, "c=2020-01-02")));
+			Assert.assertTrue(successFileExist(new File(outputFile, "c=2020-01-03")));
+
+			Assert.assertEquals(2, getFileContentByPath(new File(outputFile, "c=2020-01-01")).size());
+			Assert.assertEquals(2, getFileContentByPath(new File(outputFile, "c=2020-01-02")).size());
+			Assert.assertEquals(1, getFileContentByPath(new File(outputFile, "c=2020-01-03")).size());
+			Assert.assertEquals(2, getFileContentByPath(new File(outputFile, "c=2020-01-04")).size());
 		}
 	}
 
@@ -244,6 +265,12 @@ public class FileSystemStreamingSinkTest {
 
 		Path locationPath = new Path(outputFile.getPath());
 		msFactory = new FileSystemCommitterTest.TestMetaStoreFactory(locationPath);
+
+		Map<String, String> properties = new HashMap<>();
+		properties.put(FileSystemValidator.CONNECTOR_SINK_PARTITION_COMMIT_POLICY, "metastore,success-file");
+		properties.put(FileSystemValidator.CONNECTOR_SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME, SUCCESS_NAME);
+		properties.put(FileSystemValidator.CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER, "day");
+
 		FileSystemStreamingSink<Row> sink = new FileSystemStreamingSink.Builder<Row>()
 				.setMetaStoreFactory(msFactory)
 				.setTempPath(new Path(tmpFile.getPath()))
@@ -253,6 +280,7 @@ public class FileSystemStreamingSinkTest {
 						new RowPartitionComputer("default", columnNames, partitionColumns))
 				.setFormatFactory(TextOutputFormat::new)
 				.setStaticPartitions(staticPartitions)
+				.setProperties(properties)
 				.build();
 
 		sinkRef.set(sink);
@@ -272,8 +300,24 @@ public class FileSystemStreamingSinkTest {
 
 		final Collection<File> filesInBucket = FileUtils.listFiles(directory, null, true);
 		for (File file : filesInBucket) {
-			contents.put(file, FileUtils.readFileToString(file));
+			if (!file.getName().equals(SUCCESS_NAME)) {
+				contents.put(file, FileUtils.readFileToString(file));
+			}
 		}
 		return contents;
+	}
+
+	private static boolean successFileExist(File directory) {
+		if (!directory.exists() || !directory.isDirectory()) {
+			return false;
+		}
+
+		final Collection<File> filesInBucket = FileUtils.listFiles(directory, null, true);
+		for (File file : filesInBucket) {
+			if (file.getName().equals(SUCCESS_NAME)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

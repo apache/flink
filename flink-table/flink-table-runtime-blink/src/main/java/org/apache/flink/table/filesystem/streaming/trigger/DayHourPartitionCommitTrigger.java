@@ -34,7 +34,7 @@ public class DayHourPartitionCommitTrigger extends DayPartitionCommitTrigger {
 		Iterator<String> iter = partitionSpec.values().iterator();
 		String day = iter.hasNext() ? iter.next() : null;
 		String hour = iter.hasNext() ? iter.next() : null;
-		return watermark > dayToMillisecond(day) +
+		return watermark >= dayToMillisecond(day) +
 				hourToMillisecond(hour) +
 				SqlDateTimeUtils.MILLIS_PER_HOUR;
 	}

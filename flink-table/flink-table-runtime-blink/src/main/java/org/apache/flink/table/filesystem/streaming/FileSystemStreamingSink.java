@@ -110,7 +110,7 @@ public class FileSystemStreamingSink<T> extends RichSinkFunction<T>
 		this.taskId = getRuntimeContext().getIndexOfThisSubtask();
 
 		List<PartitionCommitPolicy> commitChain = PartitionCommitPolicy.createCommitChain(properties);
-		this.hasPartCommitter = commitChain.size() > 0;
+		this.hasPartCommitter = commitChain.size() > 0 && partitionColumns.length > 0;
 		this.committer = new FileSystemStreamCommitter(
 				fsFactory,
 				msFactory,
