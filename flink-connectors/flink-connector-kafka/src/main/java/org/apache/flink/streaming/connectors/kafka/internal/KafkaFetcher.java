@@ -172,7 +172,8 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	public void cancel() {
 		// flag the main thread to exit. A thread interrupt will come anyways.
 		running = false;
-		handover.close();
+		//here should not call the close because it will wakeup after consumerThread shutdown
+		//handover.close();
 		consumerThread.shutdown();
 	}
 
