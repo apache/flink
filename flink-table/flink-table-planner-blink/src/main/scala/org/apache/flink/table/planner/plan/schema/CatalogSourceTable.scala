@@ -25,14 +25,13 @@ import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory, T
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
-import org.apache.flink.table.utils.TableConnectorUtils.generateRuntimeName
+
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
 
-import java.util
 import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
@@ -62,15 +61,6 @@ class CatalogSourceTable[T](
       .filter(column => column.isGenerated)
       .map(column => (column.getName, column.getExpr.get()))
       .toMap
-  }
-
-  override def getQualifiedName: JList[String] = {
-    // Do not explain source, we already have full names, table source should be created in toRel.
-    val ret = new util.ArrayList[String](names)
-    // Add class name to distinguish TableSourceTable.
-    val name = generateRuntimeName(getClass, catalogTable.getSchema.getFieldNames)
-    ret.add(s"catalog_source: [$name]")
-    ret
   }
 
   override def toRel(context: RelOptTable.ToRelContext): RelNode = {
@@ -104,7 +94,7 @@ class CatalogSourceTable[T](
       .toArray
     // Copy this table with physical scan row type.
     val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
-    val scan = LogicalTableScan.create(cluster, newRelTable)
+    val scan = LogicalTableScan.create(cluster, newRelTable, context.getTableHints)
     val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema)
     relBuilder.push(scan)
 
