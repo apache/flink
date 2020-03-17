@@ -38,7 +38,7 @@ import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
  * the String messages are of formatted as a (word,frequency,timestamp) tuple.
  *
  * <p>Example usage:
- * 	--input-topic test-input --output-topic test-output --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer
+ * 	--input-topic test-input --output-topic test-output --bootstrap.servers localhost:9092 --group.id myconsumer
  */
 public class Kafka011Example {
 

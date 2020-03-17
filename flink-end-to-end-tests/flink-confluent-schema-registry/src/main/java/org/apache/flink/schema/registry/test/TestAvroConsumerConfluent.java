@@ -37,7 +37,7 @@ import java.util.Properties;
  * A simple example that shows how to read from and write to Kafka with Confluent Schema Registry.
  * This will read AVRO messages from the input topic, parse them into a POJO type via checking the Schema by calling Schema registry.
  * Then this example publish the POJO type to kafka by converting the POJO to AVRO and verifying the schema.
- * --input-topic test-input --output-string-topic test-output --output-avro-topic test-avro-output --output-subject --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --schema-registry-url http://localhost:8081 --group.id myconsumer
+ * --input-topic test-input --output-string-topic test-output --output-avro-topic test-avro-output --output-subject --bootstrap.servers localhost:9092 --schema-registry-url http://localhost:8081 --group.id myconsumer
  */
 public class TestAvroConsumerConfluent {
 
@@ -49,14 +49,12 @@ public class TestAvroConsumerConfluent {
 			System.out.println("Missing parameters!\n" +
 				"Usage: Kafka --input-topic <topic> --output-string-topic <topic> --output-avro-topic <topic> " +
 				"--bootstrap.servers <kafka brokers> " +
-				"--zookeeper.connect <zk quorum> " +
 				"--schema-registry-url <confluent schema registry> --group.id <some id>");
 			return;
 		}
 		Properties config = new Properties();
 		config.setProperty("bootstrap.servers", parameterTool.getRequired("bootstrap.servers"));
 		config.setProperty("group.id", parameterTool.getRequired("group.id"));
-		config.setProperty("zookeeper.connect", parameterTool.getRequired("zookeeper.connect"));
 		String schemaRegistryUrl = parameterTool.getRequired("schema-registry-url");
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

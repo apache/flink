@@ -34,11 +34,11 @@ public class KafkaExampleUtil {
 			System.out.println("Missing parameters!\n" +
 				"Usage: Kafka --input-topic <topic> --output-topic <topic> " +
 				"--bootstrap.servers <kafka brokers> " +
-				"--zookeeper.connect <zk quorum> --group.id <some id>");
+				"--group.id <some id>");
 			throw new Exception("Missing parameters!\n" +
 				"Usage: Kafka --input-topic <topic> --output-topic <topic> " +
 				"--bootstrap.servers <kafka brokers> " +
-				"--zookeeper.connect <zk quorum> --group.id <some id>");
+				"--group.id <some id>");
 		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

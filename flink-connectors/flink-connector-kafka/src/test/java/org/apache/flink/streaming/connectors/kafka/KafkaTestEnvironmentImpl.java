@@ -137,7 +137,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		LOG.info("ZK and KafkaServer started.");
 
 		standardProps = new Properties();
-		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
 		standardProps.setProperty("bootstrap.servers", brokerConnectionString);
 		standardProps.setProperty("group.id", "flink-tests");
 		standardProps.setProperty("enable.auto.commit", "false");
