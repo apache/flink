@@ -22,9 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-SQL 和关系代数的在设计时并未考虑流数据。因此，在关系代数(和 SQL)之间几乎没有概念上的差异。
+SQL 和关系代数在设计时并未考虑流数据。因此，在关系代数(和 SQL)之间几乎没有概念上的差异。
 
-本文会讨论这种差异，并介绍 Flink 如何在无界数据集上实现与数据库引擎在无界数据上实现的相同的语义，
+本文会讨论这种差异，并介绍 Flink 如何在无界数据集上实现与数据库引擎在有界数据上的处理具有相同的语义。
 
 * This will be replaced by the TOC
 {:toc}
@@ -49,7 +49,7 @@ DataStream 上的关系查询
 	</tr>
 	<tr>
 		<td>批处理查询在产生固定大小的结果后终止。</td>
-		<td>流查询不断地根据接收到的记录更新其结果，并且始终不会完成。</td>
+		<td>流查询不断地根据接收到的记录更新其结果，并且始终不会结束。</td>
 	</tr>
 </table>
 
@@ -159,12 +159,12 @@ FROM (
 );
 {% endhighlight %}
 
-[查询配置](query_configuration.html)章节讨论了控制连续查询执行的参数。一些参数可以用来更改维持状态的大小以获得结果的准确性。
+[查询配置](query_configuration.html)章节讨论了控制连续查询执行的参数。一些参数可以用来在维持状态的大小和获得结果的准确性之间做取舍。
 
 表到流的转换
 --------------------------
 
-动态表可以像普通数据库表一样通过 `INSERT`、`UPDATE` 和 `DELETE` 来不断修改。它可能是一个只有一行、不断更新的表，也可能是一个 insert-only 的表，没有 `UPDATE` 和 `DELETE` 修改，或者介于两者之间的其他修改。
+动态表可以像普通数据库表一样通过 `INSERT`、`UPDATE` 和 `DELETE` 来不断修改。它可能是一个只有一行、不断更新的表，也可能是一个 insert-only 的表，没有 `UPDATE` 和 `DELETE` 修改，或者介于两者之间的其他表。
 
 在将动态表转换为流或将其写入外部系统时，需要对这些更改进行编码。Flink的 Table API 和 SQL 支持三种方式来编码一个动态表的变化:
 
@@ -177,7 +177,7 @@ FROM (
 </center>
 <br><br>
 
-* **Upsert 流:** upsert 流包含两种类型的 message： *upsert messages* 和*delete messages*。转换为 upsert 流的动态表需要(可能是组合的)惟一键。通过将 `INSERT` 和 `UPDATE` 操作编码为 upsert message，将 `DELETE` 操作编码为 delete message ，将具有唯一键的动态表转换为流。消费流的算子需要知道唯一键的属性，以便正确地应用 message。与 retract 流的主要区别在于 `UPDATE` 操作是用单个 message 编码的，因此效率更高。下图显示了将动态表转换为 upsert 流的过程。
+* **Upsert 流:** upsert 流包含两种类型的 message： *upsert messages* 和*delete messages*。转换为 upsert 流的动态表需要(可能是组合的)唯一键。通过将 `INSERT` 和 `UPDATE` 操作编码为 upsert message，将 `DELETE` 操作编码为 delete message ，将具有唯一键的动态表转换为流。消费流的算子需要知道唯一键的属性，以便正确地应用 message。与 retract 流的主要区别在于 `UPDATE` 操作是用单个 message 编码的，因此效率更高。下图显示了将动态表转换为 upsert 流的过程。
 
 <center>
 <img alt="Dynamic tables" src="{{ site.baseurl }}/fig/table-streaming/redo-mode.png" width="85%">
