@@ -458,7 +458,6 @@ trait StreamTableEnvironment extends TableEnvironment {
     *     new Kafka()
     *       .version("0.11")
     *       .topic("clicks")
-    *       .property("zookeeper.connect", "localhost")
     *       .property("group.id", "click-group")
     *       .startFromEarliest())
     *   .withFormat(

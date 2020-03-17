@@ -317,7 +317,6 @@ tables:
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
-        zookeeper.connect: localhost:2181
         bootstrap.servers: localhost:9092
         group.id: testGroup
     format:
@@ -483,7 +482,6 @@ tables:
       version: "0.11"
       topic: OutputTopic
       properties:
-        zookeeper.connect: localhost:2181
         bootstrap.servers: localhost:9092
         group.id: testGroup
     format:

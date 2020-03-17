@@ -159,7 +159,6 @@ CREATE TABLE MyUserTable (
   'connector.version' = '0.10',
   'connector.topic' = 'topic_name',
   'connector.startup-mode' = 'earliest-offset',
-  'connector.properties.zookeeper.connect' = 'localhost:2181',
   'connector.properties.bootstrap.servers' = 'localhost:9092',
 
   -- declare a format for this system
@@ -177,7 +176,6 @@ tableEnvironment
       .version("0.10")
       .topic("test-input")
       .startFromEarliest()
-      .property("zookeeper.connect", "localhost:2181")
       .property("bootstrap.servers", "localhost:9092")
   )
 
@@ -211,7 +209,6 @@ table_environment \
         .version("0.10")
         .topic("test-input")
         .start_from_earliest()
-        .property("zookeeper.connect", "localhost:2181")
         .property("bootstrap.servers", "localhost:9092")
     ) \
     .with_format(  # declare a format for this system
@@ -246,7 +243,6 @@ tables:
       topic: test-input
       startup-mode: earliest-offset
       properties:
-        zookeeper.connect: localhost:2181
         bootstrap.servers: localhost:9092
 
     # declare a format for this system
@@ -773,8 +769,6 @@ CREATE TABLE MyUserTable (
 
   'connector.topic' = 'topic_name', -- required: topic name from which the table is read
 
-  -- required: specify the ZooKeeper connection string
-  'connector.properties.zookeeper.connect' = 'localhost:2181',
   -- required: specify the Kafka server connection string
   'connector.properties.bootstrap.servers' = 'localhost:9092',
   -- required for Kafka source, optional for Kafka sink, specify consumer group
@@ -814,7 +808,6 @@ CREATE TABLE MyUserTable (
     .topic("...")       // required: topic name from which the table is read
 
     // optional: connector specific properties
-    .property("zookeeper.connect", "localhost:2181")
     .property("bootstrap.servers", "localhost:9092")
     .property("group.id", "testGroup")
 
@@ -844,7 +837,6 @@ CREATE TABLE MyUserTable (
     .topic("...")     # required: topic name from which the table is read
 
     # optional: connector specific properties
-    .property("zookeeper.connect", "localhost:2181")
     .property("bootstrap.servers", "localhost:9092")
     .property("group.id", "testGroup")
 
@@ -874,7 +866,6 @@ connector:
   topic: ...          # required: topic name from which the table is read
 
   properties:
-    zookeeper.connect: localhost:2181  # required: specify the ZooKeeper connection string
     bootstrap.servers: localhost:9092  # required: specify the Kafka server connection string
     group.id: testGroup                # optional: required in Kafka consumer, specify consumer group
 

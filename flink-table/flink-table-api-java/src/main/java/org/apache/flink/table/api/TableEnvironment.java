@@ -689,7 +689,6 @@ public interface TableEnvironment {
 	 *                        'connector.type' = 'kafka',
 	 *                        'update-mode' = 'append',
 	 *                        'connector.topic' = 'xxx',
-	 *                        'connector.properties.zookeeper.connect' = 'localhost:2181',
 	 *                        'connector.properties.bootstrap.servers' = 'localhost:9092',
 	 *                        ...
 	 *                      )";

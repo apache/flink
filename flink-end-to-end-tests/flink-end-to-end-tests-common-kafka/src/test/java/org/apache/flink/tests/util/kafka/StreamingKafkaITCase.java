@@ -101,7 +101,6 @@ public class StreamingKafkaITCase extends TestLogger {
 				.addArgument("--output-topic", outputTopic)
 				.addArgument("--prefix", "PREFIX")
 				.addArgument("--bootstrap.servers", kafka.getBootstrapServerAddresses().stream().map(address -> address.getHostString() + ':' + address.getPort()).collect(Collectors.joining(",")))
-				.addArgument("--zookeeper.connect ", kafka.getZookeeperAddress().getHostString() + ':' + kafka.getZookeeperAddress().getPort())
 				.addArgument("--group.id", "myconsumer")
 				.addArgument("--auto.offset.reset", "earliest")
 				.addArgument("--transaction.timeout.ms", "900000")
