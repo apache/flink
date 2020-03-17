@@ -36,7 +36,7 @@ LogicalProject(a=[$0], rank_num=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, 2:BIGINT AS rank_num])
+Calc(select=[a, 2:BIGINT AS $1])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[proctime DESC], select=[a, b, proctime])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, proctime])
@@ -64,7 +64,7 @@ LogicalProject(a=[$0], rank_num=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, 3:BIGINT AS rank_num])
+Calc(select=[a, 3:BIGINT AS $1])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=3, rankEnd=3], partitionBy=[b], orderBy=[rowtime DESC], select=[a, b, rowtime])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, rowtime])
@@ -102,64 +102,6 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIG
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleFirstRowOnProctime">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a, b, c
-FROM (
-  SELECT *,
-      ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as rank_num
-  FROM MyTable)
-WHERE rank_num = 1
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, c, proctime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSimpleFirstRowOnRowtime">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a, b, c
-FROM (
-  SELECT *,
-      ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as rank_num
-  FROM MyTable)
-WHERE rank_num <= 1
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[<=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a, b, c])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime ASC], select=[a, b, c, rowtime])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, c, rowtime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSimpleLastRowOnBuiltinProctime">
     <Resource name="sql">
       <![CDATA[
@@ -190,6 +132,35 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIG
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSimpleFirstRowOnProctime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, b, c
+FROM (
+  SELECT *,
+      ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as rank_num
+  FROM MyTable)
+WHERE rank_num = 1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=($5, 1)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, c, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSimpleLastRowOnRowtime">
     <Resource name="sql">
       <![CDATA[
@@ -213,6 +184,35 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       <![CDATA[
 Calc(select=[a, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, b, c, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, c, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleFirstRowOnRowtime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, b, c
+FROM (
+  SELECT *,
+      ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as rank_num
+  FROM MyTable)
+WHERE rank_num <= 1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<=($5, 1)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime ASC], select=[a, b, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])

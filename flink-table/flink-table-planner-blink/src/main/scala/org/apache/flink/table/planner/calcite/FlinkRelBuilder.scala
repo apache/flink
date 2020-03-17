@@ -188,4 +188,13 @@ object FlinkRelBuilder {
       cluster,
       relOptSchema)
   }
+
+  def of(contextVar: Object, cluster: RelOptCluster, relOptSchema: RelOptSchema)
+    : FlinkRelBuilder = {
+    val mergedContext = Contexts.of(contextVar, cluster.getPlanner.getContext)
+    new FlinkRelBuilder(
+      mergedContext,
+      cluster,
+      relOptSchema)
+  }
 }
