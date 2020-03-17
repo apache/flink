@@ -56,9 +56,9 @@ By default no operator is disabled.</td>
             <td><h5>table.exec.shuffle-mode</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"batch"</td>
             <td>String</td>
-            <td>Sets exec shuffle mode. Only batch or pipeline can be set.
+            <td>Sets exec shuffle mode. Only batch or pipelined can be set.
 batch: the job will run stage by stage. 
-pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when the sender holds resource to wait to send data to the receiver.</td>
+pipelined: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when the sender holds resource to wait to send data to the receiver.</td>
         </tr>
         <tr>
             <td><h5>table.exec.sort.async-merge-enabled</h5><br> <span class="label label-primary">Batch</span></td>

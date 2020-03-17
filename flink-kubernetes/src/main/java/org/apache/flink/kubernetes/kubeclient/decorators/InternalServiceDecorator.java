@@ -18,10 +18,10 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -59,10 +59,10 @@ public class InternalServiceDecorator extends AbstractServiceDecorator {
 		final List<ServicePort> servicePorts = super.getServicePorts();
 
 		servicePorts.add(getServicePort(
-			getPortName(JobManagerOptions.PORT.key()),
+			Constants.JOB_MANAGER_RPC_PORT_NAME,
 			kubernetesJobManagerParameters.getRPCPort()));
 		servicePorts.add(getServicePort(
-			getPortName(BlobServerOptions.PORT.key()),
+			Constants.BLOB_SERVER_PORT_NAME,
 			kubernetesJobManagerParameters.getBlobServerPort()));
 
 		return servicePorts;
