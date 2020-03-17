@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.table.api.{StreamQueryConfig, TableConfig}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
@@ -102,6 +104,30 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
 
   def dropWatermarks(elements: Array[AnyRef]): util.Collection[AnyRef] = {
     elements.filter(e => !e.isInstanceOf[Watermark]).toList
+  }
+
+  class TestTableConfig extends TableConfig {
+
+    private var minIdleStateRetentionTime = 0L
+
+    private var maxIdleStateRetentionTime = 0L
+
+    override def getMinIdleStateRetentionTime: Long = minIdleStateRetentionTime
+
+    override def getMaxIdleStateRetentionTime: Long = maxIdleStateRetentionTime
+
+    override def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
+      minIdleStateRetentionTime = minTime.toMilliseconds
+      maxIdleStateRetentionTime = maxTime.toMilliseconds
+    }
+  }
+
+  /**
+   * Test class used to test min and max retention time.
+   */
+  class TestStreamQueryConfig(min: Time, max: Time) extends StreamQueryConfig {
+    override def getMinIdleStateRetentionTime: Long = min.toMilliseconds
+    override def getMaxIdleStateRetentionTime: Long = max.toMilliseconds
   }
 }
 

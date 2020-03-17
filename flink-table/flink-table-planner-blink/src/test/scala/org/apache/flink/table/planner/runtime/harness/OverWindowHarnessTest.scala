@@ -959,28 +959,4 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
   }
-
-  /**
-    * Test class used to test min and max retention time.
-    */
-  class TestStreamQueryConfig(min: Time, max: Time) extends StreamQueryConfig {
-    override def getMinIdleStateRetentionTime: Long = min.toMilliseconds
-    override def getMaxIdleStateRetentionTime: Long = max.toMilliseconds
-  }
-
-  class TestTableConfig extends TableConfig {
-
-    private var minIdleStateRetentionTime = 0L
-
-    private var maxIdleStateRetentionTime = 0L
-
-    override def getMinIdleStateRetentionTime: Long = minIdleStateRetentionTime
-
-    override def getMaxIdleStateRetentionTime: Long = maxIdleStateRetentionTime
-
-    override def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
-      minIdleStateRetentionTime = minTime.toMilliseconds
-      maxIdleStateRetentionTime = maxTime.toMilliseconds
-    }
-  }
 }

@@ -52,7 +52,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
   def testAggregateWithRetraction(): Unit = {
     val data = new mutable.MutableList[(String, String, Long)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.createTemporaryView("T", t)
+    tEnv.registerTable("T", t)
 
     val sql =
       """
