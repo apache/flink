@@ -77,7 +77,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 		return new ContainerBuilder(container)
 				.withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())
 				.withImage(kubernetesTaskManagerParameters.getImage())
-				.withImagePullPolicy(kubernetesTaskManagerParameters.getImagePullPolicy())
+				.withImagePullPolicy(kubernetesTaskManagerParameters.getImagePullPolicy().name())
 				.withResources(resourceRequirements)
 				.withPorts(new ContainerPortBuilder()
 					.withName(Constants.TASK_MANAGER_RPC_PORT_NAME)

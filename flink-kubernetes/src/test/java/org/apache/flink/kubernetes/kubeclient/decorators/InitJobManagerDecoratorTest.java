@@ -82,7 +82,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 	@Test
 	public void testMainContainerImage() {
 		assertEquals(CONTAINER_IMAGE, this.resultMainContainer.getImage());
-		assertEquals(CONTAINER_IMAGE_PULL_POLICY, this.resultMainContainer.getImagePullPolicy());
+		assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), this.resultMainContainer.getImagePullPolicy());
 	}
 
 	@Test

@@ -85,7 +85,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
 	@Test
 	public void testMainContainerImagePullPolicy() {
-		assertEquals(CONTAINER_IMAGE_PULL_POLICY, this.resultMainContainer.getImagePullPolicy());
+		assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), this.resultMainContainer.getImagePullPolicy());
 	}
 
 	@Test
