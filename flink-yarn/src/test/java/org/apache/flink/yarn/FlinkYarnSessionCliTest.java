@@ -18,6 +18,11 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.cli.CliArgsException;
+import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.ExecutorCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -35,6 +40,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -49,6 +55,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -159,6 +166,41 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		YarnClusterDescriptor descriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
 		assertEquals(nodeLabelCliInput, descriptor.getNodeLabel());
+	}
+
+	@Test
+	public void testExecutorCLIisPrioritised() throws Exception {
+		final File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
+		validateYarnCLIisActive(configuration);
+
+		final String[] argsUnderTest = new String[] {"-e", YarnJobClusterExecutor.NAME};
+
+		validateExecutorCLIisPrioritised(configuration, argsUnderTest);
+	}
+
+	private void validateExecutorCLIisPrioritised(Configuration configuration, String[] argsUnderTest) throws IOException, CliArgsException {
+		final List<CustomCommandLine> customCommandLines = CliFrontend.loadCustomCommandLines(
+				configuration,
+				tmp.newFile().getAbsolutePath());
+
+		final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
+		final CommandLine commandLine = cli.getCommandLine(
+				CliFrontendParser.getRunCommandOptions(),
+				argsUnderTest,
+				true);
+
+		final CustomCommandLine customCommandLine = cli.getActiveCustomCommandLine(commandLine);
+		assertTrue(customCommandLine instanceof ExecutorCLI);
+	}
+
+	private void validateYarnCLIisActive(Configuration configuration) throws FlinkException, CliArgsException {
+		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
+		final CommandLine testCLIArgs = flinkYarnSessionCli.parseCommandLineOptions(new String[] {}, true);
+		assertTrue(flinkYarnSessionCli.isActive(testCLIArgs));
 	}
 
 	/**
