@@ -43,6 +43,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * The Python {@link TableFunction} operator for the blink planner.
@@ -117,14 +118,16 @@ public class BaseRowPythonTableFunctionOperator
 	@Override
 	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager) {
+		PythonEnvironmentManager pythonEnvironmentManager,
+		Map<String, String> jobOptions) {
 		return new BaseRowPythonTableFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			tableFunction,
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType);
+			userDefinedFunctionOutputType,
+			jobOptions);
 	}
 
 	private Projection<BaseRow, BinaryRow> createUdtfInputProjection() {

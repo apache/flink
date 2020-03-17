@@ -51,6 +51,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
@@ -86,8 +87,9 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		String functionUrn) {
-		super(taskName, resultReceiver, environmentManager, StateRequestHandler.unsupported());
+		String functionUrn,
+		Map<String, String> jobOptions) {
+		super(taskName, resultReceiver, environmentManager, StateRequestHandler.unsupported(), jobOptions);
 		this.functionUrn = functionUrn;
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);

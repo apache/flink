@@ -19,7 +19,8 @@ package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.table.api.TableException
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -80,5 +81,11 @@ trait CommonPythonBase {
       case tfc: TableSqlFunction =>
         createPythonFunctionInfo(pythonRexCall, inputNodes, tfc.getTableFunction)
     }
+  }
+
+  protected def getConfig(tableConfig: TableConfig): Configuration = {
+    val config = new Configuration(tableConfig.getConfiguration)
+    config.setString("table.exec.timezone", tableConfig.getLocalTimeZone.getId)
+    config
   }
 }

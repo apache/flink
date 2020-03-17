@@ -535,11 +535,11 @@ class TypesTests(unittest.TestCase):
 
     def test_local_zoned_timestamp_type(self):
         lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
-        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000, tzinfo=UTCOffsetTimezone(1))
-        self.assertEqual(-3600000000, lztst.to_sql_type(ts))
+        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
+        self.assertEqual(0, lztst.to_sql_type(ts))
 
         if sys.version_info >= (3, 6):
-            ts2 = lztst.from_sql_type(-3600000000)
+            ts2 = lztst.from_sql_type(0)
             self.assertEqual(ts.astimezone(), ts2.astimezone())
 
     def test_zoned_timestamp_type(self):
