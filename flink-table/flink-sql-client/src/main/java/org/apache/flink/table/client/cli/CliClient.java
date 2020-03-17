@@ -285,6 +285,7 @@ public class CliClient {
 			case USE:
 				callUseDatabase(cmdCall);
 				break;
+			case DESC:
 			case DESCRIBE:
 				callDescribe(cmdCall);
 				break;

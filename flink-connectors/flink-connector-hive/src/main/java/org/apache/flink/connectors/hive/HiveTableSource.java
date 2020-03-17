@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -148,6 +149,7 @@ public class HiveTableSource implements
 
 		DataStreamSource<BaseRow> source = execEnv.createInput(inputFormat, typeInfo);
 
+		int parallelism = flinkConf.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM);
 		if (flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
 			int max = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
 			if (max < 1) {
@@ -168,8 +170,11 @@ public class HiveTableSource implements
 			} catch (IOException e) {
 				throw new FlinkHiveException(e);
 			}
-			source.setParallelism(Math.min(Math.max(1, splitNum), max));
+			parallelism = Math.min(splitNum, max);
 		}
+		parallelism = limit > 0 ? Math.min(parallelism, (int) limit / 1000) : parallelism;
+		parallelism = Math.max(1, parallelism);
+		source.setParallelism(parallelism);
 		return source.name(explainSource());
 	}
 
