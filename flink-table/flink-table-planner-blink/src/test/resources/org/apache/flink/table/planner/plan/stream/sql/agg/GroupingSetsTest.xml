@@ -36,7 +36,7 @@ LogicalProject(d=[$0], c=[$2], g=[$1])
 Calc(select=[d, c, g])
 +- GroupAggregate(groupBy=[d, g, $e], select=[d, g, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[d, g, $e]])
-      +- Expand(projects=[{d=[$0], g=[$1], $e=[0]}, {d=[$0], g=[null], $e=[1]}, {d=[null], g=[$1], $e=[2]}, {d=[null], g=[null], $e=[3]}])
+      +- Expand(projects=[d, g, $e])
          +- Calc(select=[MOD(deptno, 20) AS d, gender AS g])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -59,7 +59,7 @@ LogicalProject(c=[$1])
 Calc(select=[c])
 +- GroupAggregate(groupBy=[$f0, $e], select=[$f0, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[$f0, $e]])
-      +- Expand(projects=[{$f0=[$0], $e=[0]}, {$f0=[null], $e=[1]}])
+      +- Expand(projects=[$f0, $e])
          +- Calc(select=[1 AS $f0])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -85,7 +85,7 @@ LogicalProject(d1=[$0], d0=[-($0, 1)], c=[$1])
 Calc(select=[d1, -(d1, 1) AS d0, c])
 +- GroupAggregate(groupBy=[d1, $e], select=[d1, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[d1, $e]])
-      +- Expand(projects=[{d1=[$0], $e=[0]}, {d1=[null], $e=[1]}])
+      +- Expand(projects=[d1, $e])
          +- Calc(select=[+(deptno, 1) AS d1])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -111,7 +111,7 @@ LogicalProject(d=[$0], c=[$2], g=[$1])
 Calc(select=[d, c, g])
 +- GroupAggregate(groupBy=[d, g, $e], select=[d, g, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[d, g, $e]])
-      +- Expand(projects=[{d=[$0], g=[$1], $e=[0]}, {d=[$0], g=[null], $e=[1]}, {d=[null], g=[null], $e=[3]}])
+      +- Expand(projects=[d, g, $e])
          +- Calc(select=[MOD(deptno, 20) AS d, gender AS g])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -134,7 +134,7 @@ LogicalProject(c=[$1])
 Calc(select=[c])
 +- GroupAggregate(groupBy=[$f0, $e], select=[$f0, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[$f0, $e]])
-      +- Expand(projects=[{$f0=[$0], $e=[0]}, {$f0=[null], $e=[1]}])
+      +- Expand(projects=[$f0, $e])
          +- Calc(select=[1 AS $f0])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -156,34 +156,9 @@ LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
 Calc(select=[deptno, c])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
-      +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
+      +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
             +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCALCITE1824">
-    <Resource name="sql">
-      <![CDATA[
-SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c
-FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalAggregate(group=[{0}], groups=[[{0}, {}]], g=[GROUP_ID()], c=[COUNT()])
-+- LogicalProject(deptno=[$7])
-   +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[deptno, 0:BIGINT AS g, c])
-+- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
-   +- Exchange(distribution=[hash[deptno, $e]])
-      +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
-         +- Calc(select=[deptno])
-            +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -204,9 +179,10 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g=[GROUP_ID()], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-+- LogicalProject(b=[$1], c=[$2], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -214,7 +190,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g
 Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
-      +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- Expand(projects=[a, b, c, $e])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -239,7 +215,7 @@ GroupAggregate(groupBy=[EXPR$0], select=[EXPR$0])
    +- Calc(select=[EXPR$0])
       +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS EXPR$0])
          +- Exchange(distribution=[hash[deptno, gender, $e]])
-            +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[$1], $e=[2]}, {deptno=[null], gender=[null], $e=[3]}])
+            +- Expand(projects=[deptno, gender, $e])
                +- Calc(select=[deptno, gender])
                   +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -271,7 +247,7 @@ LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
 Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), =(deptno, 10)))])
 +- GroupAggregate(groupBy=[deptno, deptno0, gender, $e], select=[deptno, deptno0, gender, $e, MIN(ename) AS min_name, COUNT(*) AS $f5])
    +- Exchange(distribution=[hash[deptno, deptno0, gender, $e]])
-      +- Expand(projects=[{deptno=[$0], deptno0=[$1], gender=[$2], ename=[$3], $e=[0]}, {deptno=[$0], deptno0=[$1], gender=[null], ename=[$3], $e=[1]}, {deptno=[$0], deptno0=[null], gender=[$2], ename=[$3], $e=[2]}, {deptno=[$0], deptno0=[null], gender=[null], ename=[$3], $e=[3]}, {deptno=[null], deptno0=[$1], gender=[$2], ename=[$3], $e=[4]}, {deptno=[null], deptno0=[$1], gender=[null], ename=[$3], $e=[5]}, {deptno=[null], deptno0=[null], gender=[$2], ename=[$3], $e=[6]}, {deptno=[null], deptno0=[null], gender=[null], ename=[$3], $e=[7]}])
+      +- Expand(projects=[deptno, deptno0, gender, ename, $e])
          +- Calc(select=[deptno, deptno0, gender, ename])
             +- Join(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0, dname], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
                :- Exchange(distribution=[hash[deptno]])
@@ -298,9 +274,10 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g=[GROUP_ID()], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-+- LogicalProject(b=[$1], c=[$2], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -308,7 +285,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g
 Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
-      +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- Expand(projects=[a, b, c, $e])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -337,7 +314,7 @@ LogicalProject(deptno=[$1], gender=[$0], EXPR$2=[$2], c=[$3])
 Calc(select=[deptno, gender, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 5:BIGINT, 7:BIGINT) AS EXPR$2, c])
 +- GroupAggregate(groupBy=[gender, deptno, $e], select=[gender, deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[gender, deptno, $e]])
-      +- Expand(projects=[{gender=[$0], deptno=[$1], $e=[0]}, {gender=[$0], deptno=[null], $e=[1]}, {gender=[null], deptno=[null], $e=[3]}])
+      +- Expand(projects=[gender, deptno, $e])
          +- Calc(select=[gender, CAST(10) AS deptno], where=[=(deptno, 10)])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -360,7 +337,7 @@ LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
 Calc(select=[+(deptno, 1) AS EXPR$0, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[$1], $e=[2]}, {deptno=[null], gender=[null], $e=[3]}])
+      +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -397,7 +374,7 @@ Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:B
    +- Exchange(distribution=[single])
       +- GroupAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, SUM(sal) AS sumsal])
          +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
-            +- Expand(projects=[{deptno=[$0], job=[$1], empno=[$2], ename=[$3], sal=[$4], $e=[0]}, {deptno=[$0], job=[$1], empno=[null], ename=[null], sal=[$4], $e=[3]}, {deptno=[$0], job=[null], empno=[null], ename=[null], sal=[$4], $e=[7]}, {deptno=[null], job=[null], empno=[null], ename=[null], sal=[$4], $e=[15]}])
+            +- Expand(projects=[deptno, job, empno, ename, sal, $e])
                +- Calc(select=[deptno, job, empno, ename, sal])
                   +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
@@ -431,7 +408,7 @@ Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) A
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Calc(select=[deptno, gender, $e], where=[<=(CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT), CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT))])
-         +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[null], $e=[3]}])
+         +- Expand(projects=[deptno, gender, $e])
             +- Calc(select=[deptno, gender])
                +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -452,8 +429,8 @@ FROM emp GROUP BY ROLLUP(deptno, gender)
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], g=[$3], gid=[$4], gd=[$5], gg=[$6], ggd=[$7], gdg=[$8])
-+- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()], g=[GROUPING($0)], gid=[GROUP_ID()], gd=[GROUPING_ID($0)], gg=[GROUPING_ID($1)], ggd=[GROUPING_ID($1, $0)], gdg=[GROUPING_ID($0, $1)])
+LogicalProject(c=[$2], g=[$3], gid=[0:BIGINT], gd=[$4], gg=[$5], ggd=[$6], gdg=[$7])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()], g=[GROUPING($0)], gd=[GROUPING_ID($0)], gg=[GROUPING_ID($1)], ggd=[GROUPING_ID($1, $0)], gdg=[GROUPING_ID($0, $1)])
    +- LogicalProject(deptno=[$1], gender=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
@@ -463,7 +440,7 @@ LogicalProject(c=[$2], g=[$3], gid=[$4], gd=[$5], gg=[$6], ggd=[$7], gdg=[$8])
 Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS g, 0:BIGINT AS gid, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 3:BIGINT) AS ggd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gdg])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[null], $e=[3]}])
+      +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -485,8 +462,8 @@ FROM emp
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gid=[$6], c=[$7])
-+- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], gd=[GROUPING($0)], gg=[GROUPING($1)], dg=[GROUPING_ID($0, $1)], gd=[GROUPING_ID($1, $0)], gid=[GROUP_ID()], c=[COUNT()])
+LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gid=[0:BIGINT], c=[$6])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], gd=[GROUPING($0)], gg=[GROUPING($1)], dg=[GROUPING_ID($0, $1)], gd=[GROUPING_ID($1, $0)], c=[COUNT()])
    +- LogicalProject(deptno=[$1], gender=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
@@ -496,7 +473,7 @@ LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gi
 Calc(select=[deptno, gender, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS dg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, =($e, 2:BIGINT), 1:BIGINT, 3:BIGINT) AS gd0, 0:BIGINT AS gid, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[$1], $e=[2]}, {deptno=[null], gender=[null], $e=[3]}])
+      +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -526,7 +503,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()], d
 Calc(select=[deptno, job, c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS d, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS j, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS x])
 +- GroupAggregate(groupBy=[deptno, job, $e], select=[deptno, job, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, job, $e]])
-      +- Expand(projects=[{deptno=[$0], job=[$1], $e=[0]}, {deptno=[$0], job=[null], $e=[1]}, {deptno=[null], job=[$1], $e=[2]}, {deptno=[null], job=[null], $e=[3]}])
+      +- Expand(projects=[deptno, job, $e])
          +- Calc(select=[deptno, job])
             +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
@@ -573,7 +550,7 @@ LogicalProject(c=[$1], deptno=[$0], g=[$2])
 Calc(select=[c, deptno, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS g])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
-      +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
+      +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -588,9 +565,10 @@ GROUP BY GROUPING SETS (b, c)
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)], g=[GROUP_ID()])
-+- LogicalProject(b=[$1], c=[$2], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -598,7 +576,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)], g=[GROUP_ID()
 Calc(select=[b, c, a, 0:BIGINT AS g])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
-      +- Expand(projects=[{a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}])
+      +- Expand(projects=[a, b, c, $e])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -619,7 +597,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)])
 Calc(select=[b, c, a])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
-      +- Expand(projects=[{a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- Expand(projects=[a, b, c, $e])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -642,9 +620,10 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)], g=[GROUP_ID()], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)], cnt=[COUNT()])
-+- LogicalProject(b=[$1], c=[$2], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7], cnt=[$8])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)], cnt=[COUNT()])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -652,7 +631,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)], g=[GROUP_
 Calc(select=[b, c, a, 0:BIGINT AS g, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid, cnt])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a, COUNT(*) AS cnt])
    +- Exchange(distribution=[hash[b, c, $e]])
-      +- Expand(projects=[{a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- Expand(projects=[a, b, c, $e])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -675,7 +654,7 @@ LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
 Calc(select=[EXPR$0, c])
 +- GroupAggregate(groupBy=[EXPR$0, $e], select=[EXPR$0, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[EXPR$0, $e]])
-      +- Expand(projects=[{EXPR$0=[$0], $e=[0]}, {EXPR$0=[null], $e=[1]}])
+      +- Expand(projects=[EXPR$0, $e])
          +- Calc(select=[+(deptno, 1) AS EXPR$0])
             +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
@@ -705,7 +684,7 @@ Calc(select=[c])
       +- Calc(select=[c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS EXPR$1])
          +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
             +- Exchange(distribution=[hash[deptno, $e]])
-               +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
+               +- Expand(projects=[deptno, $e])
                   +- Calc(select=[deptno])
                      +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -724,9 +703,10 @@ FROM emps GROUP BY GROUPING SETS (deptno)
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0}], a=[AVG($1)], g=[GROUP_ID()], gb=[GROUPING($0)], gib=[GROUPING_ID($0)])
-+- LogicalProject(deptno=[$2], age=[$6])
-   +- LogicalTableScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]])
+LogicalProject(deptno=[$0], a=[$1], g=[0:BIGINT], gb=[$2], gib=[$3])
++- LogicalAggregate(group=[{0}], a=[AVG($1)], gb=[GROUPING($0)], gib=[GROUPING_ID($0)])
+   +- LogicalProject(deptno=[$2], age=[$6])
+      +- LogicalTableScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -756,9 +736,10 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GROUP_ID()], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-+- LogicalProject(b=[$1], c=[$2], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -766,7 +747,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GRO
 Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
-      +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- Expand(projects=[a, b, c, $e])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -788,9 +769,10 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GROUP_ID()], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-+- LogicalProject(b=[$1], c=[$2], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -798,7 +780,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GRO
 Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
-      +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- Expand(projects=[a, b, c, $e])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -820,7 +802,7 @@ LogicalProject(deptno=[$0], c=[$2])
 Calc(select=[deptno, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[$1], $e=[2]}, {deptno=[null], gender=[null], $e=[3]}])
+      +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -846,7 +828,7 @@ LogicalProject(half1=[+($0, 1)], c=[$3])
 Calc(select=[+($f0, 1) AS half1, c])
 +- GroupAggregate(groupBy=[$f0, gender, $f2, $e], select=[$f0, gender, $f2, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[$f0, gender, $f2, $e]])
-      +- Expand(projects=[{$f0=[$0], gender=[$1], $f2=[$2], $e=[0]}, {$f0=[$0], gender=[$1], $f2=[null], $e=[1]}, {$f0=[$0], gender=[null], $f2=[$2], $e=[2]}, {$f0=[$0], gender=[null], $f2=[null], $e=[3]}, {$f0=[null], gender=[null], $f2=[$2], $e=[6]}, {$f0=[null], gender=[null], $f2=[null], $e=[7]}])
+      +- Expand(projects=[$f0, gender, $f2, $e])
          +- Calc(select=[/(deptno, 2) AS $f0, gender, SUBSTRING(ename, 1, 1) AS $f2])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -871,7 +853,7 @@ LogicalProject(gender=[$1], EXPR$1=[+($0, 1)], c=[$2])
 Calc(select=[gender, +(deptno, 1) AS EXPR$1, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[null], $e=[3]}])
+      +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -893,7 +875,7 @@ LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
 Calc(select=[gender, c])
 +- GroupAggregate(groupBy=[gender, $e], select=[gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[gender, $e]])
-      +- Expand(projects=[{gender=[$0], $e=[0]}, {gender=[null], $e=[1]}])
+      +- Expand(projects=[gender, $e])
          +- Calc(select=[gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -918,7 +900,7 @@ Calc(select=[gender, c])
    +- Exchange(distribution=[single])
       +- GroupAggregate(groupBy=[gender, $e], select=[gender, $e, COUNT(*) AS c])
          +- Exchange(distribution=[hash[gender, $e]])
-            +- Expand(projects=[{gender=[$0], $e=[0]}, {gender=[null], $e=[1]}])
+            +- Expand(projects=[gender, $e])
                +- Calc(select=[gender])
                   +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -944,7 +926,7 @@ LogicalProject(d1=[+($0, 1)], c=[$1])
 Calc(select=[+(deptno, 1) AS d1, c], where=[>(c, 3)])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
-      +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
+      +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
@@ -967,7 +949,7 @@ LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
 Calc(select=[+(deptno, 1) AS EXPR$0, c])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
-      +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
+      +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
             +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
