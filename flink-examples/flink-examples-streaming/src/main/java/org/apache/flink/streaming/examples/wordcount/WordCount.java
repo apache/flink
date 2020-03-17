@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.examples.wordcount.util.RandomSentenceSource;
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -32,9 +33,10 @@ import org.apache.flink.util.Preconditions;
  *
  * <p>The input is a plain text file with lines separated by newline characters.
  *
- * <p>Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
- * If no parameters are provided, the program is run with default data from
- * {@link WordCountData}.
+ * <p>Usage: <code>WordCount [--input &lt;path&gt;] [--random [--intervalMs &lt;intervalMs&gt;]] [--output &lt;path&gt;]</code><br>
+ * If "--random" is provided as a parameter, the program is run with an embedded input
+ * that generates random data continuously with the interval configured by "--intervalMs" parameter (0 by default);
+ * If no parameters are provided, the program is run with default data from {@link WordCountData}.
  *
  * <p>This example shows how to:
  * <ul>
@@ -62,7 +64,15 @@ public class WordCount {
 
 		// get input data
 		DataStream<String> text = null;
-		if (params.has("input")) {
+		if (params.has("random")) {
+			System.out.println("Executing WordCount example with an embedded input that generates random data continuously");
+			long intervalMs = 0;
+			String intervalMsParam = params.get("intervalMs");
+			if (intervalMsParam != null) {
+				intervalMs = Long.parseLong(intervalMsParam);
+			}
+			text = env.addSource(new RandomSentenceSource(intervalMs));
+		} else if (params.has("input")) {
 			// union all the inputs from text files
 			for (String input : params.getMultiParameterRequired("input")) {
 				if (text == null) {
@@ -74,7 +84,7 @@ public class WordCount {
 			Preconditions.checkNotNull(text, "Input DataStream should not be null.");
 		} else {
 			System.out.println("Executing WordCount example with default input data set.");
-			System.out.println("Use --input to specify file input.");
+			System.out.println("Use --input to specify file input; or use --random to use the embedded random input");
 			// get default test text data
 			text = env.fromElements(WordCountData.WORDS);
 		}
@@ -121,5 +131,4 @@ public class WordCount {
 			}
 		}
 	}
-
 }

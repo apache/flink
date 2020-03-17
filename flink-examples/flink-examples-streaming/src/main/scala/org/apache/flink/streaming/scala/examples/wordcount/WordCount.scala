@@ -20,7 +20,7 @@ package org.apache.flink.streaming.scala.examples.wordcount
 
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.examples.wordcount.util.WordCountData
+import org.apache.flink.streaming.examples.wordcount.util.{RandomSentenceSource, WordCountData}
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence
@@ -30,11 +30,13 @@ import org.apache.flink.streaming.examples.wordcount.util.WordCountData
  *
  * Usage:
  * {{{
- * WordCount --input <path> --output <path>
+ * WordCount [--input <path>] [--random [--intervalMs <intervalMs>]] [--output <path>]
  * }}}
  *
- * If no parameters are provided, the program is run with default data from
- * {@link WordCountData}.
+ * If "--random" is provided as a parameter, the program is run with an embedded input
+ * that generates random data continuously with the interval
+ * configured by "--intervalMs" parameter (0 by default);
+ * If no parameters are provided, the program is run with default data from {@link WordCountData}.
  *
  * This example shows how to:
  *
@@ -58,15 +60,25 @@ object WordCount {
 
     // get input data
     val text =
-    // read the text file from given input path
-    if (params.has("input")) {
-      env.readTextFile(params.get("input"))
-    } else {
-      println("Executing WordCount example with default inputs data set.")
-      println("Use --input to specify file input.")
-      // get default test text data
-      env.fromElements(WordCountData.WORDS: _*)
-    }
+      if (params.has("random")) {
+        println("Executing WordCount example with an embedded input"
+          + " that generates random data continuously")
+        var intervalMs = 0L
+        val intervalMsParam = params.get("intervalMs")
+        if (intervalMsParam != null) {
+          intervalMs = intervalMsParam.toLong
+        }
+        env.addSource(new RandomSentenceSource(intervalMs))
+      } else if (params.has("input")) {
+        // read the text file from given input path
+        env.readTextFile(params.get("input"))
+      } else {
+        println("Executing WordCount example with default inputs data set.")
+        println("Use --input to specify file input; "
+          + "or use --random to use the embedded random input")
+        // get default test text data
+        env.fromElements(WordCountData.WORDS: _*)
+      }
 
     val counts: DataStream[(String, Int)] = text
       // split up the lines in pairs (2-tuples) containing: (word,1)
