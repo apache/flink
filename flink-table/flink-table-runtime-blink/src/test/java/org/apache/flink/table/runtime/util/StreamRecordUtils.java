@@ -120,6 +120,15 @@ public class StreamRecordUtils {
 		return row;
 	}
 
+	/**
+	 * Generate a retraction BinaryRow based on the given object fields.
+	 */
+	public static BinaryRow retractBinaryRow(Object... fields) {
+		BinaryRow br = binaryrow(fields);
+		BaseRowUtil.setRetract(br);
+		return br;
+	}
+
 	private StreamRecordUtils() {
 		// deprecate default constructor
 	}

@@ -36,6 +36,7 @@ import org.apache.flink.util.Collector;
 import static org.apache.flink.table.dataformat.util.BaseRowUtil.ACCUMULATE_MSG;
 import static org.apache.flink.table.dataformat.util.BaseRowUtil.RETRACT_MSG;
 import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg;
+import static org.apache.flink.table.dataformat.util.BaseRowUtil.isRetractMsg;
 
 /**
  * Aggregate Function used for the groupby (without window) aggregate.
@@ -141,6 +142,12 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 		boolean firstRow;
 		BaseRow accumulators = accState.value();
 		if (null == accumulators) {
+			// Don't create a new accumulator for a retraction message. This
+			// might happen if the retraction message is the first message for the
+			// key or after a state clean up.
+			if (isRetractMsg(input)) {
+				return;
+			}
 			firstRow = true;
 			accumulators = function.createAccumulators();
 		} else {
