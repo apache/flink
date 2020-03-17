@@ -20,21 +20,23 @@ import sys
 import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
+from typing import Union, List, Tuple
 
 from py4j.java_gateway import get_java_class, get_method
 
 from pyflink.common import JobExecutionResult
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
+from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_config import TableConfig
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
-    _infer_schema_from_data, _create_converter
+    _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema
 from pyflink.util import utils
-from pyflink.util.utils import get_j_env_configuration, is_local_deployment
+from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class
 
 __all__ = [
     'BatchTableEnvironment',
@@ -1094,10 +1096,8 @@ class TableEnvironment(object):
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         serializer = BatchedSerializer(self._serializer)
         try:
-            try:
+            with temp_file:
                 serializer.dump_to_stream(elements, temp_file)
-            finally:
-                temp_file.close()
             row_type_info = _to_java_type(schema)
             execution_config = self._get_j_env().getConfig()
             gateway = get_gateway()
@@ -1116,6 +1116,90 @@ class TableEnvironment(object):
                 j_input_format, row_type_info)
 
             return Table(self._j_tenv.fromTableSource(j_table_source))
+        finally:
+            os.unlink(temp_file.name)
+
+    def from_pandas(self, pdf,
+                    schema: Union[RowType, List[str], Tuple[str], List[DataType],
+                                  Tuple[DataType]] = None,
+                    splits_num: int = 1) -> Table:
+        """
+        Creates a table from a pandas DataFrame.
+
+        Example:
+        ::
+
+            # use the second parameter to specify custom field names
+            >>> pdf = pd.DataFrame(np.random.rand(1000, 2))
+            >>> table_env.from_pandas(pdf, ["a", "b"])
+            # use the second parameter to specify custom field types
+            >>> table_env.from_pandas(pdf, [DataTypes.DOUBLE(), DataTypes.DOUBLE()]))
+            # use the second parameter to specify custom table schema
+            >>> table_env.from_pandas(pdf,
+            ...                       DataTypes.ROW([DataTypes.FIELD("a", DataTypes.DOUBLE()),
+            ...                                      DataTypes.FIELD("b", DataTypes.DOUBLE())]))
+
+        :param pdf: The pandas DataFrame.
+        :param schema: The schema of the converted table.
+        :type schema: RowType or list[str] or list[DataType]
+        :param splits_num: The number of splits the given Pandas DataFrame will be split into. It
+                           determines the number of parallel source tasks.
+                           If not specified, the default parallelism will be used.
+        :type splits_num: int
+        :return: The result table.
+        :rtype: Table
+        """
+
+        import pandas as pd
+        if not isinstance(pdf, pd.DataFrame):
+            raise TypeError("Unsupported type, expected pandas.DataFrame, got %s" % type(pdf))
+
+        import pyarrow as pa
+        arrow_schema = pa.Schema.from_pandas(pdf, preserve_index=False)
+
+        if schema is not None:
+            if isinstance(schema, RowType):
+                result_type = schema
+            elif isinstance(schema, (list, tuple)) and isinstance(schema[0], str):
+                result_type = RowType(
+                    [RowField(field_name, from_arrow_type(field.type, field.nullable))
+                     for field_name, field in zip(schema, arrow_schema)])
+            elif isinstance(schema, (list, tuple)) and isinstance(schema[0], DataType):
+                result_type = RowType(
+                    [RowField(field_name, field_type) for field_name, field_type in zip(
+                        arrow_schema.names, schema)])
+            else:
+                raise TypeError("Unsupported schema type, it could only be of RowType, a "
+                                "list of str or a list of DataType, got %s" % schema)
+        else:
+            result_type = RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
+                                   for field in arrow_schema])
+
+        # serializes to a file, and we read the file in java
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        import pytz
+        serializer = ArrowSerializer(
+            create_arrow_schema(result_type.field_names(), result_type.field_types()),
+            result_type,
+            pytz.timezone(self.get_config().get_local_timezone()))
+        step = -(-len(pdf) // splits_num)
+        pdf_slices = [pdf[start:start + step] for start in range(0, len(pdf), step)]
+        data = [[c for (_, c) in pdf_slice.iteritems()] for pdf_slice in pdf_slices]
+        try:
+            with temp_file:
+                serializer.dump_to_stream(data, temp_file)
+            jvm = get_gateway().jvm
+
+            data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
+                .fromLegacyInfoToDataType(_to_java_type(result_type))
+            if self._is_blink_planner:
+                data_type = data_type.bridgedTo(
+                    load_java_class('org.apache.flink.table.data.RowData'))
+
+            j_arrow_table_source = \
+                jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSource(
+                    data_type, temp_file.name)
+            return Table(self._j_tenv.fromTableSource(j_arrow_table_source))
         finally:
             os.unlink(temp_file.name)
 

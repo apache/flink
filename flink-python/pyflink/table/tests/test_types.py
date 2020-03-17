@@ -845,7 +845,7 @@ class DataTypeConvertTests(unittest.TestCase):
         converted_python_types = [_from_java_type(item) for item in java_types]
 
         expected = [DataTypes.VARCHAR(2147483647),
-                    DataTypes.DECIMAL(10, 0),
+                    DataTypes.DECIMAL(38, 18),
                     DataTypes.DECIMAL(12, 5)]
         self.assertEqual(converted_python_types, expected)
 
