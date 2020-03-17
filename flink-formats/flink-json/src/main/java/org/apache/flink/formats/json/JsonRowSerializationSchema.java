@@ -361,7 +361,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 			ObjectNode node;
 
 			// reuse could be a NullNode if last record is null.
-			if (!(reuse instanceof ObjectNode)) {
+			if (reuse == null || reuse.isNull()) {
 				node = mapper.createObjectNode();
 			} else {
 				node = (ObjectNode) reuse;
@@ -384,7 +384,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 			ArrayNode node;
 
 			// reuse could be a NullNode if last record is null.
-			if (!(reuse instanceof ArrayNode)) {
+			if (reuse == null || reuse.isNull()) {
 				node = mapper.createArrayNode();
 			} else {
 				node = (ArrayNode) reuse;
