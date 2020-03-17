@@ -19,13 +19,16 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.plan.schema._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.{JDouble, JLong}
+import org.apache.flink.table.utils.CatalogManagerMocks
 import org.apache.flink.util.Preconditions
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -45,10 +48,8 @@ import org.junit.{Before, BeforeClass, Test}
 import org.powermock.api.mockito.PowerMockito._
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
-import java.math.BigDecimal
 
-import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.utils.CatalogManagerMocks
+import java.math.BigDecimal
 
 import scala.collection.JavaConversions._
 
@@ -634,4 +635,3 @@ object AggCallSelectivityEstimatorTest {
   }
 
 }
-
