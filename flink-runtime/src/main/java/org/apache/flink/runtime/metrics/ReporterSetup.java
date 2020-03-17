@@ -120,7 +120,6 @@ public final class ReporterSetup {
 	}
 
 	private static ReporterSetup createReporterSetup(String reporterName, MetricConfig metricConfig, MetricReporter reporter) {
-		LOG.info("Configuring {} with {}.", reporterName, metricConfig);
 		reporter.open(metricConfig);
 
 		return new ReporterSetup(reporterName, metricConfig, reporter);
