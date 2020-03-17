@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.plan.schema.ExpandingPreparingTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
-import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -69,9 +68,8 @@ public class QueryOperationCatalogViewTable extends ExpandingPreparingTable {
 
 	@Override
 	public RelNode convertToRel(RelOptTable.ToRelContext context) {
-		FlinkRelBuilder relBuilder = new FlinkRelBuilder(
-				// Sets up the view expander.
-				Contexts.of(context, context.getCluster().getPlanner().getContext()),
+		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(
+				context,
 				context.getCluster(),
 				this.getRelOptSchema());
 
