@@ -66,11 +66,11 @@ public class KubernetesConfigOptions {
 		.withDescription("The number of cpu used by task manager. By default, the cpu is set " +
 			"to the number of slots per TaskManager");
 
-	public static final ConfigOption<String> CONTAINER_IMAGE_PULL_POLICY =
+	public static final ConfigOption<ImagePullPolicy> CONTAINER_IMAGE_PULL_POLICY =
 		key("kubernetes.container.image.pull-policy")
-		.stringType()
-		.defaultValue("IfNotPresent")
-		.withDescription("Kubernetes image pull policy. Valid values are Always, Never, and IfNotPresent. " +
+		.enumType(ImagePullPolicy.class)
+		.defaultValue(ImagePullPolicy.IfNotPresent)
+		.withDescription("The Kubernetes container image pull policy (IfNotPresent or Always or Never). " +
 			"The default policy is IfNotPresent to avoid putting pressure to image repository.");
 
 	public static final ConfigOption<List<String>> CONTAINER_IMAGE_PULL_SECRETS =
@@ -154,6 +154,15 @@ public class KubernetesConfigOptions {
 		ClusterIP,
 		NodePort,
 		LoadBalancer
+	}
+
+	/**
+	 * The container image pull policy.
+	 */
+	public enum ImagePullPolicy {
+		IfNotPresent,
+		Always,
+		Never
 	}
 
 	/** This class is not meant to be instantiated. */

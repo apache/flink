@@ -18,6 +18,8 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 
 import java.util.Map;
@@ -34,7 +36,7 @@ public interface KubernetesParameters {
 
 	String getImage();
 
-	String getImagePullPolicy();
+	KubernetesConfigOptions.ImagePullPolicy getImagePullPolicy();
 
 	LocalObjectReference[] getImagePullSecrets();
 
