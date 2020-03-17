@@ -8,8 +8,8 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - com.squareup.moshi:moshi:1.5.0
 - com.squareup.okhttp3:logging-interceptor:3.11.0
-- com.squareup.okhttp3:okhttp:3.11.0
-- com.squareup.okio:okio:1.14.0
+- com.squareup.okhttp3:okhttp:3.14.3
+- com.squareup.okio:okio:1.17.2
 - com.squareup.retrofit2:converter-moshi:2.4.0
 - com.squareup.retrofit2:retrofit:2.4.0
 
