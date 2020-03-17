@@ -244,9 +244,9 @@ class GroupWindowTest extends TableTestBase {
                 "rowtime('w$) AS w$rowtime",
                 "proctime('w$) AS w$proctime")
             ),
-            term("select", "w$rowtime AS zzzzz")
+            term("select", "w$rowtime AS $f2")
           ),
-          term("window", "TumblingGroupWindow('w$, 'zzzzz, 4.millis)"),
+          term("window", "TumblingGroupWindow('w$, '$f2, 4.millis)"),
           term("select",
             "COUNT(*) AS a",
             "start('w$) AS w$start",
@@ -329,12 +329,12 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(table),
-            term("select", "CASE(=(a, 1), 1, 99) AS correct", "rowtime")
+            term("select", "rowtime", "CASE(=(a, 1), 1, 99) AS $f1")
           ),
           term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
           term("select",
-            "SUM(correct) AS s",
-            "AVG(correct) AS a",
+            "SUM($f1) AS s",
+            "AVG($f1) AS a",
             "start('w$) AS w$start",
             "end('w$) AS w$end",
             "rowtime('w$) AS w$rowtime",

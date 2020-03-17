@@ -351,7 +351,7 @@ class CalcTest extends TableTestBase {
           term("groupBy", "word"),
           term("select", "word", "SUM(frequency) AS EXPR$0")
         ),
-        term("select", "word, EXPR$0 AS frequency"),
+        term("select", "word, EXPR$0"),
         term("where", "=(EXPR$0, 2)")
       )
 

@@ -320,6 +320,7 @@ under the License.
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>commons-codec:commons-codec</include>
+									<include>commons-io:commons-io</include>
 
 									<!-- flink-table-planner-blink dependencies -->
 									<include>org.apache.flink:flink-sql-parser</include>
@@ -351,6 +352,10 @@ under the License.
 								<relocation>
 									<pattern>org.apache.commons.codec</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.io</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
 								</relocation>
 
 								<!-- flink-table-planner dependencies -->
