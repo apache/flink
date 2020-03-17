@@ -391,42 +391,6 @@ class SplitAggregateITCase(
     val expected = List("1,1,50", "1,ALL,50")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
-
-  @Test
-  def testDistinctWithRetraction(): Unit = {
-    val data = new mutable.MutableList[(Int, Long, String)]
-    data.+=((1, 1L, "Hi"))
-    data.+=((1, 1L, "Hi World"))
-    data.+=((1, 1L, "Test"))
-    data.+=((2, 1L, "Hi World"))
-    data.+=((2, 1L, "Test"))
-    data.+=((3, 1L, "Hi World"))
-    data.+=((3, 1L, "Hi World"))
-    data.+=((3, 1L, "Hi World"))
-    data.+=((4, 1L, "Hi World"))
-    data.+=((4, 1L, "Test"))
-
-    val t = failingDataSource(data).toTable(tEnv).as('a, 'b, 'c)
-    tEnv.createTemporaryView("MyTable", t)
-
-    val sql =
-      """
-        |SELECT distinct_b, COUNT(DISTINCT distinct_c)
-        |FROM (
-        |  SELECT a, COUNT(DISTINCT b) AS distinct_b, COUNT(DISTINCT c) AS distinct_c
-        |  FROM MyTable GROUP BY a
-        |) GROUP BY distinct_b
-        |""".stripMargin
-
-    val result = tEnv.sqlQuery(sql).toRetractStream[Row]
-    val sink = new TestingRetractSink()
-    result.addSink(sink)
-
-    env.execute()
-
-    val expected = List("1,3")
-    assertEquals(expected, sink.getRetractResults)
-  }
 }
 
 object SplitAggregateITCase {
