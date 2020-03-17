@@ -230,7 +230,6 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 	public static final String PG_CHARACTER_VARYING = "varchar";
 	public static final String PG_CHARACTER_VARYING_ARRAY = "_varchar";
 
-	// TODO: set precision for timestamp, timestamptz, and time
 	private DataType fromJDBCType(ResultSetMetaData metadata, int colIndex) throws SQLException {
 		String pgType = metadata.getColumnTypeName(colIndex);
 
