@@ -422,15 +422,15 @@ public class HiveTableSourceTest {
 		final String dbName = "source_db";
 		final String tblName = "test_parallelism_limit_pushdown";
 		hiveShell.execute("CREATE TABLE source_db.test_parallelism_limit_pushdown " +
-		                  "(year STRING, value INT) partitioned by (pt int);");
+					"(year STRING, value INT) partitioned by (pt int);");
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
-		             .addRow(new Object[]{"2014", 3})
-		             .addRow(new Object[]{"2014", 4})
-		             .commit("pt=0");
+					.addRow(new Object[]{"2014", 3})
+					.addRow(new Object[]{"2014", 4})
+					.commit("pt=0");
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
-		             .addRow(new Object[]{"2015", 2})
-		             .addRow(new Object[]{"2015", 5})
-		             .commit("pt=1");
+					.addRow(new Object[]{"2015", 2})
+					.addRow(new Object[]{"2015", 5})
+					.commit("pt=1");
 		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.getConfig().getConfiguration().setBoolean(
 			HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
