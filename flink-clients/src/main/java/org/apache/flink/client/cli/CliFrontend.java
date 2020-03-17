@@ -174,10 +174,7 @@ public class CliFrontend {
 		LOG.info("Running 'run' command.");
 
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, true);
+		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
 		final ProgramOptions programOptions = new ProgramOptions(commandLine);
 
@@ -304,10 +301,7 @@ public class CliFrontend {
 		LOG.info("Running 'list' command.");
 
 		final Options commandOptions = CliFrontendParser.getListCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
 		ListOptions listOptions = new ListOptions(commandLine);
 
@@ -427,8 +421,7 @@ public class CliFrontend {
 		LOG.info("Running 'stop-with-savepoint' command.");
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
 		final StopOptions stopOptions = new StopOptions(commandLine);
 		if (stopOptions.isPrintHelp()) {
@@ -474,10 +467,7 @@ public class CliFrontend {
 		LOG.info("Running 'cancel' command.");
 
 		final Options commandOptions = CliFrontendParser.getCancelCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
 		CancelOptions cancelOptions = new CancelOptions(commandLine);
 
@@ -548,6 +538,11 @@ public class CliFrontend {
 
 			logAndSysout("Cancelled job " + jobId + '.');
 		}
+	}
+
+	public CommandLine getCommandLine(final Options commandOptions, final String[] args, final boolean stopAtNonOptions) throws CliArgsException {
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+		return CliFrontendParser.parse(commandLineOptions, args, stopAtNonOptions);
 	}
 
 	/**
@@ -1021,6 +1016,7 @@ public class CliFrontend {
 
 	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
 		List<CustomCommandLine> customCommandLines = new ArrayList<>();
+		customCommandLines.add(new ExecutorCLI(configuration));
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
@@ -1035,8 +1031,6 @@ public class CliFrontend {
 		} catch (NoClassDefFoundError | Exception e) {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
-
-		customCommandLines.add(new ExecutorCLI(configuration));
 
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
