@@ -76,7 +76,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 				null);
 
 		ValidatingSourceOutput output = new ValidatingSourceOutput();
-		reader.addSplits(Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.UNBOUNDED)));
+		reader.addSplits(Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED)));
 		// This is not a real infinite loop, it is supposed to throw exception after two polls.
 		while (true) {
 			reader.pollNext(output);

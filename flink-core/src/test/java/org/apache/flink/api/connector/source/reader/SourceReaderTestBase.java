@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source.reader;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -170,7 +171,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> {
 		}
 
 		@Override
-		public void collect(Integer element, Long timestamp) {
+		public void collect(Integer element, long timestamp) {
 			collect(element);
 		}
 
@@ -183,6 +184,16 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> {
 
 		public int count() {
 			return count;
+		}
+
+		@Override
+		public void emitWatermark(Watermark watermark) {
+
+		}
+
+		@Override
+		public void markIdle() {
+
 		}
 	}
 }
