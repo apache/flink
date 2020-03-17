@@ -135,6 +135,14 @@ under the License.
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>com.carrotsearch.hppc</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.carrotsearch.hppc</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.github.mustachejava</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.github.mustachejava</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
