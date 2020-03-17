@@ -102,8 +102,8 @@ Calc(select=[EXPR$0])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
-+- LogicalAggregate(group=[{1}], EXPR$0=[AVG($3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], a0=[CAST($0):DOUBLE])
++- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
+   +- LogicalProject(b=[$1], a0=[CAST($0):DOUBLE])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -111,7 +111,7 @@ LogicalProject(b=[$0], EXPR$0=[$1])
       <![CDATA[
 GroupAggregate(groupBy=[b], select=[b, AVG(a0) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])
-   +- Calc(select=[a, b, c, CAST(a) AS a0])
+   +- Calc(select=[b, CAST(a) AS a0])
       +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

@@ -34,12 +34,13 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDat
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
 
 import org.apache.calcite.plan.RelOptRule._
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{Contexts, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Aggregate.Group
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.tools.RelBuilder
 import org.apache.commons.math3.util.ArithmeticUtils
 
 import scala.collection.JavaConversions._
@@ -70,6 +71,11 @@ class BatchExecWindowAggregateRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalWindowAggregate],
       operand(classOf[RelNode], any)),
+    RelBuilder.proto(
+      Contexts.of(
+        RelFactories.DEFAULT_STRUCT,
+        RelBuilder.Config.DEFAULT
+          .withPruneInputOfAggregate(false))),
     "BatchExecWindowAggregateRule")
   with BatchExecAggRuleBase {
 
@@ -156,6 +162,14 @@ class BatchExecWindowAggregateRule
 
     // TODO aggregate include projection now, so do not provide new trait will be safe
     val aggProvidedTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+
+    // Because of:
+    // [CALCITE-3763] RelBuilder.aggregate should prune unused fields from the input,
+    // if the input is a Project.
+    //
+    // the field can not be pruned if it is referenced by other expressions
+    // of the window aggregation(i.e. the TUMBLE_START/END).
+    // To solve this, we config the RelBuilder to forbidden this feature.
     val inputTimeFieldIndex = AggregateUtil.timeFieldIndex(
       input.getRowType, call.builder(), window.timeAttribute)
     val inputTimeFieldType = agg.getInput.getRowType.getFieldList.get(inputTimeFieldIndex).getType

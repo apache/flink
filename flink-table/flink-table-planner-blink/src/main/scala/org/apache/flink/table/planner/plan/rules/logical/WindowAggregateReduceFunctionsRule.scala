@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 
+import org.apache.calcite.plan.Contexts
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
@@ -39,7 +40,11 @@ import scala.collection.JavaConversions._
 class WindowAggregateReduceFunctionsRule
   extends AggregateReduceFunctionsRule(
     operand(classOf[LogicalWindowAggregate], any()),
-    RelFactories.LOGICAL_BUILDER) {
+    RelBuilder.proto(
+      Contexts.of(
+        RelFactories.DEFAULT_STRUCT,
+        RelBuilder.Config.DEFAULT
+          .withPruneInputOfAggregate(false)))) {
 
   override def newAggregateRel(
       relBuilder: RelBuilder,
@@ -47,6 +52,14 @@ class WindowAggregateReduceFunctionsRule
       newCalls: util.List[AggregateCall]): Unit = {
 
     // create a LogicalAggregate with simpler aggregation functions
+
+    // Because of:
+    // [CALCITE-3763] RelBuilder.aggregate should prune unused fields from the input,
+    // if the input is a Project.
+    //
+    // the field can not be pruned if it is referenced by other expressions
+    // of the window aggregation(i.e. the TUMBLE_START/END).
+    // To solve this, we config the RelBuilder to forbidden this feature.
     super.newAggregateRel(relBuilder, oldAgg, newCalls)
     // pop LogicalAggregate from RelBuilder
     val newAgg = relBuilder.build().asInstanceOf[LogicalAggregate]
