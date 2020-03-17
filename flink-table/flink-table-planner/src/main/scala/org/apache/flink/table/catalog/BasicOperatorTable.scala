@@ -260,6 +260,8 @@ object BasicOperatorTable {
     */
 
   val TUMBLE: SqlGroupedWindowFunction = new SqlGroupedWindowFunction(
+    // The TUMBLE group function was hard code to $TUMBLE in CALCITE-3382.
+    "$TUMBLE",
     SqlKind.TUMBLE,
     null,
     OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
