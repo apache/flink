@@ -40,6 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
 import java.util.Objects;
@@ -229,6 +231,7 @@ public class JobLeaderService {
 	/**
 	 * Leader listener which tries to establish a connection to a newly detected job leader.
 	 */
+	@ThreadSafe
 	private final class JobManagerLeaderListener implements LeaderRetrievalListener {
 
 		private final Object lock = new Object();
@@ -237,9 +240,12 @@ public class JobLeaderService {
 		private final JobID jobId;
 
 		/** Rpc connection to the job leader. */
+		@GuardedBy("lock")
 		private RegisteredRpcConnection<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> rpcConnection;
 
 		/** Leader id of the current job leader. */
+		@GuardedBy("lock")
+		@Nullable
 		private JobMasterId currentJobMasterId;
 
 		/** State of the listener. */
@@ -253,12 +259,20 @@ public class JobLeaderService {
 			currentJobMasterId = null;
 		}
 
+		private JobMasterId getCurrentJobMasterId() {
+			synchronized (lock) {
+				return currentJobMasterId;
+			}
+		}
+
 		public void stop() {
 			synchronized (lock) {
-				stopped = true;
+				if (!stopped) {
+					stopped = true;
 
-				if (rpcConnection != null) {
-					rpcConnection.close();
+					if (rpcConnection != null) {
+						rpcConnection.close();
+					}
 				}
 			}
 		}
@@ -299,7 +313,7 @@ public class JobLeaderService {
 							rpcConnection.close();
 						}
 
-						jobManagerLostLeadership = Optional.of(currentJobMasterId);
+						jobManagerLostLeadership = Optional.ofNullable(currentJobMasterId);
 						currentJobMasterId = jobMasterId;
 					} else {
 						currentJobMasterId = jobMasterId;
@@ -374,7 +388,7 @@ public class JobLeaderService {
 			@Override
 			protected void onRegistrationSuccess(JMTMRegistrationSuccess success) {
 				// filter out old registration attempts
-				if (Objects.equals(getTargetLeaderId(), currentJobMasterId)) {
+				if (Objects.equals(getTargetLeaderId(), getCurrentJobMasterId())) {
 					log.info("Successful registration at job manager {} for job {}.", getTargetAddress(), jobId);
 
 					jobLeaderListener.jobManagerGainedLeadership(jobId, getTargetGateway(), success);
@@ -386,7 +400,7 @@ public class JobLeaderService {
 			@Override
 			protected void onRegistrationFailure(Throwable failure) {
 				// filter out old registration attempts
-				if (Objects.equals(getTargetLeaderId(), currentJobMasterId)) {
+				if (Objects.equals(getTargetLeaderId(), getCurrentJobMasterId())) {
 					log.info("Failed to register at job  manager {} for job {}.", getTargetAddress(), jobId);
 					jobLeaderListener.handleError(failure);
 				} else {
