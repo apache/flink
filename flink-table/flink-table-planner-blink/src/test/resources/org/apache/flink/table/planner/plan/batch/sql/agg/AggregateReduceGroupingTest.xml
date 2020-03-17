@@ -359,7 +359,7 @@ HashAggregate(isMerge=[true], groupBy=[a3, b3, a1], auxGrouping=[b1], select=[a3
       <![CDATA[
 LogicalProject(a4=[$0], b4=[$1], EXPR$2=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$2=[COUNT($3)])
-   +- LogicalProject(a4=[$0], b4=[$1], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], c4=[$2])
+   +- LogicalProject(a4=[$0], b4=[$1], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], c4=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
@@ -379,7 +379,7 @@ HashWindowAggregate(groupBy=[a4], auxGrouping=[b4], window=[TumblingGroupWindow(
       <![CDATA[
 LogicalProject(a4=[$0], c4=[$1], EXPR$2=[$3], EXPR$3=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$2=[COUNT($3)], EXPR$3=[AVG($3)])
-   +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+   +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
@@ -400,7 +400,7 @@ HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow(
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
 +- LogicalProject(a4=[$0], c4=[$1], s=[TUMBLE_START($2)], b4=[$3])
    +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
-      +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
@@ -427,7 +427,7 @@ Calc(select=[a4, c4, s, EXPR$3])
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
 +- LogicalProject(a4=[$0], c4=[$1], e=[TUMBLE_END($2)], b4=[$3])
    +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
-      +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
@@ -454,7 +454,7 @@ Calc(select=[a4, c4, e, EXPR$3])
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()])
 +- LogicalProject(a4=[$0], b4=[$3], c4=[$1])
    +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
-      +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
 ]]>
     </Resource>
@@ -487,7 +487,7 @@ Calc(select=[a1, b1, c1, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Final_COUNT(count$0) AS EXPR$3])
    +- Exchange(distribution=[hash[a1, b1, c1, $e]])
       +- LocalHashAggregate(groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Partial_COUNT(d1) AS count$0])
-         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[2]}, {a1=[$0], b1=[null], c1=[null], d1=[$3], $e=[3]}, {a1=[null], b1=[$1], c1=[$2], d1=[$3], $e=[4]}, {a1=[null], b1=[$1], c1=[null], d1=[$3], $e=[5]}, {a1=[null], b1=[null], c1=[$2], d1=[$3], $e=[6]}, {a1=[null], b1=[null], c1=[null], d1=[$3], $e=[7]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, c1, d1, 2 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, b1, c1, d1, 4 AS $e}, {null AS a1, b1, null AS c1, d1, 5 AS $e}, {null AS a1, null AS b1, c1, d1, 6 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
+         +- Expand(projects=[a1, b1, c1, d1, $e], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, c1, d1, 2 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, b1, c1, d1, 4 AS $e}, {null AS a1, b1, null AS c1, d1, 5 AS $e}, {null AS a1, null AS b1, c1, d1, 6 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
             +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -507,7 +507,7 @@ LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$3=[COUNT($3)
 Calc(select=[a1, b1, c1, EXPR$3])
 +- HashAggregate(isMerge=[false], groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, COUNT(d1) AS EXPR$3])
    +- Exchange(distribution=[hash[a1, b1, c1, $e]])
-      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[2]}], projects=[{a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, c1, d1, 2 AS $e}])
+      +- Expand(projects=[a1, b1, c1, d1, $e], projects=[{a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, c1, d1, 2 AS $e}])
          +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -530,7 +530,7 @@ Calc(select=[a1, s])
 +- HashAggregate(isMerge=[true], groupBy=[a1, c1, $e], select=[a1, c1, $e, Final_SUM(sum$0) AS s])
    +- Exchange(distribution=[hash[a1, c1, $e]])
       +- LocalHashAggregate(groupBy=[a1, c1, $e], select=[a1, c1, $e, Partial_SUM(b1) AS sum$0])
-         +- Expand(projects=[{a1=[$0], c1=[$1], b1=[$2], $e=[0]}, {a1=[$0], c1=[null], b1=[$2], $e=[1]}, {a1=[null], c1=[null], b1=[$2], $e=[3]}], projects=[{a1, c1, b1, 0 AS $e}, {a1, null AS c1, b1, 1 AS $e}, {null AS a1, null AS c1, b1, 3 AS $e}])
+         +- Expand(projects=[a1, c1, b1, $e], projects=[{a1, c1, b1, 0 AS $e}, {a1, null AS c1, b1, 1 AS $e}, {null AS a1, null AS c1, b1, 3 AS $e}])
             +- Calc(select=[a1, c1, b1])
                +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
@@ -552,7 +552,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], EXPR$3=[$4])
 Calc(select=[a1, b1, c1, EXPR$3])
 +- HashAggregate(isMerge=[false], groupBy=[a1, c1, d1, $e], auxGrouping=[b1], select=[a1, c1, d1, $e, b1, COUNT(d1_0) AS EXPR$3])
    +- Exchange(distribution=[hash[a1, c1, d1, $e]])
-      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[null], $e=[1], d1_0=[$3]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[2], d1_0=[$3]}], projects=[{a1, b1, c1, null AS d1, 1 AS $e, d1 AS d1_0}, {a1, b1, null AS c1, d1, 2 AS $e, d1 AS d1_0}])
+      +- Expand(projects=[a1, b1, c1, d1, $e, d1_0], projects=[{a1, b1, c1, null AS d1, 1 AS $e, d1 AS d1_0}, {a1, b1, null AS c1, d1, 2 AS $e, d1 AS d1_0}])
          +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -614,7 +614,7 @@ Calc(select=[a1, b1, c1, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Final_COUNT(count$0) AS EXPR$3])
    +- Exchange(distribution=[hash[a1, b1, c1, $e]])
       +- LocalHashAggregate(groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Partial_COUNT(d1) AS count$0])
-         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}, {a1=[$0], b1=[null], c1=[null], d1=[$3], $e=[3]}, {a1=[null], b1=[null], c1=[null], d1=[$3], $e=[7]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
+         +- Expand(projects=[a1, b1, c1, d1, $e], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
             +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -697,7 +697,7 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM(DISTIN
 HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_4 AS EXPR$2, SUM(b1) FILTER $g_2 AS EXPR$3])
 +- Exchange(distribution=[hash[a1]])
    +- Calc(select=[a1, b1, c1, d1, =(CASE(=($e, 2:BIGINT), 2:BIGINT, 4:BIGINT), 2) AS $g_2, =(CASE(=($e, 2:BIGINT), 2:BIGINT, 4:BIGINT), 4) AS $g_4])
-      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[2]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[4]}], projects=[{a1, b1, null AS c1, d1, 2 AS $e}, {a1, null AS b1, c1, d1, 4 AS $e}])
+      +- Expand(projects=[a1, b1, c1, d1, $e], projects=[{a1, b1, null AS c1, d1, 2 AS $e}, {a1, null AS b1, c1, d1, 4 AS $e}])
          +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -715,7 +715,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX($1)], EXPR$
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, b1, b1 AS b10, c1])
+Calc(select=[a1, b1 AS EXPR$1, b1 AS EXPR$2, c1 AS EXPR$3])
 +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -737,7 +737,7 @@ SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, MIN(d1) FILTER $g_1 AS 
 +- Calc(select=[a1, c1, d1, b1 AS EXPR$3, b1 AS EXPR$4, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
    +- Sort(orderBy=[a1 ASC])
       +- Exchange(distribution=[hash[a1]])
-         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
+         +- Expand(projects=[a1, b1, c1, d1, $e], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
             +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -760,7 +760,7 @@ Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[$f0], select=[$f0, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[$f0]])
       +- LocalHashAggregate(groupBy=[$f0], select=[$f0, Partial_COUNT(c1) AS count$0])
-         +- Calc(select=[1 AS $f0, true AS $f1, c1])
+         +- Calc(select=[1 AS $f0, c1])
             +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -841,7 +841,7 @@ LogicalProject(a1=[$0], b1=[$1], EXPR$2=[$4])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1], select=[a1, b1, COUNT(c1) AS EXPR$2])
 +- Exchange(distribution=[hash[a1]])
-   +- Calc(select=[a1, b1, 1 AS $f2, true AS $f3, c1])
+   +- Calc(select=[a1, b1, c1])
       +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -902,7 +902,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)])
 HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(b1) FILTER $g_0 AS EXPR$1, MIN(EXPR$2) FILTER $g_1 AS EXPR$2])
 +- Exchange(distribution=[hash[a1]])
    +- Calc(select=[a1, b1, b1_0 AS EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
-      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0], b1_0=[$1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[1], b1_0=[$1]}], projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
+      +- Expand(projects=[a1, b1, c1, d1, $e, b1_0], projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
          +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -924,7 +924,7 @@ SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, MIN(c1) FILTER $g_1 AS 
 +- Sort(orderBy=[a1 ASC])
    +- Exchange(distribution=[hash[a1]])
       +- Calc(select=[a1, b1, c1, b1_0 AS EXPR$3, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
-         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0], b1_0=[$1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[1], b1_0=[$1]}], projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
+         +- Expand(projects=[a1, b1, c1, d1, $e, b1_0], projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
             +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -945,7 +945,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)])
 HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(c1) FILTER $g_0 AS EXPR$1, MIN(EXPR$2) FILTER $g_1 AS EXPR$2])
 +- Exchange(distribution=[hash[a1]])
    +- Calc(select=[a1, c1, b1 AS EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
-      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
+      +- Expand(projects=[a1, b1, c1, d1, $e], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
          +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -967,7 +967,7 @@ SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, MIN(d1) FILTER $g_1 AS 
 +- Sort(orderBy=[a1 ASC])
    +- Exchange(distribution=[hash[a1]])
       +- Calc(select=[a1, c1, d1, b1 AS EXPR$3, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
-         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
+         +- Expand(projects=[a1, b1, c1, d1, $e], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
             +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
