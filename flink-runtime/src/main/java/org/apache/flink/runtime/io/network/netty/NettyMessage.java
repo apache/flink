@@ -243,6 +243,9 @@ public abstract class NettyMessage {
 					case AddCredit.ID:
 						decodedMsg = AddCredit.readFrom(msg);
 						break;
+					case ResumeConsumption.ID:
+						decodedMsg = ResumeConsumption.readFrom(msg);
+						break;
 					default:
 						throw new ProtocolException(
 							"Received unknown message from producer: " + msg);
@@ -682,7 +685,6 @@ public abstract class NettyMessage {
 
 		AddCredit(int credit, InputChannelID receiverId) {
 			checkArgument(credit > 0, "The announced credit should be greater than 0");
-
 			this.credit = credit;
 			this.receiverId = receiverId;
 		}
@@ -717,6 +719,48 @@ public abstract class NettyMessage {
 		@Override
 		public String toString() {
 			return String.format("AddCredit(%s : %d)", receiverId, credit);
+		}
+	}
+
+	/**
+	 * Message to notify the producer to unblock from checkpoint.
+	 */
+	static class ResumeConsumption extends NettyMessage {
+
+		private static final byte ID = 7;
+
+		final InputChannelID receiverId;
+
+		ResumeConsumption(InputChannelID receiverId) {
+			this.receiverId = receiverId;
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+			ByteBuf result = null;
+
+			try {
+				result = allocateBuffer(allocator, ID, 16);
+				receiverId.writeTo(result);
+
+				return result;
+			}
+			catch (Throwable t) {
+				if (result != null) {
+					result.release();
+				}
+
+				throw new IOException(t);
+			}
+		}
+
+		static ResumeConsumption readFrom(ByteBuf buffer) {
+			return new ResumeConsumption(InputChannelID.fromByteBuf(buffer));
+		}
+
+		@Override
+		public String toString() {
+			return String.format("ResumeConsumption(%s)", receiverId);
 		}
 	}
 }

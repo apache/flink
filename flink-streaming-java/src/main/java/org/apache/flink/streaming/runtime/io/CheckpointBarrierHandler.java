@@ -64,20 +64,11 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	public void close() throws IOException {
 	}
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
-	public abstract boolean processBarrier(CheckpointBarrier receivedBarrier, int channelIndex, long bufferedBytes) throws Exception;
+	public abstract void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception;
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
-	public abstract boolean processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception;
+	public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception;
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
-	public abstract boolean processEndOfPartition() throws Exception;
+	public abstract void processEndOfPartition() throws Exception;
 
 	public abstract long getLatestCheckpointId();
 
@@ -87,18 +78,15 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		return latestCheckpointStartDelayNanos;
 	}
 
-	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
-
 	public Optional<BufferReceivedListener> getBufferReceivedListener() {
 		return Optional.empty();
 	}
 
-	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws IOException {
+	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long alignmentDurationNanos) throws IOException {
 		CheckpointMetaData checkpointMetaData =
 			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
 		CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
-			.setBytesBufferedInAlignment(bufferedBytes)
 			.setAlignmentDurationNanos(alignmentDurationNanos)
 			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
 

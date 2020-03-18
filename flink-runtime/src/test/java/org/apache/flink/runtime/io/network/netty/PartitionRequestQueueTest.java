@@ -22,8 +22,14 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionTest;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -51,6 +57,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEventBufferConsumer;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -214,8 +221,12 @@ public class PartitionRequestQueueTest {
 		}
 
 		@Override
-		public boolean isAvailable() {
-			return buffersInBacklog.get() > 0;
+		public boolean isAvailable(int numCreditsAvailable) {
+			if (numCreditsAvailable > 0) {
+				return buffersInBacklog.get() > 0;
+			}
+
+			return false;
 		}
 	}
 
@@ -230,9 +241,9 @@ public class PartitionRequestQueueTest {
 			BufferAndBacklog nextBuffer = super.getNextBuffer();
 			return new BufferAndBacklog(
 				nextBuffer.buffer().readOnlySlice(),
-				nextBuffer.isMoreAvailable(),
+				nextBuffer.isDataAvailable(),
 				nextBuffer.buffersInBacklog(),
-				nextBuffer.nextBufferIsEvent());
+				nextBuffer.isEventAvailable());
 		}
 	}
 
@@ -243,7 +254,7 @@ public class PartitionRequestQueueTest {
 		}
 
 		@Override
-		public boolean isAvailable() {
+		public boolean isAvailable(int numCreditsAvailable) {
 			return true;
 		}
 	}
@@ -304,12 +315,7 @@ public class PartitionRequestQueueTest {
 
 	private static class NextIsEventResultSubpartitionView extends NoOpResultSubpartitionView {
 		@Override
-		public boolean nextBufferIsEvent() {
-			return true;
-		}
-
-		@Override
-		public boolean isAvailable() {
+		public boolean isAvailable(int numCreditsAvailable) {
 			return true;
 		}
 	}
@@ -356,7 +362,7 @@ public class PartitionRequestQueueTest {
 		// Notify available credits to trigger enqueue the reader again
 		final int notifyNumCredits = 3;
 		for (int i = 1; i <= notifyNumCredits; i++) {
-			queue.addCredit(receiverId, 1);
+			queue.addCreditOrResumeConsumption(receiverId, viewReader -> viewReader.addCredit(1));
 
 			// the reader is enqueued in the pipeline because it has both available buffers and credits
 			// since the channel is blocked though, we will not process anything and only enqueue the
@@ -379,6 +385,47 @@ public class PartitionRequestQueueTest {
 			assertThat(channel.readOutbound(), instanceOf(NettyMessage.BufferResponse.class));
 		}
 		assertNull(channel.readOutbound());
+	}
+
+	/**
+	 * Tests {@link PartitionRequestQueue#enqueueAvailableReader(NetworkSequenceViewReader)},
+	 * verifying the reader would be enqueued in the pipeline after resuming data consumption if there
+	 * are credit and data available.
+	 */
+	@Test
+	public void testEnqueueReaderByResumingConsumption() throws Exception {
+		PipelinedSubpartition subpartition = PipelinedSubpartitionTest.createPipelinedSubpartition();
+		subpartition.add(createEventBufferConsumer(4096, Buffer.DataType.ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER));
+		subpartition.add(createEventBufferConsumer(4096, Buffer.DataType.DATA_BUFFER));
+
+		BufferAvailabilityListener bufferAvailabilityListener = new NoOpBufferAvailablityListener();
+		PipelinedSubpartitionView view = subpartition.createReadView(bufferAvailabilityListener);
+		ResultPartitionProvider partitionProvider = (partitionId, index, availabilityListener) -> view;
+
+		InputChannelID receiverId = new InputChannelID();
+		PartitionRequestQueue queue = new PartitionRequestQueue();
+		CreditBasedSequenceNumberingViewReader reader = new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+		EmbeddedChannel channel = new EmbeddedChannel(queue);
+
+		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+		queue.notifyReaderCreated(reader);
+		// we have adequate credits
+		reader.addCredit(Integer.MAX_VALUE);
+		assertTrue(reader.isAvailable());
+
+		reader.notifyDataAvailable();
+		channel.runPendingTasks();
+		assertFalse(reader.isAvailable());
+		assertEquals(1, subpartition.unsynchronizedGetNumberOfQueuedBuffers());
+
+		queue.addCreditOrResumeConsumption(receiverId, NetworkSequenceViewReader::resumeConsumption);
+		assertFalse(reader.isAvailable());
+		assertEquals(0, subpartition.unsynchronizedGetNumberOfQueuedBuffers());
+
+		Object data1 = channel.readOutbound();
+		assertFalse(((NettyMessage.BufferResponse) data1).isBuffer);
+		Object data2 = channel.readOutbound();
+		assertTrue(((NettyMessage.BufferResponse) data2).isBuffer);
 	}
 
 	@Test
@@ -409,7 +456,7 @@ public class PartitionRequestQueueTest {
 
 		// add credit to make this reader available for adding into availableReaders queue
 		if (isAvailableView) {
-			queue.addCredit(receiverId, 1);
+			queue.addCreditOrResumeConsumption(receiverId, viewReader -> viewReader.addCredit(1));
 			assertTrue(queue.getAvailableReaders().contains(reader));
 		}
 

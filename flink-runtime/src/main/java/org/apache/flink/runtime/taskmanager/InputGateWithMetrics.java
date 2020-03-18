@@ -54,6 +54,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	}
 
 	@Override
+	public void resumeConsumption(int channelIndex) {
+		inputGate.resumeConsumption(channelIndex);
+	}
+
+	@Override
 	public int getNumberOfInputChannels() {
 		return inputGate.getNumberOfInputChannels();
 	}

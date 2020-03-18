@@ -57,7 +57,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the behaviors of the {@link CheckpointedInputGate} with {@link CachedBufferStorage}.
+ * Tests for the behaviors of the {@link CheckpointedInputGate}.
  */
 public class CheckpointBarrierUnalignerTest {
 
@@ -80,7 +80,6 @@ public class CheckpointBarrierUnalignerTest {
 	public void ensureEmpty() throws Exception {
 		assertFalse(inputGate.pollNext().isPresent());
 		assertTrue(inputGate.isFinished());
-		assertTrue(inputGate.isEmpty());
 
 		channelStateWriter.close();
 		inputGate.close();
@@ -543,7 +542,7 @@ public class CheckpointBarrierUnalignerTest {
 			"Test",
 			toNotify);
 		barrierHandler.getBufferReceivedListener().ifPresent(gate::registerBufferReceivedListener);
-		return new CheckpointedInputGate(gate, new EmptyBufferStorage(), barrierHandler);
+		return new CheckpointedInputGate(gate, barrierHandler);
 	}
 
 	private void assertInflightData(BufferOrEvent... expected) {
@@ -608,7 +607,6 @@ public class CheckpointBarrierUnalignerTest {
 			}
 
 			assertTrue(checkpointMetaData.getTimestamp() > 0);
-			assertTrue(checkpointMetrics.getBytesBufferedInAlignment() >= 0);
 			assertTrue(checkpointMetrics.getAlignmentDurationNanos() >= 0);
 
 			nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;

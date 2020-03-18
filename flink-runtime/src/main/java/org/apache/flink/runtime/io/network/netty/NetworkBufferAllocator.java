@@ -72,6 +72,6 @@ class NetworkBufferAllocator {
 		byte[] byteArray = new byte[size];
 		MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 
-		return new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
+		return new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, Buffer.DataType.EVENT_BUFFER);
 	}
 }

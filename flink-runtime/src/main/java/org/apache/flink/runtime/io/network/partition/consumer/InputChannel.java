@@ -130,6 +130,13 @@ public abstract class InputChannel {
 	}
 
 	/**
+	 * After sending a {@link org.apache.flink.runtime.io.network.api.CheckpointBarrier} of
+	 * exactly-once mode, the upstream will be blocked and become unavailable. This method
+	 * tries to unblock the corresponding upstream and resume data consumption.
+	 */
+	public abstract void resumeConsumption();
+
+	/**
 	 * Notifies the owning {@link SingleInputGate} that this channel became non-empty.
 	 *
 	 * <p>This is guaranteed to be called only when a Buffer was added to a previously

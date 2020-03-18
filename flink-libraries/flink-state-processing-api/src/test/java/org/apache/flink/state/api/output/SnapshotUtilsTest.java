@@ -64,7 +64,7 @@ public class SnapshotUtilsTest {
 
 		Path path = new Path(folder.newFolder().getAbsolutePath());
 
-		SnapshotUtils.snapshot(operator, 0, 0L, storage, path);
+		SnapshotUtils.snapshot(operator, 0, 0L, true, false, storage, path);
 
 		Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
 	}

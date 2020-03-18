@@ -1320,11 +1320,6 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>lastCheckpointAlignmentBuffered</td>
-      <td>The number of buffered bytes during alignment over all subtasks for the last checkpoint (in bytes).</td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
       <td>numberOfInProgressCheckpoints</td>
       <td>The number of in progress checkpoints.</td>
       <td>Gauge</td>

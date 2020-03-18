@@ -156,31 +156,31 @@ public abstract class ResultSubpartition {
 	public static final class BufferAndBacklog {
 
 		private final Buffer buffer;
-		private final boolean isMoreAvailable;
+		private final boolean isDataAvailable;
 		private final int buffersInBacklog;
-		private final boolean nextBufferIsEvent;
+		private final boolean isEventAvailable;
 
-		public BufferAndBacklog(Buffer buffer, boolean isMoreAvailable, int buffersInBacklog, boolean nextBufferIsEvent) {
+		public BufferAndBacklog(Buffer buffer, boolean isDataAvailable, int buffersInBacklog, boolean isEventAvailable) {
 			this.buffer = checkNotNull(buffer);
 			this.buffersInBacklog = buffersInBacklog;
-			this.isMoreAvailable = isMoreAvailable;
-			this.nextBufferIsEvent = nextBufferIsEvent;
+			this.isDataAvailable = isDataAvailable;
+			this.isEventAvailable = isEventAvailable;
 		}
 
 		public Buffer buffer() {
 			return buffer;
 		}
 
-		public boolean isMoreAvailable() {
-			return isMoreAvailable;
+		public boolean isDataAvailable() {
+			return isDataAvailable;
 		}
 
 		public int buffersInBacklog() {
 			return buffersInBacklog;
 		}
 
-		public boolean nextBufferIsEvent() {
-			return nextBufferIsEvent;
+		public boolean isEventAvailable() {
+			return isEventAvailable;
 		}
 
 		public static BufferAndBacklog fromBufferAndLookahead(Buffer current, Buffer lookahead, int backlog) {
