@@ -568,8 +568,8 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
 
     def test_data_types_only_supported_in_blink_planner(self):
         timezone = self.t_env.get_config().get_local_timezone()
-        local_datetime = datetime.datetime(1970, 1, 1, 0, 0, 0, 123000).astimezone(
-            pytz.timezone(timezone))
+        local_datetime = pytz.timezone(timezone).localize(
+            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
 
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
             assert local_zoned_timestamp_param == local_datetime, \
