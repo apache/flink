@@ -35,7 +35,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -573,14 +572,15 @@ public class LocalExecutor implements Executor {
 			String sessionId,
 			ExecutionContext<C> context,
 			String statement) {
-		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
+
+		applyUpdate(context, statement);
 
 		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
 		if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
 			return null;
 		}
 
-		// create job graph with dependencies
+		// create pipeline
 		final String jobName = sessionId + ": " + statement;
 		final Pipeline pipeline;
 		try {
@@ -683,12 +683,12 @@ public class LocalExecutor implements Executor {
 	/**
 	 * Applies the given update statement to the given table environment with query configuration.
 	 */
-	private <C> void applyUpdate(ExecutionContext<C> context, TableEnvironment tableEnv, QueryConfig queryConfig, String updateStatement) {
-		// parse and validate statement
+	private <C> void applyUpdate(ExecutionContext<C> context, String updateStatement) {
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		try {
 			context.wrapClassLoader(() -> {
 				if (tableEnv instanceof StreamTableEnvironment) {
-					((StreamTableEnvironment) tableEnv).sqlUpdate(updateStatement, (StreamQueryConfig) queryConfig);
+					((StreamTableEnvironment) tableEnv).sqlUpdate(updateStatement, (StreamQueryConfig) context.getQueryConfig());
 				} else {
 					tableEnv.sqlUpdate(updateStatement);
 				}
