@@ -120,8 +120,9 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	 *
 	 * @param dataSetsToRelease data sets for which all cluster partitions should be released
 	 * @param timeout for the partitions release operation
+	 * @return Future acknowledge that the request was received
 	 */
-	void releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Time timeout);
+	CompletableFuture<Acknowledge> releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Time timeout);
 
 	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID

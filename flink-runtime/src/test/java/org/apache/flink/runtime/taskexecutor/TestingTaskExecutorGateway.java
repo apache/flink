@@ -86,6 +86,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer;
 
+	private final Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer;
+
 	private final TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler;
 
 	TestingTaskExecutorGateway(
@@ -101,6 +103,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
 			Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
 			TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer,
+			Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer,
 			TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler) {
 
 		this.address = Preconditions.checkNotNull(address);
@@ -115,6 +118,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 		this.cancelTaskFunction = cancelTaskFunction;
 		this.canBeReleasedSupplier = canBeReleasedSupplier;
 		this.releaseOrPromotePartitionsConsumer = releaseOrPromotePartitionsConsumer;
+		this.releaseClusterPartitionsConsumer = releaseClusterPartitionsConsumer;
 		this.operatorEventHandler = operatorEventHandler;
 	}
 
@@ -144,7 +148,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
-	public void releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, Time timeout) {
+	public CompletableFuture<Acknowledge> releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, Time timeout) {
+		releaseClusterPartitionsConsumer.accept(dataSetsToRelease);
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
