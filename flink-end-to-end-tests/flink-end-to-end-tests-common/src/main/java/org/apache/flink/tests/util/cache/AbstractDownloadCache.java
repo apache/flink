@@ -64,9 +64,9 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 		this.downloadAttemptTimeout = DOWNLOAD_ATTEMPT_TIMEOUT.get(Duration.ofMinutes(2));
 		this.downloadGlobalTimeout = DOWNLOAD_GLOBAL_TIMEOUT.get(Duration.ofMinutes(2));
-		this.downloadMaxRetries = DOWNLOAD_MAX_RETRIES.get(1);
+		this.downloadMaxRetries = DOWNLOAD_MAX_RETRIES.get(3);
 
-		log.info("Download configuration: maxAttempts={}, attemptTimeout={}, globalTimeout={}", downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
+		log.info("Download configuration: maxRetries={}, attemptTimeout={}, globalTimeout={}", downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
 	}
 
 	@Override
