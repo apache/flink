@@ -232,10 +232,6 @@ public class CheckpointingStatistics implements ResponseBody {
 			return duration;
 		}
 
-		public MinMaxAvgStatistics getAlignmentBuffered() {
-			return alignmentBuffered;
-		}
-
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
 
@@ -61,7 +62,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			CheckpointedInputGate checkpointedInputGate =
 				new CheckpointedInputGate(
 					myIG,
-					new CachedBufferStorage(PAGE_SIZE),
 					"Testing: No task associated",
 					new DummyCheckpointInvokable());
 
@@ -128,6 +128,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		private final int numberOfChannels;
 		private final BufferPool[] bufferPools;
 		private final int[] currentBarriers;
+		private final boolean[] channelBlocked;
 		private final BarrierGenerator[] barrierGens;
 		private int currentChannel = 0;
 		private long c = 0;
@@ -135,6 +136,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens) {
 			this.numberOfChannels = bufferPools.length;
 			this.currentBarriers = new int[numberOfChannels];
+			this.channelBlocked = new boolean[numberOfChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
 			availabilityHelper.resetAvailable();
@@ -158,8 +160,16 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		@Override
 		public Optional<BufferOrEvent> getNext() throws IOException {
 			currentChannel = (currentChannel + 1) % numberOfChannels;
+			if (channelBlocked[currentChannel]) {
+				return getNext();
+			}
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
+				channelBlocked[currentChannel] = true;
+				if (allChannelsBlocked()) {
+					Arrays.fill(channelBlocked, false);
+				}
+
 				return Optional.of(
 					new BufferOrEvent(
 						new CheckpointBarrier(
@@ -184,8 +194,21 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			return getNext();
 		}
 
+		private boolean allChannelsBlocked() {
+			for (boolean blocked : channelBlocked) {
+				if (!blocked) {
+					return false;
+				}
+			}
+			return true;
+		}
+
 		@Override
 		public void sendTaskEvent(TaskEvent event) {}
+
+		@Override
+		public void resumeConsumption(int channelIndex) {
+		}
 
 		@Override
 		public void setup() {

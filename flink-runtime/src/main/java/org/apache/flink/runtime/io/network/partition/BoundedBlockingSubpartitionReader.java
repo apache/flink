@@ -146,13 +146,17 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
-	public boolean nextBufferIsEvent() {
-		return nextBuffer != null && !nextBuffer.isBuffer();
+	public void resumeConsumption() {
+		throw new UnsupportedOperationException("Method should never be called.");
 	}
 
 	@Override
-	public boolean isAvailable() {
-		return nextBuffer != null;
+	public boolean isAvailable(int numCreditsAvailable) {
+		if (numCreditsAvailable > 0) {
+			return nextBuffer != null;
+		}
+
+		return nextBuffer != null && !nextBuffer.isBuffer();
 	}
 
 	@Override

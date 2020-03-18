@@ -199,21 +199,21 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 		List<NettyMessage> messages = new ArrayList<>();
 
 		for (int i = 0; i < NUMBER_OF_BUFFER_RESPONSES - 1; i++) {
-			addBufferResponse(messages, inputChannelId, true, BUFFER_SIZE, seqNumber++);
+			addBufferResponse(messages, inputChannelId, Buffer.DataType.DATA_BUFFER, BUFFER_SIZE, seqNumber++);
 		}
 
 		if (hasEmptyBuffer) {
-			addBufferResponse(messages, inputChannelId, true, 0, seqNumber++);
+			addBufferResponse(messages, inputChannelId, Buffer.DataType.DATA_BUFFER, 0, seqNumber++);
 		}
 		if (hasBufferForReleasedChannel) {
-			addBufferResponse(messages, releasedInputChannelId, true, BUFFER_SIZE, seqNumber++);
+			addBufferResponse(messages, releasedInputChannelId, Buffer.DataType.DATA_BUFFER, BUFFER_SIZE, seqNumber++);
 		}
 		if (hasBufferForRemovedChannel) {
-			addBufferResponse(messages, new InputChannelID(), true, BUFFER_SIZE, seqNumber++);
+			addBufferResponse(messages, new InputChannelID(), Buffer.DataType.DATA_BUFFER, BUFFER_SIZE, seqNumber++);
 		}
 
-		addBufferResponse(messages, inputChannelId, false, 32, seqNumber++);
-		addBufferResponse(messages, inputChannelId, true, BUFFER_SIZE, seqNumber);
+		addBufferResponse(messages, inputChannelId, Buffer.DataType.EVENT_BUFFER, 32, seqNumber++);
+		addBufferResponse(messages, inputChannelId, Buffer.DataType.DATA_BUFFER, BUFFER_SIZE, seqNumber);
 		messages.add(new NettyMessage.ErrorResponse(new RuntimeException("test"), inputChannelId));
 
 		return messages;
@@ -222,20 +222,17 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 	private void addBufferResponse(
 		List<NettyMessage> messages,
 		InputChannelID inputChannelId,
-		boolean isBuffer,
+		Buffer.DataType dataType,
 		int bufferSize,
 		int seqNumber) {
 
-		Buffer buffer = createDataBuffer(bufferSize);
-		if (!isBuffer) {
-			buffer.tagAsEvent();
-		}
+		Buffer buffer = createDataBuffer(bufferSize, dataType);
 		messages.add(new BufferResponse(buffer, seqNumber, inputChannelId, 1));
 	}
 
-	private Buffer createDataBuffer(int size) {
+	private Buffer createDataBuffer(int size, Buffer.DataType dataType) {
 		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(size);
-		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
+		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);
 		for (int i = 0; i < size / 4; ++i) {
 			buffer.writeInt(i);
 		}

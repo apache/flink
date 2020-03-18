@@ -86,7 +86,6 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
-				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
 			LongSerializer.INSTANCE,
 			ioManager,
@@ -116,7 +115,6 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
-				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
 			inSerializer,
 			new StatusWatermarkValve(1, output),

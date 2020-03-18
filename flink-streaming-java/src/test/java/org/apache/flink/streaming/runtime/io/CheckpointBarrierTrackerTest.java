@@ -53,7 +53,6 @@ public class CheckpointBarrierTrackerTest {
 	public void ensureEmpty() throws Exception {
 		assertFalse(inputGate.pollNext().isPresent());
 		assertTrue(inputGate.isFinished());
-		assertTrue(inputGate.isEmpty());
 	}
 
 	@Test
@@ -285,7 +284,6 @@ public class CheckpointBarrierTrackerTest {
 			if (boe.isBuffer()) {
 				assertEquals(boe, inputGate.pollNext().get());
 			}
-			assertTrue(inputGate.isEmpty());
 		}
 	}
 
@@ -377,7 +375,6 @@ public class CheckpointBarrierTrackerTest {
 		MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
 		return new CheckpointedInputGate(
 			gate,
-			new CachedBufferStorage(PAGE_SIZE, -1, "Testing"),
 			new CheckpointBarrierTracker(gate.getNumberOfInputChannels(), toNotifyOnCheckpoint));
 	}
 

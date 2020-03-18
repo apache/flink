@@ -442,6 +442,10 @@ public class StreamConfig implements Serializable {
 		return config.getBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false);
 	}
 
+	public boolean isExactlyOnceCheckpointMode() {
+		return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
+	}
+
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
 		try {
 			InstantiationUtil.writeObjectToConfig(outEdgeList, this.config, EDGES_IN_ORDER);

@@ -108,6 +108,8 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 		return availabilityHelper.getAvailableFuture();
 	}
 
+	public abstract void resumeConsumption(int channelIndex);
+
 	/**
 	 * Returns the channel of this gate.
 	 */

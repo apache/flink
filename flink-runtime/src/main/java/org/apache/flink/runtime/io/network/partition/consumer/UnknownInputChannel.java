@@ -80,6 +80,11 @@ class UnknownInputChannel extends InputChannel {
 	}
 
 	@Override
+	public void resumeConsumption() {
+		throw new UnsupportedOperationException("UnknownInputChannel should never be blocked.");
+	}
+
+	@Override
 	public void requestSubpartition(int subpartitionIndex) throws IOException {
 		// Nothing to do here
 	}

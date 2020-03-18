@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The {@link CheckpointedInputGate} uses {@link CheckpointBarrierHandler} to handle incoming
@@ -57,35 +57,27 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
 	private final int channelIndexOffset;
 
-	private final BufferStorage bufferStorage;
-
-	/** Flag to indicate whether we have drawn all available input. */
-	private boolean endOfInputGate;
-
-	/** Indicate end of the input. Set to true after encountering {@link #endOfInputGate} and depleting
-	 * {@link #bufferStorage}. */
+	/** Indicate end of the input. */
 	private boolean isFinished;
 
 	public CheckpointedInputGate(
 			InputGate inputGate,
-			BufferStorage bufferStorage,
 			String taskName,
 			AbstractInvokable toNotifyOnCheckpoint) {
 		this(
 			inputGate,
-			bufferStorage,
 			new CheckpointBarrierAligner(
-				inputGate.getNumberOfInputChannels(),
 				taskName,
+				InputProcessorUtil.generateChannelIndexToInputGateMap(inputGate),
+				InputProcessorUtil.generateInputGateToChannelIndexOffsetMap(inputGate),
 				toNotifyOnCheckpoint)
 		);
 	}
 
 	public CheckpointedInputGate(
 			InputGate inputGate,
-			BufferStorage bufferStorage,
 			CheckpointBarrierHandler barrierHandler) {
-		this(inputGate, bufferStorage, barrierHandler, 0);
+		this(inputGate, barrierHandler, 0);
 	}
 
 	/**
@@ -96,80 +88,49 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 * checkpoint has been cancelled.
 	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
-	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
 	 * @param barrierHandler Handler that controls which channels are blocked.
 	 * @param channelIndexOffset Optional offset added to channelIndex returned from the inputGate
 	 *                           before passing it to the barrierHandler.
 	 */
 	public CheckpointedInputGate(
 			InputGate inputGate,
-			BufferStorage bufferStorage,
 			CheckpointBarrierHandler barrierHandler,
 			int channelIndexOffset) {
 		this.inputGate = inputGate;
 		this.channelIndexOffset = channelIndexOffset;
-		this.bufferStorage = checkNotNull(bufferStorage);
 		this.barrierHandler = barrierHandler;
 	}
 
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		if (bufferStorage.isEmpty()) {
-			return inputGate.getAvailableFuture();
-		}
-		return AVAILABLE;
+		return inputGate.getAvailableFuture();
 	}
 
 	@Override
 	public Optional<BufferOrEvent> pollNext() throws Exception {
 		while (true) {
-			// process buffered BufferOrEvents before grabbing new ones
-			Optional<BufferOrEvent> next;
-			if (bufferStorage.isEmpty()) {
-				next = inputGate.pollNext();
-			}
-			else {
-				next = bufferStorage.pollNext();
-				if (!next.isPresent()) {
-					return pollNext();
-				}
-			}
+			Optional<BufferOrEvent> next = inputGate.pollNext();
 
 			if (!next.isPresent()) {
 				return handleEmptyBuffer();
 			}
 
 			BufferOrEvent bufferOrEvent = next.get();
-			if (barrierHandler.isBlocked(offsetChannelIndex(bufferOrEvent.getChannelIndex()))) {
-				// if the channel is blocked, we just store the BufferOrEvent
-				bufferStorage.add(bufferOrEvent);
-				if (bufferStorage.isFull()) {
-					barrierHandler.checkpointSizeLimitExceeded(bufferStorage.getMaxBufferedBytes());
-					bufferStorage.rollOver();
-				}
-			}
-			else if (bufferOrEvent.isBuffer()) {
+			checkState(!barrierHandler.isBlocked(offsetChannelIndex(bufferOrEvent.getChannelIndex())));
+
+			if (bufferOrEvent.isBuffer()) {
 				return next;
 			}
 			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
 				CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
-				if (!endOfInputGate) {
-					// process barriers only if there is a chance of the checkpoint completing
-					if (barrierHandler.processBarrier(checkpointBarrier, offsetChannelIndex(bufferOrEvent.getChannelIndex()), bufferStorage.getPendingBytes())) {
-						bufferStorage.rollOver();
-					}
-				}
+				barrierHandler.processBarrier(checkpointBarrier, offsetChannelIndex(bufferOrEvent.getChannelIndex()));
 			}
 			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
-				if (barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent())) {
-					bufferStorage.rollOver();
-				}
+				barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent());
 			}
 			else {
 				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
-					if (barrierHandler.processEndOfPartition()) {
-						bufferStorage.rollOver();
-					}
+					barrierHandler.processEndOfPartition();
 				}
 				return next;
 			}
@@ -192,29 +153,12 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 		return channelIndex + channelIndexOffset;
 	}
 
-	private Optional<BufferOrEvent> handleEmptyBuffer() throws Exception {
-		if (!inputGate.isFinished()) {
-			return Optional.empty();
-		}
-
-		if (endOfInputGate) {
+	private Optional<BufferOrEvent> handleEmptyBuffer() {
+		if (inputGate.isFinished()) {
 			isFinished = true;
-			return Optional.empty();
-		} else {
-			// end of input stream. stream continues with the buffered data
-			endOfInputGate = true;
-			barrierHandler.releaseBlocksAndResetBarriers();
-			bufferStorage.rollOver();
-			return pollNext();
 		}
-	}
 
-	/**
-	 * Checks if the barrier handler has buffered any data internally.
-	 * @return {@code True}, if no data is buffered internally, {@code false} otherwise.
-	 */
-	public boolean isEmpty() {
-		return bufferStorage.isEmpty();
+		return Optional.empty();
 	}
 
 	@Override
@@ -228,7 +172,6 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 * @throws IOException Thrown if the cleanup of I/O resources failed.
 	 */
 	public void close() throws IOException {
-		bufferStorage.close();
 		barrierHandler.close();
 	}
 

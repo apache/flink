@@ -75,9 +75,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 	@Override
 	PipelinedSubpartition createSubpartition() {
-		final ResultPartition parent = PartitionTestUtils.createPartition();
-
-		return new PipelinedSubpartition(0, parent);
+		return createPipelinedSubpartition();
 	}
 
 	@Override
@@ -325,5 +323,11 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		// Verify that parent release is reflected at partition view
 		assertTrue(view.isReleased());
+	}
+
+	public static PipelinedSubpartition createPipelinedSubpartition() {
+		final ResultPartition parent = PartitionTestUtils.createPartition();
+
+		return new PipelinedSubpartition(0, parent);
 	}
 }

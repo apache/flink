@@ -155,6 +155,10 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	@Override
+	public void resumeConsumption() {
+	}
+
+	@Override
 	protected void notifyChannelNonEmpty() {
 	}
 

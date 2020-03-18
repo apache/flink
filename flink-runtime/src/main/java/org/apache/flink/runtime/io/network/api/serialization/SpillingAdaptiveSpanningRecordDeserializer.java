@@ -101,7 +101,8 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 		} else {
 			target = spanningWrapper.getUnconsumedSegment();
 		}
-		return target.map(memorySegment -> new NetworkBuffer(memorySegment, FreeingBufferRecycler.INSTANCE, true, memorySegment.size()));
+		return target.map(memorySegment -> new NetworkBuffer(
+			memorySegment, FreeingBufferRecycler.INSTANCE, Buffer.DataType.DATA_BUFFER, memorySegment.size()));
 	}
 
 	@Override

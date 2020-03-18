@@ -83,7 +83,7 @@ public class CheckpointBarrierUnalignerCancellationTest {
 			if (e instanceof CancelCheckpointMarker) {
 				unaligner.processCancellationBarrier((CancelCheckpointMarker) e);
 			} else if (e instanceof CheckpointBarrier) {
-				unaligner.processBarrier((CheckpointBarrier) e, channel, 0);
+				unaligner.processBarrier((CheckpointBarrier) e, channel);
 			} else {
 				throw new IllegalArgumentException("unexpected event type: " + e);
 			}

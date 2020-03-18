@@ -428,6 +428,16 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		// Nothing to do actually.
 	}
 
+	@Override
+	public void resumeConsumption() {
+		checkState(!isReleased.get(), "Channel released.");
+		checkState(partitionRequestClient != null, "Trying to send event to producer before requesting a queue.");
+
+		// notifies the producer that this channel is ready to
+		// unblock from checkpoint and resume data consumption
+		partitionRequestClient.resumeConsumption(this);
+	}
+
 	// ------------------------------------------------------------------------
 	// Network I/O notifications (called by network I/O thread)
 	// ------------------------------------------------------------------------

@@ -256,6 +256,14 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
+	public void resumeConsumption(int channelIndex) {
+		// BEWARE: consumption resumption only happens for streaming jobs in which all
+		// slots are allocated together so there should be no UnknownInputChannel. We
+		// will refactor the code to not rely on this assumption in the future.
+		inputChannels[channelIndex].resumeConsumption();
+	}
+
+	@Override
 	public void setup() {
 	}
 
