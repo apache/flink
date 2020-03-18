@@ -645,7 +645,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			transientBlobService,
 			cacheEntryDuration);
 
-		final TaskManagerCustomFileHandler taskManagerCustomFileHeaders = new TaskManagerCustomFileHandler(
+		final TaskManagerCustomFileHandler taskManagerCustomFileHandler = new TaskManagerCustomFileHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -664,7 +664,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
 		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
-		handlers.add(Tuple2.of(TaskManagerCustomFileHeaders.getInstance(), taskManagerCustomFileHeaders));
+		handlers.add(Tuple2.of(TaskManagerCustomFileHeaders.getInstance(), taskManagerCustomFileHandler));
 		handlers.add(Tuple2.of(TaskManagerLogsHeaders.getInstance(), taskManagerLogsHandler));
 
 		handlers.stream()

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomFileHandler;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
 import java.util.Arrays;
@@ -25,7 +26,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Parameters for range read log REST handler.
+ * Parameters for {@link TaskManagerCustomFileHandler}.
  */
 public class TaskManagerFileMessageParameters extends TaskManagerMessageParameters {
 

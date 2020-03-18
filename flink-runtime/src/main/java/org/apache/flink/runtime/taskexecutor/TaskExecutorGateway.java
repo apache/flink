@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -39,6 +38,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -227,13 +227,12 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	 */
 	CompletableFuture<Boolean> canBeReleased();
 
-
 	/**
 	 * Requests for the historical log file names on the TaskManager.
 	 *
 	 * @return A Tuple2 Array with all log file names with its length.
 	 */
-	CompletableFuture<Collection<Tuple2<String, Long>>> requestLogList(@RpcTimeout Time timeout);
+	CompletableFuture<Collection<LogInfo>> requestLogList(@RpcTimeout Time timeout);
 
 	@Override
 	CompletableFuture<Acknowledge> sendOperatorEventToTask(

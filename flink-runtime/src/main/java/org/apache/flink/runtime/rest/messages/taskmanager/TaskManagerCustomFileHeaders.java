@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomFileHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
 /**
- * Headers for the {@link TaskManagerCustomFileHeaders}.
+ * Headers for the {@link TaskManagerCustomFileHandler}.
  */
 public class TaskManagerCustomFileHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerFileMessageParameters> {
 

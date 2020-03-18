@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
@@ -44,7 +43,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
 /**
  * Handler which serves detailed TaskManager log list information.
@@ -70,28 +68,19 @@ public class TaskManagerLogsHandler extends AbstractTaskManagerHandler<RestfulGa
 			@Nonnull ResourceManagerGateway gateway) throws RestHandlerException {
 		final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);
 		final ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway(resourceManagerGatewayRetriever);
-		final CompletableFuture<Collection<Tuple2<String, Long>>> logsWithLengthFuture = resourceManagerGateway.requestTaskManagerLogList(taskManagerId, timeout);
+		final CompletableFuture<Collection<LogInfo>> logsWithLengthFuture = resourceManagerGateway.requestTaskManagerLogList(taskManagerId, timeout);
 
-		return logsWithLengthFuture.thenApply(logName2Sizes -> {
-			if (null != logName2Sizes) {
-				Collection<LogInfo> logs = logName2Sizes.stream().map(logName2Size -> new LogInfo(logName2Size.f0, logName2Size.f1)).collect(Collectors.toSet());
-				return new LogsInfo(logs);
-			} else {
-				return LogsInfo.empty();
-			}
-		}).exceptionally(
+		return logsWithLengthFuture.thenApply(LogsInfo::new).exceptionally(
 				(Throwable throwable) -> {
 					final Throwable strippedThrowable = ExceptionUtils.stripExecutionException(throwable);
-
-					if (strippedThrowable instanceof UnknownTaskExecutorException) {
-						throw new CompletionException(
-							new RestHandlerException(
-								"Could not find TaskExecutor " + taskManagerId + '.',
-								HttpResponseStatus.NOT_FOUND,
-								strippedThrowable));
-					} else {
-						throw new CompletionException(strippedThrowable);
-					}
+					String errorMessage = strippedThrowable.getCause() instanceof UnknownTaskExecutorException ?
+						"Could not find TaskExecutor " + taskManagerId + '.' : "Could not find any file.";
+					throw new CompletionException(
+						new RestHandlerException(
+							errorMessage,
+							HttpResponseStatus.NOT_FOUND,
+							strippedThrowable
+						));
 				}
 			);
 	}

@@ -52,7 +52,7 @@ public class TaskManagerLogsHeaders implements MessageHeaders<EmptyRequestBody, 
 
 	@Override
 	public String getDescription() {
-		return "Returns the list of log files on a TaskManager";
+		return "Returns the list of log files on a TaskManager.";
 	}
 
 	@Override

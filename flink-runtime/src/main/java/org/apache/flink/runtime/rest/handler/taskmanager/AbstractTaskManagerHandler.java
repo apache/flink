@@ -71,12 +71,6 @@ abstract class AbstractTaskManagerHandler<T extends RestfulGateway, R extends Re
 
 	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull ResourceManagerGateway gateway) throws RestHandlerException;
 
-	/**
-	 * Get ResourceManagerGateway from GatewayRetriever ResourceManagerGateway.
-	 * @param resourceManagerGatewayRetriever
-	 * @return ResourceManagerGateway
-	 * @throws RestHandlerException
-	 */
 	protected ResourceManagerGateway getResourceManagerGateway(GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) throws RestHandlerException {
 		return resourceManagerGatewayRetriever
 			.getNow()

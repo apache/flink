@@ -54,6 +54,7 @@ import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistrat
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
@@ -583,12 +584,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(ResourceID taskManagerId, FileType fileType, Time timeout) {
-		log.debug("Request file which type is {}  upload from TaskExecutor {}.", fileType, taskManagerId);
+		log.debug("Request {} file upload from TaskExecutor {}.", fileType, taskManagerId);
 
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Requested which type is {} upload from unregistered TaskExecutor {}.", fileType, taskManagerId);
+			log.debug("Request upload of file {} from unregistered TaskExecutor {}.", fileType, taskManagerId);
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestFileUploadByType(fileType, timeout);
@@ -597,12 +598,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(ResourceID taskManagerId, String fileName, Time timeout) {
-		log.debug("Request file which name is {}  upload from TaskExecutor {}.", fileName, taskManagerId);
+		log.debug("Request upload of file {} from TaskExecutor {}.", fileName, taskManagerId);
 
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Requested file which name is {} upload from unregistered TaskExecutor {}.", fileName, taskManagerId);
+			log.debug("Request upload of file {} from unregistered TaskExecutor {}.", fileName, taskManagerId);
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestFileUploadByName(fileName, timeout);
@@ -610,10 +611,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<Collection<Tuple2<String, Long>>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
+	public CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 		if (taskExecutor == null) {
-			log.debug("Requested historical loglist from unregistered TaskExecutor {}.", taskManagerId);
+			log.debug("Requested log list from unregistered TaskExecutor {}.", taskManagerId);
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestLogList(timeout);

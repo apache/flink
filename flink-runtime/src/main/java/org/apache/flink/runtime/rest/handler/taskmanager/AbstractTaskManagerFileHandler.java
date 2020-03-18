@@ -109,8 +109,8 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			.build(
 				new CacheLoader<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>() {
 					@Override
-					public CompletableFuture<TransientBlobKey> load(Tuple2<ResourceID, String> taskManagerId2FileName) throws Exception {
-						return loadTaskManagerFile(taskManagerId2FileName);
+					public CompletableFuture<TransientBlobKey> load(Tuple2<ResourceID, String> taskManagerIdAndFileName) throws Exception {
+						return loadTaskManagerFile(taskManagerIdAndFileName);
 					}
 			});
 	}
@@ -120,10 +120,10 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 		final ResourceID taskManagerId = handlerRequest.getPathParameter(TaskManagerIdPathParameter.class);
 
 		String filename = getFileName(handlerRequest);
-		final Tuple2<ResourceID, String> taskManagerId2FileName = new Tuple2<>(taskManagerId, filename);
+		final Tuple2<ResourceID, String> taskManagerIdAndFileName = new Tuple2<>(taskManagerId, filename);
 		final CompletableFuture<TransientBlobKey> blobKeyFuture;
 		try {
-			blobKeyFuture = fileBlobKeys.get(taskManagerId2FileName);
+			blobKeyFuture = fileBlobKeys.get(taskManagerIdAndFileName);
 		} catch (ExecutionException e) {
 			final Throwable cause = ExceptionUtils.stripExecutionException(e);
 			throw new RestHandlerException("Could not retrieve file blob key future.", HttpResponseStatus.INTERNAL_SERVER_ERROR, cause);
@@ -172,8 +172,8 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			});
 	}
 
-	private CompletableFuture<TransientBlobKey> loadTaskManagerFile(Tuple2<ResourceID, String> taskManagerId2FileName) throws RestHandlerException {
-		log.debug("Load file from TaskManager {}.", taskManagerId2FileName.f0);
+	private CompletableFuture<TransientBlobKey> loadTaskManagerFile(Tuple2<ResourceID, String> taskManagerIdAndFileName) throws RestHandlerException {
+		log.debug("Load file from TaskManager {}.", taskManagerIdAndFileName.f0);
 
 		final ResourceManagerGateway resourceManagerGateway = resourceManagerGatewayRetriever
 			.getNow()
@@ -184,8 +184,10 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 					HttpResponseStatus.NOT_FOUND);
 			});
 
-		return requestFileUpload(resourceManagerGateway, taskManagerId2FileName);
+		return requestFileUpload(resourceManagerGateway, taskManagerIdAndFileName);
 	}
+
+	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerIdAndFileName);
 
 	private void removeBlob(RemovalNotification<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> removalNotification) {
 		log.debug("Remove cached file for TaskExecutor {}.", removalNotification.getKey());
@@ -266,8 +268,6 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	}
 
 	protected String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) {
-		return "undefined";
+		return null;
 	}
-
-	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerId2FileName);
 }

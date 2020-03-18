@@ -38,7 +38,6 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-
 /**
  * Rest handler which serves the custom file of the {@link TaskExecutor}.
  */

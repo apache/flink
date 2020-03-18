@@ -39,8 +39,7 @@ public class LogsInfo implements ResponseBody {
 	private final Collection<LogInfo> logInfos;
 
 	@JsonCreator
-	public LogsInfo(
-			@JsonProperty(FIELD_NAME_LOGS) Collection<LogInfo> logInfos) {
+	public LogsInfo(@JsonProperty(FIELD_NAME_LOGS) Collection<LogInfo> logInfos) {
 		this.logInfos = Preconditions.checkNotNull(logInfos);
 	}
 

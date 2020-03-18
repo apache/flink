@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.LogsInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
@@ -33,6 +35,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -50,7 +53,7 @@ public class TaskManagerLogsHandlerTest extends TestLogger {
 
 	@Test
 	public void testGetTaskManagerLogsList() throws Exception {
-		final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		final TaskManagerLogsHandler taskManagerLogsHandler = new TaskManagerLogsHandler(
 			() -> CompletableFuture.completedFuture(null),
 			TestingUtils.TIMEOUT(),
@@ -58,8 +61,31 @@ public class TaskManagerLogsHandlerTest extends TestLogger {
 			TaskManagerLogsHeaders.getInstance(),
 			() -> CompletableFuture.completedFuture(resourceManagerGateway));
 		final HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest = createRequest(EXPECTED_TASK_MANAGER_ID);
+		List<LogInfo> logsList = new ArrayList<>();
+		logsList.add(new LogInfo("taskmanager.log", 1024L));
+		logsList.add(new LogInfo("taskmanager.out", 1024L));
+		logsList.add(new LogInfo("taskmanager-2.out", 1024L));
+		resourceManagerGateway.setRequestTaskManagerLogListFunction(EXPECTED_TASK_MANAGER_ID -> CompletableFuture.completedFuture(logsList));
 		LogsInfo logsInfo = taskManagerLogsHandler.handleRequest(handlerRequest, resourceManagerGateway).get();
 		assertEquals(logsInfo.getLogInfos().size(), resourceManagerGateway.requestTaskManagerLogList(EXPECTED_TASK_MANAGER_ID, TestingUtils.TIMEOUT()).get().size());
+	}
+
+	@Test
+	public void testGetTaskManagerLogsListForUnknownTaskExecutorException() throws Exception {
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final TaskManagerLogsHandler taskManagerLogsHandler = new TaskManagerLogsHandler(
+			() -> CompletableFuture.completedFuture(null),
+			TestingUtils.TIMEOUT(),
+			Collections.emptyMap(),
+			TaskManagerLogsHeaders.getInstance(),
+			() -> CompletableFuture.completedFuture(resourceManagerGateway));
+		final HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest = createRequest(EXPECTED_TASK_MANAGER_ID);
+		resourceManagerGateway.setRequestTaskManagerLogListFunction(EXPECTED_TASK_MANAGER_ID -> FutureUtils.completedExceptionally(new UnknownTaskExecutorException(EXPECTED_TASK_MANAGER_ID)));
+		try {
+			taskManagerLogsHandler.handleRequest(handlerRequest, resourceManagerGateway).get();
+		} catch (Exception exception){
+			assertEquals("org.apache.flink.runtime.rest.handler.RestHandlerException: Could not find TaskExecutor " + EXPECTED_TASK_MANAGER_ID + ".", exception.getMessage());
+		}
 	}
 
 	private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> createRequest(ResourceID taskManagerId) throws HandlerRequestException {

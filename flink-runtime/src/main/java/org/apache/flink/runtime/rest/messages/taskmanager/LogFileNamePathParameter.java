@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomFileHandler;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
 /**
- * TaskManager id path parameter used by TaskManager related handlers.
+ * TaskManager id path parameter used by {@link TaskManagerCustomFileHandler}.
  */
 public class LogFileNamePathParameter extends MessagePathParameter<String> {
 
@@ -43,6 +44,6 @@ public class LogFileNamePathParameter extends MessagePathParameter<String> {
 
 	@Override
 	public String getDescription() {
-		return "String value that specifies the file name which to read.";
+		return "String value that identifies the file name from which to read.";
 	}
 }

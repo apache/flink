@@ -40,6 +40,8 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -47,10 +49,8 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -94,6 +94,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	private volatile BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> taskExecutorHeartbeatConsumer;
 
 	private volatile Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer;
+
+	private volatile Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction;
 
 	public TestingResourceManagerGateway() {
 		this(
@@ -151,6 +153,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	public void setRequestTaskManagerFileUploadByNameFunction(Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByNameFunction) {
 		this.requestTaskManagerFileUploadByNameFunction = requestTaskManagerFileUploadByNameFunction;
+	}
+
+	public void setRequestTaskManagerLogListFunction(Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction) {
+		this.requestTaskManagerLogListFunction = requestTaskManagerLogListFunction;
 	}
 
 	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
@@ -329,12 +335,13 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<Collection<Tuple2<String, Long>>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
-		List<Tuple2<String, Long>> logsList = new ArrayList<>();
-		logsList.add(Tuple2.of("taskmanager.log", 1024L));
-		logsList.add(Tuple2.of("taskmanager.out", 1024L));
-		logsList.add(Tuple2.of("taskmanager-2.out", 1024L));
-		return CompletableFuture.completedFuture(logsList);
+	public CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
+		final Function<ResourceID, CompletableFuture<Collection<LogInfo>>> function = this.requestTaskManagerLogListFunction;
+		if (function != null) {
+			return function.apply(taskManagerId);
+		} else {
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		}
 	}
 
 	@Override
