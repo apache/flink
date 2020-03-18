@@ -27,13 +27,11 @@ import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSources}
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.util.FileUtils
-
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Rule, Test}
-
+import org.junit.{Assert, Rule, Test}
 import _root_.java.io.File
 import _root_.java.util
 
@@ -133,6 +131,27 @@ class TableEnvironmentITCase(settings: EnvironmentSettings, mode: String) {
     val result1 = tEnv.explain(false)
     val result2 = tEnv.explain(false)
     assertEquals(TableTestUtil.replaceStageId(result1), TableTestUtil.replaceStageId(result2))
+  }
+
+  @Test
+  def testClearOperation(): Unit = {
+    val tableEnv = TableEnvironmentImpl.create(settings)
+    tableEnv.sqlUpdate("create table dest1(x map<int,bigint>) with('connector' = 'COLLECTION')")
+    tableEnv.sqlUpdate("create table dest2(x int) with('connector' = 'COLLECTION')")
+    tableEnv.sqlUpdate("create table src(x int) with('connector' = 'COLLECTION')")
+
+    try {
+      // it would fail due to query and sink type mismatch
+      tableEnv.sqlUpdate("insert into dest1 select count(*) from src")
+      tableEnv.execute("insert dest1")
+      Assert.fail("insert is expected to fail due to type mismatch")
+    } catch {
+      case _: Exception => //expected
+    }
+
+    tableEnv.sqlUpdate("drop table dest1")
+    tableEnv.sqlUpdate("insert into dest2 select x from src")
+    tableEnv.execute("insert dest2")
   }
 
   private def registerCsvTableSink(
