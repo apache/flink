@@ -104,7 +104,7 @@ public class StreamTaskNetworkInputTest {
 
 		int numInputChannels = 2;
 		LongSerializer inSerializer = LongSerializer.INSTANCE;
-		StreamTestSingleInputGate inputGate = new StreamTestSingleInputGate<>(numInputChannels, 1024, inSerializer);
+		StreamTestSingleInputGate inputGate = new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
 
 		TestRecordDeserializer[] deserializers = new TestRecordDeserializer[numInputChannels];
 		for (int i = 0; i < deserializers.length; i++) {

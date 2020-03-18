@@ -172,7 +172,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
 		try {
-			final IteratorWrappingTestSingleInputGate<Record> reader = new IteratorWrappingTestSingleInputGate<Record>(bufferSize, Record.class, inputIterator);
+			final IteratorWrappingTestSingleInputGate<Record> reader = new IteratorWrappingTestSingleInputGate<Record>(bufferSize,
+				inputs.size(),
+				inputIterator,
+				Record.class);
 
 			inputs.add(reader.getInputGate());
 

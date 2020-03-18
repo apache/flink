@@ -170,6 +170,6 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	public String toString() {
 		return String.format("Blocking Subpartition Reader: ID=%s, index=%d",
 				parent.parent.getPartitionId(),
-				parent.index);
+				parent.getSubPartitionIndex());
 	}
 }
