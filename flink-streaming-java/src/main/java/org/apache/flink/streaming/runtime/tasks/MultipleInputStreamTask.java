@@ -102,7 +102,6 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			this,
 			getConfiguration(),
 			getChannelStateWriter(),
-			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),
 			unionedInputGates);

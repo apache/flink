@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -42,6 +43,8 @@ public class MockInputGate extends InputGate {
 	private final boolean[] closed;
 
 	private final boolean finishAfterLastBuffer;
+
+	private ArrayList<Integer> lastUnblockedChannels = new ArrayList<>();
 
 	public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
 		this(numberOfChannels, bufferOrEvents, true);
@@ -106,6 +109,17 @@ public class MockInputGate extends InputGate {
 
 	@Override
 	public void sendTaskEvent(TaskEvent event) {
+	}
+
+	@Override
+	public void resumeConsumption(int channelIndex) {
+		lastUnblockedChannels.add(channelIndex);
+	}
+
+	public ArrayList<Integer> getAndResetLastUnblockedChannels() {
+		ArrayList<Integer> unblockedChannels = lastUnblockedChannels;
+		lastUnblockedChannels = new ArrayList<>();
+		return unblockedChannels;
 	}
 
 	@Override

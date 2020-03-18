@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -49,7 +50,7 @@ public class ChannelStateWriterImplTest {
 	public void testAddEventBuffer() {
 		NetworkBuffer dataBuf = getBuffer();
 		NetworkBuffer eventBuf = getBuffer();
-		eventBuf.tagAsEvent();
+		eventBuf.setDataType(Buffer.DataType.EVENT_BUFFER);
 		ChannelStateWriterImpl writer = openWriter();
 		callStart(writer);
 		try {

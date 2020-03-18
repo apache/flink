@@ -168,6 +168,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 			CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION,
 			true,
 			false,
+			false,
 			0);
 
 		executionGraph.enableCheckpointing(

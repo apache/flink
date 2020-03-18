@@ -198,7 +198,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 		numBytesIn.inc(next.buffer().getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next.buffer(), next.isMoreAvailable(), next.buffersInBacklog()));
+		return Optional.of(new BufferAndAvailability(next.buffer(), next.isDataAvailable(), next.buffersInBacklog()));
 	}
 
 	@Override
@@ -214,6 +214,17 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			checkState(!isReleased, "released");
 			checkState(subpartitionView != null, "Queried for a buffer before requesting the subpartition.");
 			return subpartitionView;
+		}
+	}
+
+	@Override
+	public void resumeConsumption() {
+		checkState(!isReleased, "Channel released.");
+
+		subpartitionView.resumeConsumption();
+
+		if (subpartitionView.isAvailable(Integer.MAX_VALUE)) {
+			notifyChannelNonEmpty();
 		}
 	}
 

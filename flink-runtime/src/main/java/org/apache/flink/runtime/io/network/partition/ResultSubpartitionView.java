@@ -50,14 +50,11 @@ public interface ResultSubpartitionView {
 
 	boolean isReleased();
 
+	void resumeConsumption();
+
 	Throwable getFailureCause();
 
-	/**
-	 * Returns whether the next buffer is an event or not.
-	 */
-	boolean nextBufferIsEvent();
-
-	boolean isAvailable();
+	boolean isAvailable(int numCreditsAvailable);
 
 	int unsynchronizedGetNumberOfQueuedBuffers();
 }

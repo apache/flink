@@ -122,8 +122,6 @@ public class MultipleInputStreamTaskTest {
 
 			testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
 
-			// This element should be buffered since we received a checkpoint barrier on this input
-			testHarness.processElement(new StreamRecord<>("Hello-0-0", initialTime), 0, 0);
 			// This one should go through
 			testHarness.processElement(new StreamRecord<>("Ciao-0-0", initialTime), 0, 1);
 			expectedOutput.add(new StreamRecord<>("Ciao-0-0", initialTime));
@@ -144,9 +142,8 @@ public class MultipleInputStreamTaskTest {
 			testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 2, 0);
 			testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 2, 1);
 
-			// now we should see the barrier and after that the buffered elements
+			// now we should see the barrier
 			expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
-			expectedOutput.add(new StreamRecord<>("Hello-0-0", initialTime));
 
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 		}
@@ -172,11 +169,6 @@ public class MultipleInputStreamTaskTest {
 
 			testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
 
-			// These elements should be buffered until we receive barriers from
-			// all inputs
-			testHarness.processElement(new StreamRecord<>("Hello-0-0", initialTime), 0, 0);
-			testHarness.processElement(new StreamRecord<>("Ciao-0-0", initialTime), 0, 0);
-
 			// These elements should be forwarded, since we did not yet receive a checkpoint barrier
 			// on that input, only add to same input, otherwise we would not know the ordering
 			// of the output since the Task might read the inputs in any order
@@ -191,18 +183,15 @@ public class MultipleInputStreamTaskTest {
 
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
-			// Now give a later barrier to all inputs, this should unblock the first channel,
-			// thereby allowing the two blocked elements through
-			testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
+			// Now give a later barrier to all inputs, this should unblock the first channel
 			testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 1);
 			testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
 			testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 			testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 2, 0);
 			testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 2, 1);
+			testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
 
 			expectedOutput.add(new CancelCheckpointMarker(0));
-			expectedOutput.add(new StreamRecord<>("Hello-0-0", initialTime));
-			expectedOutput.add(new StreamRecord<>("Ciao-0-0", initialTime));
 			expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));

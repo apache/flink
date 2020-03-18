@@ -138,9 +138,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			} else {
 				if (checkpointedInputGate.isFinished()) {
 					checkState(checkpointedInputGate.getAvailableFuture().isDone(), "Finished BarrierHandler should be available");
-					if (!checkpointedInputGate.isEmpty()) {
-						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
-					}
 					return InputStatus.END_OF_INPUT;
 				}
 				return InputStatus.NOTHING_AVAILABLE;

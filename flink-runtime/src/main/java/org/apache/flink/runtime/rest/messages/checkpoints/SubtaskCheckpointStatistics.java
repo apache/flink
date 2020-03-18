@@ -260,10 +260,6 @@ public class SubtaskCheckpointStatistics {
 				this.alignmentDuration = alignmentDuration;
 			}
 
-			public long getAlignmentBuffered() {
-				return alignmentBuffered;
-			}
-
 			public long getAlignmentDuration() {
 				return alignmentDuration;
 			}

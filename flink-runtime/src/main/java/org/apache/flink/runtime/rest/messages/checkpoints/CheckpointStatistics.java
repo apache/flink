@@ -165,10 +165,6 @@ public class CheckpointStatistics implements ResponseBody {
 		return duration;
 	}
 
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
-	}
-
 	public int getNumSubtasks() {
 		return numSubtasks;
 	}
@@ -232,7 +228,7 @@ public class CheckpointStatistics implements ResponseBody {
 						taskStateStat.getLatestAckTimestamp(),
 						taskStateStat.getStateSize(),
 						taskStateStat.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
-						taskStateStat.getAlignmentBuffered(),
+						0,
 						taskStateStat.getNumberOfSubtasks(),
 						taskStateStat.getNumberOfAcknowledgedSubtasks()));
 			}
@@ -251,7 +247,7 @@ public class CheckpointStatistics implements ResponseBody {
 				completedCheckpointStats.getLatestAckTimestamp(),
 				completedCheckpointStats.getStateSize(),
 				completedCheckpointStats.getEndToEndDuration(),
-				completedCheckpointStats.getAlignmentBuffered(),
+				0,
 				completedCheckpointStats.getNumberOfSubtasks(),
 				completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask,
@@ -268,7 +264,7 @@ public class CheckpointStatistics implements ResponseBody {
 				failedCheckpointStats.getLatestAckTimestamp(),
 				failedCheckpointStats.getStateSize(),
 				failedCheckpointStats.getEndToEndDuration(),
-				failedCheckpointStats.getAlignmentBuffered(),
+				0,
 				failedCheckpointStats.getNumberOfSubtasks(),
 				failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask,
@@ -285,7 +281,7 @@ public class CheckpointStatistics implements ResponseBody {
 				pendingCheckpointStats.getLatestAckTimestamp(),
 				pendingCheckpointStats.getStateSize(),
 				pendingCheckpointStats.getEndToEndDuration(),
-				pendingCheckpointStats.getAlignmentBuffered(),
+				0,
 				pendingCheckpointStats.getNumberOfSubtasks(),
 				pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask

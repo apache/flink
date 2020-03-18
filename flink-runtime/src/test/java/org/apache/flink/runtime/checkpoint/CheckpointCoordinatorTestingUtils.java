@@ -586,6 +586,8 @@ public class CheckpointCoordinatorTestingUtils {
 
 		private boolean isExactlyOnce = true;
 
+		private boolean isUnalignedCheckpoint = false;
+
 		private boolean isPreferCheckpointForRecovery = false;
 
 		private int tolerableCpFailureNumber = 0;
@@ -621,6 +623,10 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
+		public void setUnalignedCheckpoint(boolean unalignedCheckpoint) {
+			isUnalignedCheckpoint = unalignedCheckpoint;
+		}
+
 		public CheckpointCoordinatorConfigurationBuilder setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
 			isPreferCheckpointForRecovery = preferCheckpointForRecovery;
 			return this;
@@ -639,6 +645,7 @@ public class CheckpointCoordinatorTestingUtils {
 				maxConcurrentCheckpoints,
 				checkpointRetentionPolicy,
 				isExactlyOnce,
+				isUnalignedCheckpoint,
 				isPreferCheckpointForRecovery,
 				tolerableCpFailureNumber);
 		}

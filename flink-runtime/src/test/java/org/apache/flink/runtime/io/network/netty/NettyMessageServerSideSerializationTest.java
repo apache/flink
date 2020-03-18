@@ -112,4 +112,12 @@ public class NettyMessageServerSideSerializationTest extends TestLogger {
 		assertEquals(expected.credit, actual.credit);
 		assertEquals(expected.receiverId, actual.receiverId);
 	}
+
+	@Test
+	public void testResumeConsumption() {
+		NettyMessage.ResumeConsumption expected = new NettyMessage.ResumeConsumption(new InputChannelID());
+		NettyMessage.ResumeConsumption actual = encodeAndDecode(expected, channel);
+
+		assertEquals(expected.receiverId, actual.receiverId);
+	}
 }

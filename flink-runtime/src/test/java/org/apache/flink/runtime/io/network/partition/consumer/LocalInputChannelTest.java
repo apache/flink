@@ -439,6 +439,15 @@ public class LocalInputChannelTest {
 		assertFalse(bufferAndAvailability.get().buffer().isCompressed());
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void testUnblockReleasedChannel() throws Exception {
+		SingleInputGate inputGate = createSingleInputGate(1);
+		LocalInputChannel localChannel = createLocalInputChannel(inputGate, new ResultPartitionManager());
+
+		localChannel.releaseAllResources();
+		localChannel.resumeConsumption();
+	}
+
 	// ---------------------------------------------------------------------------------------------
 
 	private static ResultSubpartitionView createResultSubpartitionView(boolean addBuffer) throws IOException {

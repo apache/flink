@@ -194,6 +194,10 @@ public class CheckpointCoordinator {
 
 	private final Clock clock;
 
+	private final boolean isExactlyOnceMode;
+
+	private final boolean isUnalignedCheckpoint;
+
 	/** Flag represents there is an in-flight trigger request. */
 	private boolean isTriggering = false;
 
@@ -285,6 +289,8 @@ public class CheckpointCoordinator {
 		this.isPreferCheckpointForRecovery = chkConfig.isPreferCheckpointForRecovery();
 		this.failureManager = checkNotNull(failureManager);
 		this.clock = checkNotNull(clock);
+		this.isExactlyOnceMode = chkConfig.isExactlyOnce();
+		this.isUnalignedCheckpoint = chkConfig.isUnalignedCheckpoint();
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
@@ -754,7 +760,9 @@ public class CheckpointCoordinator {
 
 		final CheckpointOptions checkpointOptions = new CheckpointOptions(
 			props.getCheckpointType(),
-			checkpointStorageLocation.getLocationReference());
+			checkpointStorageLocation.getLocationReference(),
+			isExactlyOnceMode,
+			isUnalignedCheckpoint);
 
 		// send the messages to the tasks that trigger their checkpoint
 		for (Execution execution: executions) {

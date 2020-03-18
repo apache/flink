@@ -105,10 +105,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 		return duration;
 	}
 
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
-	}
-
 	public int getNumSubtasks() {
 		return numSubtasks;
 	}
