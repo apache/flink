@@ -38,6 +38,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.not;
@@ -168,7 +169,7 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 		}
 
 		@Override
-		public Collection<ResultPartition> createResultPartitionWriters(ShuffleIOOwnerContext ownerContext, Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
+		public Collection<ResultPartition> createResultPartitionWriters(ShuffleIOOwnerContext ownerContext, List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
 			return backingShuffleEnvironment.createResultPartitionWriters(ownerContext, resultPartitionDeploymentDescriptors);
 		}
 
@@ -186,7 +187,7 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 		}
 
 		@Override
-		public Collection<SingleInputGate> createInputGates(ShuffleIOOwnerContext ownerContext, PartitionProducerStateProvider partitionProducerStateProvider, Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+		public Collection<SingleInputGate> createInputGates(ShuffleIOOwnerContext ownerContext, PartitionProducerStateProvider partitionProducerStateProvider, List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 			return backingShuffleEnvironment.createInputGates(ownerContext, partitionProducerStateProvider, inputGateDeploymentDescriptors);
 		}
 
