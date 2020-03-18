@@ -32,14 +32,12 @@ import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Utilities to determine the network interface and address that should be used to bind the
@@ -342,7 +340,7 @@ public class ConnectionUtils {
 	 */
 	public static class LeaderConnectingAddressListener implements LeaderRetrievalListener {
 
-		private static final FiniteDuration defaultLoggingDelay = new FiniteDuration(400, TimeUnit.MILLISECONDS);
+		private static final Duration defaultLoggingDelay = Duration.ofMillis(400);
 
 		private enum LeaderRetrievalState {
 			NOT_RETRIEVED,
@@ -357,14 +355,13 @@ public class ConnectionUtils {
 		private Exception exception;
 
 		public InetAddress findConnectingAddress(
-				FiniteDuration timeout) throws LeaderRetrievalException {
+				Duration timeout) throws LeaderRetrievalException {
 			return findConnectingAddress(timeout, defaultLoggingDelay);
 		}
 
 		public InetAddress findConnectingAddress(
-				FiniteDuration timeout,
-				FiniteDuration startLoggingAfter)
-			throws LeaderRetrievalException {
+				Duration timeout,
+				Duration startLoggingAfter) throws LeaderRetrievalException {
 
 			final long startTimeNanos = System.nanoTime();
 			long currentSleepTime = MIN_SLEEP_TIME;

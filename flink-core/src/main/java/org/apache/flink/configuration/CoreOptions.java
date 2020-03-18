@@ -23,7 +23,9 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.util.ArrayUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -32,8 +34,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 @PublicEvolving
 @ConfigGroups(groups = {
-	@ConfigGroup(name = "Environment", keyPrefix = "env"),
-	@ConfigGroup(name = "FileSystem", keyPrefix = "fs")
+	@ConfigGroup(name = "Environment", keyPrefix = "env")
 })
 public class CoreOptions {
 
@@ -52,6 +53,7 @@ public class CoreOptions {
 	 *
 	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER_PATTERNS}.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
 	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
 		.key("classloader.resolve-order")
 		.defaultValue("child-first")
@@ -90,15 +92,17 @@ public class CoreOptions {
 	 *         log bindings.</li>
 	 * </ul>
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
 		.key("classloader.parent-first-patterns.default")
-		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback")
+		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback;org.xml;javax.xml;org.apache.xerces;org.w3c")
 		.withDeprecatedKeys("classloader.parent-first-patterns")
 		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
 			" the fully qualified class name. This setting should generally not be modified. To add another pattern we" +
 			" recommend to use \"classloader.parent-first-patterns.additional\" instead.");
 
+	@Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL = ConfigOptions
 		.key("classloader.parent-first-patterns.additional")
 		.defaultValue("")
@@ -109,16 +113,45 @@ public class CoreOptions {
 	public static String[] getParentFirstLoaderPatterns(Configuration config) {
 		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
 		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+		return parseParentFirstLoaderPatterns(base, append);
+	}
 
-		String[] basePatterns = base.isEmpty()
-			? new String[0]
-			: base.split(";");
+	/**
+	 * Plugin-specific option of {@link #ALWAYS_PARENT_FIRST_LOADER_PATTERNS}. Plugins use this parent first list
+	 * instead of the global version.
+	 */
+	@Documentation.ExcludeFromDocumentation("Plugin classloader list is considered an implementation detail. " +
+		"Configuration only included in case to mitigate unintended side-effects of this young feature.")
+	public static final ConfigOption<String> PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
+		.key("plugin.classloader.parent-first-patterns.default")
+		.stringType()
+		.defaultValue("java.;scala.;org.apache.flink.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache" +
+			".logging;org.apache.commons.logging;ch.qos.logback")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked " +
+			" against the fully qualified class name. This setting should generally not be modified. To add another " +
+			" pattern we recommend to use \"plugin.classloader.parent-first-patterns.additional\" instead.");
 
-		if (append.isEmpty()) {
-			return basePatterns;
-		} else {
-			return ArrayUtils.concat(basePatterns, append.split(";"));
-		}
+	@Documentation.ExcludeFromDocumentation("Plugin classloader list is considered an implementation detail. " +
+		"Configuration only included in case to mitigate unintended side-effects of this young feature.")
+	public static final ConfigOption<String> PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL = ConfigOptions
+		.key("plugin.classloader.parent-first-patterns.additional")
+		.stringType()
+		.defaultValue("")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked " +
+			" against the fully qualified class name. These patterns are appended to \"" +
+			PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key() + "\".");
+
+	public static String[] getPluginParentFirstLoaderPatterns(Configuration config) {
+		String base = config.getString(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+		String append = config.getString(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+		return parseParentFirstLoaderPatterns(base, append);
+	}
+
+	private static String[] parseParentFirstLoaderPatterns(String base, String append) {
+		Splitter splitter = Splitter.on(';').omitEmptyStrings();
+		return Iterables.toArray(Iterables.concat(splitter.split(base), splitter.split(append)), String.class);
 	}
 
 	// ------------------------------------------------------------------------
@@ -209,6 +242,7 @@ public class CoreOptions {
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 */
 	@Documentation.OverrideDefault("'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty(\"java.io.tmpdir\") in standalone.")
+	@Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
@@ -219,7 +253,6 @@ public class CoreOptions {
 	//  program
 	// ------------------------------------------------------------------------
 
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
 		.defaultValue(1)
@@ -232,15 +265,25 @@ public class CoreOptions {
 	/**
 	 * The default filesystem scheme, used for paths that do not declare a scheme explicitly.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
 	public static final ConfigOption<String> DEFAULT_FILESYSTEM_SCHEME = ConfigOptions
 			.key("fs.default-scheme")
 			.noDefaultValue()
 			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
-				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+				" May contain an authority, e.g. host:port in case of an HDFS NameNode.");
+
+	@Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
+	public static final ConfigOption<String> ALLOWED_FALLBACK_FILESYSTEMS = ConfigOptions
+			.key("fs.allowed-fallback-filesystems")
+			.stringType()
+			.defaultValue("")
+			.withDescription("A (semicolon-separated) list of file schemes, for which Hadoop can be used instead " +
+				"of an appropriate Flink plugin. (example: s3;wasb)");
 
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.
 	 */
+	@Documentation.Section(Documentation.Sections.DEPRECATED_FILE_SINKS)
 	public static final ConfigOption<Boolean> FILESYTEM_DEFAULT_OVERRIDE =
 		key("fs.overwrite-files")
 			.defaultValue(false)
@@ -250,6 +293,7 @@ public class CoreOptions {
 	/**
 	 * Specifies whether the file systems should always create a directory for the output, even with a parallelism of one.
 	 */
+	@Documentation.Section(Documentation.Sections.DEPRECATED_FILE_SINKS)
 	public static final ConfigOption<Boolean> FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY =
 		key("fs.output.always-create-directory")
 			.defaultValue(false)

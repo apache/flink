@@ -18,12 +18,16 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.hamcrest.Matchers;
@@ -31,6 +35,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.net.URL;
+
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -52,26 +59,20 @@ public class DefaultCLITest extends CliFrontendTestBase {
 		final String localhost = "localhost";
 		final int port = 1234;
 
-		configuration.setString(JobManagerOptions.ADDRESS, localhost);
-		configuration.setInteger(JobManagerOptions.PORT, port);
+		configuration.setString(RestOptions.ADDRESS, localhost);
+		configuration.setInteger(RestOptions.PORT, port);
 
-		@SuppressWarnings("unchecked")
-		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
-			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
+		final AbstractCustomCommandLine defaultCLI = getCli(configuration);
 
 		final String[] args = {};
 
-		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final ClusterClient<?> clusterClient = getClusterClient(defaultCLI, commandLine);
 
-		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
-			defaultCLI.createClusterDescriptor(commandLine);
+		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 
-		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
-
-		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
-
-		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(localhost));
-		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(port));
+		assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(localhost));
+		assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(port));
 	}
 
 	/**
@@ -86,25 +87,28 @@ public class DefaultCLITest extends CliFrontendTestBase {
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
-		@SuppressWarnings("unchecked")
-		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
-			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
+		final AbstractCustomCommandLine defaultCLI = getCli(configuration);
 
 		final String manualHostname = "123.123.123.123";
 		final int manualPort = 4321;
 		final String[] args = {"-m", manualHostname + ':' + manualPort};
 
-		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final ClusterClient<?> clusterClient = getClusterClient(defaultCLI, commandLine);
 
-		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
-			defaultCLI.createClusterDescriptor(commandLine);
+		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 
-		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
-
-		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
-
-		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(manualHostname));
-		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(manualPort));
+		assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(manualHostname));
+		assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(manualPort));
 	}
 
+	private ClusterClient<?> getClusterClient(AbstractCustomCommandLine defaultCLI, CommandLine commandLine) throws FlinkException {
+		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
+		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
+		final ClusterClientFactory<StandaloneClusterId> clusterFactory = serviceLoader.getClusterClientFactory(executorConfig);
+		checkState(clusterFactory != null);
+
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = clusterFactory.createClusterDescriptor(executorConfig);
+		return clusterDescriptor.retrieve(clusterFactory.getClusterId(executorConfig)).getClusterClient();
+	}
 }

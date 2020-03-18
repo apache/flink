@@ -62,7 +62,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.streaming.runtime.operators.windowing.StreamRecordMatchers.isStreamRecord;
+import static org.apache.flink.streaming.util.StreamRecordMatchers.streamRecord;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -358,7 +358,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		verify(mockAssigner, times(1)).assignWindows(eq(0), eq(5L), anyAssignerContext());
 
 		assertThat(testHarness.getSideOutput(lateOutputTag),
-				contains(isStreamRecord(0, 5L)));
+				contains(streamRecord(0, 5L)));
 
 		// we should also see side output if the WindowAssigner assigns no windows
 		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
@@ -370,7 +370,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		verify(mockAssigner, times(1)).assignWindows(eq(0), eq(10L), anyAssignerContext());
 
 		assertThat(testHarness.getSideOutput(lateOutputTag),
-				contains(isStreamRecord(0, 5L), isStreamRecord(0, 10L)));
+				contains(streamRecord(0, 5L), streamRecord(0, 10L)));
 
 	}
 
@@ -422,10 +422,10 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(17, 5L));
 
 		assertThat(testHarness.getSideOutput(integerOutputTag),
-			contains(isStreamRecord(17, windowEnd - 1)));
+			contains(streamRecord(17, windowEnd - 1)));
 
 		assertThat(testHarness.getSideOutput(longOutputTag),
-			contains(isStreamRecord(17L, windowEnd - 1)));
+			contains(streamRecord(17L, windowEnd - 1)));
 	}
 
 	@Test
@@ -585,7 +585,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyInternalWindowContext(), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
 
 		assertThat(testHarness.extractOutputStreamRecords(),
-				contains(isStreamRecord("Hallo", 1L), isStreamRecord("Ciao", 1L)));
+				contains(streamRecord("Hallo", 1L), streamRecord("Ciao", 1L)));
 	}
 
 	@Test
@@ -637,7 +637,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyInternalWindowContext(), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
 
 		assertThat(testHarness.extractOutputStreamRecords(),
-				contains(isStreamRecord("Hallo", 1L), isStreamRecord("Ciao", 1L)));
+				contains(streamRecord("Hallo", 1L), streamRecord("Ciao", 1L)));
 	}
 
 	@Test

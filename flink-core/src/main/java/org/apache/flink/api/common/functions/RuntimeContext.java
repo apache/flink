@@ -117,7 +117,7 @@ public interface RuntimeContext {
 	ExecutionConfig getExecutionConfig();
 
 	/**
-	 * Gets the ClassLoader to load classes that were are not in system's classpath, but are part of the
+	 * Gets the ClassLoader to load classes that are not in system's classpath, but are part of the
 	 * jar file of a user job.
 	 *
 	 * @return The ClassLoader for user code classes.

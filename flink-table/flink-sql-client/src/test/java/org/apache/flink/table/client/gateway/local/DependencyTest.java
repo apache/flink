@@ -19,12 +19,14 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -44,6 +46,9 @@ import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.ModuleFactory;
+import org.apache.flink.table.module.Module;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.Test;
 
@@ -58,6 +63,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -70,6 +76,7 @@ public class DependencyTest {
 	public static final String TEST_PROPERTY = "test-property";
 
 	public static final String CATALOG_TYPE_TEST = "DependencyTest";
+	public static final String MODULE_TYPE_TEST = "ModuleDependencyTest";
 
 	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
 	private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
@@ -89,11 +96,13 @@ public class DependencyTest {
 			env,
 			Collections.singletonList(dependency),
 			new Configuration(),
-			new DefaultCLI(new Configuration()));
+			new DefaultCLI(new Configuration()),
+			new DefaultClusterClientServiceLoader());
 
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
 
-		final TableSchema result = executor.getTableSchema(session, "TableNumber1");
+		final TableSchema result = executor.getTableSchema(sessionId, "TableNumber1");
 		final TableSchema expected = TableSchema.builder()
 			.field("IntegerField1", Types.INT())
 			.field("StringField1", Types.STRING())
@@ -123,6 +132,38 @@ public class DependencyTest {
 		public TestTableSinkFactory() {
 			super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
 		}
+	}
+
+	/**
+	 * Module that can be discovered if classloading is correct.
+	 */
+	public static class TestModuleFactory implements ModuleFactory {
+
+		@Override
+		public Module createModule(Map<String, String> properties) {
+			return new TestModule();
+		}
+
+		@Override
+		public Map<String, String> requiredContext() {
+			final Map<String, String> context = new HashMap<>();
+			context.put(MODULE_TYPE, MODULE_TYPE_TEST);
+			return context;
+		}
+
+		@Override
+		public List<String> supportedProperties() {
+			final List<String> properties = new ArrayList<>();
+			properties.add("test");
+			return properties;
+		}
+	}
+
+	/**
+	 * Test module.
+	 */
+	public static class TestModule implements Module {
+
 	}
 
 	/**
@@ -172,6 +213,7 @@ public class DependencyTest {
 	public static class TestHiveCatalogFactory extends HiveCatalogFactory {
 		public static final String ADDITIONAL_TEST_DATABASE = "additional_test_database";
 		public static final String TEST_TABLE = "test_table";
+		static final String TABLE_WITH_PARAMETERIZED_TYPES = "param_types_table";
 
 		@Override
 		public Map<String, String> requiredContext() {
@@ -180,6 +222,14 @@ public class DependencyTest {
 			// For factory discovery service to distinguish TestHiveCatalogFactory from HiveCatalogFactory
 			context.put("test", "test");
 			return context;
+		}
+
+		@Override
+		public List<String> supportedProperties() {
+			List<String> list = super.supportedProperties();
+			list.add(CatalogConfig.IS_GENERIC);
+
+			return list;
 		}
 
 		@Override
@@ -207,17 +257,32 @@ public class DependencyTest {
 							.field("testcol", DataTypes.INT())
 							.build(),
 						new HashMap<String, String>() {{
-							put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+							put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 						}},
 						""
 					),
 					false
 				);
+				// create a table to test parameterized types
+				hiveCatalog.createTable(new ObjectPath("default", TABLE_WITH_PARAMETERIZED_TYPES),
+						tableWithParameterizedTypes(),
+						false);
 			} catch (DatabaseAlreadyExistException | TableAlreadyExistException | DatabaseNotExistException e) {
 				throw new CatalogException(e);
 			}
 
 			return hiveCatalog;
+		}
+
+		private CatalogTable tableWithParameterizedTypes() {
+			TableSchema tableSchema = TableSchema.builder().fields(new String[]{"dec", "ch", "vch"},
+					new DataType[]{DataTypes.DECIMAL(10, 10), DataTypes.CHAR(5), DataTypes.VARCHAR(15)}).build();
+			return new CatalogTableImpl(
+				tableSchema,
+				new HashMap<String, String>() {{
+					put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+				}},
+				"");
 		}
 	}
 }

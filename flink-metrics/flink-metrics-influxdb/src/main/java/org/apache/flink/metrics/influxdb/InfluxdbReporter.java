@@ -26,7 +26,9 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.util.NetUtils;
 
+import okhttp3.OkHttpClient;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.BatchPoints;
@@ -37,13 +39,18 @@ import java.time.Instant;
 import java.util.ConcurrentModificationException;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.CONNECT_TIMEOUT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.CONSISTENCY;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.DB;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.HOST;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PASSWORD;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PORT;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.RETENTION_POLICY;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.WRITE_TIMEOUT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getConsistencyLevel;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
 
@@ -54,6 +61,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 	private String database;
 	private String retentionPolicy;
+	private InfluxDB.ConsistencyLevel consistency;
 	private InfluxDB influxDB;
 
 	public InfluxdbReporter() {
@@ -64,7 +72,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	public void open(MetricConfig config) {
 		String host = getString(config, HOST);
 		int port = getInteger(config, PORT);
-		if (!isValidHost(host) || !isValidPort(port)) {
+		if (!isValidHost(host) || !NetUtils.isValidClientPort(port)) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 		}
 		String database = getString(config, DB);
@@ -77,13 +85,22 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 		this.database = database;
 		this.retentionPolicy = getString(config, RETENTION_POLICY);
+		this.consistency = getConsistencyLevel(config, CONSISTENCY);
+
+		int connectTimeout = getInteger(config, CONNECT_TIMEOUT);
+		int writeTimeout = getInteger(config, WRITE_TIMEOUT);
+		OkHttpClient.Builder client = new OkHttpClient.Builder()
+			.connectTimeout(connectTimeout, TimeUnit.MILLISECONDS)
+			.writeTimeout(writeTimeout, TimeUnit.MILLISECONDS);
+
 		if (username != null && password != null) {
-			influxDB = InfluxDBFactory.connect(url, username, password);
+			influxDB = InfluxDBFactory.connect(url, username, password, client);
 		} else {
-			influxDB = InfluxDBFactory.connect(url);
+			influxDB = InfluxDBFactory.connect(url, client);
 		}
 
-		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, and retentionPolicy:{}}", host, port, database, retentionPolicy);
+		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, retentionPolicy:{} and consistency:{}}",
+			host, port, database, retentionPolicy, consistency.name());
 	}
 
 	@Override
@@ -107,6 +124,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		Instant timestamp = Instant.now();
 		BatchPoints.Builder report = BatchPoints.database(database);
 		report.retentionPolicy(retentionPolicy);
+		report.consistency(consistency);
 		try {
 			for (Map.Entry<Gauge<?>, MeasurementInfo> entry : gauges.entrySet()) {
 				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
@@ -136,7 +154,4 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		return host != null && !host.isEmpty();
 	}
 
-	private static boolean isValidPort(int port) {
-		return 0 < port && port <= 65535;
-	}
 }

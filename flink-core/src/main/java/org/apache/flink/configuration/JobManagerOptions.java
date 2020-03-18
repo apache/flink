@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
@@ -41,6 +42,7 @@ public class JobManagerOptions {
 	 * leader-election service (like ZooKeeper) is used to elect and discover the JobManager
 	 * leader from potentially multiple standby JobManagers.
 	 */
+	@Documentation.Section({Documentation.Sections.COMMON_HOST_PORT, Documentation.Sections.ALL_JOB_MANAGER})
 	public static final ConfigOption<String> ADDRESS =
 		key("jobmanager.rpc.address")
 		.noDefaultValue()
@@ -63,6 +65,7 @@ public class JobManagerOptions {
 	 * leader-election service (like ZooKeeper) is used to elect and discover the JobManager
 	 * leader from potentially multiple standby JobManagers.
 	 */
+	@Documentation.Section({Documentation.Sections.COMMON_HOST_PORT, Documentation.Sections.ALL_JOB_MANAGER})
 	public static final ConfigOption<Integer> PORT =
 		key("jobmanager.rpc.port")
 		.defaultValue(6123)
@@ -78,7 +81,7 @@ public class JobManagerOptions {
 	/**
 	 * JVM heap size for the JobManager with memory size.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
+	@Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
 	public static final ConfigOption<String> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.size")
 		.defaultValue("1024m")
@@ -97,6 +100,7 @@ public class JobManagerOptions {
 	/**
 	 * The maximum number of prior execution attempts kept in history.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
 		key("jobmanager.execution.attempts-history-size")
 			.defaultValue(16)
@@ -105,8 +109,14 @@ public class JobManagerOptions {
 
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
+	 *
+	 * <p>The option "individual" is intentionally not included for its known limitations.
+	 * It only works when all tasks are not connected, in which case the "region"
+	 * failover strategy would also restart failed tasks individually.
+	 * The new "region" strategy supersedes "individual" strategy and should always work.
 	 */
-	@Documentation.ExcludeFromDocumentation("The failover strategy feature is highly experimental.")
+	@Documentation.Section({Documentation.Sections.ALL_JOB_MANAGER, Documentation.Sections.EXPERT_FAULT_TOLERANCE})
+	@Documentation.OverrideDefault("region")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
@@ -114,14 +124,18 @@ public class JobManagerOptions {
 				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")
 				.list(
-					text("'full': Restarts all tasks."),
-					text("'individual': Restarts only the failed task. Should only be used if all tasks are independent components."),
-					text("'region': Restarts all tasks that could be affected by the task failure.")
+					text("'full': Restarts all tasks to recover the job."),
+					text("'region': Restarts all tasks that could be affected by the task failure. " +
+						"More details can be found %s.",
+						link(
+							"../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
+							"here"))
 				).build());
 
 	/**
 	 * The location where the JobManager stores the archives of completed jobs.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
 	public static final ConfigOption<String> ARCHIVE_DIR =
 		key("jobmanager.archive.fs.dir")
 			.noDefaultValue()
@@ -131,6 +145,7 @@ public class JobManagerOptions {
 	 * The job store cache size in bytes which is used to keep completed
 	 * jobs in memory.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
 	public static final ConfigOption<Long> JOB_STORE_CACHE_SIZE =
 		key("jobstore.cache-size")
 		.defaultValue(50L * 1024L * 1024L)
@@ -139,14 +154,25 @@ public class JobManagerOptions {
 	/**
 	 * The time in seconds after which a completed job expires and is purged from the job store.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
 	public static final ConfigOption<Long> JOB_STORE_EXPIRATION_TIME =
 		key("jobstore.expiration-time")
 		.defaultValue(60L * 60L)
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
 	/**
+	 * The max number of completed jobs that can be kept in the job store.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+	public static final ConfigOption<Integer> JOB_STORE_MAX_CAPACITY =
+		key("jobstore.max-capacity")
+			.defaultValue(Integer.MAX_VALUE)
+			.withDescription("The max number of completed jobs that can be kept in the job store.");
+
+	/**
 	 * The timeout in milliseconds for requesting a slot from Slot Pool.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
 		key("slot.request.timeout")
 		.defaultValue(5L * 60L * 1000L)
@@ -155,6 +181,7 @@ public class JobManagerOptions {
 	/**
 	 * The timeout in milliseconds for a idle slot in Slot Pool.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
 	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
 		key("slot.idle.timeout")
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery
@@ -166,7 +193,8 @@ public class JobManagerOptions {
 	@Documentation.ExcludeFromDocumentation("SchedulerNG is still in development.")
 	public static final ConfigOption<String> SCHEDULER =
 		key("jobmanager.scheduler")
-			.defaultValue("legacy")
+			.stringType()
+			.defaultValue("ng")
 			.withDescription(Description.builder()
 				.text("Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
 				.list(
@@ -182,11 +210,6 @@ public class JobManagerOptions {
 		key("jobmanager.partition.release-during-job-execution")
 			.defaultValue(true)
 			.withDescription("Controls whether partitions should already be released during the job execution.");
-
-	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
-	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
-			key("jobmanager.scheduler.partition.force-release-on-consumption")
-			.defaultValue(false);
 
 	// ---------------------------------------------------------------------------------------------
 

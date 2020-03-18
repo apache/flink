@@ -16,7 +16,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import codecs
 import platform
 import sys
 
@@ -28,10 +27,7 @@ from pyflink.table.catalog import *
 from pyflink.table.descriptors import *
 from pyflink.table.window import *
 
-if sys.version > '3':
-    utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
-else:
-    utf8_out = codecs.getwriter("utf-8")(sys.stdout)
+utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
 print("Using Python version %s (%s, %s)" % (
     platform.python_version(),
@@ -40,16 +36,11 @@ print("Using Python version %s (%s, %s)" % (
 
 welcome_msg = u'''
                          \u2592\u2593\u2588\u2588\u2593\u2588\u2588\u2592
-                     \u2593\u2588\u2588\u2588\u2588\u2592\u2592\u2588\u2593 \
-                     \u2592\u2593\u2588\u2588\u2588\u2593\u2592
-                  \u2593\u2588\u2588\u2588\u2593\u2591\u2591        \u2592 \
-                  \u2592\u2592\u2593\u2588\u2588\u2592  \u2592
-                \u2591\u2588\u2588\u2592   \u2592\u2592\u2593\u2593\u2588 \
-                \u2593\u2593\u2592\u2591      \u2592\u2588\u2588\u2588\u2588
-                \u2588\u2588\u2592         \u2591\u2592\u2593\u2588\u2588 \
-                \u2588\u2592    \u2592\u2588\u2592\u2588\u2592
-                  \u2591\u2593\u2588            \u2588\u2588\u2588   \u2593 \
-                  \u2591\u2592\u2588\u2588
+                     \u2593\u2588\u2588\u2588\u2588\u2592\u2592\u2588\u2593\u2592\u2593\u2588\u2588\u2588\u2593\u2592
+                  \u2593\u2588\u2588\u2588\u2593\u2591\u2591        \u2592\u2592\u2592\u2593\u2588\u2588\u2592  \u2592
+                \u2591\u2588\u2588\u2592   \u2592\u2592\u2593\u2593\u2588\u2593\u2593\u2592\u2591      \u2592\u2588\u2588\u2588\u2588
+                \u2588\u2588\u2592         \u2591\u2592\u2593\u2588\u2588\u2588\u2592    \u2592\u2588\u2592\u2588\u2592
+                  \u2591\u2593\u2588            \u2588\u2588\u2588   \u2593\u2591\u2592\u2588\u2588
                     \u2593\u2588       \u2592\u2592\u2592\u2592\u2592\u2593\u2588\u2588\u2593\u2591\u2592\u2591\u2593\u2593\u2588
                   \u2588\u2591 \u2588   \u2592\u2592\u2591       \u2588\u2588\u2588\u2593\u2593\u2588 \u2592\u2588\u2592\u2592\u2592
                   \u2588\u2588\u2588\u2588\u2591   \u2592\u2593\u2588\u2593      \u2588\u2588\u2592\u2592\u2592 \u2593\u2588\u2588\u2588\u2592
@@ -105,7 +96,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *                  .field("a", DataTypes.BIGINT())
     *                  .field("b", DataTypes.STRING())
     *                  .field("c", DataTypes.STRING())) \\
-    *     .register_table_sink("batch_sink")
+    *     .create_temporary_table("batch_sink")
     *
     * t.select("a + 1, b, c").insert_into("batch_sink")
     *
@@ -135,7 +126,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *                  .field("a", DataTypes.BIGINT())
     *                  .field("b", DataTypes.STRING())
     *                  .field("c", DataTypes.STRING())) \\
-    *     .register_table_sink("stream_sink")
+    *     .create_temporary_table("stream_sink")
     * 
     * t.select("a + 1, b, c").insert_into("stream_sink")
     *

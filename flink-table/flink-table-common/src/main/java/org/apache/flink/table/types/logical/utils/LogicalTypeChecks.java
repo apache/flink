@@ -24,6 +24,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -38,6 +39,9 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+
+import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Utilities for checking {@link LogicalType} and avoiding a lot of type casting and repetitive work.
@@ -65,6 +69,14 @@ public final class LogicalTypeChecks {
 		return logicalType.getTypeRoot() == typeRoot;
 	}
 
+	/**
+	 * Checks whether a (possibly nested) logical type contains the given root.
+	 */
+	public static boolean hasNestedRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
+		final NestedTypeSearcher rootSearcher = new NestedTypeSearcher((t) -> hasRoot(t, typeRoot));
+		return logicalType.accept(rootSearcher).isPresent();
+	}
+
 	public static boolean hasFamily(LogicalType logicalType, LogicalTypeFamily family) {
 		return logicalType.getTypeRoot().getFamilies().contains(family);
 	}
@@ -79,6 +91,21 @@ public final class LogicalTypeChecks {
 
 	public static boolean isProctimeAttribute(LogicalType logicalType) {
 		return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+	}
+
+	/**
+	 * Checks if the given type is a composite type.
+	 *
+	 * @param logicalType Logical data type to check
+	 * @return True if the type is composite type.
+	 */
+	public static boolean isCompositeType(LogicalType logicalType) {
+		if (logicalType instanceof DistinctType) {
+			return isCompositeType(((DistinctType) logicalType).getSourceType());
+		}
+
+		LogicalTypeRoot typeRoot = logicalType.getTypeRoot();
+		return typeRoot == LogicalTypeRoot.STRUCTURED_TYPE || typeRoot == LogicalTypeRoot.ROW;
 	}
 
 	public static int getLength(LogicalType logicalType) {
@@ -330,6 +357,32 @@ public final class LogicalTypeChecks {
 				default:
 					return false;
 			}
+		}
+	}
+
+	/**
+	 * Searches for a type (including children) satisfying the given predicate.
+	 */
+	private static class NestedTypeSearcher extends LogicalTypeDefaultVisitor<Optional<LogicalType>> {
+
+		private final Predicate<LogicalType> predicate;
+
+		private NestedTypeSearcher(Predicate<LogicalType> predicate) {
+			this.predicate = predicate;
+		}
+
+		@Override
+		protected Optional<LogicalType> defaultMethod(LogicalType logicalType) {
+			if (predicate.test(logicalType)) {
+				return Optional.of(logicalType);
+			}
+			for (LogicalType child : logicalType.getChildren()) {
+				final Optional<LogicalType> foundType = child.accept(this);
+				if (foundType.isPresent()) {
+					return foundType;
+				}
+			}
+			return Optional.empty();
 		}
 	}
 }

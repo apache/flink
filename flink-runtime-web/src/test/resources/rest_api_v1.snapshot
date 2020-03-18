@@ -48,6 +48,15 @@
         },
         "flink-revision" : {
           "type" : "string"
+        },
+        "features" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:DashboardConfiguration:Features",
+          "properties" : {
+            "web-submit" : {
+              "type" : "boolean"
+            }
+          }
         }
       }
     }
@@ -1052,6 +1061,9 @@
               "type" : "boolean"
             }
           }
+        },
+        "state_backend" : {
+          "type" : "string"
         }
       }
     }
@@ -1243,6 +1255,10 @@
                   "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
                 }
               }
+            },
+            "start_delay" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             }
           }
         },
@@ -1293,7 +1309,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "maxExceptions",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -1628,7 +1647,7 @@
           "type" : "array",
           "items" : {
             "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo:VertexTaskDetail",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
             "properties" : {
               "subtask" : {
                 "type" : "integer"
@@ -1681,6 +1700,9 @@
                     "type" : "boolean"
                   }
                 }
+              },
+              "taskmanager-id" : {
+                "type" : "string"
               },
               "start_time" : {
                 "type" : "integer"
@@ -1984,6 +2006,12 @@
               "type" : "boolean"
             }
           }
+        },
+        "taskmanager-id" : {
+          "type" : "string"
+        },
+        "start_time" : {
+          "type" : "integer"
         }
       }
     }
@@ -2064,6 +2092,12 @@
               "type" : "boolean"
             }
           }
+        },
+        "taskmanager-id" : {
+          "type" : "string"
+        },
+        "start_time" : {
+          "type" : "integer"
         }
       }
     }
@@ -2293,11 +2327,35 @@
                 "additionalProperties" : {
                   "type" : "integer"
                 }
+              },
+              "taskmanager-id" : {
+                "type" : "string"
               }
             }
           }
         }
       }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/watermarks",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
     }
   }, {
     "url" : "/overview",

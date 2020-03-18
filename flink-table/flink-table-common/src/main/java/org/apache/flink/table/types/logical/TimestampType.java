@@ -35,7 +35,8 @@ import java.util.Set;
  *
  * <p>The serialized string representation is {@code TIMESTAMP(p)} where {@code p} is the number of
  * digits of fractional seconds (=precision). {@code p} must have a value between 0 and 9 (both inclusive).
- * If no precision is specified, {@code p} is equal to 6.
+ * If no precision is specified, {@code p} is equal to 6. {@code TIMESTAMP(p) WITHOUT TIME ZONE} is a
+ * synonym for this type.
  *
  * <p>A conversion from and to {@code long} is not supported as this would imply a time zone. However,
  * this type is time zone free. For more {@link java.time.Instant}-like semantics use
@@ -57,7 +58,8 @@ public final class TimestampType extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.sql.Timestamp.class.getName(),
-		java.time.LocalDateTime.class.getName());
+		java.time.LocalDateTime.class.getName(),
+		"org.apache.flink.table.dataformat.SqlTimestamp");
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalDateTime.class;
 

@@ -120,6 +120,7 @@ public abstract class TtlStateTestBase {
 		initTest(getConfBuilder(ttl)
 			.setUpdateType(updateType)
 			.setStateVisibility(visibility)
+			.disableCleanupInBackground()
 			.build());
 	}
 

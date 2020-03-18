@@ -26,7 +26,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionWriteResponse;
+import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -419,7 +420,7 @@ public class ElasticsearchSinkBaseTest {
 		private transient BulkRequest nextBulkRequest = new BulkRequest();
 		private transient MultiShotLatch flushLatch = new MultiShotLatch();
 
-		private List<? extends Throwable> mockItemFailuresList;
+		private List<? extends Exception> mockItemFailuresList;
 		private Throwable nextBulkFailure;
 
 		public DummyElasticsearchSink(
@@ -454,7 +455,7 @@ public class ElasticsearchSinkBaseTest {
 		 * <p>The list is used with corresponding order to the requests in the bulk, i.e. the first
 		 * request uses the response at index 0, the second requests uses the response at index 1, etc.
 		 */
-		public void setMockItemFailuresListForNextBulkItemResponses(List<? extends Throwable> mockItemFailuresList) {
+		public void setMockItemFailuresListForNextBulkItemResponses(List<? extends Exception> mockItemFailuresList) {
 			this.mockItemFailuresList = mockItemFailuresList;
 		}
 
@@ -506,14 +507,14 @@ public class ElasticsearchSinkBaseTest {
 						if (nextBulkFailure == null) {
 							BulkItemResponse[] mockResponses = new BulkItemResponse[currentBulkRequest.requests().size()];
 							for (int i = 0; i < currentBulkRequest.requests().size(); i++) {
-								Throwable mockItemFailure = mockItemFailuresList.get(i);
+								Exception mockItemFailure = mockItemFailuresList.get(i);
 
 								if (mockItemFailure == null) {
 									// the mock response for the item is success
-									mockResponses[i] = new BulkItemResponse(i, "opType", mock(ActionWriteResponse.class));
+									mockResponses[i] = new BulkItemResponse(i, DocWriteRequest.OpType.INDEX, mock(DocWriteResponse.class));
 								} else {
 									// the mock response for the item is failure
-									mockResponses[i] = new BulkItemResponse(i, "opType", new BulkItemResponse.Failure("index", "type", "id", mockItemFailure));
+									mockResponses[i] = new BulkItemResponse(i, DocWriteRequest.OpType.INDEX, new BulkItemResponse.Failure("index", "type", "id", mockItemFailure));
 								}
 							}
 
@@ -557,6 +558,11 @@ public class ElasticsearchSinkBaseTest {
 
 		@Override
 		public void configureBulkProcessorBackoff(BulkProcessor.Builder builder, @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+			// no need for this in the test cases here
+		}
+
+		@Override
+		public void verifyClientConnection(Client client) {
 			// no need for this in the test cases here
 		}
 	}

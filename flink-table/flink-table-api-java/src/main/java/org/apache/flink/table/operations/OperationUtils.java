@@ -94,7 +94,7 @@ public class OperationUtils {
 		return stringBuilder.append(childrenDescription).toString();
 	}
 
-	private static String formatParameter(String name, Object value) {
+	public static String formatParameter(String name, Object value) {
 		final StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append(name);
 		stringBuilder.append(": ");

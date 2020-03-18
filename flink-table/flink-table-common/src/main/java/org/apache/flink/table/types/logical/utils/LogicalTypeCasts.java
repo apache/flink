@@ -24,6 +24,9 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,7 +45,6 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.PREDEFINED;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.ANY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
@@ -56,6 +58,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SMALLINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SYMBOL;
@@ -66,7 +69,9 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isSingleFieldInterval;
 
 /**
@@ -208,6 +213,43 @@ public final class LogicalTypeCasts {
 	}
 
 	/**
+	 * Returns whether the source type can be safely interpreted as the target type. This allows avoiding
+	 * casts by ignoring some logical properties. This is basically a relaxed {@link LogicalType#equals(Object)}.
+	 *
+	 * <p>In particular this means:
+	 *
+	 * <p>Atomic, non-string types (INT, BOOLEAN, ...) and user-defined structured types must be fully
+	 * equal (i.e. {@link LogicalType#equals(Object)}). However, a NOT NULL type can be stored in NULL
+	 * type but not vice versa.
+	 *
+	 * <p>Atomic, string types must be contained in the target type (e.g. CHAR(2) is contained in VARCHAR(3),
+	 * but VARCHAR(2) is not contained in CHAR(3)). Same for binary strings.
+	 *
+	 * <p>Constructed types (ARRAY, ROW, MAP, etc.) and user-defined distinct type must be of same kind
+	 * but ignore field names and other logical attributes. However, all the children types
+	 * ({@link LogicalType#getChildren()}) must be compatible.
+	 */
+	public static boolean supportsAvoidingCast(LogicalType sourceType, LogicalType targetType) {
+		final CastAvoidanceChecker checker = new CastAvoidanceChecker(sourceType);
+		return targetType.accept(checker);
+	}
+
+	/**
+	 * See {@link #supportsAvoidingCast(LogicalType, LogicalType)}.
+	 */
+	public static boolean supportsAvoidingCast(List<LogicalType> sourceTypes, List<LogicalType> targetTypes) {
+		if (sourceTypes.size() != targetTypes.size()) {
+			return false;
+		}
+		for (int i = 0; i < sourceTypes.size(); i++) {
+			if (!supportsAvoidingCast(sourceTypes.get(i), targetTypes.get(i))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Returns whether the source type can be safely casted to the target type without loosing information.
 	 *
 	 * <p>Implicit casts are used for type widening and type generalization (finding a common supertype
@@ -268,8 +310,8 @@ public final class LogicalTypeCasts {
 		} else if (sourceRoot == NULL) {
 			// null can be cast to an arbitrary type
 			return true;
-		} else if (sourceRoot == ANY || targetRoot == ANY) {
-			// the two any types are not equal (from initial invariant), casting is not possible
+		} else if (sourceRoot == RAW || targetRoot == RAW) {
+			// the two raw types are not equal (from initial invariant), casting is not possible
 			return false;
 		} else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {
 			// the two symbol types are not equal (from initial invariant), casting is not possible
@@ -376,6 +418,79 @@ public final class LogicalTypeCasts {
 		void build() {
 			implicitCastingRules.put(targetType, implicitSourceTypes);
 			explicitCastingRules.put(targetType, explicitSourceTypes);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Checks if a source type can safely be interpreted as the target type.
+	 */
+	private static class CastAvoidanceChecker extends LogicalTypeDefaultVisitor<Boolean> {
+
+		private final LogicalType sourceType;
+
+		private CastAvoidanceChecker(LogicalType sourceType) {
+			this.sourceType = sourceType;
+		}
+
+		@Override
+		public Boolean visit(VarCharType targetType) {
+			if (sourceType.isNullable() && !targetType.isNullable()) {
+				return false;
+			}
+			// CHAR and VARCHAR are very compatible within bounds
+			if ((hasRoot(sourceType, LogicalTypeRoot.CHAR) || hasRoot(sourceType, LogicalTypeRoot.VARCHAR)) &&
+					getLength(sourceType) <= targetType.getLength()) {
+				return true;
+			}
+			return defaultMethod(targetType);
+		}
+
+		@Override
+		public Boolean visit(VarBinaryType targetType) {
+			if (sourceType.isNullable() && !targetType.isNullable()) {
+				return false;
+			}
+			// BINARY and VARBINARY are very compatible within bounds
+			if ((hasRoot(sourceType, LogicalTypeRoot.BINARY) || hasRoot(sourceType, LogicalTypeRoot.VARBINARY)) &&
+					getLength(sourceType) <= targetType.getLength()) {
+				return true;
+			}
+			return defaultMethod(targetType);
+		}
+
+		@Override
+		public Boolean visit(StructuredType targetType) {
+			if (sourceType.isNullable() && !targetType.isNullable()) {
+				return false;
+			}
+			// structured types should be equal (modulo nullability)
+			return sourceType.equals(targetType) || sourceType.copy(true).equals(targetType);
+		}
+
+		@Override
+		protected Boolean defaultMethod(LogicalType targetType) {
+			// quick path
+			if (sourceType == targetType) {
+				return true;
+			}
+
+			if (sourceType.isNullable() && !targetType.isNullable() ||
+					sourceType.getClass() != targetType.getClass() || // TODO drop this line once we remove legacy types
+					sourceType.getTypeRoot() != targetType.getTypeRoot()) {
+				return false;
+			}
+
+			final List<LogicalType> sourceChildren = sourceType.getChildren();
+			final List<LogicalType> targetChildren = targetType.getChildren();
+			if (sourceChildren.isEmpty()) {
+				// handles all types that are not of family CONSTRUCTED or USER DEFINED
+				return sourceType.equals(targetType) || sourceType.copy(true).equals(targetType);
+			} else {
+				// handles all types of CONSTRUCTED family as well as distinct types
+				return supportsAvoidingCast(sourceChildren, targetChildren);
+			}
 		}
 	}
 

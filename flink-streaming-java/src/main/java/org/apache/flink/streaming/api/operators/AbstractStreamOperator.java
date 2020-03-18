@@ -73,6 +73,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Locale;
 
@@ -154,6 +155,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- time handler ------------------
 
+	protected transient ProcessingTimeService processingTimeService;
 	protected transient InternalTimeServiceManager<?> timeServiceManager;
 
 	// ---------------- two-input operator watermarks ------------------
@@ -231,6 +233,15 @@ public abstract class AbstractStreamOperator<OUT>
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
 	}
 
+	/**
+	 * @deprecated The {@link ProcessingTimeService} instance should be passed by the operator
+	 * constructor and this method will be removed along with {@link SetupableStreamOperator}.
+	 */
+	@Deprecated
+	public void setProcessingTimeService(ProcessingTimeService processingTimeService) {
+		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+	}
+
 	@Override
 	public MetricGroup getMetricGroup() {
 		return metrics;
@@ -252,6 +263,7 @@ public abstract class AbstractStreamOperator<OUT>
 			streamTaskStateManager.streamOperatorStateContext(
 				getOperatorID(),
 				getClass().getSimpleName(),
+				getProcessingTimeService(),
 				this,
 				keySerializer,
 				streamTaskCloseableRegistry,
@@ -387,13 +399,14 @@ public abstract class AbstractStreamOperator<OUT>
 
 		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
-		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
-				checkpointId,
-				timestamp,
-				factory,
-				keyGroupRange,
-				getContainingTask().getCancelables())) {
+		StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
+			checkpointId,
+			timestamp,
+			factory,
+			keyGroupRange,
+			getContainingTask().getCancelables());
 
+		try {
 			snapshotState(snapshotContext);
 
 			snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
@@ -420,6 +433,11 @@ public abstract class AbstractStreamOperator<OUT>
 
 			if (!getContainingTask().isCanceled()) {
 				LOG.info(snapshotFailMessage, snapshotException);
+			}
+			try {
+				snapshotContext.closeExceptionally();
+			} catch (IOException e) {
+				snapshotException.addSuppressed(e);
 			}
 			throw new CheckpointException(snapshotFailMessage, CheckpointFailureReason.CHECKPOINT_DECLINED, snapshotException);
 		}
@@ -545,11 +563,11 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Returns the {@link ProcessingTimeService} responsible for getting  the current
+	 * Returns the {@link ProcessingTimeService} responsible for getting the current
 	 * processing time and registering timers.
 	 */
-	protected ProcessingTimeService getProcessingTimeService() {
-		return container.getProcessingTimeService();
+	public ProcessingTimeService getProcessingTimeService() {
+		return processingTimeService;
 	}
 
 	/**
@@ -662,7 +680,6 @@ public abstract class AbstractStreamOperator<OUT>
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;
 	}
-
 
 	// ------------------------------------------------------------------------
 	//  Metrics

@@ -1,0 +1,1000 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggNotSupportMerge[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
++- LogicalProject(b=[$1], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
++- Exchange(distribution=[hash[b]])
+   +- Calc(select=[b, a])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggNotSupportMerge[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
++- LogicalProject(b=[$1], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
++- Exchange(distribution=[hash[b]])
+   +- Calc(select=[b, a])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggNotSupportMerge[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
++- LogicalProject(b=[$1], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
++- Exchange(distribution=[hash[b]])
+   +- Calc(select=[b, a])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilter[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1 WHERE a = 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalFilter(condition=[=($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
+      +- Calc(select=[a, b, c], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilter[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1 WHERE a = 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalFilter(condition=[=($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- Calc(select=[a, b, c], where=[=(a, 1)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilter[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1 WHERE a = 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalFilter(condition=[=($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
+      +- Calc(select=[a, b, c], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilterOnNestedFields[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c), SUM(c._1) FROM MyTable2 WHERE a = 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
++- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
+   +- LogicalFilter(condition=[=($0, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2, Final_SUM(sum$4) AS EXPR$3])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
+      +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilterOnNestedFields[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c), SUM(c._1) FROM MyTable2 WHERE a = 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
++- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
+   +- LogicalFilter(condition=[=($0, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2, SUM($f3) AS EXPR$3])
++- Exchange(distribution=[single])
+   +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[=(a, 1)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilterOnNestedFields[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c), SUM(c._1) FROM MyTable2 WHERE a = 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
++- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
+   +- LogicalFilter(condition=[=($0, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2, Final_SUM(sum$4) AS EXPR$3])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
+      +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithoutFunction[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyTable1 GROUP BY a, b]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
++- Exchange(distribution=[hash[a, b]])
+   +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
+      +- Calc(select=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithoutFunction[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyTable1 GROUP BY a, b]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a, b], select=[a, b])
++- Exchange(distribution=[hash[a, b]])
+   +- Calc(select=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithoutFunction[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyTable1 GROUP BY a, b]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
++- Exchange(distribution=[hash[a, b]])
+   +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
+      +- Calc(select=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithoutGroupBy[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithoutGroupBy[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithoutGroupBy[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAvg[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT AVG(`byte`),
+       AVG(`short`),
+       AVG(`int`),
+       AVG(`long`),
+       AVG(`float`),
+       AVG(`double`),
+       AVG(`decimal3020`),
+       AVG(`decimal105`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_AVG(sum$2, count$3) AS EXPR$1, Final_AVG(sum$4, count$5) AS EXPR$2, Final_AVG(sum$6, count$7) AS EXPR$3, Final_AVG(sum$8, count$9) AS EXPR$4, Final_AVG(sum$10, count$11) AS EXPR$5, Final_AVG(sum$12, count$13) AS EXPR$6, Final_AVG(sum$14, count$15) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
+   +- LocalHashAggregate(select=[Partial_AVG(byte) AS (sum$0, count$1), Partial_AVG(short) AS (sum$2, count$3), Partial_AVG(int) AS (sum$4, count$5), Partial_AVG(long) AS (sum$6, count$7), Partial_AVG(float) AS (sum$8, count$9), Partial_AVG(double) AS (sum$10, count$11), Partial_AVG(decimal3020) AS (sum$12, count$13), Partial_AVG(decimal105) AS (sum$14, count$15)]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAvg[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT AVG(`byte`),
+       AVG(`short`),
+       AVG(`int`),
+       AVG(`long`),
+       AVG(`float`),
+       AVG(`double`),
+       AVG(`decimal3020`),
+       AVG(`decimal105`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[AVG(byte) AS EXPR$0, AVG(short) AS EXPR$1, AVG(int) AS EXPR$2, AVG(long) AS EXPR$3, AVG(float) AS EXPR$4, AVG(double) AS EXPR$5, AVG(decimal3020) AS EXPR$6, AVG(decimal105) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAvg[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT AVG(`byte`),
+       AVG(`short`),
+       AVG(`int`),
+       AVG(`long`),
+       AVG(`float`),
+       AVG(`double`),
+       AVG(`decimal3020`),
+       AVG(`decimal105`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_AVG(sum$2, count$3) AS EXPR$1, Final_AVG(sum$4, count$5) AS EXPR$2, Final_AVG(sum$6, count$7) AS EXPR$3, Final_AVG(sum$8, count$9) AS EXPR$4, Final_AVG(sum$10, count$11) AS EXPR$5, Final_AVG(sum$12, count$13) AS EXPR$6, Final_AVG(sum$14, count$15) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
+   +- LocalHashAggregate(select=[Partial_AVG(byte) AS (sum$0, count$1), Partial_AVG(short) AS (sum$2, count$3), Partial_AVG(int) AS (sum$4, count$5), Partial_AVG(long) AS (sum$6, count$7), Partial_AVG(float) AS (sum$8, count$9), Partial_AVG(double) AS (sum$10, count$11), Partial_AVG(decimal3020) AS (sum$12, count$13), Partial_AVG(decimal105) AS (sum$14, count$15)]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCount[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(`byte`),
+       COUNT(`short`),
+       COUNT(`int`),
+       COUNT(`long`),
+       COUNT(`float`),
+       COUNT(`double`),
+       COUNT(`decimal3020`),
+       COUNT(`decimal105`),
+       COUNT(`boolean`),
+       COUNT(`date`),
+       COUNT(`time`),
+       COUNT(`timestamp`),
+       COUNT(`string`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1, Final_COUNT(count$2) AS EXPR$2, Final_COUNT(count$3) AS EXPR$3, Final_COUNT(count$4) AS EXPR$4, Final_COUNT(count$5) AS EXPR$5, Final_COUNT(count$6) AS EXPR$6, Final_COUNT(count$7) AS EXPR$7, Final_COUNT(count$8) AS EXPR$8, Final_COUNT(count$9) AS EXPR$9, Final_COUNT(count$10) AS EXPR$10, Final_COUNT(count$11) AS EXPR$11, Final_COUNT(count$12) AS EXPR$12]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
+   +- LocalHashAggregate(select=[Partial_COUNT(byte) AS count$0, Partial_COUNT(short) AS count$1, Partial_COUNT(int) AS count$2, Partial_COUNT(long) AS count$3, Partial_COUNT(float) AS count$4, Partial_COUNT(double) AS count$5, Partial_COUNT(decimal3020) AS count$6, Partial_COUNT(decimal105) AS count$7, Partial_COUNT(boolean) AS count$8, Partial_COUNT(date) AS count$9, Partial_COUNT(time) AS count$10, Partial_COUNT(timestamp) AS count$11, Partial_COUNT(string) AS count$12]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCount[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(`byte`),
+       COUNT(`short`),
+       COUNT(`int`),
+       COUNT(`long`),
+       COUNT(`float`),
+       COUNT(`double`),
+       COUNT(`decimal3020`),
+       COUNT(`decimal105`),
+       COUNT(`boolean`),
+       COUNT(`date`),
+       COUNT(`time`),
+       COUNT(`timestamp`),
+       COUNT(`string`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[COUNT(byte) AS EXPR$0, COUNT(short) AS EXPR$1, COUNT(int) AS EXPR$2, COUNT(long) AS EXPR$3, COUNT(float) AS EXPR$4, COUNT(double) AS EXPR$5, COUNT(decimal3020) AS EXPR$6, COUNT(decimal105) AS EXPR$7, COUNT(boolean) AS EXPR$8, COUNT(date) AS EXPR$9, COUNT(time) AS EXPR$10, COUNT(timestamp) AS EXPR$11, COUNT(string) AS EXPR$12]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCount[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(`byte`),
+       COUNT(`short`),
+       COUNT(`int`),
+       COUNT(`long`),
+       COUNT(`float`),
+       COUNT(`double`),
+       COUNT(`decimal3020`),
+       COUNT(`decimal105`),
+       COUNT(`boolean`),
+       COUNT(`date`),
+       COUNT(`time`),
+       COUNT(`timestamp`),
+       COUNT(`string`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1, Final_COUNT(count$2) AS EXPR$2, Final_COUNT(count$3) AS EXPR$3, Final_COUNT(count$4) AS EXPR$4, Final_COUNT(count$5) AS EXPR$5, Final_COUNT(count$6) AS EXPR$6, Final_COUNT(count$7) AS EXPR$7, Final_COUNT(count$8) AS EXPR$8, Final_COUNT(count$9) AS EXPR$9, Final_COUNT(count$10) AS EXPR$10, Final_COUNT(count$11) AS EXPR$11, Final_COUNT(count$12) AS EXPR$12]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
+   +- LocalHashAggregate(select=[Partial_COUNT(byte) AS count$0, Partial_COUNT(short) AS count$1, Partial_COUNT(int) AS count$2, Partial_COUNT(long) AS count$3, Partial_COUNT(float) AS count$4, Partial_COUNT(double) AS count$5, Partial_COUNT(decimal3020) AS count$6, Partial_COUNT(decimal105) AS count$7, Partial_COUNT(boolean) AS count$8, Partial_COUNT(date) AS count$9, Partial_COUNT(time) AS count$10, Partial_COUNT(timestamp) AS count$11, Partial_COUNT(string) AS count$12]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregate[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStart[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
+      +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStart[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
++- Exchange(distribution=[single]), rowType=[RecordType(INTEGER $f0)]
+   +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStart[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
+      +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregate[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregate[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithFilter[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalFilter(condition=[=($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
+      +- Calc(select=[a, b, c], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithFilter[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalFilter(condition=[=($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, c], where=[=(a, 1)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithFilter[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalFilter(condition=[=($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
+      +- Calc(select=[a, b, c], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMaxWithFixLengthType[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MAX(`byte`),
+       MAX(`short`),
+       MAX(`int`),
+       MAX(`long`),
+       MAX(`float`),
+       MAX(`double`),
+       MAX(`decimal3020`),
+       MAX(`decimal105`),
+       MAX(`boolean`),
+       MAX(`date`),
+       MAX(`time`),
+       MAX(`timestamp`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1, Final_MAX(max$2) AS EXPR$2, Final_MAX(max$3) AS EXPR$3, Final_MAX(max$4) AS EXPR$4, Final_MAX(max$5) AS EXPR$5, Final_MAX(max$6) AS EXPR$6, Final_MAX(max$7) AS EXPR$7, Final_MAX(max$8) AS EXPR$8, Final_MAX(max$9) AS EXPR$9, Final_MAX(max$10) AS EXPR$10, Final_MAX(max$11) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
+   +- LocalHashAggregate(select=[Partial_MAX(byte) AS max$0, Partial_MAX(short) AS max$1, Partial_MAX(int) AS max$2, Partial_MAX(long) AS max$3, Partial_MAX(float) AS max$4, Partial_MAX(double) AS max$5, Partial_MAX(decimal3020) AS max$6, Partial_MAX(decimal105) AS max$7, Partial_MAX(boolean) AS max$8, Partial_MAX(date) AS max$9, Partial_MAX(time) AS max$10, Partial_MAX(timestamp) AS max$11]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMaxWithFixLengthType[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MAX(`byte`),
+       MAX(`short`),
+       MAX(`int`),
+       MAX(`long`),
+       MAX(`float`),
+       MAX(`double`),
+       MAX(`decimal3020`),
+       MAX(`decimal105`),
+       MAX(`boolean`),
+       MAX(`date`),
+       MAX(`time`),
+       MAX(`timestamp`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[MAX(byte) AS EXPR$0, MAX(short) AS EXPR$1, MAX(int) AS EXPR$2, MAX(long) AS EXPR$3, MAX(float) AS EXPR$4, MAX(double) AS EXPR$5, MAX(decimal3020) AS EXPR$6, MAX(decimal105) AS EXPR$7, MAX(boolean) AS EXPR$8, MAX(date) AS EXPR$9, MAX(time) AS EXPR$10, MAX(timestamp) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMaxWithFixLengthType[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MAX(`byte`),
+       MAX(`short`),
+       MAX(`int`),
+       MAX(`long`),
+       MAX(`float`),
+       MAX(`double`),
+       MAX(`decimal3020`),
+       MAX(`decimal105`),
+       MAX(`boolean`),
+       MAX(`date`),
+       MAX(`time`),
+       MAX(`timestamp`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1, Final_MAX(max$2) AS EXPR$2, Final_MAX(max$3) AS EXPR$3, Final_MAX(max$4) AS EXPR$4, Final_MAX(max$5) AS EXPR$5, Final_MAX(max$6) AS EXPR$6, Final_MAX(max$7) AS EXPR$7, Final_MAX(max$8) AS EXPR$8, Final_MAX(max$9) AS EXPR$9, Final_MAX(max$10) AS EXPR$10, Final_MAX(max$11) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
+   +- LocalHashAggregate(select=[Partial_MAX(byte) AS max$0, Partial_MAX(short) AS max$1, Partial_MAX(int) AS max$2, Partial_MAX(long) AS max$3, Partial_MAX(float) AS max$4, Partial_MAX(double) AS max$5, Partial_MAX(decimal3020) AS max$6, Partial_MAX(decimal105) AS max$7, Partial_MAX(boolean) AS max$8, Partial_MAX(date) AS max$9, Partial_MAX(time) AS max$10, Partial_MAX(timestamp) AS max$11]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSum[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT SUM(`byte`),
+       SUM(`short`),
+       SUM(`int`),
+       SUM(`long`),
+       SUM(`float`),
+       SUM(`double`),
+       SUM(`decimal3020`),
+       SUM(`decimal105`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2, Final_SUM(sum$3) AS EXPR$3, Final_SUM(sum$4) AS EXPR$4, Final_SUM(sum$5) AS EXPR$5, Final_SUM(sum$6) AS EXPR$6, Final_SUM(sum$7) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
+   +- LocalHashAggregate(select=[Partial_SUM(byte) AS sum$0, Partial_SUM(short) AS sum$1, Partial_SUM(int) AS sum$2, Partial_SUM(long) AS sum$3, Partial_SUM(float) AS sum$4, Partial_SUM(double) AS sum$5, Partial_SUM(decimal3020) AS sum$6, Partial_SUM(decimal105) AS sum$7]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinWithFixLengthType[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MIN(`byte`),
+       MIN(`short`),
+       MIN(`int`),
+       MIN(`long`),
+       MIN(`float`),
+       MIN(`double`),
+       MIN(`decimal3020`),
+       MIN(`decimal105`),
+       MIN(`boolean`),
+       MIN(`date`),
+       MIN(`time`),
+       MIN(`timestamp`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_MIN(min$3) AS EXPR$3, Final_MIN(min$4) AS EXPR$4, Final_MIN(min$5) AS EXPR$5, Final_MIN(min$6) AS EXPR$6, Final_MIN(min$7) AS EXPR$7, Final_MIN(min$8) AS EXPR$8, Final_MIN(min$9) AS EXPR$9, Final_MIN(min$10) AS EXPR$10, Final_MIN(min$11) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
+   +- LocalHashAggregate(select=[Partial_MIN(byte) AS min$0, Partial_MIN(short) AS min$1, Partial_MIN(int) AS min$2, Partial_MIN(long) AS min$3, Partial_MIN(float) AS min$4, Partial_MIN(double) AS min$5, Partial_MIN(decimal3020) AS min$6, Partial_MIN(decimal105) AS min$7, Partial_MIN(boolean) AS min$8, Partial_MIN(date) AS min$9, Partial_MIN(time) AS min$10, Partial_MIN(timestamp) AS min$11]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinWithFixLengthType[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MIN(`byte`),
+       MIN(`short`),
+       MIN(`int`),
+       MIN(`long`),
+       MIN(`float`),
+       MIN(`double`),
+       MIN(`decimal3020`),
+       MIN(`decimal105`),
+       MIN(`boolean`),
+       MIN(`date`),
+       MIN(`time`),
+       MIN(`timestamp`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_MIN(min$3) AS EXPR$3, Final_MIN(min$4) AS EXPR$4, Final_MIN(min$5) AS EXPR$5, Final_MIN(min$6) AS EXPR$6, Final_MIN(min$7) AS EXPR$7, Final_MIN(min$8) AS EXPR$8, Final_MIN(min$9) AS EXPR$9, Final_MIN(min$10) AS EXPR$10, Final_MIN(min$11) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
+   +- LocalHashAggregate(select=[Partial_MIN(byte) AS min$0, Partial_MIN(short) AS min$1, Partial_MIN(int) AS min$2, Partial_MIN(long) AS min$3, Partial_MIN(float) AS min$4, Partial_MIN(double) AS min$5, Partial_MIN(decimal3020) AS min$6, Partial_MIN(decimal105) AS min$7, Partial_MIN(boolean) AS min$8, Partial_MIN(date) AS min$9, Partial_MIN(time) AS min$10, Partial_MIN(timestamp) AS min$11]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSum[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT SUM(`byte`),
+       SUM(`short`),
+       SUM(`int`),
+       SUM(`long`),
+       SUM(`float`),
+       SUM(`double`),
+       SUM(`decimal3020`),
+       SUM(`decimal105`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[SUM(byte) AS EXPR$0, SUM(short) AS EXPR$1, SUM(int) AS EXPR$2, SUM(long) AS EXPR$3, SUM(float) AS EXPR$4, SUM(double) AS EXPR$5, SUM(decimal3020) AS EXPR$6, SUM(decimal105) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinWithFixLengthType[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MIN(`byte`),
+       MIN(`short`),
+       MIN(`int`),
+       MIN(`long`),
+       MIN(`float`),
+       MIN(`double`),
+       MIN(`decimal3020`),
+       MIN(`decimal105`),
+       MIN(`boolean`),
+       MIN(`date`),
+       MIN(`time`),
+       MIN(`timestamp`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[MIN(byte) AS EXPR$0, MIN(short) AS EXPR$1, MIN(int) AS EXPR$2, MIN(long) AS EXPR$3, MIN(float) AS EXPR$4, MIN(double) AS EXPR$5, MIN(decimal3020) AS EXPR$6, MIN(decimal105) AS EXPR$7, MIN(boolean) AS EXPR$8, MIN(date) AS EXPR$9, MIN(time) AS EXPR$10, MIN(timestamp) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+   +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSum[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT SUM(`byte`),
+       SUM(`short`),
+       SUM(`int`),
+       SUM(`long`),
+       SUM(`float`),
+       SUM(`double`),
+       SUM(`decimal3020`),
+       SUM(`decimal105`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2, Final_SUM(sum$3) AS EXPR$3, Final_SUM(sum$4) AS EXPR$4, Final_SUM(sum$5) AS EXPR$5, Final_SUM(sum$6) AS EXPR$6, Final_SUM(sum$7) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
+   +- LocalHashAggregate(select=[Partial_SUM(byte) AS sum$0, Partial_SUM(short) AS sum$1, Partial_SUM(int) AS sum$2, Partial_SUM(long) AS sum$3, Partial_SUM(float) AS sum$4, Partial_SUM(double) AS sum$5, Partial_SUM(decimal3020) AS sum$6, Partial_SUM(decimal105) AS sum$7]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
+</Root>

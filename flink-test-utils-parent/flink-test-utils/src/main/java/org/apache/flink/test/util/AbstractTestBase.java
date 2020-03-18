@@ -19,9 +19,11 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.ClassRule;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -54,6 +56,7 @@ import java.io.IOException;
  *
  * </pre>
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public abstract class AbstractTestBase extends TestBaseUtils {
 
 	private static final int DEFAULT_PARALLELISM = 4;

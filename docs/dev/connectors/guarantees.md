@@ -98,7 +98,7 @@ state updates) of Flink coupled with bundled sinks:
   </thead>
   <tbody>
     <tr>
-        <td>HDFS rolling sink</td>
+        <td>HDFS BucketingSink</td>
         <td>exactly once</td>
         <td>Implementation depends on Hadoop version</td>
     </tr>
@@ -124,7 +124,7 @@ state updates) of Flink coupled with bundled sinks:
     </tr>
     <tr>
         <td>File sinks</td>
-        <td>at least once</td>
+        <td>exactly once</td>
         <td></td>
     </tr>
     <tr>

@@ -27,11 +27,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -48,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Tests for keyed state input format.
@@ -63,7 +67,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new ReaderFunction());
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit[] splits = format.createInputSplits(4);
 		Assert.assertEquals("Failed to properly partition operator state into input splits", 4, splits.length);
 	}
@@ -76,7 +80,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new ReaderFunction());
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit[] splits = format.createInputSplits(129);
 		Assert.assertEquals("Failed to properly partition operator state into input splits", 128, splits.length);
 	}
@@ -89,7 +93,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new ReaderFunction());
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
 		KeyedStateReaderFunction<Integer, Integer> userFunction = new ReaderFunction();
@@ -107,7 +111,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new ReaderFunction());
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
 		KeyedStateReaderFunction<Integer, Integer> userFunction = new DoubleReaderFunction();
@@ -125,7 +129,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new ReaderFunction());
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
 		KeyedStateReaderFunction<Integer, Integer> userFunction = new InvalidReaderFunction();
@@ -135,13 +139,30 @@ public class KeyedStateInputFormatTest {
 		Assert.fail("KeyedStateReaderFunction did not fail on invalid RuntimeContext use");
 	}
 
+	@Test
+	public void testReadTime() throws Exception {
+		OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
+
+		OperatorSubtaskState state = createOperatorSubtaskState(new KeyedProcessOperator<>(new StatefulFunctionWithTime()));
+		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+		operatorState.putState(0, state);
+
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new TimerReaderFunction(), Types.INT));
+		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
+
+		KeyedStateReaderFunction<Integer, Integer> userFunction = new TimerReaderFunction();
+
+		List<Integer> data = readInputSplit(split, userFunction);
+
+		Assert.assertEquals("Incorrect data read from input split", Arrays.asList(1, 1, 2, 2, 3, 3), data);
+	}
+
 	@Nonnull
 	private List<Integer> readInputSplit(KeyGroupRangeInputSplit split, KeyedStateReaderFunction<Integer, Integer> userFunction) throws IOException {
-		KeyedStateInputFormat<Integer, Integer> format = new KeyedStateInputFormat<>(
+		KeyedStateInputFormat<Integer, VoidNamespace, Integer> format = new KeyedStateInputFormat<>(
 			new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4),
 			new MemoryStateBackend(),
-			Types.INT,
-			userFunction);
+			new KeyedStateReaderOperator<>(userFunction, Types.INT));
 
 		List<Integer> data = new ArrayList<>();
 
@@ -245,6 +266,29 @@ public class KeyedStateInputFormatTest {
 		public void processElement(Integer value, Context ctx, Collector<Void> out) throws Exception {
 			state.update(value);
 			ctx.timerService().registerEventTimeTimer(value);
+			ctx.timerService().registerProcessingTimeTimer(value);
+		}
+	}
+
+	static class TimerReaderFunction extends KeyedStateReaderFunction<Integer, Integer> {
+		ValueState<Integer> state;
+
+		@Override
+		public void open(Configuration parameters) {
+			state = getRuntimeContext().getState(stateDescriptor);
+		}
+
+		@Override
+		public void readKey(Integer key, KeyedStateReaderFunction.Context ctx, Collector<Integer> out) throws Exception {
+			Set<Long> eventTimers = ctx.registeredEventTimeTimers();
+			Assert.assertEquals("Each key should have exactly one event timer for key " + key, 1, eventTimers.size());
+
+			out.collect(eventTimers.iterator().next().intValue());
+
+			Set<Long> procTimers = ctx.registeredProcessingTimeTimers();
+			Assert.assertEquals("Each key should have exactly one processing timer for key " + key, 1, procTimers.size());
+
+			out.collect(procTimers.iterator().next().intValue());
 		}
 	}
 }

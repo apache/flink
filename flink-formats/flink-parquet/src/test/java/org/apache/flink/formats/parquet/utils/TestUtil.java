@@ -210,6 +210,7 @@ public class TestUtil {
 			stringArray.add("String");
 
 			final NestedRecord nestedRecord = NestedRecord.newBuilder()
+				.setFoo(1L)
 				.setBar(bar)
 				.setNestedArray(nestedArray)
 				.setStrArray(stringArray)
@@ -229,7 +230,7 @@ public class TestUtil {
 		return mockContext;
 	}
 
-	private static Schema getTestSchema(String schemaName) {
+	public static Schema getTestSchema(String schemaName) {
 		try {
 			InputStream inputStream = TestUtil.class.getClassLoader()
 				.getResourceAsStream("avro/" + schemaName);

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -53,29 +54,33 @@ public class SingleInputGateFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGateFactory.class);
 
 	@Nonnull
-	private final ResourceID taskExecutorResourceId;
+	protected final ResourceID taskExecutorResourceId;
 
-	private final boolean isCreditBased;
+	protected final int partitionRequestInitialBackoff;
 
-	private final int partitionRequestInitialBackoff;
-
-	private final int partitionRequestMaxBackoff;
+	protected final int partitionRequestMaxBackoff;
 
 	@Nonnull
-	private final ConnectionManager connectionManager;
+	protected final ConnectionManager connectionManager;
 
 	@Nonnull
-	private final ResultPartitionManager partitionManager;
+	protected final ResultPartitionManager partitionManager;
 
 	@Nonnull
-	private final TaskEventPublisher taskEventPublisher;
+	protected final TaskEventPublisher taskEventPublisher;
 
 	@Nonnull
-	private final NetworkBufferPool networkBufferPool;
+	protected final NetworkBufferPool networkBufferPool;
 
 	private final int networkBuffersPerChannel;
 
 	private final int floatingNetworkBuffersPerGate;
+
+	private final boolean blockingShuffleCompressionEnabled;
+
+	private final String compressionCodec;
+
+	private final int networkBufferSize;
 
 	public SingleInputGateFactory(
 			@Nonnull ResourceID taskExecutorResourceId,
@@ -85,11 +90,13 @@ public class SingleInputGateFactory {
 			@Nonnull TaskEventPublisher taskEventPublisher,
 			@Nonnull NetworkBufferPool networkBufferPool) {
 		this.taskExecutorResourceId = taskExecutorResourceId;
-		this.isCreditBased = networkConfig.isCreditBased();
 		this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
 		this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
 		this.networkBuffersPerChannel = networkConfig.networkBuffersPerChannel();
 		this.floatingNetworkBuffersPerGate = networkConfig.floatingNetworkBuffersPerGate();
+		this.blockingShuffleCompressionEnabled = networkConfig.isBlockingShuffleCompressionEnabled();
+		this.compressionCodec = networkConfig.getCompressionCodec();
+		this.networkBufferSize = networkConfig.networkBufferSize();
 		this.connectionManager = connectionManager;
 		this.partitionManager = partitionManager;
 		this.taskEventPublisher = taskEventPublisher;
@@ -101,26 +108,32 @@ public class SingleInputGateFactory {
 	 */
 	public SingleInputGate create(
 			@Nonnull String owningTaskName,
+			int gateIndex,
 			@Nonnull InputGateDeploymentDescriptor igdd,
 			@Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
 			@Nonnull InputChannelMetrics metrics) {
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory = createBufferPoolFactory(
 			networkBufferPool,
-			isCreditBased,
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			igdd.getShuffleDescriptors().length,
 			igdd.getConsumedPartitionType());
 
+		BufferDecompressor bufferDecompressor = null;
+		if (igdd.getConsumedPartitionType().isBlocking() && blockingShuffleCompressionEnabled) {
+			bufferDecompressor = new BufferDecompressor(networkBufferSize, compressionCodec);
+		}
+
 		SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName,
+			gateIndex,
 			igdd.getConsumedResultId(),
 			igdd.getConsumedPartitionType(),
 			igdd.getConsumedSubpartitionIndex(),
 			igdd.getShuffleDescriptors().length,
 			partitionProducerStateProvider,
-			isCreditBased,
-			bufferPoolFactory);
+			bufferPoolFactory,
+			bufferDecompressor);
 
 		createInputChannels(owningTaskName, igdd, inputGate, metrics);
 		return inputGate;
@@ -145,8 +158,7 @@ public class SingleInputGateFactory {
 				shuffleDescriptors[i],
 				channelStatistics,
 				metrics);
-			ResultPartitionID resultPartitionID = inputChannels[i].getPartitionId();
-			inputGate.setInputChannel(resultPartitionID.getPartitionId(), inputChannels[i]);
+			inputGate.setInputChannel(inputChannels[i]);
 		}
 
 		LOG.debug("{}: Created {} input channels ({}).",
@@ -187,7 +199,8 @@ public class SingleInputGateFactory {
 					metrics));
 	}
 
-	private InputChannel createKnownInputChannel(
+	@VisibleForTesting
+	protected InputChannel createKnownInputChannel(
 			SingleInputGate inputGate,
 			int index,
 			NettyShuffleDescriptor inputChannelDescriptor,
@@ -225,22 +238,17 @@ public class SingleInputGateFactory {
 	@VisibleForTesting
 	static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
 			BufferPoolFactory bufferPoolFactory,
-			boolean isCreditBased,
 			int networkBuffersPerChannel,
 			int floatingNetworkBuffersPerGate,
 			int size,
 			ResultPartitionType type) {
-		if (isCreditBased) {
-			int maxNumberOfMemorySegments = type.isBounded() ? floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
-			return () -> bufferPoolFactory.createBufferPool(0, maxNumberOfMemorySegments);
-		} else {
-			int maxNumberOfMemorySegments = type.isBounded() ?
-				size * networkBuffersPerChannel + floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
-			return () -> bufferPoolFactory.createBufferPool(size, maxNumberOfMemorySegments);
-		}
+		return () -> bufferPoolFactory.createBufferPool(0, floatingNetworkBuffersPerGate);
 	}
 
-	private static class ChannelStatistics {
+	/**
+	 * Statistics of input channels.
+	 */
+	protected static class ChannelStatistics {
 		int numLocalChannels;
 		int numRemoteChannels;
 		int numUnknownChannels;

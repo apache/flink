@@ -97,9 +97,9 @@ public class SlotPoolUtils {
 		return taskManagerLocation.getResourceID();
 	}
 
-	public static void failAllocation(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, AllocationID allocationId) {
+	public static void failAllocation(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, AllocationID allocationId, Exception exception) {
 		CompletableFuture.runAsync(
-			() -> slotPool.failAllocation(allocationId, new FlinkException("Test exception")),
+			() -> slotPool.failAllocation(allocationId, exception),
 			mainThreadExecutor).join();
 	}
 

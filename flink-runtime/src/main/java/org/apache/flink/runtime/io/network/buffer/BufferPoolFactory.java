@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import java.io.IOException;
-import java.util.Optional;
 
 /**
  * A factory for buffer pools.
@@ -40,7 +39,7 @@ public interface BufferPoolFactory {
 	BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException;
 
 	/**
-	 * Tries to create a buffer pool with an optional owner, which is guaranteed to provide at least the
+	 * Tries to create a buffer pool with an owner, which is guaranteed to provide at least the
 	 * number of required buffers.
 	 *
 	 * <p>The buffer pool is of dynamic size with at least <tt>numRequiredBuffers</tt> buffers.
@@ -49,10 +48,10 @@ public interface BufferPoolFactory {
 	 * 		minimum number of network buffers in this pool
 	 * @param maxUsedBuffers
 	 * 		maximum number of network buffers this pool offers
-	 * 	@param owner
-	 * 	    the optional owner of this buffer pool to release memory when needed
+	 * 	@param bufferPoolOwner
+	 * 	    the owner of this buffer pool to release memory when needed
 	 */
-	BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, Optional<BufferPoolOwner> owner) throws IOException;
+	BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, BufferPoolOwner bufferPoolOwner) throws IOException;
 
 	/**
 	 * Destroy callback for updating factory book keeping.

@@ -25,6 +25,12 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -70,7 +76,24 @@ public class DescriptorProperties {
 
 	public static final String TABLE_SCHEMA_NAME = "name";
 
+	/**
+	 * @deprecated this will be removed in future version as it uses old type system.
+	 * 	 Please use {@link #TABLE_SCHEMA_DATA_TYPE} instead.
+	 */
+	@Deprecated
 	public static final String TABLE_SCHEMA_TYPE = "type";
+
+	public static final String TABLE_SCHEMA_DATA_TYPE = "data-type";
+
+	public static final String TABLE_SCHEMA_EXPR = "expr";
+
+	public static final String WATERMARK = "watermark";
+
+	public static final String WATERMARK_ROWTIME = "rowtime";
+
+	public static final String WATERMARK_STRATEGY_EXPR = "strategy.expr";
+
+	public static final String WATERMARK_STRATEGY_DATA_TYPE = "strategy.data-type";
 
 	private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
 
@@ -182,17 +205,38 @@ public class DescriptorProperties {
 		checkNotNull(schema);
 
 		final String[] fieldNames = schema.getFieldNames();
-		final TypeInformation<?>[] fieldTypes = schema.getFieldTypes();
+		final DataType[] fieldTypes = schema.getFieldDataTypes();
+		final String[] fieldExpressions = schema.getTableColumns().stream()
+			.map(column -> column.getExpr().orElse(null))
+			.toArray(String[]::new);
 
 		final List<List<String>> values = new ArrayList<>();
 		for (int i = 0; i < schema.getFieldCount(); i++) {
-			values.add(Arrays.asList(fieldNames[i], TypeStringUtils.writeTypeInfo(fieldTypes[i])));
+			values.add(
+				Arrays.asList(
+					fieldNames[i],
+					fieldTypes[i].getLogicalType().asSerializableString(),
+					fieldExpressions[i]));
 		}
 
-		putIndexedFixedProperties(
+		putIndexedOptionalProperties(
 			key,
-			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_TYPE),
+			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_DATA_TYPE, TABLE_SCHEMA_EXPR),
 			values);
+
+		if (!schema.getWatermarkSpecs().isEmpty()) {
+			final List<List<String>> watermarkValues = new ArrayList<>();
+			for (WatermarkSpec spec : schema.getWatermarkSpecs()) {
+				watermarkValues.add(Arrays.asList(
+					spec.getRowtimeAttribute(),
+					spec.getWatermarkExpr(),
+					spec.getWatermarkExprOutputType().getLogicalType().asSerializableString()));
+			}
+			putIndexedFixedProperties(
+				key + '.' + WATERMARK,
+				Arrays.asList(WATERMARK_ROWTIME, WATERMARK_STRATEGY_EXPR, WATERMARK_STRATEGY_DATA_TYPE),
+				watermarkValues);
+		}
 	}
 
 	/**
@@ -227,6 +271,43 @@ public class DescriptorProperties {
 			}
 			for (int keyIdx = 0; keyIdx < values.size(); keyIdx++) {
 				put(key + '.' + idx + '.' + subKeys.get(keyIdx), values.get(keyIdx));
+			}
+		}
+	}
+
+	/**
+	 * Adds an indexed sequence of properties (with sub-properties) under a common key.
+	 * Different with {@link #putIndexedFixedProperties}, this method supports the properties
+	 * value to be null, which would be ignore. The sub-properties should at least have
+	 * one non-null value.
+	 *
+	 * <p>For example:
+	 *
+	 * <pre>
+	 *     schema.fields.0.type = INT, schema.fields.0.name = test
+	 *     schema.fields.1.type = LONG, schema.fields.1.name = test2
+	 *     schema.fields.2.type = LONG, schema.fields.2.name = test3, schema.fields.2.expr = test2 + 1
+	 * </pre>
+	 *
+	 * <p>The arity of each subKeyValues must match the arity of propertyKeys.
+	 */
+	public void putIndexedOptionalProperties(String key, List<String> subKeys, List<List<String>> subKeyValues) {
+		checkNotNull(key);
+		checkNotNull(subKeys);
+		checkNotNull(subKeyValues);
+		for (int idx = 0; idx < subKeyValues.size(); idx++) {
+			final List<String> values = subKeyValues.get(idx);
+			if (values == null || values.size() != subKeys.size()) {
+				throw new ValidationException("Values must have same arity as keys.");
+			}
+			if (values.stream().allMatch(Objects::isNull)) {
+				throw new ValidationException("Values must have at least one non-null value.");
+			}
+			for (int keyIdx = 0; keyIdx < values.size(); keyIdx++) {
+				String value = values.get(keyIdx);
+				if (value != null) {
+					put(key + '.' + idx + '.' + subKeys.get(keyIdx), values.get(keyIdx));
+				}
 			}
 		}
 	}
@@ -492,6 +573,22 @@ public class DescriptorProperties {
 	}
 
 	/**
+	 * Returns the DataType under the given key if it exists.
+	 */
+	public Optional<DataType> getOptionalDataType(String key) {
+		return optionalGet(key).map(t ->
+				TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(t))
+		);
+	}
+
+	/**
+	 * Returns the DataType under the given existing key.
+	 */
+	public DataType getDataType(String key) {
+		return getOptionalDataType(key).orElseThrow(exceptionSupplier(key));
+	}
+
+	/**
 	 * Returns a table schema under the given key if it exists.
 	 */
 	public Optional<TableSchema> getOptionalTableSchema(String key) {
@@ -509,16 +606,53 @@ public class DescriptorProperties {
 		final TableSchema.Builder schemaBuilder = TableSchema.builder();
 		for (int i = 0; i < fieldCount; i++) {
 			final String nameKey = key + '.' + i + '.' + TABLE_SCHEMA_NAME;
-			final String typeKey = key + '.' + i + '.' + TABLE_SCHEMA_TYPE;
+			final String legacyTypeKey = key + '.' + i + '.' + TABLE_SCHEMA_TYPE;
+			final String typeKey = key + '.' + i + '.' + TABLE_SCHEMA_DATA_TYPE;
+			final String exprKey = key + '.' + i + '.' + TABLE_SCHEMA_EXPR;
 
 			final String name = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
 
-			final TypeInformation<?> type = optionalGet(typeKey)
-				.map(TypeStringUtils::readTypeInfo)
-				.orElseThrow(exceptionSupplier(typeKey));
+			final DataType type;
+			if (containsKey(typeKey)) {
+				type = getDataType(typeKey);
+			} else if (containsKey(legacyTypeKey)) {
+				type = TypeConversions.fromLegacyInfoToDataType(getType(legacyTypeKey));
+			} else {
+				throw exceptionSupplier(typeKey).get();
+			}
 
-			schemaBuilder.field(name, type);
+			final Optional<String> expr = optionalGet(exprKey);
+			if (expr.isPresent()) {
+				schemaBuilder.field(
+					name,
+					type,
+					expr.get());
+			} else {
+				schemaBuilder.field(name, type);
+			}
 		}
+
+		// extract watermark information
+
+		// filter for number of fields
+		String watermarkPrefixKey = key + '.' + WATERMARK;
+		final int watermarkCount = properties.keySet().stream()
+			.filter((k) -> k.startsWith(watermarkPrefixKey) && k.endsWith('.' + WATERMARK_ROWTIME))
+			.mapToInt((k) -> 1)
+			.sum();
+		if (watermarkCount > 0) {
+			for (int i = 0; i < watermarkCount; i++) {
+				final String rowtimeKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_ROWTIME;
+				final String exprKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_STRATEGY_EXPR;
+				final String typeKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_STRATEGY_DATA_TYPE;
+				final String rowtime = optionalGet(rowtimeKey).orElseThrow(exceptionSupplier(rowtimeKey));
+				final String exprString = optionalGet(exprKey).orElseThrow(exceptionSupplier(exprKey));
+				final String typeString = optionalGet(typeKey).orElseThrow(exceptionSupplier(typeKey));
+				final DataType exprType = TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(typeString));
+				schemaBuilder.watermark(rowtime, exprString, exprType);
+			}
+		}
+
 		return Optional.of(schemaBuilder.build());
 	}
 
@@ -975,11 +1109,11 @@ public class DescriptorProperties {
 	 * <p>For example:
 	 *
 	 * <pre>
-	 *     schema.fields.0.type = INT, schema.fields.0.name = test
-	 *     schema.fields.1.type = LONG, schema.fields.1.name = test2
+	 *     schema.fields.0.data-type = INT, schema.fields.0.name = test
+	 *     schema.fields.1.data-type = BIGINT, schema.fields.1.name = test2
 	 * </pre>
 	 *
-	 * <p>The subKeyValidation map must define e.g. "type" and "name" and a validation logic for the given full key.
+	 * <p>The subKeyValidation map must define e.g. "data-type" and "name" and a validation logic for the given full key.
 	 */
 	public void validateFixedIndexedProperties(String key, boolean allowEmpty, Map<String, Consumer<String>> subKeyValidation) {
 		// determine max index
@@ -993,12 +1127,8 @@ public class DescriptorProperties {
 		for (int i = 0; i <= maxIndex; i++) {
 			for (Map.Entry<String, Consumer<String>> subKey : subKeyValidation.entrySet()) {
 				final String fullKey = key + '.' + i + '.' + subKey.getKey();
-				if (properties.containsKey(fullKey)) {
-					// run validation logic
-					subKey.getValue().accept(fullKey);
-				} else {
-					throw new ValidationException("Required property key '" + fullKey + "' is missing.");
-				}
+				// run validation logic
+				subKey.getValue().accept(fullKey);
 			}
 		}
 	}
@@ -1007,12 +1137,15 @@ public class DescriptorProperties {
 	 * Validates a table schema property.
 	 */
 	public void validateTableSchema(String key, boolean isOptional) {
-		final Consumer<String> nameValidation = (name) -> validateString(name, false, 1);
-		final Consumer<String> typeValidation = (name) -> validateType(name, false, false);
+		final Consumer<String> nameValidation = (fullKey) -> validateString(fullKey, false, 1);
+		final Consumer<String> typeValidation = (fullKey) -> {
+			String fallbackKey = fullKey.replace("." + TABLE_SCHEMA_DATA_TYPE, "." + TABLE_SCHEMA_TYPE);
+			validateDataType(fullKey, fallbackKey, false);
+		};
 
 		final Map<String, Consumer<String>> subKeys = new HashMap<>();
 		subKeys.put(TABLE_SCHEMA_NAME, nameValidation);
-		subKeys.put(TABLE_SCHEMA_TYPE, typeValidation);
+		subKeys.put(TABLE_SCHEMA_DATA_TYPE, typeValidation);
 
 		validateFixedIndexedProperties(
 			key,
@@ -1152,6 +1285,36 @@ public class DescriptorProperties {
 						"Row type information expected for key '" + key + "' but was: " + value);
 				}
 			});
+	}
+
+	/**
+	 * Validates a data type property.
+	 */
+	public void validateDataType(String key, String fallbackKey, boolean isOptional) {
+		if (properties.containsKey(key)) {
+			validateOptional(
+				key,
+				isOptional,
+				// we don't validate the string but let the parser do the work for us
+				// it throws a validation exception
+				v -> {
+					LogicalType t = LogicalTypeParser.parse(v);
+					if (t.getTypeRoot() == LogicalTypeRoot.UNRESOLVED) {
+						throw new ValidationException("Could not parse type string '" + v + "'.");
+					}
+				});
+		} else if (fallbackKey != null && properties.containsKey(fallbackKey)) {
+			validateOptional(
+				fallbackKey,
+				isOptional,
+				// we don't validate the string but let the parser do the work for us
+				// it throws a validation exception
+				TypeStringUtils::readTypeInfo);
+		} else {
+			if (!isOptional) {
+				throw new ValidationException("Could not find required property '" + key + "'.");
+			}
+		}
 	}
 
 	/**

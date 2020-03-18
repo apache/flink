@@ -1,6 +1,6 @@
 ---
-title: "HDFS 连接器"
-nav-title: Rolling File Sink
+title: "Hadoop FileSystem 连接器"
+nav-title: Hadoop FileSystem
 nav-parent_id: connectors
 nav-pos: 5
 ---
@@ -22,6 +22,11 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+<div class="alert alert-info" markdown="span">
+`BucketingSink` 从 **Flink 1.9** 开始已经被废弃，并会在后续的版本中删除。请使用
+[__StreamingFileSink__]({{site.baseurl}}/zh/dev/connectors/streamfile_sink.html)。
+</div>
 
 这个连接器可以向所有 [Hadoop FileSystem](http://hadoop.apache.org) 支持的文件系统写入分区文件。
 使用前，需要在工程里添加下面的依赖：
@@ -126,6 +131,6 @@ input.addSink(sink)
 `date-time` 是我们从日期/时间格式获得的字符串，`parallel-task` 是 sink 并发实例的索引，`count` 是因文件大小或者滚动周期而产生的
 文件的编号。
 
-更多信息，请参考 [BucketingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html)。
+更多信息，请参考 [BucketingSink](https://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html)。
 
 {% top %}

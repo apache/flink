@@ -301,4 +301,111 @@ class GroupWindowTest extends TableTestBase {
       )
     streamUtil.verifySql(sql, expected)
   }
+
+  @Test
+  def testReturnTypeInferenceForWindowAgg() = {
+
+    val innerQuery =
+      """
+        |SELECT
+        | CASE a WHEN 1 THEN 1 ELSE 99 END AS correct,
+        | rowtime
+        |FROM MyTable
+      """.stripMargin
+
+    val sql =
+      "SELECT " +
+        "  sum(correct) as s, " +
+        "  avg(correct) as a, " +
+        "  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as wStart " +
+        s"FROM ($innerQuery) " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(table),
+            term("select", "CASE(=(a, 1), 1, 99) AS correct", "rowtime")
+          ),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
+          term("select",
+            "SUM(correct) AS s",
+            "AVG(correct) AS a",
+            "start('w$) AS w$start",
+            "end('w$) AS w$end",
+            "rowtime('w$) AS w$rowtime",
+            "proctime('w$) AS w$proctime")
+        ),
+        term("select", "CAST(s) AS s", "CAST(a) AS a", "w$start AS wStart")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows() = {
+    // This test ensures that the LogicalWindowAggregate and FlinkLogicalWindowAggregate nodes'
+    // digests contain the window specs. This allows the planner to make the distinction between
+    // similar aggregations using different windows (see FLINK-15577).
+    val sql =
+      """
+        |WITH window_1h AS (
+        |    SELECT 1
+        |    FROM MyTable
+        |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+        |),
+        |
+        |window_2h AS (
+        |    SELECT 1
+        |    FROM MyTable
+        |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+        |)
+        |
+        |(SELECT * FROM window_1h)
+        |UNION ALL
+        |(SELECT * FROM window_2h)
+        |""".stripMargin
+
+    val expected =
+      binaryNode(
+        "DataStreamUnion",
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupWindowAggregate",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(table),
+              term("select", "rowtime")
+            ),
+            // This window is the 1hr window
+            term("window", "SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 3600000.millis)"),
+            term("select")
+          ),
+          term("select", "1 AS EXPR$0")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupWindowAggregate",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(table),
+              term("select", "rowtime")
+            ),
+            // This window is the 2hr window
+            term("window", "SlidingGroupWindow('w$, 'rowtime, 7200000.millis, 3600000.millis)"),
+            term("select")
+          ),
+          term("select", "1 AS EXPR$0")
+        ),
+        term("all", "true"),
+        term("union all", "EXPR$0")
+      )
+
+    streamUtil.verifySql(sql, expected)
+  }
 }

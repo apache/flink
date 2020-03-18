@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -98,8 +100,10 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 
 		@Override
 		protected CheckpointIDCounter createCompletedCheckpoints() throws Exception {
-			return new ZooKeeperCheckpointIDCounter(ZooKeeper.getClient(),
-					"/checkpoint-id-counter");
+			return new ZooKeeperCheckpointIDCounter(
+				ZooKeeper.getClient(),
+				"/checkpoint-id-counter",
+				new DefaultLastStateConnectionStateListener());
 		}
 	}
 

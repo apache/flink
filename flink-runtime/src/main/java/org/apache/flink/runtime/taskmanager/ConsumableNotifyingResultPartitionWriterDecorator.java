@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -117,6 +118,11 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	@Override
 	public void fail(Throwable throwable) {
 		partitionWriter.fail(throwable);
+	}
+
+	@Override
+	public CompletableFuture<?> getAvailableFuture() {
+		return partitionWriter.getAvailableFuture();
 	}
 
 	@Override

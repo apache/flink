@@ -31,12 +31,12 @@ import org.rocksdb.PlainTableConfig;
 import org.rocksdb.TableFormatConfig;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_CACHE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_SIZE;
@@ -51,17 +51,17 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BUFFER_SIZE;
 
 /**
- * An implementation of {@link ConfigurableOptionsFactory} using options provided by {@link RocksDBConfigurableOptions}
- * and acted as the default options factory within {@link RocksDBStateBackend} if user not defined a {@link OptionsFactory}.
- *
- * <p>This implementation also provide some setters to let user could create a {@link OptionsFactory} conveniently。
+ * An implementation of {@link ConfigurableRocksDBOptionsFactory} using options provided by {@link RocksDBConfigurableOptions}.
+ * It acts as the default options factory within {@link RocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
  */
-public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFactory {
+public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOptionsFactory {
+
+	private static final long serialVersionUID = 1L;
 
 	private final Map<String, String> configuredOptions = new HashMap<>();
 
 	@Override
-	public DBOptions createDBOptions(DBOptions currentOptions) {
+	public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 		if (isOptionConfigured(MAX_BACKGROUND_THREADS)) {
 			currentOptions.setIncreaseParallelism(getMaxBackgroundThreads());
 		}
@@ -74,7 +74,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 	}
 
 	@Override
-	public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+	public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 		if (isOptionConfigured(COMPACTION_STYLE)) {
 			currentOptions.setCompactionStyle(getCompactionStyle());
 		}
@@ -132,7 +132,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 		return new HashMap<>(configuredOptions);
 	}
 
-	private boolean isOptionConfigured(ConfigOption configOption) {
+	private boolean isOptionConfigured(ConfigOption<?> configOption) {
 		return configuredOptions.containsKey(configOption.key());
 	}
 
@@ -301,43 +301,36 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 		return this;
 	}
 
-	private static final String[] CANDIDATE_CONFIGS = new String[]{
+	private static final ConfigOption<?>[] CANDIDATE_CONFIGS = new ConfigOption<?>[] {
 		// configurable DBOptions
-		MAX_BACKGROUND_THREADS.key(),
-		MAX_OPEN_FILES.key(),
+		MAX_BACKGROUND_THREADS,
+		MAX_OPEN_FILES,
 
 		// configurable ColumnFamilyOptions
-		COMPACTION_STYLE.key(),
-		USE_DYNAMIC_LEVEL_SIZE.key(),
-		TARGET_FILE_SIZE_BASE.key(),
-		MAX_SIZE_LEVEL_BASE.key(),
-		WRITE_BUFFER_SIZE.key(),
-		MAX_WRITE_BUFFER_NUMBER.key(),
-		MIN_WRITE_BUFFER_NUMBER_TO_MERGE.key(),
-		BLOCK_SIZE.key(),
-		BLOCK_CACHE_SIZE.key()
+		COMPACTION_STYLE,
+		USE_DYNAMIC_LEVEL_SIZE,
+		TARGET_FILE_SIZE_BASE,
+		MAX_SIZE_LEVEL_BASE,
+		WRITE_BUFFER_SIZE,
+		MAX_WRITE_BUFFER_NUMBER,
+		MIN_WRITE_BUFFER_NUMBER_TO_MERGE,
+		BLOCK_SIZE,
+		BLOCK_CACHE_SIZE
 	};
 
-	private static final Set<String> POSITIVE_INT_CONFIG_SET = new HashSet<>(Arrays.asList(
-		MAX_BACKGROUND_THREADS.key(),
-		MAX_WRITE_BUFFER_NUMBER.key(),
-		MIN_WRITE_BUFFER_NUMBER_TO_MERGE.key()
+	private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET = new HashSet<>(Arrays.asList(
+		MAX_BACKGROUND_THREADS,
+		MAX_WRITE_BUFFER_NUMBER,
+		MIN_WRITE_BUFFER_NUMBER_TO_MERGE
 	));
 
-	private static final Set<String> SIZE_CONFIG_SET = new HashSet<>(Arrays.asList(
-		TARGET_FILE_SIZE_BASE.key(),
-		MAX_SIZE_LEVEL_BASE.key(),
-		WRITE_BUFFER_SIZE.key(),
-		BLOCK_SIZE.key(),
-		BLOCK_CACHE_SIZE.key()
+	private static final Set<ConfigOption<?>> SIZE_CONFIG_SET = new HashSet<>(Arrays.asList(
+		TARGET_FILE_SIZE_BASE,
+		MAX_SIZE_LEVEL_BASE,
+		WRITE_BUFFER_SIZE,
+		BLOCK_SIZE,
+		BLOCK_CACHE_SIZE
 	));
-
-	private static final Set<String> BOOLEAN_CONFIG_SET = new HashSet<>(Collections.singletonList(
-		USE_DYNAMIC_LEVEL_SIZE.key()
-	));
-
-	private static final Set<String> COMPACTION_STYLE_SET = Arrays.stream(CompactionStyle.values())
-		.map(c -> c.name().toLowerCase()).collect(Collectors.toSet());
 
 	/**
 	 * Creates a {@link DefaultConfigurableOptionsFactory} instance from a {@link Configuration}.
@@ -350,13 +343,12 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 	 */
 	@Override
 	public DefaultConfigurableOptionsFactory configure(Configuration configuration) {
-		for (String key : CANDIDATE_CONFIGS) {
-			String newValue = configuration.getString(key, null);
+		for (ConfigOption<?> option : CANDIDATE_CONFIGS) {
+			Optional<?> newValue = configuration.getOptional(option);
 
-			if (newValue != null) {
-				if (checkArgumentValid(key, newValue)) {
-					this.configuredOptions.put(key, newValue);
-				}
+			if (newValue.isPresent()) {
+				checkArgumentValid(option, newValue.get());
+				this.configuredOptions.put(option.key(), newValue.get().toString());
 			}
 		}
 		return this;
@@ -372,30 +364,19 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 	/**
 	 * Helper method to check whether the (key,value) is valid through given configuration and returns the formatted value.
 	 *
-	 * @param key The configuration key which is configurable in {@link RocksDBConfigurableOptions}.
+	 * @param option The configuration key which is configurable in {@link RocksDBConfigurableOptions}.
 	 * @param value The value within given configuration.
-	 *
-	 * @return whether the given key and value in string format is legal.
 	 */
-	private static boolean checkArgumentValid(String key, String value) {
-		if (POSITIVE_INT_CONFIG_SET.contains(key)) {
+	private static void checkArgumentValid(ConfigOption<?> option, Object value) {
+		final String key = option.key();
 
-			Preconditions.checkArgument(Integer.parseInt(value) > 0,
+		if (POSITIVE_INT_CONFIG_SET.contains(option)) {
+			Preconditions.checkArgument((Integer) value  > 0,
 				"Configured value for key: " + key + " must be larger than 0.");
-		} else if (SIZE_CONFIG_SET.contains(key)) {
-
-			Preconditions.checkArgument(MemorySize.parseBytes(value) > 0,
+		} else if (SIZE_CONFIG_SET.contains(option)) {
+			Preconditions.checkArgument(((MemorySize) value).getBytes() > 0,
 				"Configured size for key" + key + " must be larger than 0.");
-		} else if (BOOLEAN_CONFIG_SET.contains(key)) {
-
-			Preconditions.checkArgument("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value),
-				"The configured boolean value: " + value + " for key: " + key + " is illegal.");
-		} else if (key.equals(COMPACTION_STYLE.key())) {
-			value = value.toLowerCase();
-			Preconditions.checkArgument(COMPACTION_STYLE_SET.contains(value),
-				"Compression type: " + value + " is not recognized with legal types: " + String.join(", ", COMPACTION_STYLE_SET));
 		}
-		return true;
 	}
 
 	/**

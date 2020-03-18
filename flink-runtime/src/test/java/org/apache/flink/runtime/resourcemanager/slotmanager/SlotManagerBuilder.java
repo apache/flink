@@ -22,8 +22,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
-/** Builder for {@link SlotManager}. */
+/** Builder for {@link SlotManagerImpl}. */
 public class SlotManagerBuilder {
+	private SlotMatchingStrategy slotMatchingStrategy;
 	private ScheduledExecutor scheduledExecutor;
 	private Time taskManagerRequestTimeout;
 	private Time slotRequestTimeout;
@@ -31,6 +32,7 @@ public class SlotManagerBuilder {
 	private boolean waitResultConsumedBeforeRelease;
 
 	private SlotManagerBuilder() {
+		this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
 		this.scheduledExecutor = TestingUtils.defaultScheduledExecutor();
 		this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
 		this.slotRequestTimeout = TestingUtils.infiniteTime();
@@ -67,8 +69,14 @@ public class SlotManagerBuilder {
 		return this;
 	}
 
-	public SlotManager build() {
-		return new SlotManager(
+	public SlotManagerBuilder setSlotMatchingStrategy(SlotMatchingStrategy slotMatchingStrategy) {
+		this.slotMatchingStrategy = slotMatchingStrategy;
+		return this;
+	}
+
+	public SlotManagerImpl build() {
+		return new SlotManagerImpl(
+			slotMatchingStrategy,
 			scheduledExecutor,
 			taskManagerRequestTimeout,
 			slotRequestTimeout,

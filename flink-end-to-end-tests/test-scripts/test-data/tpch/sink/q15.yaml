@@ -1,0 +1,31 @@
+tables:
+  - name: q15
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q15.csv"
+    format:
+      type: csv
+      fields:
+        - name: s_suppkey
+          type: BIGINT
+        - name: s_name
+          type: VARCHAR
+        - name: s_address
+          type: VARCHAR
+        - name: s_phone
+          type: VARCHAR
+        - name: total_revenue
+          type: DOUBLE
+      field-delimiter: "|"
+    schema:
+      - name: s_suppkey
+        type: BIGINT
+      - name: s_name
+        type: VARCHAR
+      - name: s_address
+        type: VARCHAR
+      - name: s_phone
+        type: VARCHAR
+      - name: total_revenue
+        type: DOUBLE

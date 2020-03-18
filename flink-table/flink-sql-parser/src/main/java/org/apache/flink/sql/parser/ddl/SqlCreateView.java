@@ -19,9 +19,7 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlParseException;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
@@ -34,7 +32,13 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * CREATE VIEW DDL sql call.
@@ -45,6 +49,8 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 	private final SqlIdentifier viewName;
 	private final SqlNodeList fieldList;
 	private final SqlNode query;
+
+	@Nullable
 	private final SqlCharStringLiteral comment;
 
 	public SqlCreateView(
@@ -55,15 +61,15 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 			boolean replace,
 			SqlCharStringLiteral comment) {
 		super(OPERATOR, pos, replace, false);
-		this.viewName = viewName;
-		this.fieldList = fieldList;
-		this.query = query;
+		this.viewName = requireNonNull(viewName, "viewName should not be null");
+		this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
+		this.query = requireNonNull(query, "query should not be null");
 		this.comment = comment;
 	}
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		List<SqlNode> ops = Lists.newArrayList();
+		List<SqlNode> ops = new ArrayList<>();
 		ops.add(viewName);
 		ops.add(fieldList);
 		ops.add(query);
@@ -83,8 +89,8 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		return query;
 	}
 
-	public SqlCharStringLiteral getComment() {
-		return comment;
+	public Optional<SqlCharStringLiteral> getComment() {
+		return Optional.ofNullable(comment);
 	}
 
 	@Override
@@ -116,7 +122,7 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 	}
 
 	@Override
-	public void validate() throws SqlParseException {
+	public void validate() throws SqlValidateException {
 		// no-op
 	}
 }

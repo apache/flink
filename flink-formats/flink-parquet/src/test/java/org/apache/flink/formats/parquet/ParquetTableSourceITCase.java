@@ -84,7 +84,7 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		batchTableEnvironment.registerTableSource("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
-			"FROM ParquetTable WHERE bar.spam >= 30 AND CARDINALITY(arr) >= 1 AND arr[1] <= 50";
+			"FROM ParquetTable WHERE foo >= 1 AND bar.spam >= 30 AND CARDINALITY(arr) >= 1 AND arr[1] <= 50";
 
 		Table table = batchTableEnvironment.sqlQuery(query);
 		DataSet<Row> dataSet = batchTableEnvironment.toDataSet(table, Row.class);

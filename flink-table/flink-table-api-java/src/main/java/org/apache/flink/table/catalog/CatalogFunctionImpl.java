@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.util.StringUtils;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -32,13 +31,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CatalogFunctionImpl implements CatalogFunction {
 	private final String className; // Fully qualified class name of the function
-	private final Map<String, String> properties;
+	private final FunctionLanguage functionLanguage;
 
-	public CatalogFunctionImpl(String className, Map<String, String> properties) {
+	public CatalogFunctionImpl(String className) {
+		this(className, FunctionLanguage.JAVA);
+	}
+
+	public CatalogFunctionImpl(
+			String className,
+			FunctionLanguage functionLanguage) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
-
 		this.className = className;
-		this.properties = checkNotNull(properties, "properties cannot be null");
+		this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
 	}
 
 	@Override
@@ -47,13 +51,8 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	}
 
 	@Override
-	public Map<String, String> getProperties() {
-		return this.properties;
-	}
-
-	@Override
 	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName(), new HashMap<>(getProperties()));
+		return new CatalogFunctionImpl(getClassName(), functionLanguage);
 	}
 
 	@Override
@@ -67,10 +66,29 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	}
 
 	@Override
+	public boolean isGeneric() {
+		try {
+			Class c = Class.forName(className);
+			if (UserDefinedFunction.class.isAssignableFrom(c)) {
+				return true;
+			}
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(String.format("Can't resolve udf class %s", className), e);
+		}
+		return false;
+	}
+
+	@Override
+	public FunctionLanguage getFunctionLanguage() {
+		return functionLanguage;
+	}
+
+	@Override
 	public String toString() {
 		return "CatalogFunctionImpl{" +
-			", className='" + getClassName() + '\'' +
-			", properties=" + getProperties() +
-			'}';
+			"className='" + getClassName() + "', " +
+			"functionLanguage='" + getFunctionLanguage() + "', " +
+			"isGeneric='" + isGeneric() +
+			"'}";
 	}
 }

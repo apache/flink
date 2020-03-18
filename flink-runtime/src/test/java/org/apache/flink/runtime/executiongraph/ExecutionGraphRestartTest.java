@@ -20,10 +20,9 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -31,10 +30,8 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.NotCancelAckingTaskGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -42,10 +39,8 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -61,27 +56,19 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
@@ -89,12 +76,12 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.finishAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.switchToRunning;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests the restart behaviour of the {@link ExecutionGraph}.
@@ -103,25 +90,22 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static final int NUM_TASKS = 31;
 
-	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
-
 	private static final ComponentMainThreadExecutor mainThreadExecutor =
 		ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	private static final JobID TEST_JOB_ID = new JobID();
 
-	@After
-	public void shutdown() {
-		executor.shutdownNow();
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Test
 	public void testNoManualRestart() throws Exception {
-		NoRestartStrategy restartStrategy = new NoRestartStrategy();
-		ExecutionGraph eg = createSimpleExecutionGraph(
-			restartStrategy, new SimpleSlotProvider(TEST_JOB_ID, NUM_TASKS), createJobGraph());
+		ExecutionGraph eg = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setSlotProvider(new SimpleSlotProvider(TEST_JOB_ID, NUM_TASKS))
+			.setJobGraph(createJobGraph())
+			.build();
+
+		startAndScheduleExecutionGraph(eg);
 
 		eg.getAllExecutionVertices().iterator().next().fail(new Exception("Test Exception"));
 
@@ -148,9 +132,26 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testRestartAutomatically() throws Exception {
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			restartAfterFailure(TestingExecutionGraphBuilder.newBuilder()
+			ExecutionGraph executionGraph = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(createJobGraph())
 				.setRestartStrategy(TestRestartStrategy.directExecuting())
-				.buildAndScheduleForExecution(slotPool));
+				.setSlotProvider(createSchedulerWithSlots(slotPool))
+				.build();
+
+			startAndScheduleExecutionGraph(executionGraph);
+
+			executionGraph.getAllExecutionVertices().iterator().next().fail(new Exception("Test Exception"));
+
+			assertEquals(JobStatus.FAILING, executionGraph.getState());
+
+			for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
+				vertex.getCurrentExecutionAttempt().completeCancelling();
+			}
+
+			assertEquals(JobStatus.RUNNING, executionGraph.getState());
+			finishAllVertices(executionGraph);
+			assertEquals(JobStatus.FINISHED, executionGraph.getState());
 		}
 
 	}
@@ -165,10 +166,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		// We want to manually control the restart and delay
 		try (SlotPool slotPool = createSlotPoolImpl()) {
 			TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-			final ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder()
+			final ExecutionGraph executionGraph = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(createJobGraph())
 				.setRestartStrategy(new InfiniteDelayRestartStrategy())
-				.setTaskManagerLocation(taskManagerLocation)
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool, taskManagerLocation))
+				.build();
+
+			startAndScheduleExecutionGraph(executionGraph);
 
 			// Release the TaskManager and wait for the job to restart
 			slotPool.releaseTaskManager(taskManagerLocation.getResourceID(), new Exception("Test Exception"));
@@ -191,10 +196,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	public void testFailWhileRestarting() throws Exception {
 		try (SlotPool slotPool = createSlotPoolImpl()) {
 			TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-			final ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder()
+			final ExecutionGraph executionGraph = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(createJobGraph())
 				.setRestartStrategy(new InfiniteDelayRestartStrategy())
-				.setTaskManagerLocation(taskManagerLocation)
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool, taskManagerLocation))
+				.build();
+
+			startAndScheduleExecutionGraph(executionGraph);
 
 			// Release the TaskManager and wait for the job to restart
 			slotPool.releaseTaskManager(taskManagerLocation.getResourceID(), new Exception("Test Exception"));
@@ -225,9 +234,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testCancelWhileFailing() throws Exception {
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			final ExecutionGraph graph = TestingExecutionGraphBuilder.newBuilder()
+			final ExecutionGraph graph = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(createJobGraph())
 				.setRestartStrategy(new InfiniteDelayRestartStrategy())
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool))
+				.build();
+
+			startAndScheduleExecutionGraph(graph);
 
 			assertEquals(JobStatus.RUNNING, graph.getState());
 
@@ -255,7 +269,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailWhileCanceling() throws Exception {
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			final ExecutionGraph graph = TestingExecutionGraphBuilder.newBuilder().buildAndScheduleForExecution(slotPool);
+			final ExecutionGraph graph = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(createJobGraph())
+				.setSlotProvider(createSchedulerWithSlots(slotPool))
+				.build();
+
+			startAndScheduleExecutionGraph(graph);
 
 			assertEquals(JobStatus.RUNNING, graph.getState());
 			switchAllTasksToRunning(graph);
@@ -279,10 +299,16 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testTaskFailingWhileGlobalFailing() throws Exception {
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			final ExecutionGraph graph = TestingExecutionGraphBuilder.newBuilder()
+			final ExecutionGraph graph = TestingExecutionGraphBuilder
+				.newBuilder()
 				.setRestartStrategy(new InfiniteDelayRestartStrategy())
 				.setFailoverStrategyFactory(new TestFailoverStrategy.Factory())
-				.buildAndScheduleForExecution(slotPool);
+				.setJobGraph(createJobGraph())
+				.setSlotProvider(createSchedulerWithSlots(slotPool))
+				.build();
+
+			startAndScheduleExecutionGraph(graph);
+
 			final TestFailoverStrategy failoverStrategy = (TestFailoverStrategy) graph.getFailoverStrategy();
 
 			// switch all tasks to running
@@ -307,9 +333,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testNoRestartOnSuppressException() throws Exception {
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder()
+			ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(createJobGraph())
 				.setRestartStrategy(new FixedDelayRestartStrategy(Integer.MAX_VALUE, 0))
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool))
+				.build();
+
+			startAndScheduleExecutionGraph(eg);
 
 			// Fail with unrecoverable Exception
 			eg.getAllExecutionVertices().iterator().next().fail(
@@ -342,11 +373,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph("Pointwise job", sender, receiver);
 
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder()
+			ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
 				.setRestartStrategy(TestRestartStrategy.directExecuting())
 				.setJobGraph(jobGraph)
-				.setNumberOfTasks(2)
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation(), 2))
+				.build();
+
+			startAndScheduleExecutionGraph(eg);
 
 			Iterator<ExecutionVertex> executionVertices = eg.getAllExecutionVertices().iterator();
 
@@ -391,8 +425,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder()
 				.setRestartStrategy(new InfiniteDelayRestartStrategy())
 				.setJobGraph(createJobGraphToCancel())
-				.setNumberOfTasks(2)
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation(), 2))
+				.build();
+
+			startAndScheduleExecutionGraph(eg);
 
 			// Fail right after cancel (for example with concurrent slot release)
 			eg.cancel();
@@ -417,11 +453,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailExecutionGraphAfterCancel() throws Exception {
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder()
+			ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
 				.setRestartStrategy(new InfiniteDelayRestartStrategy())
 				.setJobGraph(createJobGraphToCancel())
-				.setNumberOfTasks(2)
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation(), 2))
+				.build();
+
+			startAndScheduleExecutionGraph(eg);
 
 			// Fail right after cancel (for example with concurrent slot release)
 			eg.cancel();
@@ -445,10 +484,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		TestRestartStrategy controllableRestartStrategy = TestRestartStrategy.manuallyTriggered();
 		try (SlotPool slotPool = createSlotPoolImpl()) {
 			TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-			ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder()
+			ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(createJobGraph())
 				.setRestartStrategy(controllableRestartStrategy)
-				.setTaskManagerLocation(taskManagerLocation)
-				.buildAndScheduleForExecution(slotPool);
+				.setSlotProvider(createSchedulerWithSlots(slotPool, taskManagerLocation))
+				.build();
+
+			startAndScheduleExecutionGraph(eg);
 
 			// Release the TaskManager and wait for the job to restart
 			slotPool.releaseTaskManager(taskManagerLocation.getResourceID(), new Exception("Test Exception"));
@@ -472,13 +515,16 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final int parallelism = 10;
 		final TestRestartStrategy triggeredRestartStrategy = TestRestartStrategy.manuallyTriggered();
 
-		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, createNoOpVertex(parallelism))
-			.setScheduleMode(ScheduleMode.EAGER)
+		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", createNoOpVertex(parallelism));
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+
+		final ExecutionGraph eg = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
 			.setRestartStrategy(triggeredRestartStrategy)
 			.build();
 
-		eg.start(mainThreadExecutor);
-		eg.scheduleForExecution();
+		startAndScheduleExecutionGraph(eg);
 
 		switchToRunning(eg);
 
@@ -515,15 +561,16 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final SlotProvider slots = new SimpleSlotProvider(TEST_JOB_ID, parallelism, taskManagerGateway);
 		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
 
-		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, vertex)
+		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", vertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		final ExecutionGraph eg = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
 			.setSlotProvider(slots)
 			.setRestartStrategy(restartStrategy)
-			.setScheduleMode(ScheduleMode.EAGER)
 			.build();
 
-		eg.start(mainThreadExecutor);
-
-		eg.scheduleForExecution();
+		startAndScheduleExecutionGraph(eg);
 
 		switchToRunning(eg);
 
@@ -548,20 +595,54 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.waitUntilTerminal();
 		assertEquals(JobStatus.FINISHED, eg.getState());
 
-		if (eg.getNumberOfFullRestarts() > 2) {
-			fail("Too many restarts: " + eg.getNumberOfFullRestarts());
+		assertThat("Too many restarts", eg.getNumberOfRestarts(), is(lessThanOrEqualTo(2L)));
+	}
+
+	/**
+	 * SlotPool#failAllocation should not fail with a {@link java.util.ConcurrentModificationException}
+	 * if there is a concurrent scheduling operation. See FLINK-13421.
+	 */
+	@Test
+	public void slotPoolExecutionGraph_ConcurrentSchedulingAndAllocationFailure_ShouldNotFailWithConcurrentModificationException() throws Exception {
+		final SlotSharingGroup group = new SlotSharingGroup();
+		final JobVertex vertex1 = createNoOpVertex("vertex1", 1);
+		vertex1.setSlotSharingGroup(group);
+		final JobVertex vertex2 = createNoOpVertex("vertex2", 3);
+		vertex2.setSlotSharingGroup(group);
+		final JobVertex vertex3 = createNoOpVertex("vertex3", 1);
+		vertex3.setSlotSharingGroup(group);
+		vertex3.connectNewDataSetAsInput(vertex2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+
+		try (SlotPool slotPool = createSlotPoolImpl()) {
+			final SlotProvider slots = createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation(), 2);
+
+			final AllocationID allocationId = slotPool.getAvailableSlotsInformation().iterator().next().getAllocationId();
+
+			final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", vertex1, vertex2, vertex3);
+			jobGraph.setScheduleMode(ScheduleMode.EAGER);
+			final ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(jobGraph)
+				.setSlotProvider(slots)
+				.setAllocationTimeout(Time.minutes(60))
+				.build();
+
+			startAndScheduleExecutionGraph(eg);
+
+			slotPool.failAllocation(
+				allocationId,
+				new Exception("test exception"));
+
+			eg.waitUntilTerminal();
 		}
 	}
 
 	@Test
 	public void testRestartWithEagerSchedulingAndSlotSharing() throws Exception {
-		// this test is inconclusive if not used with a proper multi-threaded executor
-		assertTrue("test assumptions violated", ((ThreadPoolExecutor) executor).getCorePoolSize() > 1);
-
 		final int parallelism = 20;
 
 		try (SlotPool slotPool = createSlotPoolImpl()) {
-			final Scheduler scheduler = createSchedulerWithSlots(parallelism, slotPool, new LocalTaskManagerLocation());
+			final Scheduler scheduler = createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation(), parallelism);
 
 			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
 
@@ -578,17 +659,16 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 			TestRestartStrategy restartStrategy = TestRestartStrategy.directExecuting();
 
-			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
+			final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", source, sink);
+			jobGraph.setScheduleMode(ScheduleMode.EAGER);
+			final ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(jobGraph)
 				.setSlotProvider(scheduler)
-				.setIoExecutor(executor)
-				.setFutureExecutor(executor)
 				.setRestartStrategy(restartStrategy)
-				.setScheduleMode(ScheduleMode.EAGER)
 				.build();
 
-			eg.start(mainThreadExecutor);
-
-			eg.scheduleForExecution();
+			startAndScheduleExecutionGraph(eg);
 
 			switchToRunning(eg);
 
@@ -610,59 +690,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testRestartWithSlotSharingAndNotEnoughResources() throws Exception {
-		// this test is inconclusive if not used with a proper multi-threaded executor
-		assertTrue("test assumptions violated", ((ThreadPoolExecutor) executor).getCorePoolSize() > 1);
-
-		final int numRestarts = 10;
-		final int parallelism = 20;
-
-		try (SlotPool slotPool = createSlotPoolImpl()) {
-			final Scheduler scheduler = createSchedulerWithSlots(
-				parallelism - 1, slotPool, new LocalTaskManagerLocation());
-
-			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
-
-			final JobVertex source = new JobVertex("source");
-			source.setInvokableClass(NoOpInvokable.class);
-			source.setParallelism(parallelism);
-			source.setSlotSharingGroup(sharingGroup);
-
-			final JobVertex sink = new JobVertex("sink");
-			sink.setInvokableClass(NoOpInvokable.class);
-			sink.setParallelism(parallelism);
-			sink.setSlotSharingGroup(sharingGroup);
-			sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
-
-			TestRestartStrategy restartStrategy =
-				new TestRestartStrategy(numRestarts, false);
-
-			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
-				.setSlotProvider(scheduler)
-				.setRestartStrategy(restartStrategy)
-				.setIoExecutor(executor)
-				.setFutureExecutor(executor)
-				.setScheduleMode(ScheduleMode.EAGER)
-				.build();
-
-			eg.start(mainThreadExecutor);
-			eg.scheduleForExecution();
-
-			// wait until no more changes happen
-			while (eg.getNumberOfFullRestarts() < numRestarts) {
-				Thread.sleep(1);
-			}
-
-			assertEquals(JobStatus.FAILED, eg.getState());
-
-			final Throwable t = eg.getFailureCause();
-			if (!(t instanceof NoResourceAvailableException)) {
-				ExceptionUtils.rethrowException(t, t.getMessage());
-			}
-		}
-	}
-
 	/**
 	 * Tests that the {@link ExecutionGraph} can handle failures while
 	 * being in the RESTARTING state.
@@ -671,14 +698,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	public void testFailureWhileRestarting() throws Exception {
 
 		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
-		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(createJobGraph())
+		final ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder()
+			.setJobGraph(createJobGraph())
 			.setRestartStrategy(restartStrategy)
 			.setSlotProvider(new TestingSlotProvider(ignored -> new CompletableFuture<>()))
-			.allowQueuedScheduling()
 			.build();
 
-		executionGraph.start(mainThreadExecutor);
-		executionGraph.scheduleForExecution();
+		startAndScheduleExecutionGraph(executionGraph);
 
 		assertThat(executionGraph.getState(), is(JobStatus.RUNNING));
 
@@ -693,69 +719,73 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, executionGraph.getState());
 	}
 
+	@Test
+	public void failGlobalIfExecutionIsStillRunning_failingAnExecutionTwice_ShouldTriggerOnlyOneFailover() throws Exception {
+		JobVertex sender = ExecutionGraphTestUtils.createJobVertex("Task1", 1, NoOpInvokable.class);
+		JobVertex receiver = ExecutionGraphTestUtils.createJobVertex("Task2", 1, NoOpInvokable.class);
+		JobGraph jobGraph = new JobGraph("Pointwise job", sender, receiver);
+
+		try (SlotPool slotPool = createSlotPoolImpl()) {
+			ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setRestartStrategy(new TestRestartStrategy(1, false))
+				.setJobGraph(jobGraph)
+				.setSlotProvider(createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation(), 2))
+				.build();
+
+			startAndScheduleExecutionGraph(eg);
+
+			Iterator<ExecutionVertex> executionVertices = eg.getAllExecutionVertices().iterator();
+
+			Execution finishedExecution = executionVertices.next().getCurrentExecutionAttempt();
+			Execution failedExecution = executionVertices.next().getCurrentExecutionAttempt();
+
+			finishedExecution.markFinished();
+
+			failedExecution.fail(new Exception("Test Exception"));
+			failedExecution.completeCancelling();
+
+			assertEquals(JobStatus.RUNNING, eg.getState());
+
+			// At this point all resources have been assigned
+			for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+				assertNotNull("No assigned resource (test instability).", vertex.getCurrentAssignedResource());
+				vertex.getCurrentExecutionAttempt().switchToRunning();
+			}
+
+			// fail global with old finished execution, this should not affect the execution
+			eg.failGlobalIfExecutionIsStillRunning(new Exception("This should have no effect"), finishedExecution.getAttemptId());
+
+			assertThat(eg.getState(), is(JobStatus.RUNNING));
+
+			// the state of the finished execution should have not changed since it is terminal
+			assertThat(finishedExecution.getState(), is(ExecutionState.FINISHED));
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static class TestingExecutionGraphBuilder {
-		private RestartStrategy restartStrategy = new NoRestartStrategy();
-		private FailoverStrategy.Factory failoverStrategyFactory = new RestartAllStrategy.Factory();
-		private JobGraph jobGraph = createJobGraph();
-		private int tasksNum = NUM_TASKS;
-		private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-
-		private TestingExecutionGraphBuilder setRestartStrategy(RestartStrategy restartStrategy) {
-			this.restartStrategy = restartStrategy;
-			return this;
-		}
-
-		private TestingExecutionGraphBuilder setFailoverStrategyFactory(FailoverStrategy.Factory failoverStrategyFactory) {
-			this.failoverStrategyFactory = failoverStrategyFactory;
-			return this;
-		}
-
-		private TestingExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
-			this.jobGraph = jobGraph;
-			return this;
-		}
-
-		TestingExecutionGraphBuilder setNumberOfTasks(@SuppressWarnings("SameParameterValue") int tasksNum) {
-			this.tasksNum = tasksNum;
-			return this;
-		}
-
-		private TestingExecutionGraphBuilder setTaskManagerLocation(TaskManagerLocation taskManagerLocation) {
-			this.taskManagerLocation = taskManagerLocation;
-			return this;
-		}
-
-		private static TestingExecutionGraphBuilder newBuilder() {
-			return new TestingExecutionGraphBuilder();
-		}
-
-		private ExecutionGraph buildAndScheduleForExecution(SlotPool slotPool) throws Exception {
-			final Scheduler scheduler = createSchedulerWithSlots(tasksNum, slotPool, taskManagerLocation);
-			final ExecutionGraph eg = createSimpleExecutionGraph(
-				restartStrategy,
-				failoverStrategyFactory,
-				scheduler,
-				jobGraph);
-
-			assertEquals(JobStatus.CREATED, eg.getState());
-
-			eg.scheduleForExecution();
-			assertEquals(JobStatus.RUNNING, eg.getState());
-
-			return eg;
-		}
+	private static void startAndScheduleExecutionGraph(ExecutionGraph executionGraph) throws Exception {
+		executionGraph.start(mainThreadExecutor);
+		assertThat(executionGraph.getState(), is(JobStatus.CREATED));
+		executionGraph.scheduleForExecution();
+		assertThat(executionGraph.getState(), is(JobStatus.RUNNING));
 	}
 
-	private static Scheduler createSchedulerWithSlots(
-		int numSlots, SlotPool slotPool, TaskManagerLocation taskManagerLocation) throws Exception {
+	private static Scheduler createSchedulerWithSlots(SlotPool slotPool) throws Exception {
+		return createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation());
+	}
 
+	private static Scheduler createSchedulerWithSlots(SlotPool slotPool, TaskManagerLocation taskManagerLocation) throws Exception {
+		return createSchedulerWithSlots(slotPool, taskManagerLocation, NUM_TASKS);
+	}
+
+	private static Scheduler createSchedulerWithSlots(SlotPool slotPool, TaskManagerLocation taskManagerLocation, int numSlots) throws Exception {
 		final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 		setupSlotPool(slotPool);
-		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 		scheduler.start(mainThreadExecutor);
 		slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
@@ -791,57 +821,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph("Test Job", vertex);
 		jobGraph.setExecutionConfig(executionConfig);
 		return jobGraph;
-	}
-
-	private static ExecutionGraph createSimpleExecutionGraph(
-		final RestartStrategy restartStrategy,
-		final SlotProvider slotProvider,
-		final JobGraph jobGraph) throws IOException, JobException {
-
-		return createSimpleExecutionGraph(restartStrategy, new RestartAllStrategy.Factory(), slotProvider, jobGraph);
-	}
-
-	private static ExecutionGraph createSimpleExecutionGraph(
-		final RestartStrategy restartStrategy,
-		final FailoverStrategy.Factory failoverStrategyFactory,
-		final SlotProvider slotProvider,
-		final JobGraph jobGraph) throws IOException, JobException {
-
-		final ExecutionGraph executionGraph = new ExecutionGraph(
-			new JobInformation(
-				TEST_JOB_ID,
-				"Test job",
-				new SerializedValue<>(new ExecutionConfig()),
-				new Configuration(),
-				Collections.emptyList(),
-				Collections.emptyList()),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			AkkaUtils.getDefaultTimeout(),
-			restartStrategy,
-			failoverStrategyFactory,
-			slotProvider);
-
-		executionGraph.start(mainThreadExecutor);
-		executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
-
-		return executionGraph;
-	}
-
-	private void restartAfterFailure(ExecutionGraph eg) {
-		eg.start(mainThreadExecutor);
-		eg.getAllExecutionVertices().iterator().next().fail(new Exception("Test Exception"));
-
-		assertEquals(JobStatus.FAILING, eg.getState());
-
-		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().completeCancelling();
-		}
-
-		assertEquals(JobStatus.RUNNING, eg.getState());
-
-		finishAllVertices(eg);
-		assertEquals(JobStatus.FINISHED, eg.getState());
 	}
 
 	/**

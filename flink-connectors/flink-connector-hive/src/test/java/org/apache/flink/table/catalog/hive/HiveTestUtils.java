@@ -18,19 +18,31 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.util.StringUtils;
 
+import com.klarna.hiverunner.HiveShell;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
 
 /**
  * Test utils for Hive connector.
@@ -43,6 +55,8 @@ public class HiveTestUtils {
 	// range of ephemeral ports
 	private static final int MIN_EPH_PORT = 49152;
 	private static final int MAX_EPH_PORT = 61000;
+
+	private static final byte[] SEPARATORS = new byte[]{(byte) 1, (byte) 2, (byte) 3};
 
 	/**
 	 * Create a HiveCatalog with an embedded Hive Metastore.
@@ -94,5 +108,117 @@ public class HiveTestUtils {
 			}
 		}
 		throw new RuntimeException("Exhausted all ephemeral ports and didn't find a free one");
+	}
+
+	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tableEnv = TableEnvironment.create(settings);
+		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+		return tableEnv;
+	}
+
+	// Insert into a single partition of a text table.
+	public static TextTableInserter createTextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
+		return new TextTableInserter(hiveShell, dbName, tableName);
+	}
+
+	/**
+	 * insert table operation.
+	 */
+	public static class TextTableInserter {
+
+		private final HiveShell hiveShell;
+		private final String dbName;
+		private final String tableName;
+		private final List<Object[]> rows;
+
+		public TextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
+			this.hiveShell = hiveShell;
+			this.dbName = dbName;
+			this.tableName = tableName;
+			rows = new ArrayList<>();
+		}
+
+		public TextTableInserter addRow(Object[] row) {
+			rows.add(row);
+			return this;
+		}
+
+		public void commit() {
+			commit(null);
+		}
+
+		public void commit(String partitionSpec) {
+			try {
+				File file = File.createTempFile("table_data_", null);
+				try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+					for (int i = 0; i < rows.size(); i++) {
+						if (i > 0) {
+							writer.newLine();
+						}
+						writer.write(toText(rows.get(i)));
+					}
+					// new line at the end of file
+					writer.newLine();
+				}
+				String load = String.format("load data local inpath '%s' into table %s.%s", file.getAbsolutePath(), dbName, tableName);
+				if (partitionSpec != null) {
+					load += String.format(" partition (%s)", partitionSpec);
+				}
+				hiveShell.execute(load);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		private String toText(Object[] row) {
+			StringBuilder builder = new StringBuilder();
+			for (Object col : row) {
+				if (builder.length() > 0) {
+					builder.appendCodePoint(SEPARATORS[0]);
+				}
+				String colStr = toText(col);
+				if (colStr != null) {
+					builder.append(colStr);
+				}
+			}
+			return builder.toString();
+		}
+
+		private String toText(Object obj) {
+			if (obj == null) {
+				return null;
+			}
+			StringBuilder builder = new StringBuilder();
+			if (obj instanceof Map) {
+				for (Object key : ((Map) obj).keySet()) {
+					if (builder.length() > 0) {
+						builder.appendCodePoint(SEPARATORS[1]);
+					}
+					builder.append(toText(key));
+					builder.appendCodePoint(SEPARATORS[2]);
+					builder.append(toText(((Map) obj).get(key)));
+				}
+			} else if (obj instanceof Object[]) {
+				Object[] array = (Object[]) obj;
+				for (Object element : array) {
+					if (builder.length() > 0) {
+						builder.appendCodePoint(SEPARATORS[1]);
+					}
+					builder.append(toText(element));
+				}
+			} else if (obj instanceof List) {
+				for (Object element : (List) obj) {
+					if (builder.length() > 0) {
+						builder.appendCodePoint(SEPARATORS[1]);
+					}
+					builder.append(toText(element));
+				}
+			} else {
+				builder.append(obj);
+			}
+			return builder.toString();
+		}
 	}
 }

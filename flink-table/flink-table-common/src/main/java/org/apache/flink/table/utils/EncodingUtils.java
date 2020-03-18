@@ -110,12 +110,16 @@ public abstract class EncodingUtils {
 		return new String(java.util.Base64.getEncoder().encode(bytes), UTF_8);
 	}
 
+	public static byte[] decodeBase64ToBytes(String base64) {
+		return java.util.Base64.getDecoder().decode(base64.getBytes(UTF_8));
+	}
+
 	public static String encodeStringToBase64(String string) {
 		return encodeBytesToBase64(string.getBytes(UTF_8));
 	}
 
 	public static String decodeBase64ToString(String base64) {
-		return new String(java.util.Base64.getDecoder().decode(base64.getBytes(UTF_8)), UTF_8);
+		return new String(decodeBase64ToBytes(base64), UTF_8);
 	}
 
 	public static byte[] md5(String string) {

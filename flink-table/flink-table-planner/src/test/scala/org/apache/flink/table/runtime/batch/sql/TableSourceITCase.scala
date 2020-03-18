@@ -59,6 +59,25 @@ class TableSourceITCase(
   }
 
   @Test
+  def testCsvTableSourceWithEmptyColumn(): Unit = {
+
+    val csvTable = CommonTestData.getCsvTableSourceWithEmptyColumn
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env, config)
+
+    tEnv.registerTableSource("csvTable", csvTable)
+    val results = tEnv.sqlQuery(
+      "SELECT id, `first`, `last`, score FROM csvTable").collect()
+
+    val expected = Seq(
+      "1,Mike,Smith,12.3",
+      "2,Bob,Taylor,null",
+      "null,Leonard,null,null").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testNested(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)

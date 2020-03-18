@@ -20,9 +20,9 @@ package org.apache.flink.table.runtime.keyselector;
 
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.generated.GeneratedProjection;
-import org.apache.flink.table.generated.Projection;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 
 /**
  * A KeySelector which will extract key from BaseRow. The key type is BinaryRow.

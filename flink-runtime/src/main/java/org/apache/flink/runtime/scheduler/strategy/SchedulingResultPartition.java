@@ -19,23 +19,15 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-
-import java.util.Collection;
+import org.apache.flink.runtime.topology.Result;
 
 /**
  * Representation of {@link IntermediateResultPartition}.
  */
-public interface SchedulingResultPartition {
-
-	/**
-	 * Gets id of the result partition.
-	 *
-	 * @return id of the result partition
-	 */
-	IntermediateResultPartitionID getId();
+public interface SchedulingResultPartition<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
+	extends Result<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
 
 	/**
 	 * Gets id of the intermediate result.
@@ -45,55 +37,9 @@ public interface SchedulingResultPartition {
 	IntermediateDataSetID getResultId();
 
 	/**
-	 * Gets the {@link ResultPartitionType}.
-	 *
-	 * @return result partition type
-	 */
-	ResultPartitionType getPartitionType();
-
-	/**
 	 * Gets the {@link ResultPartitionState}.
 	 *
 	 * @return result partition state
 	 */
 	ResultPartitionState getState();
-
-	/**
-	 * Gets the producer of this result partition.
-	 *
-	 * @return producer vertex of this result partition
-	 */
-	SchedulingExecutionVertex getProducer();
-
-	/**
-	 * Gets the consumers of this result partition.
-	 *
-	 * @return Collection of consumer vertices of this result partition
-	 */
-	Collection<SchedulingExecutionVertex> getConsumers();
-
-	/**
-	 * State of the result partition.
-	 */
-	enum ResultPartitionState {
-		/**
-		 * Producer is not yet running or in abnormal state.
-		 */
-		EMPTY,
-
-		/**
-		 * Producer is running.
-		 */
-		PRODUCING,
-
-		/**
-		 * Producer has terminated.
-		 */
-		DONE,
-
-		/**
-		 * Partition has been released.
-		 */
-		RELEASED
-	}
 }

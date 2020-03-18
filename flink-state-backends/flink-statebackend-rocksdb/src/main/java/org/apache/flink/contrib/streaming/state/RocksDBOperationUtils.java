@@ -19,10 +19,14 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -30,6 +34,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
@@ -46,6 +51,11 @@ import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.
  * Utils for RocksDB Operations.
  */
 public class RocksDBOperationUtils {
+
+	private static final String MANAGED_MEMORY_RESOURCE_ID = "state-rocks-managed-memory";
+
+	private static final String FIXED_SLOT_MEMORY_RESOURCE_ID = "state-rocks-fixed-slot-memory";
+
 	public static RocksDB openDB(
 		String path,
 		List<ColumnFamilyDescriptor> stateColumnFamilyDescriptors,
@@ -71,6 +81,10 @@ public class RocksDBOperationUtils {
 		} catch (RocksDBException e) {
 			IOUtils.closeQuietly(columnFamilyOptions);
 			columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));
+
+			// improve error reporting on Windows
+			throwExceptionIfPathLengthExceededOnWindows(path, e);
+
 			throw new IOException("Error while opening RocksDB instance.", e);
 		}
 
@@ -162,6 +176,52 @@ public class RocksDBOperationUtils {
 			}
 		} catch (RocksDBException e) {
 			// ignore
+		}
+	}
+
+	@Nullable
+	public static OpaqueMemoryResource<RocksDBSharedResources> allocateSharedCachesIfConfigured(
+			RocksDBMemoryConfiguration memoryConfig,
+			MemoryManager memoryManager,
+			Logger logger) throws IOException {
+
+		if (!memoryConfig.isUsingFixedMemoryPerSlot() && !memoryConfig.isUsingManagedMemory()) {
+			return null;
+		}
+
+		final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
+		final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
+
+		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) ->
+			RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(size, writeBufferRatio, highPriorityPoolRatio);
+
+		try {
+			if (memoryConfig.isUsingFixedMemoryPerSlot()) {
+				assert memoryConfig.getFixedMemoryPerSlot() != null;
+
+				logger.info("Getting fixed-size shared cache for RocksDB.");
+				return memoryManager.getExternalSharedMemoryResource(
+						FIXED_SLOT_MEMORY_RESOURCE_ID, allocator, memoryConfig.getFixedMemoryPerSlot().getBytes());
+			}
+			else {
+				logger.info("Getting managed memory shared cache for RocksDB.");
+				return memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, allocator);
+			}
+		}
+		catch (Exception e) {
+			throw new IOException("Failed to acquire shared cache resource for RocksDB", e);
+		}
+	}
+
+	private static void throwExceptionIfPathLengthExceededOnWindows(String path, Exception cause) throws IOException {
+		// max directory path length on Windows is 247.
+		// the maximum path length is 260, subtracting one file name length (12 chars) and one NULL terminator.
+		final int maxWinDirPathLen = 247;
+
+		if (path.length() > maxWinDirPathLen && OperatingSystem.isWindows()) {
+			throw new IOException(String.format(
+				"The directory path length (%d) is longer than the directory path length limit for Windows (%d): %s",
+				path.length(), maxWinDirPathLen, path), cause);
 		}
 	}
 }

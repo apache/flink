@@ -19,16 +19,23 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
+import org.apache.flink.table.types.DataType;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 
 /**
  * Base class for {@link TableFormatFactory}s.
@@ -42,6 +49,12 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 	// TODO drop constants once SchemaValidator has been ported to flink-table-common
 	private static final String SCHEMA = "schema";
 	private static final String SCHEMA_NAME = "name";
+	private static final String SCHEMA_DATA_TYPE = "data-type";
+	/**
+	 * @deprecated {@link #SCHEMA_TYPE} will be removed in future version as it uses old type system.
+	 *  Please use {@link #SCHEMA_DATA_TYPE} instead.
+	 */
+	@Deprecated
 	private static final String SCHEMA_TYPE = "type";
 	private static final String SCHEMA_PROCTIME = "proctime";
 	private static final String SCHEMA_FROM = "from";
@@ -87,9 +100,12 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 		if (supportsSchemaDerivation) {
 			properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 			// schema
+			properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 			properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 			properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 			properties.add(SCHEMA + ".#." + SCHEMA_FROM);
+			// computed column
+			properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
 			// time attributes
 			properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
 			properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
@@ -100,6 +116,10 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
 			properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
 			properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
+			// watermark
+			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 		}
 		properties.addAll(supportedFormatProperties());
 		return properties;
@@ -126,7 +146,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Finds the table schema that can be used for a format schema (without time attributes).
+	 * Finds the table schema that can be used for a format schema (without time attributes and generated columns).
 	 */
 	public static TableSchema deriveSchema(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = new DescriptorProperties();
@@ -134,11 +154,16 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 
 		final TableSchema.Builder builder = TableSchema.builder();
 
-		final TableSchema baseSchema = descriptorProperties.getTableSchema(SCHEMA);
-		for (int i = 0; i < baseSchema.getFieldCount(); i++) {
-			final String fieldName = baseSchema.getFieldNames()[i];
-			final TypeInformation<?> fieldType = baseSchema.getFieldTypes()[i];
-
+		final TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
+		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
+			final TableColumn tableColumn = tableSchema.getTableColumns().get(i);
+			final String fieldName = tableColumn.getName();
+			final DataType dataType = tableColumn.getType();
+			final boolean isGeneratedColumn = tableColumn.isGenerated();
+			if (isGeneratedColumn) {
+				//skip generated column
+				continue;
+			}
 			final boolean isProctime = descriptorProperties
 				.getOptionalBoolean(SCHEMA + '.' + i + '.' + SCHEMA_PROCTIME)
 				.orElse(false);
@@ -149,14 +174,14 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 				final String aliasName = descriptorProperties
 					.getOptionalString(SCHEMA + '.' + i + '.' + SCHEMA_FROM)
 					.orElse(fieldName);
-				builder.field(aliasName, fieldType);
+				builder.field(aliasName, dataType);
 			}
 			// only use the rowtime attribute if it references a field
 			else if (isRowtime &&
 					descriptorProperties.isValue(timestampKey, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD)) {
 				final String aliasName = descriptorProperties
 					.getString(SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_FROM);
-				builder.field(aliasName, fieldType);
+				builder.field(aliasName, dataType);
 			}
 		}
 

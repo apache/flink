@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.api.internal
 
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -28,12 +26,13 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
-import org.apache.flink.table.catalog.CatalogManager
-import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
+import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager}
+import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor
 import org.apache.flink.table.expressions.{Expression, UnresolvedCallExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.BatchOptimizer
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
@@ -47,6 +46,9 @@ import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, validateI
 import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
 
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
+
 import _root_.scala.collection.JavaConverters._
 
 /**
@@ -58,13 +60,26 @@ import _root_.scala.collection.JavaConverters._
 abstract class BatchTableEnvImpl(
     private[flink] val execEnv: ExecutionEnvironment,
     config: TableConfig,
-    catalogManager: CatalogManager)
-  extends TableEnvImpl(config, catalogManager) {
+    catalogManager: CatalogManager,
+    moduleManager: ModuleManager)
+  extends TableEnvImpl(config, catalogManager, moduleManager) {
 
   private[flink] val optimizer = new BatchOptimizer(
     () => config.getPlannerConfig.unwrap(classOf[CalciteConfig]).orElse(CalciteConfig.DEFAULT),
     planningConfigurationBuilder
   )
+
+  /**
+   * Provides necessary methods for [[ConnectTableDescriptor]].
+   */
+  private val registration = new Registration() {
+
+    override def createTemporaryTable(path: String, table: CatalogBaseTable): Unit = {
+      val unresolvedIdentifier = parseIdentifier(path)
+      val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
+      catalogManager.createTemporaryTable(table, objectIdentifier, false)
+    }
+  }
 
   /**
     * Registers an internal [[BatchTableSource]] in this [[TableEnvImpl]]'s catalog without
@@ -73,7 +88,7 @@ abstract class BatchTableEnvImpl(
     * @param tableSource The [[TableSource]] to register.
     */
   override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
-    TableSourceValidation.validateTableSource(tableSource)
+    TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema)
 
     if (!tableSource.isInstanceOf[BatchTableSource[_]] &&
         !tableSource.isInstanceOf[InputFormatTableSource[_]]) {
@@ -91,7 +106,7 @@ abstract class BatchTableEnvImpl(
   }
 
   def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor = {
-    new BatchTableDescriptor(this, connectorDescriptor)
+    new BatchTableDescriptor(registration, connectorDescriptor)
   }
 
   /**
@@ -278,6 +293,9 @@ abstract class BatchTableEnvImpl(
 
     logicalPlan match {
       case node: DataSetRel =>
+        execEnv.configure(
+          config.getConfiguration,
+          Thread.currentThread().getContextClassLoader)
         val plan = node.translateToPlan(this, new BatchQueryConfig)
         val conversion =
           getConversionMapper(

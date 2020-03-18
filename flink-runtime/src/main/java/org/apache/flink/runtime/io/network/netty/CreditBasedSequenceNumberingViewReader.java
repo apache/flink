@@ -115,8 +115,12 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	@Override
 	public boolean isAvailable() {
 		// BEWARE: this must be in sync with #isAvailable(BufferAndBacklog)!
-		return hasBuffersAvailable() &&
-			(numCreditsAvailable > 0 || subpartitionView.nextBufferIsEvent());
+		if (numCreditsAvailable > 0) {
+			return subpartitionView.isAvailable();
+		}
+		else {
+			return subpartitionView.nextBufferIsEvent();
+		}
 	}
 
 	/**
@@ -131,8 +135,12 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	 */
 	private boolean isAvailable(BufferAndBacklog bufferAndBacklog) {
 		// BEWARE: this must be in sync with #isAvailable()!
-		return bufferAndBacklog.isMoreAvailable() &&
-			(numCreditsAvailable > 0 || bufferAndBacklog.nextBufferIsEvent());
+		if (numCreditsAvailable > 0) {
+			return bufferAndBacklog.isMoreAvailable();
+		}
+		else {
+			return bufferAndBacklog.nextBufferIsEvent();
+		}
 	}
 
 	@Override
@@ -170,11 +178,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 		} else {
 			return null;
 		}
-	}
-
-	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		subpartitionView.notifySubpartitionConsumed();
 	}
 
 	@Override

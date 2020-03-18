@@ -34,7 +34,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.calcite.CalciteConfigBuilder;
-import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
@@ -53,6 +52,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -104,7 +104,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.registerDataSet(tableName, ds);
 		Table t = tableEnv.scan(tableName);
 
-		Table result = t.select("f0, f1");
+		Table result = t.select($("f0"), $("f1"));
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
@@ -124,7 +124,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.registerDataSet(tableName, ds, "a, b, c");
 		Table t = tableEnv.scan(tableName);
 
-		Table result = t.select("a, b, c");
+		Table result = t.select($("a"), $("b"), $("c"));
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
@@ -138,7 +138,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = TableAlreadyExistException.class)
+	@Test(expected = ValidationException.class)
 	public void testRegisterExistingDatasetTable() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
@@ -169,7 +169,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
 		tableEnv.registerTable(tableName, t);
-		Table result = tableEnv.scan(tableName).select("f0, f1").filter("f0 > 7");
+		Table result = tableEnv.scan(tableName).select($("f0"), $("f1")).filter($("f0").isGreater(7));
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
@@ -197,7 +197,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
-			.select("a, b, c");
+			.select($("a"), $("b"), $("c"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -237,7 +237,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
-			.select("a, b, c");
+			.select($("a"), $("b"), $("c"));
 
 		TypeInformation<?> ti = new TupleTypeInfo<Tuple3<Integer, Long, String>>(
 			BasicTypeInfo.INT_TYPE_INFO,
@@ -269,7 +269,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data), "q, w, e, r")
-			.select("q as a, w as b, e as c, r as d");
+			.select($("q").as("a"), $("w").as("b"), $("e").as("c"), $("r").as("d"));
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
 		List<SmallPojo2> results = ds.collect();
@@ -294,7 +294,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 				"salary AS c, " +
 				"name AS d," +
 				"roles as e")
-			.select("a, b, c, d, e");
+			.select($("a"), $("b"), $("c"), $("d"), $("e"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -345,7 +345,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data), "name AS d")
-			.select("d");
+			.select($("d"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -372,7 +372,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 				"age AS b, " +
 				"salary AS c, " +
 				"name AS d")
-			.select("a, b, c, d");
+			.select($("a"), $("b"), $("c"), $("d"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -400,7 +400,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 				"salary AS c, " +
 				"name AS d," +
 				"roles AS e")
-			.select("a, b, c, d, e");
+			.select($("a"), $("b"), $("c"), $("d"), $("e"));
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
 		List<SmallPojo2> results = ds.collect();
@@ -427,7 +427,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 				"age AS b, " +
 				"salary AS c, " +
 				"name AS d")
-			.select("a, b, c, d");
+			.select($("a"), $("b"), $("c"), $("d"));
 
 		DataSet<PrivateSmallPojo2> ds = tableEnv.toDataSet(table, PrivateSmallPojo2.class);
 		List<PrivateSmallPojo2> results = ds.collect();
@@ -458,8 +458,8 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 				"age AS b, " +
 				"generic AS c, " +
 				"generic2 AS d")
-			.select("a, b, c, c as c2, d")
-			.select("a, b, c, c === c2, d");
+			.select($("a"), $("b"), $("c"), $("c").as("c2"), $("d"))
+			.select($("a"), $("b"), $("c"), $("c").isEqual($("c2")), $("d"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();

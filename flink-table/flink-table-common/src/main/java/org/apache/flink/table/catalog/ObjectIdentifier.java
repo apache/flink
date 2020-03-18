@@ -21,6 +21,8 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
@@ -33,15 +35,15 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
  * <p>While {@link ObjectPath} is used within the same catalog, instances of this class can be used
  * across catalogs.
  *
- * <p>Two objects are considered equal if they share the same type identifier in a stable session context.
+ * <p>Two objects are considered equal if they share the same object identifier in a stable session context.
  */
 public final class ObjectIdentifier implements Serializable {
 
-	private String catalogName;
+	private final String catalogName;
 
-	private String databaseName;
+	private final String databaseName;
 
-	private String objectName;
+	private final String objectName;
 
 	public static ObjectIdentifier of(String catalogName, String databaseName, String objectName) {
 		return new ObjectIdentifier(catalogName, databaseName, objectName);
@@ -68,6 +70,17 @@ public final class ObjectIdentifier implements Serializable {
 		return objectName;
 	}
 
+	public ObjectPath toObjectPath() {
+		return new ObjectPath(databaseName, objectName);
+	}
+
+	/**
+	 * List of the component names of this object identifier.
+	 */
+	public List<String> toList() {
+		return Arrays.asList(getCatalogName(), getDatabaseName(), getObjectName());
+	}
+
 	/**
 	 * Returns a string that fully serializes this instance. The serialized string can be used for
 	 * transmitting or persisting an object identifier.
@@ -78,6 +91,13 @@ public final class ObjectIdentifier implements Serializable {
 			escapeIdentifier(catalogName),
 			escapeIdentifier(databaseName),
 			escapeIdentifier(objectName));
+	}
+
+	/**
+	 * Returns a string that summarizes this instance for printing to a console or log.
+	 */
+	public String asSummaryString() {
+		return String.join(".", catalogName, databaseName, objectName);
 	}
 
 	@Override

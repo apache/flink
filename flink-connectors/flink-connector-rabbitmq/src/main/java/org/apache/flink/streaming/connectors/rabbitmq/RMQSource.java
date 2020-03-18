@@ -177,6 +177,25 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	@Override
 	public void close() throws Exception {
 		super.close();
+
+		try {
+			if (consumer != null && channel != null) {
+				channel.basicCancel(consumer.getConsumerTag());
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Error while cancelling RMQ consumer on " + queueName
+				+ " at " + rmqConnectionConfig.getHost(), e);
+		}
+
+		try {
+			if (channel != null) {
+				channel.close();
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Error while closing RMQ channel with " + queueName
+				+ " at " + rmqConnectionConfig.getHost(), e);
+		}
+
 		try {
 			if (connection != null) {
 				connection.close();

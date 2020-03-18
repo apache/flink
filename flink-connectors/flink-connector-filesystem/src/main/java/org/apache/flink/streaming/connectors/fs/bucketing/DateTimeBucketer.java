@@ -56,6 +56,7 @@ import java.time.format.DateTimeFormatter;
  * {@code /base/1976-12-31-14/}
  *
  */
+@Deprecated
 public class DateTimeBucketer<T> implements Bucketer<T> {
 
 	private static final long serialVersionUID = 1L;

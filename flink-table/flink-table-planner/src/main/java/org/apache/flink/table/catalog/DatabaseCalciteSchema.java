@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
+import org.apache.flink.table.plan.schema.TableSinkTable;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -38,89 +40,109 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
+import org.apache.calcite.schema.impl.ViewTable;
 
+import javax.annotation.Nullable;
+
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-
-import static java.lang.String.format;
 
 /**
  * A mapping between Flink catalog's database and Calcite's schema.
  * Tables are registered as tables in the schema.
  */
 class DatabaseCalciteSchema implements Schema {
-	private final boolean isBatch;
-	private final String databaseName;
+	private final boolean isStreamingMode;
 	private final String catalogName;
-	private final Catalog catalog;
+	private final String databaseName;
+	private final CatalogManager catalogManager;
+	private final TableConfig tableConfig;
 
 	public DatabaseCalciteSchema(
-			boolean isBatch,
+			boolean isStreamingMode,
 			String databaseName,
 			String catalogName,
-			Catalog catalog) {
-		this.isBatch = isBatch;
+			CatalogManager catalogManager,
+			TableConfig tableConfig) {
+		this.isStreamingMode = isStreamingMode;
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
-		this.catalog = catalog;
+		this.catalogManager = catalogManager;
+		this.tableConfig = tableConfig;
 	}
 
 	@Override
 	public Table getTable(String tableName) {
+		ObjectIdentifier identifier = ObjectIdentifier.of(catalogName, databaseName, tableName);
+		return catalogManager.getTable(identifier)
+			.map(result -> {
+				CatalogBaseTable table = result.getTable();
+				final TableFactory tableFactory;
+				if (result.isTemporary()) {
+					tableFactory = null;
+				} else {
+					tableFactory = catalogManager.getCatalog(catalogName)
+						.flatMap(Catalog::getTableFactory)
+						.orElse(null);
+				}
+				return convertTable(identifier, table, tableFactory);
+			})
+			.orElse(null);
+	}
 
-		ObjectPath tablePath = new ObjectPath(databaseName, tableName);
-
-		try {
-			if (!catalog.tableExists(tablePath)) {
-				return null;
-			}
-
-			CatalogBaseTable table = catalog.getTable(tablePath);
-
-			if (table instanceof QueryOperationCatalogView) {
-				return QueryOperationCatalogViewTable.createCalciteTable(((QueryOperationCatalogView) table));
-			} else if (table instanceof ConnectorCatalogTable) {
-				return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
-			} else if (table instanceof CatalogTable) {
-				return convertCatalogTable(tablePath, (CatalogTable) table);
-			} else {
-				throw new TableException("Unsupported table type: " + table);
-			}
-		} catch (TableNotExistException | CatalogException e) {
-			// TableNotExistException should never happen, because we are checking it exists
-			// via catalog.tableExists
-			throw new TableException(format(
-				"A failure occurred when accessing table. Table path [%s, %s, %s]",
-				catalogName,
-				databaseName,
-				tableName), e);
+	private Table convertTable(ObjectIdentifier identifier, CatalogBaseTable table, @Nullable TableFactory tableFactory) {
+		if (table instanceof QueryOperationCatalogView) {
+			return QueryOperationCatalogViewTable.createCalciteTable(((QueryOperationCatalogView) table));
+		} else if (table instanceof ConnectorCatalogTable) {
+			return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
+		} else if (table instanceof CatalogTable) {
+			return convertCatalogTable(identifier, (CatalogTable) table, tableFactory);
+		} else if (table instanceof CatalogView) {
+			return convertCatalogView(identifier.getObjectName(), (CatalogView) table);
+		} else {
+			throw new TableException("Unsupported table type: " + table);
 		}
 	}
 
 	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
-		return table.getTableSource()
+		Optional<TableSourceTable> tableSourceTable = table.getTableSource()
 			.map(tableSource -> new TableSourceTable<>(
+				table.getSchema(),
 				tableSource,
 				!table.isBatch(),
-				FlinkStatistic.UNKNOWN()))
-			.orElseThrow(() -> new TableException("Cannot query a sink only table."));
+				FlinkStatistic.UNKNOWN()));
+		if (tableSourceTable.isPresent()) {
+			return tableSourceTable.get();
+		} else {
+			Optional<TableSinkTable> tableSinkTable = table.getTableSink()
+				.map(tableSink -> new TableSinkTable<>(
+					tableSink,
+					FlinkStatistic.UNKNOWN()));
+			if (tableSinkTable.isPresent()) {
+				return tableSinkTable.get();
+			} else {
+				throw new TableException("Cannot convert a connector table " +
+					"without either source or sink.");
+			}
+		}
 	}
 
-	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {
-		TableSource<?> tableSource;
-		Optional<TableFactory> tableFactory = catalog.getTableFactory();
-		if (tableFactory.isPresent()) {
-			TableFactory tf = tableFactory.get();
-			if (tf instanceof TableSourceFactory) {
-				tableSource = ((TableSourceFactory) tf).createTableSource(tablePath, table);
+	private Table convertCatalogTable(ObjectIdentifier identifier, CatalogTable table, @Nullable TableFactory tableFactory) {
+		final TableSource<?> tableSource;
+		final TableSourceFactory.Context context = new TableSourceFactoryContextImpl(
+				identifier, table, tableConfig.getConfiguration());
+		if (tableFactory != null) {
+			if (tableFactory instanceof TableSourceFactory) {
+				tableSource = ((TableSourceFactory) tableFactory).createTableSource(context);
 			} else {
-				throw new TableException(String.format("Cannot query a sink-only table. TableFactory provided by catalog %s must implement TableSourceFactory",
-					catalog.getClass()));
+				throw new TableException(
+					"Cannot query a sink-only table. TableFactory provided by catalog must implement TableSourceFactory");
 			}
 		} else {
-			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
+			tableSource = TableFactoryUtil.findAndCreateTableSource(context);
 		}
 
 		if (!(tableSource instanceof StreamTableSource)) {
@@ -128,22 +150,30 @@ class DatabaseCalciteSchema implements Schema {
 		}
 
 		return new TableSourceTable<>(
+			table.getSchema(),
 			tableSource,
 			// this means the TableSource extends from StreamTableSource, this is needed for the
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource
 			// itself to determine if it is a streaming or batch source.
-			!isBatch,
+			isStreamingMode,
 			FlinkStatistic.UNKNOWN()
+		);
+	}
+
+	private Table convertCatalogView(String tableName, CatalogView table) {
+		TableSchema schema = table.getSchema();
+		return new ViewTable(
+			null,
+			typeFactory -> ((FlinkTypeFactory) typeFactory).buildLogicalRowType(schema),
+			table.getExpandedQuery(),
+			Arrays.asList(catalogName, databaseName),
+			Arrays.asList(catalogName, databaseName, tableName)
 		);
 	}
 
 	@Override
 	public Set<String> getTableNames() {
-		try {
-			return new HashSet<>(catalog.listTables(databaseName));
-		} catch (DatabaseNotExistException e) {
-			throw new CatalogException(e);
-		}
+		return catalogManager.listTables(catalogName, databaseName);
 	}
 
 	@Override

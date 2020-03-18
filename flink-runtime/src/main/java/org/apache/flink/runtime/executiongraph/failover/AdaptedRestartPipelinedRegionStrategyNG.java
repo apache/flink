@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -28,11 +29,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.executiongraph.SchedulingUtils;
-import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersion;
@@ -54,13 +53,14 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * This failover strategy uses flip1.RestartPipelinedRegionStrategy to make task failover decisions.
+ * This failover strategy uses flip1.RestartPipelinedRegionFailoverStrategy to make task failover decisions.
  */
 public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
@@ -73,7 +73,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	private final ExecutionVertexVersioner executionVertexVersioner;
 
 	/** The underlying new generation region failover strategy. */
-	private RestartPipelinedRegionStrategy restartPipelinedRegionStrategy;
+	private RestartPipelinedRegionFailoverStrategy restartPipelinedRegionFailoverStrategy;
 
 	public AdaptedRestartPipelinedRegionStrategyNG(final ExecutionGraph executionGraph) {
 		this.executionGraph = checkNotNull(executionGraph);
@@ -96,7 +96,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
 		final ExecutionVertexID vertexID = getExecutionVertexID(taskExecution.getVertex());
 
-		final Set<ExecutionVertexID> tasksToRestart = restartPipelinedRegionStrategy.getTasksNeedingRestart(vertexID, cause);
+		final Set<ExecutionVertexID> tasksToRestart = restartPipelinedRegionFailoverStrategy.getTasksNeedingRestart(vertexID, cause);
 		restartTasks(tasksToRestart);
 	}
 
@@ -106,18 +106,22 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		final Set<ExecutionVertexVersion> vertexVersions = new HashSet<>(
 			executionVertexVersioner.recordVertexModifications(verticesToRestart).values());
 
+		executionGraph.incrementRestarts();
+
 		FutureUtils.assertNoException(
 			cancelTasks(verticesToRestart)
-				.thenRunAsync(resetAndRescheduleTasks(globalModVersion, vertexVersions), executionGraph.getJobMasterMainThreadExecutor())
+				.thenComposeAsync(resetAndRescheduleTasks(globalModVersion, vertexVersions), executionGraph.getJobMasterMainThreadExecutor())
 				.handle(failGlobalOnError()));
 	}
 
-	private Runnable resetAndRescheduleTasks(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
-		final RestartStrategy restartStrategy = executionGraph.getRestartStrategy();
-		return () -> restartStrategy.restart(
-			createResetAndRescheduleTasksCallback(globalModVersion, vertexVersions),
-			executionGraph.getJobMasterMainThreadExecutor()
-		);
+	private Function<Object, CompletableFuture<Void>> resetAndRescheduleTasks(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
+		return (ignored) -> {
+			final RestartStrategy restartStrategy = executionGraph.getRestartStrategy();
+			return restartStrategy.restart(
+				createResetAndRescheduleTasksCallback(globalModVersion, vertexVersions),
+				executionGraph.getJobMasterMainThreadExecutor()
+			);
+		};
 	}
 
 	private RestartCallback createResetAndRescheduleTasksCallback(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
@@ -265,7 +269,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	}
 
 	private ExecutionVertexID getExecutionVertexID(final ExecutionVertex vertex) {
-		return new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex());
+		return vertex.getID();
 	}
 
 	private List<ExecutionVertex> sortVerticesTopologically(final Set<ExecutionVertex> vertices) {
@@ -288,9 +292,10 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		// build the underlying new generation failover strategy when the executionGraph vertices are all added,
 		// otherwise the failover topology will not be correctly built.
 		// currently it's safe to add it here, as this method is invoked only once in production code.
-		checkState(restartPipelinedRegionStrategy == null, "notifyNewVertices() must be called only once");
-		this.restartPipelinedRegionStrategy = new RestartPipelinedRegionStrategy(
-			new DefaultFailoverTopology(executionGraph));
+		checkState(restartPipelinedRegionFailoverStrategy == null, "notifyNewVertices() must be called only once");
+		this.restartPipelinedRegionFailoverStrategy = new RestartPipelinedRegionFailoverStrategy(
+			executionGraph.getFailoverTopology(),
+			executionGraph.getResultPartitionAvailabilityChecker());
 	}
 
 	@Override

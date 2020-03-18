@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -32,6 +33,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.typeutils.TypeCheckUtils;
 import org.apache.flink.table.utils.TableConnectorUtils;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -112,7 +114,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			RequestFactory requestFactory) {
 
 		this.isAppendOnly = isAppendOnly;
-		this.schema = Preconditions.checkNotNull(schema);
+		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 		this.hosts = Preconditions.checkNotNull(hosts);
 		this.index = Preconditions.checkNotNull(index);
 		this.keyDelimiter = Preconditions.checkNotNull(keyDelimiter);
@@ -168,7 +170,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
+	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
 		final ElasticsearchUpsertSinkFunction upsertFunction =
 			new ElasticsearchUpsertSinkFunction(
 				index,
@@ -184,7 +186,8 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			failureHandler,
 			sinkOptions,
 			upsertFunction);
-		dataStream.addSink(sinkFunction)
+		return dataStream.addSink(sinkFunction)
+			.setParallelism(dataStream.getParallelism())
 			.name(TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
@@ -361,6 +364,13 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 				port,
 				protocol);
 		}
+
+		@Override
+		public String toString() {
+			return protocol + "://"
+				+ hostname + ":"
+				+ port;
+		}
 	}
 
 	/**
@@ -370,6 +380,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 
 		/**
 		 * Creates an update request to be added to a {@link RequestIndexer}.
+		 * Note: the type field has been deprecated since Elasticsearch 7.x and it would not take any effort.
 		 */
 		UpdateRequest createUpdateRequest(
 			String index,
@@ -380,6 +391,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 
 		/**
 		 * Creates an index request to be added to a {@link RequestIndexer}.
+		 * Note: the type field has been deprecated since Elasticsearch 7.x and it would not take any effort.
 		 */
 		IndexRequest createIndexRequest(
 			String index,
@@ -389,6 +401,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 
 		/**
 		 * Creates a delete request to be added to a {@link RequestIndexer}.
+		 * Note: the type field has been deprecated since Elasticsearch 7.x and it would not take any effort.
 		 */
 		DeleteRequest createDeleteRequest(
 			String index,

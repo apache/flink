@@ -95,7 +95,7 @@ public final class HeapMemorySegment extends MemorySegment {
 	 * @return The byte array that backs this memory segment, or null, if the segment has been freed.
 	 */
 	public byte[] getArray() {
-		return this.heapMemory;
+		return this.memory;
 	}
 
 	// ------------------------------------------------------------------------

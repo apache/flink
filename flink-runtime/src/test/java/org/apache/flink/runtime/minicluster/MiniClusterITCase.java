@@ -46,9 +46,11 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +64,7 @@ import static org.junit.Assert.fail;
 /**
  * Integration test cases for the {@link MiniCluster}.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class MiniClusterITCase extends TestLogger {
 
 	@Test
@@ -110,7 +113,12 @@ public class MiniClusterITCase extends TestLogger {
 		} catch (JobExecutionException e) {
 			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
 			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, "Slots required: 2, slots allocated: 1").isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Slots required: 2, slots allocated: 1";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
 		}
 	}
 
@@ -122,7 +130,12 @@ public class MiniClusterITCase extends TestLogger {
 		} catch (JobExecutionException e) {
 			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
 			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, "Could not allocate enough slots").isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Could not allocate enough slots";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
 		}
 	}
 
@@ -319,7 +332,7 @@ public class MiniClusterITCase extends TestLogger {
 			receiver.setInvokableClass(AgnosticReceiver.class);
 			receiver.setParallelism(parallelism);
 
-			final SlotSharingGroup sharingGroup = new SlotSharingGroup(sender.getID(), receiver.getID());
+			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			sender.setSlotSharingGroup(sharingGroup);
 			forwarder.setSlotSharingGroup(sharingGroup);
 			receiver.setSlotSharingGroup(sharingGroup);

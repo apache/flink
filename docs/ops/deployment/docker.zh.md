@@ -1,8 +1,8 @@
 ---
-title:  "Docker 安装"
+title:  "Docker 设置"
 nav-title: Docker
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

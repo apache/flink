@@ -85,9 +85,7 @@ public class WindowJoin {
 		return grades.join(salaries)
 				.where(new NameKeySelector())
 				.equalTo(new NameKeySelector())
-
 				.window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
-
 				.apply(new JoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>>() {
 
 					@Override

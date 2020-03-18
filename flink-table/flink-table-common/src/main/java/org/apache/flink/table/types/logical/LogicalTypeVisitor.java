@@ -24,8 +24,8 @@ import org.apache.flink.annotation.PublicEvolving;
  * The visitor definition of {@link LogicalType}. The visitor transforms a logical type into
  * instances of {@code R}.
  *
- * <p>Incomplete types such as the {@link TypeInformationAnyType} are visited through the generic
- * {@link #visit(LogicalType)}.
+ * <p>Incomplete types such as the {@link TypeInformationRawType} or {@link UnresolvedUserDefinedType} are visited
+ * through the generic {@link #visit(LogicalType)}.
  *
  * @param <R> result type
  */
@@ -84,7 +84,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(NullType nullType);
 
-	R visit(AnyType<?> anyType);
+	R visit(RawType<?> rawType);
 
 	R visit(SymbolType<?> symbolType);
 

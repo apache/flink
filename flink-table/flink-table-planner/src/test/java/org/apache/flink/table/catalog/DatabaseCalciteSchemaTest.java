@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.TestExternalTableSourceFactory.TestExternalTableSource;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.plan.schema.TableSourceTable;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.schema.Table;
 import org.junit.Test;
@@ -48,10 +50,14 @@ public class DatabaseCalciteSchemaTest {
 	@Test
 	public void testCatalogTable() throws TableAlreadyExistException, DatabaseNotExistException {
 		GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(catalogName, databaseName);
-		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(false,
+		CatalogManager catalogManager = CatalogManagerMocks.preparedCatalogManager()
+			.defaultCatalog(catalogName, catalog)
+			.build();
+		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(true,
 			databaseName,
 			catalogName,
-			catalog);
+			catalogManager,
+			new TableConfig());
 
 		catalog.createTable(new ObjectPath(databaseName, tableName), new TestCatalogBaseTable(), false);
 		Table table = calciteSchema.getTable(tableName);
@@ -59,7 +65,7 @@ public class DatabaseCalciteSchemaTest {
 		assertThat(table, instanceOf(TableSourceTable.class));
 		TableSourceTable tableSourceTable = (TableSourceTable) table;
 		assertThat(tableSourceTable.tableSource(), instanceOf(TestExternalTableSource.class));
-		assertThat(tableSourceTable.isStreaming(), is(true));
+		assertThat(tableSourceTable.isStreamingMode(), is(true));
 	}
 
 	private static final class TestCatalogBaseTable extends CatalogTableImpl {

@@ -37,10 +37,10 @@ import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperat
 @Internal
 public class SetOperationFactory {
 
-	private final boolean isStreaming;
+	private final boolean isStreamingMode;
 
-	public SetOperationFactory(boolean isStreaming) {
-		this.isStreaming = isStreaming;
+	public SetOperationFactory(boolean isStreamingMode) {
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	/**
@@ -98,7 +98,7 @@ public class SetOperationFactory {
 	private void failIfStreaming(SetQueryOperationType type, boolean all) {
 		boolean shouldFailInCaseOfStreaming = !all || type != UNION;
 
-		if (isStreaming && shouldFailInCaseOfStreaming) {
+		if (isStreamingMode && shouldFailInCaseOfStreaming) {
 			throw new ValidationException(
 				format(
 					"The %s operation on two unbounded tables is currently not supported.",

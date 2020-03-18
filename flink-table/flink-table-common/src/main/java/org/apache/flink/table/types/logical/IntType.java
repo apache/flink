@@ -27,7 +27,7 @@ import java.util.Set;
 /**
  * Logical type of a 4-byte signed integer with values from -2,147,483,648 to 2,147,483,647.
  *
- * <p>The serialized string representation is {@code INT}.
+ * <p>The serialized string representation is {@code INT}. {@code INTEGER} is a synonym for this type.
  */
 @PublicEvolving
 public final class IntType extends LogicalType {

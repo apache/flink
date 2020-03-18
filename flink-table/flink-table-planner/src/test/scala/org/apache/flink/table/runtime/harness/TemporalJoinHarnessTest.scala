@@ -19,7 +19,6 @@ package org.apache.flink.table.runtime.harness
 
 import java.util
 import java.util.concurrent.ConcurrentLinkedQueue
-
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -42,6 +41,8 @@ import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TestStreamQueryConfig}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
+import com.google.common.collect.ImmutableList
 import org.hamcrest.CoreMatchers
 import org.hamcrest.Matchers.{endsWith, startsWith}
 import org.junit.Assert.assertTrue
@@ -768,7 +769,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
       val rightRowType: RowTypeInfo,
       leftKeys: ImmutableIntList,
       rightKeys: ImmutableIntList)
-    extends JoinInfo(leftKeys, rightKeys) {
+    extends JoinInfo(leftKeys, rightKeys, ImmutableList.of[RexNode]()) {
 
     def this(
       leftRowType: RowTypeInfo,

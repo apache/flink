@@ -24,6 +24,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
+import java.util.concurrent.Future;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -48,7 +50,7 @@ class CheckpointSequenceValidator extends AbstractInvokable {
 	}
 
 	@Override
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
+	public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 		throw new UnsupportedOperationException("should never be called");
 	}
 
@@ -84,7 +86,7 @@ class CheckpointSequenceValidator extends AbstractInvokable {
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 		throw new UnsupportedOperationException("should never be called");
 	}
 }

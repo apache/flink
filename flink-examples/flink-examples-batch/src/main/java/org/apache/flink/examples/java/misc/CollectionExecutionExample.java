@@ -31,7 +31,7 @@ import java.util.List;
  * DataSet transformations are executed on Java collections.
  *
  * <p>See the "Local Execution" section in the documentation for more details:
- * 	http://flink.apache.org/docs/latest/apis/local_execution.html
+ * 	https://flink.apache.org/docs/latest/apis/local_execution.html
  */
 public class CollectionExecutionExample {
 

@@ -133,12 +133,12 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             expr
 
           case AND =>
-            assert(args.size == 2)
-            And(args.head, args.last)
+            assert(args.size >= 2)
+            args.reduceLeft(And)
 
           case OR =>
-            assert(args.size == 2)
-            Or(args.head, args.last)
+            assert(args.size >= 2)
+            args.reduceLeft(Or)
 
           case NOT =>
             assert(args.size == 1)
@@ -272,6 +272,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             Lower(args.head)
 
+          case LOWERCASE =>
+            assert(args.size == 1)
+            Lower(args.head)
+
           case SIMILAR =>
             assert(args.size == 2)
             Similar(args.head, args.last)
@@ -285,12 +289,8 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             }
 
           case REPLACE =>
-            assert(args.size == 2 || args.size == 3)
-            if (args.size == 2) {
-              new Replace(args.head, args.last)
-            } else {
-              Replace(args.head, args(1), args.last)
-            }
+            assert(args.size == 3)
+            Replace(args.head, args(1), args.last)
 
           case TRIM =>
             assert(args.size == 4)
@@ -309,6 +309,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             Trim(trimMode, args(2), args(3))
 
           case UPPER =>
+            assert(args.size == 1)
+            Upper(args.head)
+
+          case UPPERCASE =>
             assert(args.size == 1)
             Upper(args.head)
 
@@ -681,6 +685,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           case CURRENT_ROW =>
             assert(args.isEmpty)
             CurrentRow()
+
+          case STREAM_RECORD_TIMESTAMP =>
+            assert(args.isEmpty)
+            StreamRecordTimestamp()
 
           case _ =>
             throw new TableException(s"Unsupported function definition: $fd")

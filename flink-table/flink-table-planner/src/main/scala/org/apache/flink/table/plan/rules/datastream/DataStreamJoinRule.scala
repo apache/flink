@@ -87,7 +87,7 @@ class DataStreamJoinRule
       leftRowSchema,
       rightRowSchema,
       new RowSchema(rel.getRowType),
-      description)
+      "DataStreamJoinRule")
   }
 }
 

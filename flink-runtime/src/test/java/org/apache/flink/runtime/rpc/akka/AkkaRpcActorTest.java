@@ -51,8 +51,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import scala.concurrent.Await;
-
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -272,7 +270,7 @@ public class AkkaRpcActorTest extends TestLogger {
 			terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		} finally {
 			rpcActorSystem.terminate();
-			Await.ready(rpcActorSystem.whenTerminated(), FutureUtils.toFiniteDuration(timeout));
+			FutureUtils.toJava(rpcActorSystem.whenTerminated()).get(timeout.getSize(), timeout.getUnit());
 		}
 	}
 

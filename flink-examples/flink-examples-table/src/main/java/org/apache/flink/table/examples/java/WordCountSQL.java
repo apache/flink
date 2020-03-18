@@ -48,8 +48,8 @@ public class WordCountSQL {
 			new WC("Ciao", 1),
 			new WC("Hello", 1));
 
-		// register the DataSet as table "WordCount"
-		tEnv.registerDataSet("WordCount", input, "word, frequency");
+		// register the DataSet as a view "WordCount"
+		tEnv.createTemporaryView("WordCount", input, "word, frequency");
 
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tEnv.sqlQuery(

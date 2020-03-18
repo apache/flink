@@ -20,7 +20,6 @@ package org.apache.flink.table.functions.aggfunctions
 
 import java.lang.{Iterable => JIterable}
 import java.util
-
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.api.dataview.MapView

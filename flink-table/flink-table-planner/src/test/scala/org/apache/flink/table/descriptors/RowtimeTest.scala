@@ -19,15 +19,17 @@
 package org.apache.flink.table.descriptors
 
 import java.util
-
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.descriptors.RowtimeTest.{CustomAssigner, CustomExtractor}
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.{ApiExpressionUtils, _}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 import scala.collection.JavaConverters._
@@ -68,7 +70,7 @@ class RowtimeTest extends DescriptorTestBase {
   }
 
   override def validator(): DescriptorValidator = {
-    new RowtimeValidator(supportsSourceTimestamps = true, supportsSourceWatermarks = false)
+    new RowtimeValidator(true, false)
   }
 
   override def properties(): util.List[util.Map[String, String]] = {
@@ -130,9 +132,17 @@ object RowtimeTest {
     }
 
     override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
-      val fieldAccess: PlannerExpression = fieldAccesses(0).asInstanceOf[PlannerExpression]
+      val fieldAccess = fieldAccesses(0)
       require(fieldAccess.resultType == Types.SQL_TIMESTAMP)
-      Cast(fieldAccess, Types.LONG)
+      val fieldReferenceExpr = new FieldReferenceExpression(
+        fieldAccess.name,
+        TypeConversions.fromLegacyInfoToDataType(fieldAccess.resultType),
+        0,
+        fieldAccess.fieldIndex)
+      ApiExpressionUtils.unresolvedCall(
+        BuiltInFunctionDefinitions.CAST,
+        fieldReferenceExpr,
+        ApiExpressionUtils.typeLiteral(DataTypes.BIGINT()))
     }
 
     override def equals(other: Any): Boolean = other match {

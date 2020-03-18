@@ -38,6 +38,9 @@ import java.util.Set;
  */
 public class RocksDBNativeMetricOptions implements Serializable {
 
+	public static final String METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY = "state.backend.rocksdb.metrics" +
+		".column-family-as-variable";
+
 	public static final ConfigOption<Boolean> MONITOR_NUM_IMMUTABLE_MEM_TABLES = ConfigOptions
 		.key(RocksDBProperty.NumImmutableMemTable.getConfigKey())
 		.defaultValue(false)
@@ -149,6 +152,36 @@ public class RocksDBNativeMetricOptions implements Serializable {
 		.key(RocksDBProperty.ActualDelayedWriteRate.getConfigKey())
 		.defaultValue(false)
 		.withDescription("Monitor the current actual delayed write rate. 0 means no delay.");
+
+	public static final ConfigOption<Boolean> IS_WRITE_STOPPED = ConfigOptions
+		.key(RocksDBProperty.IsWriteStopped.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.");
+
+	public static final ConfigOption<Boolean> BLOCK_CACHE_CAPACITY = ConfigOptions
+		.key(RocksDBProperty.BlockCacheCapacity.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Monitor block cache capacity.");
+
+	public static final ConfigOption<Boolean> BLOCK_CACHE_USAGE = ConfigOptions
+		.key(RocksDBProperty.BlockCacheUsage.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Monitor the memory size for the entries residing in block cache.");
+
+	public static final ConfigOption<Boolean> BLOCK_CACHE_PINNED_USAGE = ConfigOptions
+		.key(RocksDBProperty.BlockCachePinnedUsage.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Monitor the memory size for the entries being pinned in block cache.");
+
+	public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE = ConfigOptions
+		.key(METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY)
+		.defaultValue(false)
+		.withDescription("Whether to expose the column family as a variable.");
+
 	/**
 	 * Creates a {@link RocksDBNativeMetricOptions} based on an
 	 * external configuration.
@@ -239,10 +272,29 @@ public class RocksDBNativeMetricOptions implements Serializable {
 			options.enableActualDelayedWriteRate();
 		}
 
+		if (config.getBoolean(IS_WRITE_STOPPED)) {
+			options.enableIsWriteStopped();
+		}
+
+		if (config.getBoolean(BLOCK_CACHE_CAPACITY)) {
+			options.enableBlockCacheCapacity();
+		}
+
+		if (config.getBoolean(BLOCK_CACHE_USAGE)) {
+			options.enableBlockCacheUsage();
+		}
+
+		if (config.getBoolean(BLOCK_CACHE_PINNED_USAGE)) {
+			options.enableBlockCachePinnedUsage();
+		}
+
+		options.setColumnFamilyAsVariable(config.getBoolean(COLUMN_FAMILY_AS_VARIABLE));
+
 		return options;
 	}
 
 	private Set<String> properties;
+	private boolean columnFamilyAsVariable = COLUMN_FAMILY_AS_VARIABLE.defaultValue();
 
 	public RocksDBNativeMetricOptions() {
 		this.properties = new HashSet<>();
@@ -402,6 +454,41 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	}
 
 	/**
+	 * Returns 1 if write has been stopped.
+	 */
+	public void enableIsWriteStopped() {
+		this.properties.add(RocksDBProperty.IsWriteStopped.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns block cache capacity.
+	 */
+	public void enableBlockCacheCapacity() {
+		this.properties.add(RocksDBProperty.BlockCacheCapacity.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns the memory size for the entries residing in block cache.
+	 */
+	public void enableBlockCacheUsage() {
+		this.properties.add(RocksDBProperty.BlockCacheUsage.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns the memory size for the entries being pinned in block cache.
+	 */
+	public void enableBlockCachePinnedUsage() {
+		this.properties.add(RocksDBProperty.BlockCachePinnedUsage.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns the column family as variable.
+	 */
+	public void setColumnFamilyAsVariable(boolean columnFamilyAsVariable) {
+		this.columnFamilyAsVariable = columnFamilyAsVariable;
+	}
+
+	/**
 	 * @return the enabled RocksDB metrics
 	 */
 	public Collection<String> getProperties() {
@@ -415,5 +502,14 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	 */
 	public boolean isEnabled() {
 		return !properties.isEmpty();
+	}
+
+	/**
+	 *  {{@link RocksDBNativeMetricMonitor}} Whether to expose the column family as a variable..
+	 *
+	 * @return true is column family to expose variable, false otherwise.
+	 */
+	public boolean isColumnFamilyAsVariable() {
+		return this.columnFamilyAsVariable;
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -46,7 +46,6 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -60,6 +59,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -151,20 +151,24 @@ public class ResourceManagerTest extends TestLogger {
 
 		TaskManagerInfo taskManagerInfo = taskManagerInfoFuture.get();
 
-		Assert.assertEquals(taskManagerId, taskManagerInfo.getResourceId());
-		Assert.assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
-		Assert.assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
-		Assert.assertEquals(dataPort, taskManagerInfo.getDataPort());
-		Assert.assertEquals(0, taskManagerInfo.getNumberSlots());
-		Assert.assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
+		assertEquals(taskManagerId, taskManagerInfo.getResourceId());
+		assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
+		assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
+		assertEquals(dataPort, taskManagerInfo.getDataPort());
+		assertEquals(0, taskManagerInfo.getNumberSlots());
+		assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
 	}
 
 	private void registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, ResourceID taskExecutorId, String taskExecutorAddress) throws Exception {
-		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(
+		TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
 			taskExecutorAddress,
 			taskExecutorId,
 			dataPort,
 			hardwareDescription,
+			ResourceProfile.ZERO,
+			ResourceProfile.ZERO);
+		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(
+			taskExecutorRegistration,
 			TestingUtils.TIMEOUT());
 
 		assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
@@ -257,10 +261,9 @@ public class ResourceManagerTest extends TestLogger {
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
-			NoOpMetricRegistry.INSTANCE,
 			jobLeaderIdService,
 			testingFatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 
 		resourceManager.start();
 

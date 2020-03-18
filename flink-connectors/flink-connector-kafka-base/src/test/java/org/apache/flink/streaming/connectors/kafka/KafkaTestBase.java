@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -118,10 +118,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	protected static Configuration getFlinkConfiguration() {
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "5 s");
-		flinkConfig.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "1 s");
-		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
-		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
+		flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
 		flinkConfig.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		return flinkConfig;
 	}
@@ -222,6 +219,10 @@ public abstract class KafkaTestBase extends TestLogger {
 		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
 			properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
 			properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+			// We need to set these two properties so that they are lower than request.timeout.ms. This is
+			// required for some old KafkaConsumer versions.
+			properties.put("session.timeout.ms", "2000");
+			properties.put("heartbeat.interval.ms", "500");
 
 			// query kafka for new records ...
 			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);

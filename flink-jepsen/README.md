@@ -78,4 +78,5 @@ or
 depending on whether the test passed or not. If neither output is generated, the test did not finish
 properly due to problems of the environment, bugs in Jepsen or in the test suite, etc.
 
-In addition, the test directories contain all relevant log files aggregated from all hosts.
+In addition, the test directories contain all relevant log files, and the jstack output for all Flink JVMs
+aggregated from the DB nodes.

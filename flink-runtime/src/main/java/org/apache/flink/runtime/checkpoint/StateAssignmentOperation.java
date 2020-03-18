@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -55,7 +54,7 @@ public class StateAssignmentOperation {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StateAssignmentOperation.class);
 
-	private final Map<JobVertexID, ExecutionJobVertex> tasks;
+	private final Set<ExecutionJobVertex> tasks;
 	private final Map<OperatorID, OperatorState> operatorStates;
 
 	private final long restoreCheckpointId;
@@ -63,7 +62,7 @@ public class StateAssignmentOperation {
 
 	public StateAssignmentOperation(
 		long restoreCheckpointId,
-		Map<JobVertexID, ExecutionJobVertex> tasks,
+		Set<ExecutionJobVertex> tasks,
 		Map<OperatorID, OperatorState> operatorStates,
 		boolean allowNonRestoredState) {
 
@@ -78,8 +77,7 @@ public class StateAssignmentOperation {
 
 		checkStateMappingCompleteness(allowNonRestoredState, operatorStates, tasks);
 
-		for (Map.Entry<JobVertexID, ExecutionJobVertex> task : this.tasks.entrySet()) {
-			final ExecutionJobVertex executionJobVertex = task.getValue();
+		for (ExecutionJobVertex executionJobVertex : this.tasks) {
 
 			// find the states of all operators belonging to this task
 			List<OperatorID> operatorIDs = executionJobVertex.getOperatorIDs();
@@ -106,7 +104,7 @@ public class StateAssignmentOperation {
 				continue;
 			}
 
-			assignAttemptState(task.getValue(), operatorStates);
+			assignAttemptState(executionJobVertex, operatorStates);
 		}
 
 	}
@@ -390,7 +388,7 @@ public class StateAssignmentOperation {
 
 	/**
 	 * Collect {@link KeyGroupsStateHandle  managedKeyedStateHandles} which have intersection with given
-	 * {@link KeyGroupRange} from {@link TaskState operatorState}
+	 * {@link KeyGroupRange} from {@link TaskState operatorState}.
 	 *
 	 * @param operatorState        all state handles of a operator
 	 * @param subtaskKeyGroupRange the KeyGroupRange of a subtask
@@ -425,7 +423,7 @@ public class StateAssignmentOperation {
 
 	/**
 	 * Collect {@link KeyGroupsStateHandle  rawKeyedStateHandles} which have intersection with given
-	 * {@link KeyGroupRange} from {@link TaskState operatorState}
+	 * {@link KeyGroupRange} from {@link TaskState operatorState}.
 	 *
 	 * @param operatorState        all state handles of a operator
 	 * @param subtaskKeyGroupRange the KeyGroupRange of a subtask
@@ -483,8 +481,8 @@ public class StateAssignmentOperation {
 	 * Groups the available set of key groups into key group partitions. A key group partition is
 	 * the set of key groups which is assigned to the same task. Each set of the returned list
 	 * constitutes a key group partition.
-	 * <p>
-	 * <b>IMPORTANT</b>: The assignment of key groups to partitions has to be in sync with the
+	 *
+	 * <p><b>IMPORTANT</b>: The assignment of key groups to partitions has to be in sync with the
 	 * KeyGroupStreamPartitioner.
 	 *
 	 * @param numberKeyGroups Number of available key groups (indexed from 0 to numberKeyGroups - 1)
@@ -550,10 +548,10 @@ public class StateAssignmentOperation {
 	private static void checkStateMappingCompleteness(
 			boolean allowNonRestoredState,
 			Map<OperatorID, OperatorState> operatorStates,
-			Map<JobVertexID, ExecutionJobVertex> tasks) {
+			Set<ExecutionJobVertex> tasks) {
 
 		Set<OperatorID> allOperatorIDs = new HashSet<>();
-		for (ExecutionJobVertex executionJobVertex : tasks.values()) {
+		for (ExecutionJobVertex executionJobVertex : tasks) {
 			allOperatorIDs.addAll(executionJobVertex.getOperatorIDs());
 		}
 		for (Map.Entry<OperatorID, OperatorState> operatorGroupStateEntry : operatorStates.entrySet()) {

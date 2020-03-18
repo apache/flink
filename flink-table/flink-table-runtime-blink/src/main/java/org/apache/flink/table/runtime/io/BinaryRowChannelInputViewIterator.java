@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.io;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.EOFException;

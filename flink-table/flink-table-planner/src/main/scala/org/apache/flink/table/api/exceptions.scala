@@ -19,16 +19,6 @@
 package org.apache.flink.table.api
 
 /**
-  * Exception for all errors occurring during expression parsing.
-  */
-case class ExpressionParserException(msg: String) extends RuntimeException(msg)
-
-/**
-  * Exception for unwanted method calling on unresolved expression.
-  */
-case class UnresolvedException(msg: String) extends RuntimeException(msg)
-
-/**
   * Exception for adding an already existent table
   *
   * @param catalog    catalog name

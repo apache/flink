@@ -18,8 +18,8 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.util.SegmentsUtil;
 
 /**
  * Writer for binary array. See {@link BinaryArray}.
