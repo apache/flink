@@ -108,6 +108,11 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	}
 
 	/**
+	 * Returns the channel of this gate.
+	 */
+	public abstract InputChannel getChannel(int channelIndex);
+
+	/**
 	 * Simple pojo for INPUT, DATA and moreAvailable.
 	 */
 	protected static class InputWithData<INPUT, DATA> {

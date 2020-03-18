@@ -284,7 +284,7 @@ public class LocalInputChannelTest {
 		final LocalInputChannel localChannel = createLocalInputChannel(
 			inputGate, new ResultPartitionManager(), 1, 1);
 
-		inputGate.setInputChannel(localChannel);
+		inputGate.setInputChannels(localChannel);
 		localChannel.requestSubpartition(0);
 
 		// The timer should be initialized at the first time of retriggering partition request.
@@ -528,17 +528,19 @@ public class LocalInputChannelTest {
 				.setNumberOfChannels(numberOfInputChannels)
 				.setBufferPoolFactory(bufferPool)
 				.build();
+			InputChannel[] inputChannels = new InputChannel[numberOfInputChannels];
 
 			// Setup input channels
 			for (int i = 0; i < numberOfInputChannels; i++) {
-				InputChannelBuilder.newBuilder()
+				inputChannels[i] = InputChannelBuilder.newBuilder()
 					.setChannelIndex(i)
 					.setPartitionManager(partitionManager)
 					.setPartitionId(consumedPartitionIds[i])
 					.setTaskEventPublisher(taskEventDispatcher)
-					.buildLocalAndSetToGate(inputGate);
+					.buildLocalChannel(inputGate);
 			}
 
+			inputGate.setInputChannels(inputChannels);
 			inputGate.setup();
 
 			this.numberOfInputChannels = numberOfInputChannels;

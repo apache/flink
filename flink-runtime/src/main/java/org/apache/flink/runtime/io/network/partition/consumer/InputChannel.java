@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -46,8 +45,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ol>
  */
 public abstract class InputChannel {
-
-	protected final int channelIndex;
 
 	/** The info of the input channel to identify it globally within a task. */
 	protected final InputChannelInfo channelInfo;
@@ -92,7 +89,6 @@ public abstract class InputChannel {
 		checkArgument(initial >= 0 && initial <= max);
 
 		this.inputGate = checkNotNull(inputGate);
-		this.channelIndex = channelIndex;
 		this.channelInfo = new InputChannelInfo(inputGate.getGateIndex(), channelIndex);
 		this.partitionId = checkNotNull(partitionId);
 
@@ -108,12 +104,17 @@ public abstract class InputChannel {
 	// Properties
 	// ------------------------------------------------------------------------
 
-	int getChannelIndex() {
-		return channelIndex;
+	/**
+	 * Returns the index of this channel within its {@link SingleInputGate}.
+	 */
+	public int getChannelIndex() {
+		return channelInfo.getInputChannelIdx();
 	}
 
-	@VisibleForTesting
-	InputChannelInfo getChannelInfo() {
+	/**
+	 * Returns the info of this channel, which uniquely identifies the channel in respect to its operator instance.
+	 */
+	public InputChannelInfo getChannelInfo() {
 		return channelInfo;
 	}
 

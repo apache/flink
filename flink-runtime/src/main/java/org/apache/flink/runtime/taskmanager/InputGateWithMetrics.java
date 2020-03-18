@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -54,6 +55,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	@Override
 	public int getNumberOfInputChannels() {
 		return inputGate.getNumberOfInputChannels();
+	}
+
+	@Override
+	public InputChannel getChannel(int channelIndex) {
+		return inputGate.getChannel(channelIndex);
 	}
 
 	@Override

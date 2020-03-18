@@ -33,9 +33,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class ResultSubpartition {
 
-	/** The index of the subpartition at the parent partition. */
-	protected final int index;
-
 	/** The info of the subpartition to identify it globally within a task. */
 	protected final ResultSubpartitionInfo subpartitionInfo;
 
@@ -45,7 +42,6 @@ public abstract class ResultSubpartition {
 	// - Statistics ----------------------------------------------------------
 
 	public ResultSubpartition(int index, ResultPartition parent) {
-		this.index = index;
 		this.parent = parent;
 		this.subpartitionInfo = new ResultSubpartitionInfo(parent.getPartitionIndex(), index);
 	}
@@ -58,8 +54,7 @@ public abstract class ResultSubpartition {
 		return parent.bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
 	}
 
-	@VisibleForTesting
-	ResultSubpartitionInfo getSubpartitionInfo() {
+	public ResultSubpartitionInfo getSubpartitionInfo() {
 		return subpartitionInfo;
 	}
 
@@ -70,11 +65,15 @@ public abstract class ResultSubpartition {
 
 	protected abstract long getTotalNumberOfBytes();
 
+	public int getSubPartitionIndex() {
+		return subpartitionInfo.getSubPartitionIdx();
+	}
+
 	/**
 	 * Notifies the parent partition about a consumed {@link ResultSubpartitionView}.
 	 */
 	protected void onConsumedSubpartition() {
-		parent.onConsumedSubpartition(index);
+		parent.onConsumedSubpartition(getSubPartitionIndex());
 	}
 
 	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
