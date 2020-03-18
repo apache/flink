@@ -21,16 +21,17 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -77,31 +78,40 @@ public class UnionInputGate extends InputGate {
 	 */
 	private final LinkedHashSet<IndexedInputGate> inputGatesWithData = new LinkedHashSet<>();
 
-	/** The total number of input channels across all unioned input gates. */
-	private final int totalNumberOfInputChannels;
+	/** Input channels across all unioned input gates. */
+	private final InputChannel[] inputChannels;
 
 	/**
-	 * A mapping from input gate to (logical) channel index offset. Valid channel indexes go from 0
+	 * A mapping from input gate index to (logical) channel index offset. Valid channel indexes go from 0
 	 * (inclusive) to the total number of input channels (exclusive).
 	 */
-	private final Map<IndexedInputGate, Integer> inputGateToIndexOffsetMap;
+	private final int[] inputGateChannelIndexOffsets;
 
 	public UnionInputGate(IndexedInputGate... inputGates) {
 		this.inputGates = checkNotNull(inputGates);
 		checkArgument(inputGates.length > 1, "Union input gate should union at least two input gates.");
 
-		this.inputGateToIndexOffsetMap = Maps.newHashMapWithExpectedSize(inputGates.length);
+		if (Arrays.stream(inputGates).map(IndexedInputGate::getGateIndex).distinct().count() != inputGates.length) {
+			throw new IllegalArgumentException("Union of two input gates with the same gate index. Given indices: " +
+				Arrays.stream(inputGates).map(IndexedInputGate::getGateIndex).collect(Collectors.toList()));
+		}
+
 		this.inputGatesWithRemainingData = Sets.newHashSetWithExpectedSize(inputGates.length);
 
+		final int maxGateIndex = Arrays.stream(inputGates).mapToInt(IndexedInputGate::getGateIndex).max().orElse(0);
+		inputGateChannelIndexOffsets = new int[maxGateIndex + 1];
 		int currentNumberOfInputChannels = 0;
+		for (final IndexedInputGate inputGate : inputGates) {
+			inputGateChannelIndexOffsets[inputGate.getGateIndex()] = currentNumberOfInputChannels;
+			currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
+		}
+		inputChannels = Arrays.stream(inputGates)
+			.flatMap(gate -> IntStream.range(0, gate.getNumberOfInputChannels()).mapToObj(gate::getChannel))
+			.toArray(InputChannel[]::new);
 
 		synchronized (inputGatesWithData) {
 			for (IndexedInputGate inputGate : inputGates) {
-				// The offset to use for buffer or event instances received from this input gate.
-				inputGateToIndexOffsetMap.put(checkNotNull(inputGate), currentNumberOfInputChannels);
 				inputGatesWithRemainingData.add(inputGate);
-
-				currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
 
 				CompletableFuture<?> available = inputGate.getAvailableFuture();
 
@@ -116,8 +126,6 @@ public class UnionInputGate extends InputGate {
 				availabilityHelper.resetAvailable();
 			}
 		}
-
-		this.totalNumberOfInputChannels = currentNumberOfInputChannels;
 	}
 
 	/**
@@ -125,7 +133,12 @@ public class UnionInputGate extends InputGate {
 	 */
 	@Override
 	public int getNumberOfInputChannels() {
-		return totalNumberOfInputChannels;
+		return inputChannels.length;
+	}
+
+	@Override
+	public InputChannel getChannel(int channelIndex) {
+		return inputChannels[channelIndex];
 	}
 
 	@Override
@@ -202,7 +215,7 @@ public class UnionInputGate extends InputGate {
 			IndexedInputGate inputGate,
 			boolean moreInputGatesAvailable) {
 		// Set the channel index to identify the input channel (across all unioned input gates)
-		final int channelIndexOffset = inputGateToIndexOffsetMap.get(inputGate);
+		final int channelIndexOffset = inputGateChannelIndexOffsets[inputGate.getGateIndex()];
 
 		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
 		bufferOrEvent.setMoreAvailable(bufferOrEvent.moreAvailable() || moreInputGatesAvailable);

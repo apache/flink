@@ -44,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -137,6 +138,9 @@ public class SingleInputGate extends IndexedInputGate {
 	 */
 	private final Map<IntermediateResultPartitionID, InputChannel> inputChannels;
 
+	@GuardedBy("requestLock")
+	private final InputChannel[] channels;
+
 	/** Channels, which notified this input gate about available data. */
 	private final ArrayDeque<InputChannel> inputChannelsWithData = new ArrayDeque<>();
 
@@ -202,6 +206,7 @@ public class SingleInputGate extends IndexedInputGate {
 		this.numberOfInputChannels = numberOfInputChannels;
 
 		this.inputChannels = new HashMap<>(numberOfInputChannels);
+		this.channels = new InputChannel[numberOfInputChannels];
 		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
@@ -304,6 +309,11 @@ public class SingleInputGate extends IndexedInputGate {
 		return closeFuture;
 	}
 
+	@Override
+	public InputChannel getChannel(int channelIndex) {
+		return channels[channelIndex];
+	}
+
 	// ------------------------------------------------------------------------
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
@@ -329,14 +339,20 @@ public class SingleInputGate extends IndexedInputGate {
 		}
 	}
 
-	public void setInputChannel(InputChannel inputChannel) {
-		checkNotNull(inputChannel);
-		IntermediateResultPartitionID partitionId = inputChannel.getPartitionId().getPartitionId();
+	public void setInputChannels(InputChannel... channels) {
+		if (channels.length != numberOfInputChannels) {
+			throw new IllegalArgumentException("Expected " + numberOfInputChannels + " channels, " +
+				"but got " + channels.length);
+		}
 		synchronized (requestLock) {
-			if (inputChannels.put(partitionId, inputChannel) == null
+			System.arraycopy(channels, 0, this.channels, 0, numberOfInputChannels);
+			for (InputChannel inputChannel : channels) {
+				IntermediateResultPartitionID partitionId = inputChannel.getPartitionId().getPartitionId();
+				if (inputChannels.put(partitionId, inputChannel) == null
 					&& inputChannel instanceof UnknownInputChannel) {
 
-				numberOfUninitializedChannels++;
+					numberOfUninitializedChannels++;
+				}
 			}
 		}
 	}
@@ -369,6 +385,7 @@ public class SingleInputGate extends IndexedInputGate {
 				LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
 
 				inputChannels.put(partitionId, newChannel);
+				channels[current.getChannelIndex()] = newChannel;
 
 				if (requestedPartitionsFlag) {
 					newChannel.requestSubpartition(consumedSubpartitionIndex);

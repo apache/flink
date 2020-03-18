@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 
 import javax.annotation.Nullable;
 
@@ -80,6 +81,11 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 */
 	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
+
+	/**
+	 * Returns the subpartition with the given index.
+	 */
+	ResultSubpartition getSubpartition(int subpartitionIndex);
 
 	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.

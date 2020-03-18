@@ -166,8 +166,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return partitionId;
 	}
 
-	int getPartitionIndex() {
+	public int getPartitionIndex() {
 		return partitionIndex;
+	}
+
+	@Override
+	public ResultSubpartition getSubpartition(int subpartitionIndex) {
+		return subpartitions[subpartitionIndex];
 	}
 
 	@Override

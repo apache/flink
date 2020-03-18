@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -63,9 +64,10 @@ public class NettyPartitionRequestClientTest {
 			.setInitialBackoff(1)
 			.setMaxBackoff(2)
 			.setMemorySegmentProvider(networkBufferPool)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
@@ -120,6 +122,7 @@ public class NettyPartitionRequestClientTest {
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client, networkBufferPool);
 
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();

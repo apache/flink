@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 
@@ -146,6 +147,11 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		@Override
 		public boolean isFinished() {
 			return false;
+		}
+
+		@Override
+		public InputChannel getChannel(int channelIndex) {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

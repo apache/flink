@@ -70,6 +70,11 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
+	public ResultSubpartition getSubpartition(int subpartitionIndex) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public BufferBuilder tryGetBufferBuilder() throws IOException {
 		throw new UnsupportedOperationException();
 	}

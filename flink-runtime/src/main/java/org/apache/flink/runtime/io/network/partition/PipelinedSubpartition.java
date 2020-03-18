@@ -259,11 +259,13 @@ public class PipelinedSubpartition extends ResultSubpartition {
 		synchronized (buffers) {
 			checkState(!isReleased);
 			checkState(readView == null,
-					"Subpartition %s of is being (or already has been) consumed, " +
-					"but pipelined subpartitions can only be consumed once.", index, parent.getPartitionId());
+				"Subpartition %s of is being (or already has been) consumed, " +
+				"but pipelined subpartitions can only be consumed once.",
+				getSubPartitionIndex(),
+				parent.getPartitionId());
 
 			LOG.debug("{}: Creating read view for subpartition {} of partition {}.",
-				parent.getOwningTaskName(), index, parent.getPartitionId());
+				parent.getOwningTaskName(), getSubPartitionIndex(), parent.getPartitionId());
 
 			readView = new PipelinedSubpartitionView(this, availabilityListener);
 			notifyDataAvailable = !buffers.isEmpty();
@@ -309,7 +311,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 		return String.format(
 			"PipelinedSubpartition#%d [number of buffers: %d (%d bytes), number of buffers in backlog: %d, finished? %s, read view? %s]",
-			index, numBuffers, numBytes, getBuffersInBacklog(), finished, hasReadView);
+			getSubPartitionIndex(), numBuffers, numBytes, getBuffersInBacklog(), finished, hasReadView);
 	}
 
 	@Override
