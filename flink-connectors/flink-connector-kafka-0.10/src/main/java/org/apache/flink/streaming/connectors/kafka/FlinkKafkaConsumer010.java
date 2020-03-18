@@ -32,11 +32,18 @@ import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDi
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
+import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -45,6 +52,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.PropertiesUtil.getBoolean;
+import static org.apache.flink.util.PropertiesUtil.getLong;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -64,10 +75,33 @@ import java.util.regex.Pattern;
  * http://kafka.apache.org/documentation.html#newconsumerconfigs</p>
  */
 @PublicEvolving
-public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
+public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumerBase<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
 
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer010.class);
+
+	/**  Configuration key to change the polling timeout. **/
+	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
+
+	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
+	 * available. If 0, returns immediately with any records that are available now. */
+	public static final long DEFAULT_POLL_TIMEOUT = 100L;
+
+	// ------------------------------------------------------------------------
+
+	/** User-supplied properties for Kafka. **/
+	protected final Properties properties;
+
+	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
+	 * available. If 0, returns immediately with any records that are available now */
+	protected final long pollTimeout;
+
+	/**
+	 * RateLimiter to throttle bytes read from Kafka. The rateLimiter is set via
+	 * {@link #setRateLimiter(FlinkConnectorRateLimiter)}.
+	 */
+	private FlinkConnectorRateLimiter rateLimiter;
 	// ------------------------------------------------------------------------
 
 	/**
@@ -130,7 +164,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer010(List<String> topics, KafkaDeserializationSchema<T> deserializer, Properties props) {
-		super(topics, deserializer, props);
+		this(topics, null, deserializer, props);
 	}
 
 	/**
@@ -173,7 +207,38 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer010(Pattern subscriptionPattern, KafkaDeserializationSchema<T> deserializer, Properties props) {
-		super(subscriptionPattern, deserializer, props);
+		this(null, subscriptionPattern, deserializer, props);
+	}
+
+	private FlinkKafkaConsumer010(
+			@Nullable List<String> topics,
+			@Nullable Pattern subscriptionPattern,
+			KafkaDeserializationSchema<T> deserializer,
+			Properties props) {
+
+		super(
+				topics,
+				subscriptionPattern,
+				deserializer,
+				getLong(
+					checkNotNull(props, "props"),
+					KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED),
+				!getBoolean(props, KEY_DISABLE_METRICS, false));
+
+		this.properties = props;
+		setDeserializer(this.properties);
+
+		// configure the polling timeout
+		try {
+			if (properties.containsKey(KEY_POLL_TIMEOUT)) {
+				this.pollTimeout = Long.parseLong(properties.getProperty(KEY_POLL_TIMEOUT));
+			} else {
+				this.pollTimeout = DEFAULT_POLL_TIMEOUT;
+			}
+		}
+		catch (Exception e) {
+			throw new IllegalArgumentException("Cannot parse poll timeout for '" + KEY_POLL_TIMEOUT + '\'', e);
+		}
 	}
 
 	@Override
@@ -191,7 +256,6 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		// this overwrites whatever setting the user configured in the properties
 		adjustAutoCommitConfig(properties, offsetCommitMode);
 
-		FlinkConnectorRateLimiter rateLimiter = super.getRateLimiter();
 		// If a rateLimiter is set, then call rateLimiter.open() with the runtime context.
 		if (rateLimiter != null) {
 			rateLimiter.open(runtimeContext);
@@ -222,6 +286,12 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			int numParallelSubtasks) {
 
 		return new Kafka010PartitionDiscoverer(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, properties);
+	}
+
+	@Override
+	protected boolean getIsAutoCommitEnabled() {
+		return getBoolean(properties, ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true) &&
+			PropertiesUtil.getLong(properties, ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 5000) > 0;
 	}
 
 	// ------------------------------------------------------------------------
@@ -262,5 +332,43 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		}
 
 		return result;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Makes sure that the ByteArrayDeserializer is registered in the Kafka properties.
+	 *
+	 * @param props The Kafka properties to register the serializer in.
+	 */
+	private static void setDeserializer(Properties props) {
+		final String deSerName = ByteArrayDeserializer.class.getName();
+
+		Object keyDeSer = props.get(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+		Object valDeSer = props.get(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+
+		if (keyDeSer != null && !keyDeSer.equals(deSerName)) {
+			LOG.warn("Ignoring configured key DeSerializer ({})", ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+		}
+		if (valDeSer != null && !valDeSer.equals(deSerName)) {
+			LOG.warn("Ignoring configured value DeSerializer ({})", ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+		}
+
+		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, deSerName);
+		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, deSerName);
+	}
+
+	/**
+	 * Set a rate limiter to ratelimit bytes read from Kafka.
+	 * @param kafkaRateLimiter
+	 */
+	public void setRateLimiter(FlinkConnectorRateLimiter kafkaRateLimiter) {
+		this.rateLimiter = kafkaRateLimiter;
+	}
+
+	public FlinkConnectorRateLimiter getRateLimiter() {
+		return rateLimiter;
 	}
 }

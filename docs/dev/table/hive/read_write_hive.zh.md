@@ -24,6 +24,7 @@ under the License.
 
 Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine.
 Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.
+And please also note that Hive connector only works with blink planner.
 
 * This will be replaced by the TOC
 {:toc}
@@ -170,14 +171,14 @@ It is especially beneficial when a table contains many columns.
 For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
 amount of data transferred across network.
 
-### ORC Vectorized Optimization upon Read
+### Vectorized Optimization upon Read
 
 Optimization is used automatically when the following conditions are met:
 
+- Format: ORC or Parquet.
 - Columns without complex data type, like hive types: List, Map, Struct, Union.
-- Hive version greater than or equal to version 2.0.0.
 
-This feature is turned on by default. If there is a problem, you can use this config option to close ORC Vectorized Optimization:
+This feature is turned on by default. If there is a problem, you can use this config option to close Vectorized Optimization:
 
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true

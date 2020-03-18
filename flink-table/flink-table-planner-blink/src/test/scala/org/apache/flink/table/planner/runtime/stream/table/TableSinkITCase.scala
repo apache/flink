@@ -63,7 +63,7 @@ class TableSinkITCase extends AbstractTestBase {
       .where('a < 3 || 'a > 19)
       .select('c, 't, 'b)
       .insertInto("targetTable")
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = Seq(
       "Hi,1970-01-01 00:00:00.001,1.000000000000000000",
@@ -103,7 +103,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select(ifThenElse('a < 4, nullOf(Types.INT()), 'a), 'c, 'b)
       .insertInto("csvSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = Seq(
       ",Hello world,1970-01-01 00:00:00.002",
@@ -141,7 +141,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("appendSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     val result = sink.getAppendResults.sorted
     val expected = List(
@@ -174,7 +174,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.sqlUpdate("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
 
-    env.execute()
+    tEnv.execute("job name")
 
     val result = sink.getAppendResults.sorted
     val expected = List(
@@ -205,7 +205,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('c, 'g)
       .insertInto("appendSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     val result = sink.getAppendResults.sorted
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt").sorted
@@ -235,7 +235,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('len, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("retractSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     val retracted = sink.getRetractResults.sorted
     val expected = List(
@@ -273,7 +273,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("retractSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -302,23 +302,22 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault)
+    val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault).configure(
+      Array[String]("cnt", "lencnt", "cTrue"),
+      Array[TypeInformation[_]](Types.LONG, Types.DECIMAL(), Types.BOOLEAN))
     sink.expectedKeys = Some(Array("cnt", "cTrue"))
     sink.expectedIsAppendOnly = Some(false)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("cnt", "lencnt", "cTrue"),
-        Array[TypeInformation[_]](Types.LONG, Types.DECIMAL(), Types.BOOLEAN)))
+    tEnv.registerTableSink("upsertSink", sink)
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
-      .select('len, 'id.count as 'cnt, 'cTrue)
-      .groupBy('cnt, 'cTrue)
-      .select('cnt, 'len.count as 'lencnt, 'cTrue)
+      // test query field name is different with registered sink field name
+      .select('len, 'id.count as 'count, 'cTrue)
+      .groupBy('count, 'cTrue)
+      .select('count, 'len.count as 'lencnt, 'cTrue)
       .insertInto("upsertSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     assertTrue(
       "Results must include delete messages",
@@ -344,21 +343,20 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault)
+    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault).configure(
+      Array[String]("num", "wend", "icnt"),
+      Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG))
     sink.expectedKeys = Some(Array("wend", "num"))
     sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("num", "wend", "icnt"),
-        Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG)))
+    tEnv.registerTableSink("upsertSink", sink)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
-      .select('num, 'w.end as 'wend, 'id.count as 'icnt)
+      // test query field name is different with registered sink field name
+      .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -405,7 +403,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -450,7 +448,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 'wend, 'id.count as 'cnt)
       .insertInto("upsertSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -495,7 +493,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('num, 'id.count as 'cnt)
       .insertInto("upsertSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     assertFalse(
       "Received retraction messages for append only table",

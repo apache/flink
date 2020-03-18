@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
+import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -68,6 +69,18 @@ public class TypeStrategiesTest {
 				.inputTypes()
 				.expectDataType(DataTypes.BIGINT()),
 
+			// infer from input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes(DataTypes.INT(), DataTypes.STRING())
+				.expectDataType(DataTypes.INT()),
+
+			// infer from not existing input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes()
+				.expectErrorMessage("Could not infer an output type for the given arguments."),
+
 			// (INT, BOOLEAN) -> STRING
 			TestSpec
 				.forStrategy(createMappingTypeStrategy())
@@ -78,6 +91,13 @@ public class TypeStrategiesTest {
 			TestSpec
 				.forStrategy(createMappingTypeStrategy())
 				.inputTypes(DataTypes.INT(), DataTypes.STRING())
+				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
+
+			// (INT, CHAR(10)) -> BOOLEAN
+			// but avoiding casts (mapping actually expects STRING)
+			TestSpec
+				.forStrategy(createMappingTypeStrategy())
+				.inputTypes(DataTypes.INT(), DataTypes.CHAR(10))
 				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
 
 			// invalid mapping strategy

@@ -26,7 +26,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -53,7 +52,7 @@ public final class UnresolvedCallExpression implements Expression {
 
 	private final List<Expression> args;
 
-	public UnresolvedCallExpression(
+	UnresolvedCallExpression(
 			FunctionIdentifier functionIdentifier,
 			FunctionDefinition functionDefinition,
 			List<Expression> args) {
@@ -61,18 +60,16 @@ public final class UnresolvedCallExpression implements Expression {
 			Preconditions.checkNotNull(functionIdentifier, "Function identifier must not be null.");
 		this.functionDefinition =
 			Preconditions.checkNotNull(functionDefinition, "Function definition must not be null.");
-		this.args = Collections.unmodifiableList(
-			new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null.")));
+		this.args = Collections.unmodifiableList(Preconditions.checkNotNull(args, "Arguments must not be null."));
 	}
 
-	public UnresolvedCallExpression(
+	UnresolvedCallExpression(
 			FunctionDefinition functionDefinition,
 			List<Expression> args) {
 		this.functionIdentifier = null;
 		this.functionDefinition =
 			Preconditions.checkNotNull(functionDefinition, "Function definition must not be null.");
-		this.args = Collections.unmodifiableList(
-			new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null.")));
+		this.args = Collections.unmodifiableList(Preconditions.checkNotNull(args, "Arguments must not be null."));
 	}
 
 	public Optional<FunctionIdentifier> getFunctionIdentifier() {

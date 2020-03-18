@@ -164,8 +164,10 @@ public class DataFormatConverters {
 				Tuple2<Integer, Integer> ps = getPrecision(logicalType);
 				if (clazz == BigDecimal.class) {
 					return new BigDecimalConverter(ps.f0, ps.f1);
-				} else {
+				} else if (clazz == Decimal.class) {
 					return new DecimalConverter(ps.f0, ps.f1);
+				} else {
+					throw new RuntimeException("Not support conversion class for DECIMAL: " + clazz);
 				}
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				int precisionOfTS = getDateTimePrecision(logicalType);
@@ -173,8 +175,10 @@ public class DataFormatConverters {
 					return new TimestampConverter(precisionOfTS);
 				} else if (clazz == LocalDateTime.class) {
 					return new LocalDateTimeConverter(precisionOfTS);
-				} else {
+				} else if (clazz == SqlTimestamp.class) {
 					return new SqlTimestampConverter(precisionOfTS);
+				} else {
+					throw new RuntimeException("Not support conversion class for TIMESTAMP WITHOUT TIME ZONE: " + clazz);
 				}
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				int precisionOfLZTS = getDateTimePrecision(logicalType);
@@ -182,8 +186,10 @@ public class DataFormatConverters {
 					return new InstantConverter(precisionOfLZTS);
 				} else if (clazz == Long.class || clazz == long.class) {
 					return new LongSqlTimestampConverter(precisionOfLZTS);
-				} else {
+				} else if (clazz == SqlTimestamp.class) {
 					return new SqlTimestampConverter(precisionOfLZTS);
+				} else {
+					throw new RuntimeException("Not support conversion class for TIMESTAMP WITH LOCAL TIME ZONE: " + clazz);
 				}
 			case ARRAY:
 				if (clazz == BinaryArray.class) {

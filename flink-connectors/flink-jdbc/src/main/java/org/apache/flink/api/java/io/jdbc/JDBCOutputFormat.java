@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.java.io.jdbc.JdbcConnectionOptions.JdbcConnectionOptionsBuilder;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.types.Row;
 
@@ -25,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.concurrent.Executors;
@@ -42,32 +42,41 @@ import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
  * @see Row
  * @see DriverManager
  */
-public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
+/**
+ * @deprecated use {@link JdbcBatchingOutputFormat}
+ */
+@Deprecated
+public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
-	private final String query;
-	private final int batchInterval;
-	private final int[] typesArray;
-	private final long flushIntervalMills;
+	final JdbcInsertOptions insertOptions;
+	private final JdbcExecutionOptions batchOptions;
 
-	private transient ScheduledExecutorService scheduler;
-	private transient ScheduledFuture scheduledFuture;
 	private transient volatile boolean closed = false;
+	private transient ScheduledExecutorService scheduler;
+	private transient ScheduledFuture<?> scheduledFuture;
 	private transient volatile Exception flushException;
 
-	private PreparedStatement upload;
-	private int batchCount = 0;
+	private transient PreparedStatement upload;
+	private transient int batchCount = 0;
 
-	public JDBCOutputFormat(String username, String password, String drivername,
-			String dbURL, String query, int batchInterval, long flushIntervalMills, int[] typesArray) {
-		super(username, password, drivername, dbURL);
-		this.query = query;
-		this.batchInterval = batchInterval;
-		this.typesArray = typesArray;
-		this.flushIntervalMills = flushIntervalMills;
+	/**
+	 * @deprecated use {@link JDBCOutputFormatBuilder builder} instead.
+	 */
+	@Deprecated
+	public JDBCOutputFormat(String username, String password, String drivername, String dbURL, String query, int batchInterval, int[] typesArray) {
+		this(new SimpleJdbcConnectionProvider(new JdbcConnectionOptionsBuilder().withUrl(dbURL).withDriverName(drivername).withUsername(username).withPassword(password).build()),
+				new JdbcInsertOptions(query, typesArray),
+				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
+	}
+
+	private JDBCOutputFormat(JdbcConnectionProvider connectionProvider, JdbcInsertOptions insertOptions, JdbcExecutionOptions batchOptions) {
+		super(connectionProvider);
+		this.insertOptions = insertOptions;
+		this.batchOptions = batchOptions;
 	}
 
 	/**
@@ -79,16 +88,14 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 	 */
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
+		super.open(taskNumber, numTasks);
 		try {
-			establishConnection();
-			upload = connection.prepareStatement(query);
+			upload = connection.prepareStatement(insertOptions.getQuery());
 		} catch (SQLException sqe) {
-			throw new IllegalArgumentException("open() failed.", sqe);
-		} catch (ClassNotFoundException cnfe) {
-			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
+			throw new IOException("open() failed.", sqe);
 		}
 
-		if (flushIntervalMills != DEFAULT_FLUSH_INTERVAL_MILLS && batchCount != 1) {
+		if (batchOptions.getBatchIntervalMs() != DEFAULT_FLUSH_INTERVAL_MILLS && batchOptions.getBatchSize() != 1) {
 			this.scheduler = Executors.newScheduledThreadPool(
 				1, new ExecutorThreadFactory("jdbc-output-format"));
 			this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
@@ -102,7 +109,7 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 						flushException = e;
 					}
 				}
-			}, flushIntervalMills, flushIntervalMills, TimeUnit.MILLISECONDS);
+			}, batchOptions.getBatchIntervalMs(), batchOptions.getBatchIntervalMs(), TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -113,11 +120,11 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 	}
 
 	@Override
-	public void writeRecord(Row row) throws IOException {
+	public void writeRecord(Row row) {
 		checkFlushException();
 
 		try {
-			setRecordToStatement(upload, typesArray, row);
+			setRecordToStatement(upload, insertOptions.getFieldTypes(), row);
 			upload.addBatch();
 		} catch (SQLException e) {
 			throw new RuntimeException("Preparation of JDBC statement failed.", e);
@@ -125,13 +132,14 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 
 		batchCount++;
 
-		if (batchCount >= batchInterval) {
+		if (batchCount >= batchOptions.getBatchSize()) {
 			// execute batch
 			flush();
 		}
 	}
 
-	void flush() {
+	@Override
+	public void flush() {
 		checkFlushException();
 
 		try {
@@ -142,17 +150,12 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 		}
 	}
 
-	int[] getTypesArray() {
-		return typesArray;
-	}
-
 	/**
 	 * Executes prepared statement and closes all resources of this instance.
 	 *
-	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		if (closed) {
 			return;
 		}
@@ -176,15 +179,19 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 			}
 		}
 
-		closeDbConnection();
+		super.close();
 	}
 
 	public static JDBCOutputFormatBuilder buildJDBCOutputFormat() {
 		return new JDBCOutputFormatBuilder();
 	}
 
+	public int[] getFieldTypes() {
+		return insertOptions.getFieldTypes();
+	}
+
 	/**
-	 * Builder for a {@link JDBCOutputFormat}.
+	 * Builder for {@link JDBCOutputFormat}.
 	 */
 	public static class JDBCOutputFormatBuilder {
 		private String username;
@@ -244,25 +251,26 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 		 * @return Configured JDBCOutputFormat
 		 */
 		public JDBCOutputFormat finish() {
+			return new JDBCOutputFormat(
+				new SimpleJdbcConnectionProvider(buildConnectionOptions()),
+				new JdbcInsertOptions(query, typesArray),
+				JdbcExecutionOptions.builder().withBatchIntervalMs(flushIntervalMills).withBatchSize(batchInterval).build());
+		}
+
+		public JdbcConnectionOptions buildConnectionOptions() {
 			if (this.username == null) {
 				LOG.info("Username was not supplied.");
 			}
 			if (this.password == null) {
 				LOG.info("Password was not supplied.");
 			}
-			if (this.dbURL == null) {
-				throw new IllegalArgumentException("No database URL supplied.");
-			}
-			if (this.query == null) {
-				throw new IllegalArgumentException("No query supplied.");
-			}
-			if (this.drivername == null) {
-				throw new IllegalArgumentException("No driver supplied.");
-			}
 
-			return new JDBCOutputFormat(
-					username, password, drivername, dbURL,
-					query, batchInterval, flushIntervalMills, typesArray);
+			return new JdbcConnectionOptionsBuilder()
+				.withUrl(dbURL)
+				.withDriverName(drivername)
+				.withUsername(username)
+				.withPassword(password)
+				.build();
 		}
 	}
 

@@ -24,18 +24,17 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
-import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
+import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
+import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
-import org.apache.flink.kubernetes.taskmanager.KubernetesTaskExecutorRunner;
-import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
@@ -52,8 +51,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -88,8 +85,6 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 	private final ContaineredTaskManagerParameters taskManagerParameters;
 
-	private final List<String> taskManagerStartCommand;
-
 	/** The number of pods requested, but not yet granted. */
 	private int numPendingPodRequests = 0;
 
@@ -119,14 +114,12 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			fatalErrorHandler,
 			resourceManagerMetricGroup);
 		this.clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
-		this.defaultCpus = taskExecutorResourceSpec.getCpuCores().getValue().doubleValue();
+		this.defaultCpus = taskExecutorProcessSpec.getCpuCores().getValue().doubleValue();
 
 		this.kubeClient = createFlinkKubeClient();
 
 		this.taskManagerParameters =
-			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorResourceSpec, numSlotsPerTaskManager);
-
-		this.taskManagerStartCommand = getTaskManagerStartCommand();
+			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec, numSlotsPerTaskManager);
 	}
 
 	@Override
@@ -138,7 +131,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	protected void initialize() throws ResourceManagerException {
 		recoverWorkerNodesFromPreviousAttempts();
 
-		kubeClient.watchPodsAndDoCallback(getTaskManagerLabels(), this);
+		kubeClient.watchPodsAndDoCallback(KubernetesUtils.getTaskManagerLabels(clusterId), this);
 	}
 
 	@Override
@@ -229,7 +222,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	}
 
 	private void recoverWorkerNodesFromPreviousAttempts() throws ResourceManagerException {
-		final List<KubernetesPod> podList = kubeClient.getPodsWithLabels(getTaskManagerLabels());
+		final List<KubernetesPod> podList = kubeClient.getPodsWithLabels(KubernetesUtils.getTaskManagerLabels(clusterId));
 		for (KubernetesPod pod : podList) {
 			final KubernetesWorkerNode worker = new KubernetesWorkerNode(new ResourceID(pod.getName()));
 			workerNodes.put(worker.getResourceID(), worker);
@@ -258,19 +251,21 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			currentMaxAttemptId,
 			++currentMaxPodId);
 
-		final HashMap<String, String> env = new HashMap<>();
-		env.put(Constants.ENV_FLINK_POD_NAME, podName);
-		env.putAll(taskManagerParameters.taskManagerEnv());
+		final String dynamicProperties =
+			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, flinkConfig);
 
-		final TaskManagerPodParameter parameter = new TaskManagerPodParameter(
+		final KubernetesTaskManagerParameters kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(
+			flinkConfig,
 			podName,
-			taskManagerStartCommand,
 			defaultMemoryMB,
-			defaultCpus,
-			env);
+			dynamicProperties,
+			taskManagerParameters);
 
-		log.info("TaskManager {} will be started with {}.", podName, taskExecutorResourceSpec);
-		kubeClient.createTaskManagerPod(parameter);
+		final KubernetesPod taskManagerPod =
+			KubernetesTaskManagerFactory.createTaskManagerComponent(kubernetesTaskManagerParameters);
+
+		log.info("TaskManager {} will be started with {}.", podName, taskExecutorProcessSpec);
+		kubeClient.createTaskManagerPod(taskManagerPod);
 	}
 
 	/**
@@ -295,49 +290,12 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 		}
 	}
 
-	private List<String> getTaskManagerStartCommand() {
-		final String confDir = flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR);
-		final boolean hasLogback = new File(confDir, Constants.CONFIG_FILE_LOGBACK_NAME).exists();
-		final boolean hasLog4j = new File(confDir, Constants.CONFIG_FILE_LOG4J_NAME).exists();
-
-		final String logDir = flinkConfig.getString(KubernetesConfigOptions.FLINK_LOG_DIR);
-
-		final String mainClassArgs = "--" + CommandLineOptions.CONFIG_DIR_OPTION.getLongOpt() + " " +
-			flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR) + " " +
-			BootstrapTools.getDynamicProperties(flinkClientConfig, flinkConfig);
-
-		final String command = KubernetesUtils.getTaskManagerStartCommand(
-			flinkConfig,
-			taskManagerParameters,
-			confDir,
-			logDir,
-			hasLogback,
-			hasLog4j,
-			KubernetesTaskExecutorRunner.class.getCanonicalName(),
-			mainClassArgs);
-
-		return Arrays.asList("/bin/bash", "-c", command);
-	}
-
-	/**
-	 * Get task manager labels for the current Flink cluster. They could be used to watch the pods status.
-	 *
-	 * @return Task manager labels.
-	 */
-	private Map<String, String> getTaskManagerLabels() {
-		final Map<String, String> labels = new HashMap<>();
-		labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
-		labels.put(Constants.LABEL_APP_KEY, clusterId);
-		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
-		return labels;
-	}
-
 	protected FlinkKubeClient createFlinkKubeClient() {
 		return KubeClientFactory.fromConfiguration(flinkConfig);
 	}
 
 	@Override
 	protected double getCpuCores(Configuration configuration) {
-		return flinkConfig.getDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, numSlotsPerTaskManager);
+		return TaskExecutorProcessUtils.getCpuCoresWithFallbackConfigOption(configuration, KubernetesConfigOptions.TASK_MANAGER_CPU);
 	}
 }

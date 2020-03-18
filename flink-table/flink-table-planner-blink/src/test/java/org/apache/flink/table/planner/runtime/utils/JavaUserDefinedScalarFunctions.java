@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunction;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 
 import java.sql.Timestamp;
 import java.util.Arrays;
@@ -271,6 +272,34 @@ public class JavaUserDefinedScalarFunctions {
 		@Override
 		public PythonEnv getPythonEnv() {
 			return null;
+		}
+	}
+
+	/**
+	 * Test for Pandas Python Scalar Function.
+	 */
+	public static class PandasScalarFunction extends PythonScalarFunction {
+		public PandasScalarFunction(String name) {
+			super(name);
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.PANDAS;
+		}
+	}
+
+	/**
+	 * Test for Pandas Python Scalar Function.
+	 */
+	public static class BooleanPandasScalarFunction extends BooleanPythonScalarFunction {
+		public BooleanPandasScalarFunction(String name) {
+			super(name);
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.PANDAS;
 		}
 	}
 }

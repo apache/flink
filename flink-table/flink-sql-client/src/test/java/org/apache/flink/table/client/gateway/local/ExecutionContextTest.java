@@ -25,6 +25,7 @@ import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -37,6 +38,9 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
@@ -214,6 +218,12 @@ public class ExecutionContextTest {
 		assertArrayEquals(
 			new String[]{"integerField", "stringField", "rowtimeField", "integerField0", "stringField0", "rowtimeField0"},
 			tableEnv.scan("TemporalTableUsage").getSchema().getFieldNames());
+
+		// Please delete this test after removing registerTableSource in SQL-CLI.
+		TableSchema tableSchema = tableEnv.from("EnrichmentSource").getSchema();
+		LogicalType timestampType = tableSchema.getFieldDataTypes()[2].getLogicalType();
+		assertTrue(timestampType instanceof TimestampType);
+		assertEquals(TimestampKind.ROWTIME, ((TimestampType) timestampType).getKind());
 	}
 
 	@Test

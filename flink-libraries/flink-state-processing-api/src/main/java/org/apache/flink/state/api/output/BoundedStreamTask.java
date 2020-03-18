@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.output;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -28,6 +29,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.Collector;
@@ -35,6 +37,7 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Iterator;
+import java.util.Optional;
 
 /**
  * A stream task that pulls elements from an {@link Iterable} instead of the network. After all
@@ -67,16 +70,17 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	@Override
 	protected void init() throws Exception {
 		Preconditions.checkState(
-			operatorChain.getAllOperators().length == 1,
+			operatorChain.getNumberOfOperators() == 1,
 			"BoundedStreamTask's should only run a single operator");
 
 		// re-initialize the operator with the correct collector.
 		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(getUserCodeClassLoader());
-		headOperator = StreamOperatorFactoryUtil.createOperator(
+		Tuple2<OP, Optional<ProcessingTimeService>> headOperatorAndTimeService = StreamOperatorFactoryUtil.createOperator(
 				operatorFactory,
 				this,
 				configuration,
 				new CollectorWrapper<>(collector));
+		headOperator = headOperatorAndTimeService.f0;
 		headOperator.initializeState();
 		headOperator.open();
 	}

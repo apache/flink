@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -32,9 +33,11 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -42,6 +45,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /**
@@ -126,6 +130,36 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 		catalog.alterPartitionColumnStatistics(path1, partitionSpec, catalogColumnStatistics, false);
 
 		checkEquals(catalogColumnStatistics, catalog.getPartitionColumnStatistics(path1, partitionSpec));
+	}
+
+	@Test
+	public void testHiveStatistics() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		checkStatistics(0, -1);
+		checkStatistics(1, 1);
+		checkStatistics(1000, 1000);
+	}
+
+	private void checkStatistics(int inputStat, int expectStat) throws Exception {
+		catalog.dropTable(path1, true);
+
+		Map<String, String> properties = new HashMap<>();
+		properties.put(CatalogConfig.IS_GENERIC, "false");
+		properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
+		properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
+		properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));
+		properties.put(StatsSetupConst.RAW_DATA_SIZE, String.valueOf(inputStat));
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder().field("f0", DataTypes.INT()).build(),
+				properties,
+				"");
+		catalog.createTable(path1, catalogTable, false);
+
+		CatalogTableStatistics statistics = catalog.getTableStatistics(path1);
+		assertEquals(expectStat, statistics.getRowCount());
+		assertEquals(expectStat, statistics.getFileCount());
+		assertEquals(expectStat, statistics.getRawDataSize());
+		assertEquals(expectStat, statistics.getTotalSize());
 	}
 
 	// ------ utils ------

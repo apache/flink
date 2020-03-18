@@ -42,7 +42,7 @@ import org.apache.flink.mesos.util.MesosArtifactServer;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -194,8 +194,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.workersInLaunch = new HashMap<>(8);
 		this.workersBeingReturned = new HashMap<>(8);
 
-		this.slotsPerWorker = TaskExecutorResourceUtils.createDefaultWorkerSlotProfiles(
-			taskManagerParameters.containeredParameters().getTaskExecutorResourceSpec(),
+		this.slotsPerWorker = TaskExecutorProcessUtils.createDefaultWorkerSlotProfiles(
+			taskManagerParameters.containeredParameters().getTaskExecutorProcessSpec(),
 			taskManagerParameters.containeredParameters().numSlots());
 	}
 

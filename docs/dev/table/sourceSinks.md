@@ -367,7 +367,7 @@ LookupableTableSource[T] extends TableSource[T] {
 </div>
 
 * `getLookupFunction(lookupkeys)`: Returns a `TableFunction` which used to lookup the matched row(s) via lookup keys. The lookupkeys are the field names of `LookupableTableSource` in the join equal conditions. The eval method parameters of the returned `TableFunction`'s should be in the order which `lookupkeys` defined. It is recommended to define the parameters in varargs (e.g. `eval(Object... lookupkeys)` to match all the cases). The return type of the `TableFunction` must be identical to the return type defined by the `TableSource.getReturnType()` method.
-* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O](/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
+* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O]({{ site.baseurl }}/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
 * `isAsyncEnabled()`: Returns true if async lookup is enabled. It requires `getAsyncLookupFunction(lookupkeys)` is implemented if `isAsyncEnabled` returns true.
 
 {% top %}
@@ -452,7 +452,7 @@ The interface looks as follows:
 {% highlight java %}
 AppendStreamTableSink<T> implements TableSink<T> {
 
-  public void emitDataStream(DataStream<T> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -461,7 +461,7 @@ AppendStreamTableSink<T> implements TableSink<T> {
 {% highlight scala %}
 AppendStreamTableSink[T] extends TableSink[T] {
 
-  def emitDataStream(dataStream: DataStream[T]): Unit
+  def consumeDataStream(dataStream: DataStream[T]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>
@@ -484,7 +484,7 @@ RetractStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
-  public void emitDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -495,7 +495,7 @@ RetractStreamTableSink[T] extends TableSink[Tuple2[Boolean, T]] {
 
   def getRecordType: TypeInformation[T]
 
-  def emitDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): Unit
+  def consumeDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>
@@ -522,7 +522,7 @@ UpsertStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
-  public void emitDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -537,7 +537,7 @@ UpsertStreamTableSink[T] extends TableSink[Tuple2[Boolean, T]] {
 
   def getRecordType: TypeInformation[T]
 
-  def emitDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): Unit
+  def consumeDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>

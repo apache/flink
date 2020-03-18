@@ -19,11 +19,11 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -154,32 +154,34 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 
 		final TableSchema.Builder builder = TableSchema.builder();
 
-		final TableSchema baseSchema = TableSchemaUtils.getPhysicalSchema(
-			descriptorProperties.getTableSchema(SCHEMA));
-		for (int i = 0; i < baseSchema.getFieldCount(); i++) {
-			final String fieldName = baseSchema.getFieldNames()[i];
-			final DataType fieldType = baseSchema.getFieldDataTypes()[i];
-
+		final TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
+		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
+			final TableColumn tableColumn = tableSchema.getTableColumns().get(i);
+			final String fieldName = tableColumn.getName();
+			final DataType dataType = tableColumn.getType();
+			final boolean isGeneratedColumn = tableColumn.isGenerated();
+			if (isGeneratedColumn) {
+				//skip generated column
+				continue;
+			}
 			final boolean isProctime = descriptorProperties
 				.getOptionalBoolean(SCHEMA + '.' + i + '.' + SCHEMA_PROCTIME)
 				.orElse(false);
 			final String timestampKey = SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_TYPE;
 			final boolean isRowtime = descriptorProperties.containsKey(timestampKey);
-			boolean isGeneratedColumn = properties.containsKey(SCHEMA + "." + i + "." + TABLE_SCHEMA_EXPR);
-
-			if (!isProctime && !isRowtime && !isGeneratedColumn) {
+			if (!isProctime && !isRowtime) {
 				// check for aliasing
 				final String aliasName = descriptorProperties
 					.getOptionalString(SCHEMA + '.' + i + '.' + SCHEMA_FROM)
 					.orElse(fieldName);
-				builder.field(aliasName, fieldType);
+				builder.field(aliasName, dataType);
 			}
 			// only use the rowtime attribute if it references a field
 			else if (isRowtime &&
 					descriptorProperties.isValue(timestampKey, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD)) {
 				final String aliasName = descriptorProperties
 					.getString(SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_FROM);
-				builder.field(aliasName, fieldType);
+				builder.field(aliasName, dataType);
 			}
 		}
 

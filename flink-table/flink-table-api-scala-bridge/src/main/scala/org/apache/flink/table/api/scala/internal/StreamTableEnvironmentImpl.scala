@@ -70,11 +70,6 @@ class StreamTableEnvironmentImpl (
     isStreaming)
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
 
-  if (!isStreaming) {
-    throw new TableException(
-      "StreamTableEnvironment is not supported on batch mode now, please use TableEnvironment.")
-  }
-
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
     val queryOperation = asQueryOperation(dataStream, None)
     createTable(queryOperation)
@@ -194,14 +189,6 @@ class StreamTableEnvironmentImpl (
     }
   }
 
-  override protected def isEagerOperationTranslation(): Boolean = true
-
-  override def explain(extended: Boolean): String = {
-    // throw exception directly, because the operations to explain are always empty
-    throw new TableException(
-      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
-  }
-
   private def toDataStream[T](
       table: Table,
       modifyOperation: OutputConversionModifyOperation)
@@ -310,11 +297,27 @@ object StreamTableEnvironmentImpl {
       tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
 
-    val catalogManager = new CatalogManager(
-      settings.getBuiltInCatalogName,
-      new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
+    if (!settings.isStreamingMode) {
+      throw new TableException(
+        "StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.")
+    }
+
+    // temporary solution until FLINK-15635 is fixed
+    val classLoader = Thread.currentThread.getContextClassLoader
 
     val moduleManager = new ModuleManager
+
+    val catalogManager = CatalogManager.newBuilder
+      .classLoader(classLoader)
+      .config(tableConfig.getConfiguration)
+      .defaultCatalog(
+        settings.getBuiltInCatalogName,
+        new GenericInMemoryCatalog(
+          settings.getBuiltInCatalogName,
+          settings.getBuiltInDatabaseName))
+      .executionConfig(executionEnvironment.getConfig)
+      .build
+
     val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
     val executorProperties = settings.toExecutorProperties

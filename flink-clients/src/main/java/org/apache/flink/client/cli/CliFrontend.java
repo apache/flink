@@ -200,7 +200,7 @@ public class CliFrontend {
 			program = buildProgram(programOptions);
 		}
 		catch (FileNotFoundException e) {
-			throw new CliArgsException("Could not build the program from JAR file.", e);
+			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
 		}
 
 		final List<URL> jobJars = program.getJobJarAndDependencies();
@@ -268,7 +268,7 @@ public class CliFrontend {
 
 			LOG.info("Creating program plan dump");
 
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism);
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism, true);
 			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 
 			if (jsonPlan != null) {

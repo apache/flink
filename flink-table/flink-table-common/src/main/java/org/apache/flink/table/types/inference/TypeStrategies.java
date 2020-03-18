@@ -23,6 +23,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
 
 import java.util.Map;
 
@@ -44,6 +45,13 @@ public final class TypeStrategies {
 	 */
 	public static TypeStrategy explicit(DataType dataType) {
 		return new ExplicitTypeStrategy(dataType);
+	}
+
+	/**
+	 * Type strategy that returns the n-th input argument.
+	 */
+	public static TypeStrategy argument(int pos) {
+		return new UseArgumentTypeStrategy(pos);
 	}
 
 	/**

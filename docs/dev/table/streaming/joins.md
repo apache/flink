@@ -63,7 +63,7 @@ WHERE o.id = s.orderId AND
       o.ordertime BETWEEN s.shiptime - INTERVAL '4' HOUR AND s.shiptime
 {% endhighlight %}
 
-Compared to a regular join operation, this kind of join only supports append-only tables with time attributes. Since time attributes are quasi-monontic increasing, Flink can remove old values from its state without affecting the correctness of the result.
+Compared to a regular join operation, this kind of join only supports append-only tables with time attributes. Since time attributes are quasi-monotonic increasing, Flink can remove old values from its state without affecting the correctness of the result.
 
 Join with a Temporal Table Function
 --------------------------

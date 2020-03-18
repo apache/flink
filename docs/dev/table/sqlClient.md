@@ -211,12 +211,11 @@ catalogs:
      property-version: 1
      default-database: mydb2
      hive-conf-dir: ...
-     hive-version: 1.2.1
 
 # Properties that change the fundamental execution behavior of a table program.
 
 execution:
-  planner: old                      # optional: either 'old' (default) or 'blink'
+  planner: blink                    # optional: either 'blink' (default) or 'old'
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
   max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
@@ -254,7 +253,7 @@ This configuration:
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
 - connects to two Hive catalogs and uses `catalog_1` as the current catalog with `mydb1` as the current database of the catalog,
-- uses the old planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,
+- uses the blink planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,
 - runs exploratory queries in the `table` result mode,
 - and makes some planner adjustments around join reordering and spilling via configuration options.
 
@@ -448,7 +447,6 @@ catalogs:
      type: hive
      property-version: 1
      default-database: mydb2
-     hive-version: 1.2.1
      hive-conf-dir: <path of Hive conf directory>
    - name: catalog_2
      type: hive

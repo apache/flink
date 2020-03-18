@@ -101,7 +101,11 @@ public class OldCsv extends FormatDescriptor {
 	 * <p>This method overwrites existing fields added with [[field()]].
 	 *
 	 * @param schema the table schema
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 * 	           it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv schema(TableSchema schema) {
 		this.schema.clear();
 		for (int i = 0; i < schema.getFieldCount(); ++i) {
@@ -117,7 +121,11 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type information of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, TypeInformation<?> fieldType) {
 		field(fieldName, TypeConversions.fromLegacyInfoToDataType(fieldType));
 		return this;
@@ -130,7 +138,11 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type information of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, DataType fieldType) {
 		addField(fieldName, fieldType.getLogicalType().asSerializableString());
 		return this;
@@ -147,7 +159,11 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type string of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, String fieldType) {
 		if (isLegacyTypeString(fieldType)) {
 			// fallback to legacy parser

@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
+import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
@@ -49,6 +50,8 @@ import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -58,6 +61,7 @@ import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
@@ -74,10 +78,13 @@ import org.apache.flink.util.StringUtils;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.validate.SqlValidator;
 
 import java.util.HashMap;
@@ -98,8 +105,8 @@ import java.util.stream.Collectors;
  * {@link org.apache.flink.table.delegation.Planner}.
  */
 public class SqlToOperationConverter {
-	private FlinkPlannerImpl flinkPlanner;
-	private CatalogManager catalogManager;
+	private final FlinkPlannerImpl flinkPlanner;
+	private final CatalogManager catalogManager;
 
 	//~ Constructors -----------------------------------------------------------
 
@@ -150,6 +157,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
 		} else if (validated instanceof SqlAlterDatabase) {
 			return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
+		} else if (validated instanceof SqlCreateCatalog) {
+			return Optional.of(converter.convertCreateCatalog((SqlCreateCatalog) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -252,14 +261,14 @@ public class SqlToOperationConverter {
 			FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
 			CatalogFunction catalogFunction = new CatalogFunctionImpl(
 				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
-				language,
-				sqlCreateFunction.isTemporary());
+				language);
 			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 			return new CreateCatalogFunctionOperation(
 				identifier,
 				catalogFunction,
-				sqlCreateFunction.isIfNotExists()
+				sqlCreateFunction.isIfNotExists(),
+				sqlCreateFunction.isTemporary()
 			);
 		}
 	}
@@ -273,15 +282,15 @@ public class SqlToOperationConverter {
 		FunctionLanguage language = parseLanguage(sqlAlterFunction.getFunctionLanguage());
 		CatalogFunction catalogFunction = new CatalogFunctionImpl(
 			sqlAlterFunction.getFunctionClassName().getValueAs(String.class),
-			language,
-			sqlAlterFunction.isTemporary());
+			language);
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterFunction.getFunctionIdentifier());
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 		return new AlterCatalogFunctionOperation(
 			identifier,
 			catalogFunction,
-			sqlAlterFunction.isIfExists()
+			sqlAlterFunction.isIfExists(),
+			sqlAlterFunction.isTemporary()
 		);
 	}
 
@@ -298,9 +307,8 @@ public class SqlToOperationConverter {
 
 			return new DropCatalogFunctionOperation(
 				identifier,
-				sqlDropFunction.isTemporary(),
-				sqlDropFunction.isSystemFunction(),
-				sqlDropFunction.getIfExists()
+				sqlDropFunction.getIfExists(),
+				sqlDropFunction.isTemporary()
 			);
 		}
 	}
@@ -337,7 +345,7 @@ public class SqlToOperationConverter {
 		// get name of sink table
 		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTable()).names;
 
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath.toArray(new String[0]));
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 		PlannerQueryOperation query = (PlannerQueryOperation) SqlToOperationConverter.convert(
@@ -357,6 +365,22 @@ public class SqlToOperationConverter {
 	/** Convert use catalog statement. */
 	private Operation convertUseCatalog(SqlUseCatalog useCatalog) {
 		return new UseCatalogOperation(useCatalog.getCatalogName());
+	}
+
+	/** Convert CREATE CATALOG statement. */
+	private Operation convertCreateCatalog(SqlCreateCatalog sqlCreateCatalog) {
+		String catalogName = sqlCreateCatalog.catalogName();
+
+		// set with properties
+		Map<String, String> properties = new HashMap<>();
+		sqlCreateCatalog.getPropertyList().getList().forEach(p ->
+			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
+
+		final CatalogFactory factory =
+			TableFactoryService.find(CatalogFactory.class, properties, this.getClass().getClassLoader());
+
+		Catalog catalog = factory.createCatalog(catalogName, properties);
+		return new CreateCatalogOperation(catalogName, catalog);
 	}
 
 	/** Convert use database statement. */
@@ -493,7 +517,7 @@ public class SqlToOperationConverter {
 				builder.field(call.operand(1).toString(),
 					TypeConversions.fromLogicalToDataType(
 						FlinkTypeFactory.toLogicalType(validatedType)),
-					validatedExpr.toString());
+					getQuotedSqlString(validatedExpr));
 				// add computed column into all field list
 				String fieldName = call.operand(1).toString();
 				allFieldNamesToTypes.put(fieldName, validatedType);
@@ -512,10 +536,20 @@ public class SqlToOperationConverter {
 			DataType exprDataType = TypeConversions.fromLogicalToDataType(
 				FlinkTypeFactory.toLogicalType(validatedType));
 			// use the qualified SQL expression string
-			builder.watermark(rowtimeAttribute, validated.toString(), exprDataType);
+			builder.watermark(rowtimeAttribute, getQuotedSqlString(validated), exprDataType);
 		});
 
 		return builder.build();
+	}
+
+	private String getQuotedSqlString(SqlNode sqlNode) {
+		SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
+		SqlDialect dialect = new CalciteSqlDialect(SqlDialect.EMPTY_CONTEXT
+			.withQuotedCasing(parserConfig.unquotedCasing())
+			.withConformance(parserConfig.conformance())
+			.withUnquotedCasing(parserConfig.unquotedCasing())
+			.withIdentifierQuoteString(parserConfig.quoting().string));
+		return sqlNode.toSqlString(dialect).getSql();
 	}
 
 	private PlannerQueryOperation toQueryOperation(FlinkPlannerImpl planner, SqlNode validated) {

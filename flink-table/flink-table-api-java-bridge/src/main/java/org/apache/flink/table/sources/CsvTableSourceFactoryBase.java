@@ -27,12 +27,16 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
@@ -123,9 +127,13 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
 			// the CsvTableSource needs some rework first
 			// for now the schema must be equal to the encoding
-			if (!formatSchema.equals(tableSchema)) {
-				throw new TableException(
-					"Encodings that differ from the schema are not supported yet for CsvTableSources.");
+			// Ignore conversion classes in DataType
+			if (!getFieldLogicalTypes(formatSchema).equals(getFieldLogicalTypes(tableSchema))) {
+				throw new TableException(String.format(
+						"Encodings that differ from the schema are not supported yet for" +
+								" CsvTableSource, format schema is '%s', but table schema is '%s'.",
+						formatSchema,
+						tableSchema));
 			}
 		}
 
@@ -153,4 +161,10 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		return csvTableSourceBuilder.build();
 	}
 
+	public static List<LogicalType> getFieldLogicalTypes(TableSchema schema) {
+		return Arrays
+				.stream(schema.getFieldDataTypes())
+				.map(DataType::getLogicalType)
+				.collect(Collectors.toList());
+	}
 }

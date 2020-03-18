@@ -21,8 +21,8 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
-import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
+import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
+import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
 
 /**
  * A builder to configure and build the JDBCAppendTableSink.
@@ -112,7 +112,7 @@ public class JDBCAppendTableSinkBuilder {
 	public JDBCAppendTableSinkBuilder setParameterTypes(TypeInformation<?>... types) {
 		int[] ty = new int[types.length];
 		for (int i = 0; i < types.length; ++i) {
-			ty[i] = JDBCTypeUtil.typeInformationToSqlType(types[i]);
+			ty[i] = JdbcTypeUtil.typeInformationToSqlType(types[i]);
 		}
 		this.parameterTypes = ty;
 		return this;

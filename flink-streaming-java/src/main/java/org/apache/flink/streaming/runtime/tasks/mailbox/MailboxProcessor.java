@@ -62,10 +62,10 @@ public class MailboxProcessor implements Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(MailboxProcessor.class);
 
 	/** The mailbox data-structure that manages request for special actions, like timers, checkpoints, ... */
-	private final TaskMailbox mailbox;
+	protected final TaskMailbox mailbox;
 
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
-	private final MailboxDefaultAction mailboxDefaultAction;
+	protected final MailboxDefaultAction mailboxDefaultAction;
 
 	/** A pre-created instance of mailbox executor that executes all mails. */
 	private final MailboxExecutor mainMailboxExecutor;
@@ -183,9 +183,20 @@ public class MailboxProcessor implements Closeable {
 
 		final MailboxController defaultActionContext = new MailboxController(this);
 
-		while (processMail(localMailbox)) {
-			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+		while (runMailboxStep(localMailbox, defaultActionContext)) {
 		}
+	}
+
+	public boolean runMailboxStep() throws Exception {
+		return runMailboxStep(mailbox, new MailboxController(this));
+	}
+
+	private boolean runMailboxStep(TaskMailbox localMailbox, MailboxController defaultActionContext) throws Exception {
+		if (processMail(localMailbox)) {
+			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -285,7 +296,8 @@ public class MailboxProcessor implements Closeable {
 		return suspendedDefaultAction != null;
 	}
 
-	private boolean isMailboxLoopRunning() {
+	@VisibleForTesting
+	public boolean isMailboxLoopRunning() {
 		return mailboxLoopRunning;
 	}
 
@@ -303,11 +315,11 @@ public class MailboxProcessor implements Closeable {
 	 * Implementation of {@link MailboxDefaultAction.Controller} that is connected to a {@link MailboxProcessor}
 	 * instance.
 	 */
-	private static final class MailboxController implements MailboxDefaultAction.Controller {
+	protected static final class MailboxController implements MailboxDefaultAction.Controller {
 
 		private final MailboxProcessor mailboxProcessor;
 
-		private MailboxController(MailboxProcessor mailboxProcessor) {
+		protected MailboxController(MailboxProcessor mailboxProcessor) {
 			this.mailboxProcessor = mailboxProcessor;
 		}
 

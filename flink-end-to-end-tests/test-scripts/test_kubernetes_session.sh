@@ -27,8 +27,9 @@ OUTPUT_PATH="/tmp/wc_out"
 ARGS="--output ${OUTPUT_PATH}"
 
 function cleanup {
-    kubectl delete service ${CLUSTER_ID}
+    kubectl delete deployment ${CLUSTER_ID}
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
+    stop_kubernetes
 }
 
 start_kubernetes

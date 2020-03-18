@@ -169,10 +169,7 @@ public class ProcessPythonEnvironmentManagerTest {
 				String.join(File.separator, baseDir, PYTHON_FILES_DIR, "file2", "test_file3.egg"),
 				String.join(File.separator, baseDir, PYTHON_FILES_DIR, "dir0", "test_dir")
 			};
-			String expectedPythonPath = String.join(
-				File.pathSeparator,
-				String.join(File.pathSeparator, expectedUserPythonPaths),
-				getBasicExpectedEnv(environmentManager).get("PYTHONPATH"));
+			String expectedPythonPath = String.join(File.pathSeparator, expectedUserPythonPaths);
 
 			assertEquals(
 				expectedPythonPath,
@@ -287,7 +284,7 @@ public class ProcessPythonEnvironmentManagerTest {
 		sysEnv.put("FLINK_HOME", "/flink");
 
 		try (ProcessPythonEnvironmentManager environmentManager =
-				new ProcessPythonEnvironmentManager(dependencyInfo, new String[] {tmpDir}, null, sysEnv)) {
+				new ProcessPythonEnvironmentManager(dependencyInfo, new String[] {tmpDir}, sysEnv)) {
 			environmentManager.open();
 			String retrievalToken = environmentManager.createRetrievalToken();
 
@@ -310,11 +307,11 @@ public class ProcessPythonEnvironmentManagerTest {
 			null);
 
 		try (ProcessPythonEnvironmentManager environmentManager = new ProcessPythonEnvironmentManager(
-				dependencyInfo, new String[] {tmpDir}, "/tmp/log", new HashMap<>())) {
+				dependencyInfo, new String[] {tmpDir}, new HashMap<>())) {
 			environmentManager.open();
 			Map<String, String> env = environmentManager.constructEnvironmentVariables();
 			Map<String, String> expected = getBasicExpectedEnv(environmentManager);
-			expected.put("FLINK_LOG_DIR", "/tmp/log");
+			expected.put("BOOT_LOG_DIR", environmentManager.getBaseDirectory());
 			assertEquals(expected, env);
 		}
 	}
@@ -380,19 +377,13 @@ public class ProcessPythonEnvironmentManagerTest {
 	private static Map<String, String> getBasicExpectedEnv(ProcessPythonEnvironmentManager environmentManager) {
 		Map<String, String> map = new HashMap<>();
 		String tmpBase = environmentManager.getBaseDirectory();
-		map.put(
-			"PYTHONPATH",
-			String.join(
-				File.pathSeparator,
-				String.join(File.separator, tmpBase, "pyflink.zip"),
-				String.join(File.separator, tmpBase, "py4j-0.10.8.1-src.zip"),
-				String.join(File.separator, tmpBase, "cloudpickle-1.2.2-src.zip")));
+		map.put("BOOT_LOG_DIR", tmpBase);
 		return map;
 	}
 
 	private static ProcessPythonEnvironmentManager createBasicPythonEnvironmentManager(
 			PythonDependencyInfo dependencyInfo) {
 		return new ProcessPythonEnvironmentManager(
-			dependencyInfo, new String[] {tmpDir}, null, new HashMap<>());
+			dependencyInfo, new String[] {tmpDir}, new HashMap<>());
 	}
 }

@@ -23,7 +23,10 @@ import org.apache.flink.runtime.util.BashJavaUtils;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertNotNull;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for BashJavaUtils.
@@ -35,22 +38,12 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 	private static final String RUN_BASH_JAVA_UTILS_CMD_SCRIPT = "src/test/bin/runBashJavaUtilsCmd.sh";
 
 	@Test
-	public void testGetTmResourceDynamicConfigs() throws Exception {
-		String[] command = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-			BashJavaUtils.Command.GET_TM_RESOURCE_DYNAMIC_CONFIGS.toString()};
-		String result = executeScript(command);
+	public void testGetTmResourceParamsConfigs() throws Exception {
+		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString()};
+		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-		assertNotNull(result);
-		ConfigurationUtils.parseTmResourceDynamicConfigs(result);
-	}
-
-	@Test
-	public void testGetTmResourceJvmParams() throws Exception {
-		String[] command = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-			BashJavaUtils.Command.GET_TM_RESOURCE_JVM_PARAMS.toString()};
-		String result = executeScript(command);
-
-		assertNotNull(result);
-		ConfigurationUtils.parseTmResourceJvmParams(result);
+		assertEquals(2, lines.size());
+		ConfigurationUtils.parseTmResourceJvmParams(lines.get(lines.size() - 2));
+		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(lines.size() - 1));
 	}
 }

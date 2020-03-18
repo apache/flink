@@ -21,12 +21,12 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -42,16 +42,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	ContextEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+	public ContextEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
-
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
 	}
 
 	@Override
@@ -101,11 +96,18 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader) {
+		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
+			executorServiceLoader,
+			configuration,
+			userCodeClassLoader);
 		initializeContextEnvironment(factory);
 	}
 
-	public static void unsetContext() {
+	public static void unsetAsContext() {
 		resetContextEnvironment();
 	}
 }

@@ -58,8 +58,7 @@ class FlinkRelBuilder(
   require(context != null)
 
   private val toRelNodeConverter = {
-    val functionCatalog = context.unwrap(classOf[FlinkContext]).getFunctionCatalog
-    new QueryOperationConverter(this, functionCatalog)
+    new QueryOperationConverter(this)
   }
 
   private val expandFactory: ExpandFactory = {
@@ -182,11 +181,11 @@ object FlinkRelBuilder {
     }
   }
 
-  def of(cluster: RelOptCluster, relTable: RelOptTable): FlinkRelBuilder = {
+  def of(cluster: RelOptCluster, relOptSchema: RelOptSchema): FlinkRelBuilder = {
     val clusterContext = cluster.getPlanner.getContext
     new FlinkRelBuilder(
       clusterContext,
       cluster,
-      relTable.getRelOptSchema)
+      relOptSchema)
   }
 }

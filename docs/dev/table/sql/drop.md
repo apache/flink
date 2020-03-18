@@ -31,6 +31,7 @@ Flink SQL supports the following DROP statements for now:
 
 - DROP TABLE
 - DROP DATABASE
+- DROP FUNCTION
 
 ## Run a DROP statement
 
@@ -141,3 +142,23 @@ Dropping a non-empty database triggers an exception. Enabled by default.
 **CASCADE**
 
 Dropping a non-empty database also drops all associated tables and functions.
+
+## DROP FUNCTION
+
+{% highlight sql%}
+DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]function_name;
+{% endhighlight %}
+
+Drop a catalog function that has catalog and database namespaces. If the function to drop does not exist, an exception is thrown.
+
+**TEMPORARY**
+
+Drop temporary catalog function that has catalog and database namespaces.
+
+**TEMPORARY SYSTEM**
+
+Drop temporary system function that has no namespace.
+
+**IF EXISTS**
+
+If the function doesn't exists, nothing happens.

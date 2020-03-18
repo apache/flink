@@ -405,7 +405,8 @@ object HashAggCodeGenHelper {
       outRow = currentAggBufferTerm,
       outRowWriter = None,
       reusedOutRow = true,
-      outRowAlreadyExists = true
+      outRowAlreadyExists = true,
+      allowSplit = false
     )
   }
 

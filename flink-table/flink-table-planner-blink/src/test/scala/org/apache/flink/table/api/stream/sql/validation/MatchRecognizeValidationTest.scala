@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.sql.Timestamp
 
@@ -313,8 +313,6 @@ class MatchRecognizeValidationTest extends TableTestBase {
     streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
   }
 
-  @Ignore("Calcite doesn't throw exception when parse distinct aggregate, " +
-    "and doesn't provide information about distinct")
   @Test
   def testDistinctAggregationsNotSupported(): Unit = {
     thrown.expect(classOf[ValidationException])

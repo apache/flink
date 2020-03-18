@@ -19,13 +19,12 @@
 package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractSessionClusterExecutor;
 import org.apache.flink.client.deployment.StandaloneClientFactory;
 import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.core.execution.Executor;
+import org.apache.flink.core.execution.PipelineExecutor;
 
 /**
- * The {@link Executor} to be used when executing a job on an already running cluster.
+ * The {@link PipelineExecutor} to be used when executing a job on an already running cluster.
  */
 @Internal
 public class RemoteExecutor extends AbstractSessionClusterExecutor<StandaloneClusterId, StandaloneClientFactory> {

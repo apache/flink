@@ -21,8 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.Func13
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
-import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc0, TableFunc1, TableFunc2, TableTestBase}
-
+import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, MockPythonTableFunction, TableFunc0, TableFunc1, TableFunc2, TableTestBase}
 import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
 import org.apache.calcite.tools.RuleSets
 import org.junit.Test
@@ -177,5 +176,15 @@ class CorrelateTest extends TableTestBase {
     val resultTable = sourceTable
       .flatMap(func2('f3))
     util.verifyPlan(resultTable)
+  }
+
+  @Test
+  def testCorrelatePythonTableFunction(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
+    val func = new MockPythonTableFunction
+    val result = sourceTable.joinLateral(func('a, 'b) as('x, 'y))
+
+    util.verifyPlan(result)
   }
 }

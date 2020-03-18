@@ -21,14 +21,14 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.ContextEnvironmentFactory;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.StreamContextEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -117,7 +117,7 @@ public enum ClientUtils {
 	}
 
 	public static void executeProgram(
-			ExecutorServiceLoader executorServiceLoader,
+			PipelineExecutorServiceLoader executorServiceLoader,
 			Configuration configuration,
 			PackagedProgram program) throws ProgramInvocationException {
 		checkNotNull(executorServiceLoader);
@@ -128,16 +128,21 @@ public enum ClientUtils {
 
 			LOG.info("Starting program (detached: {})", !configuration.getBoolean(DeploymentOptions.ATTACHED));
 
-			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
-					executorServiceLoader,
-					configuration,
-					userCodeClassLoader);
-			ContextEnvironment.setAsContext(factory);
+			ContextEnvironment.setAsContext(
+				executorServiceLoader,
+				configuration,
+				userCodeClassLoader);
+
+			StreamContextEnvironment.setAsContext(
+				executorServiceLoader,
+				configuration,
+				userCodeClassLoader);
 
 			try {
 				program.invokeInteractiveModeForExecution();
 			} finally {
-				ContextEnvironment.unsetContext();
+				ContextEnvironment.unsetAsContext();
+				StreamContextEnvironment.unsetAsContext();
 			}
 		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);

@@ -561,14 +561,6 @@ public final class DataTypes {
 	}
 
 	/**
-	 * @deprecated Use {@link #RAW(Class, TypeSerializer)} instead.
-	 */
-	@Deprecated
-	public static <T> DataType ANY(Class<T> clazz, TypeSerializer<T> serializer) {
-		return RAW(clazz, serializer);
-	}
-
-	/**
 	 * Data type of an arbitrary serialized type backed by {@link TypeInformation}. This type is
 	 * a black box within the table ecosystem and is only deserialized at the edges.
 	 *
@@ -583,14 +575,6 @@ public final class DataTypes {
 	 */
 	public static <T> DataType RAW(TypeInformation<T> typeInformation) {
 		return new AtomicDataType(new TypeInformationRawType<>(typeInformation));
-	}
-
-	/**
-	 * @deprecated Use {@link #RAW(TypeInformation)} instead.
-	 */
-	@Deprecated
-	public static <T> DataType ANY(TypeInformation<T> typeInformation) {
-		return RAW(typeInformation);
 	}
 
 	// --------------------------------------------------------------------------------------------

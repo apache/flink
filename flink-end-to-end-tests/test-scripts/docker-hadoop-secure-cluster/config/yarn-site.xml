@@ -183,4 +183,12 @@ under the License.
     <name>yarn.nodemanager.log-dirs</name>
     <value>file:///hadoop-data/nm-log-dirs</value>
   </property>
+  <!-- 
+    This allows running the tests also in low disk space environments. YARN is quite aggresive with 
+    blacklisting nodes on low memory: https://issues.apache.org/jira/browse/FLINK-16136
+  -->
+  <property>
+    <name>yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage</name>
+    <value>99</value>
+  </property>
 </configuration>

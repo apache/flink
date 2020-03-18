@@ -22,6 +22,7 @@ import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 import { JobService } from 'services';
 import { trigger, animate, style, transition } from '@angular/animations';
+import { JobChartService } from 'share/customize/job-chart/job-chart.service';
 
 @Component({
   selector: 'flink-job-overview-drawer',
@@ -62,6 +63,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
   closeDrawer() {
     if (this.fullScreen) {
       this.fullScreen = false;
+      this.jobChartService.resize();
     } else {
       this.router.navigate(['../../'], { relativeTo: this.activatedRoute }).then();
     }
@@ -69,9 +71,15 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
 
   fullDrawer() {
     this.fullScreen = true;
+    this.jobChartService.resize();
   }
 
-  constructor(private activatedRoute: ActivatedRoute, private router: Router, private jobService: JobService) {}
+  constructor(
+    private activatedRoute: ActivatedRoute,
+    private router: Router,
+    private jobService: JobService,
+    private jobChartService: JobChartService
+  ) {}
 
   ngOnInit() {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));

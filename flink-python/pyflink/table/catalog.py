@@ -794,21 +794,18 @@ class CatalogFunction(object):
         Whether or not is the function a flink UDF.
 
         :return: Whether is the function a flink UDF.
+
+        .. versionadded:: 1.10.0
         """
         return self._j_catalog_function.isGeneric()
-
-    def is_temporary(self):
-        """
-        Wheter or not the function is a temporary function.
-        :return: Wheter is a temporary function.
-        """
-        return self._j_catalog_function.isTemporary()
 
     def get_function_language(self):
         """
         Get the language used for the function definition.
 
         :return: the language type of the function definition
+
+        .. versionadded:: 1.10.0
         """
         return self._j_catalog_function.getFunctionLanguage()
 

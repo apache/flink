@@ -53,9 +53,9 @@ services:
     networks:
       - docker-mesos-cluster-network
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ${END_TO_END_DIR}:${END_TO_END_DIR}
     environment:
+      MESOS_RESOURCES: "cpus:${MESOS_AGENT_CPU}"
       MESOS_PORT: 5051
       MESOS_MASTER: mesos-master:5050
       MESOS_SWITCH_USER: 0

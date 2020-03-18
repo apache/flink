@@ -1,0 +1,189 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+parameters:
+  test_pool_definition: # defines the hardware pool for compilation and unit test execution.
+  e2e_pool_definion: # defines the hardware pool for end-to-end test execution
+  stage_name: # defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)
+  environment: # defines environment variables for downstream scripts
+  run_end_to_end: # if set to 'true', the end to end tests will be executed
+  container: # the container name for the build
+  jdk: # the jdk version to use
+
+jobs:
+- job: compile_${{parameters.stage_name}}
+  condition: not(eq(variables['MODE'], 'e2e'))
+  pool: ${{parameters.test_pool_definition}}
+  container: ${{parameters.container}}
+  timeoutInMinutes: 240
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all # this cleans the entire workspace directory before running a new job
+    # It is necessary because the custom build machines are reused for tests.
+    # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace 
+
+  steps:
+  # The cache task is persisting the .m2 directory between builds, so that
+  # we do not have to re-download all dependencies from maven central for 
+  # each build. The hope is that downloading the cache is faster than
+  # all dependencies individually.
+  # In this configuration, we use a hash over all committed (not generated) .pom files 
+  # as a key for the build cache (CACHE_KEY). If we have a cache miss on the hash
+  # (usually because a pom file has changed), we'll fall back to a key without
+  # the pom files (CACHE_FALLBACK_KEY).
+  # Offical documentation of the Cache task: https://docs.microsoft.com/en-us/azure/devops/pipelines/caching/?view=azure-devops
+  - task: Cache@2
+    inputs:
+      key: $(CACHE_KEY)
+      restoreKeys: $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    displayName: Cache Maven local repo
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
+    displayName: "Set to jdk11"
+    condition: eq('${{parameters.jdk}}', 'jdk11')
+  # Compile
+  - script: STAGE=compile ${{parameters.environment}} ./tools/azure_controller.sh compile
+    displayName: Build
+
+  # upload artifacts for next stage
+  - task: PublishPipelineArtifact@1
+    inputs:
+      path: $(CACHE_FLINK_DIR)
+      artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
+
+- job: test_${{parameters.stage_name}}
+  dependsOn: compile_${{parameters.stage_name}}
+  condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
+  pool: ${{parameters.test_pool_definition}}
+  container: ${{parameters.container}}
+  timeoutInMinutes: 240
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all
+  strategy:
+    matrix:
+      core:
+        module: core
+      python:
+        module: python
+      libraries:
+        module: libraries
+      blink_planner:
+        module: blink_planner
+      connectors:
+        module: connectors
+      kafka_gelly:
+        module: kafka/gelly
+      tests:
+        module: tests
+      legacy_scheduler_core:
+        module: legacy_scheduler_core
+      legacy_scheduler_tests:
+        module: legacy_scheduler_tests
+      misc:
+        module: misc
+  steps:
+
+  # download artifacts
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      path: $(CACHE_FLINK_DIR)
+      artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
+
+  # only for the python stage (which runs a full mvn install), download the cache
+  - task: Cache@2
+    condition: eq(variables['module'], 'python')
+    inputs:
+      key: $(CACHE_KEY)
+      restoreKeys: $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    displayName: Cache Maven local repo
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
+    displayName: "Set to jdk11"
+    condition: eq('${{parameters.jdk}}', 'jdk11')  
+  # Test
+  - script: STAGE=test ${{parameters.environment}} ./tools/azure_controller.sh $(module)
+    displayName: Test - $(module)
+    env:
+      IT_CASE_S3_BUCKET: $(IT_CASE_S3_BUCKET)
+      IT_CASE_S3_ACCESS_KEY: $(IT_CASE_S3_ACCESS_KEY)
+      IT_CASE_S3_SECRET_KEY: $(IT_CASE_S3_SECRET_KEY)
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFormat: 'JUnit'
+  # upload debug artifacts
+  - task: PublishPipelineArtifact@1
+    condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+    displayName: Upload Logs
+    inputs:
+      path: $(ARTIFACT_DIR)
+      artifact: logs-${{parameters.stage_name}}-$(ARTIFACT_NAME)
+
+- job: e2e_${{parameters.stage_name}}
+  # uncomment below condition to run the e2e tests only on request.
+  #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
+  # We are running this in a separate pool
+  pool: ${{parameters.e2e_pool_definition}}
+  timeoutInMinutes: 200
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all
+  steps:
+    - task: Cache@2
+      inputs:
+        key: $(CACHE_KEY)
+        restoreKeys: $(CACHE_FALLBACK_KEY)
+        path: $(MAVEN_CACHE_FOLDER)
+      displayName: Cache Maven local repo
+      continueOnError: true
+    - script: |
+        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
+      displayName: "Set to jdk11"
+      condition: eq('${{parameters.jdk}}', 'jdk11')
+    - script: ./tools/travis/setup_maven.sh
+      displayName: Setup Maven 3.2.5
+    - script: ./tools/azure-pipelines/setup_docker.sh
+      displayName: Setup Docker
+    - script: ./tools/azure-pipelines/free_disk_space.sh
+      displayName: Free up disk space
+    - script: sudo apt-get install -y bc
+    - script: M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
+      displayName: Build Flink
+    # TODO remove pre-commit tests script by adding the tests to the nightly script
+#    - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
+#      displayName: Test - precommit 
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
+      displayName: Run e2e tests
+      env:
+        IT_CASE_S3_BUCKET: $(IT_CASE_S3_BUCKET)
+        IT_CASE_S3_ACCESS_KEY: $(IT_CASE_S3_ACCESS_KEY)
+        IT_CASE_S3_SECRET_KEY: $(IT_CASE_S3_SECRET_KEY)
+      # upload debug artifacts
+    - task: PublishPipelineArtifact@1
+      condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+      displayName: Upload Logs
+      inputs:
+        path: $(ARTIFACT_DIR)
+        artifact: logs-${{parameters.stage_name}}-e2e
+        
+

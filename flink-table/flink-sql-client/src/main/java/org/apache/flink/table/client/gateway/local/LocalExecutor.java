@@ -112,7 +112,7 @@ public class LocalExecutor implements Executor {
 	private final ResultStore resultStore;
 
 	// insert into sql match pattern
-	public static final Pattern INSERT_INTO_SQL_PATTERN = Pattern.compile("(INSERT\\s+INTO.*)",
+	private static final Pattern INSERT_SQL_PATTERN = Pattern.compile("(INSERT\\s+(INTO|OVERWRITE).*)",
 			Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
 	/**
@@ -353,7 +353,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			tEnv.sqlUpdate(ddl);
+			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not create a table from statement: " + ddl, e);
 		}
@@ -364,7 +364,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			tEnv.sqlUpdate(ddl);
+			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not drop table from statement: " + ddl, e);
 		}
@@ -576,7 +576,7 @@ public class LocalExecutor implements Executor {
 		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
 
 		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
-		if (!INSERT_INTO_SQL_PATTERN.matcher(statement.trim()).matches()) {
+		if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
 			return null;
 		}
 
@@ -584,7 +584,7 @@ public class LocalExecutor implements Executor {
 		final String jobName = sessionId + ": " + statement;
 		final Pipeline pipeline;
 		try {
-			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
+			pipeline = context.createPipeline(jobName);
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
@@ -628,7 +628,7 @@ public class LocalExecutor implements Executor {
 						context.getQueryConfig(),
 						tableName);
 			});
-			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
+			pipeline = context.createPipeline(jobName);
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
 			// it not stored in the result store
@@ -663,7 +663,8 @@ public class LocalExecutor implements Executor {
 		return new ResultDescriptor(
 				resultId,
 				removeTimeAttributes(table.getSchema()),
-				result.isMaterialized());
+				result.isMaterialized(),
+				context.getEnvironment().getExecution().isTableauMode());
 	}
 
 	/**

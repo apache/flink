@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
@@ -33,6 +34,8 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateColl
 import org.apache.flink.table.planner.sinks.TableSinkUtils
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.logical.RowType
 
@@ -83,8 +86,12 @@ object SinkCodeGenerator {
             inputRowType,
             inputTerm,
             inputFieldMapping = Option(mapping))
+        val outputRowType = RowType.of(
+          (0 until pojo.getArity)
+            .map(pojo.getTypeAt)
+            .map(fromTypeInfoToLogicalType): _*)
         val conversion = resultGenerator.generateConverterResultExpression(
-          inputRowType,
+          outputRowType,
           classOf[GenericRow])
         afterIndexModify = CodeGenUtils.newName("afterIndexModify")
         s"""

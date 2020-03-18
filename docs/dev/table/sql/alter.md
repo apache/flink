@@ -31,6 +31,7 @@ Flink SQL supports the following ALTER statements for now:
 
 - ALTER TABLE
 - ALTER DATABASE
+- ALTER FUNCTION
 
 ## Run an ALTER statement
 
@@ -135,3 +136,30 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 {% endhighlight %}
 
 Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
+
+## ALTER FUNCTION
+
+{% highlight sql%}
+ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
+  [IF EXISTS] [catalog_name.][db_name.]function_name 
+  AS identifier [LANGUAGE JAVA|SCALA|
+{% endhighlight %}
+
+Alter a catalog function with the new identifier which is full classpath for JAVA/SCALA and optional language tag. If a function doesn't exist in the catalog, an exception is thrown.
+
+**TEMPORARY**
+
+Alter temporary catalog function that has catalog and database namespaces and overrides catalog functions.
+
+**TEMPORARY SYSTEM**
+
+Alter temporary system function that has no namespace and overrides built-in functions
+
+**IF EXISTS**
+
+If the function doesn't exist, nothing happens.
+
+**LANGUAGE JAVA\|SCALA**
+
+Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+

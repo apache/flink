@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
@@ -91,6 +92,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 	private static final int MAX_MEM_STATE_SIZE = 20 * 1024 * 1024;
 	private static final int PARALLELISM = 4;
+	private static final int NUM_OF_TASK_MANAGERS = 2;
 
 	private TestingServer zkServer;
 
@@ -124,8 +126,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		return new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(getConfigurationSafe())
-				.setNumberTaskManagers(2)
-				.setNumberSlotsPerTaskManager(PARALLELISM / 2)
+				.setNumberTaskManagers(NUM_OF_TASK_MANAGERS)
+				.setNumberSlotsPerTaskManager(PARALLELISM / NUM_OF_TASK_MANAGERS)
 				.build());
 	}
 
@@ -171,7 +173,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 				break;
 			}
 			case ROCKSDB_FULLY_ASYNC: {
-				setupRocksDB(-1, false);
+				setupRocksDB(config, -1, false);
 				break;
 			}
 			case ROCKSDB_INCREMENTAL:
@@ -179,10 +181,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 				config.setString(
 					RocksDBOptions.TIMER_SERVICE_FACTORY,
 					RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-				setupRocksDB(16, true);
+				setupRocksDB(config, 16, true);
 				break;
 			case ROCKSDB_INCREMENTAL_ZK: {
-				setupRocksDB(16, true);
+				setupRocksDB(config, 16, true);
 				break;
 			}
 			default:
@@ -191,7 +193,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		return config;
 	}
 
-	private void setupRocksDB(int fileSizeThreshold, boolean incrementalCheckpoints) throws IOException {
+	private void setupRocksDB(Configuration config, int fileSizeThreshold, boolean incrementalCheckpoints) throws IOException {
+		// Configure the managed memory size as 64MB per slot for rocksDB state backend.
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.ofMebiBytes(PARALLELISM / NUM_OF_TASK_MANAGERS * 64));
+
 		String rocksDb = tempFolder.newFolder().getAbsolutePath();
 		String backups = tempFolder.newFolder().getAbsolutePath();
 		// we use the fs backend with small threshold here to test the behaviour with file
@@ -211,7 +216,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final File haDir = temporaryFolder.newFolder();
 
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
 		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
 
 		if (zkServer != null) {

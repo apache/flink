@@ -90,7 +90,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
 
   def execJob(name: String) = {
     if (isStreaming) {
-      streamExec.execute(name)
+      tableEnv.execute(name)
     } else {
       batchExec.execute(name)
     }

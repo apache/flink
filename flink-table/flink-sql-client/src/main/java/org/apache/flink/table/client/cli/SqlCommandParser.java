@@ -111,6 +111,14 @@ public final class SqlCommandParser {
 			"USE\\s+(?!CATALOG)(.*)",
 			SINGLE_OPERAND),
 
+		CREATE_CATALOG(
+			"(CREATE\\s+CATALOG\\s+.*)",
+			SINGLE_OPERAND),
+
+		DESC(
+			"DESC\\s+(.*)",
+			SINGLE_OPERAND),
+
 		DESCRIBE(
 			"DESCRIBE\\s+(.*)",
 			SINGLE_OPERAND),
@@ -125,6 +133,10 @@ public final class SqlCommandParser {
 
 		INSERT_INTO(
 			"(INSERT\\s+INTO.*)",
+			SINGLE_OPERAND),
+
+		INSERT_OVERWRITE(
+			"(INSERT\\s+OVERWRITE.*)",
 			SINGLE_OPERAND),
 
 		CREATE_TABLE("(CREATE\\s+TABLE\\s+.*)", SINGLE_OPERAND),

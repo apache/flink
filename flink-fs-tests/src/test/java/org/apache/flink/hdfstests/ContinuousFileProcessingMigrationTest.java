@@ -30,7 +30,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
@@ -75,7 +75,6 @@ public class ContinuousFileProcessingMigrationTest {
 	@Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
 	public static Collection<Tuple2<MigrationVersion, Long>> parameters () {
 		return Arrays.asList(
-			Tuple2.of(MigrationVersion.v1_2, 1493116191000L),
 			Tuple2.of(MigrationVersion.v1_3, 1496532000000L),
 			Tuple2.of(MigrationVersion.v1_4, 1516897628000L),
 			Tuple2.of(MigrationVersion.v1_5, 1533639934000L),
@@ -134,12 +133,7 @@ public class ContinuousFileProcessingMigrationTest {
 		final OneShotLatch blockingLatch = new OneShotLatch();
 		BlockingFileInputFormat format = new BlockingFileInputFormat(blockingLatch, new Path(testFolder.getAbsolutePath()));
 
-		TypeInformation<FileInputSplit> typeInfo = TypeExtractor.getInputFormatTypes(format);
-		ContinuousFileReaderOperator<FileInputSplit> initReader = new ContinuousFileReaderOperator<>(
-				format);
-		initReader.setOutputType(typeInfo, new ExecutionConfig());
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
-				new OneInputStreamOperatorTestHarness<>(initReader);
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness = createHarness(format);
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		testHarness.open();
 		// create some state in the reader
@@ -168,11 +162,7 @@ public class ContinuousFileProcessingMigrationTest {
 		BlockingFileInputFormat format = new BlockingFileInputFormat(latch, new Path(testFolder.getAbsolutePath()));
 		TypeInformation<FileInputSplit> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
-		ContinuousFileReaderOperator<FileInputSplit> initReader = new ContinuousFileReaderOperator<>(format);
-		initReader.setOutputType(typeInfo, new ExecutionConfig());
-
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
-			new OneInputStreamOperatorTestHarness<>(initReader);
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness = createHarness(format);
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		testHarness.setup();
@@ -422,4 +412,12 @@ public class ContinuousFileProcessingMigrationTest {
 			split.getHostnames()
 		);
 	}
+
+	private OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> createHarness(BlockingFileInputFormat format) throws Exception {
+		ExecutionConfig config = new ExecutionConfig();
+		return new OneInputStreamOperatorTestHarness<>(
+			new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), config),
+			TypeExtractor.getForClass(TimestampedFileInputSplit.class).createSerializer(config));
+	}
+
 }

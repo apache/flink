@@ -38,9 +38,12 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -48,6 +51,7 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Collections;
 import java.util.Map;
@@ -219,6 +223,11 @@ public class SavepointEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
+		return new NoOpTaskOperatorEventGateway();
+	}
+
+	@Override
 	public void failExternally(Throwable cause) {
 		ExceptionUtils.rethrow(cause);
 	}
@@ -296,6 +305,15 @@ public class SavepointEnvironment implements Environment {
 				indexOfSubtask,
 				prioritizedOperatorSubtaskState);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  mocks / stand-ins
+	// ------------------------------------------------------------------------
+
+	private static final class NoOpTaskOperatorEventGateway implements TaskOperatorEventGateway {
+		@Override
+		public void sendOperatorEventToCoordinator(OperatorID operator, SerializedValue<OperatorEvent> event) {}
 	}
 }
 

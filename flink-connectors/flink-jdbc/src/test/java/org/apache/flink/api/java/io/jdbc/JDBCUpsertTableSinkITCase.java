@@ -41,8 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTestBase.DRIVER_CLASS;
-import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormatTest.check;
+import static org.apache.flink.api.java.io.jdbc.JdbcTableOutputFormatTest.check;
 
 /**
  * IT case for {@link JDBCUpsertTableSink}.
@@ -55,9 +54,9 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
-		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
+		System.setProperty("derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
 
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
 			Statement stat = conn.createStatement()) {
@@ -72,17 +71,20 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 					"id INT NOT NULL DEFAULT 0," +
 					"num BIGINT NOT NULL DEFAULT 0," +
 					"ts TIMESTAMP)");
+
+			stat.executeUpdate("CREATE TABLE REAL_TABLE (real_data REAL)");
 		}
 	}
 
 	@After
 	public void clearOutputTable() throws Exception {
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL);
 			Statement stat = conn.createStatement()) {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE1);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
+			stat.execute("DROP TABLE REAL_TABLE");
 		}
 	}
 
@@ -112,6 +114,27 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 
 		Collections.shuffle(data);
 		return env.fromCollection(data);
+	}
+
+	@Test
+	public void testReal() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+		tEnv.sqlUpdate(
+				"CREATE TABLE upsertSink (" +
+						"  real_data float" +
+						") WITH (" +
+						"  'connector.type'='jdbc'," +
+						"  'connector.url'='" + DB_URL + "'," +
+						"  'connector.table'='REAL_TABLE'" +
+						")");
+
+		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
+		tEnv.execute("job name");
+		check(new Row[] {Row.of(1.0f)}, DB_URL, "REAL_TABLE", new String[]{"real_data"});
 	}
 
 	@Test
@@ -149,7 +172,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			"  GROUP BY len, cTag\n" +
 			")\n" +
 			"GROUP BY cnt, cTag");
-		env.execute();
+		tEnv.execute("job name");
 		check(new Row[] {
 				Row.of(1, 5, 1, Timestamp.valueOf("1970-01-01 00:00:00.006")),
 				Row.of(7, 1, 1, Timestamp.valueOf("1970-01-01 00:00:00.021")),
@@ -180,7 +203,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				")");
 
 		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)");
-		env.execute();
+		tEnv.execute("job name");
 		check(new Row[] {
 				Row.of(2, 2, Timestamp.valueOf("1970-01-01 00:00:00.002")),
 				Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),

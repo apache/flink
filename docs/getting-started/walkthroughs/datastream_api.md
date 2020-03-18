@@ -54,7 +54,7 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 
 If you want to follow along, you will require a computer with:
 
-* Java 8 
+* Java 8 or 11
 * Maven 
 
 A provided Flink Maven Archetype will create a skeleton project with all the necessary dependencies quickly, so you only need to focus on filling out the business logic.
@@ -95,7 +95,26 @@ $ mvn archetype:generate \
 
 {% unless site.is_stable %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+    If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For example:
+{% highlight bash %}
+<settings>
+  <activeProfiles>
+    <activeProfile>apache</activeProfile>
+  </activeProfiles>
+  <profiles>
+    <profile>
+      <id>apache</id>
+      <repositories>
+        <repository>
+          <id>apache-snapshots</id>
+          <url>https://repository.apache.org/content/repositories/snapshots/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+</settings>
+{% endhighlight %}
 </p>
 {% endunless %}
 
@@ -501,65 +520,65 @@ Below, you can see an example of how you can use a flag state to track potential
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-    @Override
-    public void processElement(
-            Transaction transaction,
-            Context context,
-            Collector<Alert> collector) throws Exception {
+@Override
+public void processElement(
+        Transaction transaction,
+        Context context,
+        Collector<Alert> collector) throws Exception {
 
-        // Get the current state for the current key
-        Boolean lastTransactionWasSmall = flagState.value();
+    // Get the current state for the current key
+    Boolean lastTransactionWasSmall = flagState.value();
 
-        // Check if the flag is set
-        if (lastTransactionWasSmall != null) {
-            if (transaction.getAmount() > LARGE_AMOUNT) {
-                // Output an alert downstream
-                Alert alert = new Alert();
-                alert.setId(transaction.getAccountId());
+    // Check if the flag is set
+    if (lastTransactionWasSmall != null) {
+        if (transaction.getAmount() > LARGE_AMOUNT) {
+            // Output an alert downstream
+            Alert alert = new Alert();
+            alert.setId(transaction.getAccountId());
 
-                collector.collect(alert);            
-            }
-
-            // Clean up our state
-            flagState.clear();
+            collector.collect(alert);            
         }
 
-        if (transaction.getAmount() < SMALL_AMOUNT) {
-            // Set the flag to true
-            flagState.update(true);
-        }
+        // Clean up our state
+        flagState.clear();
     }
+
+    if (transaction.getAmount() < SMALL_AMOUNT) {
+        // Set the flag to true
+        flagState.update(true);
+    }
+}
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-  override def processElement(
-      transaction: Transaction,
-      context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-      collector: Collector[Alert]): Unit = {
+override def processElement(
+    transaction: Transaction,
+    context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
+    collector: Collector[Alert]): Unit = {
 
-    // Get the current state for the current key
-    val lastTransactionWasSmall = flagState.value
+  // Get the current state for the current key
+  val lastTransactionWasSmall = flagState.value
 
-    // Check if the flag is set
-    if (lastTransactionWasSmall != null) {
-      if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
-        // Output an alert downstream
-        val alert = new Alert
-        alert.setId(transaction.getAccountId)
+  // Check if the flag is set
+  if (lastTransactionWasSmall != null) {
+    if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
+      // Output an alert downstream
+      val alert = new Alert
+      alert.setId(transaction.getAccountId)
 
-        collector.collect(alert)
-      }
-      // Clean up our state
-      flagState.clear()
+      collector.collect(alert)
     }
-
-    if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
-      // set the flag to true
-      flagState.update(true)
-    }
+    // Clean up our state
+    flagState.clear()
   }
+
+  if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
+    // set the flag to true
+    flagState.update(true)
+  }
+}
 {% endhighlight %}
 </div>
 </div>
@@ -593,21 +612,21 @@ To cancel a timer, you have to remember what time it is set for, and remembering
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-    private transient ValueState<Boolean> flagState;
-    private transient ValueState<Long> timerState;
+private transient ValueState<Boolean> flagState;
+private transient ValueState<Long> timerState;
 
-    @Override
-    public void open(Configuration parameters) {
-        ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
-                "flag",
-                Types.BOOLEAN);
-        flagState = getRuntimeContext().getState(flagDescriptor);
+@Override
+public void open(Configuration parameters) {
+    ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
+            "flag",
+            Types.BOOLEAN);
+    flagState = getRuntimeContext().getState(flagDescriptor);
 
-        ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
-                "timer-state",
-                Types.LONG);
-        timerState = getRuntimeContext().getState(timerDescriptor);
-    }
+    ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
+            "timer-state",
+            Types.LONG);
+    timerState = getRuntimeContext().getState(timerDescriptor);
+}
 {% endhighlight %}
 </div>
 

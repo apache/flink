@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.sources
 
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, valueLiteral}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, Expression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory

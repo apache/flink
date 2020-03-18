@@ -48,6 +48,53 @@ Calc(select=[/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0, /(-($f0, /(*($f1, $f
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWindowAggregateWithDifferentWindows">
+    <Resource name="sql">
+      <![CDATA[
+WITH window_1h AS (
+    SELECT 1
+    FROM MyTable
+    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+),
+
+window_2h AS (
+    SELECT 1
+    FROM MyTable
+    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+)
+
+(SELECT * FROM window_1h)
+UNION ALL
+(SELECT * FROM window_2h)
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(EXPR$0=[1])
+:  +- LogicalAggregate(group=[{0}])
+:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
++- LogicalProject(EXPR$0=[1])
+   +- LogicalAggregate(group=[{0}])
+      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[EXPR$0])
+:- Calc(select=[1 AS EXPR$0])
+:  +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 3600000, 3600000)], select=[])
+:     +- Exchange(distribution=[single], reuse_id=[1])
+:        +- Calc(select=[rowtime])
+:           +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
++- Calc(select=[1 AS EXPR$0])
+   +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 7200000, 3600000)], select=[])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExpressionOnWindowAuxFunction">
     <Resource name="sql">
       <![CDATA[
@@ -588,6 +635,48 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 GroupWindowAggregate(window=[TumblingGroupWindow('w$, $f2, 1000)], select=[SUM(a) AS EXPR$0, MAX(b) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregateWithDifferentWindows">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  SUM(correct) AS s,
+  AVG(correct) AS a,
+  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) AS wStart
+FROM (
+  SELECT CASE a
+      WHEN 1 THEN 1
+      ELSE 99
+    END AS correct, rowtime
+  FROM MyTable
+)
+GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
++- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
+   +- LogicalProject($f0=[TUMBLE($4, 900000:INTERVAL MINUTE)], correct=[CASE(=($0, 1), 1, 99)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[EXPR$0])
+:- Calc(select=[1 AS EXPR$0])
+:  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
+:           +- Calc(select=[ts], reuse_id=[1])
+:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
++- Calc(select=[1 AS EXPR$0])
+   +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
+      +- Exchange(distribution=[single])
+         +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

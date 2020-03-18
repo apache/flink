@@ -19,7 +19,7 @@
 package org.apache.flink.kubernetes;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractClusterClientFactory;
+import org.apache.flink.client.deployment.AbstractContainerizedClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link ClusterClientFactory} for a Kubernetes cluster.
  */
 @Internal
-public class KubernetesClusterClientFactory extends AbstractClusterClientFactory<String> {
+public class KubernetesClusterClientFactory extends AbstractContainerizedClusterClientFactory<String> {
 
 	private static final String CLUSTER_ID_PREFIX = "flink-cluster-";
 

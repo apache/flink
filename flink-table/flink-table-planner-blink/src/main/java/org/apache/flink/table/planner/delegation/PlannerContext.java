@@ -37,6 +37,8 @@ import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverterImpl;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.codegen.ExpressionReducer;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
@@ -57,6 +59,7 @@ import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.schema.SchemaPlus;
@@ -71,6 +74,7 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to create {@link org.apache.calcite.tools.RelBuilder} or {@link FrameworkConfig} used to create
@@ -80,6 +84,7 @@ import static java.util.Collections.singletonList;
  */
 @Internal
 public class PlannerContext {
+
 	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
@@ -87,6 +92,7 @@ public class PlannerContext {
 	private final FlinkContext context;
 	private final CalciteSchema rootSchema;
 	private final List<RelTraitDef> traitDefs;
+	private final FrameworkConfig frameworkConfig;
 
 	public PlannerContext(
 			TableConfig tableConfig,
@@ -95,13 +101,19 @@ public class PlannerContext {
 			CalciteSchema rootSchema,
 			List<RelTraitDef> traitDefs) {
 		this.tableConfig = tableConfig;
-		this.context = new FlinkContextImpl(tableConfig, functionCatalog, catalogManager);
+
+		this.context = new FlinkContextImpl(
+				tableConfig,
+				functionCatalog,
+				catalogManager,
+				this::createSqlExprToRexConverter);
+
 		this.rootSchema = rootSchema;
 		this.traitDefs = traitDefs;
 		// Make a framework config to initialize the RelOptCluster instance,
 		// caution that we can only use the attributes that can not be overwrite/configured
 		// by user.
-		final FrameworkConfig frameworkConfig = createFrameworkConfig();
+		this.frameworkConfig = createFrameworkConfig();
 
 		RelOptPlanner planner = new VolcanoPlanner(frameworkConfig.getCostFactory(), frameworkConfig.getContext());
 		planner.setExecutor(frameworkConfig.getExecutor());
@@ -109,6 +121,14 @@ public class PlannerContext {
 			planner.addRelTraitDef(traitDef);
 		}
 		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
+	}
+
+	private SqlExprToRexConverter createSqlExprToRexConverter(RelDataType rowType) {
+		return new SqlExprToRexConverterImpl(
+				checkNotNull(frameworkConfig),
+				checkNotNull(typeFactory),
+				checkNotNull(cluster),
+				rowType);
 	}
 
 	private FrameworkConfig createFrameworkConfig() {
@@ -146,7 +166,8 @@ public class PlannerContext {
 			// We need to overwrite the default scan factory, which does not
 			// expand views. The expandingScanFactory uses the FlinkPlanner to translate a view
 			// into a rel tree, before applying any subsequent rules.
-			Contexts.of(expandingScanFactory(createFlinkPlanner(currentCatalog, currentDatabase)))
+			Contexts.of(expandingScanFactory(
+					createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext()))
 		);
 		return new FlinkRelBuilder(chain, cluster, relOptSchema);
 	}
@@ -301,6 +322,7 @@ public class PlannerContext {
 		return ChainedSqlOperatorTable.of(
 				new FunctionCatalogOperatorTable(
 						context.getFunctionCatalog(),
+						context.getCatalogManager().getDataTypeFactory(),
 						typeFactory),
 				FlinkSqlOperatorTable.instance());
 	}

@@ -20,20 +20,11 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema}
-import org.apache.flink.table.catalog.{CatalogTableImpl, GenericInMemoryCatalog, ObjectPath}
-import org.apache.flink.table.factories.TableSinkFactory
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
 
 import org.junit.Test
-import org.mockito.{ArgumentMatchers, Mockito}
-
-import java.util.Optional
-
-import scala.collection.JavaConverters._
 
 class SinkTest extends TableTestBase {
 
@@ -68,26 +59,4 @@ class SinkTest extends TableTestBase {
 
     util.verifyPlan()
   }
-
-  @Test
-  def testCatalogTableSink(): Unit = {
-    val schemaBuilder = new TableSchema.Builder()
-    schemaBuilder.fields(Array("i"), Array(DataTypes.INT()))
-    val schema = schemaBuilder.build()
-    val sink = util.createCollectTableSink(schema.getFieldNames, Array(INT))
-    val catalog = Mockito.spy(new GenericInMemoryCatalog("dummy"))
-    val factory = Mockito.mock(classOf[TableSinkFactory[_]])
-    Mockito.when[Optional[_]](catalog.getTableFactory).thenReturn(Optional.of(factory))
-    Mockito.when[TableSink[_]](factory.createTableSink(
-      ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(sink)
-    util.tableEnv.registerCatalog(catalog.getName, catalog)
-    util.tableEnv.useCatalog(catalog.getName)
-    val catalogTable = new CatalogTableImpl(schema, Map[String, String]().asJava, "")
-    catalog.createTable(new ObjectPath("default", "tbl"), catalogTable, false)
-    util.tableEnv.sqlQuery("select 1").insertInto("tbl")
-    util.tableEnv.explain(false)
-    // verify we tried to get table factory from catalog
-    Mockito.verify(catalog, Mockito.atLeast(1)).getTableFactory
-  }
-
 }

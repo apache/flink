@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-
 import org.junit.Test;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
@@ -107,11 +105,11 @@ public class UnionInputGateTest extends InputGateTestBase {
 	public void testIsAvailable() throws Exception {
 		final SingleInputGate inputGate1 = createInputGate(1);
 		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
-		inputGate1.setInputChannel(new IntermediateResultPartitionID(), inputChannel1);
+		inputGate1.setInputChannel(inputChannel1);
 
 		final SingleInputGate inputGate2 = createInputGate(1);
 		TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0);
-		inputGate2.setInputChannel(new IntermediateResultPartitionID(), inputChannel2);
+		inputGate2.setInputChannel(inputChannel2);
 
 		testIsAvailable(new UnionInputGate(inputGate1, inputGate2), inputGate1, inputChannel1);
 	}
@@ -120,11 +118,11 @@ public class UnionInputGateTest extends InputGateTestBase {
 	public void testIsAvailableAfterFinished() throws Exception {
 		final SingleInputGate inputGate1 = createInputGate(1);
 		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
-		inputGate1.setInputChannel(new IntermediateResultPartitionID(), inputChannel1);
+		inputGate1.setInputChannel(inputChannel1);
 
 		final SingleInputGate inputGate2 = createInputGate(1);
 		TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0);
-		inputGate2.setInputChannel(new IntermediateResultPartitionID(), inputChannel2);
+		inputGate2.setInputChannel(inputChannel2);
 
 		testIsAvailableAfterFinished(
 			new UnionInputGate(inputGate1, inputGate2),
