@@ -295,28 +295,36 @@ class Pipeline(Estimator, Model, Transformer):
             pipeline = jsonpickle.decode(json, keys=True)
             for stage in pipeline.get_stages():
                 self.append_stage(stage)
-        except Exception:
-            # if can't load json with Python method, try to load with Java method
-            gw = get_gateway()
-            j_pipeline = gw.jvm.org.apache.flink.ml.api.core.Pipeline()
-            j_pipeline.loadJson(json)
+        except Exception as outer_e:
+            try:
+                # if can't load json with Python method, try to load with Java method
+                gw = get_gateway()
+                j_pipeline = gw.jvm.org.apache.flink.ml.api.core.Pipeline()
+                j_pipeline.loadJson(json)
 
-            for j_stage in j_pipeline.getStages():
-                j_stage_class = j_stage.getClass()
-                j_transformer_class = java_class(gw.jvm.org.apache.flink.ml.api.core.Transformer)
-                j_estimator_class = java_class(gw.jvm.org.apache.flink.ml.api.core.Estimator)
-                j_model_class = java_class(gw.jvm.org.apache.flink.ml.api.core.Model)
-                if j_transformer_class.isAssignableFrom(j_stage_class):
-                    self.append_stage(JavaTransformer(j_stage))
-                elif j_estimator_class.isAssignableFrom(j_stage_class):
-                    self.append_stage(JavaEstimator(j_stage))
-                elif j_model_class.isAssignableFrom(j_stage_class):
-                    self.append_stage(JavaModel(j_stage))
-                else:
-                    raise TypeError(
-                        "Unexpected Java PipelineStage %s. Class should be a %s, "
-                        "%s or a %s." %
-                        (j_stage_class.getCanonicalName(),
-                         j_transformer_class.getCanonicalName(),
-                         j_estimator_class.getCanonicalName(),
-                         j_model_class.getCanonicalName()))
+                for j_stage in j_pipeline.getStages():
+                    j_stage_class = j_stage.getClass()
+                    j_transformer_class = java_class(
+                        gw.jvm.org.apache.flink.ml.api.core.Transformer)
+                    j_estimator_class = java_class(gw.jvm.org.apache.flink.ml.api.core.Estimator)
+                    j_model_class = java_class(gw.jvm.org.apache.flink.ml.api.core.Model)
+                    if j_transformer_class.isAssignableFrom(j_stage_class):
+                        self.append_stage(JavaTransformer(j_stage))
+                    elif j_estimator_class.isAssignableFrom(j_stage_class):
+                        self.append_stage(JavaEstimator(j_stage))
+                    elif j_model_class.isAssignableFrom(j_stage_class):
+                        self.append_stage(JavaModel(j_stage))
+                    else:
+                        raise TypeError(
+                            "Unexpected Java PipelineStage %s. Class should be a %s, "
+                            "%s or a %s." %
+                            (j_stage_class.getCanonicalName(),
+                             j_transformer_class.getCanonicalName(),
+                             j_estimator_class.getCanonicalName(),
+                             j_model_class.getCanonicalName()))
+            except Exception as inner_e:
+                raise RuntimeError(
+                    "Cannot load the JSON as either a Java Pipeline or a Python Pipeline.\n"
+                    "Python Pipeline load failed due to: %s.\n"
+                    "Java Pipeline load failed due to: %s." %
+                    (outer_e, inner_e))
