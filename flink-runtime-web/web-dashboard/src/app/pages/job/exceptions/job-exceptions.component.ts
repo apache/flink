@@ -31,28 +31,45 @@ import { JobService } from 'services';
 export class JobExceptionsComponent implements OnInit {
   rootException = '';
   listOfException: JobExceptionItemInterface[] = [];
+  truncated = false;
+  isLoading = false;
+  maxExceptions = 0;
 
   trackExceptionBy(_: number, node: JobExceptionItemInterface) {
     return node.timestamp;
+  }
+  loadMore() {
+    this.isLoading = true;
+    this.maxExceptions += 10;
+    this.jobService.jobDetail$
+      .pipe(
+        distinctUntilChanged((pre, next) => pre.jid === next.jid),
+        flatMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions))
+      )
+      .subscribe(
+        data => {
+          // @ts-ignore
+          if (data['root-exception']) {
+            this.rootException =
+              formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
+          } else {
+            this.rootException = 'No Root Exception';
+          }
+          this.truncated = data.truncated;
+          this.listOfException = data['all-exceptions'];
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$
-      .pipe(
-        distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        flatMap(job => this.jobService.loadExceptions(job.jid))
-      )
-      .subscribe(data => {
-        // @ts-ignore
-        if (data['root-exception']) {
-          this.rootException = formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
-        } else {
-          this.rootException = 'No Root Exception';
-        }
-        this.listOfException = data['all-exceptions'];
-        this.cdr.markForCheck();
-      });
+    this.loadMore();
   }
 }
