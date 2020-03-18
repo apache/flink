@@ -154,8 +154,6 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Test
   def testBigForSpill(): Unit = {
 
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_SORT_MEMORY, "1mb")
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, "2mb")
     conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
 
     val bigData = Random.shuffle(
@@ -173,8 +171,6 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     if (expectedJoinType == SortMergeJoin) {
       conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
       env.getConfig.setParallelism(1)
-
-      conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_SORT_MEMORY, "1mb")
 
       val bigData = Random.shuffle(
         bigIntStringData.union(bigIntStringData).union(bigIntStringData).union(bigIntStringData))

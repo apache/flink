@@ -261,4 +261,14 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
       "IF(f7 > 5, f0, f1)",
       "FAIL")
   }
+
+  @Test
+  def testInvalidToBase64(): Unit = {
+    //test TO_BASE64(INTEGER)
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Cannot apply 'TO_BASE64' to arguments of type 'TO_BASE64(<INTEGER>)'")
+    testSqlApi(
+      "TO_BASE64(11)",
+      "FAIL")
+  }
 }

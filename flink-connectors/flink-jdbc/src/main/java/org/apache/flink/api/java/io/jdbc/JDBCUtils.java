@@ -231,4 +231,12 @@ public class JDBCUtils {
 			return ret;
 		}
 	}
+
+	public static Row getPrimaryKey(Row row, int[] pkFields) {
+		Row pkRow = new Row(pkFields.length);
+		for (int i = 0; i < pkFields.length; i++) {
+			pkRow.setField(i, row.getField(pkFields[i]));
+		}
+		return pkRow;
+	}
 }

@@ -96,9 +96,9 @@ import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
@@ -299,6 +299,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		@Override
 		public <U> RelNode visit(TableSourceQueryOperation<U> tableSourceTable) {
 			final Table relTable = new TableSourceTable<>(
+				tableSourceTable.getTableSchema(),
 				tableSourceTable.getTableSource(),
 				!tableSourceTable.isBatch(),
 				FlinkStatistic.UNKNOWN());
@@ -316,6 +317,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					relTable.getRowType(relBuilder.getTypeFactory()),
 					relTable,
 					Schemas.path(catalogReader.getRootSchema(), Collections.singletonList(refId))),
+				tableSourceTable.getTableSchema(),
 				tableSourceTable.getTableSource(),
 				Option.empty()
 			);

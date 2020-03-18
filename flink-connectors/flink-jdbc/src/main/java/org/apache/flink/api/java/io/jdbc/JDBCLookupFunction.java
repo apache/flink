@@ -84,8 +84,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 			String[] fieldNames, TypeInformation[] fieldTypes, String[] keyNames) {
 		this.drivername = options.getDriverName();
 		this.dbURL = options.getDbURL();
-		this.username = options.getUsername();
-		this.password = options.getPassword();
+		this.username = options.getUsername().orElse(null);
+		this.password = options.getPassword().orElse(null);
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
 		List<String> nameList = Arrays.asList(fieldNames);
@@ -99,8 +99,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 		this.cacheMaxSize = lookupOptions.getCacheMaxSize();
 		this.cacheExpireMs = lookupOptions.getCacheExpireMs();
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
-		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
-		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
+		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
+		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 		this.query = options.getDialect().getSelectFromStatement(
 				options.getTableName(), fieldNames, keyNames);
 	}

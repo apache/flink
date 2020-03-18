@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -38,7 +39,7 @@ import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Test;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Collectors;
@@ -59,30 +60,43 @@ public class MailboxOperatorTest extends TestLogger {
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO);
 
-		testHarness.setupOperatorChain(new OperatorID(), new ReplicatingMailOperatorFactory())
-			.chain(new OperatorID(), new ReplicatingMailOperatorFactory(), IntSerializer.INSTANCE)
+		final int maxProcessingElements = 3;
+
+		testHarness.setupOperatorChain(new OperatorID(), new ReplicatingMailOperatorFactory(maxProcessingElements))
+			.chain(new OperatorID(), new ReplicatingMailOperatorFactory(maxProcessingElements), IntSerializer.INSTANCE)
 			.finish();
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processElement(new StreamRecord<>(0));
-		testHarness.processElement(new StreamRecord<>(0));
-		testHarness.processElement(new StreamRecord<>(0));
+		for (int i = 0; i < maxProcessingElements; i++) {
+			testHarness.processElement(new StreamRecord<>(0));
+		}
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 
 		// with each input two mails should be processed, one of each operator in the chain
+		List<Integer> expected = new ArrayList<>();
+		for (int i = 0; i < maxProcessingElements; i++) {
+			expected.add(i * 2);
+		}
 		List<Integer> numMailsProcessed = testHarness.getOutput().stream()
 			.map(element -> ((StreamRecord<Integer>) element).getValue())
 			.collect(Collectors.toList());
-		assertThat(numMailsProcessed, is(Arrays.asList(0, 2, 4)));
+		assertThat(numMailsProcessed, is(expected));
 	}
 
-	private static class ReplicatingMailOperatorFactory implements OneInputStreamOperatorFactory<Integer, Integer>,
-			YieldingOperatorFactory<Integer> {
+	private static class ReplicatingMailOperatorFactory extends AbstractStreamOperatorFactory<Integer>
+		implements OneInputStreamOperatorFactory<Integer, Integer>,	YieldingOperatorFactory<Integer> {
+
+		private final int maxProcessingElements;
+
 		private MailboxExecutor mailboxExecutor;
+
+		ReplicatingMailOperatorFactory(final int maxProcessingElements) {
+			this.maxProcessingElements = maxProcessingElements;
+		}
 
 		@Override
 		public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
@@ -94,18 +108,14 @@ public class MailboxOperatorTest extends TestLogger {
 				StreamTask<?, ?> containingTask,
 				StreamConfig config,
 				Output<StreamRecord<Integer>> output) {
-			ReplicatingMailOperator operator = new ReplicatingMailOperator(mailboxExecutor);
+			ReplicatingMailOperator operator = new ReplicatingMailOperator(maxProcessingElements, mailboxExecutor);
+			operator.setProcessingTimeService(processingTimeService);
 			operator.setup(containingTask, config, output);
 			return (Operator) operator;
 		}
 
 		@Override
 		public void setChainingStrategy(ChainingStrategy strategy) {
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return ChainingStrategy.ALWAYS;
 		}
 
 		@Override
@@ -116,25 +126,42 @@ public class MailboxOperatorTest extends TestLogger {
 
 	private static class ReplicatingMailOperator extends AbstractStreamOperator<Integer>
 			implements OneInputStreamOperator<Integer, Integer> {
+
+		private final int maxProcessingElements;
+
 		private final ReplicatingMail replicatingMail;
 
-		ReplicatingMailOperator(final MailboxExecutor mailboxExecutor) {
-			replicatingMail = new ReplicatingMail(mailboxExecutor);
+		private long numProcessedElements = 0;
+
+		ReplicatingMailOperator(final int maxProcessingElements, final MailboxExecutor mailboxExecutor) {
+			this.maxProcessingElements = maxProcessingElements;
+			this.replicatingMail = new ReplicatingMail(mailboxExecutor);
 		}
 
 		@Override
 		public void processElement(StreamRecord<Integer> upstreamMailCount) throws Exception {
+			if (numProcessedElements >= maxProcessingElements) {
+				return;
+			}
+
 			// for the very first element, enqueue one mail that replicates itself
 			if (!replicatingMail.hasBeenEnqueued()) {
 				replicatingMail.run();
 			}
 			// output how many mails have been processed so far (from upstream and this operator)
 			output.collect(new StreamRecord<>(replicatingMail.getMailCount() + upstreamMailCount.getValue()));
+
+			if (++numProcessedElements == maxProcessingElements) {
+				replicatingMail.stop();
+			}
 		}
 	}
 
 	private static class ReplicatingMail implements RunnableWithException {
 		private int mailCount = -1;
+
+		private boolean stopped = false;
+
 		private final MailboxExecutor mailboxExecutor;
 
 		ReplicatingMail(final MailboxExecutor mailboxExecutor) {
@@ -144,7 +171,9 @@ public class MailboxOperatorTest extends TestLogger {
 		@Override
 		public void run() {
 			try {
-				mailboxExecutor.execute(this, "Blocking mail" + ++mailCount);
+				if (!stopped) {
+					mailboxExecutor.execute(this, "Blocking mail" + ++mailCount);
+				}
 			} catch (RejectedExecutionException e) {
 				// during shutdown the executor will reject new mails, which is fine for us.
 			}
@@ -156,6 +185,10 @@ public class MailboxOperatorTest extends TestLogger {
 
 		int getMailCount() {
 			return mailCount;
+		}
+
+		void stop() {
+			stopped = true;
 		}
 	}
 }

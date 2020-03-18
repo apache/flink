@@ -34,7 +34,7 @@ import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, Pl
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
@@ -69,11 +69,6 @@ class StreamTableEnvironmentImpl (
     planner,
     isStreaming)
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
-
-  if (!isStreaming) {
-    throw new TableException(
-      "StreamTableEnvironment is not supported on batch mode now, please use TableEnvironment.")
-  }
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
     val queryOperation = asQueryOperation(dataStream, None)
@@ -138,7 +133,7 @@ class StreamTableEnvironmentImpl (
   }
 
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
-    val typeInfo = UserFunctionsTypeHelper
+    val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfTableFunction(tf, implicitly[TypeInformation[T]])
     functionCatalog.registerTempSystemTableFunction(
       name,
@@ -151,9 +146,9 @@ class StreamTableEnvironmentImpl (
       name: String,
       f: AggregateFunction[T, ACC])
     : Unit = {
-    val typeInfo = UserFunctionsTypeHelper
+    val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserFunctionsTypeHelper
+    val accTypeInfo = UserDefinedFunctionHelper
       .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
     functionCatalog.registerTempSystemAggregateFunction(
       name,
@@ -167,9 +162,9 @@ class StreamTableEnvironmentImpl (
       name: String,
       f: TableAggregateFunction[T, ACC])
     : Unit = {
-    val typeInfo = UserFunctionsTypeHelper
+    val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserFunctionsTypeHelper
+    val accTypeInfo = UserDefinedFunctionHelper
       .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
     functionCatalog.registerTempSystemAggregateFunction(
       name,
@@ -192,14 +187,6 @@ class StreamTableEnvironmentImpl (
         "A rowtime attribute requires an EventTime time characteristic in stream " +
           "environment. But is: %s}", scalaExecutionEnvironment.getStreamTimeCharacteristic))
     }
-  }
-
-  override protected def isEagerOperationTranslation(): Boolean = true
-
-  override def explain(extended: Boolean): String = {
-    // throw exception directly, because the operations to explain are always empty
-    throw new TableException(
-      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
   }
 
   private def toDataStream[T](
@@ -310,12 +297,28 @@ object StreamTableEnvironmentImpl {
       tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
 
-    val catalogManager = new CatalogManager(
-      settings.getBuiltInCatalogName,
-      new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
+    if (!settings.isStreamingMode) {
+      throw new TableException(
+        "StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.")
+    }
+
+    // temporary solution until FLINK-15635 is fixed
+    val classLoader = Thread.currentThread.getContextClassLoader
 
     val moduleManager = new ModuleManager
-    val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
+
+    val catalogManager = CatalogManager.newBuilder
+      .classLoader(classLoader)
+      .config(tableConfig.getConfiguration)
+      .defaultCatalog(
+        settings.getBuiltInCatalogName,
+        new GenericInMemoryCatalog(
+          settings.getBuiltInCatalogName,
+          settings.getBuiltInDatabaseName))
+      .executionConfig(executionEnvironment.getConfig)
+      .build
+
+    val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
     val executorProperties = settings.toExecutorProperties
     val executor = lookupExecutor(executorProperties, executionEnvironment)

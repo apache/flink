@@ -120,4 +120,45 @@ DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c]
 
     </Resource>
   </TestCase>
+  <TestCase name="testViewExpandingWithMismatchRowType[0]">
+    <Resource name="sql">
+      <![CDATA[select * from view1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[CAST($0):INTEGER NOT NULL], b=[$1], c=[CAST($2):INTEGER])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
++- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS EXPR$2])
+   +- Exchange(distribution=[hash[a, b]])
+      +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testViewExpandingWithMismatchRowType[1]">
+    <Resource name="sql">
+      <![CDATA[select * from view1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[CAST($0):INTEGER NOT NULL], b=[$1], c=[CAST($2):INTEGER])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
++- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])
+   +- Exchange(distribution=[hash[a, b]])
+      +- DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

@@ -214,6 +214,12 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 
+  def getRelModifiedMonotonicity(
+    rel: StreamExecMiniBatchAssigner,
+    mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
+  }
+
   def getRelModifiedMonotonicity(rel: Exchange, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     // for exchange, get correspond from input
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)

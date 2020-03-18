@@ -58,13 +58,8 @@ abstract class PhysicalTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val hasWatermark = tableSourceTable.watermarkSpec.isDefined && tableSourceTable.isStreamingMode
-    val rowtime = tableSourceTable.watermarkSpec.map(_.getRowtimeAttribute).orNull
-    val watermark = tableSourceTable.watermarkSpec.map(_.getWatermarkExpressionString).orNull
     super.explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
-      .itemIf("rowtime", rowtime, hasWatermark)
-      .itemIf("watermark", watermark, hasWatermark)
   }
 
   def createInput[IN](

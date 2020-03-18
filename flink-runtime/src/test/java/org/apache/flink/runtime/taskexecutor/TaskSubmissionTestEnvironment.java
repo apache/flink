@@ -34,9 +34,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
-import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
@@ -46,8 +45,10 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -73,7 +74,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -91,7 +91,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	private final TestingHighAvailabilityServices haServices;
 	private final TemporaryFolder temporaryFolder;
-	private final TaskSlotTable taskSlotTable;
+	private final TaskSlotTable<Task> taskSlotTable;
 	private final JobMasterId jobMasterId;
 
 	private TestingTaskExecutor taskExecutor;
@@ -116,13 +116,16 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		this.jobMasterId = jobMasterId;
 
-		if (slotSize > 0) {
-			this.taskSlotTable = TaskSlotUtils.createTaskSlotTable(slotSize);
-		} else {
-			this.taskSlotTable = mock(TaskSlotTable.class);
-			when(taskSlotTable.tryMarkSlotActive(eq(jobId), any())).thenReturn(true);
-			when(taskSlotTable.addTask(any(Task.class))).thenReturn(true);
-		}
+		this.taskSlotTable = slotSize > 0 ?
+			TaskSlotUtils.createTaskSlotTable(slotSize) :
+			TestingTaskSlotTable
+				.<Task>newBuilder()
+				.tryMarkSlotActiveReturns(true)
+				.addTaskReturns(true)
+				.closeAsyncReturns(CompletableFuture.completedFuture(null))
+				.allocateSlotReturns(true)
+				.memoryManagerGetterReturns(null)
+				.build();
 
 		JobMasterGateway jobMasterGateway;
 		if (testingJobMasterGateway == null) {
@@ -175,7 +178,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		return taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 	}
 
-	public TaskSlotTable getTaskSlotTable() {
+	public TaskSlotTable<Task> getTaskSlotTable() {
 		return taskSlotTable;
 	}
 
@@ -189,9 +192,11 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	@Nonnull
 	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, String metricQueryServiceAddress, Configuration configuration) {
+		final Configuration copiedConf = new Configuration(configuration);
+
 		return new TestingTaskExecutor(
 			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(configuration),
+			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf)),
 			haServices,
 			taskManagerServices,
 			heartbeatServices,

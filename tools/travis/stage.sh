@@ -82,13 +82,13 @@ flink-formats/flink-sequence-file,\
 flink-formats/flink-json,\
 flink-formats/flink-csv,\
 flink-formats/flink-orc,\
+flink-formats/flink-orc-nohive,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors/flink-jdbc,\
 flink-connectors,\
 flink-connectors/flink-connector-cassandra,\
-flink-connectors/flink-connector-elasticsearch2,\
 flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch7,\
@@ -96,8 +96,6 @@ flink-connectors/flink-sql-connector-elasticsearch6,\
 flink-connectors/flink-sql-connector-elasticsearch7,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
-flink-connectors/flink-connector-kafka-0.9,\
-flink-connectors/flink-sql-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
 flink-connectors/flink-sql-connector-kafka-0.10,\
 flink-connectors/flink-connector-kafka-0.11,\
@@ -127,11 +125,6 @@ flink-connectors/flink-sql-connector-kafka,"
 
 MODULES_TESTS="\
 flink-tests"
-
-# we can only build the Kafka 0.8 connector when building for Scala 2.11
-if [[ $PROFILE == *"scala-2.11"* ]]; then
-    MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.8"
-fi
 
 # we can only build the Scala Shell when building for Scala 2.11
 if [[ $PROFILE == *"scala-2.11"* ]]; then

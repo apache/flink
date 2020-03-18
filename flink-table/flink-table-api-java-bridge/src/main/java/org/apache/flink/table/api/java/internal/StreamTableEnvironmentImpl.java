@@ -21,6 +21,7 @@ package org.apache.flink.table.api.java.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -53,7 +54,7 @@ import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
@@ -104,13 +105,23 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 				"StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.");
 		}
 
-		CatalogManager catalogManager = new CatalogManager(
-			settings.getBuiltInCatalogName(),
-			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
+		// temporary solution until FLINK-15635 is fixed
+		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
 		ModuleManager moduleManager = new ModuleManager();
 
-		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+		CatalogManager catalogManager = CatalogManager.newBuilder()
+			.classLoader(classLoader)
+			.config(tableConfig.getConfiguration())
+			.defaultCatalog(
+				settings.getBuiltInCatalogName(),
+				new GenericInMemoryCatalog(
+					settings.getBuiltInCatalogName(),
+					settings.getBuiltInDatabaseName()))
+			.executionConfig(executionEnvironment.getConfig())
+			.build();
+
+		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = lookupExecutor(executorProperties, executionEnvironment);
@@ -152,7 +163,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> void registerFunction(String name, TableFunction<T> tableFunction) {
-		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction);
+		TypeInformation<T> typeInfo = UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction);
 
 		functionCatalog.registerTempSystemTableFunction(
 			name,
@@ -163,8 +174,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction) {
-		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(aggregateFunction);
-		TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
+		TypeInformation<T> typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction);
+		TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
 			.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 
 		functionCatalog.registerTempSystemAggregateFunction(
@@ -177,9 +188,9 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T, ACC> void registerFunction(String name, TableAggregateFunction<T, ACC> tableAggregateFunction) {
-		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(
+		TypeInformation<T> typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(
 			tableAggregateFunction);
-		TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
+		TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
 			.getAccumulatorTypeOfAggregateFunction(tableAggregateFunction);
 
 		functionCatalog.registerTempSystemAggregateFunction(
@@ -347,6 +358,13 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		return executionEnvironment;
 	}
 
+	/**
+	 * This method is used for sql client to submit job.
+	 */
+	public Pipeline getPipeline(String jobName) {
+		return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
+	}
+
 	private <T> DataStream<T> toDataStream(Table table, OutputConversionModifyOperation modifyOperation) {
 		List<Transformation<?>> transformations = planner.translate(Collections.singletonList(modifyOperation));
 
@@ -360,17 +378,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	protected void validateTableSource(TableSource<?> tableSource) {
 		super.validateTableSource(tableSource);
 		validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
-	}
-
-	@Override
-	protected boolean isEagerOperationTranslation() {
-		return true;
-	}
-
-	@Override
-	public String explain(boolean extended) {
-		// throw exception directly, because the operations to explain are always empty
-		throw new TableException("'explain' method without any tables is unsupported in StreamTableEnvironment.");
 	}
 
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {

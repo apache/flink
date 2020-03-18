@@ -82,6 +82,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test savepoint rescaling.
@@ -193,7 +194,7 @@ public class RescalingITCase extends TestLogger {
 			ClientUtils.submitJob(client, jobGraph);
 
 			// wait til the sources have emitted numberElements for each key and completed a checkpoint
-			SubtaskIndexFlatMapper.workCompletedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(SubtaskIndexFlatMapper.workCompletedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			// verify the current state
 
@@ -337,7 +338,7 @@ public class RescalingITCase extends TestLogger {
 			ClientUtils.submitJob(client, jobGraph);
 
 			// wait til the sources have emitted numberElements for each key and completed a checkpoint
-			SubtaskIndexFlatMapper.workCompletedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(SubtaskIndexFlatMapper.workCompletedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			// verify the current state
 

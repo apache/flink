@@ -19,8 +19,9 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.function.RunnableWithException;
@@ -29,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,10 +62,10 @@ public class MailboxProcessor implements Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(MailboxProcessor.class);
 
 	/** The mailbox data-structure that manages request for special actions, like timers, checkpoints, ... */
-	private final TaskMailbox mailbox;
+	protected final TaskMailbox mailbox;
 
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
-	private final MailboxDefaultAction mailboxDefaultAction;
+	protected final MailboxDefaultAction mailboxDefaultAction;
 
 	/** A pre-created instance of mailbox executor that executes all mails. */
 	private final MailboxExecutor mainMailboxExecutor;
@@ -80,12 +80,36 @@ public class MailboxProcessor implements Closeable {
 	 */
 	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
+	private final StreamTaskActionExecutor actionExecutor;
+
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
+		this(mailboxDefaultAction, StreamTaskActionExecutor.IMMEDIATE);
+	}
+
+	public MailboxProcessor(
+			MailboxDefaultAction mailboxDefaultAction,
+			StreamTaskActionExecutor actionExecutor) {
+		this(mailboxDefaultAction, new TaskMailboxImpl(Thread.currentThread()), actionExecutor);
+	}
+
+	public MailboxProcessor(
+			MailboxDefaultAction mailboxDefaultAction,
+			TaskMailbox mailbox,
+			StreamTaskActionExecutor actionExecutor) {
+		this(mailboxDefaultAction, actionExecutor, mailbox, new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor));
+	}
+
+	public MailboxProcessor(
+			MailboxDefaultAction mailboxDefaultAction,
+			StreamTaskActionExecutor actionExecutor,
+			TaskMailbox mailbox,
+			MailboxExecutor mainMailboxExecutor) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
-		mailbox = new TaskMailboxImpl(Thread.currentThread());
-		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY);
-		mailboxLoopRunning = true;
-		suspendedDefaultAction = null;
+		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
+		this.mailbox = Preconditions.checkNotNull(mailbox);
+		this.mainMailboxExecutor = Preconditions.checkNotNull(mainMailboxExecutor);
+		this.mailboxLoopRunning = true;
+		this.suspendedDefaultAction = null;
 	}
 
 	/**
@@ -101,7 +125,7 @@ public class MailboxProcessor implements Closeable {
 	 * @param priority the priority of the {@link MailboxExecutor}.
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox, priority);
+		return new MailboxExecutorImpl(mailbox, priority, actionExecutor);
 	}
 
 	/**
@@ -120,12 +144,17 @@ public class MailboxProcessor implements Closeable {
 		List<Mail> droppedMails = mailbox.close();
 		if (!droppedMails.isEmpty()) {
 			LOG.debug("Closing the mailbox dropped mails {}.", droppedMails);
-			List<RunnableWithException> runnables = new ArrayList<>();
+			Optional<RuntimeException> maybeErr = Optional.empty();
 			for (Mail droppedMail : droppedMails) {
-				RunnableWithException runnable = droppedMail.getRunnable();
-				runnables.add(runnable);
+				try {
+					droppedMail.tryCancel(false);
+				} catch (RuntimeException x) {
+					maybeErr = Optional.of(ExceptionUtils.firstOrSuppressed(x, maybeErr.orElse(null)));
+				}
 			}
-			FutureUtils.cancelRunnableFutures(runnables);
+			maybeErr.ifPresent(e -> {
+				throw e;
+			});
 		}
 	}
 
@@ -154,9 +183,20 @@ public class MailboxProcessor implements Closeable {
 
 		final MailboxController defaultActionContext = new MailboxController(this);
 
-		while (processMail(localMailbox)) {
-			mailboxDefaultAction.runDefaultAction(defaultActionContext);
+		while (runMailboxStep(localMailbox, defaultActionContext)) {
 		}
+	}
+
+	public boolean runMailboxStep() throws Exception {
+		return runMailboxStep(mailbox, new MailboxController(this));
+	}
+
+	private boolean runMailboxStep(TaskMailbox localMailbox, MailboxController defaultActionContext) throws Exception {
+		if (processMail(localMailbox)) {
+			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -164,9 +204,17 @@ public class MailboxProcessor implements Closeable {
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
 	public void reportThrowable(Throwable throwable) {
-		sendPriorityMail(
+		sendControlMail(
 			() -> {
-				throw WrappingRuntimeException.wrapIfNecessary(throwable);
+				if (throwable instanceof Exception) {
+					throw (Exception) throwable;
+				}
+				else if (throwable instanceof Error) {
+					throw (Error) throwable;
+				}
+				else {
+					throw WrappingRuntimeException.wrapIfNecessary(throwable);
+				}
 			},
 			"Report throwable %s", throwable);
 	}
@@ -179,13 +227,21 @@ public class MailboxProcessor implements Closeable {
 			// keep state check and poison mail enqueuing atomic, such that no intermediate #close may cause a
 			// MailboxStateException in #sendPriorityMail.
 			if (mailbox.getState() == TaskMailbox.State.OPEN) {
-				sendPriorityMail(() -> mailboxLoopRunning = false, "poison mail");
+				sendControlMail(() -> mailboxLoopRunning = false, "poison mail");
 			}
 		});
 	}
 
-	private void sendPriorityMail(RunnableWithException priorityMail, String descriptionFormat, Object... descriptionArgs) {
-		mainMailboxExecutor.executeFirst(priorityMail, descriptionFormat, descriptionArgs);
+	/**
+	 * Sends the given <code>mail</code> using {@link TaskMailbox#putFirst(Mail)} .
+	 * Intended use is to control this <code>MailboxProcessor</code>; no interaction with tasks should be performed;
+	 */
+	private void sendControlMail(RunnableWithException mail, String descriptionFormat, Object... descriptionArgs) {
+		mailbox.putFirst(new Mail(
+				mail,
+				Integer.MAX_VALUE /*not used with putFirst*/,
+				descriptionFormat,
+				descriptionArgs));
 	}
 
 	/**
@@ -240,7 +296,8 @@ public class MailboxProcessor implements Closeable {
 		return suspendedDefaultAction != null;
 	}
 
-	private boolean isMailboxLoopRunning() {
+	@VisibleForTesting
+	public boolean isMailboxLoopRunning() {
 		return mailboxLoopRunning;
 	}
 
@@ -250,7 +307,7 @@ public class MailboxProcessor implements Closeable {
 	private void ensureControlFlowSignalCheck() {
 		// Make sure that mailbox#hasMail is true via a dummy mail so that the flag change is noticed.
 		if (!mailbox.hasMail()) {
-			sendPriorityMail(() -> {}, "signal check");
+			sendControlMail(() -> {}, "signal check");
 		}
 	}
 
@@ -258,11 +315,11 @@ public class MailboxProcessor implements Closeable {
 	 * Implementation of {@link MailboxDefaultAction.Controller} that is connected to a {@link MailboxProcessor}
 	 * instance.
 	 */
-	private static final class MailboxController implements MailboxDefaultAction.Controller {
+	protected static final class MailboxController implements MailboxDefaultAction.Controller {
 
 		private final MailboxProcessor mailboxProcessor;
 
-		private MailboxController(MailboxProcessor mailboxProcessor) {
+		protected MailboxController(MailboxProcessor mailboxProcessor) {
 			this.mailboxProcessor = mailboxProcessor;
 		}
 
@@ -287,7 +344,7 @@ public class MailboxProcessor implements Closeable {
 			if (mailbox.isMailboxThread()) {
 				resumeInternal();
 			} else {
-				sendPriorityMail(this::resumeInternal, "resume default action");
+				sendControlMail(this::resumeInternal, "resume default action");
 			}
 		}
 

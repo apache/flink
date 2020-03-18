@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.expressions.utils.SplitUDF
+import org.apache.flink.table.expressions.utils.{Func13, SplitUDF}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.batch.table.OldHashCode
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -391,6 +391,15 @@ class CalcITCase(
 
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  // new type inference for functions is only supported in the Blink planner
+  @Test(expected = classOf[ValidationException])
+  def testUnsupportedNewFunctionTypeInference(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+    tEnv.createTemporarySystemFunction("testFunc", new Func13(">>"))
+    tEnv.sqlQuery("SELECT testFunc('fail')").toDataSet[Row]
   }
 }
 

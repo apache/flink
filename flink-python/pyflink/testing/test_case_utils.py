@@ -15,9 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-
+import glob
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -30,7 +31,7 @@ from py4j.protocol import Py4JJavaError
 from pyflink.table.sources import CsvTableSource
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.find_flink_home import _find_flink_home
+from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 from pyflink.table import BatchTableEnvironment, StreamTableEnvironment, EnvironmentSettings
 from pyflink.java_gateway import get_gateway
 
@@ -247,3 +248,77 @@ class PythonAPICompletenessTestCase(object):
 
     def test_completeness(self):
         self.check_methods()
+
+
+def replace_uuid(input_obj):
+    if isinstance(input_obj, str):
+        return re.sub(r'[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}',
+                      '{uuid}', input_obj)
+    elif isinstance(input_obj, dict):
+        input_obj_copy = dict()
+        for key in input_obj:
+            input_obj_copy[replace_uuid(key)] = replace_uuid(input_obj[key])
+        return input_obj_copy
+
+
+class Tuple2(object):
+
+    def __init__(self, f0, f1):
+        self.f0 = f0
+        self.f1 = f1
+        self.field = [f0, f1]
+
+    def getField(self, index):
+        return self.field[index]
+
+
+class TestEnv(object):
+
+    def __init__(self):
+        self.result = []
+
+    def registerCachedFile(self, file_path, key):
+        self.result.append(Tuple2(key, file_path))
+
+    def getCachedFiles(self):
+        return self.result
+
+    def to_dict(self):
+        result = dict()
+        for item in self.result:
+            result[item.f0] = item.f1
+        return result
+
+
+class MLTestCase(PyFlinkTestCase):
+    """
+    Base class for testing ML.
+    """
+
+    _inited = False
+
+    @staticmethod
+    def _ensure_path(pattern):
+        if not glob.glob(pattern):
+            raise unittest.SkipTest(
+                "'%s' is not available. Will skip the related tests." % pattern)
+
+    @classmethod
+    def _ensure_initialized(cls):
+        if MLTestCase._inited:
+            return
+
+        flink_source_root_dir = _find_flink_source_root()
+        api_path_pattern = (
+            "flink-ml-parent/flink-ml-api/target/flink-ml-api*-SNAPSHOT.jar")
+        lib_path_pattern = (
+            "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*-SNAPSHOT.jar")
+
+        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, api_path_pattern))
+        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, lib_path_pattern))
+
+        MLTestCase._inited = True
+
+    def setUp(self):
+        super(MLTestCase, self).setUp()
+        MLTestCase._ensure_initialized()

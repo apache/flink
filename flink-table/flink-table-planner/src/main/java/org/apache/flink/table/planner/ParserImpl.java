@@ -76,6 +76,6 @@ public class ParserImpl implements Parser {
 	public UnresolvedIdentifier parseIdentifier(String identifier) {
 		CalciteParser parser = calciteParserSupplier.get();
 		SqlIdentifier sqlIdentifier = parser.parseIdentifier(identifier);
-		return UnresolvedIdentifier.of(sqlIdentifier.names.toArray(new String[0]));
+		return UnresolvedIdentifier.of(sqlIdentifier.names);
 	}
 }

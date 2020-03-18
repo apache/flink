@@ -207,7 +207,7 @@ public class GCloudEmulatorManager {
 	private static String getPort(Map<String, List<PortBinding>> ports, String internalTCPPort, String label) {
 		List<PortBinding> portMappings = ports.get(internalTCPPort + "/tcp");
 		if (portMappings == null || portMappings.isEmpty()) {
-			LOG.info("| {} Emulator {} --> NOTHING CONNECTED TO {}", label, internalTCPPort + "/tcp");
+			LOG.info("| {} Emulator --> NOTHING CONNECTED TO {}/tcp", label, internalTCPPort);
 			return null;
 		}
 

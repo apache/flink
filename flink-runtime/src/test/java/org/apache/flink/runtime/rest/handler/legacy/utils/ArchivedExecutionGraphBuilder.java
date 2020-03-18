@@ -139,7 +139,8 @@ public class ArchivedExecutionGraphBuilder {
 			archivedExecutionConfig != null ? archivedExecutionConfig : new ArchivedExecutionConfigBuilder().build(),
 			isStoppable,
 			null,
-			null
+			null,
+			"stateBackendName"
 		);
 	}
 }

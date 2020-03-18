@@ -27,6 +27,7 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
@@ -42,9 +43,11 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,7 +64,7 @@ import static org.junit.Assert.assertNotNull;
  */
 public class OrcColumnarRowSplitReaderTest {
 
-	private static final int BATCH_SIZE = 10;
+	protected static final int BATCH_SIZE = 10;
 
 	private final Path testFileFlat = new Path(getPath("test-data-flat.orc"));
 	private final DataType[] testSchemaFlat = new DataType[] {
@@ -242,69 +245,73 @@ public class OrcColumnarRowSplitReaderTest {
 		assertEquals(1844737280400L, totalF0);
 	}
 
+	protected void prepareReadFileWithTypes(String file, int rowSize) throws IOException {
+		// NOTE: orc has field name information, so name should be same as orc
+		TypeDescription schema =
+				TypeDescription.fromString(
+						"struct<" +
+								"f0:float," +
+								"f1:double," +
+								"f2:timestamp," +
+								"f3:tinyint," +
+								"f4:smallint" +
+								">");
+
+		org.apache.hadoop.fs.Path filePath = new org.apache.hadoop.fs.Path(file);
+		Configuration conf = new Configuration();
+
+		Writer writer =
+				OrcFile.createWriter(filePath,
+						OrcFile.writerOptions(conf).setSchema(schema));
+
+		VectorizedRowBatch batch = schema.createRowBatch(rowSize);
+		DoubleColumnVector col0 = (DoubleColumnVector) batch.cols[0];
+		DoubleColumnVector col1 = (DoubleColumnVector) batch.cols[1];
+		TimestampColumnVector col2 = (TimestampColumnVector) batch.cols[2];
+		LongColumnVector col3 = (LongColumnVector) batch.cols[3];
+		LongColumnVector col4 = (LongColumnVector) batch.cols[4];
+
+		col0.noNulls = false;
+		col1.noNulls = false;
+		col2.noNulls = false;
+		col3.noNulls = false;
+		col4.noNulls = false;
+		for (int i = 0; i < rowSize - 1; i++) {
+			col0.vector[i] = i;
+			col1.vector[i] = i;
+
+			Timestamp timestamp = toTimestamp(i);
+			col2.time[i] = timestamp.getTime();
+			col2.nanos[i] = timestamp.getNanos();
+
+			col3.vector[i] = i;
+			col4.vector[i] = i;
+		}
+
+		col0.isNull[rowSize - 1] = true;
+		col1.isNull[rowSize - 1] = true;
+		col2.isNull[rowSize - 1] = true;
+		col3.isNull[rowSize - 1] = true;
+		col4.isNull[rowSize - 1] = true;
+
+		batch.size = rowSize;
+		writer.addRowBatch(batch);
+		batch.reset();
+		writer.close();
+	}
+
 	@Test
 	public void testReadFileWithTypes() throws IOException {
 		File folder = TEMPORARY_FOLDER.newFolder();
 		String file = new File(folder, "testOrc").getPath();
 		int rowSize = 1024;
 
-		// first write orc file
-		{
-			// NOTE: orc has field name information, so name should be same as orc
-			TypeDescription schema =
-					TypeDescription.fromString(
-							"struct<" +
-									"f0:float," +
-									"f1:double," +
-									"f2:timestamp," +
-									"f3:tinyint," +
-									"f4:smallint" +
-									">");
-
-			org.apache.hadoop.fs.Path filePath = new org.apache.hadoop.fs.Path(file);
-			Configuration conf = new Configuration();
-
-			Writer writer =
-					OrcFile.createWriter(filePath,
-							OrcFile.writerOptions(conf).setSchema(schema));
-
-			VectorizedRowBatch batch = schema.createRowBatch(rowSize);
-			DoubleColumnVector col0 = (DoubleColumnVector) batch.cols[0];
-			DoubleColumnVector col1 = (DoubleColumnVector) batch.cols[1];
-			TimestampColumnVector col2 = (TimestampColumnVector) batch.cols[2];
-			LongColumnVector col3 = (LongColumnVector) batch.cols[3];
-			LongColumnVector col4 = (LongColumnVector) batch.cols[4];
-
-			col0.noNulls = false;
-			col1.noNulls = false;
-			col2.noNulls = false;
-			col3.noNulls = false;
-			col4.noNulls = false;
-			for (int i = 0; i < rowSize - 1; i++) {
-				col0.vector[i] = i;
-				col1.vector[i] = i;
-				col2.time[i] = i * 1000;
-				col2.nanos[i] = i;
-				col3.vector[i] = i;
-				col4.vector[i] = i;
-			}
-
-			col0.isNull[rowSize - 1] = true;
-			col1.isNull[rowSize - 1] = true;
-			col2.isNull[rowSize - 1] = true;
-			col3.isNull[rowSize - 1] = true;
-			col4.isNull[rowSize - 1] = true;
-
-			batch.size = rowSize;
-			writer.addRowBatch(batch);
-			batch.reset();
-			writer.close();
-		}
+		prepareReadFileWithTypes(file, rowSize);
 
 		// second test read.
 		FileInputSplit split = createSplits(new Path(file), 1)[0];
 
-		long cnt = 0;
+		int cnt = 0;
 		Map<String, Object> partSpec = new HashMap<>();
 		partSpec.put("f5", true);
 		partSpec.put("f6", new Date(562423));
@@ -352,7 +359,7 @@ public class OrcColumnarRowSplitReaderTest {
 					Assert.assertFalse(row.isNullAt(3));
 					Assert.assertFalse(row.isNullAt(4));
 					Assert.assertEquals(
-							SqlTimestamp.fromEpochMillis(cnt * 1000, (int) cnt),
+							SqlTimestamp.fromTimestamp(toTimestamp(cnt)),
 							row.getTimestamp(0, 9));
 					Assert.assertEquals(cnt, row.getFloat(1), 0);
 					Assert.assertEquals(cnt, row.getDouble(2), 0);
@@ -381,12 +388,24 @@ public class OrcColumnarRowSplitReaderTest {
 		assertEquals(rowSize, cnt);
 	}
 
-	private OrcColumnarRowSplitReader createReader(
+	protected static Timestamp toTimestamp(int i) {
+		return new Timestamp(
+						i + 1000,
+						(i % 12) + 1,
+						(i % 28) + 1,
+						i % 24,
+						i % 60,
+						i % 60,
+						i * 1_000 + i);
+	}
+
+	protected OrcColumnarRowSplitReader createReader(
 			int[] selectedFields,
 			DataType[] fullTypes,
 			Map<String, Object> partitionSpec,
 			FileInputSplit split) throws IOException {
 		return OrcSplitReaderUtil.genPartColumnarRowReader(
+				"2.3.0",
 				new Configuration(),
 				IntStream.range(0, fullTypes.length)
 						.mapToObj(i -> "f" + i).toArray(String[]::new),
@@ -401,7 +420,16 @@ public class OrcColumnarRowSplitReaderTest {
 	}
 
 	private String getPath(String fileName) {
-		return getClass().getClassLoader().getResource(fileName).getPath();
+		try {
+			File file = TEMPORARY_FOLDER.newFile();
+			IOUtils.copyBytes(
+					getClass().getClassLoader().getResource(fileName).openStream(),
+					new FileOutputStream(file),
+					true);
+			return file.getPath();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	private static FileInputSplit[] createSplits(Path path, int minNumSplits) throws IOException {

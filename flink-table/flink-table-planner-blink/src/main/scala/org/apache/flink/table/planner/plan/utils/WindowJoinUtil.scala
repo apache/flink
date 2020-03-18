@@ -127,7 +127,7 @@ object WindowJoinUtil {
       case None =>
         s"""
            |$buildJoinedRow
-           |$collectorTerm.collect($joinedRow)
+           |$collectorTerm.collect($joinedRow);
            |""".stripMargin
       case Some(remainCondition) =>
         val genCond = exprGenerator.generateExpression(remainCondition)

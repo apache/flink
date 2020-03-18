@@ -23,7 +23,6 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
-import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -47,19 +46,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 
-	private final String workingDirectory;
-
-	public YarnJobClusterEntrypoint(
-			Configuration configuration,
-			String workingDirectory) {
-
+	public YarnJobClusterEntrypoint(Configuration configuration) {
 		super(configuration);
-		this.workingDirectory = Preconditions.checkNotNull(workingDirectory);
-	}
-
-	@Override
-	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
-		return YarnEntrypointUtils.installSecurityContext(configuration, workingDirectory);
 	}
 
 	@Override
@@ -115,11 +103,9 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 			LOG.warn("Could not log YARN environment information.", e);
 		}
 
-		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env, LOG);
+		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
 
-		YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(
-			configuration,
-			workingDirectory);
+		YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
 	}

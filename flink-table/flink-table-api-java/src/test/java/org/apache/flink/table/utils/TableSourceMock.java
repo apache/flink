@@ -32,9 +32,9 @@ public class TableSourceMock implements TableSource<Row> {
 
 	private final TableSchema tableSchema;
 
-	public TableSourceMock(DataType producedDataType, TableSchema tableSchema) {
-		this.producedDataType = producedDataType;
-		this.tableSchema = tableSchema;
+	public TableSourceMock(TableSchema tableSchema) {
+		this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
+		this.producedDataType = tableSchema.toRowDataType();
 	}
 
 	@Override

@@ -19,13 +19,13 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, OperatorCodeGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -119,8 +119,8 @@ object ScanUtil {
 
     val substituteStreamOperator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
 
-    new OneInputTransformation(
-      input,
+    ExecNode.createOneInputTransformation(
+      input.asInstanceOf[Transformation[BaseRow]],
       getOperatorName(qualifiedName, outRowType),
       substituteStreamOperator,
       BaseRowTypeInfo.of(outputRowType),

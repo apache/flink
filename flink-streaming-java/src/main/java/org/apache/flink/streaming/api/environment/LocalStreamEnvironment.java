@@ -64,23 +64,13 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 							"or running in a TestEnvironment context.");
 		}
 		final Configuration effectiveConfiguration = new Configuration(checkNotNull(configuration));
-		effectiveConfiguration.set(DeploymentOptions.TARGET, "local-executor");
+		effectiveConfiguration.set(DeploymentOptions.TARGET, "local");
 		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
 		return effectiveConfiguration;
 	}
 
-	/**
-	 * Executes the JobGraph of the on a mini cluster of ClusterUtil with a user
-	 * specified name.
-	 *
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try {
-			return super.execute(streamGraph);
-		} finally {
-			transformations.clear();
-		}
+		return super.execute(streamGraph);
 	}
 }

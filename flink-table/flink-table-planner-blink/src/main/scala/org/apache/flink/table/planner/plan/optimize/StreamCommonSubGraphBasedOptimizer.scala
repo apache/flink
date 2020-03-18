@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.optimize
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTraitDef, MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -164,6 +165,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       .getOrElse(FlinkStreamProgram.buildProgram(config.getConfiguration))
     Preconditions.checkNotNull(programs)
 
+    val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+
     programs.optimize(relNode, new StreamOptimizeContext() {
 
       override def getTableConfig: TableConfig = config
@@ -171,6 +174,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
       override def getCatalogManager: CatalogManager = planner.catalogManager
+
+      override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
+        context.getSqlExprToRexConverterFactory
 
       override def getRexBuilder: RexBuilder = planner.getRelBuilder.getRexBuilder
 

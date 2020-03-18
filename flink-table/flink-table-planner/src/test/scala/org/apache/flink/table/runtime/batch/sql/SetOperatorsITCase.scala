@@ -158,8 +158,6 @@ class SetOperatorsITCase(
   }
 
   @Test
-  @Ignore
-  // calcite sql parser doesn't support EXCEPT ALL
   def testExceptAll(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)

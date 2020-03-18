@@ -20,12 +20,15 @@ package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
+import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -36,6 +39,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.commons.io.IOUtils;
@@ -63,6 +67,8 @@ import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertTrue;
+
 /**
  * Tests for the HistoryServer.
  */
@@ -73,7 +79,8 @@ public class HistoryServerTest extends TestLogger {
 	private static final JsonFactory JACKSON_FACTORY = new JsonFactory()
 		.enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
 		.disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
-	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+		.enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
 
 	@Rule
 	public final TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -138,9 +145,12 @@ public class HistoryServerTest extends TestLogger {
 		try {
 			hs.start();
 			String baseUrl = "http://localhost:" + hs.getWebPort();
-			numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS);
+			assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
 
 			Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
+
+			// checks whether the dashboard configuration contains all expected fields
+			getDashboardConfiguration(baseUrl);
 		} finally {
 			hs.stop();
 		}
@@ -186,7 +196,7 @@ public class HistoryServerTest extends TestLogger {
 		try {
 			hs.start();
 			String baseUrl = "http://localhost:" + hs.getWebPort();
-			numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS);
+			assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
 
 			Collection<JobDetails> jobs = getJobsOverview(baseUrl).getJobs();
 			Assert.assertEquals(numJobs, jobs.size());
@@ -200,7 +210,7 @@ public class HistoryServerTest extends TestLogger {
 			// delete one archive from jm
 			Files.deleteIfExists(jmDirectory.toPath().resolve(jobIdToDelete));
 
-			numExpectedExpiredJobs.await(10L, TimeUnit.SECONDS);
+			assertTrue(numExpectedExpiredJobs.await(10L, TimeUnit.SECONDS));
 
 			// check that archive is present in hs
 			Collection<JobDetails> jobsAfterDeletion = getJobsOverview(baseUrl).getJobs();
@@ -236,9 +246,15 @@ public class HistoryServerTest extends TestLogger {
 		return historyServerConfig;
 	}
 
+	private static DashboardConfiguration getDashboardConfiguration(String baseUrl) throws Exception {
+		Tuple2<Integer, String> response = getFromHTTP(baseUrl + DashboardConfigurationHeaders.INSTANCE.getTargetRestEndpointURL());
+		return OBJECT_MAPPER.readValue(response.f1, DashboardConfiguration.class);
+
+	}
+
 	private static MultipleJobsDetails getJobsOverview(String baseUrl) throws Exception {
-		String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
-		return OBJECT_MAPPER.readValue(response, MultipleJobsDetails.class);
+		Tuple2<Integer, String> response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
+		return OBJECT_MAPPER.readValue(response.f1, MultipleJobsDetails.class);
 	}
 
 	private static void runJob() throws Exception {
@@ -248,7 +264,7 @@ public class HistoryServerTest extends TestLogger {
 		env.execute();
 	}
 
-	static String getFromHTTP(String url) throws Exception {
+	static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
 		URL u = new URL(url);
 		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
 		connection.setConnectTimeout(100000);
@@ -261,7 +277,7 @@ public class HistoryServerTest extends TestLogger {
 			is = connection.getInputStream();
 		}
 
-		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
+		return Tuple2.of(connection.getResponseCode(), IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8"));
 	}
 
 	private static String createLegacyArchive(Path directory) throws IOException {

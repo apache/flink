@@ -38,23 +38,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Utility class for converting {@link CatalogTableStatistics} to {@link TableStats}.
+ * Utility class for converting {@link CatalogTableStatistics} and {@link CatalogColumnStatistics} to {@link TableStats}.
  */
 public class CatalogTableStatisticsConverter {
 
 	public static TableStats convertToTableStats(
 			CatalogTableStatistics tableStatistics,
 			CatalogColumnStatistics columnStatistics) {
-		if (tableStatistics == null || tableStatistics.equals(CatalogTableStatistics.UNKNOWN)) {
-			return TableStats.UNKNOWN;
+		long rowCount;
+		if (tableStatistics != null && tableStatistics.getRowCount() >= 0) {
+			rowCount = tableStatistics.getRowCount();
+		} else {
+			rowCount = TableStats.UNKNOWN.getRowCount();
 		}
 
-		long rowCount = tableStatistics.getRowCount();
-		Map<String, ColumnStats> columnStatsMap = null;
-		if (columnStatistics != null && !columnStatistics.equals(CatalogColumnStatistics.UNKNOWN)) {
+		Map<String, ColumnStats> columnStatsMap;
+		if (columnStatistics != null) {
 			columnStatsMap = convertToColumnStatsMap(columnStatistics.getColumnStatisticsData());
-		}
-		if (columnStatsMap == null) {
+		} else {
 			columnStatsMap = new HashMap<>();
 		}
 		return new TableStats(rowCount, columnStatsMap);
@@ -82,7 +83,9 @@ public class CatalogTableStatisticsConverter {
 			CatalogColumnStatisticsDataBoolean booleanData = (CatalogColumnStatisticsDataBoolean) columnStatisticsData;
 			avgLen = 1.0;
 			maxLen = 1;
-			if ((booleanData.getFalseCount() == 0 && booleanData.getTrueCount() > 0) ||
+			if (null == booleanData.getFalseCount() || null == booleanData.getTrueCount()) {
+				ndv = 2L;
+			} else if ((booleanData.getFalseCount() == 0 && booleanData.getTrueCount() > 0) ||
 					(booleanData.getFalseCount() > 0 && booleanData.getTrueCount() == 0)) {
 				ndv = 1L;
 			} else {
@@ -106,11 +109,11 @@ public class CatalogTableStatisticsConverter {
 			CatalogColumnStatisticsDataString strData = (CatalogColumnStatisticsDataString) columnStatisticsData;
 			ndv = strData.getNdv();
 			avgLen = strData.getAvgLength();
-			maxLen = (int) strData.getMaxLength();
+			maxLen = null == strData.getMaxLength() ? null : strData.getMaxLength().intValue();
 		} else if (columnStatisticsData instanceof CatalogColumnStatisticsDataBinary) {
 			CatalogColumnStatisticsDataBinary binaryData = (CatalogColumnStatisticsDataBinary) columnStatisticsData;
 			avgLen = binaryData.getAvgLength();
-			maxLen = (int) binaryData.getMaxLength();
+			maxLen = null == binaryData.getMaxLength() ? null : binaryData.getMaxLength().intValue();
 		} else if (columnStatisticsData instanceof CatalogColumnStatisticsDataDate) {
 			CatalogColumnStatisticsDataDate dateData = (CatalogColumnStatisticsDataDate) columnStatisticsData;
 			ndv = dateData.getNdv();

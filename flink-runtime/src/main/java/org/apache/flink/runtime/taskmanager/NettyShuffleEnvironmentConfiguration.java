@@ -36,6 +36,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Configuration object for the network stack.
@@ -69,6 +70,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final boolean forcePartitionReleaseOnConsumption;
 
+	private final boolean blockingShuffleCompressionEnabled;
+
+	private final String compressionCodec;
+
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
@@ -81,7 +86,9 @@ public class NettyShuffleEnvironmentConfiguration {
 			@Nullable NettyConfig nettyConfig,
 			String[] tempDirs,
 			BoundedBlockingSubpartitionType blockingSubpartitionType,
-			boolean forcePartitionReleaseOnConsumption) {
+			boolean forcePartitionReleaseOnConsumption,
+			boolean blockingShuffleCompressionEnabled,
+			String compressionCodec) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -95,6 +102,8 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.tempDirs = Preconditions.checkNotNull(tempDirs);
 		this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
+		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+		this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
 	}
 
 	// ------------------------------------------------------------------------
@@ -147,6 +156,14 @@ public class NettyShuffleEnvironmentConfiguration {
 		return forcePartitionReleaseOnConsumption;
 	}
 
+	public boolean isBlockingShuffleCompressionEnabled() {
+		return blockingShuffleCompressionEnabled;
+	}
+
+	public String getCompressionCodec() {
+		return compressionCodec;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -154,14 +171,14 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * sanity check them.
 	 *
 	 * @param configuration configuration object
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
+	 * @param networkMemorySize the size of memory reserved for shuffle environment
 	 * @param localTaskManagerCommunication true, to skip initializing the network stack
 	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
 	 * @return NettyShuffleEnvironmentConfiguration
 	 */
 	public static NettyShuffleEnvironmentConfiguration fromConfiguration(
 		Configuration configuration,
-		MemorySize shuffleMemorySize,
+		MemorySize networkMemorySize,
 		boolean localTaskManagerCommunication,
 		InetAddress taskManagerAddress) {
 
@@ -173,7 +190,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(
 			configuration,
-			shuffleMemorySize,
+			networkMemorySize,
 			pageSize);
 
 		int initialRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
@@ -194,6 +211,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		boolean forcePartitionReleaseOnConsumption =
 			configuration.getBoolean(NettyShuffleEnvironmentOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION);
 
+		boolean blockingShuffleCompressionEnabled =
+			configuration.get(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED);
+		String compressionCodec = configuration.getString(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
+
 		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
@@ -206,7 +227,9 @@ public class NettyShuffleEnvironmentConfiguration {
 			nettyConfig,
 			tempDirs,
 			blockingSubpartitionType,
-			forcePartitionReleaseOnConsumption);
+			forcePartitionReleaseOnConsumption,
+			blockingShuffleCompressionEnabled,
+			compressionCodec);
 	}
 
 	/**
@@ -227,21 +250,21 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * Calculates the number of network buffers based on configuration and jvm heap size.
 	 *
 	 * @param configuration configuration object
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
+	 * @param networkMemorySize the size of memory reserved for shuffle environment
 	 * @param pageSize size of memory segment
 	 * @return the number of network buffers
 	 */
 	private static int calculateNumberOfNetworkBuffers(
 		Configuration configuration,
-		MemorySize shuffleMemorySize,
+		MemorySize networkMemorySize,
 		int pageSize) {
 
 		logIfIgnoringOldConfigs(configuration);
 
 		// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
-		long numberOfNetworkBuffersLong = shuffleMemorySize.getBytes() / pageSize;
+		long numberOfNetworkBuffersLong = networkMemorySize.getBytes() / pageSize;
 		if (numberOfNetworkBuffersLong > Integer.MAX_VALUE) {
-			throw new IllegalArgumentException("The given number of memory bytes (" + shuffleMemorySize.getBytes()
+			throw new IllegalArgumentException("The given number of memory bytes (" + networkMemorySize.getBytes()
 				+ ") corresponds to more than MAX_INT pages.");
 		}
 
@@ -290,7 +313,7 @@ public class NettyShuffleEnvironmentConfiguration {
 	}
 
 	private static BoundedBlockingSubpartitionType getBlockingSubpartitionType(Configuration config) {
-		String transport = config.getString(NettyShuffleEnvironmentOptions.NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE);
+		String transport = config.getString(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE);
 
 		switch (transport) {
 			case "mmap":
@@ -317,6 +340,8 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
 		result = 31 * result + Arrays.hashCode(tempDirs);
 		result = 31 * result + (forcePartitionReleaseOnConsumption ? 1 : 0);
+		result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
+		result = 31 * result + Objects.hashCode(compressionCodec);
 		return result;
 	}
 
@@ -340,7 +365,9 @@ public class NettyShuffleEnvironmentConfiguration {
 					this.requestSegmentsTimeout.equals(that.requestSegmentsTimeout) &&
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null) &&
 					Arrays.equals(this.tempDirs, that.tempDirs) &&
-					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption;
+					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption &&
+					this.blockingShuffleCompressionEnabled == that.blockingShuffleCompressionEnabled &&
+					Objects.equals(this.compressionCodec, that.compressionCodec);
 		}
 	}
 
@@ -357,6 +384,8 @@ public class NettyShuffleEnvironmentConfiguration {
 				", nettyConfig=" + nettyConfig +
 				", tempDirs=" + Arrays.toString(tempDirs) +
 				", forcePartitionReleaseOnConsumption=" + forcePartitionReleaseOnConsumption +
+				", blockingShuffleCompressionEnabled=" + blockingShuffleCompressionEnabled +
+				", compressionCodec=" + compressionCodec +
 				'}';
 	}
 }

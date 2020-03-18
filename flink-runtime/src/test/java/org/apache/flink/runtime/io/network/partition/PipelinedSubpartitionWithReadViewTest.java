@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
@@ -27,6 +28,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 
@@ -46,7 +49,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.mock;
 
 /**
  * Additional tests for {@link PipelinedSubpartition} which require an availability listener and a
@@ -54,15 +56,28 @@ import static org.mockito.Mockito.mock;
  *
  * @see PipelinedSubpartitionTest
  */
+@RunWith(Parameterized.class)
 public class PipelinedSubpartitionWithReadViewTest {
 
 	private PipelinedSubpartition subpartition;
 	private AwaitableBufferAvailablityListener availablityListener;
 	private PipelinedSubpartitionView readView;
 
+	@Parameterized.Parameter
+	public boolean compressionEnabled;
+
+	@Parameterized.Parameters(name = "compressionEnabled = {0}")
+	public static Boolean[] parameters() {
+		return new Boolean[] {false, true};
+	}
+
 	@Before
 	public void setup() throws IOException {
-		final ResultPartition parent = mock(ResultPartition.class);
+		final ResultPartition parent = PartitionTestUtils.createPartition(
+			ResultPartitionType.PIPELINED,
+			NoOpFileChannelManager.INSTANCE,
+			compressionEnabled,
+			BUFFER_SIZE);
 		subpartition = new PipelinedSubpartition(0, parent);
 		availablityListener = new AwaitableBufferAvailablityListener();
 		readView = subpartition.createReadView(availablityListener);

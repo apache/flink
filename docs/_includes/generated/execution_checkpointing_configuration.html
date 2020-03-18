@@ -28,7 +28,7 @@
         </tr>
         <tr>
             <td><h5>execution.checkpointing.min-pause</h5></td>
-            <td style="word-wrap: break-word;">0ms</td>
+            <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
             <td>The minimal pause between checkpointing attempts. This setting defines how soon thecheckpoint coordinator may trigger another checkpoint after it becomes possible to triggeranother checkpoint with respect to the maximum number of concurrent checkpoints(see <span markdown="span">`execution.checkpointing.max-concurrent-checkpoints`</span>).<br /><br />If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure that a minimum amount of time passes where no checkpoint is in progress at all.</td>
         </tr>
@@ -46,7 +46,7 @@
         </tr>
         <tr>
             <td><h5>execution.checkpointing.timeout</h5></td>
-            <td style="word-wrap: break-word;">600000ms</td>
+            <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
             <td>The maximum time that a checkpoint may take before being discarded.</td>
         </tr>

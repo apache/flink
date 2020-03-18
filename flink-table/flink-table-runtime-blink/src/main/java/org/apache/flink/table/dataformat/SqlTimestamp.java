@@ -23,12 +23,13 @@ import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
- * Immutable SQL TIMESTAMP type with nanosecond precision.
+ * Immutable SQL TIMESTAMP and TIMESTAMP_WITH_LOCAL_TIME_ZONE with nanosecond precision.
  *
  * <p>This class is composite of a millisecond and nanoOfMillisecond. The millisecond part
  * holds the integral second and the milli-of-second. The nanoOfMillisecond holds the
@@ -172,6 +173,40 @@ public class SqlTimestamp implements Comparable<SqlTimestamp> {
 
 		long millisecond = epochDay * MILLIS_PER_DAY + nanoOfDay / 1_000_000;
 		int nanoOfMillisecond = (int) (nanoOfDay % 1_000_000);
+
+		return new SqlTimestamp(millisecond, nanoOfMillisecond);
+	}
+
+	/**
+	 * Convert this {@code SqlTimestamp} object to a {@link Instant}.
+	 *
+	 * @return an instance of {@link Instant}
+	 */
+	public Instant toInstant() {
+		long epochSecond = millisecond / 1000;
+		int milliOfSecond = (int) (millisecond % 1000);
+		if (milliOfSecond < 0) {
+			--epochSecond;
+			milliOfSecond += 1000;
+		}
+		long nanoAdjustment = milliOfSecond * 1_000_000 + nanoOfMillisecond;
+		return Instant.ofEpochSecond(epochSecond, nanoAdjustment);
+	}
+
+	/**
+	 * Obtains an instance of {@code SqlTimestamp} from an instance of {@link Instant}.
+	 *
+	 * <p>This returns a {@code SqlTimestmap} with the specified {@link Instant}.
+	 *
+	 * @param instant an instance of {@link Instant}
+	 * @return an instance of {@code SqlTimestamp}
+	 */
+	public static SqlTimestamp fromInstant(Instant instant) {
+		long epochSecond = instant.getEpochSecond();
+		int nanoSecond = instant.getNano();
+
+		long millisecond = epochSecond * 1_000 + nanoSecond / 1_000_000;
+		int nanoOfMillisecond = nanoSecond % 1_000_000;
 
 		return new SqlTimestamp(millisecond, nanoOfMillisecond);
 	}

@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -118,7 +117,7 @@ abstract class BatchExecSortAggregateBase(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal)
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,

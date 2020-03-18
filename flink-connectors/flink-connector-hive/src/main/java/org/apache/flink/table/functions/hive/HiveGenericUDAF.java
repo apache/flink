@@ -28,8 +28,8 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.functions.hive.conversion.IdentityConversion;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -100,7 +100,7 @@ public class HiveGenericUDAF
 
 		conversions = new HiveObjectConversion[inputInspectors.length];
 		for (int i = 0; i < inputInspectors.length; i++) {
-			conversions[i] = HiveInspectors.getConversion(inputInspectors[i], argTypes[i].getLogicalType());
+			conversions[i] = HiveInspectors.getConversion(inputInspectors[i], argTypes[i].getLogicalType(), hiveShim);
 		}
 		allIdentityConverter = Arrays.stream(conversions)
 			.allMatch(conv -> conv instanceof IdentityConversion);
@@ -175,7 +175,7 @@ public class HiveGenericUDAF
 	@Override
 	public Object getValue(GenericUDAFEvaluator.AggregationBuffer accumulator) {
 		try {
-			return HiveInspectors.toFlinkObject(finalResultObjectInspector, finalEvaluator.terminate(accumulator));
+			return HiveInspectors.toFlinkObject(finalResultObjectInspector, finalEvaluator.terminate(accumulator), hiveShim);
 		} catch (HiveException e) {
 			throw new FlinkHiveUDFException(
 				String.format("Failed to get final result on %s", hiveFunctionWrapper.getClassName()), e);
@@ -205,7 +205,7 @@ public class HiveGenericUDAF
 
 	@Override
 	public TypeInformation getResultType() {
-		return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
+		return TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
 			getHiveResultType(this.constantArguments, this.argTypes));
 	}
 

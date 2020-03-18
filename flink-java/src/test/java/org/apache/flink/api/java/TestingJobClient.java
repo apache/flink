@@ -68,5 +68,4 @@ public class TestingJobClient implements JobClient {
 	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
 		return CompletableFuture.completedFuture(Collections.emptyMap());
 	}
-
 }

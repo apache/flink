@@ -243,7 +243,9 @@ abstract class RowTimeUnboundedOver[K](
     out: Collector[CRow]): Unit
 
   override def close(): Unit = {
-    function.close()
+    if (function != null) {
+      function.close()
+    }
   }
 }
 

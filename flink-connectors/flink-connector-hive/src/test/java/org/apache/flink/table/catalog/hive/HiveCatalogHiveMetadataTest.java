@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -32,9 +33,11 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -42,12 +45,13 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /**
  * Test for HiveCatalog on Hive metadata.
  */
-public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
+public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
 	@BeforeClass
 	public static void init() {
@@ -97,14 +101,15 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
-		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
-		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataLong(0, 1000, 3, 0));
-		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataBoolean(15, 20, 3));
-		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3, 10));
-		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataLong(0, 20, 3, 2));
-		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataBinary(150, 20, 3));
+		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10L, 5.2, 3L, 100L));
+		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataLong(0L, 1000L, 3L, 0L));
+		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataBoolean(15L, 20L, 3L));
+		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3L, 10L));
+		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataLong(0L, 20L, 3L, 2L));
+		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataBinary(150L, 20D, 3L));
 		if (supportDateStats) {
-			columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 1321, 0L));
+			columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataDate(
+					new Date(71L), new Date(17923L), 132L, 0L));
 		}
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterTableColumnStatistics(path1, catalogColumnStatistics, false);
@@ -120,11 +125,41 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
 		CatalogPartitionSpec partitionSpec = createPartitionSpec();
 		catalog.createPartition(path1, partitionSpec, createPartition(), true);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
-		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
+		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10L, 5.2, 3L, 100L));
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterPartitionColumnStatistics(path1, partitionSpec, catalogColumnStatistics, false);
 
 		checkEquals(catalogColumnStatistics, catalog.getPartitionColumnStatistics(path1, partitionSpec));
+	}
+
+	@Test
+	public void testHiveStatistics() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		checkStatistics(0, -1);
+		checkStatistics(1, 1);
+		checkStatistics(1000, 1000);
+	}
+
+	private void checkStatistics(int inputStat, int expectStat) throws Exception {
+		catalog.dropTable(path1, true);
+
+		Map<String, String> properties = new HashMap<>();
+		properties.put(CatalogConfig.IS_GENERIC, "false");
+		properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
+		properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
+		properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));
+		properties.put(StatsSetupConst.RAW_DATA_SIZE, String.valueOf(inputStat));
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder().field("f0", DataTypes.INT()).build(),
+				properties,
+				"");
+		catalog.createTable(path1, catalogTable, false);
+
+		CatalogTableStatistics statistics = catalog.getTableStatistics(path1);
+		assertEquals(expectStat, statistics.getRowCount());
+		assertEquals(expectStat, statistics.getFileCount());
+		assertEquals(expectStat, statistics.getRawDataSize());
+		assertEquals(expectStat, statistics.getTotalSize());
 	}
 
 	// ------ utils ------

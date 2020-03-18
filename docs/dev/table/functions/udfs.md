@@ -134,25 +134,12 @@ object TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="python" markdown="1">
-It supports to use both Java/Scala scalar functions and Python scalar functions in Python Table API and SQL. In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method. An evaluation method must be named `eval`. Evaluation method can also support variable arguments, such as `eval(*args)`.
+In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method which is named `eval`.
 
-The following example shows how to define your own Java and Python hash code functions, register them in the TableEnvironment, and call them in a query. Note that you can configure your scalar function via a constructor before it is registered:
+The following example shows how to define your own Python hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
 
 {% highlight python %}
-'''
-Java code:
-
-// The Java class must have a public no-argument constructor and can be founded in current Java classloader.
-public class HashCode extends ScalarFunction {
-  private int factor = 12;
-
-  public int eval(String s) {
-      return s.hashCode() * factor;
-  }
-}
-'''
-
-class PyHashCode(ScalarFunction):
+class HashCode(ScalarFunction):
   def __init__(self):
     self.factor = 12
 
@@ -161,56 +148,18 @@ class PyHashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
-# register the Java function
-table_env.register_java_function("hashCode", "my.java.function.HashCode")
-
 # register the Python function
-table_env.register_function("py_hash_code", udf(PyHashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
 # use the function in Python Table API
-my_table.select("string, bigint, string.hashCode(), hashCode(string), bigint.py_hash_code(), py_hash_code(bigint)")
+my_table.select("string, bigint, string.hash_code(), hash_code(string)")
 
 # use the function in SQL API
-table_env.sql_query("SELECT string, bigint, hashCode(string), py_hash_code(bigint) FROM MyTable")
+table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
 
-There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
-
-{% highlight python %}
-# option 1: extending the base class `ScalarFunction`
-class Add(ScalarFunction):
-  def eval(self, i, j):
-    return i + j
-
-add = udf(Add(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 2: Python function
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
-def add(i, j):
-  return i + j
-
-# option 3: lambda function
-add = udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 4: callable function
-class CallableAdd(object):
-  def __call__(self, i, j):
-    return i + j
-
-add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 5: partial function
-def partial_add(i, j, k):
-  return i + j + k
-
-add = udf(functools.partial(partial_add, j=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
-          DataTypes.BIGINT())
-
-# register the Python function
-table_env.register_function("add", add)
-# use the function in Python Table API
-my_table.select("add(a, b)")
-{% endhighlight %}
+There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`.
+Please refer to the [Python Scalar Function]({{ site.baseurl }}/dev/table/python/python_udfs.html#scalar-functions) documentation for more details.
 </div>
 </div>
 

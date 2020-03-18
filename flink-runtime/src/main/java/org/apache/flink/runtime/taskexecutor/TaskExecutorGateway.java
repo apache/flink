@@ -25,20 +25,24 @@ import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -46,7 +50,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * {@link TaskExecutor} RPC gateway interface.
  */
-public interface TaskExecutorGateway extends RpcGateway {
+public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEventGateway {
 
 	/**
 	 * Requests a slot from the TaskManager.
@@ -54,6 +58,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param slotId slot id for the request
 	 * @param jobId for which to request a slot
 	 * @param allocationId id for the request
+	 * @param resourceProfile of requested slot, used only for dynamic slot allocation and will be ignored otherwise
 	 * @param targetAddress to which to offer the requested slots
 	 * @param resourceManagerId current leader id of the ResourceManager
 	 * @param timeout for the operation
@@ -63,6 +68,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 		SlotID slotId,
 		JobID jobId,
 		AllocationID allocationId,
+		ResourceProfile resourceProfile,
 		String targetAddress,
 		ResourceManagerId resourceManagerId,
 		@RpcTimeout Time timeout);
@@ -209,4 +215,10 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future flag indicating whether the task executor can be released.
 	 */
 	CompletableFuture<Boolean> canBeReleased();
+
+	@Override
+	CompletableFuture<Acknowledge> sendOperatorEventToTask(
+			ExecutionAttemptID task,
+			OperatorID operator,
+			SerializedValue<OperatorEvent> evt);
 }

@@ -92,10 +92,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
 	private final String taskNameWithSubtask;
 
-	private volatile CoLocationConstraint locationConstraint;
+	private CoLocationConstraint locationConstraint;
 
 	/** The current or latest execution attempt of this vertex's task. */
-	private volatile Execution currentExecution;	// this field must never be null
+	private Execution currentExecution;	// this field must never be null
 
 	private final ArrayList<InputSplit> inputSplits;
 
@@ -650,6 +650,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				}
 			}
 
+			jobVertex.getOperatorCoordinators().forEach((c -> c.subtaskFailed(getParallelSubtaskIndex())));
+
 			CoLocationGroup grp = jobVertex.getCoLocationGroup();
 			if (grp != null) {
 				locationConstraint = grp.getLocationConstraint(subTaskIndex);
@@ -736,6 +738,16 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	public void fail(Throwable t) {
 		currentExecution.fail(t);
+	}
+
+	/**
+	 * This method marks the task as failed, but will make no attempt to remove task execution from the task manager.
+	 * It is intended for cases where the task is known not to be deployed yet.
+	 *
+	 * @param t The exception that caused the task to fail.
+	 */
+	public void markFailed(Throwable t) {
+		currentExecution.markFailed(t);
 	}
 
 	/**

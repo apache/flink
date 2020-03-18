@@ -150,8 +150,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[NullPointerException])
-  // TODO remove the exception after TableImpl implements createTemporalTableFunction
+  @Test
   def testTemporalTableFunctionJoinWithMiniBatch(): Unit = {
     util.addTableWithWatermark("Orders", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RatesHistory", util.tableEnv.scan("MyTable2"), "rowtime", 0)
@@ -274,8 +273,10 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     */
   @Test
   def testMultipleWindowAggregates(): Unit = {
-    util.addDataStream[(Int, Long, String)]("T1", 'id1, 'rowtime, 'text)
-    util.addDataStream[(Int, Long, Int, String, String)]("T2", 'id2, 'rowtime, 'cnt, 'name, 'goods)
+    util.addDataStream[(Int, Long, String)]("T1", 'id1, 'rowtime.rowtime, 'text)
+    util.addDataStream[(Int, Long, Int, String, String)](
+      "T2",
+      'id2, 'rowtime.rowtime, 'cnt, 'name, 'goods)
     util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
     util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
 
@@ -335,6 +336,42 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.writeToSink(table5, appendSink3, "appendSink3")
 
     util.verifyExplain()
+  }
+
+  @Test
+  def testMiniBatchOnDataStreamWithRowTime(): Unit = {
+    util.addDataStream[(Long, Int, String)]("T1", 'long, 'int, 'str, 'rowtime.rowtime)
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    val sql =
+      """
+        |SELECT long,
+        |  COUNT(str) as cnt,
+        |  TUMBLE_END(rowtime, INTERVAL '10' SECOND) as rt
+        |FROM T1
+        |GROUP BY long, TUMBLE(rowtime, INTERVAL '10' SECOND)
+      """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testOverWindowMiniBatchOnDataStreamWithRowTime(): Unit = {
+    util.addDataStream[(Long, Int, String)]("T1", 'long, 'int, 'str, 'rowtime.rowtime)
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
+    val sql =
+      """
+        | SELECT cnt, COUNT(`int`)
+        | FROM (
+        |   SELECT `int`,
+        |    COUNT(str) OVER
+        |      (PARTITION BY long ORDER BY rowtime ROWS BETWEEN 5 preceding AND CURRENT ROW) as cnt
+        |   FROM T1
+        | )
+        | GROUP BY cnt
+      """.stripMargin
+
+    util.verifyPlan(sql)
   }
 
   private def withEarlyFireDelay(tableConfig: TableConfig, interval: Time): Unit = {

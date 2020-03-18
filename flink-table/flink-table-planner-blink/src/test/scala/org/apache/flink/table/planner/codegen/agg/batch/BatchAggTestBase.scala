@@ -73,6 +73,7 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
     val streamConfig = testHarness.getStreamConfig
     streamConfig.setStreamOperatorFactory(args._1)
     streamConfig.setOperatorID(new OperatorID)
+    streamConfig.setManagedMemoryFraction(0.99)
 
     testHarness.invoke()
     testHarness.waitForTaskRunning()

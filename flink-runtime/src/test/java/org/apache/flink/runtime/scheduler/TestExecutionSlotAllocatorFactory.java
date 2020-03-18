@@ -19,12 +19,22 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+
 /**
  * Factory for {@link TestExecutionSlotAllocatorFactory}.
  */
 public class TestExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
 
-	private final TestExecutionSlotAllocator testExecutionSlotAllocator = new TestExecutionSlotAllocator();
+	private final TestExecutionSlotAllocator testExecutionSlotAllocator;
+
+	public TestExecutionSlotAllocatorFactory() {
+		this.testExecutionSlotAllocator = new TestExecutionSlotAllocator();
+	}
+
+	public TestExecutionSlotAllocatorFactory(TaskManagerGateway gateway) {
+		this.testExecutionSlotAllocator = new TestExecutionSlotAllocator(gateway);
+	}
 
 	@Override
 	public ExecutionSlotAllocator createInstance(final InputsLocationsRetriever ignored) {

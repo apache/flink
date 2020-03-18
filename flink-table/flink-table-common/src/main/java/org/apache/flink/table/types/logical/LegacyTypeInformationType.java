@@ -20,8 +20,9 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
+import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -45,7 +46,7 @@ import java.util.Objects;
 @Internal
 public final class LegacyTypeInformationType<T> extends LogicalType {
 
-	private static final String FORMAT = "LEGACY(%s)";
+	private static final String FORMAT = "LEGACY('%s', '%s')";
 
 	private final TypeInformation<T> typeInfo;
 
@@ -65,12 +66,15 @@ public final class LegacyTypeInformationType<T> extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
-		throw new TableException("Legacy type information has no serializable string representation.");
+		return withNullability(
+			FORMAT,
+			getTypeRoot(),
+			EncodingUtils.escapeSingleQuotes(TypeStringUtils.writeTypeInfo(typeInfo)));
 	}
 
 	@Override
 	public String asSummaryString() {
-		return withNullability(FORMAT, typeInfo);
+		return asSerializableString();
 	}
 
 	@Override

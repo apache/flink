@@ -26,6 +26,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -144,7 +145,7 @@ public class RestServerEndpointITCase extends TestLogger {
 	}
 
 	@Parameterized.Parameters
-	public static Collection<Object[]> data() {
+	public static Collection<Object[]> data() throws Exception {
 		final Configuration config = getBaseConfig();
 
 		final String truststorePath = getTestResource("local127.truststore").getAbsolutePath();
@@ -161,8 +162,12 @@ public class RestServerEndpointITCase extends TestLogger {
 		final Configuration sslRestAuthConfig = new Configuration(sslConfig);
 		sslRestAuthConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
 
+		final Configuration sslPinningRestAuthConfig = new Configuration(sslRestAuthConfig);
+		sslPinningRestAuthConfig.setString(SecurityOptions.SSL_REST_CERT_FINGERPRINT,
+			SSLUtilsTest.getRestCertificateFingerprint(sslPinningRestAuthConfig, "flink.test"));
+
 		return Arrays.asList(new Object[][]{
-			{config}, {sslConfig}, {sslRestAuthConfig}
+			{config}, {sslConfig}, {sslRestAuthConfig}, {sslPinningRestAuthConfig}
 		});
 	}
 

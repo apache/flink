@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -38,12 +39,14 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -215,10 +218,18 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		return client.listPartitions(dbName, tblName, max);
 	}
 
+	public PartitionSpecProxy listPartitionSpecsByFilter(String dbName, String tblName, String filter, short max) throws TException {
+		return client.listPartitionSpecsByFilter(dbName, tblName, filter, max);
+	}
+
 	//-------- Start of shimmed methods ----------
 
 	public Set<String> getNotNullColumns(Configuration conf, String dbName, String tableName) {
 		return hiveShim.getNotNullColumns(client, conf, dbName, tableName);
+	}
+
+	public Optional<UniqueConstraint> getPrimaryKey(String dbName, String tableName, byte trait) {
+		return hiveShim.getPrimaryKey(client, dbName, tableName, trait);
 	}
 
 	public List<String> getViews(String databaseName) throws UnknownDBException, TException {

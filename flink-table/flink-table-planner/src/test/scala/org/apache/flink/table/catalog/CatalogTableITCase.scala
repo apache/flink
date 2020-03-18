@@ -30,11 +30,13 @@ import org.junit.runners.Parameterized
 import org.junit.{Before, Ignore, Test}
 import java.util
 
+import org.apache.flink.test.util.AbstractTestBase
+
 import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
-class CatalogTableITCase(isStreaming: Boolean) {
+class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
 
   private val batchExec: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
   private var batchEnv: BatchTableEnvironment = _
@@ -88,7 +90,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
 
   def execJob(name: String) = {
     if (isStreaming) {
-      streamExec.execute(name)
+      tableEnv.execute(name)
     } else {
       batchExec.execute(name)
     }
@@ -531,6 +533,33 @@ class CatalogTableITCase(isStreaming: Boolean) {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+  }
+
+  @Test
+  def testAlterTable(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'k1' = 'v1'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl1)
+    tableEnv.sqlUpdate("alter table t1 rename to t2")
+    assert(tableEnv.listTables().sameElements(Array[String]("t2")))
+    tableEnv.sqlUpdate("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
+    val expectedProperties = new util.HashMap[String, String]()
+    expectedProperties.put("connector", "COLLECTION")
+    expectedProperties.put("k1", "a")
+    expectedProperties.put("k2", "b")
+    val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
+      .getProperties
+    assertEquals(expectedProperties, properties)
   }
 
   @Test

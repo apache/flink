@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
@@ -54,12 +55,7 @@ public abstract class AbstractOrcColumnVector implements
 		return !vector.noNulls && vector.isNull[vector.isRepeating ? 0 : i];
 	}
 
-	@Override
-	public void reset() {
-		throw new UnsupportedOperationException();
-	}
-
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVector(
+	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVector(
 			ColumnVector vector) {
 		if (vector instanceof LongColumnVector) {
 			return new OrcLongColumnVector((LongColumnVector) vector);
@@ -79,9 +75,9 @@ public abstract class AbstractOrcColumnVector implements
 	/**
 	 * Create flink vector by hive vector from constant.
 	 */
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVectorFromConstant(
+	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVectorFromConstant(
 			LogicalType type, Object value, int batchSize) {
-		return createVector(createHiveVectorFromConstant(type, value, batchSize));
+		return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
 	}
 
 	/**
@@ -111,9 +107,12 @@ public abstract class AbstractOrcColumnVector implements
 			case DOUBLE:
 				return createDoubleVector(batchSize, value);
 			case DATE:
+				if (value instanceof LocalDate) {
+					value = Date.valueOf((LocalDate) value);
+				}
 				return createLongVector(batchSize, dateToInternal((Date) value));
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return createTimestampVector(batchSize, (LocalDateTime) value);
+				return createTimestampVector(batchSize, value);
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + type);
 		}
@@ -176,20 +175,15 @@ public abstract class AbstractOrcColumnVector implements
 		return dcv;
 	}
 
-	private static TimestampColumnVector createTimestampVector(int batchSize, LocalDateTime value) {
+	private static TimestampColumnVector createTimestampVector(int batchSize, Object value) {
 		TimestampColumnVector lcv = new TimestampColumnVector(batchSize);
 		if (value == null) {
 			lcv.noNulls = false;
 			lcv.isNull[0] = true;
 			lcv.isRepeating = true;
 		} else {
-			long epochDay = value.toLocalDate().toEpochDay();
-			long nanoOfDay = value.toLocalTime().toNanoOfDay();
-
-			long millisecond = epochDay * 24 * 60 * 60 * 1000 + nanoOfDay / 1_000_000;
-			int nanoOfSecond = (int) (nanoOfDay % 1_000_000_000);
-			Timestamp timestamp = new Timestamp(millisecond);
-			timestamp.setNanos(nanoOfSecond);
+			Timestamp timestamp = value instanceof LocalDateTime ?
+				Timestamp.valueOf((LocalDateTime) value) : (Timestamp) value;
 			lcv.fill(timestamp);
 			lcv.isNull[0] = false;
 		}

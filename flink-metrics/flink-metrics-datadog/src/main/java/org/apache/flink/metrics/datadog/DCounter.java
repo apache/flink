@@ -28,8 +28,8 @@ import java.util.List;
 public class DCounter extends DMetric {
 	private final Counter counter;
 
-	public DCounter(Counter c, String metricName, String host, List<String> tags) {
-		super(MetricType.counter, metricName, host, tags);
+	public DCounter(Counter c, String metricName, String host, List<String> tags, Clock clock) {
+		super(MetricType.count, metricName, host, tags, clock);
 		counter = c;
 	}
 

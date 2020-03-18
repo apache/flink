@@ -23,10 +23,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.prometheus.PrometheusReporter;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
-import org.apache.flink.tests.util.FlinkDistribution;
+import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
+import org.apache.flink.tests.util.flink.ClusterController;
+import org.apache.flink.tests.util.flink.FlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceSetup;
+import org.apache.flink.tests.util.flink.JarLocation;
+import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +51,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -68,17 +73,38 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 
 	static {
 		final String base = "prometheus-" + PROMETHEUS_VERSION + '.';
+		final String os;
+		final String platform;
 		switch (OperatingSystem.getCurrentOperatingSystem()) {
 			case MAC_OS:
-				PROMETHEUS_FILE_NAME = base + "darwin-amd64";
+				os = "darwin";
 				break;
 			case WINDOWS:
-				PROMETHEUS_FILE_NAME = base + "windows-amd64";
+				os = "windows";
 				break;
 			default:
-				PROMETHEUS_FILE_NAME = base + "linux-amd64";
+				os = "linux";
 				break;
 		}
+		switch (ProcessorArchitecture.getProcessorArchitecture()) {
+			case X86:
+				platform = "386";
+				break;
+			case AMD64:
+				platform = "amd64";
+				break;
+			case ARMv7:
+				platform = "armv7";
+				break;
+			case AARCH64:
+				platform = "arm64";
+				break;
+			default:
+				platform = "Unknown";
+				break;
+		}
+
+		PROMETHEUS_FILE_NAME = base + os + "-" + platform;
 	}
 
 	private static final Pattern LOG_REPORTER_PORT_PATTERN = Pattern.compile(".*Started PrometheusReporter HTTP server on port ([0-9]+).*");
@@ -89,21 +115,29 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	}
 
 	@Rule
-	public final FlinkDistribution dist = new FlinkDistribution();
+	public final FlinkResource dist = new LocalStandaloneFlinkResourceFactory()
+		.create(FlinkResourceSetup.builder()
+			.moveJar("flink-metrics-prometheus", JarLocation.OPT, JarLocation.LIB)
+			.addConfiguration(getFlinkConfig())
+			.build())
+		.get();
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
-	@Test
-	public void testReporter() throws Exception {
-		dist.copyOptJarsToLib("flink-metrics-prometheus");
+	@Rule
+	public final DownloadCache downloadCache = DownloadCache.get();
 
+	private static Configuration getFlinkConfig() {
 		final Configuration config = new Configuration();
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "prom." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getCanonicalName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "prom.port", "9000-9100");
 
-		dist.appendConfiguration(config);
+		return config;
+	}
 
+	@Test
+	public void testReporter() throws Exception {
 		final Path tmpPrometheusDir = tmp.newFolder().toPath().resolve("prometheus");
 		final Path prometheusArchive = tmpPrometheusDir.resolve(PROMETHEUS_FILE_NAME + ".tar.gz");
 		final Path prometheusBinDir = tmpPrometheusDir.resolve(PROMETHEUS_FILE_NAME);
@@ -111,14 +145,10 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 		final Path prometheusBinary = prometheusBinDir.resolve("prometheus");
 		Files.createDirectory(tmpPrometheusDir);
 
-		LOG.info("Downloading Prometheus.");
-		AutoClosableProcess
-			.create(
-				CommandLineWrapper
-					.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
-					.targetDir(tmpPrometheusDir)
-					.build())
-			.runBlocking(Duration.ofMinutes(5));
+		downloadCache.getOrDownload(
+			"https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName(),
+			tmpPrometheusDir
+		);
 
 		LOG.info("Unpacking Prometheus.");
 		runBlocking(
@@ -136,34 +166,35 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 				.inPlace()
 				.build());
 
-		dist.startFlinkCluster();
+		try (ClusterController ignored = dist.startCluster(1)) {
 
-		final List<Integer> ports = dist
-			.searchAllLogs(LOG_REPORTER_PORT_PATTERN, matcher -> matcher.group(1))
-			.map(Integer::valueOf)
-			.collect(Collectors.toList());
+			final List<Integer> ports = dist
+				.searchAllLogs(LOG_REPORTER_PORT_PATTERN, matcher -> matcher.group(1))
+				.map(Integer::valueOf)
+				.collect(Collectors.toList());
 
-		final String scrapeTargets = ports.stream()
-			.map(port -> "'localhost:" + port + "'")
-			.collect(Collectors.joining(", "));
+			final String scrapeTargets = ports.stream()
+				.map(port -> "'localhost:" + port + "'")
+				.collect(Collectors.joining(", "));
 
-		LOG.info("Setting Prometheus scrape targets to {}.", scrapeTargets);
-		runBlocking(
-			CommandLineWrapper
-				.sed("s/\\(targets:\\).*/\\1 [" + scrapeTargets + "]/", prometheusConfig)
-				.inPlace()
-				.build());
+			LOG.info("Setting Prometheus scrape targets to {}.", scrapeTargets);
+			runBlocking(
+				CommandLineWrapper
+					.sed("s/\\(targets:\\).*/\\1 [" + scrapeTargets + "]/", prometheusConfig)
+					.inPlace()
+					.build());
 
-		LOG.info("Starting Prometheus server.");
-		try (AutoClosableProcess prometheus = runNonBlocking(
-			prometheusBinary.toAbsolutePath().toString(),
-			"--config.file=" + prometheusConfig.toAbsolutePath(),
-			"--storage.tsdb.path=" + prometheusBinDir.resolve("data").toAbsolutePath())) {
+			LOG.info("Starting Prometheus server.");
+			try (AutoClosableProcess prometheus = runNonBlocking(
+				prometheusBinary.toAbsolutePath().toString(),
+				"--config.file=" + prometheusConfig.toAbsolutePath(),
+				"--storage.tsdb.path=" + prometheusBinDir.resolve("data").toAbsolutePath())) {
 
-			final OkHttpClient client = new OkHttpClient();
+				final OkHttpClient client = new OkHttpClient();
 
-			checkMetricAvailability(client, "flink_jobmanager_numRegisteredTaskManagers");
-			checkMetricAvailability(client, "flink_taskmanager_Status_Network_TotalMemorySegments");
+				checkMetricAvailability(client, "flink_jobmanager_numRegisteredTaskManagers");
+				checkMetricAvailability(client, "flink_taskmanager_Status_Network_TotalMemorySegments");
+			}
 		}
 	}
 

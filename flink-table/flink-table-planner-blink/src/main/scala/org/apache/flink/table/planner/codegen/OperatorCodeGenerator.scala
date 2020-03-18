@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.streaming.api.graph.StreamConfig
-import org.apache.flink.streaming.api.operators.{BoundedMultiInput, BoundedOneInput, InputSelectable, InputSelection, OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
+import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, BoundedMultiInput, BoundedOneInput, InputSelectable, InputSelection, OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.runtime.tasks.StreamTask
+import org.apache.flink.streaming.runtime.tasks.{ProcessingTimeService, StreamTask}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.utils.Logging
@@ -81,10 +81,15 @@ object OperatorCodeGenerator extends Logging {
             Object[] references,
             ${className[StreamTask[_, _]]} task,
             ${className[StreamConfig]} config,
-            ${className[Output[_]]} output) throws Exception {
+            ${className[Output[_]]} output,
+            ${className[ProcessingTimeService]} processingTimeService) throws Exception {
           this.references = references;
           ${ctx.reuseInitCode()}
           this.setup(task, config, output);
+          if (this instanceof ${className[AbstractStreamOperator[_]]}) {
+            ((${className[AbstractStreamOperator[_]]}) this)
+              .setProcessingTimeService(processingTimeService);
+          }
         }
 
         @Override
@@ -194,10 +199,15 @@ object OperatorCodeGenerator extends Logging {
             Object[] references,
             ${className[StreamTask[_, _]]} task,
             ${className[StreamConfig]} config,
-            ${className[Output[_]]} output) throws Exception {
+            ${className[Output[_]]} output,
+            ${className[ProcessingTimeService]} processingTimeService) throws Exception {
           this.references = references;
           ${ctx.reuseInitCode()}
           this.setup(task, config, output);
+          if (this instanceof ${className[AbstractStreamOperator[_]]}) {
+            ((${className[AbstractStreamOperator[_]]}) this)
+              .setProcessingTimeService(processingTimeService);
+          }
         }
 
         @Override

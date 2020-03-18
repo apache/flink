@@ -26,9 +26,13 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
+import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.mock;
 
@@ -43,7 +47,7 @@ public class TaskManagerServicesBuilder {
 	private ShuffleEnvironment<?, ?> shuffleEnvironment;
 	private KvStateService kvStateService;
 	private BroadcastVariableManager broadcastVariableManager;
-	private TaskSlotTable taskSlotTable;
+	private TaskSlotTable<Task> taskSlotTable;
 	private JobManagerTable jobManagerTable;
 	private JobLeaderService jobLeaderService;
 	private TaskExecutorLocalStateStoresManager taskStateManager;
@@ -56,7 +60,7 @@ public class TaskManagerServicesBuilder {
 		kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 		broadcastVariableManager = new BroadcastVariableManager();
 		taskEventDispatcher = new TaskEventDispatcher();
-		taskSlotTable = mock(TaskSlotTable.class);
+		taskSlotTable = TestingTaskSlotTable.<Task>newBuilder().closeAsyncReturns(CompletableFuture.completedFuture(null)).build();
 		jobManagerTable = new JobManagerTable();
 		jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
@@ -87,7 +91,7 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
-	public TaskManagerServicesBuilder setTaskSlotTable(TaskSlotTable taskSlotTable) {
+	public TaskManagerServicesBuilder setTaskSlotTable(TaskSlotTable<Task> taskSlotTable) {
 		this.taskSlotTable = taskSlotTable;
 		return this;
 	}
