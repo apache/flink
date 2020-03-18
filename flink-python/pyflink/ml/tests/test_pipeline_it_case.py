@@ -171,16 +171,11 @@ class PythonPipelineTest(MLTestCase):
         self.assert_equals(actual, ["false", "true"])
 
     def test_pipeline_from_and_to_java_json(self):
-
-        def get_java_pipeline_json():
-            wrapper = WrapperTransformer(selected_cols=["a", "b"])
-            wrapper._convert_params_to_java(wrapper._j_obj)
-            j_pipeline = get_gateway().jvm.org.apache.flink.ml.api.core.Pipeline()
-            j_pipeline.appendStage(wrapper._j_obj)
-            return j_pipeline.toJson()
-
-        # generate java json
-        java_json = get_java_pipeline_json()
+        # json generated from Java api
+        java_json = '[{"stageClassName":"org.apache.flink.ml.pipeline.' \
+                    'UserDefinedPipelineStages$SelectColumnTransformer",' \
+                    '"stageJson":"{\\"selectedCols\\":\\"[\\\\\\"a\\\\\\",' \
+                    '\\\\\\"b\\\\\\"]\\"}"}]'
 
         # load json
         p = Pipeline()

@@ -314,8 +314,9 @@ class Pipeline(Estimator, Model, Transformer):
                     self.append_stage(JavaModel(j_stage))
                 else:
                     raise TypeError(
-                        "Unexpected Java PipelineStage. It should be a %s, "
+                        "Unexpected Java PipelineStage %s. Class should be a %s, "
                         "%s or a %s." %
-                        (j_transformer_class.getCanonicalName(),
+                        (j_stage_class.getCanonicalName(),
+                         j_transformer_class.getCanonicalName(),
                          j_estimator_class.getCanonicalName(),
                          j_model_class.getCanonicalName()))
