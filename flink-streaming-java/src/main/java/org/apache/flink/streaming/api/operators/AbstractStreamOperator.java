@@ -29,7 +29,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -52,7 +51,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.LatencyStats;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -511,48 +509,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 		// everything except sinks forwards latency markers
 		this.output.emitLatencyMarker(marker);
-	}
-
-	// ----------------------- Helper classes -----------------------
-
-	/**
-	 * Wrapping {@link Output} that updates metrics on the number of emitted elements.
-	 */
-	public static class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
-		private final Output<StreamRecord<OUT>> output;
-		private final Counter numRecordsOut;
-
-		public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
-			this.output = output;
-			this.numRecordsOut = counter;
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			output.emitWatermark(mark);
-		}
-
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			output.emitLatencyMarker(latencyMarker);
-		}
-
-		@Override
-		public void collect(StreamRecord<OUT> record) {
-			numRecordsOut.inc();
-			output.collect(record);
-		}
-
-		@Override
-		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-			numRecordsOut.inc();
-			output.collect(outputTag, record);
-		}
-
-		@Override
-		public void close() {
-			output.close();
-		}
 	}
 
 	// ------------------------------------------------------------------------
