@@ -124,7 +124,7 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	 * @param resultPartitionDeploymentDescriptors descriptors of the partition, produced by the owner
 	 * @return list of the {@link ResultPartitionWriter ResultPartitionWriters}
 	 */
-	Collection<P> createResultPartitionWriters(
+	List<P> createResultPartitionWriters(
 		ShuffleIOOwnerContext ownerContext,
 		List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors);
 
@@ -157,7 +157,7 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	 * @param inputGateDeploymentDescriptors descriptors of the input gates to consume
 	 * @return list of the {@link InputGate InputGates}
 	 */
-	Collection<G> createInputGates(
+	List<G> createInputGates(
 		ShuffleIOOwnerContext ownerContext,
 		PartitionProducerStateProvider partitionProducerStateProvider,
 		List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors);
