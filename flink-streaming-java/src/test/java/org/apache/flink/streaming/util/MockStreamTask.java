@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
@@ -36,7 +35,6 @@ import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
-import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
@@ -54,7 +52,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 	private final CheckpointStorageWorkerView checkpointStorage;
 	private final ProcessingTimeService processingTimeService;
 	private final BiConsumer<String, Throwable> handleAsyncException;
-	private final Map<String, Accumulator<?, ?>> accumulatorMap;
 
 	public MockStreamTask(
 		Environment environment,
@@ -68,7 +65,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		CheckpointStorageWorkerView checkpointStorage,
 		TimerService timerService,
 		BiConsumer<String, Throwable> handleAsyncException,
-		Map<String, Accumulator<?, ?>> accumulatorMap,
 		TaskMailbox taskMailbox,
 		StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor
 	) {
@@ -83,7 +79,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		this.checkpointStorage = checkpointStorage;
 		this.processingTimeService = timerService;
 		this.handleAsyncException = handleAsyncException;
-		this.accumulatorMap = accumulatorMap;
 	}
 
 	@Override
@@ -156,11 +151,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 	@Override
 	public void handleAsyncException(String message, Throwable exception) {
 		handleAsyncException.accept(message, exception);
-	}
-
-	@Override
-	public Map<String, Accumulator<?, ?>> getAccumulatorMap() {
-		return accumulatorMap;
 	}
 
 	@Override

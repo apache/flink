@@ -20,7 +20,6 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
@@ -39,8 +38,6 @@ import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 
-import java.util.Collections;
-import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
@@ -58,7 +55,6 @@ public class MockStreamTaskBuilder {
 	private TimerService timerService = new TestProcessingTimeService();
 	private StreamTaskStateInitializer streamTaskStateInitializer;
 	private BiConsumer<String, Throwable> handleAsyncException = (message, throwable) -> { };
-	private Map<String, Accumulator<?, ?>> accumulatorMap = Collections.emptyMap();
 	private TaskMailbox taskMailbox = new TaskMailboxImpl();
 	private StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor = StreamTaskActionExecutor.synchronizedExecutor();
 
@@ -143,7 +139,6 @@ public class MockStreamTaskBuilder {
 			checkpointStorage,
 			timerService,
 			handleAsyncException,
-			accumulatorMap,
 			taskMailbox,
 			taskActionExecutor);
 	}
