@@ -27,14 +27,14 @@ under the License.
 [Apache Hive](https://hive.apache.org/) 已经成为了数据仓库生态系统中的核心。
 它不仅仅是一个用于大数据分析和ETL场景的SQL引擎，同样它也是一个数据管理平台，可用于发现，定义，和演化数据。
 
-Flink提供了两种和Hive集成的方式。
+Flink 与 Hive 的集成包含两个层面。
 
-第一种方式是利用了Hive的MetaStore作为持久化的目录，和Flink在`HiveCatalog`存储的特定元数据进行跨系统会话。
-例如，用户可以使用`HiveCatalog`将其Kafka信息或ElasticSearch表存储在Hive Metastore中，并后续在SQL查询中重新使用它们。
+一是利用了Hive的MetaStore作为持久化的Catalog，用户可通过`HiveCatalog`将不同会话中的Flink元数据存储到Hive Metastore中。
+例如，用户可以使用`HiveCatalog`将其Kafka表或ElasticSearch表存储在Hive Metastore中，并后续在SQL查询中重新使用它们。
 
-第二种方式是将Flink作为读写Hive表的替代引擎。
+二是利用Flink来读写Hive的表。
 
-`HiveCatalog`被设计成与现有的Hive安装"开箱即用"兼容。
+`HiveCatalog`的设计提供了与Hive良好的兼容性，用户可以"开箱即用"的访问其已有的Hive数仓。
 您不需要修改现有的Hive Metastore，也不需要更改表的数据位置或分区。
 
 * Note that we highly recommend users using the [blink planner]({{ site.baseurl }}/dev/table/#dependency-structure) with Hive integration.
@@ -98,7 +98,7 @@ Apache Hive 是基于Hadoop之上构建的, 首先您需要hadoop的依赖，请
 
 #### 使用捆绑的Hive jar
 
-下表列出了所有可捆绑的hive jars。您可以在Flink发行版的`/lib/` 目录中去选择一个。
+下表列出了所有可用的Hive jar。您可以选择一个并放在Flink发行版的`/lib/` 目录中。
 
 
 {% if site.is_stable %}
@@ -259,11 +259,11 @@ Apache Hive 是基于Hadoop之上构建的, 首先您需要hadoop的依赖，请
 </div>
 </div>
 
-如果使用hive的HDP或CDH版本，则需要参考上一节中的依赖项并选择一个类似的版本。
+如果使用Hive的HDP或CDH版本，则需要参考上一节中的依赖项并选择一个类似的版本。
 
-并且您需要在yaml，HiveCatalog和HiveModule中指定选择的和受支持的“ hive-version”。
+并且您需要在定义yaml文件，或者创建HiveCatalog和HiveModule时，指定一个支持的“ hive-version”。
 
-### 程序maven依赖
+### Maven依赖
 
 如果您在构建自己的应用程序，则需要在mvn文件中添加以下依赖项。
 您应该在运行时添加以上的这些依赖项，而不要在已生成的jar文件中去包含它们。
@@ -295,7 +295,7 @@ Apache Hive 是基于Hadoop之上构建的, 首先您需要hadoop的依赖，请
 
 ## 连接到Hive
 
-通过表环境或者YAML配置，使用 [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 和[HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html)连接到现有的Hive集群。
+通过TableEnvironment或者YAML配置，使用 [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 和[HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html)连接到现有的Hive集群。
 
 如果`hive-conf/hive-site.xml`文件存储在远端存储系统，则用户首先应该将hive配置文件下载至其本地环境中。
 
