@@ -91,8 +91,15 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for restoring checkpoint.
  */
+@SuppressWarnings("checkstyle:EmptyLineSeparator")
 public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
+
+	private enum TestScaleType {
+		INCREASE_PARALLELISM,
+		DECREASE_PARALLELISM,
+		SAME_PARALLELISM;
+	}
 
 	private ManuallyTriggeredScheduledExecutor mainThreadExecutor;
 
@@ -655,17 +662,17 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 	@Test
 	public void testStateRecoveryWhenTopologyChangeOut() throws Exception {
-		testStateRecoveryWithTopologyChange(0);
+		testStateRecoveryWithTopologyChange(TestScaleType.INCREASE_PARALLELISM);
 	}
 
 	@Test
 	public void testStateRecoveryWhenTopologyChangeIn() throws Exception {
-		testStateRecoveryWithTopologyChange(1);
+		testStateRecoveryWithTopologyChange(TestScaleType.DECREASE_PARALLELISM);
 	}
 
 	@Test
 	public void testStateRecoveryWhenTopologyChange() throws Exception {
-		testStateRecoveryWithTopologyChange(2);
+		testStateRecoveryWithTopologyChange(TestScaleType.SAME_PARALLELISM);
 	}
 
 	private static Tuple2<JobVertexID, OperatorID> generateIDPair() {
@@ -685,12 +692,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	 *
 	 * [operator5,operator1,operator3] * newParallelism1 -> [operator3, operator6] * newParallelism2
 	 * </p>
-	 * scaleType:
-	 * 0  increase parallelism
-	 * 1  decrease parallelism
-	 * 2  same parallelism
 	 */
-	public void testStateRecoveryWithTopologyChange(int scaleType) throws Exception {
+	public void testStateRecoveryWithTopologyChange(TestScaleType scaleType) throws Exception {
 
 		/*
 		 * Old topology
@@ -776,9 +779,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		Tuple2<JobVertexID, OperatorID> id6 = generateIDPair();
 		int newParallelism2 = parallelism2;
 
-		if (scaleType == 0) {
+		if (scaleType == TestScaleType.INCREASE_PARALLELISM) {
 			newParallelism2 = 20;
-		} else if (scaleType == 1) {
+		} else if (scaleType == TestScaleType.DECREASE_PARALLELISM) {
 			newParallelism2 = 8;
 		}
 
