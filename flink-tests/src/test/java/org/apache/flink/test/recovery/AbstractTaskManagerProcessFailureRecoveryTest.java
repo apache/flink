@@ -258,7 +258,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			System.out.println("-----------------------------------------");
 			System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + processName);
 			System.out.println("-----------------------------------------");
-			System.out.println(process.getOutput().toString());
+			System.out.println(process.getErrorOutput().toString());
 			System.out.println("-----------------------------------------");
 			System.out.println("		END SPAWNED PROCESS LOG");
 			System.out.println("-----------------------------------------");
