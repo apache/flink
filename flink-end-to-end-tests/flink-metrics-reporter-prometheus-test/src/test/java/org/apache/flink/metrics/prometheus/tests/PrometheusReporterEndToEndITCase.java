@@ -108,14 +108,13 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 		dist.appendConfiguration(config);
 
 		final Path tmpPrometheusDir = tmp.newFolder().toPath().resolve("prometheus");
-		final Path prometheusArchive = tmpPrometheusDir.resolve(PROMETHEUS_FILE_NAME + ".tar.gz");
 		final Path prometheusBinDir = tmpPrometheusDir.resolve(PROMETHEUS_FILE_NAME);
 		final Path prometheusConfig = prometheusBinDir.resolve("prometheus.yml");
 		final Path prometheusBinary = prometheusBinDir.resolve("prometheus");
 		Files.createDirectory(tmpPrometheusDir);
 
-		downloadCache.getOrDownload(
-			"https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName(),
+		final Path prometheusArchive = downloadCache.getOrDownload(
+			"https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + PROMETHEUS_FILE_NAME + ".tar.gz",
 			tmpPrometheusDir
 		);
 
