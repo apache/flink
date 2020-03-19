@@ -33,8 +33,11 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -43,29 +46,80 @@ import static org.junit.Assert.assertThat;
  * Tests for {@link  ExceptionUtils} which require to spawn JVM process and set JVM memory args.
  */
 public class ExceptionUtilsITCases extends TestLogger {
-	private static final long INITIAL_BIG_METASPACE_SIZE = 32 * (1 << 20); // 32Mb
+	private static final int DIRECT_MEMORY_SIZE = 10 * 1024; // 10Kb
+	private static final int DIRECT_MEMORY_ALLOCATION_PAGE_SIZE = 1024; // 1Kb
+	private static final int DIRECT_MEMORY_PAGE_NUMBER = DIRECT_MEMORY_SIZE / DIRECT_MEMORY_ALLOCATION_PAGE_SIZE;
+	private static final long INITIAL_BIG_METASPACE_SIZE = 128 * (1 << 20); // 128Mb
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
 	@Test
-	public void testIsMetaspaceOutOfMemoryError() throws IOException, InterruptedException {
-		// load only one class and record required Metaspace
-		long okMetaspace = Long.parseLong(run(1, INITIAL_BIG_METASPACE_SIZE));
-		// load more classes to cause 'OutOfMemoryError: Metaspace'
-		assertThat(run(1000, okMetaspace), is(""));
+	public void testIsDirectOutOfMemoryError() throws IOException, InterruptedException {
+		String className = DummyDirectAllocatingProgram.class.getName();
+		String out = run(className, Collections.emptyList(), DIRECT_MEMORY_SIZE, -1);
+		assertThat(out, is(""));
 	}
 
-	private static String run(int numberOfLoadedClasses, long metaspaceSize) throws InterruptedException, IOException {
-		TestProcessBuilder taskManagerProcessBuilder = new TestProcessBuilder(DummyClassLoadingProgram.class.getName());
-		taskManagerProcessBuilder.addJvmArg("-XX:-UseCompressedOops");
-		taskManagerProcessBuilder.addJvmArg(String.format("-XX:MaxMetaspaceSize=%d", metaspaceSize));
-		taskManagerProcessBuilder.addMainClassArg(Integer.toString(numberOfLoadedClasses));
-		taskManagerProcessBuilder.addMainClassArg(TEMPORARY_FOLDER.getRoot().getAbsolutePath());
+	@Test
+	public void testIsMetaspaceOutOfMemoryError() throws IOException, InterruptedException {
+		String className = DummyClassLoadingProgram.class.getName();
+		// load only one class and record required Metaspace
+		String normalOut = run(className, getDummyClassLoadingProgramArgs(1), -1, INITIAL_BIG_METASPACE_SIZE);
+		long okMetaspace = Long.parseLong(normalOut);
+		// load more classes to cause 'OutOfMemoryError: Metaspace'
+		String oomOut = run(className, getDummyClassLoadingProgramArgs(1000), -1, okMetaspace);
+		assertThat(oomOut, is(""));
+	}
+
+	private static String run(
+			String className,
+			Iterable<String> args,
+			long directMemorySize,
+			long metaspaceSize) throws InterruptedException, IOException {
+		TestProcessBuilder taskManagerProcessBuilder = new TestProcessBuilder(className);
+		if (directMemorySize > 0) {
+			taskManagerProcessBuilder.addJvmArg(String.format("-XX:MaxDirectMemorySize=%d", directMemorySize));
+		}
+		if (metaspaceSize > 0) {
+			taskManagerProcessBuilder.addJvmArg("-XX:-UseCompressedOops");
+			taskManagerProcessBuilder.addJvmArg(String.format("-XX:MaxMetaspaceSize=%d", metaspaceSize));
+		}
+		for (String arg : args) {
+			taskManagerProcessBuilder.addMainClassArg(arg);
+		}
 		TestProcess p = taskManagerProcessBuilder.start();
 		p.getProcess().waitFor();
 		assertThat(p.getErrorOutput().toString().trim(), is(""));
 		return p.getProcessOutput().toString().trim();
+	}
+
+	private static Collection<String> getDummyClassLoadingProgramArgs(int numberOfLoadedClasses) {
+		return Arrays.asList(
+			Integer.toString(numberOfLoadedClasses),
+			TEMPORARY_FOLDER.getRoot().getAbsolutePath());
+	}
+
+	/**
+	 * Dummy java program to generate Direct OOM.
+	 */
+	public static class DummyDirectAllocatingProgram {
+		private DummyDirectAllocatingProgram() {
+		}
+
+		public static void main(String[] args) {
+			try {
+				Collection<ByteBuffer> buffers = new ArrayList<>();
+				for (int page = 0; page < 2 * DIRECT_MEMORY_PAGE_NUMBER; page++) {
+					buffers.add(ByteBuffer.allocateDirect(DIRECT_MEMORY_ALLOCATION_PAGE_SIZE));
+				}
+				output("buffers: " + buffers);
+			} catch (Throwable t) {
+				if (!ExceptionUtils.isDirectOutOfMemoryError(t)) {
+					output("Wrong exception: " + t);
+				}
+			}
+		}
 	}
 
 	/**
@@ -113,9 +167,9 @@ public class ExceptionUtilsITCases extends TestLogger {
 			}
 			throw new RuntimeException("Metaspace usage is not found");
 		}
+	}
 
-		private static void output(String text) {
-			System.out.println(text);
-		}
+	private static void output(String text) {
+		System.out.println(text);
 	}
 }
