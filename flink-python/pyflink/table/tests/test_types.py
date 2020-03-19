@@ -790,7 +790,7 @@ class DataTypeConvertTests(unittest.TestCase):
                       DataTypes.DOUBLE(),
                       DataTypes.DATE(),
                       DataTypes.TIME(),
-                      DataTypes.TIMESTAMP()]
+                      DataTypes.TIMESTAMP(3)]
 
         java_types = [_to_java_type(item) for item in test_types]
 
@@ -802,7 +802,7 @@ class DataTypeConvertTests(unittest.TestCase):
         gateway = get_gateway()
         JDataTypes = gateway.jvm.DataTypes
         java_types = [JDataTypes.TIME(3).notNull(),
-                      JDataTypes.TIMESTAMP().notNull(),
+                      JDataTypes.TIMESTAMP(3).notNull(),
                       JDataTypes.VARBINARY(100).notNull(),
                       JDataTypes.BINARY(2).notNull(),
                       JDataTypes.VARCHAR(30).notNull(),
@@ -812,7 +812,7 @@ class DataTypeConvertTests(unittest.TestCase):
         converted_python_types = [_from_java_type(item) for item in java_types]
 
         expected = [DataTypes.TIME(3, False),
-                    DataTypes.TIMESTAMP().not_null(),
+                    DataTypes.TIMESTAMP(3).not_null(),
                     DataTypes.VARBINARY(100, False),
                     DataTypes.BINARY(2, False),
                     DataTypes.VARCHAR(30, False),
