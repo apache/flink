@@ -133,3 +133,5 @@ def import_flink_view(gateway):
     java_import(gateway.jvm,
                 "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
     java_import(gateway.jvm, "org.apache.flink.api.common.restartstrategy.RestartStrategies")
+    java_import(gateway.jvm, "org.apache.flink.python.util.PythonDependencyUtils")
+    java_import(gateway.jvm, "org.apache.flink.python.PythonOptions")

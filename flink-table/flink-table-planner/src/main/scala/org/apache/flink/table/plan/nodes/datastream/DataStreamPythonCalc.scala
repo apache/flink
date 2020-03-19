@@ -84,7 +84,7 @@ class DataStreamPythonCalc(
     val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
     val pythonOperator = getPythonScalarFunctionOperator(
-      getConfig(planner.getConfig),
+      getConfig(planner.getExecutionEnvironment, planner.getConfig),
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       calcProgram)
