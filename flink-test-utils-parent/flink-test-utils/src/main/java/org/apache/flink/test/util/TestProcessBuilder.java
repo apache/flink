@@ -70,14 +70,21 @@ public class TestProcessBuilder {
 		commands.addAll(mainClassArgs);
 
 		StringWriter processOutput = new StringWriter();
+		StringWriter errorOutput = new StringWriter();
 		Process process = new ProcessBuilder(commands).start();
-		new PipeForwarder(process.getErrorStream(), processOutput);
+		new PipeForwarder(process.getInputStream(), processOutput);
+		new PipeForwarder(process.getErrorStream(), errorOutput);
 
-		return new TestProcess(process, processOutput);
+		return new TestProcess(process, processOutput, errorOutput);
 	}
 
 	public TestProcessBuilder setJvmMemory(MemorySize jvmMemory) {
 		this.jvmMemory = jvmMemory;
+		return this;
+	}
+
+	public TestProcessBuilder addJvmArg(String arg) {
+		jvmArgs.add(arg);
 		return this;
 	}
 
@@ -100,18 +107,24 @@ public class TestProcessBuilder {
 	public static class TestProcess {
 		private final Process process;
 		private final StringWriter processOutput;
+		private final StringWriter errorOutput;
 
-		public TestProcess(Process process, StringWriter processOutput) {
+		public TestProcess(Process process, StringWriter processOutput, StringWriter errorOutput) {
 			this.process = process;
 			this.processOutput = processOutput;
+			this.errorOutput = errorOutput;
 		}
 
 		public Process getProcess() {
 			return process;
 		}
 
-		public StringWriter getOutput() {
+		public StringWriter getProcessOutput() {
 			return processOutput;
+		}
+
+		public StringWriter getErrorOutput() {
+			return errorOutput;
 		}
 
 		public void destroy() {
