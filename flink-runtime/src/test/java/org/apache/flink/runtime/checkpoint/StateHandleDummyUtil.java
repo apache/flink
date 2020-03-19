@@ -37,8 +37,6 @@ public class StateHandleDummyUtil {
 	 */
 	public static OperatorStateHandle createNewOperatorStateHandle(int numNamedStates, Random random) {
 		Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetaData = new HashMap<>(numNamedStates);
-		byte[] streamData = new byte[numNamedStates * 4];
-		random.nextBytes(streamData);
 		long off = 0;
 		for (int i = 0; i < numNamedStates; ++i) {
 			long[] offsets = new long[4];
@@ -49,9 +47,13 @@ public class StateHandleDummyUtil {
 				new OperatorStateHandle.StateMetaInfo(offsets, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 			operatorStateMetaData.put(String.valueOf(UUID.randomUUID()), metaInfo);
 		}
-		ByteStreamStateHandle byteStreamStateHandle =
-			new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), streamData);
-		return new OperatorStreamStateHandle(operatorStateMetaData, byteStreamStateHandle);
+		return new OperatorStreamStateHandle(operatorStateMetaData, createStreamStateHandle(numNamedStates, random));
+	}
+
+	private static ByteStreamStateHandle createStreamStateHandle(int numNamedStates, Random random) {
+		byte[] streamData = new byte[numNamedStates * 4];
+		random.nextBytes(streamData);
+		return new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), streamData);
 	}
 
 	/**
@@ -70,10 +72,7 @@ public class StateHandleDummyUtil {
 			return null;
 		}
 
-		ByteStreamStateHandle stateHandle = (ByteStreamStateHandle) original.getDelegateStateHandle();
-		ByteStreamStateHandle stateHandleCopy = new ByteStreamStateHandle(
-			String.valueOf(stateHandle.getHandleName()),
-			stateHandle.getData().clone());
+		ByteStreamStateHandle stateHandleCopy = cloneByteStreamStateHandle((ByteStreamStateHandle) original.getDelegateStateHandle());
 		Map<String, OperatorStateHandle.StateMetaInfo> offsets = original.getStateNameToPartitionOffsets();
 		Map<String, OperatorStateHandle.StateMetaInfo> offsetsCopy = new HashMap<>(offsets.size());
 
@@ -98,6 +97,10 @@ public class StateHandleDummyUtil {
 		KeyGroupRange keyGroupRange = original.getKeyGroupRange();
 		return new DummyKeyedStateHandle(
 			new KeyGroupRange(keyGroupRange.getStartKeyGroup(), keyGroupRange.getEndKeyGroup()));
+	}
+
+	private static ByteStreamStateHandle cloneByteStreamStateHandle(ByteStreamStateHandle delegate) {
+		return new ByteStreamStateHandle(String.valueOf(delegate.getHandleName()), delegate.getData().clone());
 	}
 
 	/**

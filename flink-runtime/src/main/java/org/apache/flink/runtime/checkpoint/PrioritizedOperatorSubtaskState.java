@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * This class is a wrapper over multiple alternative {@link OperatorSubtaskState} that are (partial) substitutes for
@@ -224,31 +225,23 @@ public class PrioritizedOperatorSubtaskState {
 				}
 			}
 
-			// Key-groups should match.
-			BiFunction<KeyedStateHandle, KeyedStateHandle, Boolean> keyedStateApprover =
-				(ref, alt) -> ref.getKeyGroupRange().equals(alt.getKeyGroupRange());
-
-			// State meta data should match.
-			BiFunction<OperatorStateHandle, OperatorStateHandle, Boolean> operatorStateApprover =
-				(ref, alt) -> ref.getStateNameToPartitionOffsets().equals(alt.getStateNameToPartitionOffsets());
-
 			return new PrioritizedOperatorSubtaskState(
 				resolvePrioritizedAlternatives(
 					jobManagerState.getManagedKeyedState(),
 					managedKeyedAlternatives,
-					keyedStateApprover),
+					eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
 				resolvePrioritizedAlternatives(
 					jobManagerState.getRawKeyedState(),
 					rawKeyedAlternatives,
-					keyedStateApprover),
+					eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
 				resolvePrioritizedAlternatives(
 					jobManagerState.getManagedOperatorState(),
 					managedOperatorAlternatives,
-					operatorStateApprover),
+					eqStateApprover(OperatorStateHandle::getStateNameToPartitionOffsets)),
 				resolvePrioritizedAlternatives(
 					jobManagerState.getRawOperatorState(),
 					rawOperatorAlternatives,
-					operatorStateApprover),
+					eqStateApprover(OperatorStateHandle::getStateNameToPartitionOffsets)),
 				restored);
 		}
 
@@ -296,5 +289,9 @@ public class PrioritizedOperatorSubtaskState {
 			approved.add(jobManagerState);
 			return Collections.unmodifiableList(approved);
 		}
+	}
+
+	private static <T, E> BiFunction<T, T, Boolean> eqStateApprover(Function<T, E> identityExtractor) {
+		return (ref, alt) -> identityExtractor.apply(ref).equals(identityExtractor.apply(alt));
 	}
 }

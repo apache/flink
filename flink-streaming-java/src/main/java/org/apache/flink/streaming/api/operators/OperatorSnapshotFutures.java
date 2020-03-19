@@ -18,16 +18,23 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.runtime.state.StateObject;
+
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
+
+import static org.apache.flink.runtime.state.StateUtil.discardStateFuture;
 
 /**
  * Result of {@link StreamOperator#snapshotState}.
@@ -55,10 +62,10 @@ public class OperatorSnapshotFutures {
 	}
 
 	public OperatorSnapshotFutures(
-		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
-		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
-		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
-		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
+			@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
+			@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
+			@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
+			@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
 		this.keyedStateManagedFuture = keyedStateManagedFuture;
 		this.keyedStateRawFuture = keyedStateRawFuture;
 		this.operatorStateManagedFuture = operatorStateManagedFuture;
@@ -106,40 +113,30 @@ public class OperatorSnapshotFutures {
 	}
 
 	public void cancel() throws Exception {
-		Exception exception = null;
-
-		try {
-			StateUtil.discardStateFuture(getKeyedStateManagedFuture());
-		} catch (Exception e) {
-			exception = new Exception("Could not properly cancel managed keyed state future.", e);
+		List<Tuple2<RunnableFuture<? extends StateObject>, String>> pairs = new ArrayList<>();
+		pairs.add(new Tuple2<>(getKeyedStateManagedFuture(), "managed keyed"));
+		pairs.add(new Tuple2<>(getKeyedStateRawFuture(), "managed operator"));
+		pairs.add(new Tuple2<>(getOperatorStateManagedFuture(), "raw keyed"));
+		pairs.add(new Tuple2<>(getOperatorStateRawFuture(), "raw operator"));
+		try (Closer closer = Closer.create()) {
+			for (Tuple2<RunnableFuture<? extends StateObject>, String> pair : pairs) {
+				closer.register(() -> {
+					try {
+						discardStateFuture(pair.f0);
+					} catch (Exception e) {
+						throw new RuntimeException(String.format("Could not properly cancel %s state future", pair.f1), e);
+					}
+				});
+			}
 		}
+	}
 
-		try {
-			StateUtil.discardStateFuture(getOperatorStateManagedFuture());
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(
-				new Exception("Could not properly cancel managed operator state future.", e),
-				exception);
-		}
-
-		try {
-			StateUtil.discardStateFuture(getKeyedStateRawFuture());
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(
-				new Exception("Could not properly cancel raw keyed state future.", e),
-				exception);
-		}
-
-		try {
-			StateUtil.discardStateFuture(getOperatorStateRawFuture());
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(
-				new Exception("Could not properly cancel raw operator state future.", e),
-				exception);
-		}
-
-		if (exception != null) {
-			throw exception;
-		}
+	Future<?>[] getAllFutures() {
+		return new Future<?>[]{
+			keyedStateManagedFuture,
+			keyedStateRawFuture,
+			operatorStateManagedFuture,
+			operatorStateRawFuture,
+		};
 	}
 }
