@@ -66,6 +66,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -184,7 +187,9 @@ public class StreamTaskStateInitializerImplTest {
 						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
 				CheckpointTestUtils.createDummyStreamStateHandle(random)),
 			CheckpointTestUtils.createDummyKeyGroupStateHandle(random),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random));
+			CheckpointTestUtils.createDummyKeyGroupStateHandle(random),
+			singleton(createNewInputChannelStateHandle(10, random)),
+			singleton(createNewResultSubpartitionStateHandle(10, random)));
 
 		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 

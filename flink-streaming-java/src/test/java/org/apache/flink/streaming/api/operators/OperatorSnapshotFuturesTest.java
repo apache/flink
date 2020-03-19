@@ -18,15 +18,19 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Mockito.mock;
@@ -64,11 +68,21 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
 		SnapshotResult<OperatorStateHandle> operatorStateRawResult = SnapshotResult.of(operatorRawStateHandle);
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture = spy(DoneFuture.of(operatorStateRawResult));
 
+		InputChannelStateHandle inputChannelRawStateHandle = mock(InputChannelStateHandle.class);
+		SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannelStateRawResult = SnapshotResult.of(StateObjectCollection.singleton(inputChannelRawStateHandle));
+		Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>> inputChannelStateRawFuture = spy(DoneFuture.of(inputChannelStateRawResult));
+
+		ResultSubpartitionStateHandle resultSubpartitionRawStateHandle = mock(ResultSubpartitionStateHandle.class);
+		SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartitionStateRawResult = SnapshotResult.of(StateObjectCollection.singleton(resultSubpartitionRawStateHandle));
+		Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>> resultSubpartitionStateRawFuture = spy(DoneFuture.of(resultSubpartitionStateRawResult));
+
 		operatorSnapshotResult = new OperatorSnapshotFutures(
 			keyedStateManagedFuture,
 			keyedStateRawFuture,
 			operatorStateManagedFuture,
-			operatorStateRawFuture);
+			operatorStateRawFuture,
+			inputChannelStateRawFuture,
+			resultSubpartitionStateRawFuture);
 
 		operatorSnapshotResult.cancel();
 
@@ -76,10 +90,14 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
 		verify(keyedStateRawFuture).cancel(true);
 		verify(operatorStateManagedFuture).cancel(true);
 		verify(operatorStateRawFuture).cancel(true);
+		verify(inputChannelStateRawFuture).cancel(true);
+		verify(resultSubpartitionStateRawFuture).cancel(true);
 
 		verify(keyedManagedStateHandle).discardState();
 		verify(keyedRawStateHandle).discardState();
 		verify(operatorManagedStateHandle).discardState();
 		verify(operatorRawStateHandle).discardState();
+		verify(inputChannelRawStateHandle).discardState();
+		verify(resultSubpartitionRawStateHandle).discardState();
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Identifies {@link org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} in a given subtask.
@@ -45,5 +46,27 @@ public class ResultSubpartitionInfo implements Serializable {
 
 	public int getSubPartitionIdx() {
 		return subPartitionIdx;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final ResultSubpartitionInfo that = (ResultSubpartitionInfo) o;
+		return partitionIdx == that.partitionIdx && subPartitionIdx == that.subPartitionIdx;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(partitionIdx, subPartitionIdx);
+	}
+
+	@Override
+	public String toString() {
+		return "ResultSubpartitionInfo{" + "partitionIdx=" + partitionIdx + ", subPartitionIdx=" + subPartitionIdx + '}';
 	}
 }

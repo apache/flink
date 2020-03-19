@@ -68,7 +68,9 @@ public final class KeyGroupRangeInputSplit implements InputSplit {
 				StateObjectCollection.empty(),
 				StateObjectCollection.empty(),
 				new StateObjectCollection<>(managedKeyedState),
-				new StateObjectCollection<>(rawKeyedState)
+				new StateObjectCollection<>(rawKeyedState),
+				StateObjectCollection.empty(),
+				StateObjectCollection.empty()
 			),
 			Collections.emptyList()
 		).build();

@@ -19,13 +19,19 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -65,6 +71,8 @@ public class TaskStateSnapshotTest extends TestLogger {
 		OperatorStateHandle stateHandle = StateHandleDummyUtil.createNewOperatorStateHandle(2, random);
 		OperatorSubtaskState nonEmptyOperatorSubtaskState = new OperatorSubtaskState(
 			stateHandle,
+			null,
+			null,
 			null,
 			null,
 			null
@@ -109,6 +117,8 @@ public class TaskStateSnapshotTest extends TestLogger {
 			stateHandle_1,
 			null,
 			null,
+			null,
+			null,
 			null
 		);
 
@@ -116,6 +126,8 @@ public class TaskStateSnapshotTest extends TestLogger {
 		OperatorSubtaskState nonEmptyOperatorSubtaskState_2 = new OperatorSubtaskState(
 			null,
 			stateHandle_2,
+			null,
+			null,
 			null,
 			null
 		);
@@ -125,5 +137,23 @@ public class TaskStateSnapshotTest extends TestLogger {
 
 		long totalSize = stateHandle_1.getStateSize() + stateHandle_2.getStateSize();
 		Assert.assertEquals(totalSize, taskStateSnapshot.getStateSize());
+	}
+
+	@Test
+	public void testSizeIncludesChannelState() {
+		final Random random = new Random();
+		InputChannelStateHandle inputChannelStateHandle = createNewInputChannelStateHandle(10, random);
+		ResultSubpartitionStateHandle resultSubpartitionStateHandle = createNewResultSubpartitionStateHandle(10, random);
+		final TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(Collections.singletonMap(
+			new OperatorID(),
+			new OperatorSubtaskState(
+				StateObjectCollection.empty(),
+				StateObjectCollection.empty(),
+				StateObjectCollection.empty(),
+				StateObjectCollection.empty(),
+				singleton(inputChannelStateHandle),
+				singleton(resultSubpartitionStateHandle))));
+		Assert.assertEquals(inputChannelStateHandle.getStateSize() + resultSubpartitionStateHandle.getStateSize(), taskStateSnapshot.getStateSize());
+		Assert.assertTrue(taskStateSnapshot.hasState());
 	}
 }

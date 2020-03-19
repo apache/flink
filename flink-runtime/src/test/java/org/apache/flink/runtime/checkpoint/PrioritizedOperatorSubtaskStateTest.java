@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.Preconditions;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,14 +38,21 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.deepDummyCopy;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 
+/**
+ * {@link PrioritizedOperatorSubtaskState} test.
+ */
 public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 
-	private final Random random = new Random(0x42);
+	private static final Random RANDOM = new Random(0x42);
 
 	/**
 	 * This tests attempts to test (almost) the full space of significantly different options for verifying and
@@ -57,21 +66,17 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 			OperatorSubtaskState primaryAndFallback = generateForConfiguration(i);
 
 			for (int j = 0; j < 9; ++j) { // we test 3^2 configurations.
-				// mode 0: one valid state handle (deep copy of original).
-				// mode 1: empty StateHandleCollection.
-				// mode 2: one invalid state handle (e.g. wrong key group, different meta data)
-				int modeFirst = j % 3;
-				OperatorSubtaskState bestAlternative = createAlternativeSubtaskState(primaryAndFallback, modeFirst);
-				int modeSecond = (j / 3) % 3;
-				OperatorSubtaskState secondBestAlternative = createAlternativeSubtaskState(primaryAndFallback, modeSecond);
+				CreateAltSubtaskStateMode modeFirst = CreateAltSubtaskStateMode.byCode(j % 3);
+				OperatorSubtaskState bestAlternative = modeFirst.createAlternativeSubtaskState(primaryAndFallback);
+				CreateAltSubtaskStateMode modeSecond = CreateAltSubtaskStateMode.byCode((j / 3) % 3);
+				OperatorSubtaskState secondBestAlternative = modeSecond.createAlternativeSubtaskState(primaryAndFallback);
 
-				List<OperatorSubtaskState> orderedAlternativesList =
-					Arrays.asList(bestAlternative, secondBestAlternative);
+				List<OperatorSubtaskState> orderedAlternativesList = Arrays.asList(bestAlternative, secondBestAlternative);
 				List<OperatorSubtaskState> validAlternativesList = new ArrayList<>(3);
-				if (modeFirst == 0) {
+				if (modeFirst == CreateAltSubtaskStateMode.ONE_VALID_STATE_HANDLE) {
 					validAlternativesList.add(bestAlternative);
 				}
-				if (modeSecond == 0) {
+				if (modeSecond == CreateAltSubtaskStateMode.ONE_VALID_STATE_HANDLE) {
 					validAlternativesList.add(secondBestAlternative);
 				}
 				validAlternativesList.add(primaryAndFallback);
@@ -137,11 +142,11 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 				StateObjectCollection.empty() :
 				mode == 1 ?
 					new StateObjectCollection<>(
-						Collections.singletonList(createNewOperatorStateHandle(2, random))) :
+						Collections.singletonList(createNewOperatorStateHandle(2, RANDOM))) :
 					new StateObjectCollection<>(
 						Arrays.asList(
-							createNewOperatorStateHandle(2, random),
-							createNewOperatorStateHandle(2, random)));
+							createNewOperatorStateHandle(2, RANDOM),
+							createNewOperatorStateHandle(2, RANDOM)));
 		div *= numModes;
 		mode = (conf / div) % numModes;
 		StateObjectCollection<OperatorStateHandle> s2 =
@@ -149,11 +154,11 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 				StateObjectCollection.empty() :
 				mode == 1 ?
 					new StateObjectCollection<>(
-						Collections.singletonList(createNewOperatorStateHandle(2, random))) :
+						Collections.singletonList(createNewOperatorStateHandle(2, RANDOM))) :
 					new StateObjectCollection<>(
 						Arrays.asList(
-							createNewOperatorStateHandle(2, random),
-							createNewOperatorStateHandle(2, random)));
+							createNewOperatorStateHandle(2, RANDOM),
+							createNewOperatorStateHandle(2, RANDOM)));
 
 		div *= numModes;
 		mode = (conf / div) % numModes;
@@ -184,34 +189,69 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 		return new OperatorSubtaskState(s1, s2, s3, s4);
 	}
 
-	/**
-	 * For all 4 sub-states:
-	 * - mode 0: One valid state handle (deep copy of original). Only this creates an OperatorSubtaskState that
-	 *           qualifies as alternative.
-	 * - mode 1: Empty StateHandleCollection.
-	 * - mode 2: One invalid state handle (e.g. wrong key group, different meta data)
-	 */
-	private OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal, int mode) {
-		switch (mode) {
-			case 0:
+	private enum CreateAltSubtaskStateMode {
+		/**
+		 * mode 0: one valid state handle (deep copy of original).
+		 */
+		ONE_VALID_STATE_HANDLE(0) {
+			@Override
+			public OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal) {
 				return new OperatorSubtaskState(
 					deepCopyFirstElement(primaryOriginal.getManagedOperatorState()),
 					deepCopyFirstElement(primaryOriginal.getRawOperatorState()),
 					deepCopyFirstElement(primaryOriginal.getManagedKeyedState()),
-					deepCopyFirstElement(primaryOriginal.getRawKeyedState()));
-			case 1:
+					deepCopyFirstElement(primaryOriginal.getRawKeyedState()),
+					deepCopy(primaryOriginal.getInputChannelState()),
+					deepCopy(primaryOriginal.getResultSubpartitionState()));
+
+			}
+		},
+		/**
+		 * mode 1: empty StateHandleCollection.
+		 */
+		EMPTY_STATE_HANDLE_COLLECTION(1) {
+			@Override
+			public OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal) {
 				return new OperatorSubtaskState();
-			case 2:
+			}
+		},
+		/**
+		 * mode 2: one invalid state handle (e.g. wrong key group, different meta data).
+		 * e.g. wrong key group, different meta data.
+		 */
+		ONE_INVALID_STATE_HANDLE(2) {
+			@Override
+			public OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal) {
 				KeyGroupRange otherRange = new KeyGroupRange(8, 16);
 				int numNamedStates = 2;
 				return new OperatorSubtaskState(
-					createNewOperatorStateHandle(numNamedStates, random),
-					createNewOperatorStateHandle(numNamedStates, random),
+					createNewOperatorStateHandle(numNamedStates, RANDOM),
+					createNewOperatorStateHandle(numNamedStates, RANDOM),
 					createNewKeyedStateHandle(otherRange),
-					createNewKeyedStateHandle(otherRange));
-			default:
-				throw new IllegalArgumentException("Mode: " + mode);
+					createNewKeyedStateHandle(otherRange),
+					singleton(createNewInputChannelStateHandle(10, RANDOM)),
+					singleton(createNewResultSubpartitionStateHandle(10, RANDOM)));
+
+			}
+		};
+
+		CreateAltSubtaskStateMode(int code) {
+			this.code = code;
 		}
+
+		private final int code;
+
+		static CreateAltSubtaskStateMode byCode(int code) {
+			for (CreateAltSubtaskStateMode v : values()) {
+				if (v.code == code) {
+					return v;
+				}
+			}
+			throw new IllegalArgumentException("unknown code: " + code);
+		}
+
+		public abstract OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal);
+
 	}
 
 	private <T extends StateObject> boolean checkResultAsExpected(
@@ -253,7 +293,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 			return true;
 		}
 
-		if(a == null || b == null) {
+		if (a == null || b == null) {
 			return false;
 		}
 
@@ -273,20 +313,36 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 	/**
 	 * Creates a deep copy of the first state object in the given collection, or null if the collection is empy.
 	 */
-	private <T extends StateObject> T deepCopyFirstElement(StateObjectCollection<T> original) {
+	private static  <T extends StateObject> T deepCopyFirstElement(StateObjectCollection<T> original) {
 		if (original.isEmpty()) {
 			return null;
 		}
+		//noinspection unchecked
+		return (T) deepCopy(original.iterator().next());
+	}
 
-		T stateObject = original.iterator().next();
-		StateObject result;
+	/**
+	 * Creates a deep copy of the first state object in the given collection, or null if the collection is empy.
+	 */
+	private static  <T extends StateObject> StateObjectCollection<T> deepCopy(StateObjectCollection<T> original) {
+		if (original == null || original.isEmpty()) {
+			return StateObjectCollection.empty();
+		}
+		//noinspection unchecked
+		return new StateObjectCollection<>((List<T>) original.stream().map(PrioritizedOperatorSubtaskStateTest::deepCopy).collect(Collectors.toList()));
+	}
+
+	private static StateObject deepCopy(StateObject stateObject) {
 		if (stateObject instanceof OperatorStreamStateHandle) {
-			result = deepDummyCopy((OperatorStateHandle) stateObject);
+			return deepDummyCopy((OperatorStateHandle) stateObject);
 		} else if (stateObject instanceof KeyedStateHandle) {
-			result = deepDummyCopy((KeyedStateHandle) stateObject);
+			return deepDummyCopy((KeyedStateHandle) stateObject);
+		} else if (stateObject instanceof InputChannelStateHandle) {
+			return deepDummyCopy((InputChannelStateHandle) stateObject);
+		} else if (stateObject instanceof ResultSubpartitionStateHandle) {
+			return deepDummyCopy((ResultSubpartitionStateHandle) stateObject);
 		} else {
 			throw new IllegalStateException();
 		}
-		return (T) result;
 	}
 }
