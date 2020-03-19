@@ -33,7 +33,8 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _array_type_mappings, _merge_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
-                                 _to_java_type, _from_java_type, ZonedTimestampType)
+                                 _to_java_type, _from_java_type, ZonedTimestampType,
+                                 LocalZonedTimestampType)
 
 
 class ExamplePointUDT(UserDefinedType):
@@ -543,12 +544,16 @@ class TypesTests(unittest.TestCase):
         import time
         timezone = pytz.timezone("Asia/Tokyo")
         orig_tz = os.environ.get('TZ', None)
+        orig_epoch = LocalZonedTimestampType.EPOCH_ORDINAL
         try:
+            import calendar
             os.environ['TZ'] = 'Asia/Shanghai'
             time.tzset()
+            LocalZonedTimestampType.EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 6
             ts_tokyo = timezone.localize(ts)
             self.assertEqual(-3600000000, lztst.to_sql_type(ts_tokyo))
         finally:
+            LocalZonedTimestampType.EPOCH_ORDINAL = orig_epoch
             del os.environ['TZ']
             if orig_tz is not None:
                 os.environ['TZ'] = orig_tz
