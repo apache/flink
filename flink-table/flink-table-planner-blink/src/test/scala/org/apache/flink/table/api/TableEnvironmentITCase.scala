@@ -35,6 +35,8 @@ import org.junit.{Assert, Rule, Test}
 import _root_.java.io.File
 import _root_.java.util
 
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(settings: EnvironmentSettings, mode: String) {
@@ -135,6 +137,7 @@ class TableEnvironmentITCase(settings: EnvironmentSettings, mode: String) {
 
   @Test
   def testClearOperation(): Unit = {
+    TestCollectionTableFactory.reset()
     val tableEnv = TableEnvironmentImpl.create(settings)
     tableEnv.sqlUpdate("create table dest1(x map<int,bigint>) with('connector' = 'COLLECTION')")
     tableEnv.sqlUpdate("create table dest2(x int) with('connector' = 'COLLECTION')")
