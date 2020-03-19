@@ -49,6 +49,19 @@ public final class ExceptionUtils {
 	/** The stringified representation of a null exception reference. */
 	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
 
+	private static final String TM_DIRECT_OOM_ERROR_MESSAGE = String.format(
+		"Direct buffer memory. The direct out-of-memory error has occurred. This can mean two things: either job(s) require(s) " +
+			"a larger size of JVM direct memory or there is a direct memory leak. The direct memory can be " +
+			"allocated by user code or some of its dependencies. In this case '%s' configuration option should be " +
+			"increased. Flink framework and its dependencies also consume the direct memory, mostly for network " +
+			"communication. The most of network memory is managed by Flink and should not result in out-of-memory " +
+			"error. In certain special cases, in particular for jobs with high parallelism, the framework may " +
+			"require more direct memory which is not managed by Flink. In this case '%s' configuration option " +
+			"should be increased. If the error persists then there is probably a direct memory leak which has to " +
+			"be investigated and fixed. The task executor has to be shutdown...",
+		TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
+		TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
+
 	private static final String TM_METASPACE_OOM_ERROR_MESSAGE = String.format(
 		"Metaspace. The metaspace out-of-memory error has occurred. This can mean two things: either the job requires " +
 			"a larger size of JVM metaspace to load classes or there is a class loading leak. In the first case " +
@@ -121,7 +134,7 @@ public final class ExceptionUtils {
 	/**
 	 * Generates new {@link OutOfMemoryError} with more detailed message.
 	 *
-	 * <p>This method improves error message for metaspace {@link OutOfMemoryError}.
+	 * <p>This method improves error message for direct and metaspace {@link OutOfMemoryError}.
 	 * It adds description of possible causes and ways of resolution.
 	 *
 	 * @param exception The exception to enrich.
@@ -130,6 +143,8 @@ public final class ExceptionUtils {
 	public static Throwable enrichTaskManagerOutOfMemoryError(Throwable exception) {
 		if (isMetaspaceOutOfMemoryError(exception)) {
 			return changeOutOfMemoryErrorMessage(exception, TM_METASPACE_OOM_ERROR_MESSAGE);
+		} else if (isDirectOutOfMemoryError(exception)) {
+			return changeOutOfMemoryErrorMessage(exception, TM_DIRECT_OOM_ERROR_MESSAGE);
 		}
 		return exception;
 	}
@@ -153,6 +168,16 @@ public final class ExceptionUtils {
 	 */
 	public static boolean isMetaspaceOutOfMemoryError(Throwable t) {
 		return isOutOfMemoryErrorWithMessageStartingWith(t, "Metaspace");
+	}
+
+	/**
+	 * Checks whether the given exception indicates a JVM direct out-of-memory error.
+	 *
+	 * @param t The exception to check.
+	 * @return True, if the exception is the direct {@link OutOfMemoryError}, false otherwise.
+	 */
+	public static boolean isDirectOutOfMemoryError(Throwable t) {
+		return isOutOfMemoryErrorWithMessageStartingWith(t, "Direct buffer memory");
 	}
 
 	private static boolean isOutOfMemoryErrorWithMessageStartingWith(Throwable t, String prefix) {
