@@ -1176,7 +1176,7 @@ CREATE TABLE MyUserTable (
 
 **Columns:** All the column families in HBase table must be declared as `ROW` type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what's necessary. Except the `ROW` type fields, the only one field of atomic type (e.g. `STRING`, `BIGINT`) will be recognized as row key of the table. There's no constraints on the name of row key field.
 
-**Temporary join:** Lookup join against HBase do not use any caching; data is always queired directly through the HBase client.
+**Temporary join:** Lookup join against HBase do not use any caching; data is always queried directly through the HBase client.
 
 {% top %}
 
