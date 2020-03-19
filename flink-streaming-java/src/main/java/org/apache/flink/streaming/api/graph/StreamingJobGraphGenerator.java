@@ -517,6 +517,7 @@ public class StreamingJobGraphGenerator {
 
 		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+		config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
 		config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
 
 		for (int i = 0; i < vertex.getStatePartitioners().length; i++) {

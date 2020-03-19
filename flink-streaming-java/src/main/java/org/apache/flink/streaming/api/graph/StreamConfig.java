@@ -29,6 +29,7 @@ import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -431,6 +432,14 @@ public class StreamConfig implements Serializable {
 		} else {
 			return DEFAULT_CHECKPOINTING_MODE;
 		}
+	}
+
+	public void setUnalignedCheckpointsEnabled(boolean enabled) {
+		config.setBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, enabled);
+	}
+
+	public boolean isUnalignedCheckpointsEnabled() {
+		return config.getBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false);
 	}
 
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
