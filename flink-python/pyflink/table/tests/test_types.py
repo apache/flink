@@ -539,25 +539,17 @@ class TypesTests(unittest.TestCase):
         ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
         self.assertEqual(0, lztst.to_sql_type(ts))
 
-        import os
         import pytz
-        import time
+        # suppose the timezone of the data is +9:00
         timezone = pytz.timezone("Asia/Tokyo")
-        orig_tz = os.environ.get('TZ', None)
         orig_epoch = LocalZonedTimestampType.EPOCH_ORDINAL
         try:
-            import calendar
-            os.environ['TZ'] = 'Asia/Shanghai'
-            time.tzset()
-            LocalZonedTimestampType.EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 6
+            # suppose the local timezone is +8:00
+            LocalZonedTimestampType.EPOCH_ORDINAL = 28800000000
             ts_tokyo = timezone.localize(ts)
             self.assertEqual(-3600000000, lztst.to_sql_type(ts_tokyo))
         finally:
             LocalZonedTimestampType.EPOCH_ORDINAL = orig_epoch
-            del os.environ['TZ']
-            if orig_tz is not None:
-                os.environ['TZ'] = orig_tz
-            time.tzset()
 
         if sys.version_info >= (3, 6):
             ts2 = lztst.from_sql_type(0)
