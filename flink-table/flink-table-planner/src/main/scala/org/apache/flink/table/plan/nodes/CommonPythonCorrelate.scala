@@ -21,7 +21,6 @@ import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.plan.nodes.CommonPythonCorrelate.PYTHON_TABLE_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.runtime.types.CRow
@@ -31,7 +30,7 @@ import scala.collection.mutable
 
 trait CommonPythonCorrelate extends CommonPythonBase {
   protected def getPythonTableFunctionOperator(
-      tableConfig: TableConfig,
+      config: Configuration,
       inputRowType: RowType,
       outputRowType: RowType,
       pythonFunctionInfo: PythonFunctionInfo,
@@ -46,7 +45,7 @@ trait CommonPythonCorrelate extends CommonPythonBase {
       classOf[Array[Int]],
       classOf[JoinRelType])
     ctor.newInstance(
-      getConfig(tableConfig),
+      config,
       pythonFunctionInfo,
       inputRowType,
       outputRowType,

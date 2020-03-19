@@ -27,7 +27,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{BatchQueryConfig, TableConfig}
+import org.apache.flink.table.api.BatchQueryConfig
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.python.PythonFunctionInfo
@@ -81,7 +81,7 @@ class DataSetPythonCalc(
     val flatMapFunctionOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       flatMapFunctionResultTypeInfo).getLogicalType.asInstanceOf[RowType]
     val flatMapFunction = getPythonScalarFunctionFlatMap(
-      tableEnv.getConfig,
+      getConfig(tableEnv.getConfig),
       flatMapFunctionInputRowType,
       flatMapFunctionOutputRowType,
       calcProgram)
@@ -90,7 +90,7 @@ class DataSetPythonCalc(
   }
 
   private[flink] def getPythonScalarFunctionFlatMap(
-    tableConfig: TableConfig,
+    config: Configuration,
     inputRowType: RowType,
     outputRowType: RowType,
     calcProgram: RexProgram) = {
@@ -105,7 +105,7 @@ class DataSetPythonCalc(
     val (udfInputOffsets, pythonFunctionInfos) =
       extractPythonScalarFunctionInfos(getPythonRexCalls(calcProgram))
     ctor.newInstance(
-      getConfig(tableConfig),
+      config,
       pythonFunctionInfos,
       inputRowType,
       outputRowType,

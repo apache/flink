@@ -492,16 +492,9 @@ class LocalZonedTimestampType(AtomicType):
 
     def to_sql_type(self, dt):
         if dt is not None:
-            if dt.tzinfo is not None:
-                offset = dt.utcoffset()
-                offset = offset if offset else datetime.timedelta()
-                offset_microseconds =\
-                    (offset.days * 86400 + offset.seconds) * 10 ** 6 + offset.microseconds
-            else:
-                offset_microseconds = self.EPOCH_ORDINAL
             seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
                        else time.mktime(dt.timetuple()))
-            return int(seconds) * 10 ** 6 + dt.microsecond + offset_microseconds
+            return int(seconds) * 10 ** 6 + dt.microsecond + self.EPOCH_ORDINAL
 
     def from_sql_type(self, ts):
         if ts is not None:

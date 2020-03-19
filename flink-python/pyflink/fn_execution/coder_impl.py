@@ -413,10 +413,9 @@ class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
         self.timezone = timezone
 
     def internal_to_timestamp(self, milliseconds, nanoseconds):
-        second, microsecond = (milliseconds // 1000,
-                               milliseconds % 1000 * 1000 + nanoseconds // 1000)
         return self.timezone.localize(
-            datetime.datetime.utcfromtimestamp(second).replace(microsecond=microsecond))
+            super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
+                milliseconds, nanoseconds))
 
 
 class ArrowCoderImpl(StreamCoderImpl):

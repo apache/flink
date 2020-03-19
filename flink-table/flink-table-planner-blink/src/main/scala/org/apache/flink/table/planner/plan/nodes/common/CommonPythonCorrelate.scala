@@ -25,7 +25,6 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -38,7 +37,7 @@ import scala.collection.mutable
 
 trait CommonPythonCorrelate extends CommonPythonBase {
   private def getPythonTableFunctionOperator(
-      tableConfig: TableConfig,
+      config: Configuration,
       inputRowType: BaseRowTypeInfo,
       outputRowType: BaseRowTypeInfo,
       pythonFunctionInfo: PythonFunctionInfo,
@@ -53,7 +52,7 @@ trait CommonPythonCorrelate extends CommonPythonBase {
       classOf[Array[Int]],
       classOf[JoinRelType])
     ctor.newInstance(
-      getConfig(tableConfig),
+      config,
       pythonFunctionInfo,
       inputRowType.toRowType,
       outputRowType.toRowType,
@@ -77,7 +76,7 @@ trait CommonPythonCorrelate extends CommonPythonBase {
       scan: FlinkLogicalTableFunctionScan,
       name: String,
       outputRowType: RelDataType,
-      tableConfig: TableConfig,
+      config: Configuration,
       joinType: JoinRelType): OneInputTransformation[BaseRow, BaseRow] = {
     val pythonTableFuncRexCall = scan.getCall.asInstanceOf[RexCall]
     val (pythonUdtfInputOffsets, pythonFunctionInfo) =
@@ -86,7 +85,7 @@ trait CommonPythonCorrelate extends CommonPythonBase {
     val pythonOperatorOutputRowType = BaseRowTypeInfo.of(
       FlinkTypeFactory.toLogicalType(outputRowType).asInstanceOf[RowType])
     val pythonOperator = getPythonTableFunctionOperator(
-      tableConfig,
+      config,
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       pythonFunctionInfo,

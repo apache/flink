@@ -95,7 +95,7 @@ class DataStreamPythonCorrelate(
     val sqlFunction = pythonTableFuncRexCall.getOperator.asInstanceOf[TableSqlFunction]
 
     val pythonOperator = getPythonTableFunctionOperator(
-      planner.getConfig,
+      getConfig(planner.getConfig),
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       pythonFunctionInfo,
