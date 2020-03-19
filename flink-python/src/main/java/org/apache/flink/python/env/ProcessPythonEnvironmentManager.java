@@ -191,10 +191,8 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		env.put("BOOT_LOG_DIR", baseDirectory);
 
 		// set the path of python interpreter, it will be used to execute the udf worker.
-		if (dependencyInfo.getPythonExec().isPresent()) {
-			env.put("python", dependencyInfo.getPythonExec().get());
-			LOG.info("Python interpreter path: {}", dependencyInfo.getPythonExec());
-		}
+		env.put("python", dependencyInfo.getPythonExec());
+		LOG.info("Python interpreter path: {}", dependencyInfo.getPythonExec());
 		return env;
 	}
 
