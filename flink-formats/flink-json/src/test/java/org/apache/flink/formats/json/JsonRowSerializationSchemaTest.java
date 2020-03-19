@@ -95,20 +95,23 @@ public class JsonRowSerializationSchemaTest {
 	public void testMultiRowsWithNullValues() throws IOException {
 		String[] jsons = new String[] {
 			"{\"svt\":\"2020-02-24T12:58:09.209+0800\"}",
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\", \"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\", \"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}, " +
+				"\"ids\":[1, 2, 3]}",
 			"{\"svt\":\"2020-02-24T12:58:09.209+0800\"}",
 		};
 
 		String[] expected = new String[] {
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null}",
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}}",
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}," +
+				"\"ids\":[1,2,3]}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}",
 		};
 
 		TypeInformation<Row> schema = Types.ROW_NAMED(
-			new String[]{"svt", "ops"},
+			new String[]{"svt", "ops", "ids"},
 			Types.STRING,
-			Types.ROW_NAMED(new String[]{"id"}, Types.STRING));
+			Types.ROW_NAMED(new String[]{"id"}, Types.STRING),
+			Types.PRIMITIVE_ARRAY(Types.INT));
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(schema)
 			.build();
 		JsonRowSerializationSchema serializationSchema = JsonRowSerializationSchema.builder()
