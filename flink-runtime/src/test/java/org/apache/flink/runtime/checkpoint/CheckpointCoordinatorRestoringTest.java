@@ -443,7 +443,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			OperatorStateHandle opStateBackend = generatePartitionableStateHandle(jobVertexID1, index, 2, 8, false);
 			KeyGroupsStateHandle keyedStateBackend = generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index), false);
 			KeyGroupsStateHandle keyedStateRaw = generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index), true);
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(opStateBackend, null, keyedStateBackend, keyedStateRaw);
+			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(opStateBackend, null, keyedStateBackend, keyedStateRaw, null, null);
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID1), operatorSubtaskState);
 
@@ -468,7 +468,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			expectedOpStatesBackend.add(new ChainedStateHandle<>(Collections.singletonList(opStateBackend)));
 			expectedOpStatesRaw.add(new ChainedStateHandle<>(Collections.singletonList(opStateRaw)));
 
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(opStateBackend, opStateRaw, keyedStateBackend, keyedStateRaw);
+			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(opStateBackend, opStateRaw, keyedStateBackend, keyedStateRaw, null, null);
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID2), operatorSubtaskState);
 
@@ -603,7 +603,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		for (int index = 0; index < jobVertex1.getParallelism(); index++) {
 			KeyGroupsStateHandle keyGroupState = generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index), false);
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(null, null, keyGroupState, null);
+			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(null, null, keyGroupState, null, null, null);
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID1), operatorSubtaskState);
 			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
@@ -618,7 +618,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		for (int index = 0; index < jobVertex2.getParallelism(); index++) {
 			KeyGroupsStateHandle keyGroupState = generateKeyGroupState(jobVertexID2, keyGroupPartitions2.get(index), false);
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(null, null, keyGroupState, null);
+			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(null, null, keyGroupState, null, null, null);
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID2), operatorSubtaskState);
 			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
@@ -727,6 +727,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 					subManagedOperatorState,
 					subRawOperatorState,
 					null,
+					null,
+					null,
 					null);
 				taskState.putState(index, subtaskState);
 			}
@@ -764,7 +766,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 					subManagedOperatorState,
 					subRawOperatorState,
 					subManagedKeyedState,
-					subRawKeyedState);
+					subRawKeyedState,
+					null,
+					null);
 				operatorState.putState(index, subtaskState);
 			}
 		}

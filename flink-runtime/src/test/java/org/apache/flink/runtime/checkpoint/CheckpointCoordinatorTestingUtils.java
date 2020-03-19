@@ -167,11 +167,13 @@ public class CheckpointCoordinatorTestingUtils {
 			++idx;
 		}
 
-		ByteStreamStateHandle streamStateHandle = new ByteStreamStateHandle(
-			String.valueOf(UUID.randomUUID()),
-			serializationWithOffsets.f0);
+		return new OperatorStreamStateHandle(offsetsMap, generateByteStreamStateHandle(serializationWithOffsets.f0));
+	}
 
-		return new OperatorStreamStateHandle(offsetsMap, streamStateHandle);
+	private static ByteStreamStateHandle generateByteStreamStateHandle(byte[] bytes) {
+		return new ByteStreamStateHandle(
+			String.valueOf(UUID.randomUUID()),
+			bytes);
 	}
 
 	static Tuple2<byte[], List<long[]>> serializeTogetherAndTrackOffsets(
@@ -471,7 +473,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 		TaskStateSnapshot subtaskStates = spy(new TaskStateSnapshot());
 		OperatorSubtaskState subtaskState = spy(new OperatorSubtaskState(
-			partitionableState, null, partitionedKeyGroupState, null)
+			partitionableState, null, partitionedKeyGroupState, null, null, null)
 		);
 
 		subtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID), subtaskState);
@@ -508,9 +510,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(keyGroupRange, serializedDataWithOffsets.f1.get(0));
 
-		ByteStreamStateHandle allSerializedStatesHandle = new ByteStreamStateHandle(
-			String.valueOf(UUID.randomUUID()),
-			serializedDataWithOffsets.f0);
+		ByteStreamStateHandle allSerializedStatesHandle = generateByteStreamStateHandle(serializedDataWithOffsets.f0);
 
 		return new KeyGroupsStateHandle(keyGroupRangeOffsets, allSerializedStatesHandle);
 	}
