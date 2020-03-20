@@ -45,6 +45,7 @@ under the License.
 		<module>flink-csv</module>
 		<module>flink-orc</module>
 		<module>flink-orc-nohive</module>
+		<module>flink-orc-compress</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
