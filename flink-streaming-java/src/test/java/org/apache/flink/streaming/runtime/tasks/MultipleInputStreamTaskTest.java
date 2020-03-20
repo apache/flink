@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.InputStatus;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
@@ -608,6 +609,33 @@ public class MultipleInputStreamTaskTest {
 
 			assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_ALIGNMENT_TIME));
 			assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_START_DELAY_TIME));
+
+			testHarness.endInput();
+			testHarness.waitForTaskCompletion();
+		}
+	}
+
+	@Test
+	public void testLatencyMarker() throws Exception {
+		final Map<String, Metric> metrics = new ConcurrentHashMap<>();
+		final TaskMetricGroup taskMetricGroup = new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+
+		try (StreamTaskMailboxTestHarness<String> testHarness =
+				new MultipleInputStreamTaskTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
+					.addInput(BasicTypeInfo.INT_TYPE_INFO)
+					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+					.setTaskMetricGroup(taskMetricGroup)
+					.build()) {
+			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+
+			OperatorID sourceId = new OperatorID();
+			LatencyMarker latencyMarker = new LatencyMarker(42L, sourceId, 0);
+			testHarness.processElement(latencyMarker);
+			expectedOutput.add(latencyMarker);
+
+			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
 			testHarness.endInput();
 			testHarness.waitForTaskCompletion();

@@ -524,8 +524,9 @@ public class StreamingJobGraphGenerator {
 			// so we use that one if checkpointing is not enabled
 			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
 		}
-		config.setStatePartitioner(0, vertex.getStatePartitioner1());
-		config.setStatePartitioner(1, vertex.getStatePartitioner2());
+		for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
+			config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
+		}
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();

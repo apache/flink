@@ -61,8 +61,7 @@ public class StreamNode implements Serializable {
 	private final String operatorName;
 	private @Nullable String slotSharingGroup;
 	private @Nullable String coLocationGroup;
-	private KeySelector<?, ?> statePartitioner1;
-	private KeySelector<?, ?> statePartitioner2;
+	private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
 	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperatorFactory<?> operatorFactory;
@@ -304,20 +303,13 @@ public class StreamNode implements Serializable {
 		return operatorName + "-" + id;
 	}
 
-	public KeySelector<?, ?> getStatePartitioner1() {
-		return statePartitioner1;
+	public KeySelector<?, ?>[] getStatePartitioners() {
+		return statePartitioners;
 	}
 
-	public KeySelector<?, ?> getStatePartitioner2() {
-		return statePartitioner2;
-	}
-
-	public void setStatePartitioner1(KeySelector<?, ?> statePartitioner) {
-		this.statePartitioner1 = statePartitioner;
-	}
-
-	public void setStatePartitioner2(KeySelector<?, ?> statePartitioner) {
-		this.statePartitioner2 = statePartitioner;
+	public void setStatePartitioners(KeySelector<?, ?> ...statePartitioners) {
+		checkArgument(statePartitioners.length > 0);
+		this.statePartitioners = statePartitioners;
 	}
 
 	public TypeSerializer<?> getStateKeySerializer() {

@@ -274,8 +274,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		@Override
 		public void emitRecord(StreamRecord<T> record) throws Exception {
-			//TODO: support keyed operators
-			//input.setKeyContextElement(record);
+			input.setKeyContextElement(record);
 			input.processElement(record);
 			numRecordsIn.inc();
 			inputSelectionHandler.nextSelection();
@@ -306,7 +305,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		@Override
 		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-			throw new UnsupportedOperationException();
+			input.processLatencyMarker(latencyMarker);
 		}
 	}
 }

@@ -21,22 +21,40 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * {@link AbstractMultipleInputTransformation} implementation for non-keyed streams.
+ * {@link AbstractMultipleInputTransformation} implementation for keyed streams.
  */
 @Internal
-public class MultipleInputTransformation<OUT> extends AbstractMultipleInputTransformation<OUT> {
-	public MultipleInputTransformation(
+public class KeyedMultipleInputTransformation<OUT> extends AbstractMultipleInputTransformation<OUT> {
+	private final List<KeySelector<?, ?>> stateKeySelectors = new ArrayList<>();
+	protected final TypeInformation<?> stateKeyType;
+
+	public KeyedMultipleInputTransformation(
 			String name,
 			StreamOperatorFactory<OUT> operatorFactory,
 			TypeInformation<OUT> outputType,
-			int parallelism) {
+			int parallelism,
+			TypeInformation<?> stateKeyType) {
 		super(name, operatorFactory, outputType, parallelism);
+		this.stateKeyType = stateKeyType;
 	}
 
-	public void addInput(Transformation<?> input) {
+	public void addInput(Transformation<?> input, KeySelector<?, ?> keySelector) {
 		inputs.add(input);
+		getStateKeySelectors().add(keySelector);
+	}
+
+	public TypeInformation<?> getStateKeyType() {
+		return stateKeyType;
+	}
+
+	public List<KeySelector<?, ?>> getStateKeySelectors() {
+		return stateKeySelectors;
 	}
 }
