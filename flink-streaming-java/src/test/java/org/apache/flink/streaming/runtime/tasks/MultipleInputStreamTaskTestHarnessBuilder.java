@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -28,6 +29,8 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.util.function.FunctionWithException;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -52,6 +55,14 @@ public class MultipleInputStreamTaskTestHarnessBuilder<OUT> extends StreamTaskMa
 	}
 
 	public MultipleInputStreamTaskTestHarnessBuilder<OUT> addInput(TypeInformation<?> inputType, int inputChannels) {
+		return addInput(inputType, inputChannels, null);
+	}
+
+	public MultipleInputStreamTaskTestHarnessBuilder<OUT> addInput(
+			TypeInformation<?> inputType,
+			int inputChannels,
+			@Nullable KeySelector<?, ?> keySelector) {
+		streamConfig.setStatePartitioner(inputSerializers.size(), keySelector);
 		inputSerializers.add(inputType.createSerializer(executionConfig));
 		inputChannelsPerGate.add(inputChannels);
 		return this;

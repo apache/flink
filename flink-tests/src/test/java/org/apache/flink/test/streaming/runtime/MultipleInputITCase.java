@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
@@ -94,15 +95,19 @@ public class MultipleInputITCase extends AbstractTestBase {
 		@Override
 		public List<Input> getInputs() {
 			return Arrays.asList(
-				new SumInput<Integer>(),
-				new SumInput<Long>(),
-				new SumInput<String>());
+				new SumInput<Integer>(this, 1),
+				new SumInput<Long>(this, 2),
+				new SumInput<String>(this, 3));
 		}
 
 		/**
 		 * Summing input for {@link SumAllInputOperator}.
 		 */
-		public class SumInput<T> implements Input<T> {
+		public class SumInput<T> extends AbstractInput<T, Long> {
+			public SumInput(AbstractStreamOperatorV2<Long> owner, int inputId) {
+				super(owner, inputId);
+			}
+
 			@Override
 			public void processElement(StreamRecord<T> element) throws Exception {
 				sum += Long.valueOf(element.getValue().toString());
