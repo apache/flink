@@ -185,5 +185,10 @@ public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
 		this.taskMetricGroup = taskMetricGroup;
 		return this;
 	}
+
+	public StreamTaskMailboxTestHarnessBuilder<OUT> setKeyType(TypeInformation<?> keyType) {
+		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
+		return this;
+	}
 }
 

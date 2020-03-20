@@ -465,7 +465,7 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 	}
 
 	protected void reportWatermark(Watermark mark, int inputId) throws Exception {
-		inputWatermarks[inputId] = mark.getTimestamp();
+		inputWatermarks[inputId - 1] = mark.getTimestamp();
 		long newMin = mark.getTimestamp();
 		for (long inputWatermark : inputWatermarks) {
 			newMin = Math.min(inputWatermark, newMin);

@@ -18,26 +18,31 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * {@link Input} interface used in {@link MultipleInputStreamOperator}.
- */
-@PublicEvolving
-public interface Input<IN> {
-	/**
-	 * Processes one element that arrived on this input of the {@link MultipleInputStreamOperator}.
-	 * This method is guaranteed to not be called concurrently with other methods of the operator.
-	 */
-	void processElement(StreamRecord<IN> element) throws Exception;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
-	/**
-	 * Processes a {@link Watermark} that arrived on the first input of this two-input operator.
-	 * This method is guaranteed to not be called concurrently with other methods of the operator.
-	 *
-	 * @see org.apache.flink.streaming.api.watermark.Watermark
-	 */
-	void processWatermark(Watermark mark) throws Exception;
+/**
+ * Base abstract implementation of {@link Input} interface intended to be used when extending
+ * {@link AbstractStreamOperatorV2}.
+ */
+@Experimental
+public abstract class AbstractInput<IN, OUT> implements Input<IN> {
+	protected final AbstractStreamOperatorV2<OUT> owner;
+	protected final int inputId;
+	protected final Output<StreamRecord<OUT>> output;
+
+	public AbstractInput(AbstractStreamOperatorV2<OUT> owner, int inputId) {
+		checkArgument(inputId > 0, "Inputs are index from 1");
+		this.owner = owner;
+		this.inputId = inputId;
+		this.output = owner.output;
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		owner.reportWatermark(mark, inputId);
+	}
 }
