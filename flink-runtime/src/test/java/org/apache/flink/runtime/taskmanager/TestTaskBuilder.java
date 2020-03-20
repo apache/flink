@@ -80,6 +80,7 @@ public final class TestTaskBuilder {
 	private KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 	private Executor executor = TestingUtils.defaultExecutor();
 	private Configuration taskManagerConfig = new Configuration();
+	private Configuration taskConfig = new Configuration();
 	private ExecutionConfig executionConfig = new ExecutionConfig();
 	private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
 	private List<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
@@ -129,6 +130,11 @@ public final class TestTaskBuilder {
 
 	public TestTaskBuilder setTaskManagerConfig(Configuration taskManagerConfig) {
 		this.taskManagerConfig = taskManagerConfig;
+		return this;
+	}
+
+	public TestTaskBuilder setTaskConfig(Configuration taskConfig) {
+		this.taskConfig = taskConfig;
 		return this;
 	}
 
@@ -186,7 +192,7 @@ public final class TestTaskBuilder {
 			1,
 			1,
 			invokable.getName(),
-			new Configuration());
+			taskConfig);
 
 		final BlobCacheService blobCacheService = new BlobCacheService(
 			mock(PermanentBlobCache.class),
