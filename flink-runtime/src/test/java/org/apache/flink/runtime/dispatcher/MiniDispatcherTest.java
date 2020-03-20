@@ -51,6 +51,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -229,7 +230,7 @@ public class MiniDispatcherTest extends TestLogger {
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
-			jobGraph,
+			new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
 			executionMode);
 	}
 

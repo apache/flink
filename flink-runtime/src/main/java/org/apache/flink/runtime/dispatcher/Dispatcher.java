@@ -87,6 +87,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible
  * for receiving job submissions, persisting them, spawning JobManagers to execute
@@ -112,7 +114,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, CompletableFuture<JobManagerRunner>> jobManagerRunnerFutures;
 
-	private final Collection<JobGraph> recoveredJobs;
+	private final DispatcherBootstrap dispatcherBootstrap;
 
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
@@ -132,10 +134,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrap dispatcherBootstrap,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, endpointId, fencingToken);
-		Preconditions.checkNotNull(dispatcherServices);
+		checkNotNull(dispatcherServices);
 
 		this.configuration = dispatcherServices.getConfiguration();
 		this.highAvailabilityServices = dispatcherServices.getHighAvailabilityServices();
@@ -165,7 +167,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 		this.shutDownFuture = new CompletableFuture<>();
 
-		this.recoveredJobs = new HashSet<>(recoveredJobs);
+		this.dispatcherBootstrap = checkNotNull(dispatcherBootstrap);
 	}
 
 	//------------------------------------------------------
@@ -190,7 +192,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			throw exception;
 		}
 
-		startRecoveredJobs();
+		dispatcherBootstrap.initialize(this);
 	}
 
 	private void startDispatcherServices() throws Exception {
@@ -201,13 +203,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 	}
 
-	private void startRecoveredJobs() {
-		for (JobGraph recoveredJob : recoveredJobs) {
-			FutureUtils.assertNoException(runJob(recoveredJob)
-				.handle(handleRecoveredJobStartError(recoveredJob.getJobID())));
-		}
-
-		recoveredJobs.clear();
+	void runRecoveredJob(final JobGraph recoveredJob) {
+		checkNotNull(recoveredJob);
+		FutureUtils.assertNoException(runJob(recoveredJob)
+			.handle(handleRecoveredJobStartError(recoveredJob.getJobID())));
 	}
 
 	private BiFunction<Void, Throwable, Void> handleRecoveredJobStartError(JobID jobId) {
