@@ -360,7 +360,8 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		return (mapper, reuse, object) -> {
 			ObjectNode node;
 
-			if (reuse == null) {
+			// reuse could be a NullNode if last record is null.
+			if (reuse == null || reuse.isNull()) {
 				node = mapper.createObjectNode();
 			} else {
 				node = (ObjectNode) reuse;
@@ -382,7 +383,8 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		return (mapper, reuse, object) -> {
 			ArrayNode node;
 
-			if (reuse == null) {
+			// reuse could be a NullNode if last record is null.
+			if (reuse == null || reuse.isNull()) {
 				node = mapper.createArrayNode();
 			} else {
 				node = (ArrayNode) reuse;
