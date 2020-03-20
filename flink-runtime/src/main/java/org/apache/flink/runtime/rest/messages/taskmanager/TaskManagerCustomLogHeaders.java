@@ -19,16 +19,16 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
 /**
- * Headers for the {@link TaskManagerCustomFileHandler}.
+ * Headers for the {@link TaskManagerCustomLogHandler}.
  */
-public class TaskManagerCustomFileHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerFileMessageParameters> {
+public class TaskManagerCustomLogHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerFileMessageParameters> {
 
-	private static final TaskManagerCustomFileHeaders INSTANCE = new TaskManagerCustomFileHeaders();
+	private static final TaskManagerCustomLogHeaders INSTANCE = new TaskManagerCustomLogHeaders();
 
 	private static final String URL = String.format("/taskmanagers/:%s/logs/:%s", TaskManagerIdPathParameter.KEY, LogFileNamePathParameter.KEY);
 
@@ -52,7 +52,7 @@ public class TaskManagerCustomFileHeaders implements UntypedResponseMessageHeade
 		return URL;
 	}
 
-	public static TaskManagerCustomFileHeaders getInstance() {
+	public static TaskManagerCustomLogHeaders getInstance() {
 		return INSTANCE;
 	}
 }

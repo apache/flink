@@ -54,7 +54,7 @@ public class TaskManagerStdoutFileHandler extends AbstractTaskManagerFileHandler
 	}
 
 	@Override
-	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskmanagerId2FileName) {
-		return resourceManagerGateway.requestTaskManagerFileUploadByType(taskmanagerId2FileName.f0, FileType.STDOUT, timeout);
+	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerIdAndFileName) {
+		return resourceManagerGateway.requestTaskManagerFileUploadByType(taskManagerIdAndFileName.f0, FileType.STDOUT, timeout);
 	}
 }

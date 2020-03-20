@@ -23,16 +23,19 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Contains information about one log of TaskManager.
  */
-public class LogInfo {
+public class LogInfo implements Serializable {
 
 	public static final String NAME = "name";
 
 	public static final String SIZE = "size";
+
+	private static final long serialVersionUID = -7371944349031708629L;
 
 	@JsonProperty(NAME)
 	private final String name;

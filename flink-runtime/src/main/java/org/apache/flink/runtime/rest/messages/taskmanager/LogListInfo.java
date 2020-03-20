@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -31,15 +32,17 @@ import java.util.Objects;
 /**
  * Class containing a collection of {@link LogInfo}.
  */
-public class LogsInfo implements ResponseBody {
+public class LogListInfo implements ResponseBody, Serializable {
 
 	public static final String FIELD_NAME_LOGS = "logs";
+
+	private static final long serialVersionUID = 7531494560450830517L;
 
 	@JsonProperty(FIELD_NAME_LOGS)
 	private final Collection<LogInfo> logInfos;
 
 	@JsonCreator
-	public LogsInfo(@JsonProperty(FIELD_NAME_LOGS) Collection<LogInfo> logInfos) {
+	public LogListInfo(@JsonProperty(FIELD_NAME_LOGS) Collection<LogInfo> logInfos) {
 		this.logInfos = Preconditions.checkNotNull(logInfos);
 	}
 
@@ -55,7 +58,7 @@ public class LogsInfo implements ResponseBody {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		LogsInfo that = (LogsInfo) o;
+		LogListInfo that = (LogListInfo) o;
 		return Objects.equals(logInfos, that.logInfos);
 	}
 
@@ -64,7 +67,7 @@ public class LogsInfo implements ResponseBody {
 		return Objects.hash(logInfos);
 	}
 
-	public static LogsInfo empty() {
-		return new LogsInfo(Collections.emptyList());
+	public static LogListInfo empty() {
+		return new LogListInfo(Collections.emptyList());
 	}
 }

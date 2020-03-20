@@ -78,10 +78,10 @@ import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandle
 import org.apache.flink.runtime.rest.handler.legacy.files.StdoutFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogsHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
@@ -112,7 +112,7 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
-import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
@@ -645,16 +645,16 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			transientBlobService,
 			cacheEntryDuration);
 
-		final TaskManagerCustomFileHandler taskManagerCustomFileHandler = new TaskManagerCustomFileHandler(
+		final TaskManagerCustomLogHandler taskManagerCustomLogHandler = new TaskManagerCustomLogHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			TaskManagerCustomFileHeaders.getInstance(),
+			TaskManagerCustomLogHeaders.getInstance(),
 			resourceManagerRetriever,
 			transientBlobService,
 			cacheEntryDuration);
 
-		final TaskManagerLogsHandler taskManagerLogsHandler = new TaskManagerLogsHandler(
+		final TaskManagerLogListHandler taskManagerLogListHandler = new TaskManagerLogListHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -664,8 +664,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
 		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
-		handlers.add(Tuple2.of(TaskManagerCustomFileHeaders.getInstance(), taskManagerCustomFileHandler));
-		handlers.add(Tuple2.of(TaskManagerLogsHeaders.getInstance(), taskManagerLogsHandler));
+		handlers.add(Tuple2.of(TaskManagerCustomLogHeaders.getInstance(), taskManagerCustomLogHandler));
+		handlers.add(Tuple2.of(TaskManagerLogsHeaders.getInstance(), taskManagerLogListHandler));
 
 		handlers.stream()
 			.map(tuple -> tuple.f1)

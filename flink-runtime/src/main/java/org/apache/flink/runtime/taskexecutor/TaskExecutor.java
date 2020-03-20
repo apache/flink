@@ -322,12 +322,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				return FutureUtils.completedExceptionally(new FlinkException(String.format("There isn't a log file in TaskExecutor’s log dir %s.", logDir)));
 			}
 
-			final List<LogInfo> logsWithLength = Arrays.stream(logFiles).filter(File::isFile)
+			final List<LogInfo> logsWithLength = Arrays.stream(logFiles)
+				.filter(File::isFile)
 				.map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
 				.collect(Collectors.toList());
 			return CompletableFuture.completedFuture(logsWithLength);
 		}
-		//There isn't log file available on the TaskExecutor.
 		return FutureUtils.completedExceptionally(new FlinkException("The log directory is null"));
 	}
 

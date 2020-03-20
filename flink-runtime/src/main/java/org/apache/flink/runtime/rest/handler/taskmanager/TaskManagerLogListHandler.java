@@ -27,7 +27,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogsInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogListInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -47,15 +47,15 @@ import java.util.concurrent.CompletionException;
 /**
  * Handler which serves detailed TaskManager log list information.
  */
-public class TaskManagerLogsHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, LogsInfo, TaskManagerMessageParameters> {
+public class TaskManagerLogListHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
 
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-	public TaskManagerLogsHandler(
+	public TaskManagerLogListHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, LogsInfo, TaskManagerMessageParameters> messageHeaders,
+			MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> messageHeaders,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders, resourceManagerGatewayRetriever);
 
@@ -63,14 +63,14 @@ public class TaskManagerLogsHandler extends AbstractTaskManagerHandler<RestfulGa
 	}
 
 	@Override
-	protected CompletableFuture<LogsInfo> handleRequest(
+	protected CompletableFuture<LogListInfo> handleRequest(
 			@Nonnull HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request,
 			@Nonnull ResourceManagerGateway gateway) throws RestHandlerException {
 		final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);
 		final ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway(resourceManagerGatewayRetriever);
 		final CompletableFuture<Collection<LogInfo>> logsWithLengthFuture = resourceManagerGateway.requestTaskManagerLogList(taskManagerId, timeout);
 
-		return logsWithLengthFuture.thenApply(LogsInfo::new).exceptionally(
+		return logsWithLengthFuture.thenApply(LogListInfo::new).exceptionally(
 				(Throwable throwable) -> {
 					final Throwable strippedThrowable = ExceptionUtils.stripExecutionException(throwable);
 					String errorMessage = strippedThrowable.getCause() instanceof UnknownTaskExecutorException ?

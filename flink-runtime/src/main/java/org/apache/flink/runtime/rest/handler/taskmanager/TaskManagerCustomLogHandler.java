@@ -41,9 +41,9 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Rest handler which serves the custom file of the {@link TaskExecutor}.
  */
-public class TaskManagerCustomFileHandler extends AbstractTaskManagerFileHandler<TaskManagerFileMessageParameters> {
+public class TaskManagerCustomLogHandler extends AbstractTaskManagerFileHandler<TaskManagerFileMessageParameters> {
 
-	public TaskManagerCustomFileHandler(
+	public TaskManagerCustomLogHandler(
 			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			@Nonnull Time timeout,
 			@Nonnull Map<String, String> responseHeaders,
@@ -52,11 +52,12 @@ public class TaskManagerCustomFileHandler extends AbstractTaskManagerFileHandler
 			@Nonnull TransientBlobService transientBlobService,
 			@Nonnull Time cacheEntryDuration) {
 		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
+
 	}
 
 	@Override
-	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskmanagerId2FileName) {
-		return resourceManagerGateway.requestTaskManagerFileUploadByName(taskmanagerId2FileName.f0, taskmanagerId2FileName.f1, timeout);
+	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerIdAndFileName) {
+		return resourceManagerGateway.requestTaskManagerFileUploadByName(taskManagerIdAndFileName.f0, taskManagerIdAndFileName.f1, timeout);
 	}
 
 	@Override

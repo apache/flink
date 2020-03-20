@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
 /**
- * TaskManager id path parameter used by {@link TaskManagerCustomFileHandler}.
+ * TaskManager id path parameter used by {@link TaskManagerCustomLogHandler}.
  */
 public class LogFileNamePathParameter extends MessagePathParameter<String> {
 
