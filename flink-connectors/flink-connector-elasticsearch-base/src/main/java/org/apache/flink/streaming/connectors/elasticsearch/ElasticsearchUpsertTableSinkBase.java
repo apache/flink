@@ -171,6 +171,11 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
+		final IndexFormatter indexFormatter = IndexFormatter.builder()
+			.index(index)
+			.fieldNames(getFieldNames())
+			.fieldTypes(getFieldTypes())
+			.build();
 		final ElasticsearchUpsertSinkFunction upsertFunction =
 			new ElasticsearchUpsertSinkFunction(
 				index,
@@ -180,7 +185,8 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 				serializationSchema,
 				contentType,
 				requestFactory,
-				keyFieldIndices);
+				keyFieldIndices,
+				indexFormatter);
 		final SinkFunction<Tuple2<Boolean, Row>> sinkFunction = createSinkFunction(
 			hosts,
 			failureHandler,
@@ -422,6 +428,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 		private final XContentType contentType;
 		private final RequestFactory requestFactory;
 		private final int[] keyFieldIndices;
+		private final IndexFormatter indexFormatter;
 
 		public ElasticsearchUpsertSinkFunction(
 				String index,
@@ -431,7 +438,8 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 				SerializationSchema<Row> serializationSchema,
 				XContentType contentType,
 				RequestFactory requestFactory,
-				int[] keyFieldIndices) {
+				int[] keyFieldIndices,
+				IndexFormatter indexFormatter) {
 
 			this.index = Preconditions.checkNotNull(index);
 			this.docType = Preconditions.checkNotNull(docType);
@@ -441,22 +449,25 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			this.keyFieldIndices = Preconditions.checkNotNull(keyFieldIndices);
 			this.requestFactory = Preconditions.checkNotNull(requestFactory);
 			this.keyNullLiteral = Preconditions.checkNotNull(keyNullLiteral);
+			this.indexFormatter = Preconditions.checkNotNull(indexFormatter);
 		}
 
 		@Override
 		public void process(Tuple2<Boolean, Row> element, RuntimeContext ctx, RequestIndexer indexer) {
+
+			final String formattedIndex = indexFormatter.getFormattedIndex(element.f1);
 			if (element.f0) {
-				processUpsert(element.f1, indexer);
+				processUpsert(element.f1, indexer, formattedIndex);
 			} else {
-				processDelete(element.f1, indexer);
+				processDelete(element.f1, indexer, formattedIndex);
 			}
 		}
 
-		private void processUpsert(Row row, RequestIndexer indexer) {
+		private void processUpsert(Row row, RequestIndexer indexer, String formattedIndex) {
 			final byte[] document = serializationSchema.serialize(row);
 			if (keyFieldIndices.length == 0) {
 				final IndexRequest indexRequest = requestFactory.createIndexRequest(
-					index,
+					formattedIndex,
 					docType,
 					contentType,
 					document);
@@ -464,7 +475,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			} else {
 				final String key = createKey(row);
 				final UpdateRequest updateRequest = requestFactory.createUpdateRequest(
-					index,
+					formattedIndex,
 					docType,
 					key,
 					contentType,
@@ -473,10 +484,10 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			}
 		}
 
-		private void processDelete(Row row, RequestIndexer indexer) {
+		private void processDelete(Row row, RequestIndexer indexer, String formattedIndex) {
 			final String key = createKey(row);
 			final DeleteRequest deleteRequest = requestFactory.createDeleteRequest(
-				index,
+				formattedIndex,
 				docType,
 				key);
 			indexer.add(deleteRequest);
@@ -515,7 +526,8 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 				Objects.equals(serializationSchema, that.serializationSchema) &&
 				contentType == that.contentType &&
 				Objects.equals(requestFactory, that.requestFactory) &&
-				Arrays.equals(keyFieldIndices, that.keyFieldIndices);
+				Arrays.equals(keyFieldIndices, that.keyFieldIndices) &&
+				Objects.equals(indexFormatter, that.indexFormatter);
 		}
 
 		@Override
@@ -527,7 +539,8 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 				keyNullLiteral,
 				serializationSchema,
 				contentType,
-				requestFactory);
+				requestFactory,
+				indexFormatter);
 			result = 31 * result + Arrays.hashCode(keyFieldIndices);
 			return result;
 		}
