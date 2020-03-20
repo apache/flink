@@ -96,7 +96,8 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 			pythonFunctionInfo,
 			environmentManager,
 			inputType,
-			outputType);
+			outputType,
+			Collections.emptyMap());
 	}
 
 	private AbstractPythonTableFunctionRunner<Row> createUDTFRunner(
@@ -135,7 +136,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 			RowType inputType,
 			RowType outputType,
 			JobBundleFactory jobBundleFactory) {
-			super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType);
+			super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType, Collections.emptyMap());
 			this.jobBundleFactory = jobBundleFactory;
 		}
 

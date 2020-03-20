@@ -22,13 +22,16 @@ from abc import ABC
 import datetime
 import decimal
 import pyarrow as pa
+import pytz
 from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
 from pyflink.fn_execution import coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.fn_execution.sdk_worker_main import pipeline_options
 from pyflink.table import Row
 
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
@@ -377,6 +380,22 @@ class TimestampCoder(DeterministicCoder):
         return datetime.datetime
 
 
+class LocalZonedTimestampCoder(DeterministicCoder):
+    """
+    Coder for LocalZonedTimestamp.
+    """
+
+    def __init__(self, precision, timezone):
+        self.precision = precision
+        self.timezone = timezone
+
+    def _create_impl(self):
+        return coder_impl.LocalZonedTimestampCoderImpl(self.precision, self.timezone)
+
+    def to_type_hint(self):
+        return datetime.datetime
+
+
 class ArrowCoder(DeterministicCoder):
     """
     Coder for Arrow.
@@ -466,6 +485,10 @@ def from_proto(field_type):
         return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields])
     if field_type_name == type_name.TIMESTAMP:
         return TimestampCoder(field_type.timestamp_info.precision)
+    if field_type_name == type_name.LOCAL_ZONED_TIMESTAMP:
+        timezone = pytz.timezone(pipeline_options.view_as(DebugOptions).lookup_experiment(
+            "table.exec.timezone"))
+        return LocalZonedTimestampCoder(field_type.local_zoned_timestamp_info.precision, timezone)
     elif field_type_name == type_name.ARRAY:
         return ArrayCoder(from_proto(field_type.collection_element_type))
     elif field_type_name == type_name.MAP:

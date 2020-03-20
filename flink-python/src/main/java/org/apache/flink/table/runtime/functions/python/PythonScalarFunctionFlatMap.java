@@ -53,6 +53,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -141,6 +143,11 @@ public final class PythonScalarFunctionFlatMap
 	private final PythonConfig config;
 
 	/**
+	 * The options used to configure the Python worker process.
+	 */
+	private final Map<String, String> jobOptions;
+
+	/**
 	 * Use an AtomicBoolean because we start/stop bundles by a timer thread.
 	 */
 	private transient AtomicBoolean bundleStarted;
@@ -178,6 +185,7 @@ public final class PythonScalarFunctionFlatMap
 		this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
 		this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
+		this.jobOptions = buildJobOptions(config);
 	}
 
 	@Override
@@ -285,7 +293,8 @@ public final class PythonScalarFunctionFlatMap
 			scalarFunctions,
 			createPythonEnvironmentManager(),
 			udfInputType,
-			udfOutputType);
+			udfOutputType,
+			jobOptions);
 	}
 
 	private PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
@@ -319,6 +328,14 @@ public final class PythonScalarFunctionFlatMap
 			Row udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
 			this.resultCollector.collect(Row.join(input, udfResult));
 		}
+	}
+
+	private Map<String, String> buildJobOptions(Configuration config) {
+		Map<String, String> jobOptions = new HashMap<>();
+		if (config.containsKey("table.exec.timezone")) {
+			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
+		}
+		return jobOptions;
 	}
 
 	@Override

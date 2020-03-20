@@ -29,6 +29,7 @@ import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.utils.PythonTestUtils.createMockJobBundleFactory;
 
@@ -48,8 +49,9 @@ public abstract class PassThroughPythonScalarFunctionRunner<IN> extends Abstract
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, createMockJobBundleFactory());
+		RowType outputType,
+		Map<String, String> jobOptions) {
+		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, createMockJobBundleFactory());
 	}
 
 	public PassThroughPythonScalarFunctionRunner(
@@ -59,8 +61,9 @@ public abstract class PassThroughPythonScalarFunctionRunner<IN> extends Abstract
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
+		Map<String, String> jobOptions,
 		JobBundleFactory jobBundleFactory) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions);
 		this.jobBundleFactory = jobBundleFactory;
 		this.bufferedInputs = new ArrayList<>();
 	}

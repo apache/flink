@@ -36,6 +36,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
@@ -94,7 +95,8 @@ public class BaseRowPythonTableFunctionOperatorTest
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 			return new PassThroughPythonTableFunctionRunner<BaseRow>(resultReceiver) {
 				@Override
 				public BaseRow copy(BaseRow element) {

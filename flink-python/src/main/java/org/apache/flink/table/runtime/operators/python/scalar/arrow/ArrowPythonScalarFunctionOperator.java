@@ -38,6 +38,7 @@ import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Arrow Python {@link ScalarFunction} operator for the old planner.
@@ -93,7 +94,8 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 	@Override
 	public PythonFunctionRunner<Row> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager) {
+		PythonEnvironmentManager pythonEnvironmentManager,
+		Map<String, String> jobOptions) {
 		return new ArrowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
@@ -101,7 +103,8 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType,
-			getPythonConfig().getMaxArrowBatchSize());
+			getPythonConfig().getMaxArrowBatchSize(),
+			jobOptions);
 	}
 
 	@Override

@@ -36,6 +36,8 @@ import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
+import java.util.Map;
+
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Arrow Python {@link ScalarFunction}s.
  *
@@ -97,8 +99,9 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		int maxArrowBatchSize) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
+		int maxArrowBatchSize,
+		Map<String, String> jobOptions) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions);
 		this.maxArrowBatchSize = maxArrowBatchSize;
 	}
 

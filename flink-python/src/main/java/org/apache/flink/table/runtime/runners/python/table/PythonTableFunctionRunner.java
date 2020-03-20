@@ -31,6 +31,8 @@ import org.apache.flink.types.Row;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.util.Map;
+
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
  * It takes {@link Row} as the input and outputs a byte array.
@@ -44,8 +46,9 @@ public class PythonTableFunctionRunner extends AbstractPythonTableFunctionRunner
 		PythonFunctionInfo tableFunction,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType);
+		RowType outputType,
+		Map<String, String> jobOptions) {
+		super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType, jobOptions);
 	}
 
 	@Override

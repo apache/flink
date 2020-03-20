@@ -477,6 +477,8 @@ class LocalZonedTimestampType(AtomicType):
     :param nullable: boolean, whether the field can be null (None) or not.
     """
 
+    EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 6
+
     def __init__(self, precision=6, nullable=True):
         super(LocalZonedTimestampType, self).__init__(nullable)
         assert 0 <= precision <= 9
@@ -492,10 +494,11 @@ class LocalZonedTimestampType(AtomicType):
         if dt is not None:
             seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
                        else time.mktime(dt.timetuple()))
-            return int(seconds) * 10 ** 6 + dt.microsecond
+            return int(seconds) * 10 ** 6 + dt.microsecond + self.EPOCH_ORDINAL
 
     def from_sql_type(self, ts):
         if ts is not None:
+            ts = ts - self.EPOCH_ORDINAL
             return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
 
 
