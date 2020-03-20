@@ -20,7 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.MemoryProcessUtils.MemoryProcessSpec;
+import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
 
 /**
  * Describe the specifics of different resource dimensions of the TaskExecutor process.
@@ -73,7 +73,7 @@ import org.apache.flink.runtime.util.MemoryProcessUtils.MemoryProcessSpec;
  * </pre>
  */
 public class TaskExecutorProcessSpec implements MemoryProcessSpec {
-	private static final long serialVersionUID = 3729908843232177994L;
+	private static final long serialVersionUID = 1L;
 
 	private final CPUResource cpuCores;
 
@@ -143,18 +143,22 @@ public class TaskExecutorProcessSpec implements MemoryProcessSpec {
 		return managedMemorySize;
 	}
 
+	@Override
 	public MemorySize getJvmMetaspaceSize() {
 		return jvmMetaspaceSize;
 	}
 
+	@Override
 	public MemorySize getJvmOverheadSize() {
 		return jvmOverheadSize;
 	}
 
+	@Override
 	public MemorySize getTotalFlinkMemorySize() {
 		return frameworkHeapSize.add(frameworkOffHeapMemorySize).add(taskHeapSize).add(taskOffHeapSize).add(networkMemSize).add(getManagedMemorySize());
 	}
 
+	@Override
 	public MemorySize getTotalProcessMemorySize() {
 		return getTotalFlinkMemorySize().add(jvmMetaspaceSize).add(jvmOverheadSize);
 	}

@@ -23,9 +23,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.MemoryProcessUtils.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.MemoryProcessUtils.LegacyHeapOptions;
-import org.apache.flink.runtime.util.MemoryProcessUtils.MemoryProcessSpec;
+import org.apache.flink.runtime.util.ProcessMemoryUtils.JvmMetaspaceAndOverheadOptions;
+import org.apache.flink.runtime.util.ProcessMemoryUtils.LegacyHeapOptions;
+import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
@@ -41,25 +41,28 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Base test suite for JM/TM memory calculations to test common methods in {@link MemoryProcessUtils}.
+ * Base test suite for JM/TM memory calculations to test common methods in {@link ProcessMemoryUtils}.
  */
 @SuppressWarnings("AbstractClassExtendsConcreteClass")
-public abstract class MemoryProcessUtilsTestBase<T extends MemoryProcessSpec> extends TestLogger {
+public abstract class ProcessMemoryUtilsTestBase<T extends MemoryProcessSpec> extends TestLogger {
 	private static Map<String, String> oldEnvVariables;
 
 	private final JvmMetaspaceAndOverheadOptions jvmOptions;
 	private final ConfigOption<MemorySize> totalFlinkMemoryOption;
+	private final ConfigOption<MemorySize> totalProcessMemoryOption;
 	private final LegacyHeapOptions legacyHeapOptions;
 	private final ConfigOption<MemorySize> newOptionForLegacyHeapOption;
 
 	@SuppressWarnings("JUnitTestCaseWithNonTrivialConstructors")
-	protected MemoryProcessUtilsTestBase(
+	protected ProcessMemoryUtilsTestBase(
 			JvmMetaspaceAndOverheadOptions jvmOptions,
 			ConfigOption<MemorySize> totalFlinkMemoryOption,
+			ConfigOption<MemorySize> totalProcessMemoryOption,
 			LegacyHeapOptions legacyHeapOptions,
 			ConfigOption<MemorySize> newOptionForLegacyHeapOption) {
 		this.jvmOptions = jvmOptions;
 		this.totalFlinkMemoryOption = totalFlinkMemoryOption;
+		this.totalProcessMemoryOption = totalProcessMemoryOption;
 		this.legacyHeapOptions = legacyHeapOptions;
 		this.newOptionForLegacyHeapOption = newOptionForLegacyHeapOption;
 	}
@@ -81,7 +84,7 @@ public abstract class MemoryProcessUtilsTestBase<T extends MemoryProcessSpec> ex
 		MemorySize heap = MemorySize.ofMebiBytes(1);
 		MemorySize directMemory = MemorySize.ofMebiBytes(2);
 		MemorySize metaspace = MemorySize.ofMebiBytes(3);
-		String jvmParamsStr = MemoryProcessUtils.generateJvmParametersStr(new JvmArgTestingMemoryProcessSpec(
+		String jvmParamsStr = ProcessMemoryUtils.generateJvmParametersStr(new JvmArgTestingMemoryProcessSpec(
 			heap,
 			directMemory,
 			metaspace
@@ -110,7 +113,7 @@ public abstract class MemoryProcessUtilsTestBase<T extends MemoryProcessSpec> ex
 		MemorySize totalProcessMemorySize = MemorySize.parse("2g");
 
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getTotalProcessOption(), totalProcessMemorySize);
+		conf.set(totalProcessMemoryOption, totalProcessMemorySize);
 
 		T processSpec = processSpecFromConfig(conf);
 		assertThat(processSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
@@ -192,7 +195,7 @@ public abstract class MemoryProcessUtilsTestBase<T extends MemoryProcessSpec> ex
 	@Test
 	public void testConfigJvmOverheadDeriveFromProcessAndFlinkMemorySize() {
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getTotalProcessOption(), MemorySize.parse("1000m"));
+		conf.set(totalProcessMemoryOption, MemorySize.parse("1000m"));
 		conf.set(totalFlinkMemoryOption, MemorySize.parse("800m"));
 		conf.set(jvmOptions.getJvmMetaspaceOption(), MemorySize.parse("100m"));
 		conf.set(jvmOptions.getJvmOverheadMin(), MemorySize.parse("50m"));
@@ -207,7 +210,7 @@ public abstract class MemoryProcessUtilsTestBase<T extends MemoryProcessSpec> ex
 	@Test
 	public void testConfigJvmOverheadDeriveFromProcessAndFlinkMemorySizeFailure() {
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getTotalProcessOption(), MemorySize.parse("1000m"));
+		conf.set(totalProcessMemoryOption, MemorySize.parse("1000m"));
 		conf.set(totalFlinkMemoryOption, MemorySize.parse("800m"));
 		conf.set(jvmOptions.getJvmMetaspaceOption(), MemorySize.parse("100m"));
 		conf.set(jvmOptions.getJvmOverheadMin(), MemorySize.parse("150m"));
@@ -275,7 +278,7 @@ public abstract class MemoryProcessUtilsTestBase<T extends MemoryProcessSpec> ex
 		MemorySize jvmOverhead = MemorySize.parse("100m");
 
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getTotalProcessOption(), totalProcessMemory);
+		conf.set(totalProcessMemoryOption, totalProcessMemory);
 		conf.set(totalFlinkMemoryOption, totalFlinkMemory);
 		conf.set(jvmOptions.getJvmMetaspaceOption(), jvmMetaspace);
 		conf.set(jvmOptions.getJvmOverheadMin(), jvmOverhead);

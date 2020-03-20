@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -36,25 +37,89 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Common utils to parse JVM process memory configuration for JM or TM.
  */
-public final class MemoryProcessUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(MemoryProcessUtils.class);
+public abstract class ProcessMemoryUtils
+		<S extends ProcessMemoryUtils.MemoryProcessSpec, IM extends ProcessMemoryUtils.FlinkInternalMemory> {
+	private static final Logger LOG = LoggerFactory.getLogger(ProcessMemoryUtils.class);
 
-	public static String generateJvmParametersStr(MemoryProcessSpec processSpec) {
-		return "-Xmx" + processSpec.getJvmHeapMemorySize().getBytes()
-			+ " -Xms" + processSpec.getJvmHeapMemorySize().getBytes()
-			+ " -XX:MaxDirectMemorySize=" + processSpec.getJvmDirectMemorySize().getBytes()
-			+ " -XX:MaxMetaspaceSize=" + processSpec.getJvmMetaspaceSize().getBytes();
+	private final List<ConfigOption<MemorySize>> internalMemoryOptions;
+	private final ConfigOption<MemorySize> totalFlinkOption;
+	private final ConfigOption<MemorySize> totalProcessOption;
+	private final JvmMetaspaceAndOverheadOptions jvmOptions;
+	private final LegacyHeapOptions legacyHeapOptions;
+
+	protected ProcessMemoryUtils(
+			List<ConfigOption<MemorySize>> internalMemoryOptions,
+			ConfigOption<MemorySize> totalFlinkOption,
+			ConfigOption<MemorySize> totalProcessOption,
+			JvmMetaspaceAndOverheadOptions jvmOptions,
+			LegacyHeapOptions legacyHeapOptions) {
+		this.internalMemoryOptions = checkNotNull(internalMemoryOptions);
+		this.totalFlinkOption = checkNotNull(totalFlinkOption);
+		this.totalProcessOption = checkNotNull(totalProcessOption);
+		this.jvmOptions = checkNotNull(jvmOptions);
+		this.legacyHeapOptions = legacyHeapOptions;
 	}
 
-	public static JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadWithTotalProcessMemory(
+	public S memoryProcessSpecFromConfig(Configuration config) {
+		if (internalMemoryOptions.stream().allMatch(config::contains)) {
+			// all internal memory options are configured, use these to derive total Flink and process memory
+			return deriveProcessSpecWithExplicitInternalMemory(config);
+		} else if (config.contains(totalFlinkOption)) {
+			// internal memory options are not configured, total Flink memory is configured,
+			// derive from total flink memory
+			return deriveProcessSpecWithTotalFlinkMemory(config);
+		} else if (config.contains(totalProcessOption)) {
+			// total Flink memory is not configured, total process memory is configured,
+			// derive from total process memory
+			return deriveProcessSpecWithTotalProcessMemory(config);
+		}
+		return failIfMandatoryOptionsNotConfigured();
+	}
+
+	private S deriveProcessSpecWithExplicitInternalMemory(Configuration config) {
+		IM flinkInternalMemory = deriveTotalFlinkMemoryFromInternalMemory(config);
+		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
+			config,
+			flinkInternalMemory.getTotalFlinkMemorySize());
+		return createMemoryProcessSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
+	}
+
+	private S deriveProcessSpecWithTotalFlinkMemory(Configuration config) {
+		MemorySize totalFlinkMemorySize = getMemorySizeFromConfig(config, totalFlinkOption);
+		IM internalMemory = deriveInternalMemoryFromTotalFlinkMemory(config, totalFlinkMemorySize);
+		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, totalFlinkMemorySize);
+		return createMemoryProcessSpec(config, internalMemory, jvmMetaspaceAndOverhead);
+	}
+
+	private S deriveProcessSpecWithTotalProcessMemory(Configuration config) {
+		MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, totalProcessOption);
+		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
+			deriveJvmMetaspaceAndOverheadWithTotalProcessMemory(config, totalProcessMemorySize);
+		MemorySize totalFlinkMemorySize = totalProcessMemorySize.subtract(
+			jvmMetaspaceAndOverhead.getTotalJvmMetaspaceAndOverheadSize());
+		IM internalMemory = deriveInternalMemoryFromTotalFlinkMemory(config, totalFlinkMemorySize);
+		return createMemoryProcessSpec(config, internalMemory, jvmMetaspaceAndOverhead);
+	}
+
+	protected abstract IM deriveTotalFlinkMemoryFromInternalMemory(Configuration config);
+
+	protected abstract IM deriveInternalMemoryFromTotalFlinkMemory(Configuration config, MemorySize totalFlinkMemorySize);
+
+	protected abstract S createMemoryProcessSpec(
+		Configuration config,
+		IM internalMemory,
+		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead);
+
+	protected abstract S failIfMandatoryOptionsNotConfigured();
+
+	private JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadWithTotalProcessMemory(
 			Configuration config,
-			JvmMetaspaceAndOverheadOptions options) {
-		MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, options.getTotalProcessOption());
-		MemorySize jvmMetaspaceSize = getMemorySizeFromConfig(config, options.getJvmMetaspaceOption());
+			MemorySize totalProcessMemorySize) {
+		MemorySize jvmMetaspaceSize = getMemorySizeFromConfig(config, jvmOptions.getJvmMetaspaceOption());
 		MemorySize jvmOverheadSize = deriveWithFraction(
 			"jvm overhead memory",
 			totalProcessMemorySize,
-			getJvmOverheadRangeFraction(config, options));
+			getJvmOverheadRangeFraction(config));
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
 
 		if (jvmMetaspaceAndOverhead.getTotalJvmMetaspaceAndOverheadSize().getBytes() > totalProcessMemorySize.getBytes()) {
@@ -67,35 +132,33 @@ public final class MemoryProcessUtils {
 		return jvmMetaspaceAndOverhead;
 	}
 
-	public static JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
+	private JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
 			Configuration config,
-			MemorySize totalFlinkMemorySize,
-			JvmMetaspaceAndOverheadOptions options) {
-		MemorySize jvmMetaspaceSize = getMemorySizeFromConfig(config, options.getJvmMetaspaceOption());
+			MemorySize totalFlinkMemorySize) {
+		MemorySize jvmMetaspaceSize = getMemorySizeFromConfig(config, jvmOptions.getJvmMetaspaceOption());
 		MemorySize totalFlinkAndJvmMetaspaceSize = totalFlinkMemorySize.add(jvmMetaspaceSize);
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead;
-		if (config.contains(options.getTotalProcessOption())) {
-			MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, options.getTotalProcessOption());
+		if (config.contains(totalProcessOption)) {
+			MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, totalProcessOption);
 			MemorySize jvmOverheadSize = totalProcessMemorySize.subtract(totalFlinkAndJvmMetaspaceSize);
-			sanityCheckJvmOverhead(config, jvmOverheadSize, totalProcessMemorySize, options);
+			sanityCheckJvmOverhead(config, jvmOverheadSize, totalProcessMemorySize);
 			jvmMetaspaceAndOverhead = new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
 		} else {
 			MemorySize jvmOverheadSize = deriveWithInverseFraction(
 				"jvm overhead memory",
 				totalFlinkAndJvmMetaspaceSize,
-				getJvmOverheadRangeFraction(config, options));
+				getJvmOverheadRangeFraction(config));
 			jvmMetaspaceAndOverhead = new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
-			sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead, options.getTotalProcessOption());
+			sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead);
 		}
 		return jvmMetaspaceAndOverhead;
 	}
 
-	private static void sanityCheckJvmOverhead(
+	private void sanityCheckJvmOverhead(
 			Configuration config,
 			MemorySize derivedJvmOverheadSize,
-			MemorySize totalProcessMemorySize,
-			JvmMetaspaceAndOverheadOptions options) {
-		RangeFraction jvmOverheadRangeFraction = getJvmOverheadRangeFraction(config, options);
+			MemorySize totalProcessMemorySize) {
+		RangeFraction jvmOverheadRangeFraction = getJvmOverheadRangeFraction(config);
 		if (derivedJvmOverheadSize.getBytes() > jvmOverheadRangeFraction.getMaxSize().getBytes() ||
 			derivedJvmOverheadSize.getBytes() < jvmOverheadRangeFraction.getMinSize().getBytes()) {
 			throw new IllegalConfigurationException("Derived JVM Overhead size ("
@@ -103,7 +166,7 @@ public final class MemoryProcessUtils {
 				+ jvmOverheadRangeFraction.getMinSize().toHumanReadableString() + ", "
 				+ jvmOverheadRangeFraction.getMaxSize().toHumanReadableString() + "].");
 		}
-		if (config.contains(options.getJvmOverheadFraction()) &&
+		if (config.contains(jvmOptions.getJvmOverheadFraction()) &&
 			!derivedJvmOverheadSize.equals(totalProcessMemorySize.multiply(jvmOverheadRangeFraction.getFraction()))) {
 			LOG.info(
 				"The derived JVM Overhead size ({}) does not match " +
@@ -115,11 +178,10 @@ public final class MemoryProcessUtils {
 		}
 	}
 
-	private static void sanityCheckTotalProcessMemory(
+	private void sanityCheckTotalProcessMemory(
 			Configuration config,
 			MemorySize totalFlinkMemory,
-			JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead,
-			ConfigOption<MemorySize> totalProcessOption) {
+			JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
 		MemorySize derivedTotalProcessMemorySize =
 			totalFlinkMemory.add(jvmMetaspaceAndOverhead.getMetaspace()).add(jvmMetaspaceAndOverhead.getOverhead());
 		if (config.contains(totalProcessOption)) {
@@ -138,82 +200,19 @@ public final class MemoryProcessUtils {
 		}
 	}
 
-	private static RangeFraction getJvmOverheadRangeFraction(Configuration config, JvmMetaspaceAndOverheadOptions options) {
-		MemorySize minSize = getMemorySizeFromConfig(config, options.getJvmOverheadMin());
-		MemorySize maxSize = getMemorySizeFromConfig(config, options.getJvmOverheadMax());
-		return getRangeFraction(minSize, maxSize, options.getJvmOverheadFraction(), config);
+	private RangeFraction getJvmOverheadRangeFraction(Configuration config) {
+		MemorySize minSize = getMemorySizeFromConfig(config, jvmOptions.getJvmOverheadMin());
+		MemorySize maxSize = getMemorySizeFromConfig(config, jvmOptions.getJvmOverheadMax());
+		return getRangeFraction(minSize, maxSize, jvmOptions.getJvmOverheadFraction(), config);
 	}
 
-	public static MemorySize getMemorySizeFromConfig(Configuration config, ConfigOption<MemorySize> option) {
-		try {
-			return Preconditions.checkNotNull(config.get(option), "The memory option is not set and has no default value.");
-		} catch (Throwable t) {
-			throw new IllegalConfigurationException("Cannot read memory size from config option '" + option.key() + "'.", t);
-		}
-	}
-
-	public static RangeFraction getRangeFraction(
-			MemorySize minSize,
-			MemorySize maxSize,
-			ConfigOption<Float> fractionOption,
-			Configuration config) {
-		double fraction = config.getFloat(fractionOption);
-		try {
-			return new RangeFraction(minSize, maxSize, fraction);
-		} catch (IllegalArgumentException e) {
-			throw new IllegalConfigurationException(
-				String.format(
-					"Inconsistently configured %s (%s) and its min (%s), max (%s) value",
-					fractionOption,
-					fraction,
-					minSize.toHumanReadableString(),
-					maxSize.toHumanReadableString()),
-				e);
-		}
-	}
-
-	public static MemorySize deriveWithFraction(String memoryDescription, MemorySize base, RangeFraction rangeFraction) {
-		MemorySize relative = base.multiply(rangeFraction.getFraction());
-		return capToMinMax(memoryDescription, relative, rangeFraction);
-	}
-
-	public static MemorySize deriveWithInverseFraction(String memoryDescription, MemorySize base, RangeFraction rangeFraction) {
-		checkArgument(rangeFraction.getFraction() < 1);
-		MemorySize relative = base.multiply(rangeFraction.getFraction() / (1 - rangeFraction.getFraction()));
-		return capToMinMax(memoryDescription, relative, rangeFraction);
-	}
-
-	private static MemorySize capToMinMax(
-		String memoryDescription,
-		MemorySize relative,
-		RangeFraction rangeFraction) {
-		long size = relative.getBytes();
-		if (size > rangeFraction.getMaxSize().getBytes()) {
-			LOG.info(
-				"The derived from fraction {} ({}) is greater than its max value {}, max value will be used instead",
-				memoryDescription,
-				relative.toHumanReadableString(),
-				rangeFraction.getMaxSize().toHumanReadableString());
-			size = rangeFraction.getMaxSize().getBytes();
-		} else if (size < rangeFraction.getMinSize().getBytes()) {
-			LOG.info(
-				"The derived from fraction {} ({}) is less than its min value {}, min value will be used instead",
-				memoryDescription,
-				relative.toHumanReadableString(),
-				rangeFraction.getMinSize().toHumanReadableString());
-			size = rangeFraction.getMinSize().getBytes();
-		}
-		return new MemorySize(size);
-	}
-
-	public static Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-			Configuration configuration,
-			LegacyHeapOptions legacyHeapOptions,
-			ConfigOption<MemorySize> configOption) {
+	public Configuration getConfWithLegacyHeapSizeMappedToNewConfigOption(
+		Configuration configuration,
+		ConfigOption<MemorySize> configOption) {
 		if (configuration.contains(configOption)) {
 			return configuration;
 		}
-		return getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(configuration, legacyHeapOptions)
+		return getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(configuration)
 			.map(legacyHeapSize -> {
 				Configuration copiedConfig = new Configuration(configuration);
 				copiedConfig.set(configOption, legacyHeapSize);
@@ -225,9 +224,7 @@ public final class MemoryProcessUtils {
 			}).orElse(configuration);
 	}
 
-	private static Optional<MemorySize> getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(
-			Configuration configuration,
-			LegacyHeapOptions legacyHeapOptions) {
+	private Optional<MemorySize> getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(Configuration configuration) {
 		@SuppressWarnings("CallToSystemGetenv")
 		String totalProcessEnv = System.getenv(legacyHeapOptions.getEnvVar());
 		if (totalProcessEnv != null) {
@@ -258,6 +255,83 @@ public final class MemoryProcessUtils {
 		return Optional.empty();
 	}
 
+	protected static MemorySize getMemorySizeFromConfig(Configuration config, ConfigOption<MemorySize> option) {
+		try {
+			return Preconditions.checkNotNull(config.get(option), "The memory option is not set and has no default value.");
+		} catch (Throwable t) {
+			throw new IllegalConfigurationException("Cannot read memory size from config option '" + option.key() + "'.", t);
+		}
+	}
+
+	protected static RangeFraction getRangeFraction(
+			MemorySize minSize,
+			MemorySize maxSize,
+			ConfigOption<Float> fractionOption,
+			Configuration config) {
+		double fraction = config.getFloat(fractionOption);
+		try {
+			return new RangeFraction(minSize, maxSize, fraction);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalConfigurationException(
+				String.format(
+					"Inconsistently configured %s (%s) and its min (%s), max (%s) value",
+					fractionOption,
+					fraction,
+					minSize.toHumanReadableString(),
+					maxSize.toHumanReadableString()),
+				e);
+		}
+	}
+
+	protected static MemorySize deriveWithFraction(String memoryDescription, MemorySize base, RangeFraction rangeFraction) {
+		MemorySize relative = base.multiply(rangeFraction.getFraction());
+		return capToMinMax(memoryDescription, relative, rangeFraction);
+	}
+
+	protected static MemorySize deriveWithInverseFraction(String memoryDescription, MemorySize base, RangeFraction rangeFraction) {
+		checkArgument(rangeFraction.getFraction() < 1);
+		MemorySize relative = base.multiply(rangeFraction.getFraction() / (1 - rangeFraction.getFraction()));
+		return capToMinMax(memoryDescription, relative, rangeFraction);
+	}
+
+	private static MemorySize capToMinMax(
+			String memoryDescription,
+			MemorySize relative,
+			RangeFraction rangeFraction) {
+		long size = relative.getBytes();
+		if (size > rangeFraction.getMaxSize().getBytes()) {
+			LOG.info(
+				"The derived from fraction {} ({}) is greater than its max value {}, max value will be used instead",
+				memoryDescription,
+				relative.toHumanReadableString(),
+				rangeFraction.getMaxSize().toHumanReadableString());
+			size = rangeFraction.getMaxSize().getBytes();
+		} else if (size < rangeFraction.getMinSize().getBytes()) {
+			LOG.info(
+				"The derived from fraction {} ({}) is less than its min value {}, min value will be used instead",
+				memoryDescription,
+				relative.toHumanReadableString(),
+				rangeFraction.getMinSize().toHumanReadableString());
+			size = rangeFraction.getMinSize().getBytes();
+		}
+		return new MemorySize(size);
+	}
+
+	public static String generateJvmParametersStr(MemoryProcessSpec processSpec) {
+		return "-Xmx" + processSpec.getJvmHeapMemorySize().getBytes()
+			+ " -Xms" + processSpec.getJvmHeapMemorySize().getBytes()
+			+ " -XX:MaxDirectMemorySize=" + processSpec.getJvmDirectMemorySize().getBytes()
+			+ " -XX:MaxMetaspaceSize=" + processSpec.getJvmMetaspaceSize().getBytes();
+	}
+
+	/**
+	 * Memory components which constitute the Total Flink Memory.
+	 */
+	@FunctionalInterface
+	public interface FlinkInternalMemory {
+		MemorySize getTotalFlinkMemorySize();
+	}
+
 	/**
 	 * Common interface for Flink JVM process memory components.
 	 */
@@ -279,27 +353,20 @@ public final class MemoryProcessUtils {
 	 * Options to calculate JVM Metaspace and Overhead.
 	 */
 	public static class JvmMetaspaceAndOverheadOptions {
-		private final ConfigOption<MemorySize> totalProcessOption;
 		private final ConfigOption<MemorySize> jvmMetaspaceOption;
 		private final ConfigOption<MemorySize> jvmOverheadMin;
 		private final ConfigOption<MemorySize> jvmOverheadMax;
 		private final ConfigOption<Float> jvmOverheadFraction;
 
 		public JvmMetaspaceAndOverheadOptions(
-				ConfigOption<MemorySize> totalProcessOption,
 				ConfigOption<MemorySize> jvmMetaspaceOption,
 				ConfigOption<MemorySize> jvmOverheadMin,
 				ConfigOption<MemorySize> jvmOverheadMax,
 				ConfigOption<Float> jvmOverheadFraction) {
-			this.totalProcessOption = totalProcessOption;
 			this.jvmMetaspaceOption = jvmMetaspaceOption;
 			this.jvmOverheadMin = jvmOverheadMin;
 			this.jvmOverheadMax = jvmOverheadMax;
 			this.jvmOverheadFraction = jvmOverheadFraction;
-		}
-
-		ConfigOption<MemorySize> getTotalProcessOption() {
-			return totalProcessOption;
 		}
 
 		ConfigOption<MemorySize> getJvmMetaspaceOption() {
@@ -331,7 +398,7 @@ public final class MemoryProcessUtils {
 			this.overhead = checkNotNull(jvmOverhead);
 		}
 
-		public MemorySize getTotalJvmMetaspaceAndOverheadSize() {
+		MemorySize getTotalJvmMetaspaceAndOverheadSize() {
 			return getMetaspace().add(getOverhead());
 		}
 
@@ -398,8 +465,5 @@ public final class MemoryProcessUtils {
 		ConfigOption<Integer> getHeapMb() {
 			return heapMb;
 		}
-	}
-
-	private MemoryProcessUtils() {
 	}
 }

@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.MemoryProcessUtilsTestBase;
+import org.apache.flink.runtime.util.ProcessMemoryUtilsTestBase;
 
 import org.junit.Test;
 
@@ -38,7 +38,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link JobManagerProcessUtils}.
  */
-public class JobManagerProcessUtilsTest extends MemoryProcessUtilsTestBase<JobManagerProcessSpec> {
+public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobManagerProcessSpec> {
 	private static final MemorySize JVM_HEAP_SIZE = MemorySize.parse("1152m");
 	private static final MemorySize TOTAL_FLINK_MEM_SIZE = MemorySize.parse("1280m");
 	private static final MemorySize TOTAL_PROCESS_MEM_SIZE = MemorySize.parse("1536m");
@@ -47,6 +47,7 @@ public class JobManagerProcessUtilsTest extends MemoryProcessUtilsTestBase<JobMa
 		super(
 			JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
 			JobManagerOptions.TOTAL_FLINK_MEMORY,
+			JobManagerOptions.TOTAL_PROCESS_MEMORY,
 			JM_LEGACY_HEAP_OPTIONS,
 			JobManagerOptions.TOTAL_PROCESS_MEMORY);
 	}

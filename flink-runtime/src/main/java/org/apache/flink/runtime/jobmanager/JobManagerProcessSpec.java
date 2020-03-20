@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.MemoryProcessUtils.MemoryProcessSpec;
+import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
 
 /**
  * Describe the specifics of different resource dimensions of the JobManager process.
@@ -55,11 +55,11 @@ import org.apache.flink.runtime.util.MemoryProcessUtils.MemoryProcessSpec;
  * </pre>
  */
 public class JobManagerProcessSpec implements MemoryProcessSpec {
-	private static final long serialVersionUID = -4141398426491608399L;
+	private static final long serialVersionUID = -1L;
 
 	private final MemorySize jvmHeapSize;
 
-	private final MemorySize ofHeapMemorySize;
+	private final MemorySize offHeapMemorySize;
 
 	private final MemorySize jvmMetaspaceSize;
 
@@ -67,11 +67,11 @@ public class JobManagerProcessSpec implements MemoryProcessSpec {
 
 	JobManagerProcessSpec(
 			MemorySize jvmHeapSize,
-			MemorySize ofHeapMemorySize,
+			MemorySize offHeapMemorySize,
 			MemorySize jvmMetaspaceSize,
 			MemorySize jvmOverheadSize) {
 		this.jvmHeapSize = jvmHeapSize;
-		this.ofHeapMemorySize = ofHeapMemorySize;
+		this.offHeapMemorySize = offHeapMemorySize;
 		this.jvmMetaspaceSize = jvmMetaspaceSize;
 		this.jvmOverheadSize = jvmOverheadSize;
 	}
@@ -83,7 +83,7 @@ public class JobManagerProcessSpec implements MemoryProcessSpec {
 
 	@Override
 	public MemorySize getJvmDirectMemorySize() {
-		return ofHeapMemorySize;
+		return offHeapMemorySize;
 	}
 
 	@Override
@@ -98,7 +98,7 @@ public class JobManagerProcessSpec implements MemoryProcessSpec {
 
 	@Override
 	public MemorySize getTotalFlinkMemorySize() {
-		return jvmHeapSize.add(ofHeapMemorySize);
+		return jvmHeapSize.add(offHeapMemorySize);
 	}
 
 	@Override

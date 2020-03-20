@@ -27,59 +27,52 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-import org.apache.flink.runtime.util.MemoryProcessUtils;
-import org.apache.flink.runtime.util.MemoryProcessUtils.JvmMetaspaceAndOverhead;
-import org.apache.flink.runtime.util.MemoryProcessUtils.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.MemoryProcessUtils.LegacyHeapOptions;
-import org.apache.flink.runtime.util.MemoryProcessUtils.RangeFraction;
+import org.apache.flink.runtime.util.ProcessMemoryUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.runtime.util.MemoryProcessUtils.deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory;
-import static org.apache.flink.runtime.util.MemoryProcessUtils.deriveJvmMetaspaceAndOverheadWithTotalProcessMemory;
-import static org.apache.flink.runtime.util.MemoryProcessUtils.deriveWithFraction;
-import static org.apache.flink.runtime.util.MemoryProcessUtils.deriveWithInverseFraction;
-import static org.apache.flink.runtime.util.MemoryProcessUtils.getMemorySizeFromConfig;
-import static org.apache.flink.runtime.util.MemoryProcessUtils.getRangeFraction;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class for TaskExecutor memory configurations.
  *
  * <p>See {@link TaskExecutorProcessSpec} for details about memory components of TaskExecutor and their relationships.
  */
-public class TaskExecutorProcessUtils {
+public class TaskExecutorProcessUtils
+		extends ProcessMemoryUtils<TaskExecutorProcessSpec, TmFlinkInternalMemory> {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorProcessUtils.class);
 
 	static final JvmMetaspaceAndOverheadOptions TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS =
 		new JvmMetaspaceAndOverheadOptions(
-			TaskManagerOptions.TOTAL_PROCESS_MEMORY,
 			TaskManagerOptions.JVM_METASPACE,
 			TaskManagerOptions.JVM_OVERHEAD_MIN,
 			TaskManagerOptions.JVM_OVERHEAD_MAX,
-			TaskManagerOptions.JVM_OVERHEAD_FRACTION
-		);
+			TaskManagerOptions.JVM_OVERHEAD_FRACTION);
 
 	@SuppressWarnings("deprecation")
 	static final LegacyHeapOptions TM_LEGACY_HEAP_OPTIONS =
 		new LegacyHeapOptions(
 			"FLINK_TM_HEAP",
 			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
-			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB
-		);
+			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
 
-	private TaskExecutorProcessUtils() {}
+	private static final TaskExecutorProcessUtils INSTANCE = new TaskExecutorProcessUtils();
 
-	// ------------------------------------------------------------------------
-	//  Generating JVM Parameters
-	// ------------------------------------------------------------------------
+	private TaskExecutorProcessUtils() {
+		super(
+			Arrays.asList(TaskManagerOptions.TASK_HEAP_MEMORY, TaskManagerOptions.MANAGED_MEMORY_SIZE),
+			TaskManagerOptions.TOTAL_FLINK_MEMORY,
+			TaskManagerOptions.TOTAL_PROCESS_MEMORY,
+			TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
+			TM_LEGACY_HEAP_OPTIONS);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Generating Dynamic Config Options
@@ -140,36 +133,11 @@ public class TaskExecutorProcessUtils {
 	}
 
 	public static TaskExecutorProcessSpec processSpecFromConfig(final Configuration config) {
-		if (isTaskHeapMemorySizeExplicitlyConfigured(config) && isManagedMemorySizeExplicitlyConfigured(config)) {
-			// both task heap memory and managed memory are configured, use these to derive total flink memory
-			return deriveProcessSpecWithExplicitTaskAndManagedMemory(config);
-		} else if (isTotalFlinkMemorySizeExplicitlyConfigured(config)) {
-			// either of task heap memory and managed memory is not configured, total flink memory is configured,
-			// derive from total flink memory
-			return deriveProcessSpecWithTotalFlinkMemory(config);
-		} else if (isTotalProcessMemorySizeExplicitlyConfigured(config)) {
-			// total flink memory is not configured, total process memory is configured,
-			// derive from total process memory
-			return deriveProcessSpecWithTotalProcessMemory(config);
-		} else {
-			throw new IllegalConfigurationException(String.format("Either Task Heap Memory size (%s) and Managed Memory size (%s), or Total Flink"
-				+ " Memory size (%s), or Total Process Memory size (%s) need to be configured explicitly.",
-				TaskManagerOptions.TASK_HEAP_MEMORY.key(),
-				TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
-				TaskManagerOptions.TOTAL_FLINK_MEMORY.key(),
-				TaskManagerOptions.TOTAL_PROCESS_MEMORY.key()));
-		}
+		return INSTANCE.memoryProcessSpecFromConfig(config);
 	}
 
-	public static boolean isTaskExecutorProcessResourceExplicitlyConfigured(final Configuration config) {
-		return (isTaskHeapMemorySizeExplicitlyConfigured(config) && isManagedMemorySizeExplicitlyConfigured(config))
-			|| isTotalFlinkMemorySizeExplicitlyConfigured(config)
-			|| isTotalProcessMemorySizeExplicitlyConfigured(config);
-	}
-
-	private static TaskExecutorProcessSpec deriveProcessSpecWithExplicitTaskAndManagedMemory(final Configuration config) {
-		// derive flink internal memory from explicitly configure task heap memory size and managed memory size
-
+	@Override
+	protected TmFlinkInternalMemory deriveTotalFlinkMemoryFromInternalMemory(Configuration config) {
 		final MemorySize taskHeapMemorySize = getTaskHeapMemorySize(config);
 		final MemorySize managedMemorySize = getManagedMemorySize(config);
 
@@ -187,11 +155,11 @@ public class TaskExecutorProcessUtils {
 			if (totalFlinkExcludeNetworkMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(
 					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toHumanReadableString()
-					+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toHumanReadableString()
-					+ "), Task Heap Memory (" + taskHeapMemorySize.toHumanReadableString()
-					+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toHumanReadableString()
-					+ ") and Managed Memory (" + managedMemorySize.toHumanReadableString()
-					+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toHumanReadableString() + ").");
+						+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toHumanReadableString()
+						+ "), Task Heap Memory (" + taskHeapMemorySize.toHumanReadableString()
+						+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toHumanReadableString()
+						+ ") and Managed Memory (" + managedMemorySize.toHumanReadableString()
+						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toHumanReadableString() + ").");
 			}
 			networkMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeNetworkMemorySize);
 			sanityCheckNetworkMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, networkMemorySize, totalFlinkMemorySize);
@@ -204,7 +172,7 @@ public class TaskExecutorProcessUtils {
 			}
 		}
 
-		final FlinkInternalMemory flinkInternalMemory = new FlinkInternalMemory(
+		final TmFlinkInternalMemory flinkInternalMemory = new TmFlinkInternalMemory(
 			frameworkHeapMemorySize,
 			frameworkOffHeapMemorySize,
 			taskHeapMemorySize,
@@ -213,49 +181,11 @@ public class TaskExecutorProcessUtils {
 			managedMemorySize);
 		sanityCheckTotalFlinkMemory(config, flinkInternalMemory);
 
-		// derive jvm metaspace and overhead
-
-		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
-			config,
-			flinkInternalMemory.getTotalFlinkMemorySize(),
-			TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS);
-
-		return createTaskExecutorProcessSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return flinkInternalMemory;
 	}
 
-	private static TaskExecutorProcessSpec deriveProcessSpecWithTotalFlinkMemory(final Configuration config) {
-		// derive flink internal memory from explicitly configured total flink memory
-
-		final MemorySize totalFlinkMemorySize = getTotalFlinkMemorySize(config);
-		final FlinkInternalMemory flinkInternalMemory = deriveInternalMemoryFromTotalFlinkMemory(config, totalFlinkMemorySize);
-
-		// derive jvm metaspace and overhead
-
-		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
-			config,
-			totalFlinkMemorySize,
-			TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS);
-
-		return createTaskExecutorProcessSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
-	}
-
-	private static TaskExecutorProcessSpec deriveProcessSpecWithTotalProcessMemory(final Configuration config) {
-		// derive total flink memory from explicitly configured total process memory size
-
-		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
-			deriveJvmMetaspaceAndOverheadWithTotalProcessMemory(config, TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS);
-		MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-		MemorySize totalFlinkMemorySize = totalProcessMemorySize.subtract(
-			jvmMetaspaceAndOverhead.getTotalJvmMetaspaceAndOverheadSize());
-
-		// derive flink internal memory
-
-		final FlinkInternalMemory flinkInternalMemory = deriveInternalMemoryFromTotalFlinkMemory(config, totalFlinkMemorySize);
-
-		return createTaskExecutorProcessSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
-	}
-
-	private static FlinkInternalMemory deriveInternalMemoryFromTotalFlinkMemory(
+	@Override
+	protected TmFlinkInternalMemory deriveInternalMemoryFromTotalFlinkMemory(
 			final Configuration config,
 			final MemorySize totalFlinkMemorySize) {
 		final MemorySize frameworkHeapMemorySize = getFrameworkHeapMemorySize(config);
@@ -308,7 +238,7 @@ public class TaskExecutorProcessUtils {
 			taskHeapMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeTaskHeapMemorySize);
 		}
 
-		final FlinkInternalMemory flinkInternalMemory = new FlinkInternalMemory(
+		final TmFlinkInternalMemory flinkInternalMemory = new TmFlinkInternalMemory(
 			frameworkHeapMemorySize,
 			frameworkOffHeapMemorySize,
 			taskHeapMemorySize,
@@ -318,6 +248,34 @@ public class TaskExecutorProcessUtils {
 		sanityCheckTotalFlinkMemory(config, flinkInternalMemory);
 
 		return flinkInternalMemory;
+	}
+
+	@Override
+	protected TaskExecutorProcessSpec createMemoryProcessSpec(
+			final Configuration config,
+			final TmFlinkInternalMemory flinkInternalMemory,
+			final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+		return new TaskExecutorProcessSpec(
+			getCpuCores(config),
+			flinkInternalMemory.getFrameworkHeap(),
+			flinkInternalMemory.getFrameworkOffHeap(),
+			flinkInternalMemory.getTaskHeap(),
+			flinkInternalMemory.getTaskOffHeap(),
+			flinkInternalMemory.getNetwork(),
+			flinkInternalMemory.getManaged(),
+			jvmMetaspaceAndOverhead.getMetaspace(),
+			jvmMetaspaceAndOverhead.getOverhead());
+	}
+
+	@Override
+	protected TaskExecutorProcessSpec failIfMandatoryOptionsNotConfigured() {
+		throw new IllegalConfigurationException(String.format(
+			"Either Task Heap Memory size (%s) and Managed Memory size (%s), or Total Flink " +
+				"Memory size (%s), or Total Process Memory size (%s) need to be configured explicitly.",
+			TaskManagerOptions.TASK_HEAP_MEMORY.key(),
+			TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+			TaskManagerOptions.TOTAL_FLINK_MEMORY.key(),
+			TaskManagerOptions.TOTAL_PROCESS_MEMORY.key()));
 	}
 
 	private static MemorySize deriveManagedMemoryAbsoluteOrWithFraction(final Configuration config, final MemorySize base) {
@@ -422,10 +380,6 @@ public class TaskExecutorProcessUtils {
 			legacyConfigured;
 	}
 
-	private static boolean isJvmOverheadFractionExplicitlyConfigured(final Configuration config) {
-		return config.contains(TaskManagerOptions.JVM_OVERHEAD_FRACTION);
-	}
-
 	private static boolean isTotalFlinkMemorySizeExplicitlyConfigured(final Configuration config) {
 		return config.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY);
 	}
@@ -434,7 +388,7 @@ public class TaskExecutorProcessUtils {
 		return config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
 
-	private static void sanityCheckTotalFlinkMemory(final Configuration config, final FlinkInternalMemory flinkInternalMemory) {
+	private static void sanityCheckTotalFlinkMemory(final Configuration config, final TmFlinkInternalMemory flinkInternalMemory) {
 		if (isTotalFlinkMemorySizeExplicitlyConfigured(config)) {
 			final MemorySize configuredTotalFlinkMemorySize = getTotalFlinkMemorySize(config);
 			if (!configuredTotalFlinkMemorySize.equals(flinkInternalMemory.getTotalFlinkMemorySize())) {
@@ -442,12 +396,12 @@ public class TaskExecutorProcessUtils {
 					"Configured/Derived Flink internal memory sizes (total " + flinkInternalMemory.getTotalFlinkMemorySize().toHumanReadableString()
 						+ ") do not add up to the configured Total Flink Memory size (" + configuredTotalFlinkMemorySize.toHumanReadableString()
 						+ "). Configured/Derived Flink internal memory sizes are: "
-						+ "Framework Heap Memory (" + flinkInternalMemory.frameworkHeap.toHumanReadableString()
-						+ "), Framework Off-Heap Memory (" + flinkInternalMemory.frameworkOffHeap.toHumanReadableString()
-						+ "), Task Heap Memory (" + flinkInternalMemory.taskHeap.toHumanReadableString()
-						+ "), Task Off-Heap Memory (" + flinkInternalMemory.taskOffHeap.toHumanReadableString()
-						+ "), Network Memory (" + flinkInternalMemory.network.toHumanReadableString()
-						+ "), Managed Memory (" + flinkInternalMemory.managed.toHumanReadableString() + ").");
+						+ "Framework Heap Memory (" + flinkInternalMemory.getFrameworkHeap().toHumanReadableString()
+						+ "), Framework Off-Heap Memory (" + flinkInternalMemory.getFrameworkOffHeap().toHumanReadableString()
+						+ "), Task Heap Memory (" + flinkInternalMemory.getTaskHeap().toHumanReadableString()
+						+ "), Task Off-Heap Memory (" + flinkInternalMemory.getTaskOffHeap().toHumanReadableString()
+						+ "), Network Memory (" + flinkInternalMemory.getNetwork().toHumanReadableString()
+						+ "), Managed Memory (" + flinkInternalMemory.getManaged().toHumanReadableString() + ").");
 			}
 		}
 	}
@@ -529,57 +483,9 @@ public class TaskExecutorProcessUtils {
 		return new CPUResource(cpuCores);
 	}
 
-	private static TaskExecutorProcessSpec createTaskExecutorProcessSpec(
-			final Configuration config,
-			final FlinkInternalMemory flinkInternalMemory,
-			final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
-		return new TaskExecutorProcessSpec(
-			getCpuCores(config),
-			flinkInternalMemory.frameworkHeap,
-			flinkInternalMemory.frameworkOffHeap,
-			flinkInternalMemory.taskHeap,
-			flinkInternalMemory.taskOffHeap,
-			flinkInternalMemory.network,
-			flinkInternalMemory.managed,
-			jvmMetaspaceAndOverhead.getMetaspace(),
-			jvmMetaspaceAndOverhead.getOverhead());
-	}
-
-	private static class FlinkInternalMemory {
-		final MemorySize frameworkHeap;
-		final MemorySize frameworkOffHeap;
-		final MemorySize taskHeap;
-		final MemorySize taskOffHeap;
-		final MemorySize network;
-		final MemorySize managed;
-
-		FlinkInternalMemory(
-			final MemorySize frameworkHeap,
-			final MemorySize frameworkOffHeap,
-			final MemorySize taskHeap,
-			final MemorySize taskOffHeap,
-			final MemorySize network,
-			final MemorySize managed) {
-
-			this.frameworkHeap = checkNotNull(frameworkHeap);
-			this.frameworkOffHeap = checkNotNull(frameworkOffHeap);
-			this.taskHeap = checkNotNull(taskHeap);
-			this.taskOffHeap = checkNotNull(taskOffHeap);
-			this.network = checkNotNull(network);
-			this.managed = checkNotNull(managed);
-		}
-
-		MemorySize getTotalFlinkMemorySize() {
-			return frameworkHeap.add(frameworkOffHeap).add(taskHeap).add(taskOffHeap).add(network).add(managed);
-		}
-	}
-
 	public static Configuration getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-			Configuration configuration,
-			ConfigOption<MemorySize> configOption) {
-		return MemoryProcessUtils.getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-			configuration,
-			TM_LEGACY_HEAP_OPTIONS,
-			configOption);
+			final Configuration configuration,
+			final ConfigOption<MemorySize> configOption) {
+		return INSTANCE.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
 	}
 }

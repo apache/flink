@@ -27,7 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.util.MemoryProcessUtilsTestBase;
+import org.apache.flink.runtime.util.ProcessMemoryUtilsTestBase;
 
 import org.junit.Test;
 
@@ -47,7 +47,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link TaskExecutorProcessUtils}.
  */
-public class TaskExecutorProcessUtilsTest extends MemoryProcessUtilsTestBase<TaskExecutorProcessSpec> {
+public class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecutorProcessSpec> {
 
 	private static final MemorySize TASK_HEAP_SIZE = MemorySize.parse("100m");
 	private static final MemorySize MANAGED_MEM_SIZE = MemorySize.parse("200m");
@@ -79,6 +79,7 @@ public class TaskExecutorProcessUtilsTest extends MemoryProcessUtilsTestBase<Tas
 		super(
 			TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
 			TaskManagerOptions.TOTAL_FLINK_MEMORY,
+			TaskManagerOptions.TOTAL_PROCESS_MEMORY,
 			TM_LEGACY_HEAP_OPTIONS,
 			TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}

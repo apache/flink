@@ -29,7 +29,7 @@ import org.apache.flink.mesos.util.MesosResourceAllocation;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.runtime.util.MemoryProcessUtils;
+import org.apache.flink.runtime.util.ProcessMemoryUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.netflix.fenzo.ConstraintEvaluator;
@@ -277,7 +277,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		env.addVariables(variable(MesosConfigKeys.ENV_FLINK_CONTAINER_ID, taskInfo.getTaskId().getValue()));
 
 		// finalize the memory parameters
-		jvmArgs.append(" ").append(MemoryProcessUtils.generateJvmParametersStr(tmParams.getTaskExecutorProcessSpec()));
+		jvmArgs.append(" ").append(ProcessMemoryUtils.generateJvmParametersStr(tmParams.getTaskExecutorProcessSpec()));
 
 		// pass dynamic system properties
 		jvmArgs.append(' ').append(

@@ -154,7 +154,7 @@ public class JobManagerOptions {
 			.defaultValue(MemorySize.ofMebiBytes(128))
 			.withDescription("Off-heap Memory size for JobManager. The JVM direct memory limit of the Job Manager " +
 				"process (-XX:MaxDirectMemorySize) will be set to this value. This option covers all off-heap memory " +
-				"usage including direct and non-direct memory allocation (e.g. in native code).");
+				"usage including direct and native memory allocation.");
 
 	/**
 	 * JVM Metaspace Size for the JobManager.
@@ -164,7 +164,7 @@ public class JobManagerOptions {
 	public static final ConfigOption<MemorySize> JVM_METASPACE =
 		key("jobmanager.memory.jvm-metaspace.size")
 			.memoryType()
-			.defaultValue(MemorySize.parse("256m"))
+			.defaultValue(MemorySize.ofMebiBytes(256))
 			.withDescription("JVM Metaspace Size for the JobManager.");
 
 	private static final String JVM_OVERHEAD_DESCRIPTION = "This is off-heap memory reserved for JVM " +
@@ -182,7 +182,7 @@ public class JobManagerOptions {
 	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MIN =
 		key("jobmanager.memory.jvm-overhead.min")
 			.memoryType()
-			.defaultValue(MemorySize.parse("192m"))
+			.defaultValue(MemorySize.ofMebiBytes(192))
 			.withDescription("Min JVM Overhead size for the JobManager. " + JVM_OVERHEAD_DESCRIPTION);
 
 	/**
