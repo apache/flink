@@ -49,6 +49,17 @@ message UserDefinedFunction {
 // A list of user-defined functions to be executed in a batch.
 message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
+  // metric information of the base metric group with which we can reconstruct metric group on the
+  // Python side and users can use this base metric group to create child metric group or register
+  // metrics.
+  MetricGroupInfo base_metric_group_info = 2;
+}
+
+message MetricGroupInfo {
+  repeated string scope_components = 1;
+  map<string, string> variables = 2;
+  // use string type for better compatibility
+  string delimiter = 3;
 }
 
 // A representation of the data schema.

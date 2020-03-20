@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonStatelessFunctionRunner;
@@ -61,8 +62,9 @@ public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPyth
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		Map<String, String> jobOptions) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN, jobOptions);
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN, jobOptions, flinkMetricContainer);
 		this.tableFunction = Preconditions.checkNotNull(tableFunction);
 	}
 
