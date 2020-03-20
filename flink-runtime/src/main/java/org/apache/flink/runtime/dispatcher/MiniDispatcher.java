@@ -33,7 +33,6 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,13 +55,13 @@ public class MiniDispatcher extends Dispatcher {
 			String endpointId,
 			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
-			JobGraph jobGraph,
+			DispatcherBootstrap dispatcherBootstrap,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,
 			endpointId,
 			fencingToken,
-			Collections.singleton(jobGraph),
+			dispatcherBootstrap,
 			dispatcherServices);
 
 		this.executionMode = checkNotNull(executionMode);

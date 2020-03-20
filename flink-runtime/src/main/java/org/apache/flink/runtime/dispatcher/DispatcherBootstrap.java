@@ -18,27 +18,21 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Dispatcher implementation which spawns a {@link JobMaster} for each
- * submitted {@link JobGraph} within in the same process. This dispatcher
- * can be used as the default for all different session clusters.
+ * An interface containing the logic of bootstrapping the {@link Dispatcher} of a cluster.
  */
-public class StandaloneDispatcher extends Dispatcher {
-	public StandaloneDispatcher(
-			RpcService rpcService,
-			String endpointId,
-			DispatcherId fencingToken,
-			DispatcherBootstrap dispatcherBootstrap,
-			DispatcherServices dispatcherServices) throws Exception {
-		super(
-			rpcService,
-			endpointId,
-			fencingToken,
-			dispatcherBootstrap,
-			dispatcherServices);
-	}
+@Internal
+public interface DispatcherBootstrap {
+
+	/**
+	 * Initializes the {@link Dispatcher} provided as an argument.
+	 *
+	 * <p>IMPORTANT: In HA settings, this method will run during
+	 * the initialization of the **leader** dispatcher.
+	 *
+	 * @param dispatcher the dispatcher to be initialized.
+	 */
+	void initialize(final Dispatcher dispatcher) throws Exception;
 }
