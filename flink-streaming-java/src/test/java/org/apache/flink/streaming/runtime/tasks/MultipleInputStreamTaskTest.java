@@ -29,7 +29,6 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
@@ -412,21 +411,6 @@ public class MultipleInputStreamTaskTest {
 					output.collect(new StreamRecord<>(element.getValue().toString()));
 				}
 			}
-		}
-	}
-
-	private static class IdentityMap implements CoMapFunction<String, Integer, String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public String map1(String value) {
-			return value;
-		}
-
-		@Override
-		public String map2(Integer value) {
-
-			return value.toString();
 		}
 	}
 
