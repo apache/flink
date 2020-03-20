@@ -43,14 +43,19 @@ import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.remote.JMXConnectorServer;
-import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
+import javax.management.remote.rmi.RMIConnectorServer;
+import javax.management.remote.rmi.RMIJRMPServerImpl;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.MalformedURLException;
+import java.rmi.AccessException;
+import java.rmi.AlreadyBoundException;
 import java.rmi.NoSuchObjectException;
-import java.rmi.registry.LocateRegistry;
+import java.rmi.NotBoundException;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
@@ -481,6 +486,8 @@ public class JMXReporter implements MetricReporter {
 	private static class JMXServer {
 		private Registry rmiRegistry;
 		private JMXConnectorServer connector;
+		private Remote remoteServerStub;
+		private RMIJRMPServerImpl rmiServer;
 		private int port;
 
 		public void start(int port) throws IOException {
@@ -500,7 +507,7 @@ public class JMXReporter implements MetricReporter {
 		 * @throws IOException
 		 */
 		private void startRmiRegistry(int port) throws IOException {
-			rmiRegistry = LocateRegistry.createRegistry(port);
+			rmiRegistry = new JmxRegistry(port, "jmxrmi");
 		}
 
 		/**
@@ -518,9 +525,13 @@ public class JMXReporter implements MetricReporter {
 				throw new IllegalArgumentException("Malformed service url created " + serviceUrl, e);
 			}
 
-			connector = JMXConnectorServerFactory.newJMXConnectorServer(url, null, ManagementFactory.getPlatformMBeanServer());
+			rmiServer = new RMIJRMPServerImpl(port, null, null, null);
+
+		        // Create the connector server now.
+			connector = new RMIConnectorServer(url, null, rmiServer, ManagementFactory.getPlatformMBeanServer());
 
 			connector.start();
+			remoteServerStub = rmiServer.toStub();
 		}
 
 		public void stop() throws IOException {
@@ -539,6 +550,41 @@ public class JMXReporter implements MetricReporter {
 				} finally {
 					rmiRegistry = null;
 				}
+			}
+		}
+
+		/*
+		 * Better to use the internal API than re-invent the wheel.
+		 */
+		@SuppressWarnings("restriction")
+		private class JmxRegistry extends sun.rmi.registry.RegistryImpl {
+			private final String lookupName;
+
+			JmxRegistry(final int port, final String lookupName) throws RemoteException {
+				super(port);
+				this.lookupName = lookupName;
+			}
+
+			@Override
+			public Remote lookup(String s) throws RemoteException, NotBoundException {
+				return lookupName.equals(s) ? remoteServerStub : null;
+			}
+
+			@Override
+			public void bind(String s, Remote remote) throws RemoteException, AlreadyBoundException, AccessException {
+			}
+
+			@Override
+			public void unbind(String s) throws RemoteException, NotBoundException, AccessException {
+			}
+
+			@Override
+			public void rebind(String s, Remote remote) throws RemoteException, AccessException {
+			}
+
+			@Override
+			public String[] list() throws RemoteException {
+				return new String[] {lookupName};
 			}
 		}
 	}
