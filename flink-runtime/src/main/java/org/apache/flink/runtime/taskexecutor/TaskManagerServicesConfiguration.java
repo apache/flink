@@ -49,7 +49,7 @@ public class TaskManagerServicesConfiguration {
 
 	private final ResourceID resourceID;
 
-	private final InetAddress externalAddress;
+	private final String externalAddress;
 
 	private final InetAddress bindAddress;
 
@@ -81,7 +81,7 @@ public class TaskManagerServicesConfiguration {
 	public TaskManagerServicesConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
-			InetAddress externalAddress,
+			String externalAddress,
 			InetAddress bindAddress,
 			int externalDataPort,
 			boolean localCommunicationOnly,
@@ -132,7 +132,7 @@ public class TaskManagerServicesConfiguration {
 		return resourceID;
 	}
 
-	InetAddress getExternalAddress() {
+	String getExternalAddress() {
 		return externalAddress;
 	}
 
@@ -216,7 +216,7 @@ public class TaskManagerServicesConfiguration {
 	public static TaskManagerServicesConfiguration fromConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
-			InetAddress externalAddress,
+			String externalAddress,
 			boolean localCommunicationOnly,
 			TaskExecutorResourceSpec taskExecutorResourceSpec) throws Exception {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);

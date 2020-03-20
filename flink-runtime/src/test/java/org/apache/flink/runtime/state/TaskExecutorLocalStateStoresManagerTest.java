@@ -207,7 +207,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		return TaskManagerServicesConfiguration.fromConfiguration(
 			config,
 			ResourceID.generate(),
-			InetAddress.getLocalHost(),
+			InetAddress.getLocalHost().getHostName(),
 			true,
 			TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config));
 	}

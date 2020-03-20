@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -53,7 +53,7 @@ public class JobLeaderServiceTest extends TestLogger {
 	@Test
 	public void handlesConcurrentJobAdditionsAndLeaderChanges() throws Exception {
 		final JobLeaderService jobLeaderService = new JobLeaderService(
-			new LocalTaskManagerLocation(),
+			new LocalUnresolvedTaskManagerLocation(),
 			RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final TestingJobLeaderListener jobLeaderListener = new TestingJobLeaderListener();

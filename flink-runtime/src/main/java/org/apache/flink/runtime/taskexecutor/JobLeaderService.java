@@ -33,7 +33,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -64,7 +64,7 @@ public class JobLeaderService {
 	private static final Logger LOG = LoggerFactory.getLogger(JobLeaderService.class);
 
 	/** Self's location, used for the job manager connection. */
-	private final TaskManagerLocation ownLocation;
+	private final UnresolvedTaskManagerLocation ownLocation;
 
 	/** The leader retrieval service and listener for each registered job. */
 	private final Map<JobID, Tuple2<LeaderRetrievalService, JobLeaderService.JobManagerLeaderListener>> jobLeaderServices;
@@ -87,7 +87,7 @@ public class JobLeaderService {
 	private JobLeaderListener jobLeaderListener;
 
 	public JobLeaderService(
-			TaskManagerLocation location,
+			UnresolvedTaskManagerLocation location,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 		this.ownLocation = Preconditions.checkNotNull(location);
 		this.retryingRegistrationConfiguration = Preconditions.checkNotNull(retryingRegistrationConfiguration);
@@ -418,7 +418,7 @@ public class JobLeaderService {
 
 		private final String taskManagerRpcAddress;
 
-		private final TaskManagerLocation taskManagerLocation;
+		private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
 		JobManagerRetryingRegistration(
 				Logger log,
@@ -429,7 +429,7 @@ public class JobLeaderService {
 				JobMasterId jobMasterId,
 				RetryingRegistrationConfiguration retryingRegistrationConfiguration,
 				String taskManagerRpcAddress,
-				TaskManagerLocation taskManagerLocation) {
+				UnresolvedTaskManagerLocation unresolvedTaskManagerLocation) {
 			super(
 				log,
 				rpcService,
@@ -440,7 +440,7 @@ public class JobLeaderService {
 				retryingRegistrationConfiguration);
 
 			this.taskManagerRpcAddress = taskManagerRpcAddress;
-			this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
+			this.unresolvedTaskManagerLocation = Preconditions.checkNotNull(unresolvedTaskManagerLocation);
 		}
 
 		@Override
@@ -448,7 +448,7 @@ public class JobLeaderService {
 				JobMasterGateway gateway,
 				JobMasterId fencingToken,
 				long timeoutMillis) {
-			return gateway.registerTaskManager(taskManagerRpcAddress, taskManagerLocation, Time.milliseconds(timeoutMillis));
+			return gateway.registerTaskManager(taskManagerRpcAddress, unresolvedTaskManagerLocation, Time.milliseconds(timeoutMillis));
 		}
 	}
 

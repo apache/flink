@@ -51,7 +51,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
@@ -107,7 +107,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	private final TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer;
 
 	@Nonnull
-	private final BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction;
+	private final BiFunction<String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction;
 
 	@Nonnull
 	private final BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer;
@@ -169,7 +169,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull Consumer<ResourceManagerId> disconnectResourceManagerConsumer,
 			@Nonnull BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction,
 			@Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
-			@Nonnull BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction,
+			@Nonnull BiFunction<String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction,
 			@Nonnull BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer,
 			@Nonnull Consumer<ResourceID> resourceManagerHeartbeatConsumer,
 			@Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
@@ -262,8 +262,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public CompletableFuture<RegistrationResponse> registerTaskManager(String taskManagerRpcAddress, TaskManagerLocation taskManagerLocation, Time timeout) {
-		return registerTaskManagerFunction.apply(taskManagerRpcAddress, taskManagerLocation);
+	public CompletableFuture<RegistrationResponse> registerTaskManager(String taskManagerRpcAddress, UnresolvedTaskManagerLocation unresolvedTaskManagerLocation, Time timeout) {
+		return registerTaskManagerFunction.apply(taskManagerRpcAddress, unresolvedTaskManagerLocation);
 	}
 
 	@Override
