@@ -26,13 +26,13 @@ import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
 import java.util.function.BiConsumer;
@@ -66,8 +66,9 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		TimerService timerService,
 		BiConsumer<String, Throwable> handleAsyncException,
 		TaskMailbox taskMailbox,
-		StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor
-	) {
+		StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor,
+		StreamInputProcessor inputProcessor) {
+
 		super(environment, timerService, FatalExitExceptionHandler.INSTANCE, taskActionExecutor, taskMailbox);
 		this.name = name;
 		this.checkpointLock = checkpointLock;
@@ -79,15 +80,11 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		this.checkpointStorage = checkpointStorage;
 		this.processingTimeService = timerService;
 		this.handleAsyncException = handleAsyncException;
+		this.inputProcessor = inputProcessor;
 	}
 
 	@Override
 	public void init() {
-	}
-
-	@Override
-	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-		controller.allActionsCompleted();
 	}
 
 	@Override
