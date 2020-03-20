@@ -54,7 +54,6 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
@@ -132,7 +131,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
 			configuration,
 			executor,
-			HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		rpcService = createRpcService(configuration, highAvailabilityServices);
 
@@ -351,7 +350,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		LOG.info("Starting TaskManager with ResourceID: {}", resourceID);
 
-		InetAddress externalAddress = InetAddress.getByName(rpcService.getAddress());
+		String externalAddress = rpcService.getAddress();
 
 		final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 
@@ -365,7 +364,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		Tuple2<TaskManagerMetricGroup, MetricGroup> taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 			metricRegistry,
-			TaskManagerLocation.getHostName(externalAddress),
+			externalAddress,
 			resourceID,
 			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 

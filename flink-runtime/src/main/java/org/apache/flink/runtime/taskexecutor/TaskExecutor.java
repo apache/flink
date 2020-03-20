@@ -117,7 +117,7 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -180,7 +180,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// --------- TaskManager services --------
 
 	/** The connection information of this task manager. */
-	private final TaskManagerLocation taskManagerLocation;
+	private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
 	private final TaskManagerMetricGroup taskManagerMetricGroup;
 
@@ -269,7 +269,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
 		this.jobLeaderService = taskExecutorServices.getJobLeaderService();
-		this.taskManagerLocation = taskExecutorServices.getTaskManagerLocation();
+		this.unresolvedTaskManagerLocation = taskExecutorServices.getUnresolvedTaskManagerLocation();
 		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
 		this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
 		this.kvStateService = taskExecutorServices.getKvStateService();
@@ -283,7 +283,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerConnection = null;
 		this.currentRegistrationTimeoutId = null;
 
-		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
+		final ResourceID resourceId = taskExecutorServices.getUnresolvedTaskManagerLocation().getResourceID();
 		this.jobManagerHeartbeatManager = createJobManagerHeartbeatManager(heartbeatServices, resourceId);
 		this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices, resourceId);
 	}
@@ -1035,7 +1035,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
 			getAddress(),
 			getResourceID(),
-			taskManagerLocation.dataPort(),
+			unresolvedTaskManagerLocation.getDataPort(),
 			hardwareDescription,
 			taskManagerConfiguration.getDefaultSlotResourceProfile(),
 			taskManagerConfiguration.getTotalResourceProfile()
@@ -1652,7 +1652,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ------------------------------------------------------------------------
 
 	public ResourceID getResourceID() {
-		return taskManagerLocation.getResourceID();
+		return unresolvedTaskManagerLocation.getResourceID();
 	}
 
 	// ------------------------------------------------------------------------

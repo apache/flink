@@ -89,7 +89,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 	public static void setup() {
 		try {
 			testServer = new KvStateServerImpl(
-					InetAddress.getLocalHost(),
+					InetAddress.getLocalHost().getHostName(),
 					Collections.singletonList(0).iterator(),
 					1,
 					1,
@@ -408,7 +408,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
 		KvStateServerImpl localTestServer = new KvStateServerImpl(
-				InetAddress.getLocalHost(),
+				InetAddress.getLocalHost().getHostName(),
 				Collections.singletonList(0).iterator(),
 				1,
 				1,

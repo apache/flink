@@ -33,7 +33,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,7 +56,7 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	 * Creates the Queryable State Client Proxy.
 	 *
 	 * <p>The server is instantiated using reflection by the
-	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateClientProxy(InetAddress, Iterator, int, int, KvStateRequestStats)
+	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateClientProxy(String, Iterator, int, int, KvStateRequestStats)
 	 * QueryableStateUtils.createKvStateClientProxy(InetAddress, Iterator, int, int, KvStateRequestStats)}.
 	 *
 	 * <p>The server needs to be started via {@link #start()} in order to bind
@@ -70,7 +69,7 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	 * @param stats the statistics collector.
 	 */
 	public KvStateClientProxyImpl(
-			final InetAddress bindAddress,
+			final String bindAddress,
 			final Iterator<Integer> bindPortIterator,
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads,
