@@ -28,6 +28,9 @@ import org.apache.flink.util.Preconditions;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -47,6 +50,8 @@ public class ExecutionGraphCache implements Closeable {
 
 	private volatile boolean running = true;
 
+	private ScheduledExecutorService scheduledExecutorService;
+
 	public ExecutionGraphCache(
 			Time timeout,
 			Time timeToLive) {
@@ -54,11 +59,24 @@ public class ExecutionGraphCache implements Closeable {
 		this.timeToLive = checkNotNull(timeToLive);
 
 		cachedExecutionGraphs = new ConcurrentHashMap<>(4);
+		startCacheCleaner();
+	}
+
+	private void startCacheCleaner() {
+		long cleanupInterval = timeToLive.toMilliseconds() * 20L;
+		scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+		scheduledExecutorService.scheduleAtFixedRate(
+			this::cleanup,
+			0,
+			cleanupInterval,
+			TimeUnit.MILLISECONDS);
 	}
 
 	@Override
 	public void close() {
 		running = false;
+
+		scheduledExecutorService.shutdown();
 
 		// clear all cached AccessExecutionGraphs
 		cachedExecutionGraphs.clear();
