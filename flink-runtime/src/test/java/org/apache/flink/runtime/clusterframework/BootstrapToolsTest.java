@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
@@ -531,7 +532,7 @@ public class BootstrapToolsTest extends TestLogger {
 		Configuration testConf = new Configuration();
 		testConf.setString("containerized.master.env.LD_LIBRARY_PATH", "/usr/lib/native");
 
-		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+		Map<String, String> res = ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
 		Assert.assertEquals(1, res.size());
 		Map.Entry<String, String> entry = res.entrySet().iterator().next();
@@ -544,7 +545,7 @@ public class BootstrapToolsTest extends TestLogger {
 		Configuration testConf = new Configuration();
 		testConf.setString("containerized.master.env.", "/usr/lib/native");
 
-		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+		Map<String, String> res = ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
 		Assert.assertEquals(0, res.size());
 	}
