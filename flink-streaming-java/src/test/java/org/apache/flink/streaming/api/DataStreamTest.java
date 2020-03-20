@@ -1007,7 +1007,7 @@ public class DataStreamTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
-		assertTrue(getStreamGraph(env).getStreamNode(sink.getTransformation().getId()).getStatePartitioner1() == null);
+		assertEquals(0, getStreamGraph(env).getStreamNode(sink.getTransformation().getId()).getStatePartitioners().length);
 		assertTrue(getStreamGraph(env).getStreamNode(sink.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof ForwardPartitioner);
 
 		KeySelector<Long, Long> key1 = new KeySelector<Long, Long>() {
@@ -1022,10 +1022,10 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSink<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
 
-		assertNotNull(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
+		assertEquals(1, getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioners().length);
 		assertNotNull(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
 		assertNotNull(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
-		assertEquals(key1, getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
+		assertEquals(key1, getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioners()[0]);
 		assertTrue(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
 
 		KeySelector<Long, Long> key2 = new KeySelector<Long, Long>() {
@@ -1040,8 +1040,8 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSink<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
 
-		assertTrue(getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1() != null);
-		assertEquals(key2, getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1());
+		assertEquals(1, getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioners().length);
+		assertEquals(key2, getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioners()[0]);
 		assertTrue(getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
 	}
 

@@ -17,7 +17,12 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -28,6 +33,7 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
@@ -39,6 +45,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -80,6 +88,96 @@ public class MultipleInputITCase extends AbstractTestBase {
 		Collections.sort(result);
 		long actualSum = result.get(result.size() - 1);
 		assertEquals(1 + 10 + 2 + 11 + 42 + 44, actualSum);
+	}
+
+	@Test
+	public void testKeyedState() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		TestListResultSink<Long> resultSink = new TestListResultSink<>();
+
+		DataStream<Long> source1 = env.fromElements(0L, 3L);
+		DataStream<Long> source2 = env.fromElements(13L, 16L);
+		DataStream<Long> source3 = env.fromElements(101L, 104L);
+
+		KeyedMultipleInputTransformation<Long> transform = new KeyedMultipleInputTransformation<>(
+			"My Operator",
+			new KeyedSumMultipleInputOperatorFactory(),
+			BasicTypeInfo.LONG_TYPE_INFO,
+			1,
+			BasicTypeInfo.LONG_TYPE_INFO);
+		KeySelector<Long, Long> keySelector = (KeySelector<Long, Long>) value -> value % 3;
+
+		transform.addInput(source1.getTransformation(), keySelector);
+		transform.addInput(source2.getTransformation(), keySelector);
+		transform.addInput(source3.getTransformation(), keySelector);
+		env.addOperator(transform);
+
+		new MultipleConnectedStreams(env)
+			.transform(transform)
+			.addSink(resultSink);
+
+		env.execute();
+
+		List<Long> result = resultSink.getResult();
+		Collections.sort(result);
+		assertThat(result, contains(0L, 3L, 13L, 13L + 16L, 101L, 101L + 104L));
+	}
+
+	private static class KeyedSumMultipleInputOperator
+		extends AbstractStreamOperatorV2<Long> implements MultipleInputStreamOperator<Long> {
+
+		private ValueState<Long> sumState;
+
+		public KeyedSumMultipleInputOperator(StreamOperatorParameters<Long> parameters) {
+			super(parameters, 3);
+		}
+
+		@Override
+		public void initializeState(StateInitializationContext context) throws Exception {
+			super.initializeState(context);
+
+			sumState = context
+				.getKeyedStateStore()
+				.getState(new ValueStateDescriptor<>("sum-state", LongSerializer.INSTANCE));
+		}
+
+		@Override
+		public List<Input> getInputs() {
+			return Arrays.asList(
+				new KeyedSumInput(this, 1),
+				new KeyedSumInput(this, 2),
+				new KeyedSumInput(this, 3)
+			);
+		}
+
+		private class KeyedSumInput extends AbstractInput<Long, Long> {
+			public KeyedSumInput(AbstractStreamOperatorV2<Long> owner, int inputId) {
+				super(owner, inputId);
+			}
+
+			@Override
+			public void processElement(StreamRecord<Long> element) throws Exception {
+				if (sumState.value() == null) {
+					sumState.update(0L);
+				}
+				sumState.update(sumState.value() + element.getValue());
+				output.collect(element.replace(sumState.value()));
+			}
+		}
+	}
+
+	private static class KeyedSumMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<Long> {
+		@Override
+		public <T extends StreamOperator<Long>> T createStreamOperator(StreamOperatorParameters<Long> parameters) {
+			return (T) new KeyedSumMultipleInputOperator(parameters);
+		}
+
+		@Override
+		public Class<? extends StreamOperator<Long>> getStreamOperatorClass(ClassLoader classLoader) {
+			return KeyedSumMultipleInputOperator.class;
+		}
 	}
 
 	/**

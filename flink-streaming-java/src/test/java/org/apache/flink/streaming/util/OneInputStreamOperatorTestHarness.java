@@ -185,6 +185,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		else {
 			checkState(inputs.size() == 1);
 			Input input = inputs.get(0);
+			input.setKeyContextElement(element);
 			input.processElement(element);
 		}
 	}
