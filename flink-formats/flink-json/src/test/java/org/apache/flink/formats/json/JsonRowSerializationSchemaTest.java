@@ -114,8 +114,7 @@ public class JsonRowSerializationSchemaTest {
 			Types.PRIMITIVE_ARRAY(Types.INT));
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(schema)
 			.build();
-		JsonRowSerializationSchema serializationSchema = JsonRowSerializationSchema.builder()
-			.withTypeInfo(schema)
+		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(schema)
 			.build();
 
 		for (int i = 0; i < jsons.length; i++) {
