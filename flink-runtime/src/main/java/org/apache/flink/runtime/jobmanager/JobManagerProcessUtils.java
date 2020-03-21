@@ -20,22 +20,31 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.ProcessMemoryUtils;
+import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
+import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
+import org.apache.flink.runtime.util.config.memory.LegacyHeapOptions;
+import org.apache.flink.runtime.util.config.memory.LegacyMemoryUtils;
+import org.apache.flink.runtime.util.config.memory.ProcessMemory;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
+import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
+import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemoryUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.List;
 
 /**
  * JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args.
  */
-public final class JobManagerProcessUtils
-		extends ProcessMemoryUtils<JobManagerProcessSpec, JmFlinkInternalMemory> {
+public class JobManagerProcessUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProcessUtils.class);
+
+	static final List<ConfigOption<MemorySize>> TM_REQUIRED_FINE_GRAINED_OPTIONS =
+		Collections.singletonList(JobManagerOptions.JVM_HEAP_MEMORY);
 
 	static final JvmMetaspaceAndOverheadOptions JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS =
 		new JvmMetaspaceAndOverheadOptions(
@@ -51,77 +60,34 @@ public final class JobManagerProcessUtils
 			JobManagerOptions.JOB_MANAGER_HEAP_MEMORY,
 			JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB);
 
-	private static final JobManagerProcessUtils INSTANCE = new JobManagerProcessUtils();
+	private static final ProcessMemoryUtils<JobManagerFlinkMemory> PROCESS_MEMORY_UTILS = new ProcessMemoryUtils<>(
+		TM_REQUIRED_FINE_GRAINED_OPTIONS,
+		new JobManagerFlinkMemoryUtils(),
+		JobManagerOptions.TOTAL_FLINK_MEMORY,
+		JobManagerOptions.TOTAL_PROCESS_MEMORY,
+		JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS);
+
+	private static final LegacyMemoryUtils LEGACY_MEMORY_UTILS = new LegacyMemoryUtils(JM_LEGACY_HEAP_OPTIONS);
 
 	private JobManagerProcessUtils() {
-		super(
-			Collections.singletonList(JobManagerOptions.JVM_HEAP_MEMORY),
-			JobManagerOptions.TOTAL_FLINK_MEMORY,
-			JobManagerOptions.TOTAL_PROCESS_MEMORY,
-			JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
-			JM_LEGACY_HEAP_OPTIONS);
 	}
 
-	@Override
-	protected JmFlinkInternalMemory deriveTotalFlinkMemoryFromInternalMemory(Configuration config) {
-		MemorySize jvmHeapMemorySize = getMemorySizeFromConfig(config, JobManagerOptions.JVM_HEAP_MEMORY);
-		MemorySize offHeapMemorySize = getMemorySizeFromConfig(config, JobManagerOptions.OFF_HEAP_MEMORY);
-		MemorySize derivedTotalFlinkMemorySize = jvmHeapMemorySize.add(offHeapMemorySize);
-
-		if (config.contains(JobManagerOptions.TOTAL_FLINK_MEMORY)) {
-			// derive network memory from total flink memory, and check against network min/max
-			MemorySize totalFlinkMemorySize = getMemorySizeFromConfig(config, JobManagerOptions.TOTAL_FLINK_MEMORY);
-			if (derivedTotalFlinkMemorySize.getBytes() != totalFlinkMemorySize.getBytes()) {
-				throw new IllegalConfigurationException(String.format(
-					"Sum of the configured JVM Heap Memory (%s) and the configured or default Off-heap Memory (%s) " +
-						"exceeds the configured Total Flink Memory (%s). Please, make the configuration consistent " +
-						"or configure only one option: either JVM Heap or Total Flink Memory.",
-					jvmHeapMemorySize.toHumanReadableString(),
-					offHeapMemorySize.toHumanReadableString(),
-					totalFlinkMemorySize.toHumanReadableString()));
-			}
-		}
-
-		return new JmFlinkInternalMemory(jvmHeapMemorySize, offHeapMemorySize);
+	public static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
+		return createMemoryProcessSpec(config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
 	}
 
-	@Override
-	protected JmFlinkInternalMemory deriveInternalMemoryFromTotalFlinkMemory(
-		Configuration config,
-		MemorySize totalFlinkMemorySize) {
-		MemorySize offHeapMemorySize = getMemorySizeFromConfig(config, JobManagerOptions.OFF_HEAP_MEMORY);
-		if (totalFlinkMemorySize.compareTo(offHeapMemorySize) < 1) {
-			throw new IllegalConfigurationException(
-				"The configured Total Flink Memory (%s) is less than the configured Off-heap Memory (%s).",
-				totalFlinkMemorySize.toHumanReadableString(),
-				offHeapMemorySize.toHumanReadableString());
-		}
-		MemorySize derivedJvmHeapMemorySize = totalFlinkMemorySize.subtract(offHeapMemorySize);
-		return new JmFlinkInternalMemory(derivedJvmHeapMemorySize, offHeapMemorySize);
-	}
-
-	@Override
-	protected JobManagerProcessSpec createMemoryProcessSpec(
+	private static JobManagerProcessSpec createMemoryProcessSpec(
 			Configuration config,
-			JmFlinkInternalMemory internalMemory,
-			JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
-		verifyJvmHeapSize(internalMemory.getJvmHeap());
-		verifyJobStoreCacheSize(config, internalMemory.getJvmHeap());
+			ProcessMemory<JobManagerFlinkMemory> processMemory) {
+		JobManagerFlinkMemory flinkMemory = processMemory.getFlinkMemory();
+		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = processMemory.getJvmMetaspaceAndOverhead();
+		verifyJvmHeapSize(flinkMemory.getJvmHeap());
+		verifyJobStoreCacheSize(config, flinkMemory.getJvmHeap());
 		return new JobManagerProcessSpec(
-			internalMemory.getJvmHeap(),
-			internalMemory.getOffHeapMemory(),
+			flinkMemory.getJvmHeap(),
+			flinkMemory.getOffHeapMemory(),
 			jvmMetaspaceAndOverhead.getMetaspace(),
 			jvmMetaspaceAndOverhead.getOverhead());
-	}
-
-	@Override
-	protected JobManagerProcessSpec failIfMandatoryOptionsNotConfigured() {
-		throw new IllegalConfigurationException(String.format(
-			"Either JVM Heap Memory size (%s) or Total Flink Memory size (%s), or Total Process Memory size (%s) " +
-				"need to be configured explicitly.",
-			JobManagerOptions.JVM_HEAP_MEMORY.key(),
-			JobManagerOptions.TOTAL_FLINK_MEMORY.key(),
-			JobManagerOptions.TOTAL_PROCESS_MEMORY.key()));
 	}
 
 	private static void verifyJvmHeapSize(MemorySize jvmHeapSize) {
@@ -147,13 +113,9 @@ public final class JobManagerProcessUtils
 		}
 	}
 
-	public static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
-		return INSTANCE.memoryProcessSpecFromConfig(config);
-	}
-
 	public static Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
 			Configuration configuration,
 			ConfigOption<MemorySize> configOption) {
-		return INSTANCE.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
+		return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
 	}
 }

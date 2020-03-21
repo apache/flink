@@ -22,15 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.ProcessMemoryUtilsTestBase;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtilsTestBase;
 
 import org.junit.Test;
 
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS;
-import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_LEGACY_HEAP_OPTIONS;
-import static org.hamcrest.Matchers.containsString;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.TM_REQUIRED_FINE_GRAINED_OPTIONS;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -45,10 +43,11 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 
 	public JobManagerProcessUtilsTest() {
 		super(
-			JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
+			JobManagerProcessUtils.JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
+			TM_REQUIRED_FINE_GRAINED_OPTIONS,
 			JobManagerOptions.TOTAL_FLINK_MEMORY,
 			JobManagerOptions.TOTAL_PROCESS_MEMORY,
-			JM_LEGACY_HEAP_OPTIONS,
+			JobManagerProcessUtils.JM_LEGACY_HEAP_OPTIONS,
 			JobManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
 
@@ -87,17 +86,6 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		conf.set(JobManagerOptions.OFF_HEAP_MEMORY, offHeapMemory);
 
 		validateFail(conf);
-	}
-
-	@Test
-	public void testExceptionShouldContainRequiredConfigOptions() {
-		try {
-			JobManagerProcessUtils.processSpecFromConfig(new Configuration());
-		} catch (IllegalConfigurationException e) {
-			assertThat(e.getMessage(), containsString(JobManagerOptions.JVM_HEAP_MEMORY.key()));
-			assertThat(e.getMessage(), containsString(JobManagerOptions.TOTAL_FLINK_MEMORY.key()));
-			assertThat(e.getMessage(), containsString(JobManagerOptions.TOTAL_PROCESS_MEMORY.key()));
-		}
 	}
 
 	@Override

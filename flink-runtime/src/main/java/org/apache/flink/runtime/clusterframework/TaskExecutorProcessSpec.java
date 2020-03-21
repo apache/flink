@@ -20,7 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
+import org.apache.flink.runtime.util.config.memory.ProcessMemorySpec;
 
 /**
  * Describe the specifics of different resource dimensions of the TaskExecutor process.
@@ -72,7 +72,7 @@ import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class TaskExecutorProcessSpec implements MemoryProcessSpec {
+public class TaskExecutorProcessSpec implements ProcessMemorySpec {
 	private static final long serialVersionUID = 1L;
 
 	private final CPUResource cpuCores;

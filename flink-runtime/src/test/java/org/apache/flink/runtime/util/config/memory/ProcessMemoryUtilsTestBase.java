@@ -16,25 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.runtime.util.config.memory;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.ProcessMemoryUtils.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.ProcessMemoryUtils.LegacyHeapOptions;
-import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -44,10 +47,11 @@ import static org.junit.Assert.assertThat;
  * Base test suite for JM/TM memory calculations to test common methods in {@link ProcessMemoryUtils}.
  */
 @SuppressWarnings("AbstractClassExtendsConcreteClass")
-public abstract class ProcessMemoryUtilsTestBase<T extends MemoryProcessSpec> extends TestLogger {
+public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> extends TestLogger {
 	private static Map<String, String> oldEnvVariables;
 
 	private final JvmMetaspaceAndOverheadOptions jvmOptions;
+	private final List<ConfigOption<MemorySize>> requiredFineGrainedOptions;
 	private final ConfigOption<MemorySize> totalFlinkMemoryOption;
 	private final ConfigOption<MemorySize> totalProcessMemoryOption;
 	private final LegacyHeapOptions legacyHeapOptions;
@@ -56,15 +60,17 @@ public abstract class ProcessMemoryUtilsTestBase<T extends MemoryProcessSpec> ex
 	@SuppressWarnings("JUnitTestCaseWithNonTrivialConstructors")
 	protected ProcessMemoryUtilsTestBase(
 			JvmMetaspaceAndOverheadOptions jvmOptions,
+			List<ConfigOption<MemorySize>> requiredFineGrainedOptions,
 			ConfigOption<MemorySize> totalFlinkMemoryOption,
 			ConfigOption<MemorySize> totalProcessMemoryOption,
 			LegacyHeapOptions legacyHeapOptions,
 			ConfigOption<MemorySize> newOptionForLegacyHeapOption) {
-		this.jvmOptions = jvmOptions;
-		this.totalFlinkMemoryOption = totalFlinkMemoryOption;
-		this.totalProcessMemoryOption = totalProcessMemoryOption;
-		this.legacyHeapOptions = legacyHeapOptions;
-		this.newOptionForLegacyHeapOption = newOptionForLegacyHeapOption;
+		this.jvmOptions = checkNotNull(jvmOptions);
+		this.requiredFineGrainedOptions = checkNotNull(requiredFineGrainedOptions);
+		this.totalFlinkMemoryOption = checkNotNull(totalFlinkMemoryOption);
+		this.totalProcessMemoryOption = checkNotNull(totalProcessMemoryOption);
+		this.legacyHeapOptions = checkNotNull(legacyHeapOptions);
+		this.newOptionForLegacyHeapOption = checkNotNull(newOptionForLegacyHeapOption);
 	}
 
 	@Before
@@ -84,7 +90,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends MemoryProcessSpec> ex
 		MemorySize heap = MemorySize.ofMebiBytes(1);
 		MemorySize directMemory = MemorySize.ofMebiBytes(2);
 		MemorySize metaspace = MemorySize.ofMebiBytes(3);
-		String jvmParamsStr = ProcessMemoryUtils.generateJvmParametersStr(new JvmArgTestingMemoryProcessSpec(
+		String jvmParamsStr = ProcessMemoryUtils.generateJvmParametersStr(new JvmArgTestingProcessMemorySpec(
 			heap,
 			directMemory,
 			metaspace
@@ -117,6 +123,17 @@ public abstract class ProcessMemoryUtilsTestBase<T extends MemoryProcessSpec> ex
 
 		T processSpec = processSpecFromConfig(conf);
 		assertThat(processSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
+	}
+
+	@Test
+	public void testExceptionShouldContainRequiredConfigOptions() {
+		try {
+			JobManagerProcessUtils.processSpecFromConfig(new Configuration());
+		} catch (IllegalConfigurationException e) {
+			requiredFineGrainedOptions.forEach(option -> assertThat(e.getMessage(), containsString(option.key())));
+			assertThat(e.getMessage(), containsString(totalFlinkMemoryOption.key()));
+			assertThat(e.getMessage(), containsString(totalProcessMemoryOption.key()));
+		}
 	}
 
 	@Test
@@ -301,14 +318,14 @@ public abstract class ProcessMemoryUtilsTestBase<T extends MemoryProcessSpec> ex
 		return newOptionForLegacyHeapOption;
 	}
 
-	private static class JvmArgTestingMemoryProcessSpec implements MemoryProcessSpec {
+	private static class JvmArgTestingProcessMemorySpec implements ProcessMemorySpec {
 		private static final long serialVersionUID = 2863985135320165745L;
 
 		private final MemorySize heap;
 		private final MemorySize directMemory;
 		private final MemorySize metaspace;
 
-		private JvmArgTestingMemoryProcessSpec(MemorySize heap, MemorySize directMemory, MemorySize metaspace) {
+		private JvmArgTestingProcessMemorySpec(MemorySize heap, MemorySize directMemory, MemorySize metaspace) {
 			this.heap = heap;
 			this.directMemory = directMemory;
 			this.metaspace = metaspace;

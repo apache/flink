@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
+import org.apache.flink.runtime.util.config.memory.ProcessMemorySpec;
 
 /**
  * Describe the specifics of different resource dimensions of the JobManager process.
@@ -54,7 +54,7 @@ import org.apache.flink.runtime.util.ProcessMemoryUtils.MemoryProcessSpec;
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class JobManagerProcessSpec implements MemoryProcessSpec {
+public class JobManagerProcessSpec implements ProcessMemorySpec {
 	private static final long serialVersionUID = -1L;
 
 	private final MemorySize jvmHeapSize;

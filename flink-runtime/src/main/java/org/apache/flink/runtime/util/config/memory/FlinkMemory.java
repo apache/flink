@@ -16,35 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.util.config.memory;
 
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.ProcessMemoryUtils.FlinkInternalMemory;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Flink internal memory components of Job Manager.
+ * Memory components which constitute the Total Flink Memory.
  */
-public class JmFlinkInternalMemory implements FlinkInternalMemory {
-	private final MemorySize jvmHeap;
-	private final MemorySize offHeapMemory;
-
-	JmFlinkInternalMemory(MemorySize jvmHeap, MemorySize offHeapMemory) {
-		this.jvmHeap = checkNotNull(jvmHeap);
-		this.offHeapMemory = checkNotNull(offHeapMemory);
-	}
-
-	MemorySize getJvmHeap() {
-		return jvmHeap;
-	}
-
-	MemorySize getOffHeapMemory() {
-		return offHeapMemory;
-	}
-
-	@Override
-	public MemorySize getTotalFlinkMemorySize() {
-		return jvmHeap.add(offHeapMemory);
-	}
+@FunctionalInterface
+public interface FlinkMemory {
+	MemorySize getTotalFlinkMemorySize();
 }

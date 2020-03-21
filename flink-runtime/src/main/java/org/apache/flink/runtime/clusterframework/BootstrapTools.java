@@ -27,7 +27,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
-import org.apache.flink.runtime.util.ProcessMemoryUtils;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 

@@ -27,7 +27,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
-import org.apache.flink.runtime.util.ProcessMemoryUtils;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;

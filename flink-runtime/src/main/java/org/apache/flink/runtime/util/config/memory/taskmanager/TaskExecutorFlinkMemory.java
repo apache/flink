@@ -16,17 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework;
+package org.apache.flink.runtime.util.config.memory.taskmanager;
 
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.ProcessMemoryUtils.FlinkInternalMemory;
+import org.apache.flink.runtime.util.config.memory.FlinkMemory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Flink internal memory components of Task Executor.
  */
-public class TmFlinkInternalMemory implements FlinkInternalMemory {
+public class TaskExecutorFlinkMemory implements FlinkMemory {
 	private final MemorySize frameworkHeap;
 	private final MemorySize frameworkOffHeap;
 	private final MemorySize taskHeap;
@@ -34,7 +34,7 @@ public class TmFlinkInternalMemory implements FlinkInternalMemory {
 	private final MemorySize network;
 	private final MemorySize managed;
 
-	TmFlinkInternalMemory(
+	TaskExecutorFlinkMemory(
 		final MemorySize frameworkHeap,
 		final MemorySize frameworkOffHeap,
 		final MemorySize taskHeap,
@@ -50,19 +50,19 @@ public class TmFlinkInternalMemory implements FlinkInternalMemory {
 		this.managed = checkNotNull(managed);
 	}
 
-	MemorySize getFrameworkHeap() {
+	public MemorySize getFrameworkHeap() {
 		return frameworkHeap;
 	}
 
-	MemorySize getFrameworkOffHeap() {
+	public MemorySize getFrameworkOffHeap() {
 		return frameworkOffHeap;
 	}
 
-	MemorySize getTaskHeap() {
+	public MemorySize getTaskHeap() {
 		return taskHeap;
 	}
 
-	MemorySize getTaskOffHeap() {
+	public MemorySize getTaskOffHeap() {
 		return taskOffHeap;
 	}
 

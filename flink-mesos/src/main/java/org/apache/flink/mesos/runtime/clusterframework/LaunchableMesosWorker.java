@@ -29,7 +29,7 @@ import org.apache.flink.mesos.util.MesosResourceAllocation;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.runtime.util.ProcessMemoryUtils;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.netflix.fenzo.ConstraintEvaluator;

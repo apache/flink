@@ -27,7 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.util.ProcessMemoryUtilsTestBase;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtilsTestBase;
 
 import org.junit.Test;
 
@@ -37,6 +37,7 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS;
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_LEGACY_HEAP_OPTIONS;
+import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_REQUIRED_FINE_GRAINED_OPTIONS;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
@@ -78,6 +79,7 @@ public class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<Tas
 	public TaskExecutorProcessUtilsTest() {
 		super(
 			TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
+			TM_REQUIRED_FINE_GRAINED_OPTIONS,
 			TaskManagerOptions.TOTAL_FLINK_MEMORY,
 			TaskManagerOptions.TOTAL_PROCESS_MEMORY,
 			TM_LEGACY_HEAP_OPTIONS,
