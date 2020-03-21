@@ -238,6 +238,13 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Gets the config JobListeners
+	 */
+	public List<JobListener> getJobListeners() {
+		return jobListeners;
+	}
+
+	/**
 	 * Sets the parallelism for operations executed through this environment.
 	 * Setting a parallelism of x here will cause all operators (such as map,
 	 * batchReduce) to run with x parallel instances. This method overrides the
@@ -761,6 +768,20 @@ public class StreamExecutionEnvironment {
 			});
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
+		configuration.getOptional(ExecutionOptions.JOB_LISTENERS)
+			.ifPresent(l -> {
+				for (String listener : l) {
+					try {
+						Class<? extends JobListener> clazz =
+							Class.forName(listener, true, classLoader)
+								.asSubclass(JobListener.class);
+
+						jobListeners.add(clazz.newInstance());
+					} catch (Throwable t) {
+						throw new RuntimeException("Could not load JobListener : " + listener, t);
+					}
+				}
+			});
 	}
 
 	private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {

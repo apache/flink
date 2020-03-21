@@ -23,6 +23,7 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * {@link ConfigOption}s specific for a single execution of a user program.
@@ -55,4 +56,11 @@ public class ExecutionOptions {
 						"throughput")
 				)
 				.build());
+
+	public static final ConfigOption<List<String>> JOB_LISTENERS =
+		ConfigOptions.key("execution.job-listeners")
+			.stringType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("user can register JobListeners with configuration。And it doesn't support JobListener with constructor");
 }
