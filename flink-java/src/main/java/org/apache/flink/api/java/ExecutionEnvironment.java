@@ -65,10 +65,13 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.Visitor;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
 import org.slf4j.Logger;
@@ -396,12 +399,26 @@ public class ExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+		configuration.getOptional(DeploymentOptions.JOB_LISTENERS)
+			.ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
 		configuration.getOptional(PipelineOptions.CACHED_FILES)
 			.ifPresent(f -> {
 				this.cacheFile.clear();
 				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
 			});
 		config.configure(configuration, classLoader);
+	}
+
+	private void registerCustomListeners(final ClassLoader classLoader, final List<String> listeners) {
+		for (String listener : listeners) {
+			try {
+				final JobListener jobListener = InstantiationUtil.instantiate(
+						listener, JobListener.class, classLoader);
+				jobListeners.add(jobListener);
+			} catch (FlinkException e) {
+				throw new WrappingRuntimeException("Could not load JobListener : " + listener, e);
+			}
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

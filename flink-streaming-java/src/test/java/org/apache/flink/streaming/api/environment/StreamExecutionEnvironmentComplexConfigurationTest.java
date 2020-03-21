@@ -18,19 +18,28 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
+import java.util.List;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -96,5 +105,55 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 		assertThat(envFromConfiguration.getCachedFiles(), equalTo(Arrays.asList(
 			Tuple2.of("file3", new DistributedCache.DistributedCacheEntry("/tmp3", true))
 		)));
+	}
+
+	@Test
+	public void testLoadingListenersFromConfiguration() {
+		StreamExecutionEnvironment envFromConfiguration = StreamExecutionEnvironment.getExecutionEnvironment();
+		List<Class> listenersClass = Arrays.asList(BasicJobSubmittedCounter.class, BasicJobExecutedCounter.class);
+
+		Configuration configuration = new Configuration();
+		ConfigUtils.encodeCollectionToConfig(configuration, DeploymentOptions.JOB_LISTENERS, listenersClass, Class::getName);
+
+		// mutate config according to configuration
+		envFromConfiguration.configure(configuration, Thread.currentThread().getContextClassLoader());
+
+		assertEquals(envFromConfiguration.getJobListeners().size(), 2);
+		assertThat(envFromConfiguration.getJobListeners().get(0), instanceOf(BasicJobSubmittedCounter.class));
+		assertThat(envFromConfiguration.getJobListeners().get(1), instanceOf(BasicJobExecutedCounter.class));
+	}
+
+	/**
+	 * JobSubmitted counter listener for unit test.
+	 */
+	public static class BasicJobSubmittedCounter implements JobListener {
+		private int count = 0;
+
+		@Override
+		public void onJobSubmitted(@Nullable JobClient jobClient, @Nullable Throwable throwable) {
+			this.count = this.count + 1;
+		}
+
+		@Override
+		public void onJobExecuted(@Nullable JobExecutionResult jobExecutionResult, @Nullable Throwable throwable) {
+
+		}
+	}
+
+	/**
+	 * JobExecuted counter listener for unit test.
+	 */
+	public static class BasicJobExecutedCounter implements JobListener {
+		private int count = 0;
+
+		@Override
+		public void onJobSubmitted(@Nullable JobClient jobClient, @Nullable Throwable throwable) {
+			this.count = this.count + 1;
+		}
+
+		@Override
+		public void onJobExecuted(@Nullable JobExecutionResult jobExecutionResult, @Nullable Throwable throwable) {
+
+		}
 	}
 }
