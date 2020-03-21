@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
@@ -40,8 +40,8 @@ class GroupAggProcessFunction[K](
     private val genAggregations: GeneratedAggregationsFunction,
     private val aggregationStateType: RowTypeInfo,
     private val generateRetraction: Boolean,
-    private val queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
+    private val config: TableConfig)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](config)
     with Compiler[GeneratedAggregations]
     with Logging {
 

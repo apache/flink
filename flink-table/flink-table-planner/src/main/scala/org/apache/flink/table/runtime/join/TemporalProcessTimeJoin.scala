@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.VoidNamespace
 import org.apache.flink.streaming.api.operators.{InternalTimer, TimestampedCollector}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.CRowWrappingCollector
 import org.apache.flink.table.runtime.types.CRow
@@ -38,8 +38,8 @@ class TemporalProcessTimeJoin(
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    queryConfig: StreamQueryConfig)
-  extends BaseTwoInputStreamOperatorWithStateRetention(queryConfig)
+    config: TableConfig)
+  extends BaseTwoInputStreamOperatorWithStateRetention(config)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 

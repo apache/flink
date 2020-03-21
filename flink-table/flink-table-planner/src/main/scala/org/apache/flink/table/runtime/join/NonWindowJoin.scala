@@ -25,7 +25,7 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.aggregate.CoProcessFunctionWithCleanupState
 import org.apache.flink.table.runtime.types.CRow
@@ -48,8 +48,8 @@ abstract class NonWindowJoin(
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    queryConfig: StreamQueryConfig)
-  extends CoProcessFunctionWithCleanupState[CRow, CRow, CRow](queryConfig)
+    config: TableConfig)
+  extends CoProcessFunctionWithCleanupState[CRow, CRow, CRow](config)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 

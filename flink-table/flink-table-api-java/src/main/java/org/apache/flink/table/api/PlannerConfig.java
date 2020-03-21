@@ -20,13 +20,14 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
 import java.util.Optional;
 
 /**
  * The {@link PlannerConfig} holds parameters to configure the behavior of queries.
  */
 @PublicEvolving
-public interface PlannerConfig {
+public interface PlannerConfig extends Serializable {
 
 	PlannerConfig EMPTY_CONFIG = new PlannerConfig() {};
 

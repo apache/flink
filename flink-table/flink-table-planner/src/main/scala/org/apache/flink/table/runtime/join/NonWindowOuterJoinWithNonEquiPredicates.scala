@@ -21,7 +21,7 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
@@ -42,14 +42,14 @@ import org.apache.flink.types.Row
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
-    queryConfig: StreamQueryConfig)
+    config: TableConfig)
   extends NonWindowOuterJoin(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,
-    queryConfig) {
+    config) {
 
   // how many matched rows from the right table for each left row. Index 0 is used for left
   // stream, index 1 is used for right stream.

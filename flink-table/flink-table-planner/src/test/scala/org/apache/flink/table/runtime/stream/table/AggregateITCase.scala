@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.runtime.stream.table
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.runtime.utils.StreamITCase.RetractingSink
 import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
@@ -38,8 +37,6 @@ import scala.collection.mutable
   * Tests of groupby (without window) aggregations
   */
 class AggregateITCase extends StreamingWithStateTestBase {
-  private val queryConfig = new StreamQueryConfig()
-  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
   @Test
   def testDistinctUDAGG(): Unit = {
@@ -53,7 +50,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('e)
       .select('e, testAgg.distinct('d, 'e))
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -73,7 +70,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('e)
       .select('e, testAgg.distinct('a, 'a), testAgg('a, 'a))
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -107,7 +104,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .select('c, 'a.count.distinct, 'a.sum.distinct,
               testAgg.distinct('a, 'b), testAgg.distinct('b, 'a), testAgg('a, 'b))
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -126,7 +123,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('e)
       .select('e, 'a.count.distinct, 'b.count)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -144,7 +141,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
       .select('b, nullOf(Types.LONG)).distinct()
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -162,7 +159,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e).select('e, 'a.count).distinct()
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -180,7 +177,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
             .select('a.sum, 'b.sum)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -199,7 +196,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('b)
       .select('b, 'a.sum)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
@@ -220,7 +217,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('cnt)
       .select('cnt, 'b.count as 'freq, 'b.min as 'min, 'b.max as 'max)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
 
     results.addSink(new RetractingSink)
     env.execute()
@@ -239,7 +236,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('e, 'b % 3)
       .select('c.min, 'e, 'a.avg, 'd.count)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new RetractingSink)
     env.execute()
 
@@ -261,7 +258,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('b)
       .select('b, 'a.collect)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new RetractingSink)
     env.execute()
 
@@ -298,7 +295,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('b)
       .select('b, distinct('c), testAgg('c, 'b))
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
@@ -351,7 +348,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .aggregate(testAgg('a))
       .select('f0, 'f1, 'f2)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -372,7 +369,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .aggregate(testAgg('a))
       .select('b, 'f0, 'f1, 'f2)
 
-    val results = t.toRetractStream[Row](queryConfig)
+    val results = t.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 

@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -37,7 +36,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.sinks.TableSink;
 
 /**
  * This table environment is the entry point and central context for creating Table and SQL
@@ -556,48 +554,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	<T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo);
 
 	/**
-	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
-	 *
-	 * The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
-	 * by update or delete changes, the conversion will fail.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param clazz The class of the type of the resulting {@link DataStream}.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the resulting {@link DataStream}.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<T> toAppendStream(Table table, Class<T> clazz, StreamQueryConfig queryConfig);
-
-	/**
-	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
-	 *
-	 * The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
-	 * by update or delete changes, the conversion will fail.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param typeInfo The {@link TypeInformation} that specifies the type of the {@link DataStream}.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the resulting {@link DataStream}.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo, StreamQueryConfig queryConfig);
-
-	/**
 	 * Converts the given {@link Table} into a {@link DataStream} of add and retract messages.
 	 * The message will be encoded as {@link Tuple2}. The first field is a {@link Boolean} flag,
 	 * the second field holds the record of the specified type {@link T}.
@@ -640,50 +596,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	<T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo);
 
 	/**
-	 * Converts the given {@link Table} into a {@link DataStream} of add and retract messages.
-	 * The message will be encoded as {@link Tuple2}. The first field is a {@link Boolean} flag,
-	 * the second field holds the record of the specified type {@link T}.
-	 *
-	 * A true {@link Boolean} flag indicates an add message, a false flag indicates a retract message.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param clazz The class of the requested record type.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the requested record type.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz, StreamQueryConfig queryConfig);
-
-	/**
-	 * Converts the given {@link Table} into a {@link DataStream} of add and retract messages.
-	 * The message will be encoded as {@link Tuple2}. The first field is a {@link Boolean} flag,
-	 * the second field holds the record of the specified type {@link T}.
-	 *
-	 * A true {@link Boolean} flag indicates an add message, a false flag indicates a retract message.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param typeInfo The {@link TypeInformation} of the requested record type.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the requested record type.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo, StreamQueryConfig queryConfig);
-
-	/**
 	 * Creates a table source and/or table sink from a descriptor.
 	 *
 	 * <p>Descriptors allow for declaring the communication to external systems in an
@@ -721,48 +633,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 */
 	@Override
 	StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
-
-	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-	 * NOTE: Currently only SQL INSERT statements are supported.
-	 *
-	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
-	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
-	 * called, for example when it is embedded into a String.
-	 * Hence, SQL queries can directly reference a {@link Table} as follows:
-	 *
-	 * <pre>
-	 * {@code
-	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
-	 *   Table sourceTable = ...
-	 *   String tableName = sourceTable.toString();
-	 *   // sourceTable is not registered to the table environment
-	 *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
-	 * }
-	 * </pre>
-	 *
-	 * @param stmt The SQL statement to evaluate.
-	 * @param config The {@link QueryConfig} to use.
-	 */
-	void sqlUpdate(String stmt, StreamQueryConfig config);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
-	 *
-	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
-	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-	 *
-	 * @param table The Table to write to the sink.
-	 * @param queryConfig The {@link StreamQueryConfig} to use.
-	 * @param sinkPath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
-	 * @deprecated use {@link #insertInto(String, Table)}
-	 */
-	@Deprecated
-	void insertInto(Table table, StreamQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
 
 	/**
 	 * Triggers the program execution. The environment will execute all parts of

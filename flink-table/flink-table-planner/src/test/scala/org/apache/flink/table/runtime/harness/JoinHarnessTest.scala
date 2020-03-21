@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{TestStreamQueryConfig, TupleRowKeySelector}
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{TestTableConfig, TupleRowKeySelector}
 import org.apache.flink.table.runtime.join._
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.CRow
@@ -40,8 +40,8 @@ import org.junit.Test
   */
 class JoinHarnessTest extends HarnessTestBase {
 
-  private val queryConfig =
-    new TestStreamQueryConfig(Time.milliseconds(2), Time.milliseconds(4))
+  private val config = new TestTableConfig
+  config.setIdleStateRetentionTime(Time.milliseconds(2), Time.milliseconds(4))
 
   private val rowType = Types.ROW(
     Types.LONG,
@@ -832,7 +832,7 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCode,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -923,7 +923,7 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCode,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1020,7 +1020,7 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCode,
       true,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1132,7 +1132,7 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCodeWithNonEqualPred,
       true,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1278,7 +1278,7 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCode,
       false,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1390,7 +1390,7 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCodeWithNonEqualPred2,
       false,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1534,7 +1534,7 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCode,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1698,7 +1698,7 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCodeWithNonEqualPred2,
-      queryConfig)
+      config)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)

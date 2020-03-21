@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import org.apache.flink.table.api.dataview.DataViewSpec
-import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException}
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{AggregationCodeGenerator, GeneratedTableAggregationsFunction}
@@ -86,8 +86,6 @@ object AggregateUtil {
       inputType: RelDataType,
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
-      queryConfig: StreamQueryConfig,
-      tableConfig: TableConfig,
       rowTimeIdx: Option[Int],
       isPartitioned: Boolean,
       isRowsClause: Boolean)
@@ -98,9 +96,8 @@ object AggregateUtil {
         aggregateInputType,
         inputFieldTypeInfo.length,
         needRetraction = false,
-        tableConfig,
+        config,
         isStateBackedDataViews = true)
-
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
     val aggMapping = aggregateMetadata.getAdjustedMapping(inputType.getFieldCount)
@@ -141,7 +138,7 @@ object AggregateUtil {
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
           rowTimeIdx.get,
-          queryConfig)
+          config)
       } else {
         // RANGE unbounded over process function
         new RowTimeUnboundedRangeOver[K](
@@ -149,13 +146,13 @@ object AggregateUtil {
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
           rowTimeIdx.get,
-          queryConfig)
+          config)
       }
     } else {
       new ProcTimeUnboundedOver[K](
         genFunction,
         aggregationStateType,
-        queryConfig)
+        config)
     }
   }
 
@@ -188,7 +185,6 @@ object AggregateUtil {
       inputFieldTypes: Seq[TypeInformation[_]],
       outputType: RelDataType,
       groupings: Array[Int],
-      queryConfig: StreamQueryConfig,
       generateRetraction: Boolean,
       consumeRetraction: Boolean): KeyedProcessFunction[K, CRow, CRow] = {
 
@@ -236,7 +232,7 @@ object AggregateUtil {
         aggregationStateType,
         generateRetraction,
         groupings.length,
-        queryConfig)
+        config)
     } else {
       val genAggregations = generator
         .genAggregationsOrTableAggregations(outputType, groupings.length, namedAggregates, false)
@@ -244,7 +240,7 @@ object AggregateUtil {
         genAggregations,
         aggregationStateType,
         generateRetraction,
-        queryConfig)
+        config)
     }
   }
 
@@ -278,7 +274,6 @@ object AggregateUtil {
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       precedingOffset: Long,
-      queryConfig: StreamQueryConfig,
       isRowsClause: Boolean,
       rowTimeIdx: Option[Int])
     : KeyedProcessFunction[K, CRow, CRow] = {
@@ -332,7 +327,7 @@ object AggregateUtil {
           inputRowType,
           precedingOffset,
           rowTimeIdx.get,
-          queryConfig)
+          config)
       } else {
         new RowTimeBoundedRangeOver[K](
           genFunction,
@@ -340,7 +335,7 @@ object AggregateUtil {
           inputRowType,
           precedingOffset,
           rowTimeIdx.get,
-          queryConfig)
+          config)
       }
     } else {
       if (isRowsClause) {
@@ -349,14 +344,14 @@ object AggregateUtil {
           precedingOffset,
           aggregationStateType,
           inputRowType,
-          queryConfig)
+          config)
       } else {
         new ProcTimeBoundedRangeOver[K](
           genFunction,
           precedingOffset,
           aggregationStateType,
           inputRowType,
-          queryConfig)
+          config)
       }
     }
   }

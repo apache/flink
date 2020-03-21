@@ -21,7 +21,7 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -42,13 +42,13 @@ abstract class NonWindowOuterJoin(
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
-    queryConfig: StreamQueryConfig)
+    config: TableConfig)
   extends NonWindowJoin(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
-    queryConfig) {
+    config) {
 
   // result row, all fields from right will be null. Used for output when there is no matched rows.
   protected var leftResultRow: Row = _
