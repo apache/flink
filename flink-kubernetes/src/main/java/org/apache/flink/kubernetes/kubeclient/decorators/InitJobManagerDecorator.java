@@ -60,6 +60,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
 			.withApiVersion(API_VERSION)
 			.editOrNewMetadata()
 				.withLabels(kubernetesJobManagerParameters.getLabels())
+				.withAnnotations(kubernetesJobManagerParameters.getAnnotations())
 				.endMetadata()
 			.editOrNewSpec()
 				.withServiceAccountName(kubernetesJobManagerParameters.getServiceAccount())
