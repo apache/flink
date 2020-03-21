@@ -94,6 +94,7 @@ public class JobManagerOptions {
 	@Deprecated
 	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY_MB =
 		key("jobmanager.heap.mb")
+		.intType()
 		.defaultValue(1024)
 		.withDescription("JVM heap size (in megabytes) for the JobManager.");
 
