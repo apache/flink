@@ -29,7 +29,7 @@ import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
 import org.apache.flink.runtime.util.config.memory.LegacyHeapOptions;
 import org.apache.flink.runtime.util.config.memory.LegacyMemoryUtils;
-import org.apache.flink.runtime.util.config.memory.ProcessMemory;
+import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemoryUtils;
@@ -138,19 +138,10 @@ public class TaskExecutorProcessUtils {
 
 	private static TaskExecutorProcessSpec createMemoryProcessSpec(
 			final Configuration config,
-			final ProcessMemory<TaskExecutorFlinkMemory> processMemory) {
+			final ProcessMemorySpecBase<TaskExecutorFlinkMemory> processMemory) {
 		TaskExecutorFlinkMemory flinkMemory = processMemory.getFlinkMemory();
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = processMemory.getJvmMetaspaceAndOverhead();
-		return new TaskExecutorProcessSpec(
-			getCpuCores(config),
-			flinkMemory.getFrameworkHeap(),
-			flinkMemory.getFrameworkOffHeap(),
-			flinkMemory.getTaskHeap(),
-			flinkMemory.getTaskOffHeap(),
-			flinkMemory.getNetwork(),
-			flinkMemory.getManaged(),
-			jvmMetaspaceAndOverhead.getMetaspace(),
-			jvmMetaspaceAndOverhead.getOverhead());
+		return new TaskExecutorProcessSpec(getCpuCores(config), flinkMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static CPUResource getCpuCores(final Configuration config) {

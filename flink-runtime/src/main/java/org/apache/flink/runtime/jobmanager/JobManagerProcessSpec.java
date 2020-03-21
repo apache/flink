@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.config.memory.ProcessMemorySpec;
+import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
+import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
+import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
 
 /**
  * Describe the specifics of different resource dimensions of the JobManager process.
@@ -54,55 +55,19 @@ import org.apache.flink.runtime.util.config.memory.ProcessMemorySpec;
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class JobManagerProcessSpec implements ProcessMemorySpec {
-	private static final long serialVersionUID = -1L;
+public class JobManagerProcessSpec extends ProcessMemorySpecBase<JobManagerFlinkMemory> {
+	private static final long serialVersionUID = 1L;
 
-	private final MemorySize jvmHeapSize;
-
-	private final MemorySize offHeapMemorySize;
-
-	private final MemorySize jvmMetaspaceSize;
-
-	private final MemorySize jvmOverheadSize;
-
-	JobManagerProcessSpec(
-			MemorySize jvmHeapSize,
-			MemorySize offHeapMemorySize,
-			MemorySize jvmMetaspaceSize,
-			MemorySize jvmOverheadSize) {
-		this.jvmHeapSize = jvmHeapSize;
-		this.offHeapMemorySize = offHeapMemorySize;
-		this.jvmMetaspaceSize = jvmMetaspaceSize;
-		this.jvmOverheadSize = jvmOverheadSize;
+	JobManagerProcessSpec(JobManagerFlinkMemory flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+		super(flinkMemory, jvmMetaspaceAndOverhead);
 	}
 
 	@Override
-	public MemorySize getJvmHeapMemorySize() {
-		return jvmHeapSize;
-	}
-
-	@Override
-	public MemorySize getJvmDirectMemorySize() {
-		return offHeapMemorySize;
-	}
-
-	@Override
-	public MemorySize getJvmMetaspaceSize() {
-		return jvmMetaspaceSize;
-	}
-
-	@Override
-	public MemorySize getJvmOverheadSize() {
-		return jvmOverheadSize;
-	}
-
-	@Override
-	public MemorySize getTotalFlinkMemorySize() {
-		return jvmHeapSize.add(offHeapMemorySize);
-	}
-
-	@Override
-	public MemorySize getTotalProcessMemorySize() {
-		return getTotalFlinkMemorySize().add(jvmMetaspaceSize).add(jvmOverheadSize);
+	public String toString() {
+		return "JobManagerProcessSpec {" +
+			"jvmHeapSize=" + getJvmHeapMemorySize().toHumanReadableString() + ", " +
+			"offHeapSize=" + getJvmDirectMemorySize().toHumanReadableString() + ", " +
+			"jvmMetaspaceSize=" + getJvmMetaspaceSize().toHumanReadableString() + ", " +
+			"jvmOverheadSize=" + getJvmOverheadSize().toHumanReadableString() + '}';
 	}
 }

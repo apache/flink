@@ -18,14 +18,18 @@
 
 package org.apache.flink.runtime.util.config.memory;
 
+import org.apache.flink.configuration.MemorySize;
+
 /**
  * Process memory components.
  */
-public class ProcessMemory<IM extends FlinkMemory> {
+public class ProcessMemorySpecBase<IM extends FlinkMemory> implements ProcessMemorySpec {
+	private static final long serialVersionUID = 1L;
+
 	private final IM flinkMemory;
 	private final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead;
 
-	ProcessMemory(IM flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+	protected ProcessMemorySpecBase(IM flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
 		this.flinkMemory = flinkMemory;
 		this.jvmMetaspaceAndOverhead = jvmMetaspaceAndOverhead;
 	}
@@ -36,5 +40,32 @@ public class ProcessMemory<IM extends FlinkMemory> {
 
 	public JvmMetaspaceAndOverhead getJvmMetaspaceAndOverhead() {
 		return jvmMetaspaceAndOverhead;
+	}
+
+	@Override
+	public MemorySize getJvmHeapMemorySize() {
+		return flinkMemory.getJvmHeapMemorySize();
+	}
+
+	@Override
+	public MemorySize getJvmDirectMemorySize() {
+		return flinkMemory.getJvmDirectMemorySize();
+	}
+
+	public MemorySize getJvmMetaspaceSize() {
+		return getJvmMetaspaceAndOverhead().getMetaspace();
+	}
+
+	public MemorySize getJvmOverheadSize() {
+		return getJvmMetaspaceAndOverhead().getOverhead();
+	}
+
+	@Override
+	public MemorySize getTotalFlinkMemorySize() {
+		return flinkMemory.getTotalFlinkMemorySize();
+	}
+
+	public MemorySize getTotalProcessMemorySize() {
+		return flinkMemory.getTotalFlinkMemorySize().add(getJvmMetaspaceSize()).add(getJvmOverheadSize());
 	}
 }

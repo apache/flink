@@ -26,7 +26,7 @@ import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
 import org.apache.flink.runtime.util.config.memory.LegacyHeapOptions;
 import org.apache.flink.runtime.util.config.memory.LegacyMemoryUtils;
-import org.apache.flink.runtime.util.config.memory.ProcessMemory;
+import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemoryUtils;
@@ -78,16 +78,12 @@ public class JobManagerProcessUtils {
 
 	private static JobManagerProcessSpec createMemoryProcessSpec(
 			Configuration config,
-			ProcessMemory<JobManagerFlinkMemory> processMemory) {
+			ProcessMemorySpecBase<JobManagerFlinkMemory> processMemory) {
 		JobManagerFlinkMemory flinkMemory = processMemory.getFlinkMemory();
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = processMemory.getJvmMetaspaceAndOverhead();
-		verifyJvmHeapSize(flinkMemory.getJvmHeap());
-		verifyJobStoreCacheSize(config, flinkMemory.getJvmHeap());
-		return new JobManagerProcessSpec(
-			flinkMemory.getJvmHeap(),
-			flinkMemory.getOffHeapMemory(),
-			jvmMetaspaceAndOverhead.getMetaspace(),
-			jvmMetaspaceAndOverhead.getOverhead());
+		verifyJvmHeapSize(flinkMemory.getJvmHeapMemorySize());
+		verifyJobStoreCacheSize(config, flinkMemory.getJvmHeapMemorySize());
+		return new JobManagerProcessSpec(flinkMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static void verifyJvmHeapSize(MemorySize jvmHeapSize) {

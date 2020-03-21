@@ -20,10 +20,15 @@ package org.apache.flink.runtime.util.config.memory;
 
 import org.apache.flink.configuration.MemorySize;
 
+import java.io.Serializable;
+
 /**
  * Memory components which constitute the Total Flink Memory.
  */
-@FunctionalInterface
-public interface FlinkMemory {
+public interface FlinkMemory extends Serializable {
+	MemorySize getJvmHeapMemorySize();
+
+	MemorySize getJvmDirectMemorySize();
+
 	MemorySize getTotalFlinkMemorySize();
 }

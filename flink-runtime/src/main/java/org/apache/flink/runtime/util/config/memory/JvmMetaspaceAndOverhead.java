@@ -20,16 +20,20 @@ package org.apache.flink.runtime.util.config.memory;
 
 import org.apache.flink.configuration.MemorySize;
 
+import java.io.Serializable;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * JVM metaspace and overhead memory sizes.
  */
-public class JvmMetaspaceAndOverhead {
+public class JvmMetaspaceAndOverhead implements Serializable {
+	private static final long serialVersionUID = 1L;
+
 	private final MemorySize metaspace;
 	private final MemorySize overhead;
 
-	JvmMetaspaceAndOverhead(MemorySize jvmMetaspace, MemorySize jvmOverhead) {
+	public JvmMetaspaceAndOverhead(MemorySize jvmMetaspace, MemorySize jvmOverhead) {
 		this.metaspace = checkNotNull(jvmMetaspace);
 		this.overhead = checkNotNull(jvmOverhead);
 	}

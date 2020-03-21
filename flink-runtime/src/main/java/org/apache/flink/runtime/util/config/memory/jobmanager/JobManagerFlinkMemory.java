@@ -27,6 +27,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Flink internal memory components of Job Manager.
  */
 public class JobManagerFlinkMemory implements FlinkMemory {
+	private static final long serialVersionUID = 1L;
+
 	private final MemorySize jvmHeap;
 	private final MemorySize offHeapMemory;
 
@@ -35,11 +37,13 @@ public class JobManagerFlinkMemory implements FlinkMemory {
 		this.offHeapMemory = checkNotNull(offHeapMemory);
 	}
 
-	public MemorySize getJvmHeap() {
+	@Override
+	public MemorySize getJvmHeapMemorySize() {
 		return jvmHeap;
 	}
 
-	public MemorySize getOffHeapMemory() {
+	@Override
+	public MemorySize getJvmDirectMemorySize() {
 		return offHeapMemory;
 	}
 

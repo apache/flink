@@ -27,6 +27,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Flink internal memory components of Task Executor.
  */
 public class TaskExecutorFlinkMemory implements FlinkMemory {
+	private static final long serialVersionUID = 1L;
+
 	private final MemorySize frameworkHeap;
 	private final MemorySize frameworkOffHeap;
 	private final MemorySize taskHeap;
@@ -34,7 +36,7 @@ public class TaskExecutorFlinkMemory implements FlinkMemory {
 	private final MemorySize network;
 	private final MemorySize managed;
 
-	TaskExecutorFlinkMemory(
+	public TaskExecutorFlinkMemory(
 		final MemorySize frameworkHeap,
 		final MemorySize frameworkOffHeap,
 		final MemorySize taskHeap,
@@ -72,6 +74,16 @@ public class TaskExecutorFlinkMemory implements FlinkMemory {
 
 	public MemorySize getManaged() {
 		return managed;
+	}
+
+	@Override
+	public MemorySize getJvmHeapMemorySize() {
+		return frameworkHeap.add(taskHeap);
+	}
+
+	@Override
+	public MemorySize getJvmDirectMemorySize() {
+		return frameworkOffHeap.add(taskOffHeap).add(network);
 	}
 
 	@Override
