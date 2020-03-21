@@ -115,16 +115,6 @@ public class TaskExecutorProcessUtils {
 			.build();
 	}
 
-	public static ResourceProfile generateTotalAvailableResourceProfile(TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		return ResourceProfile.newBuilder()
-			.setCpuCores(taskExecutorProcessSpec.getCpuCores())
-			.setTaskHeapMemory(taskExecutorProcessSpec.getTaskHeapSize())
-			.setTaskOffHeapMemory(taskExecutorProcessSpec.getTaskOffHeapSize())
-			.setManagedMemory(taskExecutorProcessSpec.getManagedMemorySize())
-			.setNetworkMemory(taskExecutorProcessSpec.getNetworkMemSize())
-			.build();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Memory Configuration Calculations
 	// ------------------------------------------------------------------------
