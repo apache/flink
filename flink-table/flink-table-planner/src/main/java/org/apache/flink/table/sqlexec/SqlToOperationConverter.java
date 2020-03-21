@@ -320,7 +320,7 @@ public class SqlToOperationConverter {
 		// get name of sink table
 		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTable()).names;
 
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath.toArray(new String[0]));
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 		PlannerQueryOperation query = (PlannerQueryOperation) SqlToOperationConverter.convert(

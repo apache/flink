@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.description.Description;
 
 import java.util.List;
@@ -172,6 +173,19 @@ public class YarnConfigOptions {
 				" settings required to enable priority scheduling for the targeted YARN version.");
 
 	/**
+	 * Yarn session client uploads flink jar and user libs to file system (hdfs/s3) as local resource for yarn
+	 * application context. The replication number changes the how many replica of each of these files in hdfs/s3.
+	 * It is useful to accelerate this container bootstrap, when a Flink application needs more than one hundred
+	 * of containers. If it is not configured, Flink will use the default replication value in hadoop configuration.
+	 */
+	public static final ConfigOption<Integer> FILE_REPLICATION =
+		key("yarn.file-replication")
+			.intType()
+			.defaultValue(-1)
+			.withDescription("Number of file replication of each local resource file. If it is not configured, Flink will" +
+				" use the default replication value in hadoop configuration.");
+
+	/**
 	 * A comma-separated list of strings to use as YARN application tags.
 	 */
 	public static final ConfigOption<String> APPLICATION_TAGS =
@@ -224,6 +238,27 @@ public class YarnConfigOptions {
 				.stringType()
 				.noDefaultValue()
 				.withDescription("Specify YARN node label for the YARN application.");
+
+	public static final ConfigOption<Boolean> SHIP_LOCAL_KEYTAB =
+			key("yarn.security.kerberos.ship-local-keytab")
+					.booleanType()
+					.defaultValue(true)
+					.withDescription(
+							"When this is true Flink will ship the keytab file configured via " +
+									SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() +
+									" as a localized YARN resource.");
+
+	public static final ConfigOption<String> LOCALIZED_KEYTAB_PATH =
+			key("yarn.security.kerberos.localized-keytab-path")
+					.stringType()
+					.defaultValue("krb5.keytab")
+					.withDescription(
+							"Local (on NodeManager) path where kerberos keytab file will be" +
+									" localized to. If " + SHIP_LOCAL_KEYTAB.key() + " set to " +
+									"true, Flink willl ship the keytab file as a YARN local " +
+									"resource. In this case, the path is relative to the local " +
+									"resource directory. If set to false, Flink" +
+									" will try to directly locate the keytab from the path itself.");
 
 	// ------------------------------------------------------------------------
 

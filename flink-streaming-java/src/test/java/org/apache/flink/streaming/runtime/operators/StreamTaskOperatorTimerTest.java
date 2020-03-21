@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -78,7 +79,9 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 		assertThat(events, is(Arrays.asList(trigger, RESULT_PREFIX + "1:0", RESULT_PREFIX + "0:0")));
 	}
 
-	private static class TestOperatorFactory implements OneInputStreamOperatorFactory<String, String>, YieldingOperatorFactory<String> {
+	private static class TestOperatorFactory extends AbstractStreamOperatorFactory<String>
+		implements OneInputStreamOperatorFactory<String, String>, YieldingOperatorFactory<String> {
+
 		private MailboxExecutor mailboxExecutor;
 
 		@Override
@@ -92,17 +95,13 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 				StreamConfig config,
 				Output<StreamRecord<String>> output) {
 			TestOperator operator = new TestOperator(config.getChainIndex(), mailboxExecutor);
+			operator.setProcessingTimeService(processingTimeService);
 			operator.setup(containingTask, config, output);
 			return (Operator) operator;
 		}
 
 		@Override
 		public void setChainingStrategy(ChainingStrategy strategy) {
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return ChainingStrategy.ALWAYS;
 		}
 
 		@Override

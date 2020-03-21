@@ -42,6 +42,9 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("  SHOW   TABLES   ", new SqlCommandCall(SqlCommand.SHOW_TABLES));
 		testValidSqlCommand("SHOW FUNCTIONS", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
 		testValidSqlCommand("  SHOW    FUNCTIONS   ", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
+		testValidSqlCommand("DESC MyTable", new SqlCommandCall(SqlCommand.DESC, new String[]{"MyTable"}));
+		testValidSqlCommand("DESC         MyTable     ", new SqlCommandCall(SqlCommand.DESC, new String[]{"MyTable"}));
+		testInvalidSqlCommand("DESC  "); // no table name
 		testValidSqlCommand("DESCRIBE MyTable", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"MyTable"}));
 		testValidSqlCommand("DESCRIBE         MyTable     ", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"MyTable"}));
 		testInvalidSqlCommand("DESCRIBE  "); // no table name
@@ -83,6 +86,10 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("reset;", new SqlCommandCall(SqlCommand.RESET));
 		testValidSqlCommand("source /my/file", new SqlCommandCall(SqlCommand.SOURCE, new String[] {"/my/file"}));
 		testInvalidSqlCommand("source"); // missing path
+		testValidSqlCommand("create CATALOG c1",
+			new SqlCommandCall(SqlCommand.CREATE_CATALOG, new String[]{"create CATALOG c1"}));
+		testValidSqlCommand("create CATALOG c1 WITH ('k'='v')",
+			new SqlCommandCall(SqlCommand.CREATE_CATALOG, new String[]{"create CATALOG c1 WITH ('k'='v')"}));
 		testValidSqlCommand("USE CATALOG default", new SqlCommandCall(SqlCommand.USE_CATALOG, new String[]{"default"}));
 		testValidSqlCommand("use default", new SqlCommandCall(SqlCommand.USE, new String[] {"default"}));
 		testInvalidSqlCommand("use catalog");

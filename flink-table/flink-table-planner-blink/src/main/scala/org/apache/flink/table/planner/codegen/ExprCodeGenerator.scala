@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, req
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
-import org.apache.flink.table.planner.codegen.calls.{FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
+import org.apache.flink.table.planner.codegen.calls.{BridgingSqlFunctionCallGen, FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -41,6 +41,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.TimestampString
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConversions._
 
@@ -482,7 +483,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (o@_, _) => o.accept(this)
     }
 
-    generateCallExpression(ctx, call.getOperator, operands, resultType)
+    generateCallExpression(ctx, call, operands, resultType)
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =
@@ -498,10 +499,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   private def generateCallExpression(
       ctx: CodeGeneratorContext,
-      operator: SqlOperator,
+      call: RexCall,
       operands: Seq[GeneratedExpression],
       resultType: LogicalType): GeneratedExpression = {
-    operator match {
+    call.getOperator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
         val left = operands.head
@@ -777,24 +778,29 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case tsf: TableSqlFunction =>
         new TableFunctionCallGen(
+          call,
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
 
+      case _: BridgingSqlFunction =>
+        new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
+
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
-        StringCallGen.generateCallExpression(ctx, operator, operands, resultType).getOrElse {
-          FunctionGenerator
-            .getCallGenerator(
-              sqlOperator,
-              operands.map(expr => expr.resultType),
-              resultType)
-            .getOrElse(
-              throw new CodeGenException(s"Unsupported call: " +
-              s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
-              s"If you think this function should be supported, " +
-              s"you can create an issue and start a discussion for it."))
-            .generate(ctx, operands, resultType)
-        }
+        StringCallGen.generateCallExpression(ctx, call.getOperator, operands, resultType)
+          .getOrElse {
+            FunctionGenerator
+              .getCallGenerator(
+                sqlOperator,
+                operands.map(expr => expr.resultType),
+                resultType)
+              .getOrElse(
+                throw new CodeGenException(s"Unsupported call: " +
+                s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
+                s"If you think this function should be supported, " +
+                s"you can create an issue and start a discussion for it."))
+              .generate(ctx, operands, resultType)
+          }
 
       // unknown or invalid
       case call@_ =>

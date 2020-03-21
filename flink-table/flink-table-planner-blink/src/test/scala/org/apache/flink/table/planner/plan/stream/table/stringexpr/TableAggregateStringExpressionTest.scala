@@ -37,8 +37,8 @@ class TableAggregateStringExpressionTest extends TableTestBase {
 
     // Expression / Scala API
     val resScala = t
-      .flatAggregate(top3('a))
-      .select(Func0('f0) as 'a, 'f1 as 'b)
+      .flatAggregate(call("top3", 'a))
+      .select(call("Func0", 'f0) as 'a, 'f1 as 'b)
 
     // String / Java API
     val resJava = t
@@ -60,8 +60,8 @@ class TableAggregateStringExpressionTest extends TableTestBase {
     // Expression / Scala API
     val resScala = t
       .groupBy('b % 5)
-      .flatAggregate(top3('a))
-      .select(Func0('f0) as 'a, 'f1 as 'b)
+      .flatAggregate(call("top3", 'a))
+      .select(call("Func0", 'f0) as 'a, 'f1 as 'b)
 
     // String / Java API
     val resJava = t

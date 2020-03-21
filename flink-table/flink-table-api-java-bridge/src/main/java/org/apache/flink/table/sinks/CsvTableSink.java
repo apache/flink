@@ -158,11 +158,6 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
-		consumeDataStream(dataStream);
-	}
-
-	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		if (this.fieldNames != null || this.fieldTypes != null) {
 			throw new IllegalStateException(

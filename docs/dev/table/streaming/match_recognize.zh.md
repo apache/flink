@@ -715,7 +715,7 @@ variable. This can be expressed with two corresponding functions:
   <tbody>
   <tr>
     <td>
-      {% highlight text %}
+{% highlight text %}
 LAST(variable.field, n)
 {% endhighlight %}
     </td>
@@ -726,7 +726,7 @@ LAST(variable.field, n)
   </tr>
   <tr>
     <td>
-      {% highlight text %}
+{% highlight text %}
 FIRST(variable.field, n)
 {% endhighlight %}
     </td>

@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;

@@ -167,7 +167,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		final String logback =
 			"-Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME; // if set
 		final String log4j =
-			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
+			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME +
+				" -Dlog4j.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
 		final String mainClass = clusterDescriptor.getYarnSessionClusterEntrypoint();
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +

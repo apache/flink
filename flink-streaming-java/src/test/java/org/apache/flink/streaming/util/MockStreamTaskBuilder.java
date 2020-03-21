@@ -33,8 +33,11 @@ import org.apache.flink.streaming.api.operators.MockStreamStatusMaintainer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 
 import java.util.Collections;
 import java.util.Map;
@@ -56,6 +59,8 @@ public class MockStreamTaskBuilder {
 	private StreamTaskStateInitializer streamTaskStateInitializer;
 	private BiConsumer<String, Throwable> handleAsyncException = (message, throwable) -> { };
 	private Map<String, Accumulator<?, ?>> accumulatorMap = Collections.emptyMap();
+	private TaskMailbox taskMailbox = new TaskMailboxImpl();
+	private StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor = StreamTaskActionExecutor.synchronizedExecutor();
 
 	public MockStreamTaskBuilder(Environment environment) throws Exception {
 		this.environment = environment;
@@ -115,6 +120,16 @@ public class MockStreamTaskBuilder {
 		return this;
 	}
 
+	public MockStreamTaskBuilder setTaskMailbox(TaskMailbox taskMailbox) {
+		this.taskMailbox = taskMailbox;
+		return this;
+	}
+
+	public MockStreamTaskBuilder setTaskActionExecutor(StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor) {
+		this.taskActionExecutor = taskActionExecutor;
+		return this;
+	}
+
 	public MockStreamTask build() {
 		return new MockStreamTask(
 			environment,
@@ -128,6 +143,8 @@ public class MockStreamTaskBuilder {
 			checkpointStorage,
 			timerService,
 			handleAsyncException,
-			accumulatorMap);
+			accumulatorMap,
+			taskMailbox,
+			taskActionExecutor);
 	}
 }

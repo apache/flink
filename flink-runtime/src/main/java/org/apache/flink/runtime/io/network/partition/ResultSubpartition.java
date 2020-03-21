@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
@@ -34,6 +35,9 @@ public abstract class ResultSubpartition {
 	/** The index of the subpartition at the parent partition. */
 	protected final int index;
 
+	/** The info of the subpartition to identify it globally within a task. */
+	protected final ResultSubpartitionInfo subpartitionInfo;
+
 	/** The parent partition this subpartition belongs to. */
 	protected final ResultPartition parent;
 
@@ -42,6 +46,7 @@ public abstract class ResultSubpartition {
 	public ResultSubpartition(int index, ResultPartition parent) {
 		this.index = index;
 		this.parent = parent;
+		this.subpartitionInfo = new ResultSubpartitionInfo(parent.getPartitionIndex(), index);
 	}
 
 	/**
@@ -50,6 +55,11 @@ public abstract class ResultSubpartition {
 	 */
 	protected boolean canBeCompressed(Buffer buffer) {
 		return parent.bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
+	}
+
+	@VisibleForTesting
+	ResultSubpartitionInfo getSubpartitionInfo() {
+		return subpartitionInfo;
 	}
 
 	/**

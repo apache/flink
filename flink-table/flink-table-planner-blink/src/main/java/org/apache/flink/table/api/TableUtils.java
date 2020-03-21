@@ -154,11 +154,6 @@ public class TableUtils {
 		}
 
 		@Override
-		public void emitDataStream(DataStream<Row> dataStream) {
-			throw new UnsupportedOperationException("Deprecated method, use consumeDataStream instead");
-		}
-
-		@Override
 		public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
 			return dataStream.writeUsingOutputFormat(outputFormat).setParallelism(1).name("tableResult");
 		}

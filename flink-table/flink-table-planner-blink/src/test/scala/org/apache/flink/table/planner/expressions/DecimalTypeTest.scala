@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, Types}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral
+import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
@@ -189,6 +189,12 @@ class DecimalTypeTest extends ExpressionTestBase {
       BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
       "(123456789.123456789123456789p).cast(DOUBLE)",
       "1.2345678912345679E8")
+
+    // testing padding behaviour
+    testSqlApi(
+      "CAST(CAST(f67 AS DECIMAL(10, 5)) AS VARCHAR)",
+      "1.00000"
+    )
   }
 
   @Test

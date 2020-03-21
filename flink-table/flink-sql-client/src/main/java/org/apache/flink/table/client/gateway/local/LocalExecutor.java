@@ -35,7 +35,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -353,7 +352,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			tEnv.sqlUpdate(ddl);
+			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not create a table from statement: " + ddl, e);
 		}
@@ -364,7 +363,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			tEnv.sqlUpdate(ddl);
+			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not drop table from statement: " + ddl, e);
 		}
@@ -573,18 +572,19 @@ public class LocalExecutor implements Executor {
 			String sessionId,
 			ExecutionContext<C> context,
 			String statement) {
-		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
+
+		applyUpdate(context, statement);
 
 		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
 		if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
 			return null;
 		}
 
-		// create job graph with dependencies
+		// create pipeline
 		final String jobName = sessionId + ": " + statement;
 		final Pipeline pipeline;
 		try {
-			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
+			pipeline = context.createPipeline(jobName);
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
@@ -628,7 +628,7 @@ public class LocalExecutor implements Executor {
 						context.getQueryConfig(),
 						tableName);
 			});
-			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
+			pipeline = context.createPipeline(jobName);
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
 			// it not stored in the result store
@@ -663,7 +663,8 @@ public class LocalExecutor implements Executor {
 		return new ResultDescriptor(
 				resultId,
 				removeTimeAttributes(table.getSchema()),
-				result.isMaterialized());
+				result.isMaterialized(),
+				context.getEnvironment().getExecution().isTableauMode());
 	}
 
 	/**
@@ -682,12 +683,12 @@ public class LocalExecutor implements Executor {
 	/**
 	 * Applies the given update statement to the given table environment with query configuration.
 	 */
-	private <C> void applyUpdate(ExecutionContext<C> context, TableEnvironment tableEnv, QueryConfig queryConfig, String updateStatement) {
-		// parse and validate statement
+	private <C> void applyUpdate(ExecutionContext<C> context, String updateStatement) {
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		try {
 			context.wrapClassLoader(() -> {
 				if (tableEnv instanceof StreamTableEnvironment) {
-					((StreamTableEnvironment) tableEnv).sqlUpdate(updateStatement, (StreamQueryConfig) queryConfig);
+					((StreamTableEnvironment) tableEnv).sqlUpdate(updateStatement, (StreamQueryConfig) context.getQueryConfig());
 				} else {
 					tableEnv.sqlUpdate(updateStatement);
 				}

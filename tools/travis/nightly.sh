@@ -36,8 +36,8 @@ mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIF
 
 LOG4J_PROPERTIES=${HERE}/../log4j-travis.properties
 
-MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build"
+MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.wagon.http.pool=false -Dfast -Pskip-webui-build"
 MVN_COMPILE_OPTIONS="-DskipTests"
 
 cp tools/travis/splits/* flink-end-to-end-tests
@@ -46,7 +46,7 @@ COMMIT_HASH=$(git rev-parse HEAD)
 echo "Testing branch ${BRANCH} from remote ${REMOTE}. Commit hash: ${COMMIT_HASH}"
 
 e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
-e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')"
+e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 2 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')"
 MVN_COMPILE="mvn ${MVN_COMMON_OPTIONS} ${MVN_COMPILE_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} clean install -pl ${e2e_modules},flink-dist -am"
 
 eval "${MVN_COMPILE}"

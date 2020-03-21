@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.dataformat.vector;
 
+import org.apache.flink.table.dataformat.SqlTimestamp;
+
 /**
  * The interface for dictionary in AbstractColumnVector to decode dictionary encoded values.
  */
@@ -31,4 +33,6 @@ public interface Dictionary {
 	double decodeToDouble(int id);
 
 	byte[] decodeToBinary(int id);
+
+	SqlTimestamp decodeToTimestamp(int id);
 }

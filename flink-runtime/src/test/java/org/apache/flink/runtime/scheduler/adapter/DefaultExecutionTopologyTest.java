@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -82,7 +81,6 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		jobVertices[0].setInputDependencyConstraint(ALL);
 		jobVertices[1].setInputDependencyConstraint(ANY);
 		executionGraph = createSimpleTestGraph(
-			new JobID(),
 			taskManagerGateway,
 			triggeredRestartStrategy,
 			jobVertices);
@@ -176,7 +174,6 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		jobVertices[1].updateCoLocationGroup(coLocationGroup);
 
 		return createSimpleTestGraph(
-			new JobID(),
 			taskManagerGateway,
 			triggeredRestartStrategy,
 			jobVertices);

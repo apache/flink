@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -96,11 +97,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 			new TestInputChannel(inputGate, 1)
 		};
 
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0]);
-
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1]);
+		inputGate.setInputChannel(inputChannels[0]);
+		inputGate.setInputChannel(inputChannels[1]);
 
 		// Test
 		inputChannels[0].readBuffer();
@@ -149,7 +147,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			assertTrue(compressedBuffer.isCompressed());
 
 			inputChannel.read(compressedBuffer);
-			inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+			inputGate.setInputChannel(inputChannel);
 			inputGate.notifyChannelNonEmpty(inputChannel);
 
 			Optional<BufferOrEvent> bufferOrEvent = inputGate.getNext();
@@ -166,7 +164,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	public void testIsAvailable() throws Exception {
 		final SingleInputGate inputGate = createInputGate(1);
 		TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
-		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+		inputGate.setInputChannel(inputChannel);
 
 		testIsAvailable(inputGate, inputGate, inputChannel);
 	}
@@ -175,7 +173,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	public void testIsAvailableAfterFinished() throws Exception {
 		final SingleInputGate inputGate = createInputGate(1);
 		TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
-		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+		inputGate.setInputChannel(inputChannel);
 
 		testIsAvailableAfterFinished(
 			inputGate,
@@ -195,11 +193,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 			new TestInputChannel(inputGate, 1)
 		};
 
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0]);
-
-		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1]);
+		inputGate.setInputChannel(inputChannels[0]);
+		inputGate.setInputChannel(inputChannels[1]);
 
 		// Test
 		inputChannels[0].readBuffer();
@@ -391,6 +386,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			netEnv.getNetworkBufferPool())
 			.create(
 				"TestTask",
+				0,
 				gateDesc,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 				InputChannelTestUtils.newUnregisteredInputChannelMetrics());
@@ -627,7 +623,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		final LocalInputChannel localChannel = createLocalInputChannel(inputGate, new ResultPartitionManager());
 		final ResultPartitionID partitionId = localChannel.getPartitionId();
 
-		inputGate.setInputChannel(partitionId.getPartitionId(), localChannel);
+		inputGate.setInputChannel(localChannel);
 		localChannel.setError(new PartitionNotFoundException(partitionId));
 		try {
 			inputGate.getNext();
@@ -656,6 +652,27 @@ public class SingleInputGateTest extends InputGateTestBase {
 			}
 		} finally {
 			network.close();
+		}
+	}
+
+	@Test
+	public void testSingleInputGateInfo() {
+		final int numSingleInputGates = 2;
+		final int numInputChannels = 3;
+
+		for (int i = 0; i < numSingleInputGates; i++) {
+			final SingleInputGate gate = new SingleInputGateBuilder()
+				.setSingleInputGateIndex(i)
+				.setNumberOfChannels(numInputChannels)
+				.build();
+
+			int channelCounter = 0;
+			for (InputChannel inputChannel : gate.getInputChannels().values()) {
+				InputChannelInfo channelInfo = inputChannel.getChannelInfo();
+
+				assertEquals(i, channelInfo.getGateIdx());
+				assertEquals(channelCounter++, channelInfo.getInputChannelIdx());
+			}
 		}
 	}
 

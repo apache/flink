@@ -32,7 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.Period;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static java.util.Arrays.asList;
@@ -112,7 +112,7 @@ public class ExpressionTest {
 					DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())))
 				.toString());
 
-		final Map<String, Integer> map = new HashMap<>();
+		final Map<String, Integer> map = new LinkedHashMap<>();
 		map.put("key1", 1);
 		map.put("key2", 2);
 		map.put("key3", 3);

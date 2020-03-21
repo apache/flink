@@ -98,7 +98,7 @@ class JoinITCase extends StreamingWithStateTestBase {
       .select('a, 'b, 'c)
       .insertInto("upsertSink", queryConfig)
 
-    env.execute()
+    tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
     val retracted = RowCollector.upsertResults(results, Array(0, 1))
 
@@ -158,7 +158,7 @@ class JoinITCase extends StreamingWithStateTestBase {
       .select('a, 'b, 'c, 'd)
       .insertInto("retractSink", queryConfig)
 
-    env.execute()
+    tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
     val retracted = RowCollector.retractResults(results)
     val expected = Seq("1,1,1,1", "1,1,1,1", "1,1,1,1", "1,1,1,1", "2,2,2,2", "3,3,3,3",

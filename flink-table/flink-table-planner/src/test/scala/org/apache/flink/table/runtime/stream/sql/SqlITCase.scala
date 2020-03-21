@@ -783,6 +783,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       new InMemoryTableFactory(3).createStreamTableSink(properties))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
+    tEnv.execute("job name")
     tEnv.sqlQuery("SELECT a, e, f, t from targetTable")
       .addSink(new StreamITCase.StringSink[Row])
     env.execute()

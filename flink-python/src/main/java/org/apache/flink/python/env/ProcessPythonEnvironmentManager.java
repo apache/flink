@@ -49,7 +49,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * The ProcessPythonEnvironmentManager is used to prepare the working dir of python UDF worker and create
@@ -138,6 +137,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	@Override
 	public RunnerApi.Environment createEnvironment() throws IOException, InterruptedException {
 		Map<String, String> env = constructEnvironmentVariables();
+		ResourceUtil.extractUdfRunner(baseDirectory);
 		String pythonWorkerCommand = String.join(File.separator, baseDirectory, "pyflink-udf-runner.sh");
 
 		return Environments.createProcessEnvironment(
@@ -181,8 +181,6 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 			throws IOException, IllegalArgumentException, InterruptedException {
 		Map<String, String> env = new HashMap<>(this.systemEnv);
 
-		constructBuiltInDependencies(env);
-
 		constructFilesDirectory(env);
 
 		constructArchivesDirectory(env);
@@ -198,18 +196,6 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 			LOG.info("Python interpreter path: {}", dependencyInfo.getPythonExec());
 		}
 		return env;
-	}
-
-	private void constructBuiltInDependencies(Map<String, String> env) throws IOException, InterruptedException {
-		// Extract built-in python dependencies and udf runner script.
-		ResourceUtil.extractBuiltInDependencies(baseDirectory, "", false);
-
-		// add the built-in python dependencies to PYTHONPATH
-		List<String> builtInDependencies = Arrays.stream(ResourceUtil.BUILT_IN_PYTHON_DEPENDENCIES)
-			.filter(file -> file.endsWith(".zip"))
-			.map(file -> String.join(File.separator, baseDirectory, file))
-			.collect(Collectors.toList());
-		appendToPythonPath(env, builtInDependencies);
 	}
 
 	private void constructFilesDirectory(Map<String, String> env) throws IOException {

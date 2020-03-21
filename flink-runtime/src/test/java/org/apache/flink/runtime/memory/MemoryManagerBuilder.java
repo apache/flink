@@ -32,9 +32,7 @@ public class MemoryManagerBuilder {
 	private final Map<MemoryType, Long> memoryPools = new EnumMap<>(MemoryType.class);
 	private int pageSize = DEFAULT_PAGE_SIZE;
 
-	private MemoryManagerBuilder() {
-		memoryPools.put(MemoryType.HEAP, DEFAULT_MEMORY_SIZE);
-	}
+	private MemoryManagerBuilder() {}
 
 	public MemoryManagerBuilder setMemorySize(long memorySize) {
 		this.memoryPools.put(MemoryType.HEAP, memorySize);
@@ -52,6 +50,9 @@ public class MemoryManagerBuilder {
 	}
 
 	public MemoryManager build() {
+		if (memoryPools.isEmpty()) {
+			memoryPools.put(MemoryType.HEAP, DEFAULT_MEMORY_SIZE);
+		}
 		return new MemoryManager(memoryPools, pageSize);
 	}
 

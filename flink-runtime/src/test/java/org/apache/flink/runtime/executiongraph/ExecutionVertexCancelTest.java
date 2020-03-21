@@ -38,7 +38,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexResource;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
 import static org.junit.Assert.assertEquals;
@@ -60,7 +60,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	public void testCancelFromCreated() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -87,7 +87,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	public void testCancelFromScheduled() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -115,7 +115,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	public void testCancelFromRunning() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
+			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -150,7 +150,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 		try {
 
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
+			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -193,7 +193,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 		// this may happen when the task finished or failed while the call was in progress
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
+			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -223,7 +223,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	public void testCancelCallFails() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
+			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -280,7 +280,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	public void testScheduleOrDeployAfterCancel() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -325,7 +325,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
 			// scheduling while canceling is an illegal state transition
 			try {

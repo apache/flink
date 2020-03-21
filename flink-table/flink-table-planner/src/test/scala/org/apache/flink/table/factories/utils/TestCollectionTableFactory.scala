@@ -25,7 +25,7 @@ import org.apache.flink.api.java.io.{CollectionInputFormat, LocalCollectionOutpu
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSource}
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.TableSchema
@@ -188,7 +188,7 @@ object TestCollectionTableFactory {
       outputType.getFieldTypes
     }
 
-    override def emitDataStream(dataStream: DataStream[Row]): Unit = {
+    override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
       dataStream.addSink(new UnsafeMemorySinkFunction(outputType)).setParallelism(1)
     }
 

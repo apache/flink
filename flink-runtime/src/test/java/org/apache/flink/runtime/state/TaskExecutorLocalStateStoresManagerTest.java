@@ -21,15 +21,12 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.util.FileUtils;
@@ -208,14 +205,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
 			Configuration config) throws IOException {
-		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(TOTAL_FLINK_MEMORY_MB + "m"));
-		TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(config);
 		return TaskManagerServicesConfiguration.fromConfiguration(
 			config,
 			ResourceID.generate(),
 			InetAddress.getLocalHost(),
 			true,
-			spec);
+			TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config));
 	}
 
 	private TaskManagerServices createTaskManagerServices(

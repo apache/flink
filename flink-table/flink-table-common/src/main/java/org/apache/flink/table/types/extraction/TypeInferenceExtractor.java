@@ -21,13 +21,14 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor;
 import org.apache.flink.table.types.extraction.utils.FunctionResultTemplate;
@@ -73,11 +74,13 @@ public final class TypeInferenceExtractor {
 	/**
 	 * Extracts a type inference from a {@link ScalarFunction}.
 	 */
-	public static TypeInference forScalarFunction(DataTypeLookup lookup, Class<? extends ScalarFunction> function) {
+	public static TypeInference forScalarFunction(
+			DataTypeFactory typeFactory,
+			Class<? extends ScalarFunction> function) {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
-			lookup,
+			typeFactory,
 			function,
-			"eval",
+			UserDefinedFunctionHelper.SCALAR_EVAL,
 			createParameterSignatureExtraction(0),
 			null,
 			createReturnTypeResultExtraction(),
@@ -88,11 +91,13 @@ public final class TypeInferenceExtractor {
 	/**
 	 * Extracts a type inference from a {@link AggregateFunction}.
 	 */
-	public static TypeInference forAggregateFunction(DataTypeLookup lookup, Class<? extends AggregateFunction<?, ?>> function) {
+	public static TypeInference forAggregateFunction(
+			DataTypeFactory typeFactory,
+			Class<? extends AggregateFunction<?, ?>> function) {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
-			lookup,
+			typeFactory,
 			function,
-			"accumulate",
+			UserDefinedFunctionHelper.AGGREGATE_ACCUMULATE,
 			createParameterSignatureExtraction(1),
 			createGenericResultExtraction(AggregateFunction.class, 1),
 			createGenericResultExtraction(AggregateFunction.class, 0),
@@ -103,11 +108,13 @@ public final class TypeInferenceExtractor {
 	/**
 	 * Extracts a type inference from a {@link TableFunction}.
 	 */
-	public static TypeInference forTableFunction(DataTypeLookup lookup, Class<? extends TableFunction<?>> function) {
+	public static TypeInference forTableFunction(
+			DataTypeFactory typeFactory,
+			Class<? extends TableFunction<?>> function) {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
-			lookup,
+			typeFactory,
 			function,
-			"eval",
+			UserDefinedFunctionHelper.TABLE_EVAL,
 			createParameterSignatureExtraction(0),
 			null,
 			createGenericResultExtraction(TableFunction.class, 0),
@@ -118,11 +125,13 @@ public final class TypeInferenceExtractor {
 	/**
 	 * Extracts a type inference from a {@link TableAggregateFunction}.
 	 */
-	public static TypeInference forTableAggregateFunction(DataTypeLookup lookup, Class<? extends TableAggregateFunction<?, ?>> function) {
+	public static TypeInference forTableAggregateFunction(
+			DataTypeFactory typeFactory,
+			Class<? extends TableAggregateFunction<?, ?>> function) {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
-			lookup,
+			typeFactory,
 			function,
-			"accumulate",
+			UserDefinedFunctionHelper.TABLE_AGGREGATE_ACCUMULATE,
 			createParameterSignatureExtraction(1),
 			createGenericResultExtraction(TableAggregateFunction.class, 1),
 			createGenericResultExtraction(TableAggregateFunction.class, 0),
@@ -133,11 +142,13 @@ public final class TypeInferenceExtractor {
 	/**
 	 * Extracts a type inference from a {@link AsyncTableFunction}.
 	 */
-	public static TypeInference forAsyncTableFunction(DataTypeLookup lookup, Class<? extends AsyncTableFunction<?>> function) {
+	public static TypeInference forAsyncTableFunction(
+			DataTypeFactory typeFactory,
+			Class<? extends AsyncTableFunction<?>> function) {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
-			lookup,
+			typeFactory,
 			function,
-			"eval",
+			UserDefinedFunctionHelper.ASYNC_TABLE_EVAL,
 			createParameterSignatureExtraction(1),
 			null,
 			createGenericResultExtraction(AsyncTableFunction.class, 0),

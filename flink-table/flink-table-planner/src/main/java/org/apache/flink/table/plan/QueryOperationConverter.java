@@ -96,9 +96,9 @@ import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;

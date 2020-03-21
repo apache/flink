@@ -380,8 +380,8 @@ public class LocalExecutorITCase extends TestLogger {
 		final TableSchema actualTableSchema = executor.getTableSchema(sessionId, "TableNumber2");
 
 		final TableSchema expectedTableSchema = new TableSchema(
-			new String[]{"IntegerField2", "StringField2"},
-			new TypeInformation[]{Types.INT, Types.STRING});
+			new String[]{"IntegerField2", "StringField2", "TimestampField2"},
+			new TypeInformation[]{Types.INT, Types.STRING, Types.SQL_TIMESTAMP});
 
 		assertEquals(expectedTableSchema, actualTableSchema);
 		executor.closeSession(sessionId);
@@ -429,7 +429,7 @@ public class LocalExecutorITCase extends TestLogger {
 			// start job and retrieval
 			final ResultDescriptor desc = executor.executeQuery(
 				sessionId,
-				"SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
+				"SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1");
 
 			assertFalse(desc.isMaterialized());
 
@@ -437,12 +437,12 @@ public class LocalExecutorITCase extends TestLogger {
 				retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,27,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,57,Hello World!!!!)");
+			expectedResults.add("(true,47,Hello World,ABC)");
+			expectedResults.add("(true,27,Hello World,ABC)");
+			expectedResults.add("(true,37,Hello World,ABC)");
+			expectedResults.add("(true,37,Hello World,ABC)");
+			expectedResults.add("(true,47,Hello World,ABC)");
+			expectedResults.add("(true,57,Hello World!!!!,ABC)");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
@@ -507,15 +507,15 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 
-		final String query = "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1";
+		final String query = "SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1";
 
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("47,Hello World");
-		expectedResults.add("27,Hello World");
-		expectedResults.add("37,Hello World");
-		expectedResults.add("37,Hello World");
-		expectedResults.add("47,Hello World");
-		expectedResults.add("57,Hello World!!!!");
+		expectedResults.add("47,Hello World,ABC");
+		expectedResults.add("27,Hello World,ABC");
+		expectedResults.add("37,Hello World,ABC");
+		expectedResults.add("37,Hello World,ABC");
+		expectedResults.add("47,Hello World,ABC");
+		expectedResults.add("57,Hello World!!!!,ABC");
 
 		executeStreamQueryTable(replaceVars, query, expectedResults);
 	}
@@ -596,19 +596,19 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		try {
-			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT *, 'ABC' FROM TestView1");
 
 			assertTrue(desc.isMaterialized());
 
 			final List<String> actualResults = retrieveTableResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("47");
-			expectedResults.add("27");
-			expectedResults.add("37");
-			expectedResults.add("37");
-			expectedResults.add("47");
-			expectedResults.add("57");
+			expectedResults.add("47,ABC");
+			expectedResults.add("27,ABC");
+			expectedResults.add("37,ABC");
+			expectedResults.add("37,ABC");
+			expectedResults.add("47,ABC");
+			expectedResults.add("57,ABC");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
@@ -782,11 +782,12 @@ public class LocalExecutorITCase extends TestLogger {
 		try {
 			// Case 1: Registered sink
 			// Case 1.1: Registered sink with uppercase insert into keyword.
-			final String statement1 = "INSERT INTO TableSourceSink SELECT IntegerField1 = 42, StringField1 FROM TableNumber1";
+			final String statement1 = "INSERT INTO TableSourceSink SELECT IntegerField1 = 42," +
+					" StringField1, TimestampField1 FROM TableNumber1";
 			executeAndVerifySinkResult(executor, sessionId, statement1, csvOutputPath);
 			// Case 1.2: Registered sink with lowercase insert into keyword.
 			final String statement2 = "insert Into TableSourceSink \n "
-					+ "SELECT IntegerField1 = 42, StringField1 "
+					+ "SELECT IntegerField1 = 42, StringField1, TimestampField1 "
 					+ "FROM TableNumber1";
 			executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 			// Case 1.3: Execute the same statement again, the results should expect to be the same.
@@ -1153,12 +1154,12 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> actualResults = new ArrayList<>();
 		TestBaseUtils.readAllResultLines(actualResults, path);
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("true,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("true,Hello World");
-		expectedResults.add("false,Hello World!!!!");
+		expectedResults.add("true,Hello World,2020-01-01 00:00:01.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:02.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:03.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:04.0");
+		expectedResults.add("true,Hello World,2020-01-01 00:00:05.0");
+		expectedResults.add("false,Hello World!!!!,2020-01-01 00:00:06.0");
 		TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 	}
 

@@ -38,7 +38,7 @@ case class Cast(child: PlannerExpression, resultType: TypeInformation[_])
       fromTypeInfoToLogicalType(resultType))) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Unsupported cast from ${child.resultType} to $resultType")
+      ValidationFailure(s"Unsupported cast from '${child.resultType}' to '$resultType'")
     }
   }
 }

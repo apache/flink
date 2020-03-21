@@ -152,9 +152,14 @@ object FlinkRuleSets {
     // Rule that splits python ScalarFunctions from
     // java/scala ScalarFunctions in correlate conditions
     SplitPythonConditionFromCorrelateRule.INSTANCE,
+    // Rule that transpose the conditions after the Python correlate node.
+    CalcPythonCorrelateTransposeRule.INSTANCE,
+    // Rule that splits java calls from python TableFunction
+    PythonCorrelateSplitRule.INSTANCE,
     CalcMergeRule.INSTANCE,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
+    PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
   )
@@ -196,6 +201,7 @@ object FlinkRuleSets {
     DataSetAggregateRule.INSTANCE,
     DataSetDistinctRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
+    DataSetPythonCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetSingleRowJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
@@ -250,7 +256,8 @@ object FlinkRuleSets {
     DataStreamMatchRule.INSTANCE,
     DataStreamTableAggregateRule.INSTANCE,
     DataStreamGroupWindowTableAggregateRule.INSTANCE,
-    DataStreamPythonCalcRule.INSTANCE
+    DataStreamPythonCalcRule.INSTANCE,
+    DataStreamPythonCorrelateRule.INSTANCE
   )
 
   /**

@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDef
 import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
 import org.apache.flink.util.Preconditions.checkState
-
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptSchema}
@@ -38,6 +37,7 @@ import org.apache.calcite.rel.{BiRel, RelNode, SingleRel}
 import org.apache.calcite.rel.core.{JoinRelType, TableFunctionScan}
 import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 /**
   * The initial temporal TableFunction join (LATERAL TemporalTableFunction(o.proctime)) is
@@ -188,16 +188,17 @@ class GetTemporalTableFunctionCall(
   }
 
   override def visitCall(rexCall: RexCall): TemporalTableFunctionCall = {
-    if (!rexCall.getOperator.isInstanceOf[TableSqlFunction]) {
-      return null
+    val functionDefinition = rexCall.getOperator match {
+      case tsf: TableSqlFunction => tsf.udtf
+      case bsf: BridgingSqlFunction => bsf.getDefinition
+      case _ => return null
     }
-    val tableFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
 
-    if (!tableFunction.udtf.isInstanceOf[TemporalTableFunction]) {
+    if (!functionDefinition.isInstanceOf[TemporalTableFunction]) {
       return null
     }
     val temporalTableFunction =
-      tableFunction.udtf.asInstanceOf[TemporalTableFunctionImpl]
+      functionDefinition.asInstanceOf[TemporalTableFunctionImpl]
 
     checkState(
       rexCall.getOperands.size().equals(1),

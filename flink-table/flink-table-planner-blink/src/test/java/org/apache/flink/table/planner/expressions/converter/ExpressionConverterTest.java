@@ -22,12 +22,12 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.plan.metadata.MetadataTestUtil;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.ConventionTraitDef;
@@ -46,9 +46,7 @@ import java.util.Arrays;
 public class ExpressionConverterTest {
 
 	private final TableConfig tableConfig = new TableConfig();
-	private final CatalogManager catalogManager = new CatalogManager(
-			"default_catalog",
-			new GenericInMemoryCatalog("default_catalog", "default_database"));
+	private final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 	private final PlannerContext plannerContext = new PlannerContext(
 			tableConfig,
 			new FunctionCatalog(tableConfig, catalogManager, new ModuleManager()),
@@ -61,7 +59,9 @@ public class ExpressionConverterTest {
 			)
 	);
 	private final ExpressionConverter converter = new ExpressionConverter(
-			plannerContext.createRelBuilder("default_catalog", "default_database"));
+		plannerContext.createRelBuilder(
+			CatalogManagerMocks.DEFAULT_CATALOG,
+			CatalogManagerMocks.DEFAULT_DATABASE));
 
 	@Test
 	public void testLiteral() {

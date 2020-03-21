@@ -38,7 +38,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
-			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -139,11 +138,10 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
-				<version>3.0.1</version>
 				<executions>
 					<execution>
 						<id>copy</id>
-						<phase>process-test-resources</phase>
+						<phase>pre-integration-test</phase>
 						<goals>
 							<goal>copy</goal>
 						</goals>
