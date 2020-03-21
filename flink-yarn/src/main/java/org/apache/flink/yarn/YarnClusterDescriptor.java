@@ -694,7 +694,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				: jobGraph.getUserJars().stream().map(f -> f.toUri()).map(File::new).collect(Collectors.toSet());
 
 		int yarnFileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
-		int fileReplication = flinkConfiguration.getInteger(YarnConfigOptions.FILE_REPLICATION);
+		int fileReplication = configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
 		fileReplication = fileReplication > 0 ? fileReplication : yarnFileReplication;
 
 		// only for per job mode
@@ -789,6 +789,41 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		paths.add(remotePathJar);
 		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
 
+		// write job graph to tmp file and add it to local resource
+		// TODO: server use user main method to generate job graph
+		if (jobGraph != null) {
+			File tmpJobGraphFile = null;
+			try {
+				tmpJobGraphFile = File.createTempFile(appId.toString(), null);
+				try (FileOutputStream output = new FileOutputStream(tmpJobGraphFile);
+					ObjectOutputStream obOutput = new ObjectOutputStream(output)) {
+					obOutput.writeObject(jobGraph);
+				}
+
+				final String jobGraphFilename = "job.graph";
+				configuration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
+
+				Path pathFromYarnURL = setupSingleLocalResource(
+						jobGraphFilename,
+						fs,
+						appId,
+						new Path(tmpJobGraphFile.toURI()),
+						localResources,
+						homeDir,
+						"",
+						fileReplication);
+				paths.add(pathFromYarnURL);
+				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
+			} catch (Exception e) {
+				LOG.warn("Add job graph to local resource fail.");
+				throw e;
+			} finally {
+				if (tmpJobGraphFile != null && !tmpJobGraphFile.delete()) {
+					LOG.warn("Fail to delete temporary file {}.", tmpJobGraphFile.toPath());
+				}
+			}
+		}
+
 		// Upload the flink configuration
 		// write out configuration file
 		File tmpConfigurationFile = null;
@@ -818,41 +853,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.LAST) {
 			for (String userClassPath : userClassPaths) {
 				classPathBuilder.append(userClassPath).append(File.pathSeparator);
-			}
-		}
-
-		// write job graph to tmp file and add it to local resource
-		// TODO: server use user main method to generate job graph
-		if (jobGraph != null) {
-			File tmpJobGraphFile = null;
-			try {
-				tmpJobGraphFile = File.createTempFile(appId.toString(), null);
-				try (FileOutputStream output = new FileOutputStream(tmpJobGraphFile);
-					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
-					obOutput.writeObject(jobGraph);
-				}
-
-				final String jobGraphFilename = "job.graph";
-				flinkConfiguration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
-
-				Path pathFromYarnURL = setupSingleLocalResource(
-						jobGraphFilename,
-						fs,
-						appId,
-						new Path(tmpJobGraphFile.toURI()),
-						localResources,
-						homeDir,
-						"",
-						fileReplication);
-				paths.add(pathFromYarnURL);
-				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
-			} catch (Exception e) {
-				LOG.warn("Add job graph to local resource fail");
-				throw e;
-			} finally {
-				if (tmpJobGraphFile != null && !tmpJobGraphFile.delete()) {
-					LOG.warn("Fail to delete temporary file {}.", tmpJobGraphFile.toPath());
-				}
 			}
 		}
 
