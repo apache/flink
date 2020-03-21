@@ -58,6 +58,13 @@ public interface KubernetesParameters {
 	Map<String, String> getEnvironments();
 
 	/**
+	 *	A map of user-specified annotations that are set to the JobManager and TaskManager pods.
+	 *
+	 * @return a map of annotations or null if not set.
+	 */
+	Map<String, String> getAnnotations();
+
+	/**
 	 * Directory in Pod that stores the flink-conf.yaml, log4j.properties, and the logback.xml.
 	 */
 	String getFlinkConfDirInPod();

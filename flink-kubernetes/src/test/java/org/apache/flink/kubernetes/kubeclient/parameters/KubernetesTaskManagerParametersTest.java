@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -32,7 +33,11 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 /**
  * General tests for the {@link KubernetesTaskManagerParameters}.
@@ -53,11 +58,11 @@ public class KubernetesTaskManagerParametersTest {
 		}
 	};
 
+	private Configuration flinkConfig = new Configuration();
 	private KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
 
 	@Before
 	public void setup() {
-		final Configuration flinkConfig = new Configuration();
 		flinkConfig.set(TaskManagerOptions.CPU_CORES, TASK_MANAGER_CPU);
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TASK_MANAGER_MEMORY + "m"));
 		flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
@@ -81,6 +86,24 @@ public class KubernetesTaskManagerParametersTest {
 	@Test
 	public void testGetEnvironments() {
 		assertEquals(customizedEnvs, kubernetesTaskManagerParameters.getEnvironments());
+	}
+
+	@Test
+	public void testGetNullAnnotations() {
+		assertNull(kubernetesTaskManagerParameters.getAnnotations());
+	}
+
+	@Test
+	public void testGetAnnotations() {
+		final Map<String, String> expectedAnnotations = new HashMap<>();
+		expectedAnnotations.put("a1", "v1");
+		expectedAnnotations.put("a2", "v2");
+
+		flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS, expectedAnnotations);
+
+		final Map<String, String> resultAnnotations = kubernetesTaskManagerParameters.getAnnotations();
+
+		assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
 	}
 
 	@Test

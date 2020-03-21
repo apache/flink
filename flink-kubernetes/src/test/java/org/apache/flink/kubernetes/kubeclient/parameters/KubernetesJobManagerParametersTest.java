@@ -34,7 +34,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -69,6 +72,24 @@ public class KubernetesJobManagerParametersTest {
 		final Map<String, String> resultEnvironments = kubernetesJobManagerParameters.getEnvironments();
 
 		assertEquals(expectedEnvironments, resultEnvironments);
+	}
+
+	@Test
+	public void testGetNullAnnotations() {
+		assertNull(kubernetesJobManagerParameters.getAnnotations());
+	}
+
+	@Test
+	public void testGetAnnotations() {
+		final Map<String, String> expectedAnnotations = new HashMap<>();
+		expectedAnnotations.put("a1", "v1");
+		expectedAnnotations.put("a2", "v2");
+
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, expectedAnnotations);
+
+		final Map<String, String> resultAnnotations = kubernetesJobManagerParameters.getAnnotations();
+
+		assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
 	}
 
 	@Test

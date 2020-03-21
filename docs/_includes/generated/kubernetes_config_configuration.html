@@ -75,6 +75,12 @@
             <td>Specify the name of an existing ConfigMap that contains custom Hadoop configuration to be mounted on the JobManager(s) and TaskManagers.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.jobmanager.annotations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified annotations that are set to the JobManager pod. The value could be in the form of a1:v1,a2:v2</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.cpu</h5></td>
             <td style="word-wrap: break-word;">1.0</td>
             <td>Double</td>
@@ -103,6 +109,12 @@
             <td style="word-wrap: break-word;">"1 min"</td>
             <td>String</td>
             <td>Timeout used for creating the service. The timeout value requires a time-unit specifier (ms/s/min/h/d).</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.annotations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified annotations that are set to the TaskManager pod. The value could be in the form of a1:v1,a2:v2</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.cpu</h5></td>

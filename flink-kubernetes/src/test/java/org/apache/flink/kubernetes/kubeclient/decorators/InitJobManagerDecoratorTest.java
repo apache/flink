@@ -41,7 +41,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -51,6 +54,12 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 
 	private static final String SERVICE_ACCOUNT_NAME = "service-test";
 	private static final List<String> IMAGE_PULL_SECRETS = Arrays.asList("s1", "s2", "s3");
+	private static final Map<String, String> ANNOTATIONS = new HashMap<String, String>() {
+		{
+			put("a1", "v1");
+			put("a2", "v2");
+		}
+	};
 
 	private Pod resultPod;
 	private Container resultMainContainer;
@@ -60,6 +69,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 		super.setup();
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
+		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, ANNOTATIONS);
 
 		final InitJobManagerDecorator initJobManagerDecorator =
 			new InitJobManagerDecorator(this.kubernetesJobManagerParameters);
@@ -136,6 +146,12 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
 
 		assertEquals(expectedLabels, this.resultPod.getMetadata().getLabels());
+	}
+
+	@Test
+	public void testPodAnnotations() {
+		final Map<String, String> resultAnnotations = kubernetesJobManagerParameters.getAnnotations();
+		assertThat(resultAnnotations, is(equalTo(ANNOTATIONS)));
 	}
 
 	@Test

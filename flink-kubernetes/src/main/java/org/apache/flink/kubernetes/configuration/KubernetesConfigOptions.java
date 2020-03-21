@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -153,6 +154,20 @@ public class KubernetesConfigOptions {
 		.noDefaultValue()
 		.withDescription("Specify the name of an existing ConfigMap that contains custom Hadoop configuration " +
 			"to be mounted on the JobManager(s) and TaskManagers.");
+
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_ANNOTATIONS =
+		key("kubernetes.jobmanager.annotations")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The user-specified annotations that are set to the JobManager pod. The value could be " +
+			"in the form of a1:v1,a2:v2");
+
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_ANNOTATIONS =
+		key("kubernetes.taskmanager.annotations")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The user-specified annotations that are set to the TaskManager pod. The value could be " +
+			"in the form of a1:v1,a2:v2");
 
 	/**
 	 * The flink rest service exposed type.

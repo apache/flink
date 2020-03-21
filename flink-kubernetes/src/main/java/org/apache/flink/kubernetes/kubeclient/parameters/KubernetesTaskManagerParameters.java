@@ -20,8 +20,11 @@ package org.apache.flink.kubernetes.kubeclient.parameters;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+
+import javax.annotation.Nullable;
 
 import java.util.Map;
 
@@ -65,6 +68,12 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	@Override
 	public Map<String, String> getEnvironments() {
 		return this.containeredTaskManagerParameters.taskManagerEnv();
+	}
+
+	@Nullable
+	@Override
+	public Map<String, String> getAnnotations() {
+		return flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS);
 	}
 
 	public String getTaskManagerMainContainerName() {
