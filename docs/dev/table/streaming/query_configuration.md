@@ -51,10 +51,10 @@ tableEnv.registerTableSink(
   sink);                       // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable", tConfig);
+result.insertInto("outputTable");
 
 // convert result Table into a DataStream<Row>
-DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class, tConfig);
+DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class);
 
 {% endhighlight %}
 </div>
@@ -82,10 +82,10 @@ tableEnv.registerTableSink(
   sink)                           // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable", tConfig)
+result.insertInto("outputTable")
 
 // convert result Table into a DataStream[Row]
-val stream: DataStream[Row] = result.toAppendStream[Row](tConfig)
+val stream: DataStream[Row] = tableEnv.toAppendStream[Row](result)
 
 {% endhighlight %}
 </div>
