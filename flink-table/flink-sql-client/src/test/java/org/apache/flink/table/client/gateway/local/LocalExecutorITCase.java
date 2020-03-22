@@ -371,6 +371,28 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testSetJobName() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		session.getSessionEnv().setExecution(ImmutableMap.of("job-name", "testname"));
+		// Open the session and get the sessionId.
+		String sessionId = executor.openSession(session);
+		try {
+			// modify defaults
+			executor.setSessionProperty(sessionId, "execution.result-mode", "table");
+
+			final Map<String, String> actualProperties = executor.getSessionProperties(sessionId);
+
+			// Reset session properties
+			executor.resetSessionProperties(sessionId);
+			assertEquals(executor.getSessionProperties(sessionId).get("execution.job-name"), "testname");
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
 	public void testTableSchema() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());

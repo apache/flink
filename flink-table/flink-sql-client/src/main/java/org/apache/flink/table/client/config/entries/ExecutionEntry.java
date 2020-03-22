@@ -50,6 +50,8 @@ public class ExecutionEntry extends ConfigEntry {
 	public static final ExecutionEntry DEFAULT_INSTANCE =
 		new ExecutionEntry(new DescriptorProperties(true));
 
+	private static final String EXECUTION_JOB_NAME = "job-name";
+
 	private static final String EXECUTION_PLANNER = "planner";
 
 	public static final String EXECUTION_PLANNER_VALUE_OLD = "old";
@@ -154,6 +156,7 @@ public class ExecutionEntry extends ConfigEntry {
 		properties.validateInt(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL, true, 1);
 		properties.validateString(EXECUTION_CURRENT_CATALOG, true, 1);
 		properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
+		properties.validateString(EXECUTION_JOB_NAME, true, 1);
 	}
 
 	public EnvironmentSettings getEnvironmentSettings() {
@@ -258,6 +261,10 @@ public class ExecutionEntry extends ConfigEntry {
 	public int getParallelism() {
 		return properties.getOptionalInt(EXECUTION_PARALLELISM)
 			.orElseGet(() -> useDefaultValue(EXECUTION_PARALLELISM, 1));
+	}
+
+	public String getJobName() {
+		return properties.getOptionalString(EXECUTION_JOB_NAME).get();
 	}
 
 	public int getMaxParallelism() {

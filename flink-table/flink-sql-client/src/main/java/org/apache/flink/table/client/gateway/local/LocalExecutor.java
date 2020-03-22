@@ -581,7 +581,13 @@ public class LocalExecutor implements Executor {
 		}
 
 		// create pipeline
-		final String jobName = sessionId + ": " + statement;
+		String jobName = sessionId + ": " + statement;
+
+		String jobNameConfig =  context.getEnvironment().getExecution().getJobName();
+		if(!StringUtils.isNullOrWhitespaceOnly(jobNameConfig)){
+			jobName = jobNameConfig;
+		}
+
 		final Pipeline pipeline;
 		try {
 			pipeline = context.createPipeline(jobName);
@@ -611,13 +617,18 @@ public class LocalExecutor implements Executor {
 		// create table
 		final Table table = createTable(context, context.getTableEnvironment(), query);
 
+		String jobName = sessionId + ": " + query;
+		String jobNameConfig =  context.getEnvironment().getExecution().getJobName();
+		if(!StringUtils.isNullOrWhitespaceOnly(jobNameConfig)){
+			jobName = jobNameConfig;
+		}
 		// initialize result
 		final DynamicResult<C> result = resultStore.createResult(
 				context.getEnvironment(),
 				removeTimeAttributes(table.getSchema()),
 				context.getExecutionConfig(),
 				context.getClassLoader());
-		final String jobName = sessionId + ": " + query;
+
 		final String tableName = String.format("_tmp_table_%s", Math.abs(query.hashCode()));
 		final Pipeline pipeline;
 		try {
