@@ -210,7 +210,8 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			pythonFunctionInfos,
 			environmentManager,
 			inputType,
-			outputType);
+			outputType,
+			Collections.emptyMap());
 	}
 
 	private AbstractGeneralPythonScalarFunctionRunner<Row> createUDFRunner(
@@ -236,6 +237,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			environmentManager,
 			rowType,
 			rowType,
+			Collections.emptyMap(),
 			jobBundleFactory) {
 			@Override
 			public TypeSerializer<Row> getInputTypeSerializer() {

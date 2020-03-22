@@ -30,6 +30,8 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.util.Map;
+
 /**
  * A {@link PythonFunctionRunner} used to execute Arrow Python {@link ScalarFunction}s.
  * It takes {@link BaseRow} as the input type.
@@ -44,8 +46,9 @@ public class BaseRowArrowPythonScalarFunctionRunner extends AbstractArrowPythonS
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		int maxBatchSize) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxBatchSize);
+		int maxBatchSize,
+		Map<String, String> jobOptions) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxBatchSize, jobOptions);
 	}
 
 	@Override

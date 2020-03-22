@@ -36,6 +36,7 @@ import org.apache.flink.types.Row;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -91,14 +92,16 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager) {
+				PythonEnvironmentManager pythonEnvironmentManager,
+				Map<String, String> jobOptions) {
 			return new PassThroughPythonScalarFunctionRunner<Row>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType) {
+				userDefinedFunctionOutputType,
+				jobOptions) {
 				@Override
 				public TypeSerializer<Row> getInputTypeSerializer() {
 					return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());

@@ -38,6 +38,7 @@ import org.apache.flink.types.Row;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -89,7 +90,8 @@ public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionO
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager) {
+				PythonEnvironmentManager pythonEnvironmentManager,
+				Map<String, String> jobOptions) {
 			return new PassThroughArrowPythonScalarFunctionRunner<Row>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
@@ -97,7 +99,8 @@ public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionO
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
-				getPythonConfig().getMaxArrowBatchSize()) {
+				getPythonConfig().getMaxArrowBatchSize(),
+				jobOptions) {
 				@Override
 				public ArrowWriter<Row> createArrowWriter() {
 					return ArrowUtils.createRowArrowWriter(root);

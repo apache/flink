@@ -30,6 +30,8 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.util.Map;
+
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
  * It takes {@link BaseRow} as the input and outputs a byte array.
@@ -43,8 +45,9 @@ public class BaseRowPythonScalarFunctionRunner extends AbstractGeneralPythonScal
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
+		RowType outputType,
+		Map<String, String> jobOptions) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions);
 	}
 
 	@Override

@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.utils;
+package org.apache.flink.table.types.utils;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Optional;
 
@@ -39,17 +41,28 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 	public Optional<Class<?>> expectedClass = Optional.empty();
 
 	@Override
-	public Optional<DataType> createDataType(String name) {
-		return Optional.of(TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name)));
+	public DataType createDataType(AbstractDataType<?> abstractDataType) {
+		if (abstractDataType instanceof DataType) {
+			return (DataType) abstractDataType;
+		} else if (abstractDataType instanceof UnresolvedDataType) {
+			return ((UnresolvedDataType) abstractDataType).toDataType(this);
+		}
+		throw new IllegalStateException();
 	}
 
 	@Override
-	public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
-		return dataType;
+	public DataType createDataType(String name) {
+		return TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name));
+	}
+
+	@Override
+	public DataType createDataType(UnresolvedIdentifier identifier) {
+		return dataType.orElseThrow(() -> new ValidationException("No type found."));
 	}
 
 	@Override
 	public <T> DataType createDataType(Class<T> clazz) {
+		expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
 		return DataTypeExtractor.extractFromType(this, clazz);
 	}
 

@@ -31,6 +31,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.util.Map;
+
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
  *
@@ -49,8 +51,9 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN);
+		RowType outputType,
+		Map<String, String> jobOptions) {
+		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN, jobOptions);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 	}
 

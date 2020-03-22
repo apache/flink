@@ -34,6 +34,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -77,7 +78,8 @@ public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperator
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 			return new PassThroughPythonTableFunctionRunner<Row>(resultReceiver) {
 				@Override
 				public Row copy(Row element) {

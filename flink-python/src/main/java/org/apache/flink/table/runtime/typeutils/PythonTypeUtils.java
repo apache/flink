@@ -52,6 +52,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -268,6 +269,11 @@ public final class PythonTypeUtils {
 			return new SqlTimestampSerializer(timestampType.getPrecision());
 		}
 
+		@Override
+		public TypeSerializer visit(LocalZonedTimestampType localZonedTimestampType) {
+			return new SqlTimestampSerializer(localZonedTimestampType.getPrecision());
+		}
+
 		public TypeSerializer visit(ArrayType arrayType) {
 			LogicalType elementType = arrayType.getElementType();
 			TypeSerializer elementTypeSerializer = elementType.accept(this);
@@ -413,6 +419,20 @@ public final class PythonTypeUtils {
 				FlinkFnApi.Schema.TimestampInfo.newBuilder()
 					.setPrecision(timestampType.getPrecision());
 			builder.setTimestampInfo(timestampInfoBuilder);
+			return builder.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(LocalZonedTimestampType localZonedTimestampType) {
+			FlinkFnApi.Schema.FieldType.Builder builder =
+				FlinkFnApi.Schema.FieldType.newBuilder()
+					.setTypeName(FlinkFnApi.Schema.TypeName.LOCAL_ZONED_TIMESTAMP)
+					.setNullable(localZonedTimestampType.isNullable());
+
+			FlinkFnApi.Schema.LocalZonedTimestampInfo.Builder dateTimeBuilder =
+				FlinkFnApi.Schema.LocalZonedTimestampInfo.newBuilder()
+					.setPrecision(localZonedTimestampType.getPrecision());
+			builder.setLocalZonedTimestampInfo(dateTimeBuilder.build());
 			return builder.build();
 		}
 

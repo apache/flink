@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
@@ -73,6 +74,7 @@ public class BaseRowPythonTableFunctionRunnerTest extends AbstractPythonTableFun
 			pythonFunctionInfo,
 			environmentManager,
 			inputType,
-			outputType);
+			outputType,
+			Collections.emptyMap());
 	}
 }

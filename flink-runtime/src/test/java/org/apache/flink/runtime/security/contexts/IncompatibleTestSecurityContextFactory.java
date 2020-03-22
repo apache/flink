@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.contexts;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityContextInitializeException;
 
 import java.util.concurrent.Callable;
 
@@ -34,7 +35,7 @@ public class IncompatibleTestSecurityContextFactory implements SecurityContextFa
 	}
 
 	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) {
+	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
 		return new TestSecurityContext();
 	}
 

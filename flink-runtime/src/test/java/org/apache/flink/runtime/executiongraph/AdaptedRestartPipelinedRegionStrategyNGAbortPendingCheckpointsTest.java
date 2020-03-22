@@ -148,7 +148,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 			.setJobGraph(jobGraph)
 			.setRestartStrategy(new FixedDelayRestartStrategy(10, 0))
 			.setFailoverStrategyFactory(AdaptedRestartPipelinedRegionStrategyNG::new)
-			.setSlotProvider(new SimpleSlotProvider(jobGraph.getJobID(), 2, taskManagerGateway))
+			.setSlotProvider(new SimpleSlotProvider(2, taskManagerGateway))
 			.build();
 
 		enableCheckpointing(executionGraph);

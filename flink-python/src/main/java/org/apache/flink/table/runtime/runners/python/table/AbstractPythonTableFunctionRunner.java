@@ -34,6 +34,8 @@ import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
+import java.util.Map;
+
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
  *
@@ -58,8 +60,9 @@ public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPyth
 		PythonFunctionInfo tableFunction,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN);
+		RowType outputType,
+		Map<String, String> jobOptions) {
+		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN, jobOptions);
 		this.tableFunction = Preconditions.checkNotNull(tableFunction);
 	}
 

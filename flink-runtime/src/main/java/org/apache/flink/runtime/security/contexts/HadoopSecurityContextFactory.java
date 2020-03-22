@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.contexts;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityContextInitializeException;
 import org.apache.flink.runtime.security.modules.HadoopModuleFactory;
 
 import org.apache.hadoop.security.UserGroupInformation;
@@ -53,17 +54,13 @@ public class HadoopSecurityContextFactory implements SecurityContextFactory {
 	}
 
 	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) {
+	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
 		try {
-			Class.forName(
-				"org.apache.hadoop.security.UserGroupInformation",
-				false,
-				HadoopSecurityContextFactory.class.getClassLoader());
 			UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
 			return new HadoopSecurityContext(loginUser);
 		} catch (Exception e) {
 			LOG.error("Cannot instantiate HadoopSecurityContext.", e);
-			return null;
+			throw new SecurityContextInitializeException("Cannot instantiate HadoopSecurityContext.", e);
 		}
 	}
 }

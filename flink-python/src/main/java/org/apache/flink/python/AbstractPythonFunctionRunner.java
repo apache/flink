@@ -37,10 +37,13 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+
+import java.util.Map;
 
 /**
  * An base class for {@link PythonFunctionRunner}.
@@ -63,6 +66,11 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	 * The Python execution environment manager.
 	 */
 	private final PythonEnvironmentManager environmentManager;
+
+	/**
+	 * The options used to configure the Python worker process.
+	 */
+	private final Map<String, String> jobOptions;
 
 	/**
 	 * The bundle factory which has all job-scoped information and can be used to create a {@link StageBundleFactory}.
@@ -112,11 +120,13 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 		String taskName,
 		FnDataReceiver<byte[]> resultReceiver,
 		PythonEnvironmentManager environmentManager,
-		StateRequestHandler stateRequestHandler) {
+		StateRequestHandler stateRequestHandler,
+		Map<String, String> jobOptions) {
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
 		this.environmentManager = Preconditions.checkNotNull(environmentManager);
 		this.stateRequestHandler = Preconditions.checkNotNull(stateRequestHandler);
+		this.jobOptions = Preconditions.checkNotNull(jobOptions);
 	}
 
 	@Override
@@ -131,6 +141,12 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 			PipelineOptionsFactory.as(PortablePipelineOptions.class);
 		// one operator has one Python SDK harness
 		portableOptions.setSdkWorkerParallelism(1);
+		ExperimentalOptions experimentalOptions = portableOptions.as(ExperimentalOptions.class);
+		for (Map.Entry<String, String> entry : jobOptions.entrySet()) {
+			ExperimentalOptions.addExperiment(experimentalOptions,
+				String.join("=", entry.getKey(), entry.getValue()));
+		}
+
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
 		jobBundleFactory = createJobBundleFactory(pipelineOptions);

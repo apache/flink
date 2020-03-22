@@ -84,20 +84,14 @@ class ValidationPipelineTest(MLTestCase):
             p.load_json(invalid_json)
         exception_str = str(context.exception)
 
-        # only assert key error message as the whole message is very long.
+        # NOTE: only check the general error message since the detailed error message
+        # would be different in different environment.
         self.assertTrue(
             'Cannot load the JSON as either a Java Pipeline or a Python Pipeline.'
             in exception_str)
-        self.assertTrue(
-            'Python Pipeline load failed due to: Expecting value: line 1 column 2 (char 1).'
-            in exception_str)
-        self.assertTrue(
-            'Java Pipeline load failed due to: An error occurred while calling o0.loadJson.'
-            in exception_str)
-        self.assertTrue(
-            'Caused by: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.'
-            'JsonParseException: Unrecognized token \'a\''
-            in exception_str)
+        self.assertTrue('Python Pipeline load failed due to:' in exception_str)
+        self.assertTrue('Java Pipeline load failed due to:' in exception_str)
+        self.assertTrue('JsonParseException' in exception_str)
 
 
 class SelfDescribe(WithParams):

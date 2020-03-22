@@ -22,7 +22,8 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder
+    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
+    LocalZonedTimestampCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -92,6 +93,17 @@ class CodersTest(unittest.TestCase):
         self.check_coder(coder, datetime.datetime(2019, 9, 10, 18, 30, 20, 123000))
         coder = TimestampCoder(6)
         self.check_coder(coder, datetime.datetime(2019, 9, 10, 18, 30, 20, 123456))
+
+    def test_local_zoned_timestamp_coder(self):
+        import datetime
+        import pytz
+        timezone = pytz.timezone("Asia/Shanghai")
+        coder = LocalZonedTimestampCoder(3, timezone)
+        self.check_coder(coder,
+                         timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123000)))
+        coder = LocalZonedTimestampCoder(6, timezone)
+        self.check_coder(coder,
+                         timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123456)))
 
     def test_array_coder(self):
         element_coder = BigIntCoder()

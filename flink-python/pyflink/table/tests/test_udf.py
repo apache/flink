@@ -15,6 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
+
+import pytz
+
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
@@ -561,6 +565,36 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             # test non-callable function
             self.t_env.register_function(
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+    def test_data_types_only_supported_in_blink_planner(self):
+        timezone = self.t_env.get_config().get_local_timezone()
+        local_datetime = pytz.timezone(timezone).localize(
+            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+
+        def local_zoned_timestamp_func(local_zoned_timestamp_param):
+            assert local_zoned_timestamp_param == local_datetime, \
+                'local_zoned_timestamp_param is wrong value %s !' % local_zoned_timestamp_param
+            return local_zoned_timestamp_param
+
+        self.t_env.register_function(
+            "local_zoned_timestamp_func",
+            udf(local_zoned_timestamp_func,
+                [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)],
+                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)))
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a'], [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        t = self.t_env.from_elements(
+            [(local_datetime,)],
+            DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
+
+        t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))") \
+            .insert_into("Results")
+        self.t_env.execute("test")
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["1970-01-01T00:00:00.123Z"])
 
 
 class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
