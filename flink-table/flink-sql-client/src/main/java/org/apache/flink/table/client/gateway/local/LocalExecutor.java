@@ -584,7 +584,7 @@ public class LocalExecutor implements Executor {
 		String jobName = sessionId + ": " + statement;
 
 		String jobNameConfig =  context.getEnvironment().getExecution().getJobName();
-		if(!StringUtils.isNullOrWhitespaceOnly(jobNameConfig)){
+		if (!StringUtils.isNullOrWhitespaceOnly(jobNameConfig)){
 			jobName = jobNameConfig;
 		}
 
@@ -619,7 +619,7 @@ public class LocalExecutor implements Executor {
 
 		String jobName = sessionId + ": " + query;
 		String jobNameConfig =  context.getEnvironment().getExecution().getJobName();
-		if(!StringUtils.isNullOrWhitespaceOnly(jobNameConfig)){
+		if (!StringUtils.isNullOrWhitespaceOnly(jobNameConfig)){
 			jobName = jobNameConfig;
 		}
 		// initialize result
