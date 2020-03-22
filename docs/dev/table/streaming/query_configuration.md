@@ -85,13 +85,13 @@ tableEnv.registerTableSink(
 result.insertInto("outputTable")
 
 // convert result Table into a DataStream[Row]
-val stream: DataStream[Row] = tableEnv.toAppendStream[Row](result)
+val stream: DataStream[Row] = result.toAppendStream[Row]
 
 {% endhighlight %}
 </div>
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# use TableConfig instead of QueryConfig in python API
+# use TableConfig in python API
 t_config = TableConfig()
 # set query parameters
 t_config.set_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
