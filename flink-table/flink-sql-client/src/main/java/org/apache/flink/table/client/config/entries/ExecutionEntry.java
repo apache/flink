@@ -264,7 +264,8 @@ public class ExecutionEntry extends ConfigEntry {
 	}
 
 	public String getJobName() {
-		return properties.getOptionalString(EXECUTION_JOB_NAME).get();
+		return properties.getOptionalString(EXECUTION_JOB_NAME)
+			.orElseGet(() -> "");
 	}
 
 	public int getMaxParallelism() {
