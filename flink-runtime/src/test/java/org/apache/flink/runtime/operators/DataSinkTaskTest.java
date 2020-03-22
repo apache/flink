@@ -30,6 +30,7 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
+import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -277,6 +278,25 @@ public class DataSinkTaskTest extends TaskTestBase {
 	}
 
 	@Test
+	public void testClosingErrorDataSinkTask() throws Exception {
+
+		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+		super.addInput(new FiniteInputIterator(10), 0);
+
+		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
+		Configuration stubParams = new Configuration();
+
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		super.registerFileOutputTask(MockClosingErrorOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
+
+		try {
+			testTask.invoke();
+		} catch (Exception ignored) {}
+
+		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
+	}
+
+	@Test
 	public void testFailingDataSinkTask() {
 
 		int keyCnt = 100;
@@ -481,5 +501,54 @@ public class DataSinkTaskTest extends TaskTestBase {
 			super.writeRecord(rec);
 		}
 	}
+
+	public static class MockClosingErrorOutputFormat extends MockOutputFormat {
+		private static final long serialVersionUID = 1L;
+		private boolean alreadyClosed = false;
+
+		@Override
+		public void writeRecord(Record rec) throws IOException {
+			super.writeRecord(rec);
+		}
+
+		@Override
+		public void close() throws IOException {
+			if (!alreadyClosed) {
+				alreadyClosed = true;
+				throw new RuntimeException("Expected Test Exception");
+			}
+		}
+	}
+
+	public class FiniteInputIterator implements MutableObjectIterator<Record> {
+		private final IntValue val1 = new IntValue(0);
+		private final IntValue val2 = new IntValue(0);
+		private final int limit;
+		private int cnt = 0;
+
+		public FiniteInputIterator(int limit) {
+			this.limit = limit;
+		}
+
+		@Override
+		public Record next(Record reuse) {
+			if (++cnt > limit) {
+				return null;
+			}
+			reuse.setField(0, val1);
+			reuse.setField(1, val2);
+			return reuse;
+		}
+
+		@Override
+		public Record next() {
+			Record result = new Record(2);
+			result.setField(0, val1);
+			result.setField(1, val2);
+			return result;
+		}
+
+	}
+
 }
 

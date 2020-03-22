@@ -47,6 +47,7 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -201,31 +202,45 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
 			LOG.debug(getLogString("Starting to produce output"));
 
-			// open
-			format.open(this.getEnvironment().getTaskInfo().getIndexOfThisSubtask(), this.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks());
+			Exception exceptionThrown = null;
 
-			if (objectReuseEnabled) {
-				IT record = serializer.createInstance();
+			// use try-catch-finally here to make sure exception is handled even when format is closing
+			try {
+				// open
+				format.open(this.getEnvironment().getTaskInfo().getIndexOfThisSubtask(), this.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks());
 
-				// work!
-				while (!this.taskCanceled && ((record = input.next(record)) != null)) {
-					numRecordsIn.inc();
-					format.writeRecord(record);
+				if (objectReuseEnabled) {
+					IT record = serializer.createInstance();
+
+					// work!
+					while (!this.taskCanceled && ((record = input.next(record)) != null)) {
+						numRecordsIn.inc();
+						format.writeRecord(record);
+					}
+				} else {
+					IT record;
+
+					// work!
+					while (!this.taskCanceled && ((record = input.next()) != null)) {
+						numRecordsIn.inc();
+						format.writeRecord(record);
+					}
 				}
-			} else {
-				IT record;
-
-				// work!
-				while (!this.taskCanceled && ((record = input.next()) != null)) {
-					numRecordsIn.inc();
-					format.writeRecord(record);
+			} catch (Exception ex) {
+				exceptionThrown = ex;
+			} finally {
+				try {
+					this.format.close();
+				} catch (Exception ex) {
+					LOG.error("Error closing format.", ex);
+					exceptionThrown = ExceptionUtils.firstOrSuppressed(ex, exceptionThrown);
 				}
 			}
-			
-			// close. We close here such that a regular close throwing an exception marks a task as failed.
-			if (!this.taskCanceled) {
-				this.format.close();
+
+			if (exceptionThrown == null) {
 				this.format = null;
+			} else {
+				throw exceptionThrown;
 			}
 		}
 		catch (Exception ex) {
@@ -256,18 +271,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			}
 		}
 		finally {
-			if (this.format != null) {
-				// close format, if it has not been closed, yet.
-				// This should only be the case if we had a previous error, or were canceled.
-				try {
-					this.format.close();
-				}
-				catch (Throwable t) {
-					if (LOG.isWarnEnabled()) {
-						LOG.warn(getLogString("Error closing the output format"), t);
-					}
-				}
-			}
 			// close local strategy if necessary
 			if (localStrategy != null) {
 				try {
@@ -295,7 +298,9 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		if (format != null) {
 			try {
 				this.format.close();
-			} catch (Throwable t) {}
+			} catch (Throwable t) {
+				LOG.error("Error closing format.");
+			}
 			
 			// make a best effort to clean up
 			try {
