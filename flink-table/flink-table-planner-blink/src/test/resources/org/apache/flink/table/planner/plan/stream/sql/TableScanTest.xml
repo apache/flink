@@ -52,6 +52,23 @@ Calc(select=[ts, a, b], where=[>(a, 1)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDDLWithComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTableSourceScan">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
@@ -68,20 +85,25 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDDLWithComputedColumn">
+  <TestCase name="testDDLWithComputedColumnReferRowtime">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM t1]]>
+      <![CDATA[SELECT * FROM src WHERE a > 1]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
+LogicalProject(ts=[$0], a=[$1], b=[$2], my_ts=[$3], proc=[$4])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 1:INTERVAL SECOND)])
+      +- LogicalProject(ts=[$0], a=[$1], b=[$2], my_ts=[-($0, 1:INTERVAL SECOND)], proc=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
-+- TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[>(a, 1)])
++- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1:INTERVAL SECOND)])
+   +- Calc(select=[ts, a, b, -(ts, 1:INTERVAL SECOND) AS my_ts, PROCTIME() AS proc])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]], fields=[ts, a, b])
 ]]>
     </Resource>
   </TestCase>
