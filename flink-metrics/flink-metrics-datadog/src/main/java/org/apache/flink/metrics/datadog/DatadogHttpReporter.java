@@ -134,6 +134,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 		try {
 			client.send(request);
+			counters.values().forEach(DCounter::ackReport);
 			LOGGER.debug("Reported series with size {}.", request.getSeries().size());
 		} catch (SocketTimeoutException e) {
 			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
