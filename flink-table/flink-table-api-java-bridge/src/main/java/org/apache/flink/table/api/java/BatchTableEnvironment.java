@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -35,7 +34,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.sinks.TableSink;
 
 import java.lang.reflect.Constructor;
 
@@ -413,84 +411,6 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * @return The converted {@link DataSet}.
 	 */
 	<T> DataSet<T> toDataSet(Table table, TypeInformation<T> typeInfo);
-
-	/**
-	 * Converts the given {@link Table} into a {@link DataSet} of a specified type.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataSet} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataSet} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param clazz The class of the type of the resulting {@link DataSet}.
-	 * @param queryConfig The configuration for the query to generate.
-	 * @param <T> The type of the resulting {@link DataSet}.
-	 * @return The converted {@link DataSet}.
-	 */
-	<T> DataSet<T> toDataSet(Table table, Class<T> clazz, BatchQueryConfig queryConfig);
-
-	/**
-	 * Converts the given {@link Table} into a {@link DataSet} of a specified type.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataSet} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataSet} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param typeInfo The {@link TypeInformation} that specifies the type of the resulting {@link DataSet}.
-	 * @param queryConfig The configuration for the query to generate.
-	 * @param <T> The type of the resulting {@link DataSet}.
-	 * @return The converted {@link DataSet}.
-	 */
-	<T> DataSet<T> toDataSet(Table table, TypeInformation<T> typeInfo, BatchQueryConfig queryConfig);
-
-	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-	 * NOTE: Currently only SQL INSERT statements are supported.
-	 *
-	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
-	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
-	 * called, for example when it is embedded into a String.
-	 * Hence, SQL queries can directly reference a {@link Table} as follows:
-	 *
-	 * <pre>
-	 * {@code
-	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
-	 *   Table sourceTable = ...
-	 *   String tableName = sourceTable.toString();
-	 *   // sourceTable is not registered to the table environment
-	 *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
-	 * }
-	 * </pre>
-	 *
-	 * @param stmt The SQL statement to evaluate.
-	 * @param config The {@link BatchQueryConfig} to use.
-	 */
-	void sqlUpdate(String stmt, BatchQueryConfig config);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
-	 *
-	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
-	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-	 *
-	 * @param table The Table to write to the sink.
-	 * @param queryConfig The {@link BatchQueryConfig} to use.
-	 * @param sinkPath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
-	 * @deprecated use {@link #insertInto(String, Table)}
-	 */
-	@Deprecated
-	void insertInto(Table table, BatchQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
 
 	/**
 	 * Creates a temporary table from a descriptor.

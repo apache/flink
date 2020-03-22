@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
-import org.apache.flink.table.api.{BatchQueryConfig, TableException, TableSchema, Types}
+import org.apache.flink.table.api.{TableException, TableSchema, Types}
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.sources._
@@ -98,9 +98,7 @@ class BatchTableSourceScan(
     )
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvImpl,
-      queryConfig: BatchQueryConfig): DataSet[Row] = {
+  override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
 
     val config = tableEnv.getConfig
     val inputDataSet = tableSource match {
