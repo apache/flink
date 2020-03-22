@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
@@ -27,14 +29,17 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
+import java.util.List;
+
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+
 /**
  * Base class of tests for all kinds of DeduplicateFunction.
  */
 abstract class DeduplicateFunctionTestBase {
 
 	Time minTime = Time.milliseconds(10);
-	Time maxTime = Time.milliseconds(20);
-
+	long incCleanupKeys = 3;
 	BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
 			new IntType());
 
@@ -45,5 +50,18 @@ abstract class DeduplicateFunctionTestBase {
 	BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
 			inputRowType.getFieldTypes(),
 			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getLogicalTypes()[rowKeyIdx]));
+
+	public void triggerMoreIncrementalCleanupByOtherOps(
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness) throws Exception {
+		for (long i = incCleanupKeys; i < incCleanupKeys * 10; i++) {
+			testHarness.processElement(record("book", i, 20));
+		}
+	}
+
+	public void addRecordToExpectedOutput(List<Object> expectedOutput) {
+		for (long i = incCleanupKeys; i < incCleanupKeys * 10; i++) {
+			expectedOutput.add(record("book", i, 20));
+		}
+	}
 
 }

@@ -52,7 +52,7 @@ public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFun
 
 	@Test
 	public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
-		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer);
+		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer, minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 1L, 12));
@@ -71,4 +71,35 @@ public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFun
 		testHarness.close();
 	}
 
+	@Test
+	public void tesKeepFirstRowWithStateTtl() throws Exception {
+		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer, minTime.toMilliseconds());
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		testHarness.setup();
+		testHarness.open();
+		testHarness.processElement(record("book", 1L, 12));
+		testHarness.processElement(record("book", 2L, 11));
+		// output is empty because bundle not trigger yet.
+		Assert.assertTrue(testHarness.getOutput().isEmpty());
+		testHarness.processElement(record("book", 1L, 13));
+
+		testHarness.setStateTtlProcessingTime(30);
+		//Incremental cleanup is an eventual clean up, more state access guarantee more expired state cleaned
+		triggerMoreIncrementalCleanupByOtherOps(testHarness);
+
+		testHarness.processElement(record("book", 1L, 17));
+		testHarness.processElement(record("book", 2L, 18));
+		testHarness.processElement(record("book", 1L, 19));
+
+		// Keep FirstRow in deduplicate
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("book", 2L, 11));
+		addRecordToExpectedOutput(expectedOutput);
+		//(1L,12),(2L,11) has retired, so output (1L,17) and (2L,18)
+		expectedOutput.add(record("book", 1L, 17));
+		expectedOutput.add(record("book", 2L, 18));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+		testHarness.close();
+	}
 }
