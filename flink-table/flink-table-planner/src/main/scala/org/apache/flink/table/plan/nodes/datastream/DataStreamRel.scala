@@ -29,7 +29,6 @@ trait DataStreamRel extends FlinkRelNode {
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv    The [[StreamPlanner]] of the translated Table.
-    * @param queryConfig The configuration for the query to generate.
     * @return DataStream of type [[CRow]]
     */
   def translateToPlan(tableEnv: StreamPlanner): DataStream[CRow]

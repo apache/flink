@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector
   * @param rightType         the input type of right stream
   * @param genJoinFuncName   the function code of other non-equi condition
   * @param genJoinFuncCode   the function name of other non-equi condition
-  * @param queryConfig       the configuration for the query to generate
+  * @param config            configuration that determines runtime behavior
   */
 class NonWindowInnerJoin(
     leftType: TypeInformation[Row],

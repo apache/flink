@@ -94,7 +94,8 @@ abstract class DataStreamGroupAggregateBase(
         inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil))
   }
 
-  private def createKeyedProcessFunction[K](tableConfig: TableConfig): KeyedProcessFunction[K, CRow, CRow] = {
+  private def createKeyedProcessFunction[K](
+    tableConfig: TableConfig): KeyedProcessFunction[K, CRow, CRow] = {
 
     AggregateUtil.createDataStreamGroupAggregateFunction[K](
       tableConfig,

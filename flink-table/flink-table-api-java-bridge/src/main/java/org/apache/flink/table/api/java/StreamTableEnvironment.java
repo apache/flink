@@ -25,7 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -642,8 +641,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 *
 	 * <p>It calls the {@link StreamExecutionEnvironment#execute(String)} on the underlying
 	 * {@link StreamExecutionEnvironment}. In contrast to the {@link TableEnvironment} this
-	 * environment translates queries eagerly. Therefore the values in {@link QueryConfig}
-	 * parameter are ignored.
+	 * environment translates queries eagerly.
 	 *
 	 * @param jobName Desired name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.

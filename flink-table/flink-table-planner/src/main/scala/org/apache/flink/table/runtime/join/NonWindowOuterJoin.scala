@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector
   * @param genJoinFuncName the function code of other non-equi condition
   * @param genJoinFuncCode the function name of other non-equi condition
   * @param isLeftJoin      the type of join, whether it is the type of left join
-  * @param queryConfig     the configuration for the query to generate
+  * @param config          configuration that determines runtime behavior
   */
 abstract class NonWindowOuterJoin(
     leftType: TypeInformation[Row],

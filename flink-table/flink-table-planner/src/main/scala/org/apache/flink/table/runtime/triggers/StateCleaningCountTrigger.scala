@@ -120,7 +120,7 @@ object StateCleaningCountTrigger {
   /**
     * Create a [[StateCleaningCountTrigger]] instance.
     *
-    * @param queryConfig query configuration.
+    * @param config table configuration.
     * @param maxCount The count of elements at which to fire.
     */
   def of(config: TableConfig, maxCount: Long): StateCleaningCountTrigger =
