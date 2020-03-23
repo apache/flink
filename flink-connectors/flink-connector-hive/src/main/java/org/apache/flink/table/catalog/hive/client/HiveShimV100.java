@@ -188,21 +188,30 @@ public class HiveShimV100 implements HiveShim {
 	}
 
 	@Override
-	public FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, String outputFormatClzName,
+	public FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, Class outputFormatClz,
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath) {
 		try {
-			Class outputFormatClz = Class.forName(outputFormatClzName);
 			Class utilClass = HiveFileFormatUtils.class;
-			Method utilMethod = utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class, boolean.class);
-			outputFormatClz = (Class) utilMethod.invoke(null, outputFormatClz, false);
-			Preconditions.checkState(outputFormatClz != null, "No Hive substitute output format for " + outputFormatClzName);
 			HiveOutputFormat outputFormat = (HiveOutputFormat) outputFormatClz.newInstance();
-			utilMethod = utilClass.getDeclaredMethod("getRecordWriter", JobConf.class, HiveOutputFormat.class,
+			Method utilMethod = utilClass.getDeclaredMethod("getRecordWriter", JobConf.class, HiveOutputFormat.class,
 					Class.class, boolean.class, Properties.class, Path.class, Reporter.class);
 			return (FileSinkOperator.RecordWriter) utilMethod.invoke(null,
 					jobConf, outputFormat, outValClz, isCompressed, tableProps, outPath, Reporter.NULL);
 		} catch (Exception e) {
 			throw new CatalogException("Failed to create Hive RecordWriter", e);
+		}
+	}
+
+	@Override
+	public Class getHiveOutputFormatClass(Class outputFormatClz) {
+		try {
+			Class utilClass = HiveFileFormatUtils.class;
+			Method utilMethod = utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class, boolean.class);
+			Class res = (Class) utilMethod.invoke(null, outputFormatClz, false);
+			Preconditions.checkState(res != null, "No Hive substitute output format for " + outputFormatClz);
+			return res;
+		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+			throw new FlinkHiveException("Failed to get HiveOutputFormat for " + outputFormatClz, e);
 		}
 	}
 

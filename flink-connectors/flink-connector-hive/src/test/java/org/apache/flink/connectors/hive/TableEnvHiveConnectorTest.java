@@ -56,6 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -511,6 +512,28 @@ public class TableEnvHiveConnectorTest {
 		}
 	}
 
+	@Test
+	public void testCompressTextTable() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x string,y string)");
+			hiveShell.execute("create table db1.dest like db1.src");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{"a", "b"})
+					.addRow(new Object[]{"c", "d"})
+					.commit();
+			hiveCatalog.getHiveConf().setBoolVar(HiveConf.ConfVars.COMPRESSRESULT, true);
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert overwrite db1.dest select * from db1.src");
+			tableEnv.execute("insert dest");
+			List<String> expected = Arrays.asList("a\tb", "c\td");
+			verifyHiveQueryResult("select * from db1.dest", expected);
+			verifyFlinkQueryResult(tableEnv.sqlQuery("select * from db1.dest"), expected);
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -520,6 +543,19 @@ public class TableEnvHiveConnectorTest {
 
 	private void verifyHiveQueryResult(String query, List<String> expected) {
 		List<String> results = hiveShell.executeQuery(query);
+		assertEquals(expected.size(), results.size());
+		assertEquals(new HashSet<>(expected), new HashSet<>(results));
+	}
+
+	private void verifyFlinkQueryResult(org.apache.flink.table.api.Table table, List<String> expected) throws Exception {
+		List<Row> rows = TableUtils.collectToList(table);
+		List<String> results = rows.stream().map(row ->
+				IntStream.range(0, row.getArity())
+						.mapToObj(row::getField)
+						.map(o -> o instanceof LocalDateTime ?
+								Timestamp.valueOf((LocalDateTime) o) : o)
+						.map(Object::toString)
+						.collect(Collectors.joining("\t"))).collect(Collectors.toList());
 		assertEquals(expected.size(), results.size());
 		assertEquals(new HashSet<>(expected), new HashSet<>(results));
 	}
