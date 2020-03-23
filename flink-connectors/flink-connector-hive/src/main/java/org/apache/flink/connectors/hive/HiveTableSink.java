@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -47,6 +48,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.exec.Utilities;
+import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
@@ -104,26 +107,39 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 			builder.setDynamicGrouped(dynamicGrouping);
 			builder.setPartitionColumns(partitionColumns);
 			builder.setFileSystemFactory(new HadoopFileSystemFactory(jobConf));
+
+			boolean isCompressed = jobConf.getBoolean(HiveConf.ConfVars.COMPRESSRESULT.varname, false);
+			Class hiveOutputFormatClz = hiveShim.getHiveOutputFormatClass(Class.forName(sd.getOutputFormat()));
 			builder.setFormatFactory(new HiveOutputFormatFactory(
 					jobConf,
-					sd.getOutputFormat(),
+					hiveOutputFormatClz,
 					sd.getSerdeInfo(),
 					tableSchema,
 					partitionColumns,
 					HiveReflectionUtils.getTableMetadata(hiveShim, table),
-					hiveShim));
+					hiveShim,
+					isCompressed));
 			builder.setMetaStoreFactory(
 					new HiveTableMetaStoreFactory(jobConf, hiveVersion, dbName, tableName));
 			builder.setOverwrite(overwrite);
 			builder.setStaticPartitions(staticPartitionSpec);
 			builder.setTempPath(new org.apache.flink.core.fs.Path(
 					toStagingDir(sd.getLocation(), jobConf)));
+			String extension = Utilities.getFileExtension(jobConf, isCompressed,
+					(HiveOutputFormat<?, ?>) hiveOutputFormatClz.newInstance());
+			extension = extension == null ? "" : extension;
+			OutputFileConfig outputFileConfig = new OutputFileConfig("", extension);
+			builder.setOutputFileConfig(outputFileConfig);
 
 			return builder.build();
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to create staging dir", e);
+		} catch (ClassNotFoundException e) {
+			throw new FlinkHiveException("Failed to get output format class", e);
+		} catch (IllegalAccessException | InstantiationException e) {
+			throw new FlinkHiveException("Failed to instantiate output format instance", e);
 		}
 	}
 

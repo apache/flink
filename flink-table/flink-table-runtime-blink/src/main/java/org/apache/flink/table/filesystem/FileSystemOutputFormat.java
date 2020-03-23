@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
 
 import java.io.IOException;
@@ -53,6 +54,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 	private final LinkedHashMap<String, String> staticPartitions;
 	private final PartitionComputer<T> computer;
 	private final OutputFormatFactory<T> formatFactory;
+	private final OutputFileConfig outputFileConfig;
 
 	private transient PartitionWriter<T> writer;
 	private transient Configuration parameters;
@@ -66,7 +68,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 			boolean dynamicGrouped,
 			LinkedHashMap<String, String> staticPartitions,
 			OutputFormatFactory<T> formatFactory,
-			PartitionComputer<T> computer) {
+			PartitionComputer<T> computer,
+			OutputFileConfig outputFileConfig) {
 		this.fsFactory = fsFactory;
 		this.msFactory = msFactory;
 		this.overwrite = overwrite;
@@ -76,6 +79,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 		this.staticPartitions = staticPartitions;
 		this.formatFactory = formatFactory;
 		this.computer = computer;
+		this.outputFileConfig = outputFileConfig;
 	}
 
 	@Override
@@ -102,7 +106,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			PartitionTempFileManager fileManager = new PartitionTempFileManager(
-					fsFactory, tmpPath, taskNumber, CHECKPOINT_ID);
+					fsFactory, tmpPath, taskNumber, CHECKPOINT_ID, outputFileConfig);
 			PartitionWriter.Context<T> context = new PartitionWriter.Context<>(
 					parameters, formatFactory);
 			writer = PartitionWriterFactory.<T>get(
@@ -149,6 +153,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 
 		private PartitionComputer<T> computer;
 
+		private OutputFileConfig outputFileConfig = new OutputFileConfig("", "");
+
 		public Builder<T> setPartitionColumns(String[] partitionColumns) {
 			this.partitionColumns = partitionColumns;
 			return this;
@@ -194,6 +200,11 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 			return this;
 		}
 
+		public Builder<T> setOutputFileConfig(OutputFileConfig outputFileConfig) {
+			this.outputFileConfig = outputFileConfig;
+			return this;
+		}
+
 		public FileSystemOutputFormat<T> build() {
 			checkNotNull(partitionColumns, "partitionColumns should not be null");
 			checkNotNull(formatFactory, "formatFactory should not be null");
@@ -210,7 +221,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 					dynamicGrouped,
 					staticPartitions,
 					formatFactory,
-					computer);
+					computer,
+					outputFileConfig);
 		}
 	}
 }
