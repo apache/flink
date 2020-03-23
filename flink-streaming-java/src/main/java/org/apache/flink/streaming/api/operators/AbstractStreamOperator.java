@@ -227,7 +227,7 @@ public abstract class AbstractStreamOperator<OUT>
 				LatencyStats.Granularity.SINGLE);
 		}
 
-		this.runtimeContext = new StreamingRuntimeContext(this, environment, container.getAccumulatorMap());
+		this.runtimeContext = new StreamingRuntimeContext(this, environment, environment.getAccumulatorRegistry().getUserMap());
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
