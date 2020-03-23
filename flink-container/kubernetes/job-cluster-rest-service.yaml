@@ -15,21 +15,20 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+#
 apiVersion: v1
 kind: Service
 metadata:
-  name: flink-job-cluster
-  labels:
-    app: flink
-    component: job-cluster
+  name: flink-job-cluster-rest
 spec:
   ports:
-  - name: rpc
-    port: 6123
-  - name: blob
-    port: 6124
-  clusterIP: None
+  - name: rest
+    port: 8081
+    nodePort: 30081
+  - name: query
+    port: 6125
+    nodePort: 30025
+  type: NodePort
   selector:
     app: flink
     component: job-cluster

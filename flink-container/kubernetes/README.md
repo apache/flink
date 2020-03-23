@@ -37,6 +37,10 @@ At last, you should start the task manager deployment:
 
 `FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < task-manager-deployment.yaml.template | kubectl create -f -`
 
+Optional service, that exposes the jobmanager rest port as public Kubernetes node’s port:
+
+`kubectl create -f job-cluster-rest-service.yaml`
+
 ### Additional command line arguments
 
 You can provide the following additional command line arguments to the cluster entrypoint:
