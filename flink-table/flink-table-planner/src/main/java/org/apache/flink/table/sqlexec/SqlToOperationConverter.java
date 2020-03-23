@@ -424,7 +424,7 @@ public class SqlToOperationConverter {
 	 *     b varchar,
 	 *     c as to_timestamp(b))
 	 *   with (
-	 *     'connector' = 'csv',
+	 *     'connector.type' = 'csv',
 	 *     'k1' = 'v1')
 	 * </pre></blockquote>
 	 *

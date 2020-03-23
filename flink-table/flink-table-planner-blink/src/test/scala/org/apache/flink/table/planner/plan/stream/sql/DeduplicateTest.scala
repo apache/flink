@@ -80,7 +80,7 @@ class DeduplicateTest extends TableTestBase {
         | `ts` TIMESTAMP(3),
         | WATERMARK FOR `ts` AS `ts`
         |) WITH (
-        | 'connector' = 'COLLECTION',
+        | 'connector.type' = 'COLLECTION',
         | 'is-bounded' = 'false'
         |)
       """.stripMargin

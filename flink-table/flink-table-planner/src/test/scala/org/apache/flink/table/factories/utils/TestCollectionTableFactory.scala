@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, Da
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.factories.{BatchTableSinkFactory, BatchTableSourceFactory, StreamTableSinkFactory, StreamTableSourceFactory}
@@ -77,7 +77,7 @@ class TestCollectionTableFactory
 
   override def requiredContext(): JMap[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR, "COLLECTION")
+    context.put(CONNECTOR_TYPE, "COLLECTION")
     context
   }
 

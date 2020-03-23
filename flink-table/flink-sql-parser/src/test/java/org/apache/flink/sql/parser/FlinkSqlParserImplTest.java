@@ -230,7 +230,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				")\n" +
 				"PARTITIONED BY (a, h)\n" +
 				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
+				"    'connector.type' = 'kafka', \n" +
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
@@ -244,7 +244,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				")\n" +
 				"PARTITIONED BY (`A`, `H`)\n" +
 				"WITH (\n" +
-				"  'connector' = 'kafka',\n" +
+				"  'connector.type' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
@@ -264,7 +264,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"comment 'test table comment ABC.'\n" +
 				"PARTITIONED BY (a, h)\n" +
 				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
+				"    'connector.type' = 'kafka', \n" +
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
@@ -279,7 +279,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"COMMENT 'test table comment ABC.'\n" +
 				"PARTITIONED BY (`A`, `H`)\n" +
 				"WITH (\n" +
-				"  'connector' = 'kafka',\n" +
+				"  'connector.type' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
@@ -300,7 +300,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"comment 'test table comment ABC.'\n" +
 				"PARTITIONED BY (a, h)\n" +
 				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
+				"    'connector.type' = 'kafka', \n" +
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
@@ -316,7 +316,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"COMMENT 'test table comment ABC.'\n" +
 				"PARTITIONED BY (`A`, `H`)\n" +
 				"WITH (\n" +
-				"  'connector' = 'kafka',\n" +
+				"  'connector.type' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
@@ -329,7 +329,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  watermark FOR ts AS ts - interval '3' second\n" +
 			")\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		check(sql,
@@ -338,7 +338,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `ID`  VARCHAR,\n" +
 				"  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n" +
 				") WITH (\n" +
-				"  'connector' = 'kafka',\n" +
+				"  'connector.type' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
@@ -351,7 +351,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  WATERMARK FOR ts AS ts + interval '1' second\n" +
 			")\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		check(sql,
@@ -360,7 +360,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `TS` AS `TO_TIMESTAMP`(`LOG_TS`),\n" +
 				"  WATERMARK FOR `TS` AS (`TS` + INTERVAL '1' SECOND)\n" +
 				") WITH (\n" +
-				"  'connector' = 'kafka',\n" +
+				"  'connector.type' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
@@ -372,14 +372,14 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK FOR f1.q2.t1 AS NOW()\n" +
 				")\n" +
 				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
+				"    'connector.type' = 'kafka', \n" +
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `F1`  ROW< `Q1` BIGINT, `Q2` ROW< `T1` TIMESTAMP, `T2` VARCHAR >, `Q3` BOOLEAN >,\n" +
 				"  WATERMARK FOR `F1`.`Q2`.`T1` AS `NOW`()\n" +
 				") WITH (\n" +
-				"  'connector' = 'kafka',\n" +
+				"  'connector.type' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
@@ -391,7 +391,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  WATERMARK FOR f1.q0 AS NOW()\n" +
 			")\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		sql(sql).node(new ValidationMatcher()
@@ -409,7 +409,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  ^WATERMARK^ FOR f1 AS NOW()\n" +
 			")\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		sql(sql)
@@ -425,7 +425,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  WATERMARK FOR f0 AS ^(^SELECT f1 FROM tbl1)\n" +
 			")\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		sql(sql)

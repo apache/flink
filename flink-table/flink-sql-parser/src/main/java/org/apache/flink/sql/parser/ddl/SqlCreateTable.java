@@ -210,7 +210,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	 *     col2 varchar,
 	 *     col3 as to_timestamp(col2)
 	 *   ) with (
-	 *     'connector' = 'csv'
+	 *     'connector.type' = 'csv'
 	 *   )
 	 * </pre>
 	 * we would return a query like:

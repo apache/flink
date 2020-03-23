@@ -62,7 +62,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |  b DOUBLE,
         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
+        |  'connector.type' = 'COLLECTION',
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
@@ -99,7 +99,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |  b DOUBLE,
         |  WATERMARK FOR ts AS myFunc(ts, a)
         |) WITH (
-        |  'connector' = 'COLLECTION',
+        |  'connector.type' = 'COLLECTION',
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
@@ -136,7 +136,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |  rowtime AS CAST(log_ts AS TIMESTAMP(3)),
         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
+        |  'connector.type' = 'COLLECTION',
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
@@ -170,7 +170,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |    b DOUBLE>,
         |  WATERMARK FOR col.ts AS col.ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
+        |  'connector.type' = 'COLLECTION',
         |  'is-bounded' = 'false'
         |)
       """.stripMargin

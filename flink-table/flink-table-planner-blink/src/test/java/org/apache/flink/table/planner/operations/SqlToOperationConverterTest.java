@@ -113,7 +113,7 @@ public class SqlToOperationConverterTest {
 			.field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
 			.build();
 		Map<String, String> properties = new HashMap<>();
-		properties.put("connector", "COLLECTION");
+		properties.put("connector.type", "COLLECTION");
 		final CatalogTable catalogTable =  new CatalogTableImpl(tableSchema, properties, "");
 		catalog.createTable(path1, catalogTable, true);
 		catalog.createTable(path2, catalogTable, true);
@@ -243,7 +243,7 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
@@ -277,7 +277,7 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		parse(sql, planner, parser);
@@ -512,7 +512,7 @@ public class SqlToOperationConverterTest {
 			"  g as builtin.`default`.my_udf3(a) || '##'\n" +
 			")\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		functionCatalog.registerTempCatalogScalarFunction(

@@ -53,7 +53,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
          |  b bigint,
          |  c as proctime()
          |) with (
-         |  'connector' = 'COLLECTION'
+         |  'connector.type' = 'COLLECTION'
          |)
          |""".stripMargin)
   }

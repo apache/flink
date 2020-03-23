@@ -416,8 +416,8 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		String sourceDDL = "create table t1(a int, b varchar, c int) with ('connector' = 'COLLECTION')";
-		String sinkDDL = "create table t2(a int, b varchar, c int) with ('connector' = 'COLLECTION')";
+		String sourceDDL = "create table t1(a int, b varchar, c int) with ('connector.type' = 'COLLECTION')";
+		String sinkDDL = "create table t2(a int, b varchar, c int) with ('connector.type' = 'COLLECTION')";
 
 		String query = "select t1.a, t1.b, addOne(t1.a, 1) as c from t1";
 
@@ -453,7 +453,7 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
 		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
@@ -475,7 +475,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().sqlUpdate(
 			"CREATE TABLE TestTable(i INT, r ROW<i INT, s STRING>) " +
-			"WITH ('connector' = 'COLLECTION')");
+			"WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowScalarFunction", RowScalarFunction.class);
 		// the names of the function input and r differ
@@ -506,10 +506,10 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().sqlUpdate(
 			"CREATE TABLE SourceTable(i INT, b BYTES) " +
-			"WITH ('connector' = 'COLLECTION')");
+			"WITH ('connector.type' = 'COLLECTION')");
 		tEnv().sqlUpdate(
 			"CREATE TABLE SinkTable(i INT, s1 STRING, s2 STRING, d DECIMAL(5, 2), s3 STRING) " +
-			"WITH ('connector' = 'COLLECTION')");
+			"WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("ComplexScalarFunction", ComplexScalarFunction.class);
 		tEnv().sqlUpdate(
@@ -545,8 +545,8 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(i INT) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(i1 INT, i2 INT, i3 INT) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SourceTable(i INT) WITH ('connector.type' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(i1 INT, i2 INT, i3 INT) WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 		tEnv().sqlUpdate(
@@ -563,7 +563,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidCustomScalarFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 		try {
@@ -602,8 +602,8 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING> NOT NULL) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector.type' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING> NOT NULL) WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		tEnv().sqlUpdate("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
@@ -622,7 +622,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 		TestCollectionTableFactory.reset();
 
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("DynamicTableFunction", DynamicTableFunction.class);
 		tEnv().sqlUpdate(
@@ -639,7 +639,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidUseOfScalarFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
 		try {
@@ -660,7 +660,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidUseOfSystemScalarFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector.type' = 'COLLECTION')");
 
 		try {
 			tEnv().sqlUpdate(
@@ -680,7 +680,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidUseOfTableFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector.type' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		try {

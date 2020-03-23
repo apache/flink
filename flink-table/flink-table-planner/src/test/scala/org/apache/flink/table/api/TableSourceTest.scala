@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, Typ
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
@@ -375,7 +374,6 @@ class TableSourceTest extends TableTestBase {
     tableEnv.connect(new ConnectorDescriptor("COLLECTION", 1, false) {
       override protected def toConnectorProperties: JMap[String, String] = {
         val context = new JHashMap[String, String]()
-        context.put(CONNECTOR, "COLLECTION")
         context
       }
     }).withSchema(

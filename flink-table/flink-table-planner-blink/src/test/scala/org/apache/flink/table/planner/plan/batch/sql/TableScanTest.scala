@@ -43,7 +43,7 @@ class TableScanTest extends TableTestBase {
          |  d as to_timestamp(b),
          |  e as my_udf(a)
          |) with (
-         |  'connector' = 'COLLECTION',
+         |  'connector.type' = 'COLLECTION',
          |  'is-bounded' = 'true'
          |)
        """.stripMargin)
@@ -58,7 +58,7 @@ class TableScanTest extends TableTestBase {
          |  e as my_udf(a),
          |  WATERMARK FOR d AS d - INTERVAL '0.001' SECOND
          |) with (
-         |  'connector' = 'COLLECTION',
+         |  'connector.type' = 'COLLECTION',
          |  'is-bounded' = 'true'
          |)
        """.stripMargin)
@@ -80,7 +80,7 @@ class TableScanTest extends TableTestBase {
         |  b DOUBLE,
         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
+        |  'connector.type' = 'COLLECTION',
         |  'is-bounded' = 'true'
         |)
       """.stripMargin)
@@ -135,7 +135,7 @@ class TableScanTest extends TableTestBase {
          |  a int,
          |  b varchar
          |) with (
-         |  'connector' = 'COLLECTION',
+         |  'connector.type' = 'COLLECTION',
          |  'is-bounded' = 'true'
          |)
        """.stripMargin)

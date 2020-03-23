@@ -45,7 +45,7 @@ class CatalogTableTest {
         |  f7 DATE,
         |  f8 VARCHAR(10) NOT NULL
         |) WITH (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     )

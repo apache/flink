@@ -40,7 +40,7 @@ class WindowAggregateTest extends TableTestBase {
        |  b bigint,
        |  c as proctime()
        |) with (
-       |  'connector' = 'COLLECTION'
+       |  'connector.type' = 'COLLECTION'
        |)
        |""".stripMargin)
 

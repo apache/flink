@@ -426,8 +426,8 @@ public class FunctionITCase extends AbstractTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData, new ArrayList<>(), -1);
 
-		String sourceDDL = "create table t1(a int, b varchar, c int) with ('connector' = 'COLLECTION')";
-		String sinkDDL = "create table t2(a int, b varchar, c int) with ('connector' = 'COLLECTION')";
+		String sourceDDL = "create table t1(a int, b varchar, c int) with ('connector.type' = 'COLLECTION')";
+		String sinkDDL = "create table t2(a int, b varchar, c int) with ('connector.type' = 'COLLECTION')";
 		String query = " insert into t2 select t1.a, t1.b, addOne(t1.a, 1) as c from t1";
 
 		tableEnv.sqlUpdate(sourceDDL);

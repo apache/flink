@@ -113,7 +113,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b varchar,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -123,7 +123,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b varchar,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -149,7 +149,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b varchar,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -159,7 +159,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b varchar,
         |  c as a + 1
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -198,7 +198,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b int,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -209,7 +209,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  c int,
         |  d int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -253,7 +253,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b int,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -262,7 +262,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  a int,
         |  b int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -293,7 +293,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  c as proctime,
         |  primary key(a)
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -302,7 +302,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  a int,
         |  b int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -333,7 +333,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  WATERMARK FOR a AS a - interval '1' SECOND
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -342,7 +342,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  a timestamp(3),
         |  b bigint
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -374,7 +374,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  c as proctime,
         |  primary key(a)
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -383,7 +383,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  a int,
         |  b int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -414,7 +414,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  WATERMARK FOR a AS a - interval '1' SECOND
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -423,7 +423,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  a timestamp(3),
         |  b bigint
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -448,7 +448,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  c varchar
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val ddl2 =
@@ -457,7 +457,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  a bigint,
         |  b bigint
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
 
@@ -477,7 +477,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  c varchar
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val ddl2 =
@@ -486,7 +486,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  a bigint,
         |  b bigint
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
 
@@ -507,7 +507,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  c varchar
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
 
@@ -525,7 +525,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  c varchar
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
 
@@ -544,7 +544,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  c varchar
         |) with (
-        |  'connector' = 'COLLECTION',
+        |  'connector.type' = 'COLLECTION',
         |  'k1' = 'v1'
         |)
       """.stripMargin
@@ -553,7 +553,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array[String]("t2")))
     tableEnv.sqlUpdate("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
     val expectedProperties = new util.HashMap[String, String]()
-    expectedProperties.put("connector", "COLLECTION")
+    expectedProperties.put("connector.type", "COLLECTION")
     expectedProperties.put("k1", "a")
     expectedProperties.put("k2", "b")
     val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
@@ -632,7 +632,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  c varchar
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     tableEnv.sqlUpdate(ddl1)
@@ -643,7 +643,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
         |  b bigint,
         |  c varchar
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     tableEnv.sqlUpdate(ddl2)

@@ -112,7 +112,7 @@ public class SqlToOperationConverterTest {
 			.field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
 			.build();
 		Map<String, String> properties = new HashMap<>();
-		properties.put("connector", "COLLECTION");
+		properties.put("connector.type", "COLLECTION");
 		final CatalogTable catalogTable =  new CatalogTableImpl(tableSchema, properties, "");
 		catalog.createTable(path1, catalogTable, true);
 		catalog.createTable(path2, catalogTable, true);
@@ -242,7 +242,7 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
@@ -303,7 +303,7 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
+			"    'connector.type' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);

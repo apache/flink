@@ -52,7 +52,7 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b varchar,
         |  c as a + 1
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -62,7 +62,7 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b as c - 1,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
