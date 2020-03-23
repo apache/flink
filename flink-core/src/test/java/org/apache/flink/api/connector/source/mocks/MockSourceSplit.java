@@ -89,8 +89,13 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 	}
 
 	@Override
+	public String toString() {
+		return String.format("[id=%d, end_index=%d, index=%d, queue_size=%d]", id, endIndex, index, records.size());
+	}
+
+	@Override
 	public int hashCode() {
-		return Objects.hash(id, records.toArray(new Integer[0]), endIndex, index);
+		return Objects.hash(id, Arrays.hashCode(records.toArray(new Integer[0])), endIndex, index);
 	}
 
 	@Override
