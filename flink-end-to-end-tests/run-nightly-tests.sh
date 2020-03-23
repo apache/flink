@@ -34,6 +34,22 @@ fi
 
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
+# On Azure CI, set artifacts dir
+if [ ! -z "$TF_BUILD" ] ; then
+	export ARTIFACTS_DIR="${END_TO_END_DIR}/artifacts"
+	mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
+
+	# compress and register logs for publication on exit
+	function compress_logs {
+		echo "COMPRESSING build artifacts."
+		COMPRESSED_ARCHIVE=${BUILD_BUILDNUMBER}.tgz
+		mkdir compressed-archive-dir
+		tar -zcvf compressed-archive-dir/${COMPRESSED_ARCHIVE} $ARTIFACTS_DIR
+		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/compressed-archive-dir"
+	}
+	on_exit compress_logs
+fi
+
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
 
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
@@ -211,19 +227,10 @@ printf "\n\n====================================================================
 printf "Running Java end-to-end tests\n"
 printf "==============================================================================\n"
 
-HERE="`dirname \"$0\"`"
-HERE="`( cd \"${HERE}\" && pwd -P)`"
-if [ -z "${HERE}" ] ; then
-	# error; for some reason, the path is not accessible
-	# to the script (e.g. permissions re-evaled after suid)
-	exit 1  # fail
-fi
-ARTIFACTS_DIR="${HERE}/artifacts"
-mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
 
-LOG4J_PROPERTIES=${HERE}/../tools/log4j-travis.properties
+LOG4J_PROPERTIES=${END_TO_END_DIR}/../tools/log4j-travis.properties
 
-MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -DlogBackupDir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.wagon.http.pool=false -Dfast -Pskip-webui-build"
 e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
 e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 2 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')"
@@ -233,14 +240,5 @@ mvn ${MVN_COMMON_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} verify -pl ${e2e_mod
 
 EXIT_CODE=$?
 
-# On Azure, publish ARTIFACTS_FILE as a build artifact
-if [ ! -z "$TF_BUILD" ] ; then
-	echo "COMPRESSING build artifacts."
-	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tgz
-	tar -zcvf ${ARTIFACTS_FILE} $ARTIFACTS_DIR
-	mkdir artifact-dir
-	cp ${ARTIFACTS_FILE} artifact-dir/
-	echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/artifact-dir"
-fi
 
 exit $EXIT_CODE

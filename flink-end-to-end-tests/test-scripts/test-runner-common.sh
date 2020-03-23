@@ -94,6 +94,13 @@ function post_test_validation {
     if [[ ${exit_code} == 0 ]]; then
         cleanup
     else
+        # make logs available if ARTIFACTS_DIR is set
+        if [[ ${ARTIFACTS_DIR} != "" ]]; then
+            mkdir ${ARTIFACTS_DIR}/e2e-flink-logs 
+            cp $FLINK_DIR/log/* ${ARTIFACTS_DIR}/e2e-flink-logs/
+            echo "Published e2e logs into debug logs artifact:"
+            ls ${ARTIFACTS_DIR}/e2e-flink-logs/
+        fi
         exit "${exit_code}"
     fi
 }
@@ -120,4 +127,4 @@ function cleanup {
 }
 
 trap cleanup SIGINT
-trap cleanup_proc EXIT
+on_exit cleanup_proc
