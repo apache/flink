@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputStreamOperator<OUT>> {
-	public MultipleInputStreamTask(Environment env) {
+	public MultipleInputStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 

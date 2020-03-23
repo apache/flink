@@ -60,7 +60,7 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	BoundedStreamTask(
 		Environment environment,
 		Iterable<IN> input,
-		Collector<OUT> collector) {
+		Collector<OUT> collector) throws Exception {
 		super(environment, new NeverFireProcessingTimeService());
 		this.input = input.iterator();
 		this.collector = collector;

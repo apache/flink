@@ -64,11 +64,11 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	 */
 	private volatile boolean isFinished = false;
 
-	public SourceStreamTask(Environment env) {
+	public SourceStreamTask(Environment env) throws Exception {
 		this(env, new Object());
 	}
 
-	private SourceStreamTask(Environment env, Object lock) {
+	private SourceStreamTask(Environment env, Object lock) throws Exception {
 		super(env, null, FatalExitExceptionHandler.INSTANCE, StreamTaskActionExecutor.synchronizedExecutor(lock));
 		this.lock = Preconditions.checkNotNull(lock);
 		this.sourceThread = new LegacySourceFunctionThread();

@@ -136,7 +136,7 @@ public class MockStreamTaskBuilder {
 		return this;
 	}
 
-	public MockStreamTask build() {
+	public MockStreamTask build() throws Exception {
 		return new MockStreamTask(
 			environment,
 			name,
