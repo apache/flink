@@ -73,10 +73,20 @@ public interface ChannelStateWriter extends AutoCloseable {
 	void addOutputData(long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data);
 
 	/**
-	 * Finalize write of channel state for the given checkpoint id.
-	 * Must be called after {@link #start(long)} and all of the data of the given checkpoint added.
+	 * Finalize write of channel state data for the given checkpoint id.
+	 * Must be called after {@link #start(long)} and all of the input data of the given checkpoint added.
+	 * When both {@link #finishInput} and {@link #finishOutput} were called the results can be (eventually) obtained
+	 * using {@link #getWriteCompletionFuture}
 	 */
-	void finish(long checkpointId);
+	void finishInput(long checkpointId);
+
+	/**
+	 * Finalize write of channel state data for the given checkpoint id.
+	 * Must be called after {@link #start(long)} and all of the output data of the given checkpoint added.
+	 * When both {@link #finishInput} and {@link #finishOutput} were called the results can be (eventually) obtained
+	 * using {@link #getWriteCompletionFuture}
+	 */
+	void finishOutput(long checkpointId);
 
 	/**
 	 * Must be called after {@link #start(long)}.
@@ -101,7 +111,11 @@ public interface ChannelStateWriter extends AutoCloseable {
 		}
 
 		@Override
-		public void finish(long checkpointId) {
+		public void finishInput(long checkpointId) {
+		}
+
+		@Override
+		public void finishOutput(long checkpointId) {
 		}
 
 		@Override
