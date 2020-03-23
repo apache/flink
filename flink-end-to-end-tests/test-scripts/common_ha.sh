@@ -66,7 +66,7 @@ function verify_logs() {
     fi
 
     # checks that all apart from the first JM recover the failed jobgraph.
-    if ! verify_num_occurences_in_logs 'standalonesession' 'Recovered SubmittedJobGraph' ${JM_FAILURES}; then
+    if ! verify_num_occurences_in_logs 'standalonesession' 'Recovered JobGraph' ${JM_FAILURES}; then
         echo "FAILURE: A JM did not take over."
         EXIT_CODE=1
     fi

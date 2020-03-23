@@ -1,0 +1,1961 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testExistsAndNotExists">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND NOT EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftAntiJoin], where=[=(a, i)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[IS NOT NULL(m) AS $f0])
+:        +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+:           +- Exchange(distribution=[single])
+:              +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+:                 +- Calc(select=[true AS i])
+:                    +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[i], where=[<(j, 100)])
+      +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelated_AggInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT MAX(e) FROM r WHERE l.b = r.e AND d < 100 AND l.c = r.f GROUP BY d, true, f, 1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
+  LogicalProject(d=[$0], $f1=[true], f=[$2], $f3=[1], e=[$1])
+    LogicalFilter(condition=[AND(=($cor0.b, $1), <($0, 100), =($cor0.c, $2))])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[f, e])
+      +- HashAggregate(isMerge=[true], groupBy=[d, e, f], select=[d, e, f])
+         +- Exchange(distribution=[hash[d, e, f]])
+            +- LocalHashAggregate(groupBy=[d, e, f], select=[d, e, f])
+               +- Calc(select=[d, e, f], where=[<(d, 100)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelated_LateralTableInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[=($cor1.a, $0)])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+})], variablesSet=[[$cor1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) f0)], joinType=[INNER])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelated_OverInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT MAX(r.e) OVER() FROM r WHERE l.c = r.f GROUP BY r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalAggregate(group=[{0}])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[=($cor0.c, $2)])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(c, f)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[f])
+      +- HashAggregate(isMerge=[true], groupBy=[e, f], select=[e, f])
+         +- Exchange(distribution=[hash[e, f]])
+            +- LocalHashAggregate(groupBy=[e, f], select=[e, f])
+               +- Calc(select=[e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelated_SimpleCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_ComplexCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), NOT(OR(LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})))))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(a, 10) AS EXPR$0, c])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], build=[right], singleRowJoin=[true])
+   :- Calc(select=[a, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[IS NOT NULL(m) AS $f0])
+         +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                  +- Calc(select=[true AS i])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_LateralTableInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE EXISTS (SELECT * FROM t))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[d], build=[right], singleRowJoin=[true])
+                     :- Calc(select=[d])
+                     :  +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) f0)], joinType=[INNER])
+                     :     +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     +- Exchange(distribution=[broadcast])
+                        +- Calc(select=[IS NOT NULL(m) AS $f0])
+                           +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+                              +- Exchange(distribution=[single])
+                                 +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                                    +- Calc(select=[true AS i])
+                                       +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), >($1, 10))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_UnionInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE EXISTS (SELECT e, f FROM r WHERE d > 10 UNION SELECT j, k FROM t WHERE i < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[EXISTS({
+LogicalUnion(all=[false])
+  LogicalProject(e=[$1], f=[$2])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalProject(j=[$1], k=[$2])
+    LogicalFilter(condition=[<($0, 100)])
+      LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a], build=[right], singleRowJoin=[true])
+:- Calc(select=[a])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- HashAggregate(isMerge=[true], groupBy=[e, f], select=[e, f])
+                     +- Exchange(distribution=[hash[e, f]])
+                        +- LocalHashAggregate(groupBy=[e, f], select=[e, f])
+                           +- Union(all=[true], union=[e, f])
+                              :- Calc(select=[e, f], where=[>(d, 10)])
+                              :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                              +- Calc(select=[j, k], where=[<(i, 100)])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInExists1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a = r.d) AND a IN (SELECT i FROM t WHERE l.b = t.j)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, i), =(b, j))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[d])
+:        +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[i, j])
+      +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInExists2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b IN (SELECT j FROM t)  AND EXISTS (SELECT * FROM r WHERE l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($1, {
+LogicalProject(j=[$1])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}), EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- HashJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], isBroadcast=[true], build=[right])
+:  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[j])
+:        +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_AggInSubQuery1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b IN (SELECT MAX(r.e) FROM r WHERE l.c = r.f AND r.d < 3 GROUP BY r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($1, {
+LogicalProject(EXPR$0=[$1])
+  LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
+    LogicalProject(f=[$2], e=[$1])
+      LogicalFilter(condition=[AND(=($cor0.c, $2), <($0, 3))])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[EXPR$0, f])
+      +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_MAX(max$0) AS EXPR$0])
+         +- Exchange(distribution=[hash[f]])
+            +- LocalHashAggregate(groupBy=[f], select=[f, Partial_MAX(e) AS max$0])
+               +- Calc(select=[f, e], where=[<(d, 3)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_AggInSubQuery2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, 1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($1, $0, {
+LogicalProject(EXPR$0=[$4], d=[$0])
+  LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[COUNT()])
+    LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[1])
+      LogicalFilter(condition=[=($cor0.c, $2)])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(a, d), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[EXPR$0, d, f])
+      +- HashAggregate(isMerge=[true], groupBy=[d, e, f], select=[d, e, f, Final_COUNT(count1$0) AS EXPR$0])
+         +- Exchange(distribution=[hash[d, e, f]])
+            +- LocalHashAggregate(groupBy=[d, e, f], select=[d, e, f, Partial_COUNT(*) AS count1$0])
+               +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_ComplexCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE NOT(NOT(substring(c, 1, 5) IN (SELECT substring(f, 1, 5) FROM r WHERE l.b + 1 = r.e)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[IN(SUBSTRING($2, 1, 5), {
+LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
+  LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(a, 10) AS EXPR$0, c])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, e))], select=[a, c, $f3, $f4], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, +(b, 1) AS $f4])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[SUBSTRING(f, 1, 5) AS EXPR$0, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_ComplexCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 10 AND NOT (c like 'abc' OR a NOT IN (SELECT d FROM r WHERE l.b = r.e))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- Calc(select=[a, b, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_JoinInSubQuery1">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE b IN (WITH r1 AS (SELECT e FROM r WHERE l.a = r.d AND r.e < 50) SELECT e FROM r1 INNER JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r1.e = t2.j)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[IN($1, {
+LogicalProject(e=[$0])
+  LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+    LogicalProject(e=[$1])
+      LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 50))])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalProject(j=[$1])
+      LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
+        LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(a, d), =(c, k))], select=[a, b, c], isBroadcast=[true], build=[right])
+   :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[e, d, k])
+         +- HashJoin(joinType=[InnerJoin], where=[=(e, j)], select=[e, d, j, k], isBroadcast=[true], build=[left])
+            :- Exchange(distribution=[broadcast])
+            :  +- Calc(select=[e, d], where=[<(e, 50)])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- Calc(select=[j, k], where=[>(i, 10)])
+               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_JoinInSubQuery2">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE b IN (WITH r1 AS (SELECT e, f FROM r WHERE l.a = r.d AND r.e < 50) SELECT t.j FROM r1 LEFT JOIN t ON r1.f = t.k)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[IN($1, {
+LogicalProject(j=[$3])
+  LogicalJoin(condition=[=($1, $4)], joinType=[left])
+    LogicalProject(e=[$1], f=[$2])
+      LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 50))])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, d))], select=[a, b, c], isBroadcast=[true], build=[right])
+   :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[j, d])
+         +- HashJoin(joinType=[LeftOuterJoin], where=[=(f, k)], select=[f, d, j, k], isBroadcast=[true], build=[right])
+            :- Calc(select=[f, d], where=[<(e, 50)])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- Exchange(distribution=[broadcast])
+               +- Calc(select=[j, k])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_JoinInSubQuery3">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE a IN (SELECT d FROM r RIGHT JOIN (SELECT i FROM t WHERE l.c = t.k AND i > 10) t2 ON r.d = t2.i)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalJoin(condition=[=($0, $3)], joinType=[right])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalProject(i=[$0])
+      LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
+        LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, k))], select=[a, c], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, c])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d, k])
+         +- HashJoin(joinType=[RightOuterJoin], where=[=(d, i)], select=[d, i, k], isBroadcast=[true], build=[left])
+            :- Exchange(distribution=[broadcast])
+            :  +- Calc(select=[d])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- Calc(select=[i, k], where=[>(i, 10)])
+               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_LateralTableInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($2, {
+LogicalProject(f1=[$3])
+  LogicalFilter(condition=[=($cor1.a, $0)])
+    LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+})], variablesSet=[[$cor1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(c, f1), =(a, d))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[f0 AS f1, d])
+      +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) f0)], joinType=[INNER])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_MultiFields">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, SUBSTRING(c, 1, 5)) IN (SELECT d, SUBSTRING(f, 1, 5) FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, SUBSTRING($2, 1, 5), {
+LogicalProject(d=[$0], EXPR$1=[SUBSTRING($2, 1, 5)])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =($f3, EXPR$1), =(b, e))], select=[a, b, c, $f3], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, b, c, SUBSTRING(c, 1, 5) AS $f3])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d, SUBSTRING(f, 1, 5) AS EXPR$1, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_NonEquiCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b > r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[>($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), >(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_NonEquiCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[>($cor0.b, 10)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_OverInSubQuery1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b IN (SELECT rk FROM (SELECT d, e, RANK() OVER(PARTITION BY d ORDER BY e) AS rk FROM r) t WHERE l.a <> t.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($1, {
+LogicalProject(rk=[$2])
+  LogicalFilter(condition=[<>($cor0.a, $0)])
+    LogicalProject(d=[$0], e=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, rk), <>(a, d))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[w0$o0 AS rk, d])
+      +- OverAggregate(partitionBy=[d], orderBy=[e ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, w0$o0])
+         +- Sort(orderBy=[d ASC, e ASC])
+            +- Exchange(distribution=[hash[d]])
+               +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_ScalarQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE (SELECT MAX(d) FROM r WHERE e IN (SELECT j FROM t)) IN (SELECT i FROM t WHERE t.k = l.c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+  LogicalProject(d=[$0])
+    LogicalFilter(condition=[IN($1, {
+LogicalProject(j=[$1])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[=($2, $cor0.c)])
+    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(EXPR$0, i), =(k, c))], select=[a, c, EXPR$0], isBroadcast=[true], build=[right])
+   :- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, c, EXPR$0], build=[right], singleRowJoin=[true])
+   :  :- Calc(select=[a, c])
+   :  :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0])
+   :        +- Exchange(distribution=[single])
+   :           +- LocalSortAggregate(select=[Partial_MAX(d) AS max$0])
+   :              +- Calc(select=[d])
+   :                 +- HashJoin(joinType=[InnerJoin], where=[=(e, j)], select=[d, e, j], isBroadcast=[true], build=[right])
+   :                    :- Calc(select=[d, e])
+   :                    :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   :                    +- Exchange(distribution=[broadcast])
+   :                       +- HashAggregate(isMerge=[true], groupBy=[j], select=[j])
+   :                          +- Exchange(distribution=[hash[j]])
+   :                             +- LocalHashAggregate(groupBy=[j], select=[j])
+   :                                +- Calc(select=[j])
+   :                                   +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[i, k])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 1 AND a IN (SELECT d FROM r WHERE l.b = r.e AND r.d > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 1), IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- Calc(select=[a, b, c], where=[>(b, 1)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e], where=[>(d, 10)])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_SimpleCondition3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r where CAST(l.b AS INTEGER) = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=(CAST($cor0.b):INTEGER, $0)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- Calc(select=[a, b, c], where=[=(a, CAST(b))])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_AggInSubQuery1">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE b IN (SELECT MAX(e) FROM r WHERE d < 3 GROUP BY f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($1, {
+LogicalProject(EXPR$0=[$1])
+  LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
+    LogicalProject(f=[$2], e=[$1])
+      LogicalFilter(condition=[<($0, 3)])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashJoin(joinType=[LeftSemiJoin], where=[=(b, EXPR$0)], select=[a, b], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, b])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[EXPR$0])
+         +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_MAX(max$0) AS EXPR$0])
+            +- Exchange(distribution=[hash[f]])
+               +- LocalHashAggregate(groupBy=[f], select=[f, Partial_MAX(e) AS max$0])
+                  +- Calc(select=[f, e], where=[<(d, 3)])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_AggInSubQuery2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, b) IN(SELECT d, COUNT(*) FROM r GROUP BY d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, $1, {
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
+  LogicalProject(d=[$0])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, EXPR$1))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS EXPR$1])
+      +- Exchange(distribution=[hash[d]])
+         +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(*) AS count1$0])
+            +- Calc(select=[d])
+               +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_ComplexCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 10 AND NOT (c like 'abc' OR a NOT IN (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- Calc(select=[a, b, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_ComplexCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a IN (SELECT d FROM r)) IS TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IS TRUE(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_ComplexCondition4">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE (SELECT MAX(e) FROM r WHERE d > 0) IN (SELECT j FROM t)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[>($0, 0)])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), {
+LogicalProject(j=[$1])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashJoin(joinType=[LeftSemiJoin], where=[=(EXPR$0, j)], select=[a, EXPR$0], isBroadcast=[true], build=[right])
+   :- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, EXPR$0], build=[right], singleRowJoin=[true])
+   :  :- Calc(select=[a])
+   :  :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0])
+   :        +- Exchange(distribution=[single])
+   :           +- LocalHashAggregate(select=[Partial_MAX(e) AS max$0])
+   :              +- Calc(select=[e], where=[>(d, 0)])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[j])
+         +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_ComplexCondition5">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE a IN (SELECT d FROM r WHERE e > 10) AND b > (SELECT 0.5 * SUM(j) FROM t WHERE t.i < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[>($1, 10)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), >($1, $SCALAR_QUERY({
+LogicalProject(EXPR$0=[*(0.5:DECIMAL(2, 1), $0)])
+  LogicalAggregate(group=[{}], agg#0=[SUM($0)])
+    LogicalProject(j=[$1])
+      LogicalFilter(condition=[<($0, 100)])
+        LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b])
++- NestedLoopJoin(joinType=[InnerJoin], where=[>(b, $f0)], select=[b, $f0], build=[right], singleRowJoin=[true])
+   :- Calc(select=[b])
+   :  +- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b], isBroadcast=[true], build=[right])
+   :     :- Calc(select=[a, b])
+   :     :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- Exchange(distribution=[broadcast])
+   :        +- Calc(select=[d], where=[>(e, 10)])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- Exchange(distribution=[broadcast])
+      +- SortAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
+         +- Calc(select=[*(0.5:DECIMAL(2, 1), $f0) AS EXPR$0])
+            +- SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
+               +- Exchange(distribution=[single])
+                  +- LocalSortAggregate(select=[Partial_SUM(j) AS sum$0])
+                     +- Calc(select=[j], where=[<(i, 100)])
+                        +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_Having">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(a) AS s FROM l GROUP BY b HAVING COUNT(*) > 2 AND MAX(b) IN (SELECT e FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(s=[$1])
++- LogicalFilter(condition=[AND(>($2, 2), IN($3, {
+LogicalProject(e=[$1])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalAggregate(group=[{0}], s=[SUM($1)], agg#1=[COUNT()], agg#2=[MAX($0)])
+      +- LogicalProject(b=[$1], a=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[s])
++- HashJoin(joinType=[LeftSemiJoin], where=[=($f3, e)], select=[s, $f3], isBroadcast=[true], build=[right])
+   :- Calc(select=[s, $f3], where=[>($f2, 2)])
+   :  +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS s, Final_COUNT(count1$1) AS $f2, Final_MAX(max$2) AS $f3])
+   :     +- Exchange(distribution=[hash[b]])
+   :        +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) AS sum$0, Partial_COUNT(*) AS count1$1, Partial_MAX(b) AS max$2])
+   :           +- Calc(select=[b, a])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[e])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_LateralTableInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($2, {
+LogicalProject(f1=[$3])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(c, f1)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[f0 AS f1])
+      +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) f0)], joinType=[INNER])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_MultiFields">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM l WHERE
+    (a + 10, SUBSTRING(c, 1, 5)) IN (SELECT d + 100, SUBSTRING(f, 1, 5) FROM r)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN(+($0, 10), SUBSTRING($2, 1, 5), {
+LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, EXPR$1))], select=[a, b, c, $f3, $f4], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, b, c, +(a, 10) AS $f3, SUBSTRING(c, 1, 5) AS $f4])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[+(d, 100) AS EXPR$0, SUBSTRING(f, 1, 5) AS EXPR$1])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_OverInSubQuery">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM l WHERE (a, b) IN
+    (SELECT MAX(r.d) OVER(), MIN(r.e) OVER(PARTITION BY f ORDER BY d) FROM r)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, $1, {
+LogicalProject(EXPR$0=[MAX($0) OVER (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)], EXPR$1=[MIN($1) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, $0), =(b, $1))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
+      +- OverAggregate(partitionBy=[f], orderBy=[d ASC], window#0=[MIN(e) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, w0$o0, w1$o0])
+         +- Sort(orderBy=[f ASC, d ASC])
+            +- Exchange(distribution=[hash[f]])
+               +- OverAggregate(window#0=[MAX(d) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[d, e, f, w0$o0])
+                  +- Exchange(distribution=[single])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE e < 100) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[<($1, 100)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), >($1, 10))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d], where=[<(e, 100)])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_SimpleCondition3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a + 1 IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN(+($0, 1), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- HashJoin(joinType=[LeftSemiJoin], where=[=($f3, d)], select=[a, b, c, $f3], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, b, c, +(a, 1) AS $f3])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_UnionInSubQuery">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a FROM l WHERE b IN
+    (SELECT e FROM r WHERE d > 10 UNION SELECT i FROM t WHERE i < 100)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($1, {
+LogicalUnion(all=[false])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalProject(i=[$0])
+    LogicalFilter(condition=[<($0, 100)])
+      LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashJoin(joinType=[LeftSemiJoin], where=[=(b, e)], select=[a, b], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, b])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], groupBy=[e], select=[e])
+         +- Exchange(distribution=[hash[e]])
+            +- LocalHashAggregate(groupBy=[e], select=[e])
+               +- Union(all=[true], union=[e])
+                  :- Calc(select=[e], where=[>(d, 10)])
+                  :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- Calc(select=[CAST(i) AS i], where=[<(i, 100)])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiExistsWithCorrelate2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE EXISTS (SELECT * FROM t) AND l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}), =($cor0.a, $0))])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[d], build=[right], singleRowJoin=[true])
+      :- Calc(select=[d])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- Exchange(distribution=[broadcast])
+         +- Calc(select=[IS NOT NULL(m) AS $f0])
+            +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+               +- Exchange(distribution=[single])
+                  +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                     +- Calc(select=[true AS i])
+                        +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiExistsWithUncorrelated">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND EXISTS (SELECT * FROM t t1 WHERE t1.i > 50) AND b >= 1 AND EXISTS (SELECT * FROM t t2 WHERE t2.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), EXISTS({
+LogicalFilter(condition=[>($0, 50)])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}), >=($1, 1), EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:  :- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], isBroadcast=[true], build=[left])
+:  :  :- Exchange(distribution=[broadcast])
+:  :  :  +- Calc(select=[a, b, c], where=[>=(b, 1)])
+:  :  :     +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[IS NOT NULL(m) AS $f0])
+:        +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+:           +- Exchange(distribution=[single])
+:              +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+:                 +- Calc(select=[true AS i], where=[>(i, 50)])
+:                    +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i], where=[<(j, 100)])
+                  +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithCorrelate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):BIGINT, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})), >=(CAST($2):BIGINT, 1), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], isBroadcast=[true], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- HashJoin(joinType=[LeftAntiJoin], where=[=(a, i)], select=[a, b, c], isBroadcast=[true], build=[right])
+:     :- HashJoin(joinType=[LeftAntiJoin], where=[=(b, j)], select=[a, b, c], isBroadcast=[true], build=[right])
+:     :  :- Calc(select=[a, b, c], where=[>=(CAST(c), 1:BIGINT)])
+:     :  :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- Exchange(distribution=[broadcast])
+:     :     +- Calc(select=[j], where=[>(CAST(k), 50:BIGINT)])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
+:     +- Exchange(distribution=[broadcast])
+:        +- Calc(select=[i], where=[<(j, 100)])
+:           +- Reused(reference_id=[1])
++- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiInWithCorrelated1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE c = f) AND b IN (SELECT j FROM t WHERE a = i AND k <> 'test')]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), IN($1, {
+LogicalProject(j=[$1])
+  LogicalFilter(condition=[AND(=($cor0.a, $0), <>($2, _UTF-16LE'test'))])
+    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, i))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+:  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[d, f])
+:        +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[j, i], where=[<>(k, _UTF-16LE'test':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+      +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiInWithCorrelated2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT r.d FROM r WHERE l.b = r.e AND r.f IN (SELECT t.k FROM t WHERE r.e = t.j))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), IN($2, {
+LogicalProject(k=[$2])
+  LogicalFilter(condition=[=($cor1.e, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor1]])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e])
+      +- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(f, k), =(e, j))], select=[d, e, f], isBroadcast=[true], build=[right])
+         :- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- Exchange(distribution=[broadcast])
+            +- Calc(select=[k, j])
+               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiInWithCorrelated3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r) AND b IN (SELECT j FROM t WHERE t.k = l.c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), IN($1, {
+LogicalProject(j=[$1])
+  LogicalFilter(condition=[=($2, $cor0.c)])
+    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(k, c))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[d])
+:        +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiInWithUncorrelated1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r) AND b IN (SELECT j FROM t)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}), IN($1, {
+LogicalProject(j=[$1])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[d])
+:        +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[j])
+      +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiInWithUncorrelated2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE e IN (SELECT j FROM t))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[IN($1, {
+LogicalProject(j=[$1])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- HashJoin(joinType=[LeftSemiJoin], where=[=(e, j)], select=[d, e], isBroadcast=[true], build=[right])
+         :- Calc(select=[d, e])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- Exchange(distribution=[broadcast])
+            +- Calc(select=[j])
+               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelated">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE t1.i > 50) AND b >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE t2.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[>($0, 50)])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})), >=($1, 1), NOT(EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:  :- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], isBroadcast=[true], build=[left])
+:  :  :- Exchange(distribution=[broadcast])
+:  :  :  +- Calc(select=[a, b, c], where=[>=(b, 1)])
+:  :  :     +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[IS NOT NULL(m) AS $f0])
+:        +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+:           +- Exchange(distribution=[single])
+:              +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+:                 +- Calc(select=[true AS i], where=[>(i, 50)])
+:                    +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i], where=[<(j, 100)])
+                  +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelated_SimpleCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelated_ComplexCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE NOT( b > 10 OR (c like 'abc' OR NOT EXISTS (SELECT d FROM r)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[NOT(OR(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(a, 10) AS EXPR$0, c])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], build=[right], singleRowJoin=[true])
+   :- Calc(select=[a, c], where=[AND(<=(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[IS NOT NULL(m) AS $f0])
+         +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                  +- Calc(select=[true AS i])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})), >($1, 10))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUniqueRight">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM (SELECT DISTINCT c FROM rightT) WHERE a = c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalAggregate(group=[{0}])
+    LogicalProject(c=[$0])
+      LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftAntiJoin], where=[=(a, c)], select=[a, b], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]], fields=[a, b])
++- Exchange(distribution=[broadcast])
+   +- HashAggregate(isMerge=[true], groupBy=[c], select=[c])
+      +- Exchange(distribution=[hash[c]])
+         +- LocalHashAggregate(groupBy=[c], select=[c])
+            +- Calc(select=[c])
+               +- TableSourceScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]], fields=[c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInNotExists">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a = r.d) AND a NOT IN (SELECT i FROM t WHERE l.b = t.j)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, i), IS NULL(a), IS NULL(i)), =(b, j))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- HashJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+:  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[d])
+:        +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[i, j])
+      +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelated_ComplexCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE NOT(NOT(substring(c, 1, 5) NOT IN (SELECT substring(f, 1, 5) FROM r WHERE l.b + 1 = r.e)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[NOT(IN(SUBSTRING($2, 1, 5), {
+LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
+  LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(a, 10) AS EXPR$0, c])
++- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=($f3, EXPR$0), IS NULL($f3), IS NULL(EXPR$0)), =($f4, e))], select=[a, c, $f3, $f4], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, +(b, 1) AS $f4])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[SUBSTRING(f, 1, 5) AS EXPR$0, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelated_ComplexCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t) THEN 1 WHEN a NOT IN (SELECT CAST(j AS INTEGER) FROM t) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})), 1, NOT(IN($0, {
+LogicalProject(EXPR$0=[CAST($1):INTEGER])
+  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+})), 2, 3), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b])
++- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=($f3, d), IS NULL(d)), =(c, f))], select=[b, c, $f3], isBroadcast=[true], build=[right])
+   :- Calc(select=[b, c, CASE(OR(=(c0, 0), AND(IS NULL(i0), >=(ck, c0), IS NOT NULL(a))), 1, OR(=(c1, 0), AND(IS NULL(i), >=(ck0, c1), IS NOT NULL(a))), 2, 3) AS $f3])
+   :  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, EXPR$0)], select=[a, b, c, c0, ck, i0, c1, ck0, EXPR$0, i], isBroadcast=[true], build=[right])
+   :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck, i0, c1, ck0], build=[right], singleRowJoin=[true])
+   :     :  :- Calc(select=[a, b, c, c0, ck, i0])
+   :     :  :  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, i)], select=[a, b, c, c0, ck, i, i0], isBroadcast=[true], build=[right])
+   :     :  :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck], build=[right], singleRowJoin=[true])
+   :     :  :     :  :- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     :  :     :  +- Exchange(distribution=[broadcast])
+   :     :  :     :     +- SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
+   :     :  :     :        +- Exchange(distribution=[single])
+   :     :  :     :           +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(i) AS count$1])
+   :     :  :     :              +- Calc(select=[i])
+   :     :  :     :                 +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
+   :     :  :     +- Exchange(distribution=[broadcast])
+   :     :  :        +- Calc(select=[i, true AS i0])
+   :     :  :           +- HashAggregate(isMerge=[true], groupBy=[i], select=[i])
+   :     :  :              +- Exchange(distribution=[hash[i]])
+   :     :  :                 +- LocalHashAggregate(groupBy=[i], select=[i])
+   :     :  :                    +- Calc(select=[i, true AS i0])
+   :     :  :                       +- Reused(reference_id=[1])
+   :     :  +- Exchange(distribution=[broadcast])
+   :     :     +- SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
+   :     :        +- Exchange(distribution=[single])
+   :     :           +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(EXPR$0) AS count$1])
+   :     :              +- Calc(select=[CAST(j) AS EXPR$0])
+   :     :                 +- Reused(reference_id=[1])
+   :     +- Exchange(distribution=[broadcast])
+   :        +- Calc(select=[EXPR$0, true AS i])
+   :           +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])
+   :              +- Exchange(distribution=[hash[EXPR$0]])
+   :                 +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
+   :                    +- Calc(select=[CAST(j) AS EXPR$0, true AS i])
+   :                       +- Reused(reference_id=[1])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelated_MultiFields">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), OR(=(c, f), IS NULL(c), IS NULL(f)), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, f, e])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 1 AND a NOT IN (SELECT d FROM r WHERE l.b = r.e AND r.d > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 1), NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
+    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+:- Calc(select=[a, b, c], where=[>(b, 1)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e], where=[>(d, 10)])
+      +- TableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

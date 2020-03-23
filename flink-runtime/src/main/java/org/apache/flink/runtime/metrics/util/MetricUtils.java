@@ -29,7 +29,9 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
@@ -71,22 +73,26 @@ public class MetricUtils {
 	private MetricUtils() {
 	}
 
-	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
+	public static ProcessMetricGroup instantiateProcessMetricGroup(
 			final MetricRegistry metricRegistry,
 			final String hostname,
 			final Optional<Time> systemResourceProbeInterval) {
+		final ProcessMetricGroup processMetricGroup = ProcessMetricGroup.create(metricRegistry, hostname);
+
+		createAndInitializeStatusMetricGroup(processMetricGroup);
+
+		systemResourceProbeInterval.ifPresent(interval -> instantiateSystemMetrics(processMetricGroup, interval));
+
+		return processMetricGroup;
+	}
+
+	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
+			final MetricRegistry metricRegistry,
+			final String hostname) {
 		final JobManagerMetricGroup jobManagerMetricGroup = new JobManagerMetricGroup(
 			metricRegistry,
 			hostname);
 
-		MetricGroup statusGroup = jobManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
-
-		// initialize the JM metrics
-		instantiateStatusMetrics(statusGroup);
-
-		if (systemResourceProbeInterval.isPresent()) {
-			instantiateSystemMetrics(jobManagerMetricGroup, systemResourceProbeInterval.get());
-		}
 		return jobManagerMetricGroup;
 	}
 
@@ -100,15 +106,19 @@ public class MetricUtils {
 			hostName,
 			resourceID.toString());
 
-		MetricGroup statusGroup = taskManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
-
-		// Initialize the TM metrics
-		instantiateStatusMetrics(statusGroup);
+		MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 
 		if (systemResourceProbeInterval.isPresent()) {
 			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
 		}
 		return Tuple2.of(taskManagerMetricGroup, statusGroup);
+	}
+
+	private static MetricGroup createAndInitializeStatusMetricGroup(AbstractMetricGroup<?> parentMetricGroup) {
+		MetricGroup statusGroup = parentMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
+
+		instantiateStatusMetrics(statusGroup);
+		return statusGroup;
 	}
 
 	public static void instantiateStatusMetrics(

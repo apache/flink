@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -178,21 +179,22 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			checkNotNull(ownerName),
 			checkNotNull(executionAttemptID),
 			parentGroup,
-			nettyGroup.addGroup(METRIC_GROUP_INPUT),
-			nettyGroup.addGroup(METRIC_GROUP_OUTPUT));
+			nettyGroup.addGroup(METRIC_GROUP_OUTPUT),
+			nettyGroup.addGroup(METRIC_GROUP_INPUT));
 	}
 
 	@Override
 	public Collection<ResultPartition> createResultPartitionWriters(
 			ShuffleIOOwnerContext ownerContext,
-			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
+			List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
 		synchronized (lock) {
 			Preconditions.checkState(!isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
 			int counter = 0;
 			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
-				resultPartitions[counter++] = resultPartitionFactory.create(ownerContext.getOwnerName(), rpdd);
+				resultPartitions[counter] = resultPartitionFactory.create(ownerContext.getOwnerName(), counter, rpdd);
+				counter++;
 			}
 
 			registerOutputMetrics(config.isNetworkDetailedMetrics(), ownerContext.getOutputGroup(), resultPartitions);
@@ -204,7 +206,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	public Collection<SingleInputGate> createInputGates(
 			ShuffleIOOwnerContext ownerContext,
 			PartitionProducerStateProvider partitionProducerStateProvider,
-			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+			List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 		synchronized (lock) {
 			Preconditions.checkState(!isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
@@ -217,6 +219,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
 				SingleInputGate inputGate = singleInputGateFactory.create(
 					ownerContext.getOwnerName(),
+					counter,
 					igdd,
 					partitionProducerStateProvider,
 					inputChannelMetrics);
@@ -226,7 +229,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 				inputGates[counter++] = inputGate;
 			}
 
-			registerInputMetrics(config.isNetworkDetailedMetrics(), config.isCreditBased(), networkInputGroup, inputGates);
+			registerInputMetrics(config.isNetworkDetailedMetrics(), networkInputGroup, inputGates);
 			return Arrays.asList(inputGates);
 		}
 	}
@@ -246,7 +249,6 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			InputGate[] inputGates) {
 		NettyShuffleMetricFactory.registerLegacyNetworkMetrics(
 			config.isNetworkDetailedMetrics(),
-			config.isCreditBased(),
 			metricGroup,
 			producedPartitions,
 			inputGates);

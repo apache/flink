@@ -78,8 +78,7 @@ public class ClientTransportErrorHandlingTest {
 
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				true) {
+				mock(TaskEventDispatcher.class)) {
 
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
@@ -212,8 +211,7 @@ public class ClientTransportErrorHandlingTest {
 
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				true) {
+				mock(TaskEventDispatcher.class)) {
 
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
@@ -374,8 +372,7 @@ public class ClientTransportErrorHandlingTest {
 	private EmbeddedChannel createEmbeddedChannel() {
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				true);
+				mock(TaskEventDispatcher.class));
 
 		return new EmbeddedChannel(protocol.getClientChannelHandlers());
 	}

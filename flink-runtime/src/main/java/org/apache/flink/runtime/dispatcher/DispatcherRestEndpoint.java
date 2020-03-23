@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -94,7 +93,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			executor,
 			clusterConfiguration);
 
-		if (clusterConfiguration.getBoolean(WebOptions.SUBMIT_ENABLE)) {
+		if (restConfiguration.isWebSubmitEnabled()) {
 			try {
 				webSubmissionExtension = WebMonitorUtils.loadWebSubmissionExtension(
 					leaderRetriever,

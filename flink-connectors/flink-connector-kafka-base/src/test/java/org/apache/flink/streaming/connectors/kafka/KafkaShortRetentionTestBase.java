@@ -21,8 +21,8 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -83,8 +83,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 	private static Configuration getConfiguration() {
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
-		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
+		flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
 		return flinkConfig;
 	}
 
@@ -143,7 +142,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-		env.getConfig().disableSysoutLogging();
 
 		// ----------- add producer dataflow ----------
 
@@ -236,7 +234,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-		env.getConfig().disableSysoutLogging();
 
 		// ----------- add consumer ----------
 
@@ -253,9 +250,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 			env.execute("Test auto offset reset none");
 		} catch (Throwable e) {
 			// check if correct exception has been thrown
-			if (!e.getCause().getCause().getMessage().contains("Unable to find previous offset")  // kafka 0.8
-				&& !e.getCause().getCause().getMessage().contains("Undefined offset with no reset policy for partition") // kafka 0.9
-					) {
+			if (!e.getCause().getCause().getMessage().contains("Undefined offset with no reset policy for partition")) {
 				throw e;
 			}
 		}

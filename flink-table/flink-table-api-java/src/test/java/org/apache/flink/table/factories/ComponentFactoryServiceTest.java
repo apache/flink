@@ -45,7 +45,7 @@ public class ComponentFactoryServiceTest {
 	public void testLookingUpAmbiguousPlanners() {
 		Map<String, String> properties = new HashMap<>();
 		properties.put(EnvironmentSettings.CLASS_NAME, TestPlannerFactory.class.getCanonicalName());
-		properties.put(EnvironmentSettings.BATCH_MODE, Boolean.toString(true));
+		properties.put(EnvironmentSettings.STREAMING_MODE, Boolean.toString(false));
 		properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
 
 		PlannerFactory plannerFactory = ComponentFactoryService.find(PlannerFactory.class, properties);
@@ -60,7 +60,7 @@ public class ComponentFactoryServiceTest {
 
 		Map<String, String> properties = new HashMap<>();
 		properties.put(EnvironmentSettings.CLASS_NAME, "NoSuchClass");
-		properties.put(EnvironmentSettings.BATCH_MODE, Boolean.toString(true));
+		properties.put(EnvironmentSettings.STREAMING_MODE, Boolean.toString(false));
 		properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
 
 		ComponentFactoryService.find(PlannerFactory.class, properties);

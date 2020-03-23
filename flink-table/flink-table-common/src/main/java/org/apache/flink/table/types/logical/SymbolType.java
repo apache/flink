@@ -40,7 +40,7 @@ import java.util.Objects;
 @PublicEvolving
 public final class SymbolType<T extends TableSymbol> extends LogicalType {
 
-	private static final String FORMAT = "SYMBOL(%s)";
+	private static final String FORMAT = "SYMBOL('%s')";
 
 	private final Class<T> symbolClass;
 

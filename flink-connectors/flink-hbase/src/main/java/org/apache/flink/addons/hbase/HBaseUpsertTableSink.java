@@ -101,11 +101,6 @@ public class HBaseUpsertTableSink implements UpsertStreamTableSink<Row> {
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-		consumeDataStream(dataStream);
-	}
-
-	@Override
 	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		if (!Arrays.equals(getFieldNames(), fieldNames) || !Arrays.equals(getFieldTypes(), fieldTypes)) {
 			throw new ValidationException("Reconfiguration with different fields is not allowed. " +

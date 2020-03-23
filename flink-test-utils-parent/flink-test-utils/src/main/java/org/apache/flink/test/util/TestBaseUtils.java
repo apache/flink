@@ -37,14 +37,15 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -138,7 +139,7 @@ public class TestBaseUtils extends TestLogger {
 
 		BufferedReader[] readers = new BufferedReader[files.length];
 		for (int i = 0; i < files.length; i++) {
-			readers[i] = new BufferedReader(new FileReader(files[i]));
+			readers[i] = new BufferedReader(new InputStreamReader(new FileInputStream(files[i]), StandardCharsets.UTF_8));
 		}
 		return readers;
 	}

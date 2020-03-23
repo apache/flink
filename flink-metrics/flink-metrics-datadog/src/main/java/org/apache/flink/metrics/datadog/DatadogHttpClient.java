@@ -56,7 +56,7 @@ public class DatadogHttpClient {
 	private final String proxyHost;
 	private final int proxyPort;
 
-	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort) {
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, boolean validateApiKey) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
@@ -75,7 +75,9 @@ public class DatadogHttpClient {
 
 		seriesUrl = String.format(SERIES_URL_FORMAT, apiKey);
 		validateUrl = String.format(VALIDATE_URL_FORMAT, apiKey);
-		validateApiKey();
+		if (validateApiKey) {
+			validateApiKey();
+		}
 	}
 
 	Proxy getProxy() {
@@ -99,8 +101,8 @@ public class DatadogHttpClient {
 		}
 	}
 
-	public void send(DatadogHttpReporter.DatadogHttpRequest request) throws Exception {
-		String postBody = serialize(request.getSeries());
+	public void send(DSeries request) throws Exception {
+		String postBody = serialize(request);
 
 		Request r = new Request.Builder()
 			.url(seriesUrl)
@@ -119,7 +121,11 @@ public class DatadogHttpClient {
 		client.connectionPool().evictAll();
 	}
 
-	private static class EmptyCallback implements Callback {
+	/**
+	 * A handler for OkHttpClient callback.  In case of error or failure it logs the error at warning level.
+	 */
+	protected static class EmptyCallback implements Callback {
+
 		private static final EmptyCallback singleton = new EmptyCallback();
 
 		public static Callback getEmptyCallback() {
@@ -128,11 +134,15 @@ public class DatadogHttpClient {
 
 		@Override
 		public void onFailure(Call call, IOException e) {
-			LOGGER.debug("Failed sending request to Datadog" , e);
+			LOGGER.warn("Failed sending request to Datadog", e);
 		}
 
 		@Override
 		public void onResponse(Call call, Response response) throws IOException {
+			if (!response.isSuccessful()) {
+				LOGGER.warn("Failed to send request to Datadog (response was {})", response);
+			}
+
 			response.close();
 		}
 	}

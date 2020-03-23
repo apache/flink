@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -284,16 +283,13 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	}
 
 	private static ExecutionGraph createExecutionGraph(TaskManagerGateway gateway, int parallelism) throws Exception {
-		final JobID jobId = new JobID();
-
 		final JobVertex vertex = new JobVertex("vertex");
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(parallelism);
 
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, parallelism, gateway);
+		final SlotProvider slotProvider = new SimpleSlotProvider(parallelism, gateway);
 
 		ExecutionGraph simpleTestGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			jobId,
 			slotProvider,
 			new FixedDelayRestartStrategy(0, 0),
 			vertex);

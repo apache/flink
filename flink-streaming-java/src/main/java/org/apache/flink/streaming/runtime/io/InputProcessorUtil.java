@@ -20,17 +20,15 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-import java.io.IOException;
-
-import static org.apache.flink.util.Preconditions.checkState;
+import java.util.Arrays;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
@@ -42,17 +40,19 @@ public class InputProcessorUtil {
 	public static CheckpointedInputGate createCheckpointedInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			CheckpointingMode checkpointMode,
-			IOManager ioManager,
 			InputGate inputGate,
 			Configuration taskManagerConfig,
-			String taskName) throws IOException {
+			TaskIOMetricGroup taskIOMetricGroup,
+			String taskName) {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
 
 		BufferStorage bufferStorage = createBufferStorage(
-			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
+			checkpointMode, pageSize, taskManagerConfig, taskName);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			checkpointMode, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
+		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
 		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
 	}
 
@@ -63,38 +63,53 @@ public class InputProcessorUtil {
 	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
 			AbstractInvokable toNotifyOnCheckpoint,
 			CheckpointingMode checkpointMode,
-			IOManager ioManager,
-			InputGate inputGate1,
-			InputGate inputGate2,
 			Configuration taskManagerConfig,
-			String taskName) throws IOException {
+			TaskIOMetricGroup taskIOMetricGroup,
+			String taskName,
+			InputGate ...inputGates) {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
 
-		BufferStorage mainBufferStorage1 = createBufferStorage(
-			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
-		BufferStorage mainBufferStorage2 = createBufferStorage(
-			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
-		checkState(mainBufferStorage1.getMaxBufferedBytes() == mainBufferStorage2.getMaxBufferedBytes());
+		BufferStorage[] mainBufferStorages = new BufferStorage[inputGates.length];
+		for (int i = 0; i < inputGates.length; i++) {
+			mainBufferStorages[i] = createBufferStorage(
+				checkpointMode, pageSize, taskManagerConfig, taskName);
+		}
 
-		BufferStorage linkedBufferStorage1 = new LinkedBufferStorage(
-			mainBufferStorage1,
-			mainBufferStorage2,
-			mainBufferStorage1.getMaxBufferedBytes());
-		BufferStorage linkedBufferStorage2 = new LinkedBufferStorage(
-			mainBufferStorage2,
-			mainBufferStorage1,
-			mainBufferStorage1.getMaxBufferedBytes());
+		BufferStorage[] linkedBufferStorages = new BufferStorage[inputGates.length];
+
+		for (int i = 0; i < inputGates.length; i++) {
+			linkedBufferStorages[i] = new LinkedBufferStorage(
+				mainBufferStorages[i],
+				mainBufferStorages[i].getMaxBufferedBytes(),
+				copyBufferStoragesExceptOf(i, mainBufferStorages));
+		}
 
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			checkpointMode,
-			inputGate1.getNumberOfInputChannels() + inputGate2.getNumberOfInputChannels(),
+			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum(),
 			taskName,
 			toNotifyOnCheckpoint);
-		return new CheckpointedInputGate[] {
-			new CheckpointedInputGate(inputGate1, linkedBufferStorage1, barrierHandler),
-			new CheckpointedInputGate(inputGate2, linkedBufferStorage2, barrierHandler, inputGate1.getNumberOfInputChannels())
-		};
+		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
+		CheckpointedInputGate[] checkpointedInputGates = new CheckpointedInputGate[inputGates.length];
+
+		int channelIndexOffset = 0;
+		for (int i = 0; i < inputGates.length; i++) {
+			checkpointedInputGates[i] = new CheckpointedInputGate(inputGates[i], linkedBufferStorages[i], barrierHandler, channelIndexOffset);
+			channelIndexOffset += inputGates[i].getNumberOfInputChannels();
+		}
+
+		return checkpointedInputGates;
+	}
+
+	private static BufferStorage[] copyBufferStoragesExceptOf(
+			int skipStorage,
+			BufferStorage[] bufferStorages) {
+		BufferStorage[] copy = new BufferStorage[bufferStorages.length - 1];
+		System.arraycopy(bufferStorages, 0, copy, 0, skipStorage);
+		System.arraycopy(bufferStorages, skipStorage + 1, copy, skipStorage, bufferStorages.length - skipStorage - 1);
+		return copy;
 	}
 
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
@@ -117,10 +132,9 @@ public class InputProcessorUtil {
 
 	private static BufferStorage createBufferStorage(
 			CheckpointingMode checkpointMode,
-			IOManager ioManager,
 			int pageSize,
 			Configuration taskManagerConfig,
-			String taskName) throws IOException {
+			String taskName) {
 		switch (checkpointMode) {
 			case EXACTLY_ONCE: {
 				long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
@@ -129,17 +143,17 @@ public class InputProcessorUtil {
 						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
 							+ " must be positive or -1 (infinite)");
 				}
-
-				if (taskManagerConfig.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL)) {
-					return new CachedBufferStorage(pageSize, maxAlign, taskName);
-				} else {
-					return new BufferSpiller(ioManager, pageSize, maxAlign, taskName);
-				}
+				return new CachedBufferStorage(pageSize, maxAlign, taskName);
 			}
 			case AT_LEAST_ONCE:
 				return new EmptyBufferStorage();
 			default:
 				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
+	}
+
+	private static void registerCheckpointMetrics(TaskIOMetricGroup taskIOMetricGroup, CheckpointBarrierHandler barrierHandler) {
+		taskIOMetricGroup.gauge(MetricNames.CHECKPOINT_ALIGNMENT_TIME, barrierHandler::getAlignmentDurationNanos);
+		taskIOMetricGroup.gauge(MetricNames.CHECKPOINT_START_DELAY_TIME, barrierHandler::getCheckpointStartDelayNanos);
 	}
 }

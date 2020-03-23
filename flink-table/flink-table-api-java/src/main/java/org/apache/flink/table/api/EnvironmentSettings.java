@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.sinks.TableSink;
 
 import javax.annotation.Nullable;
 
@@ -44,8 +46,11 @@ import java.util.Map;
  */
 @PublicEvolving
 public class EnvironmentSettings {
-	public static final String BATCH_MODE = "batch-mode";
+
+	public static final String STREAMING_MODE = "streaming-mode";
 	public static final String CLASS_NAME = "class-name";
+	public static final String DEFAULT_BUILTIN_CATALOG = "default_catalog";
+	public static final String DEFAULT_BUILTIN_DATABASE = "default_database";
 
 	/**
 	 * Canonical name of the {@link Planner} class to use.
@@ -70,22 +75,22 @@ public class EnvironmentSettings {
 	private final String builtInDatabaseName;
 
 	/**
-	 * Determines if the table environment should work in a batch ({@code true}) or
-	 * streaming ({@code false}) mode.
+	 * Determines if the table environment should work in a batch ({@code false}) or
+	 * streaming ({@code true}) mode.
 	 */
-	private final boolean isBatchMode;
+	private final boolean isStreamingMode;
 
 	private EnvironmentSettings(
 			@Nullable String plannerClass,
 			@Nullable String executorClass,
 			String builtInCatalogName,
 			String builtInDatabaseName,
-			boolean isBatchMode) {
+			boolean isStreamingMode) {
 		this.plannerClass = plannerClass;
 		this.executorClass = executorClass;
 		this.builtInCatalogName = builtInCatalogName;
 		this.builtInDatabaseName = builtInDatabaseName;
-		this.isBatchMode = isBatchMode;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	/**
@@ -117,8 +122,8 @@ public class EnvironmentSettings {
 	/**
 	 * Tells if the {@link TableEnvironment} should work in a batch or streaming mode.
 	 */
-	public boolean isBatchMode() {
-		return isBatchMode;
+	public boolean isStreamingMode() {
+		return isStreamingMode;
 	}
 
 	@Internal
@@ -141,7 +146,7 @@ public class EnvironmentSettings {
 
 	private Map<String, String> toCommonProperties() {
 		Map<String, String> properties = new HashMap<>();
-		properties.put(BATCH_MODE, Boolean.toString(isBatchMode));
+		properties.put(STREAMING_MODE, Boolean.toString(isStreamingMode));
 		return properties;
 	}
 
@@ -149,29 +154,35 @@ public class EnvironmentSettings {
 	 * A builder for {@link EnvironmentSettings}.
 	 */
 	public static class Builder {
-		private String plannerClass = null;
-		private String executorClass = null;
-		private String builtInCatalogName = "default_catalog";
-		private String builtInDatabaseName = "default_database";
-		private boolean isBatchMode = false;
+		private static final String OLD_PLANNER_FACTORY = "org.apache.flink.table.planner.StreamPlannerFactory";
+		private static final String OLD_EXECUTOR_FACTORY = "org.apache.flink.table.executor.StreamExecutorFactory";
+		private static final String BLINK_PLANNER_FACTORY = "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
+		private static final String BLINK_EXECUTOR_FACTORY = "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
+
+		private String plannerClass = OLD_PLANNER_FACTORY;
+		private String executorClass = OLD_EXECUTOR_FACTORY;
+		private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
+		private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
+		private boolean isStreamingMode = true;
 
 		/**
-		 * Sets the old Flink planner as the required module. By default, {@link #useAnyPlanner()} is
-		 * enabled.
+		 * Sets the old Flink planner as the required module.
+		 *
+		 * <p>This is the default behavior.
 		 */
 		public Builder useOldPlanner() {
-			this.plannerClass = "org.apache.flink.table.planner.StreamPlannerFactory";
-			this.executorClass = "org.apache.flink.table.executor.StreamExecutorFactory";
+			this.plannerClass = OLD_PLANNER_FACTORY;
+			this.executorClass = OLD_EXECUTOR_FACTORY;
 			return this;
 		}
 
 		/**
-		 * Sets the Blink planner as the required module. By default, {@link #useAnyPlanner()} is
+		 * Sets the Blink planner as the required module. By default, {@link #useOldPlanner()} is
 		 * enabled.
 		 */
 		public Builder useBlinkPlanner() {
-			this.plannerClass = "org.apache.flink.table.planner.BlinkPlannerFactory";
-			this.executorClass = "org.apache.flink.table.executor.BlinkExecutorFactory";
+			this.plannerClass = BLINK_PLANNER_FACTORY;
+			this.executorClass = BLINK_EXECUTOR_FACTORY;
 			return this;
 		}
 
@@ -180,7 +191,7 @@ public class EnvironmentSettings {
 		 *
 		 * <p>A planner will be discovered automatically, if there is only one planner available.
 		 *
-		 * <p>This is the default behavior.
+		 * <p>By default, {@link #useOldPlanner()} is enabled.
 		 */
 		public Builder useAnyPlanner() {
 			this.plannerClass = null;
@@ -192,7 +203,7 @@ public class EnvironmentSettings {
 		 * Sets that the components should work in a batch mode. Streaming mode by default.
 		 */
 		public Builder inBatchMode() {
-			this.isBatchMode = true;
+			this.isStreamingMode = false;
 			return this;
 		}
 
@@ -200,13 +211,20 @@ public class EnvironmentSettings {
 		 * Sets that the components should work in a streaming mode. Enabled by default.
 		 */
 		public Builder inStreamingMode() {
-			this.isBatchMode = false;
+			this.isStreamingMode = true;
 			return this;
 		}
 
 		/**
 		 * Specifies the name of the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}. Default: "default_catalog".
+		 * a {@link TableEnvironment}. This catalog will be used to store all
+		 * non-serializable objects such as tables and functions registered via e.g.
+		 * {@link TableEnvironment#registerTableSink(String, TableSink)} or
+		 * {@link TableEnvironment#registerFunction(String, ScalarFunction)}. It will
+		 * also be the initial value for the current catalog which can be altered via
+		 * {@link TableEnvironment#useCatalog(String)}.
+		 *
+		 * <p>Default: "default_catalog".
 		 */
 		public Builder withBuiltInCatalogName(String builtInCatalogName) {
 			this.builtInCatalogName = builtInCatalogName;
@@ -214,8 +232,15 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Specifies the name of the default database in the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}. Default: "default_database".
+		 * Specifies the name of the default database in the initial catalog to be
+		 * created when instantiating a {@link TableEnvironment}. The database will be
+		 * used to store all non-serializable objects such as tables and functions registered
+		 * via e.g. {@link TableEnvironment#registerTableSink(String, TableSink)} or
+		 * {@link TableEnvironment#registerFunction(String, ScalarFunction)}. It will
+		 * also be the initial value for the current database which can be altered via
+		 * {@link TableEnvironment#useDatabase(String)}.
+		 *
+		 * <p>Default: "default_database".
 		 */
 		public Builder withBuiltInDatabaseName(String builtInDatabaseName) {
 			this.builtInDatabaseName = builtInDatabaseName;
@@ -231,7 +256,7 @@ public class EnvironmentSettings {
 				executorClass,
 				builtInCatalogName,
 				builtInDatabaseName,
-				isBatchMode);
+				isStreamingMode);
 		}
 	}
 }

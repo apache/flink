@@ -26,7 +26,7 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -131,7 +131,7 @@ public class IntermediateResultPartitionTest extends TestLogger {
 			ResultPartitionType resultPartitionType,
 			int producerCount) throws Exception {
 
-		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), new DirectScheduledExecutorService());
+		ExecutionJobVertex jobVertex = getExecutionJobVertex(new JobVertexID(), new DirectScheduledExecutorService());
 		IntermediateResult result =
 				new IntermediateResult(new IntermediateDataSetID(), jobVertex, producerCount, resultPartitionType);
 		for (int i = 0; i < producerCount; i++) {

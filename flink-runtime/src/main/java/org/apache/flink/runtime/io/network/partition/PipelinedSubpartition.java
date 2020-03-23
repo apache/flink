@@ -307,8 +307,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !flushRequested && buffers.size() == 1;
-			flushRequested = true;
+			notifyDataAvailable = !flushRequested && buffers.size() == 1 && buffers.peek().isDataAvailable();
+			flushRequested = flushRequested || buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
 			notifyDataAvailable();

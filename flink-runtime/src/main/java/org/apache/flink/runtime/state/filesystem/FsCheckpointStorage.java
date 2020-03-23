@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -50,6 +51,8 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 	private final int fileSizeThreshold;
 
 	private final int writeBufferSize;
+
+	private boolean baseLocationsInitialized = false;
 
 	public FsCheckpointStorage(
 			Path checkpointBaseDirectory,
@@ -85,16 +88,12 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 		this.taskOwnedStateDirectory = new Path(checkpointsDirectory, CHECKPOINT_TASK_OWNED_STATE_DIR);
 		this.fileSizeThreshold = fileSizeThreshold;
 		this.writeBufferSize = writeBufferSize;
-
-		// initialize the dedicated directories
-		fileSystem.mkdirs(checkpointsDirectory);
-		fileSystem.mkdirs(sharedStateDirectory);
-		fileSystem.mkdirs(taskOwnedStateDirectory);
 	}
 
 	// ------------------------------------------------------------------------
 
-	public Path getCheckpointsDirectory() {
+	@VisibleForTesting
+	Path getCheckpointsDirectory() {
 		return checkpointsDirectory;
 	}
 
@@ -108,8 +107,16 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 	}
 
 	@Override
+	public void initializeBaseLocations() throws IOException {
+		fileSystem.mkdirs(sharedStateDirectory);
+		fileSystem.mkdirs(taskOwnedStateDirectory);
+		baseLocationsInitialized = true;
+	}
+
+	@Override
 	public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) throws IOException {
-		checkArgument(checkpointId >= 0);
+		checkArgument(checkpointId >= 0, "Illegal negative checkpoint id: %d.", checkpointId);
+		checkArgument(baseLocationsInitialized, "The base checkpoint location has not been initialized.");
 
 		// prepare all the paths needed for the checkpoints
 		final Path checkpointDir = createCheckpointDirectory(checkpointsDirectory, checkpointId);

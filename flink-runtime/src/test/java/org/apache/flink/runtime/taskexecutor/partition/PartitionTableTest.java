@@ -63,6 +63,15 @@ public class PartitionTableTest extends TestLogger {
 	}
 
 	@Test
+	public void testStartTrackingZeroPartitionDoesNotMutateState() {
+		final PartitionTable<JobID> table = new PartitionTable<>();
+
+		table.startTrackingPartitions(JOB_ID, Collections.emptyList());
+
+		assertFalse(table.hasTrackedPartitions(JOB_ID));
+	}
+
+	@Test
 	public void testStopTrackingAllPartitions() {
 		final PartitionTable<JobID> table = new PartitionTable<>();
 

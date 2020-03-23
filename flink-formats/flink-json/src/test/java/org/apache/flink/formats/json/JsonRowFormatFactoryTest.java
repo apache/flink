@@ -106,12 +106,25 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		testSchemaDeserializationSchema(properties);
 	}
 
+	@Test
+	public void testSchemaDerivationByDefault() {
+		final Map<String, String> properties = toMap(
+			new Schema()
+				.field("field1", Types.BOOLEAN())
+				.field("field2", Types.INT())
+				.field("proctime", Types.SQL_TIMESTAMP()).proctime(),
+			new Json());
+
+		testSchemaSerializationSchema(properties);
+
+		testSchemaDeserializationSchema(properties);
+	}
+
 	private void testSchemaDeserializationSchema(Map<String, String> properties) {
 		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
 			.createDeserializationSchema(properties);
-		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(SCHEMA);
-		expected2.setFailOnMissingField(false);
+		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema.Builder(SCHEMA).build();
 		assertEquals(expected2, actual2);
 	}
 
@@ -119,7 +132,7 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
-		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema(SCHEMA);
+		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema.Builder(SCHEMA).build();
 		assertEquals(expected1, actual1);
 	}
 
@@ -127,8 +140,9 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
 			.createDeserializationSchema(properties);
-		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(JSON_SCHEMA);
-		expected2.setFailOnMissingField(true);
+		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema.Builder(JSON_SCHEMA)
+			.failOnMissingField()
+			.build();
 		assertEquals(expected2, actual2);
 	}
 
@@ -136,7 +150,9 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
-		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema(JSON_SCHEMA);
+		final SerializationSchema<?> expected1 = JsonRowSerializationSchema.builder()
+			.withTypeInfo(JsonRowSchemaConverter.convert(JSON_SCHEMA))
+			.build();
 		assertEquals(expected1, actual1);
 	}
 

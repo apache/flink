@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.CatalogReader;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.AggFunctionCall;
 import org.apache.flink.table.expressions.Aggregation;
 import org.apache.flink.table.expressions.CallExpression;
@@ -95,9 +96,9 @@ import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
@@ -263,7 +264,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visit(CatalogQueryOperation catalogTable) {
-			return relBuilder.scan(catalogTable.getTablePath()).build();
+			ObjectIdentifier objectIdentifier = catalogTable.getTableIdentifier();
+			return relBuilder.scan(
+				objectIdentifier.getCatalogName(),
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName()
+			).build();
 		}
 
 		@Override
@@ -293,6 +299,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		@Override
 		public <U> RelNode visit(TableSourceQueryOperation<U> tableSourceTable) {
 			final Table relTable = new TableSourceTable<>(
+				tableSourceTable.getTableSchema(),
 				tableSourceTable.getTableSource(),
 				!tableSourceTable.isBatch(),
 				FlinkStatistic.UNKNOWN());
@@ -310,6 +317,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					relTable.getRowType(relBuilder.getTypeFactory()),
 					relTable,
 					Schemas.path(catalogReader.getRootSchema(), Collections.singletonList(refId))),
+				tableSourceTable.getTableSchema(),
 				tableSourceTable.getTableSource(),
 				Option.empty()
 			);

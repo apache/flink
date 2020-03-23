@@ -64,6 +64,7 @@ Usage:
 }
 </pre>
 */
+@Deprecated
 public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>> implements Writer<Tuple2<K, V>>, InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 	public static final String CONF_OUTPUT_KEY_SCHEMA = "avro.schema.output.key";

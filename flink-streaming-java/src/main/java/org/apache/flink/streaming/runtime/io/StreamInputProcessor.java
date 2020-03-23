@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 
 import java.io.Closeable;
 
@@ -26,9 +27,11 @@ import java.io.Closeable;
  * Interface for processing records by {@link org.apache.flink.streaming.runtime.tasks.StreamTask}.
  */
 @Internal
-public interface StreamInputProcessor extends Closeable {
+public interface StreamInputProcessor extends AvailabilityProvider, Closeable {
 	/**
-	 * @return true if {@link StreamTaskInput} is finished.
+	 * @return input status to estimate whether more records can be processed immediately or not.
+	 * If there are no more records available at the moment and the caller should check finished
+	 * state and/or {@link #getAvailableFuture()}.
 	 */
-	boolean processInput() throws Exception;
+	InputStatus processInput() throws Exception;
 }

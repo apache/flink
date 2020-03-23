@@ -71,7 +71,7 @@ public class AbstractHandlerTest extends TestLogger {
 		final Path file = dir.resolve("file");
 		Files.createFile(file);
 
-		RestfulGateway mockRestfulGateway = TestingRestfulGateway.newBuilder()
+		RestfulGateway mockRestfulGateway = new TestingRestfulGateway.Builder()
 			.build();
 
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->

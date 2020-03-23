@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestBase;
@@ -32,7 +34,7 @@ import org.junit.Test;
 
 import java.util.function.Predicate;
 
-import static org.apache.flink.runtime.jobgraph.JobStatus.FINISHED;
+import static org.apache.flink.api.common.JobStatus.FINISHED;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -45,6 +47,11 @@ import static org.junit.Assert.assertThat;
 public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	private static final int NUM_TASKS = 31;
+
+	@Override
+	protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
+		return ComponentMainThreadExecutorServiceAdapter.forMainThread();
+	}
 
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {
@@ -63,13 +70,11 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 		groupVertex.setStrictlyCoLocatedWith(groupVertex2);
 
 		//initiate and schedule job
-		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(groupVertex, groupVertex2)
+		final ExecutionGraph eg = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(new JobGraph(groupVertex, groupVertex2))
 			.setSlotProvider(testingSlotProvider)
-			.setRestartStrategy(
-				new TestRestartStrategy(
-					1,
-					false))
-			.allowQueuedScheduling()
+			.setRestartStrategy(new TestRestartStrategy(1, false))
 			.build();
 
 		// enable the queued scheduling for the slot pool

@@ -15,6 +15,371 @@
 // limitations under the License.
 -->
 
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowCatalogs SqlShowCatalogs() :
+{
+}
+{
+    <SHOW> <CATALOGS>
+    {
+        return new SqlShowCatalogs(getPos());
+    }
+}
+
+SqlDescribeCatalog SqlDescribeCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <DESCRIBE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlDescribeCatalog(pos, catalogName);
+    }
+
+}
+
+SqlUseCatalog SqlUseCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <USE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlUseCatalog(pos, catalogName);
+    }
+}
+
+/**
+* Parses a create catalog statement.
+* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier catalogName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <CATALOG> { startPos = getPos(); }
+    catalogName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlCreateCatalog(startPos.plus(getPos()),
+            catalogName,
+            propertyList);
+    }
+}
+
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowDatabases SqlShowDatabases() :
+{
+}
+{
+    <SHOW> <DATABASES>
+    {
+        return new SqlShowDatabases(getPos());
+    }
+}
+
+SqlUseDatabase SqlUseDatabase() :
+{
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
+}
+{
+    <USE> { pos = getPos();}
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlUseDatabase(pos, databaseName);
+    }
+}
+
+/**
+* Parses a create database statement.
+* CREATE DATABASE database_name [COMMENT database_comment] [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateDatabase(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier databaseName;
+    SqlCharStringLiteral comment = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
+}
+{
+    <DATABASE> { startPos = getPos(); }
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    databaseName = CompoundIdentifier()
+    [ <COMMENT> <QUOTED_STRING>
+        {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+
+    { return new SqlCreateDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList,
+                    comment,
+                    ifNotExists); }
+
+}
+
+SqlAlterDatabase SqlAlterDatabase() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier databaseName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <DATABASE> { startPos = getPos(); }
+    databaseName = CompoundIdentifier()
+    <SET>
+    propertyList = TableProperties()
+    {
+        return new SqlAlterDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList);
+    }
+}
+
+SqlDrop SqlDropDatabase(Span s, boolean replace) :
+{
+    SqlIdentifier databaseName = null;
+    boolean ifExists = false;
+    boolean cascade = false;
+}
+{
+    <DATABASE>
+
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+
+    databaseName = CompoundIdentifier()
+    [
+                <RESTRICT> { cascade = false; }
+        |
+                <CASCADE>  { cascade = true; }
+    ]
+
+    {
+         return new SqlDropDatabase(s.pos(), databaseName, ifExists, cascade);
+    }
+}
+
+SqlDescribeDatabase SqlDescribeDatabase() :
+{
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    <DESCRIBE> <DATABASE> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlDescribeDatabase(pos, databaseName, isExtended);
+    }
+
+}
+
+SqlCreate SqlCreateFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+    String functionLanguage = null;
+    boolean ifNotExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [ <TEMPORARY>   {isTemporary = true;}
+        [ <SYSTEM>   { isSystemFunction = true; } ]
+    ]
+
+    <FUNCTION>
+
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        functionClassName = SqlLiteral.createCharString(p, getPos());
+    }
+    [<LANGUAGE>
+        (
+            <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, functionLanguage,
+                ifNotExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlDrop SqlDropFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [ <TEMPORARY> {isTemporary = true;}
+        [  <SYSTEM>   { isSystemFunction = true; }  ]
+    ]
+    <FUNCTION>
+
+    [ <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    {
+        return new SqlDropFunction(s.pos(), functionIdentifier, ifExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlAlterFunction SqlAlterFunction() :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+    String functionLanguage = null;
+    SqlParserPos startPos;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    <ALTER>
+
+    [ <TEMPORARY> { isTemporary = true; }
+        [  <SYSTEM>   { isSystemFunction = true; } ]
+    ]
+
+    <FUNCTION> { startPos = getPos(); }
+
+    [ <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        functionClassName = SqlLiteral.createCharString(p, getPos());
+    }
+
+    [<LANGUAGE>
+        (   <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlAlterFunction(startPos.plus(getPos()), functionIdentifier, functionClassName,
+            functionLanguage, ifExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlShowFunctions SqlShowFunctions() :
+{
+    SqlIdentifier database = null;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <FUNCTIONS> { pos = getPos();}
+    [database = CompoundIdentifier()]
+    {
+        return new SqlShowFunctions(pos, database);
+    }
+}
+
+/**
+* Parse a "Show Tables" metadata query command.
+*/
+SqlShowTables SqlShowTables() :
+{
+}
+{
+    <SHOW> <TABLES>
+    {
+        return new SqlShowTables(getPos());
+    }
+}
+
+/**
+ * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
+ */
+SqlRichDescribeTable SqlRichDescribeTable() :
+{
+    SqlIdentifier tableName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    <DESCRIBE> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    tableName = CompoundIdentifier()
+    {
+        return new SqlRichDescribeTable(pos, tableName, isExtended);
+    }
+}
+
+SqlAlterTable SqlAlterTable() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier tableIdentifier;
+    SqlIdentifier newTableIdentifier = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <TABLE> { startPos = getPos(); }
+        tableIdentifier = CompoundIdentifier()
+    (
+        <RENAME> <TO>
+        newTableIdentifier = CompoundIdentifier()
+        {
+            return new SqlAlterTableRename(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        newTableIdentifier);
+        }
+    |
+        <SET>
+        propertyList = TableProperties()
+        {
+            return new SqlAlterTableProperties(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        propertyList);
+        }
+    )
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }
@@ -27,20 +392,41 @@ void TableColumn(TableCreationContext context) :
         UniqueKey(context.uniqueKeysList)
     |
         ComputedColumn(context)
+    |
+        Watermark(context)
     )
+}
+
+void Watermark(TableCreationContext context) :
+{
+    SqlIdentifier eventTimeColumnName;
+    SqlParserPos pos;
+    SqlNode watermarkStrategy;
+}
+{
+    <WATERMARK> {pos = getPos();} <FOR>
+    eventTimeColumnName = CompoundIdentifier()
+    <AS>
+    watermarkStrategy = Expression(ExprContext.ACCEPT_NON_QUERY) {
+        if (context.watermark != null) {
+            throw SqlUtil.newContextException(pos,
+                ParserResource.RESOURCE.multipleWatermarksUnsupported());
+        } else {
+            context.watermark = new SqlWatermark(pos, eventTimeColumnName, watermarkStrategy);
+        }
+    }
 }
 
 void ComputedColumn(TableCreationContext context) :
 {
     SqlNode identifier;
     SqlNode expr;
-    boolean hidden = false;
     SqlParserPos pos;
 }
 {
     identifier = SimpleIdentifier() {pos = getPos();}
     <AS>
-    expr = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+    expr = Expression(ExprContext.ACCEPT_NON_QUERY) {
         expr = SqlStdOperatorTable.AS.createCall(Span.of(identifier, expr).pos(), expr, identifier);
         context.columnList.add(expr);
     }
@@ -55,14 +441,7 @@ void TableColumn2(List<SqlNode> list) :
 }
 {
     name = SimpleIdentifier()
-    type = DataType()
-    (
-        <NULL> { type = type.withNullable(true); }
-    |
-        <NOT> <NULL> { type = type.withNullable(false); }
-    |
-        { type = type.withNullable(true); }
-    )
+    type = ExtendedDataType()
     [ <COMMENT> <QUOTED_STRING> {
         String p = SqlParserUtil.parseString(token.image);
         comment = SqlLiteral.createCharString(p, getPos());
@@ -70,6 +449,35 @@ void TableColumn2(List<SqlNode> list) :
     {
         SqlTableColumn tableColumn = new SqlTableColumn(name, type, comment, getPos());
         list.add(tableColumn);
+    }
+}
+
+/**
+* Different with {@link #DataType()}, we support a [ NULL | NOT NULL ] suffix syntax for both the
+* collection element data type and the data type itself.
+*
+* <p>See {@link #SqlDataTypeSpec} for the syntax details of {@link #DataType()}.
+*/
+SqlDataTypeSpec ExtendedDataType() :
+{
+    SqlTypeNameSpec typeName;
+    final Span s;
+    boolean elementNullable = true;
+    boolean nullable = true;
+}
+{
+    <#-- #DataType does not take care of the nullable attribute. -->
+    typeName = TypeName() {
+        s = span();
+    }
+    (
+        LOOKAHEAD(3)
+        elementNullable = NullableOptDefaultTrue()
+        typeName = ExtendedCollectionsTypeName(typeName, elementNullable)
+    )*
+    nullable = NullableOptDefaultTrue()
+    {
+        return new SqlDataTypeSpec(typeName, s.end(this)).withNullable(nullable);
     }
 }
 
@@ -107,18 +515,18 @@ void UniqueKey(List<SqlNodeList> list) :
     }
 }
 
-SqlNode PropertyValue() :
+SqlNode TableOption() :
 {
-    SqlIdentifier key;
+    SqlNode key;
     SqlNode value;
     SqlParserPos pos;
 }
 {
-    key = CompoundIdentifier()
+    key = StringLiteral()
     { pos = getPos(); }
     <EQ> value = StringLiteral()
     {
-        return new SqlProperty(key, value, getPos());
+        return new SqlTableOption(key, value, getPos());
     }
 }
 
@@ -132,12 +540,12 @@ SqlNodeList TableProperties():
 {
     <LPAREN> { span = span(); }
     [
-        property = PropertyValue()
+        property = TableOption()
         {
             proList.add(property);
         }
         (
-            <COMMA> property = PropertyValue()
+            <COMMA> property = TableOption()
             {
                 proList.add(property);
             }
@@ -151,8 +559,9 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
-    SqlNodeList primaryKeyList = null;
-    List<SqlNodeList> uniqueKeysList = null;
+    SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
+    List<SqlNodeList> uniqueKeysList = new ArrayList<SqlNodeList>();
+    SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
 
@@ -175,6 +584,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
             columnList = new SqlNodeList(ctx.columnList, pos);
             primaryKeyList = ctx.primaryKeyList;
             uniqueKeysList = ctx.uniqueKeysList;
+            watermark = ctx.watermark;
         }
         <RPAREN>
     ]
@@ -184,7 +594,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     }]
     [
         <PARTITIONED> <BY>
-        partitionColumns = ParenthesizedSimpleIdentifierList()
+        partitionColumns = ParenthesizedSimpleIdentifierList() {
+            if (!((FlinkSqlConformance) this.conformance).allowCreatePartitionedTable()) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.createPartitionedTableIsOnlyAllowedForHive());
+            }
+        }
     ]
     [
         <WITH>
@@ -198,6 +613,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
                 uniqueKeysList,
                 propertyList,
                 partitionColumns,
+                watermark,
                 comment);
     }
 }
@@ -249,10 +665,9 @@ SqlNode RichSqlInsert() :
         <INTO>
     |
         <OVERWRITE> {
-            if (!((FlinkSqlConformance) this.conformance).allowInsertOverwrite()) {
-                throw new ParseException("OVERWRITE expression is only allowed for HIVE dialect");
-            } else if (RichSqlInsert.isUpsert(keywords)) {
-                throw new ParseException("OVERWRITE expression is only used with INSERT mode");
+            if (RichSqlInsert.isUpsert(keywords)) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
             }
             extendedKeywords.add(RichSqlInsertKeyword.OVERWRITE.symbol(getPos()));
         }
@@ -283,11 +698,7 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
-        <PARTITION> PartitionSpecCommaList(partitionList) {
-            if (!((FlinkSqlConformance) this.conformance).allowInsertIntoPartition()) {
-                throw new ParseException("PARTITION expression is only allowed for HIVE dialect");
-            }
-        }
+        <PARTITION> PartitionSpecCommaList(partitionList)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
@@ -367,53 +778,298 @@ SqlDrop SqlDropView(Span s, boolean replace) :
     }
 }
 
-SqlIdentifier SqlArrayType() :
+/**
+* A sql type name extended basic data type, it has a counterpart basic
+* sql type name but always represents as a special alias compared with the standard name.
+*
+* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
+* and BYTES is synonym of VARBINARY(INT_MAX).
+*/
+SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
-    SqlParserPos pos;
-    SqlDataTypeSpec elementType;
+    final SqlTypeName typeName;
+    final String typeAlias;
+    int precision = -1;
 }
 {
-    <ARRAY> { pos = getPos(); }
-    <LT> elementType = DataType()
-    <GT>
+    (
+        <STRING> {
+            typeName = SqlTypeName.VARCHAR;
+            typeAlias = token.image;
+            precision = Integer.MAX_VALUE;
+        }
+    |
+        <BYTES> {
+            typeName = SqlTypeName.VARBINARY;
+            typeAlias = token.image;
+            precision = Integer.MAX_VALUE;
+        }
+    )
     {
-        return new SqlArrayType(pos, elementType);
+        return new ExtendedSqlBasicTypeNameSpec(typeAlias, typeName, precision, getPos());
     }
 }
 
-SqlIdentifier SqlMapType() :
+/*
+* Parses collection type name that does not belong to standard SQL, i.e. ARRAY&lt;INT NOT NULL&gt;.
+*/
+SqlTypeNameSpec CustomizedCollectionsTypeName() :
+{
+    final SqlTypeName collectionTypeName;
+    final SqlTypeNameSpec elementTypeName;
+    boolean elementNullable = true;
+}
+{
+    (
+        <ARRAY> {
+            collectionTypeName = SqlTypeName.ARRAY;
+        }
+    |
+        <MULTISET> {
+            collectionTypeName = SqlTypeName.MULTISET;
+        }
+    )
+    <LT>
+    elementTypeName = TypeName()
+    elementNullable = NullableOptDefaultTrue()
+    <GT>
+    {
+        return new ExtendedSqlCollectionTypeNameSpec(
+            elementTypeName,
+            elementNullable,
+            collectionTypeName,
+            false,
+            getPos());
+    }
+}
+
+/**
+* Parse a collection type name, the input element type name may
+* also be a collection type. Different with #CollectionsTypeName,
+* the element type can have a [ NULL | NOT NULL ] suffix, default is NULL(nullable).
+*/
+SqlTypeNameSpec ExtendedCollectionsTypeName(
+        SqlTypeNameSpec elementTypeName,
+        boolean elementNullable) :
+{
+    final SqlTypeName collectionTypeName;
+}
+{
+    (
+        <MULTISET> { collectionTypeName = SqlTypeName.MULTISET; }
+    |
+         <ARRAY> { collectionTypeName = SqlTypeName.ARRAY; }
+    )
+    {
+        return new ExtendedSqlCollectionTypeNameSpec(
+             elementTypeName,
+             elementNullable,
+             collectionTypeName,
+             true,
+             getPos());
+    }
+}
+
+/** Parses a SQL map type, e.g. MAP&lt;INT NOT NULL, VARCHAR NULL&gt;. */
+SqlTypeNameSpec SqlMapTypeName() :
 {
     SqlDataTypeSpec keyType;
     SqlDataTypeSpec valType;
+    boolean nullable = true;
 }
 {
     <MAP>
-    <LT> keyType = DataType()
-    <COMMA> valType = DataType()
+    <LT>
+    keyType = ExtendedDataType()
+    <COMMA>
+    valType = ExtendedDataType()
     <GT>
     {
-        return new SqlMapType(getPos(), keyType, valType);
+        return new SqlMapTypeNameSpec(keyType, valType, getPos());
     }
 }
 
-SqlIdentifier SqlRowType() :
+/**
+* Parse a "name1 type1 [ NULL | NOT NULL] [ comment ]
+* [, name2 type2 [ NULL | NOT NULL] [ comment ] ]* ..." list.
+* The comment and NULL syntax doest not belong to standard SQL.
+*/
+void ExtendedFieldNameTypeCommaList(
+        List<SqlIdentifier> fieldNames,
+        List<SqlDataTypeSpec> fieldTypes,
+        List<SqlCharStringLiteral> comments) :
 {
-    SqlParserPos pos;
-    List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
-    List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
+    SqlIdentifier fName;
+    SqlDataTypeSpec fType;
+    boolean nullable;
 }
 {
-    <ROW> { pos = getPos(); SqlIdentifier fName; SqlDataTypeSpec fType;}
-    <LT>
-    fName = SimpleIdentifier() <COLON> fType = DataType()
-    { fieldNames.add(fName); fieldTypes.add(fType); }
+    [
+        fName = SimpleIdentifier()
+        fType = ExtendedDataType()
+        {
+            fieldNames.add(fName);
+            fieldTypes.add(fType);
+        }
+        (
+            <QUOTED_STRING> {
+                String p = SqlParserUtil.parseString(token.image);
+                comments.add(SqlLiteral.createCharString(p, getPos()));
+            }
+        |
+            { comments.add(null); }
+        )
+    ]
     (
         <COMMA>
-        fName = SimpleIdentifier() <COLON> fType = DataType()
-        { fieldNames.add(fName); fieldTypes.add(fType); }
+        fName = SimpleIdentifier()
+        fType = ExtendedDataType()
+        {
+            fieldNames.add(fName);
+            fieldTypes.add(fType);
+        }
+        (
+            <QUOTED_STRING> {
+                String p = SqlParserUtil.parseString(token.image);
+                comments.add(SqlLiteral.createCharString(p, getPos()));
+            }
+        |
+            { comments.add(null); }
+        )
     )*
-    <GT>
+}
+
+/**
+* Parse Row type, we support both Row(name1 type1, name2 type2)
+* and Row&lt;name1 type1, name2 type2&gt;.
+* Every item type can have a suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
+* i.e. Row(f0 int not null, f1 varchar null). Default is nullable.
+*
+* <p>The difference with {@link #SqlRowTypeName()}:
+* <ul>
+*   <li>Support comment syntax for every field</li>
+*   <li>Field data type default is nullable</li>
+*   <li>Support ROW type with empty fields, e.g. ROW()</li>
+* </ul>
+*/
+SqlTypeNameSpec ExtendedSqlRowTypeName() :
+{
+    List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
+    List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
+    List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+    final boolean unparseAsStandard;
+}
+{
+    <ROW>
+    (
+        <NE> { unparseAsStandard = false; }
+    |
+        <LT> ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments) <GT>
+        { unparseAsStandard = false; }
+    |
+        <LPAREN> ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments) <RPAREN>
+        { unparseAsStandard = true; }
+    )
     {
-        return new SqlRowType(pos, fieldNames, fieldTypes);
+        return new ExtendedSqlRowTypeNameSpec(
+            getPos(),
+            fieldNames,
+            fieldTypes,
+            comments,
+            unparseAsStandard);
+    }
+}
+
+/**
+ * Those methods should not be used in SQL. They are good for parsing identifiers
+ * in Table API. The difference between those identifiers and CompoundIdentifer is
+ * that the Table API identifiers ignore any keywords. They are also strictly limited
+ * to three part identifiers. The quoting still works the same way.
+ */
+SqlIdentifier TableApiIdentifier() :
+{
+    final List<String> nameList = new ArrayList<String>();
+    final List<SqlParserPos> posList = new ArrayList<SqlParserPos>();
+}
+{
+    TableApiIdentifierSegment(nameList, posList)
+    (
+        LOOKAHEAD(2)
+        <DOT>
+        TableApiIdentifierSegment(nameList, posList)
+    )?
+    (
+        LOOKAHEAD(2)
+        <DOT>
+        TableApiIdentifierSegment(nameList, posList)
+    )?
+    <EOF>
+    {
+        SqlParserPos pos = SqlParserPos.sum(posList);
+        return new SqlIdentifier(nameList, null, pos, posList);
+    }
+}
+
+void TableApiIdentifierSegment(List<String> names, List<SqlParserPos> positions) :
+{
+    final String id;
+    char unicodeEscapeChar = BACKSLASH;
+    final SqlParserPos pos;
+    final Span span;
+}
+{
+    (
+        <QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, DQ, DQ, DQDQ,
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <BACK_QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, "`", "`", "``",
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <BRACKET_QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, "[", "]", "]]",
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <UNICODE_QUOTED_IDENTIFIER> {
+            span = span();
+            String image = getToken(0).image;
+            image = image.substring(image.indexOf('"'));
+            image = SqlParserUtil.strip(image, DQ, DQ, DQDQ, quotedCasing);
+        }
+        [
+            <UESCAPE> <QUOTED_STRING> {
+                String s = SqlParserUtil.parseString(token.image);
+                unicodeEscapeChar = SqlParserUtil.checkUnicodeEscapeChar(s);
+            }
+        ]
+        {
+            pos = span.end(this).withQuoting(true);
+            SqlLiteral lit = SqlLiteral.createCharString(image, "UTF16", pos);
+            lit = lit.unescapeUnicode(unicodeEscapeChar);
+            id = lit.toValue();
+        }
+    |
+        {
+
+            id = getNextToken().image;
+            pos = getPos();
+        }
+    )
+    {
+        if (id.length() > this.identifierMaxLength) {
+            throw SqlUtil.newContextException(pos,
+                RESOURCE.identifierTooLong(id, this.identifierMaxLength));
+        }
+        names.add(id);
+        if (positions != null) {
+            positions.add(pos);
+        }
     }
 }

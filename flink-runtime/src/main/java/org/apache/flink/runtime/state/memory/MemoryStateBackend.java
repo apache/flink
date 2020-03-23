@@ -66,7 +66,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * main memory, reducing operational stability.
  * For any other setup, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend FsStateBackend}
  * should be used. The {@code FsStateBackend} holds the working state on the TaskManagers in the same way, but
- * checkpoints state directly to files rather then to the JobManager's memory, thus supporting
+ * checkpoints state directly to files rather than to the JobManager's memory, thus supporting
  * large state sizes.
  *
  * <h1>State Size Considerations</h1>

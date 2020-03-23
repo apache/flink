@@ -23,6 +23,7 @@
         <xhtml:div class="detail">{{operator}}</xhtml:div>
         <xhtml:div class="detail description">{{description}}</xhtml:div>
         <xhtml:div class="node-label">Parallelism: {{parallelism}}</xhtml:div>
+        <xhtml:div class="node-label watermark" *ngIf="lowWatermark">Low Watermark <xhtml:br/> {{lowWatermark}}</xhtml:div>
         <xhtml:div class="detail last" *ngIf="operatorStrategy">Operation: {{operatorStrategy}}</xhtml:div>
       </h4>
     </xhtml:div>

@@ -69,7 +69,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 				configuration,
 				Collections.singletonList(getCli(configuration)));
 			testFrontend.info(parameters);
-			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
+			assertTrue(buffer.toString().contains("\"parallelism\": \"4\""));
 		}
 		finally {
 			restoreStdOut();

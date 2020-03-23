@@ -74,8 +74,9 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.INTERVAL;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.ANY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.CHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DATE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DOUBLE;
@@ -84,6 +85,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MULTISET;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
@@ -156,13 +158,13 @@ public final class LogicalTypeGeneralization {
 		Preconditions.checkArgument(types.size() > 0, "List of types must not be empty.");
 
 		// collect statistics first
-		boolean hasAnyType = false;
+		boolean hasRawType = false;
 		boolean hasNullType = false;
 		boolean hasNullableTypes = false;
 		for (LogicalType type : types) {
 			final LogicalTypeRoot typeRoot = type.getTypeRoot();
-			if (typeRoot == ANY) {
-				hasAnyType = true;
+			if (typeRoot == RAW) {
+				hasRawType = true;
 			} else if (typeRoot == NULL) {
 				hasNullType = true;
 			}
@@ -175,7 +177,7 @@ public final class LogicalTypeGeneralization {
 			.map(t -> t.copy(true))
 			.collect(Collectors.toList());
 
-		LogicalType foundType = findCommonNullableType(normalizedTypes, hasAnyType, hasNullType);
+		LogicalType foundType = findCommonNullableType(normalizedTypes, hasRawType, hasNullType);
 		if (foundType == null) {
 			foundType = findCommonCastableType(normalizedTypes);
 		}
@@ -213,11 +215,11 @@ public final class LogicalTypeGeneralization {
 	@SuppressWarnings("ConstantConditions")
 	private static @Nullable LogicalType findCommonNullableType(
 			List<LogicalType> normalizedTypes,
-			boolean hasAnyType,
+			boolean hasRawType,
 			boolean hasNullType) {
 
-		// all ANY types must be equal
-		if (hasAnyType) {
+		// all RAW types must be equal
+		if (hasRawType) {
 			return findExactlySameType(normalizedTypes);
 		}
 
@@ -266,10 +268,19 @@ public final class LogicalTypeGeneralization {
 				final int length = combineLength(resultType, type);
 
 				if (hasRoot(resultType, VARCHAR) || hasRoot(resultType, VARBINARY)) {
-					// for variable length type we are done here
+					// variable length types remain variable length types
 					resultType = createStringType(resultType.getTypeRoot(), length);
+				} else if (getLength(resultType) != getLength(type)) {
+					// for different fixed lengths
+					// this is different from the SQL standard but prevents whitespace
+					// padding/modification of strings
+					if (hasRoot(resultType, CHAR)) {
+						resultType = createStringType(VARCHAR, length);
+					} else if (hasRoot(resultType, BINARY)) {
+						resultType = createStringType(VARBINARY, length);
+					}
 				} else {
-					// for mixed fixed/variable or fixed/fixed lengths
+					// for same type with same length
 					resultType = createStringType(typeRoot, length);
 				}
 			}

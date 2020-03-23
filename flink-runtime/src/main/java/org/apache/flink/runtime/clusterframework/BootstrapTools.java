@@ -21,20 +21,23 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.OperatingSystem;
 
+import org.apache.flink.shaded.guava18.com.google.common.escape.Escaper;
+import org.apache.flink.shaded.guava18.com.google.common.escape.Escapers;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,14 +49,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import scala.Some;
 import scala.Tuple2;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -69,6 +71,15 @@ public class BootstrapTools {
 		.defaultValue(false);
 
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
+
+	private static final Escaper UNIX_SINGLE_QUOTE_ESCAPER = Escapers.builder()
+		.addEscape('\'', "'\\''")
+		.build();
+
+	private static final Escaper WINDOWS_DOUBLE_QUOTE_ESCAPER = Escapers.builder()
+		.addEscape('"', "\\\"")
+		.addEscape('^', "\"^^\"")
+		.build();
 
 	/**
 	 * Starts an ActorSystem with the given configuration listening at the address/ports.
@@ -269,40 +280,6 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * Generate a task manager configuration.
-	 * @param baseConfig Config to start from.
-	 * @param jobManagerHostname Job manager host name.
-	 * @param jobManagerPort Port of the job manager.
-	 * @param numSlots Number of slots to configure.
-	 * @param registrationTimeout Timeout for registration
-	 * @return TaskManager configuration
-	 */
-	public static Configuration generateTaskManagerConfiguration(
-				Configuration baseConfig,
-				String jobManagerHostname,
-				int jobManagerPort,
-				int numSlots,
-				FiniteDuration registrationTimeout) {
-
-		Configuration cfg = cloneConfiguration(baseConfig);
-
-		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
-			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
-		}
-
-		if (jobManagerPort > 0) {
-			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-		}
-
-		cfg.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, registrationTimeout.toString());
-		if (numSlots != -1){
-			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
-		}
-
-		return cfg;
-	}
-
-	/**
 	 * Writes a Flink YAML config file from a Flink Configuration object.
 	 * @param cfg The Flink config
 	 * @param file The File to write to
@@ -311,11 +288,10 @@ public class BootstrapTools {
 	public static void writeConfiguration(Configuration cfg, File file) throws IOException {
 		try (FileWriter fwrt = new FileWriter(file);
 			PrintWriter out = new PrintWriter(fwrt)) {
-			for (String key : cfg.keySet()) {
-				String value = cfg.getString(key, null);
-				out.print(key);
+			for (Map.Entry<String, String> entry : cfg.toMap().entrySet()) {
+				out.print(entry.getKey());
 				out.print(": ");
-				out.println(value);
+				out.println(entry.getValue());
 			}
 		}
 	}
@@ -371,7 +347,7 @@ public class BootstrapTools {
 	 * Get an instance of the dynamic properties option.
 	 *
 	 * <p>Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>
      */
 	public static Option newDynamicPropertiesOption() {
 		return new Option(DYNAMIC_PROPERTIES_OPT, true, "Dynamic properties");
@@ -418,21 +394,14 @@ public class BootstrapTools {
 			boolean hasLogback,
 			boolean hasLog4j,
 			boolean hasKrb5,
-			Class<?> mainClass) {
+			Class<?> mainClass,
+			String mainArgs) {
 
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
 
-		ArrayList<String> params = new ArrayList<>();
-		params.add(String.format("-Xms%dm", tmParams.taskManagerHeapSizeMB()));
-		params.add(String.format("-Xmx%dm", tmParams.taskManagerHeapSizeMB()));
-
-		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
-			params.add(String.format("-XX:MaxDirectMemorySize=%dm",
-				tmParams.taskManagerDirectMemoryLimitMB()));
-		}
-
-		startCommandValues.put("jvmmem", StringUtils.join(params, ' '));
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = tmParams.getTaskExecutorProcessSpec();
+		startCommandValues.put("jvmmem", TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
 
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
@@ -456,6 +425,8 @@ public class BootstrapTools {
 			if (hasLog4j) {
 				logging += " -Dlog4j.configuration=file:" + configDirectory +
 					"/log4j.properties";
+				logging += " -Dlog4j.configurationFile=file:" + configDirectory +
+					"/log4j.properties";
 			}
 		}
 
@@ -464,7 +435,12 @@ public class BootstrapTools {
 		startCommandValues.put("redirects",
 			"1> " + logDirectory + "/taskmanager.out " +
 			"2> " + logDirectory + "/taskmanager.err");
-		startCommandValues.put("args", "--configDir " + configDirectory);
+
+		String argsStr = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec) + " --configDir " + configDirectory;
+		if (!mainArgs.isEmpty()) {
+			argsStr += " " + mainArgs;
+		}
+		startCommandValues.put("args", argsStr);
 
 		final String commandTemplate = flinkConfig
 			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
@@ -509,7 +485,9 @@ public class BootstrapTools {
 		for (Map.Entry<String, String> variable : startCommandValues
 			.entrySet()) {
 			template = template
-				.replace("%" + variable.getKey() + "%", variable.getValue());
+				.replace("%" + variable.getKey() + "%", variable.getValue())
+				.replace("  ", " ")
+				.trim();
 		}
 		return template;
 	}
@@ -648,5 +626,109 @@ public class BootstrapTools {
 		public Config getAkkaConfig() {
 			return AkkaUtils.getThreadPoolExecutorConfig(this);
 		}
+	}
+
+	/**
+	 * Get dynamic properties based on two Flink configurations. If base config does not contain and target config
+	 * contains the key or the value is different, it should be added to results. Otherwise, if the base config contains
+	 * and target config does not contain the key, it will be ignored.
+	 *
+	 * @param baseConfig The base configuration.
+	 * @param targetConfig The target configuration.
+	 * @return Dynamic properties as string, separated by whitespace.
+	 */
+	public static String getDynamicPropertiesAsString(Configuration baseConfig, Configuration targetConfig) {
+
+		String[] newAddedConfigs = targetConfig.keySet().stream().flatMap(
+			(String key) -> {
+				final String baseValue = baseConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+				final String targetValue = targetConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+
+				if (!baseConfig.keySet().contains(key) || !baseValue.equals(targetValue)) {
+					return Stream.of("-" + CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getOpt() + key +
+						CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getValueSeparator() + escapeForDifferentOS(targetValue));
+				} else {
+					return Stream.empty();
+				}
+			})
+			.toArray(String[]::new);
+		return String.join(" ", newAddedConfigs);
+	}
+
+	/**
+	 * Escape all the dynamic property values.
+	 * For Unix-like OS(Linux, MacOS, FREE_BSD, etc.), each value will be surrounded with single quotes. This works for
+	 * all chars except single quote itself. To escape the single quote, close the quoting before it, insert the escaped
+	 * single quote, and then re-open the quoting. For example, the value is foo'bar and the escaped value is
+	 * 'foo'\''bar'. See <a href="https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-when-using-bash">https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-when-using-bash</a>
+	 * for more information about Unix escaping.
+	 *
+	 * <p>For Windows OS, each value will be surrounded with double quotes. The double quote itself needs to be escaped with
+	 * back slash. Also the caret symbol need to be escaped with double carets since Windows uses it to escape characters.
+	 * See <a href="https://en.wikibooks.org/wiki/Windows_Batch_Scripting">https://en.wikibooks.org/wiki/Windows_Batch_Scripting</a>
+	 * for more information about Windows escaping.
+	 *
+	 * @param value value to be escaped
+	 * @return escaped value
+	 */
+	public static String escapeForDifferentOS(String value) {
+		if (OperatingSystem.isWindows()) {
+			return escapeWithDoubleQuote(value);
+		} else {
+			return escapeWithSingleQuote(value);
+		}
+	}
+
+	public static String escapeWithSingleQuote(String value) {
+		return "'" + UNIX_SINGLE_QUOTE_ESCAPER.escape(value) + "'";
+	}
+
+	public static String escapeWithDoubleQuote(String value) {
+		return "\"" + WINDOWS_DOUBLE_QUOTE_ESCAPER.escape(value) + "\"";
+	}
+
+	/**
+	 * Calculate heap size after cut-off. The heap size after cut-off will be used to set -Xms and -Xmx for jobmanager
+	 * start command.
+	 */
+	public static int calculateHeapSize(int memory, Configuration conf) {
+
+		final float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
+		final int minCutoff = conf.getInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
+
+		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
+			throw new IllegalArgumentException("The configuration value '"
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key()
+				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
+		}
+		if (minCutoff > memory) {
+			throw new IllegalArgumentException("The configuration value '"
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key()
+				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
+		}
+
+		int heapLimit = (int) ((float) memory * memoryCutoffRatio);
+		if (heapLimit < minCutoff) {
+			heapLimit = minCutoff;
+		}
+		return memory - heapLimit;
+	}
+
+	/**
+	 * Method to extract environment variables from the flinkConfiguration based on the given prefix String.
+	 *
+	 * @param envPrefix Prefix for the environment variables key
+	 * @param flinkConfiguration The Flink config to get the environment variable definition from
+	 */
+	public static Map<String, String> getEnvironmentVariables(String envPrefix, Configuration flinkConfiguration) {
+		Map<String, String> result  = new HashMap<>();
+		for (Map.Entry<String, String> entry: flinkConfiguration.toMap().entrySet()) {
+			if (entry.getKey().startsWith(envPrefix) && entry.getKey().length() > envPrefix.length()) {
+				// remove prefix
+				String key = entry.getKey().substring(envPrefix.length());
+				result.put(key, entry.getValue());
+			}
+		}
+		return result;
 	}
 }

@@ -19,14 +19,13 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.util.IterableUtils;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -47,14 +46,14 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy {
 
-	private final SchedulingTopology schedulingTopology;
+	private final SchedulingTopology<?, ?> schedulingTopology;
 
 	private final Map<PipelinedRegion, PipelinedRegionConsumedBlockingPartitions> consumedBlockingPartitionsByRegion = new IdentityHashMap<>();
 
 	private final Map<ExecutionVertexID, PipelinedRegionExecutionView> regionExecutionViewByVertex = new HashMap<>();
 
 	public RegionPartitionReleaseStrategy(
-			final SchedulingTopology schedulingTopology,
+			final SchedulingTopology<?, ?> schedulingTopology,
 			final Set<PipelinedRegion> pipelinedRegions) {
 
 		this.schedulingTopology = checkNotNull(schedulingTopology);
@@ -86,23 +85,23 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 	}
 
 	private Set<IntermediateResultPartitionID> findResultPartitionsOutsideOfRegion(final PipelinedRegion pipelinedRegion) {
-		final Set<SchedulingResultPartition> allConsumedPartitionsInRegion = pipelinedRegion
+		final Set<SchedulingResultPartition<?, ?>> allConsumedPartitionsInRegion = pipelinedRegion
 			.getExecutionVertexIds()
 			.stream()
 			.map(schedulingTopology::getVertexOrThrow)
-			.flatMap(schedulingExecutionVertex -> schedulingExecutionVertex.getConsumedResultPartitions().stream())
+			.flatMap(vertex -> IterableUtils.toStream(vertex.getConsumedResults()))
 			.collect(Collectors.toSet());
 
 		return filterResultPartitionsOutsideOfRegion(allConsumedPartitionsInRegion, pipelinedRegion);
 	}
 
 	private static Set<IntermediateResultPartitionID> filterResultPartitionsOutsideOfRegion(
-			final Collection<SchedulingResultPartition> resultPartitions,
+			final Collection<SchedulingResultPartition<?, ?>> resultPartitions,
 			final PipelinedRegion pipelinedRegion) {
 
 		final Set<IntermediateResultPartitionID> result = new HashSet<>();
-		for (final SchedulingResultPartition maybeOutsidePartition : resultPartitions) {
-			final SchedulingExecutionVertex producer = maybeOutsidePartition.getProducer();
+		for (final SchedulingResultPartition<?, ?> maybeOutsidePartition : resultPartitions) {
+			final SchedulingExecutionVertex<?, ?> producer = maybeOutsidePartition.getProducer();
 			if (!pipelinedRegion.contains(producer.getId())) {
 				result.add(maybeOutsidePartition.getId());
 			}
@@ -158,10 +157,8 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 	}
 
 	private boolean areConsumerRegionsFinished(final IntermediateResultPartitionID resultPartitionId) {
-		final SchedulingResultPartition resultPartition = schedulingTopology.getResultPartitionOrThrow(resultPartitionId);
-		final Collection<SchedulingExecutionVertex> consumers = resultPartition.getConsumers();
-		return consumers
-			.stream()
+		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology.getResultPartitionOrThrow(resultPartitionId);
+		return IterableUtils.toStream(resultPartition.getConsumers())
 			.map(SchedulingExecutionVertex::getId)
 			.allMatch(this::isRegionOfVertexFinished);
 	}
@@ -177,11 +174,11 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 	public static class Factory implements PartitionReleaseStrategy.Factory {
 
 		@Override
-		public PartitionReleaseStrategy createInstance(
-				final SchedulingTopology schedulingStrategy,
-				final FailoverTopology failoverTopology) {
+		public PartitionReleaseStrategy createInstance(final SchedulingTopology<?, ?> schedulingStrategy) {
 
-			final Set<Set<FailoverVertex>> distinctRegions = PipelinedRegionComputeUtil.computePipelinedRegions(failoverTopology);
+			final Set<? extends Set<? extends SchedulingExecutionVertex<?, ?>>> distinctRegions =
+				PipelinedRegionComputeUtil.computePipelinedRegions(schedulingStrategy);
+
 			return new RegionPartitionReleaseStrategy(
 				schedulingStrategy,
 				PipelinedRegionComputeUtil.toPipelinedRegionsSet(distinctRegions));

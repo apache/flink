@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -32,29 +33,31 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
+import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /**
  * Tests for the {@link CheckpointBarrierAligner}'s maximum limit of buffered/spilled bytes.
@@ -116,10 +119,10 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(3, Arrays.asList(sequence));
-		AbstractInvokable toNotify = mock(AbstractInvokable.class);
+		CheckpointNotificationVerifier toNotify = new CheckpointNotificationVerifier();
 		CheckpointedInputGate buffer = new CheckpointedInputGate(
 			gate,
-			new BufferSpiller(ioManager, PAGE_SIZE, 1000),
+			new CachedBufferStorage(PAGE_SIZE, PAGE_SIZE * 2, "Testing"),
 			"Testing",
 			toNotify);
 
@@ -137,10 +140,13 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		check(sequence[10], buffer.pollNext().get());
 
 		// trying to pull the next makes the alignment overflow - so buffered buffers are replayed
-		check(sequence[5], buffer.pollNext().get());
-		validateAlignmentTime(startTs, buffer);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(7L),
-			argThat(new CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)));
+		try (AssertCheckpointWasAborted assertion =
+				toNotify.expectAbortCheckpoint(
+					7L,
+					CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)) {
+			check(sequence[5], buffer.pollNext().get());
+			validateAlignmentTime(startTs, buffer);
+		}
 
 		// playing back buffered events
 		check(sequence[7], buffer.pollNext().get());
@@ -159,10 +165,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		check(sequence[21], buffer.pollNext().get());
 
 		// no call for a completed checkpoint must have happened
-		verify(toNotify, times(0)).triggerCheckpointOnBarrier(
-			any(CheckpointMetaData.class),
-			any(CheckpointOptions.class),
-			any(CheckpointMetrics.class));
+		assertTrue(toNotify.getAndResetTriggeredCheckpoints().isEmpty());
 
 		assertFalse(buffer.pollNext().isPresent());
 		assertTrue(buffer.isFinished());
@@ -213,10 +216,11 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(3, Arrays.asList(sequence));
-		AbstractInvokable toNotify = mock(AbstractInvokable.class);
+
+		CheckpointNotificationVerifier toNotify = new CheckpointNotificationVerifier();
 		CheckpointedInputGate buffer = new CheckpointedInputGate(
 			gate,
-			new BufferSpiller(ioManager, PAGE_SIZE, 500),
+			new CachedBufferStorage(PAGE_SIZE, PAGE_SIZE * 5, "Testing"),
 			"Testing",
 			toNotify);
 
@@ -235,10 +239,13 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		check(sequence[11], buffer.pollNext().get());
 
 		// checkpoint alignment aborted due to too much data
-		check(sequence[4], buffer.pollNext().get());
-		validateAlignmentTime(startTs, buffer);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(3L),
-			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)));
+		try (AssertCheckpointWasAborted assertion =
+				toNotify.expectAbortCheckpoint(
+					3L,
+					CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)) {
+			check(sequence[4], buffer.pollNext().get());
+			validateAlignmentTime(startTs, buffer);
+		}
 
 		// replay buffered data - in the middle, the alignment for checkpoint 4 starts
 		check(sequence[6], buffer.pollNext().get());
@@ -251,8 +258,9 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		// checkpoint 4 completed - check and validate buffered replay
 		check(sequence[9], buffer.pollNext().get());
 		validateAlignmentTime(startTs, buffer);
-		verify(toNotify, times(1)).triggerCheckpointOnBarrier(
-			argThat(new CheckpointMatcher(4L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
+		assertThat(
+			toNotify.getAndResetTriggeredCheckpoints(),
+			IsIterableContainingInOrder.contains(4L));
 
 		check(sequence[10], buffer.pollNext().get());
 		check(sequence[15], buffer.pollNext().get());
@@ -264,8 +272,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		check(sequence[21], buffer.pollNext().get());
 
 		// only checkpoint 4 was successfully completed, not checkpoint 3
-		verify(toNotify, times(0)).triggerCheckpointOnBarrier(
-			argThat(new CheckpointMatcher(3L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
+		assertTrue(toNotify.getAndResetTriggeredCheckpoints().isEmpty());
 
 		assertFalse(buffer.pollNext().isPresent());
 		assertTrue(buffer.isFinished());
@@ -331,27 +338,82 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		}
 	}
 
-	/**
-	 * A validation matcher for checkpoint metadata against checkpoint IDs.
-	 */
-	private static class CheckpointMatcher extends BaseMatcher<CheckpointMetaData> {
+	private static class CheckpointNotificationVerifier extends AbstractInvokable {
+		private final List<Long> triggeredCheckpoints = new ArrayList<>();
+		private long expectedAbortCheckpointId = -1;
+		@Nullable
+		private CheckpointFailureReason expectedCheckpointFailureReason;
 
-		private final long checkpointId;
-
-		CheckpointMatcher(long checkpointId) {
-			this.checkpointId = checkpointId;
+		public CheckpointNotificationVerifier() {
+			super(new MockEnvironmentBuilder().build());
 		}
 
 		@Override
-		public boolean matches(Object o) {
-			return o != null &&
-					o.getClass() == CheckpointMetaData.class &&
-					((CheckpointMetaData) o).getCheckpointId() == checkpointId;
+		public void invoke() throws Exception {
 		}
 
 		@Override
-		public void describeTo(Description description) {
-			description.appendText("CheckpointMetaData - id = " + checkpointId);
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+			try {
+				if (expectedAbortCheckpointId != checkpointId || !matchesExpectedCause(cause)) {
+					throw new Exception(cause);
+				}
+			}
+			finally {
+				expectedAbortCheckpointId = -1;
+				expectedCheckpointFailureReason = null;
+			}
+		}
+
+		private boolean matchesExpectedCause(Throwable cause) {
+			if (expectedCheckpointFailureReason == null) {
+				return true;
+			}
+			Optional<CheckpointException> checkpointException = findThrowable(cause, CheckpointException.class);
+			if (!checkpointException.isPresent()) {
+				return false;
+			}
+			return checkpointException.get().getCheckpointFailureReason() == expectedCheckpointFailureReason;
+		}
+
+		public AssertCheckpointWasAborted expectAbortCheckpoint(
+				long expectedAbortCheckpointId,
+				CheckpointFailureReason expectedCheckpointFailureReason) {
+			this.expectedAbortCheckpointId = expectedAbortCheckpointId;
+			this.expectedCheckpointFailureReason = expectedCheckpointFailureReason;
+			return new AssertCheckpointWasAborted(this);
+		}
+
+		@Override
+		public void triggerCheckpointOnBarrier(
+				CheckpointMetaData checkpointMetaData,
+				CheckpointOptions checkpointOptions,
+				CheckpointMetrics checkpointMetrics) throws Exception {
+			triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
+		}
+
+		public List<Long> getAndResetTriggeredCheckpoints() {
+			List<Long> copy = new ArrayList<>(triggeredCheckpoints);
+			triggeredCheckpoints.clear();
+			return copy;
+		}
+	}
+
+	private static class AssertCheckpointWasAborted implements Closeable {
+		private final CheckpointNotificationVerifier checkpointNotificationVerifier;
+
+		public AssertCheckpointWasAborted(CheckpointNotificationVerifier checkpointNotificationVerifier) {
+			this.checkpointNotificationVerifier = checkpointNotificationVerifier;
+		}
+
+		@Override
+		public void close() throws IOException {
+			assertEquals(
+				String.format(
+					"AbstractInvokable::abortCheckpointOnBarrier(%d) has not fired",
+					checkpointNotificationVerifier.expectedAbortCheckpointId),
+				-1L,
+				checkpointNotificationVerifier.expectedAbortCheckpointId);
 		}
 	}
 }

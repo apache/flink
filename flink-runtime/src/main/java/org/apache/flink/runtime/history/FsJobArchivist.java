@@ -109,15 +109,20 @@ public class FsJobArchivist {
 			ByteArrayOutputStream output = new ByteArrayOutputStream()) {
 			IOUtils.copyBytes(input, output);
 
-			JsonNode archive = mapper.readTree(output.toByteArray());
+			try {
+				JsonNode archive = mapper.readTree(output.toByteArray());
 
-			Collection<ArchivedJson> archives = new ArrayList<>();
-			for (JsonNode archivePart : archive.get(ARCHIVE)) {
-				String path = archivePart.get(PATH).asText();
-				String json = archivePart.get(JSON).asText();
-				archives.add(new ArchivedJson(path, json));
+				Collection<ArchivedJson> archives = new ArrayList<>();
+				for (JsonNode archivePart : archive.get(ARCHIVE)) {
+					String path = archivePart.get(PATH).asText();
+					String json = archivePart.get(JSON).asText();
+					archives.add(new ArchivedJson(path, json));
+				}
+				return archives;
+			} catch (NullPointerException npe) {
+				// occurs if the archive is empty or any of the expected fields are not present
+				throw new IOException("Job archive (" + file.getPath() + ") did not conform to expected format.");
 			}
-			return archives;
 		}
 	}
 }

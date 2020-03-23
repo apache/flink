@@ -59,19 +59,19 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Table/SQL Uber JAR -->
-		<file>
-			<source>../flink-table/flink-table-uber/target/flink-table-uber_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<!-- SQL Client -->
 		<file>
 			<source>../flink-table/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-sql-client_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- State Processor API -->
+		<file>
+			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-state-processor-api_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -163,9 +163,24 @@
 
 		<!-- Python -->
 		<file>
-			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}-java-binding.jar</source>
+			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>
-			<destName>flink-python-${project.version}-java-binding.jar</destName>
+			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- ML (API & LIB)  -->
+		<file>
+			<source>../flink-ml-parent/flink-ml-uber/target/flink-ml-uber_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>target/temporary/flink-shaded-zookeeper-3-${zookeeper.optional.version}-${flink.shaded.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-shaded-zookeeper-${zookeeper.optional.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 	</files>

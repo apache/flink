@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.vector.BytesColumnVector;
+import org.apache.flink.table.dataformat.vector.writable.WritableBytesVector;
+
+import java.util.Arrays;
 
 /**
  * This class supports string and binary data by value reference -- i.e. each field is
@@ -35,7 +37,7 @@ import org.apache.flink.table.dataformat.vector.BytesColumnVector;
  * You can mix "by value" and "by reference" in the same column vector,
  * though that use is probably not typical.
  */
-public class HeapBytesVector extends AbstractHeapVector implements BytesColumnVector {
+public class HeapBytesVector extends AbstractHeapVector implements WritableBytesVector {
 
 	private static final long serialVersionUID = -8529155738773478597L;
 
@@ -79,18 +81,8 @@ public class HeapBytesVector extends AbstractHeapVector implements BytesColumnVe
 		elementsAppended = 0;
 	}
 
-	/**
-	 * Set a field by actually copying in to a local buffer.
-	 * If you must actually copy data in to the array, use this method.
-	 * DO NOT USE this method unless it's not practical to set data by reference with setRef().
-	 * Setting data by reference tends to run a lot faster than copying data in.
-	 *
-	 * @param elementNum index within column vector to set
-	 * @param sourceBuf  container of source data
-	 * @param start      start byte position within source
-	 * @param length     length of source byte sequence
-	 */
-	public void setVal(int elementNum, byte[] sourceBuf, int start, int length) {
+	@Override
+	public void appendBytes(int elementNum, byte[] sourceBuf, int start, int length) {
 		reserve(elementsAppended + length);
 		System.arraycopy(sourceBuf, start, buffer, elementsAppended, length);
 		this.start[elementNum] = elementsAppended;
@@ -98,17 +90,16 @@ public class HeapBytesVector extends AbstractHeapVector implements BytesColumnVe
 		elementsAppended += length;
 	}
 
-	/**
-	 * Set a field by actually copying in to a local buffer.
-	 * If you must actually copy data in to the array, use this method.
-	 * DO NOT USE this method unless it's not practical to set data by reference with setRef().
-	 * Setting data by reference tends to run a lot faster than copying data in.
-	 *
-	 * @param elementNum index within column vector to set
-	 * @param sourceBuf  container of source data
-	 */
-	public void setVal(int elementNum, byte[] sourceBuf) {
-		setVal(elementNum, sourceBuf, 0, sourceBuf.length);
+	@Override
+	public void fill(byte[] value) {
+		reserve(start.length * value.length);
+		for (int i = 0; i < start.length; i++) {
+			System.arraycopy(value, 0, buffer, i * value.length, value.length);
+		}
+		for (int i = 0; i < start.length; i++) {
+			this.start[i] = i * value.length;
+		}
+		Arrays.fill(this.length, value.length);
 	}
 
 	private void reserve(int requiredCapacity) {

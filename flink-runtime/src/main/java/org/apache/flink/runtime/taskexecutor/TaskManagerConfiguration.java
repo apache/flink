@@ -27,6 +27,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import scala.concurrent.duration.Duration;
+import java.time.Duration;
 
 /**
  * Configuration object for {@link TaskExecutor}.
@@ -47,6 +48,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerConfiguration.class);
 
 	private final int numberSlots;
+
+	private final ResourceProfile defaultSlotResourceProfile;
+
+	private final ResourceProfile totalResourceProfile;
 
 	private final String[] tmpDirectories;
 
@@ -78,6 +83,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public TaskManagerConfiguration(
 			int numberSlots,
+			ResourceProfile defaultSlotResourceProfile,
+			ResourceProfile totalResourceProfile,
 			String[] tmpDirectories,
 			Time timeout,
 			@Nullable Time maxRegistrationDuration,
@@ -93,6 +100,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
 		this.numberSlots = numberSlots;
+		this.defaultSlotResourceProfile = defaultSlotResourceProfile;
+		this.totalResourceProfile = totalResourceProfile;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maxRegistrationDuration = maxRegistrationDuration;
@@ -110,6 +119,14 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public int getNumberSlots() {
 		return numberSlots;
+	}
+
+	public ResourceProfile getDefaultSlotResourceProfile() {
+		return defaultSlotResourceProfile;
+	}
+
+	public ResourceProfile getTotalResourceProfile() {
+		return totalResourceProfile;
 	}
 
 	public Time getTimeout() {
@@ -175,7 +192,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	//  Static factory methods
 	// --------------------------------------------------------------------------------------------
 
-	public static TaskManagerConfiguration fromConfiguration(Configuration configuration) {
+	public static TaskManagerConfiguration fromConfiguration(
+			Configuration configuration,
+			TaskExecutorResourceSpec taskExecutorResourceSpec) {
 		int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
 		if (numberSlots == -1) {
@@ -185,9 +204,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(configuration);
 
 		final Time timeout;
-
 		try {
-			timeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
+			timeout = AkkaUtils.getTimeoutAsTime(configuration);
 		} catch (Exception e) {
 			throw new IllegalArgumentException(
 				"Invalid format for '" + AkkaOptions.ASK_TIMEOUT.key() +
@@ -196,56 +214,39 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		LOG.info("Messages have a max timeout of " + timeout);
 
-		final Time finiteRegistrationDuration;
-
+		Time finiteRegistrationDuration;
 		try {
-			Duration maxRegistrationDuration = Duration.create(configuration.getString(TaskManagerOptions.REGISTRATION_TIMEOUT));
-			if (maxRegistrationDuration.isFinite()) {
-				finiteRegistrationDuration = Time.milliseconds(maxRegistrationDuration.toMillis());
-			} else {
-				finiteRegistrationDuration = null;
-			}
-		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.REGISTRATION_TIMEOUT.key(), e);
+			Duration maxRegistrationDuration = configuration.get(TaskManagerOptions.REGISTRATION_TIMEOUT);
+			finiteRegistrationDuration = Time.milliseconds(maxRegistrationDuration.toMillis());
+		} catch (IllegalArgumentException e) {
+			LOG.warn("Invalid format for parameter {}. Set the timeout to be infinite.",
+				TaskManagerOptions.REGISTRATION_TIMEOUT.key());
+			finiteRegistrationDuration = null;
 		}
 
 		final Time initialRegistrationPause;
 		try {
-			Duration pause = Duration.create(configuration.getString(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF));
-			if (pause.isFinite()) {
-				initialRegistrationPause = Time.milliseconds(pause.toMillis());
-			} else {
-				throw new IllegalArgumentException("The initial registration pause must be finite: " + pause);
-			}
-		} catch (NumberFormatException e) {
+			Duration pause = configuration.get(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF);
+			initialRegistrationPause = Time.milliseconds(pause.toMillis());
+		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
 				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
 		}
 
 		final Time maxRegistrationPause;
 		try {
-			Duration pause = Duration.create(configuration.getString(
-				TaskManagerOptions.REGISTRATION_MAX_BACKOFF));
-			if (pause.isFinite()) {
-				maxRegistrationPause = Time.milliseconds(pause.toMillis());
-			} else {
-				throw new IllegalArgumentException("The maximum registration pause must be finite: " + pause);
-			}
-		} catch (NumberFormatException e) {
+			Duration pause = configuration.get(TaskManagerOptions.REGISTRATION_MAX_BACKOFF);
+			maxRegistrationPause = Time.milliseconds(pause.toMillis());
+		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
 				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
 		}
 
 		final Time refusedRegistrationPause;
 		try {
-			Duration pause = Duration.create(configuration.getString(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF));
-			if (pause.isFinite()) {
-				refusedRegistrationPause = Time.milliseconds(pause.toMillis());
-			} else {
-				throw new IllegalArgumentException("The refused registration pause must be finite: " + pause);
-			}
-		} catch (NumberFormatException e) {
+			Duration pause = configuration.get(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF);
+			refusedRegistrationPause = Time.milliseconds(pause.toMillis());
+		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
 				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
 		}
@@ -276,6 +277,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		return new TaskManagerConfiguration(
 			numberSlots,
+			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberSlots),
+			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
 			tmpDirPaths,
 			timeout,
 			finiteRegistrationDuration,

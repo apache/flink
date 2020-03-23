@@ -15,13 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
+
 from datetime import timedelta
 
 from pyflink.java_gateway import get_gateway
-
-if sys.version >= '3':
-    unicode = str
 
 
 def to_jarray(j_type, arr):

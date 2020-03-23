@@ -33,6 +33,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.SerializableS
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.CharacterEscapes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.SerializedString;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 
@@ -90,6 +91,7 @@ public class RestAPIDocGenerator {
 	static {
 		mapper = new ObjectMapper();
 		mapper.getFactory().setCharacterEscapes(new HTMLCharacterEscapes());
+		mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 		schemaGen = new JsonSchemaGenerator(mapper);
 	}
 

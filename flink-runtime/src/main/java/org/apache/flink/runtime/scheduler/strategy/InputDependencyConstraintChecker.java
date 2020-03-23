@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,11 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
-import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 
 /**
  * A wrapper class for {@link InputDependencyConstraint} checker.
@@ -44,47 +42,58 @@ public class InputDependencyConstraintChecker {
 	private final SchedulingIntermediateDataSetManager intermediateDataSetManager =
 		new SchedulingIntermediateDataSetManager();
 
-	public boolean check(final SchedulingExecutionVertex schedulingExecutionVertex) {
+	public boolean check(final SchedulingExecutionVertex<?, ?> schedulingExecutionVertex) {
+		if (Iterables.isEmpty(schedulingExecutionVertex.getConsumedResults())) {
+			return true;
+		}
+
 		final InputDependencyConstraint inputConstraint = schedulingExecutionVertex.getInputDependencyConstraint();
-		if (schedulingExecutionVertex.getConsumedResultPartitions().isEmpty() || ALL.equals(inputConstraint)) {
-			return checkAll(schedulingExecutionVertex);
-		} else if (ANY.equals(inputConstraint)) {
-			return checkAny(schedulingExecutionVertex);
-		} else {
-			throw new IllegalArgumentException();
+		switch (inputConstraint) {
+			case ANY:
+				return checkAny(schedulingExecutionVertex);
+			case ALL:
+				return checkAll(schedulingExecutionVertex);
+			default:
+				throw new IllegalStateException("Unknown InputDependencyConstraint " + inputConstraint);
 		}
 	}
 
-	List<SchedulingResultPartition> markSchedulingResultPartitionFinished(SchedulingResultPartition srp) {
+	List<SchedulingResultPartition<?, ?>> markSchedulingResultPartitionFinished(SchedulingResultPartition<?, ?> srp) {
 		return intermediateDataSetManager.markSchedulingResultPartitionFinished(srp);
 	}
 
-	void resetSchedulingResultPartition(SchedulingResultPartition srp) {
+	void resetSchedulingResultPartition(SchedulingResultPartition<?, ?> srp) {
 		intermediateDataSetManager.resetSchedulingResultPartition(srp);
 	}
 
-	void addSchedulingResultPartition(SchedulingResultPartition srp) {
+	void addSchedulingResultPartition(SchedulingResultPartition<?, ?> srp) {
 		intermediateDataSetManager.addSchedulingResultPartition(srp);
 	}
 
-	private boolean checkAll(final SchedulingExecutionVertex schedulingExecutionVertex) {
-		return schedulingExecutionVertex.getConsumedResultPartitions()
-			.stream()
-			.allMatch(this::partitionConsumable);
+	private boolean checkAll(final SchedulingExecutionVertex<?, ?> schedulingExecutionVertex) {
+		for (SchedulingResultPartition<?, ?> consumedResultPartition : schedulingExecutionVertex.getConsumedResults()) {
+			if (!partitionConsumable(consumedResultPartition)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
-	private boolean checkAny(final SchedulingExecutionVertex schedulingExecutionVertex) {
-		return schedulingExecutionVertex.getConsumedResultPartitions()
-			.stream()
-			.anyMatch(this::partitionConsumable);
+	private boolean checkAny(final SchedulingExecutionVertex<?, ?> schedulingExecutionVertex) {
+		for (SchedulingResultPartition<?, ?> consumedResultPartition : schedulingExecutionVertex.getConsumedResults()) {
+			if (partitionConsumable(consumedResultPartition)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
-	private boolean partitionConsumable(SchedulingResultPartition partition) {
-		if (BLOCKING.equals(partition.getPartitionType())) {
+	private boolean partitionConsumable(SchedulingResultPartition<?, ?> partition) {
+		if (BLOCKING.equals(partition.getResultType())) {
 			return intermediateDataSetManager.allPartitionsFinished(partition);
 		} else {
-			SchedulingResultPartition.ResultPartitionState state = partition.getState();
-			return PRODUCING.equals(state) || DONE.equals(state);
+			final ResultPartitionState state = partition.getState();
+			return ResultPartitionState.CONSUMABLE.equals(state);
 		}
 	}
 
@@ -92,7 +101,7 @@ public class InputDependencyConstraintChecker {
 
 		private final Map<IntermediateDataSetID, SchedulingIntermediateDataSet> intermediateDataSets = new HashMap<>();
 
-		List<SchedulingResultPartition> markSchedulingResultPartitionFinished(SchedulingResultPartition srp) {
+		List<SchedulingResultPartition<?, ?>> markSchedulingResultPartitionFinished(SchedulingResultPartition<?, ?> srp) {
 			SchedulingIntermediateDataSet intermediateDataSet = getSchedulingIntermediateDataSet(srp.getResultId());
 			if (intermediateDataSet.markPartitionFinished(srp.getId())) {
 				return intermediateDataSet.getSchedulingResultPartitions();
@@ -100,17 +109,17 @@ public class InputDependencyConstraintChecker {
 			return Collections.emptyList();
 		}
 
-		void resetSchedulingResultPartition(SchedulingResultPartition srp) {
+		void resetSchedulingResultPartition(SchedulingResultPartition<?, ?> srp) {
 			SchedulingIntermediateDataSet sid = getSchedulingIntermediateDataSet(srp.getResultId());
 			sid.resetPartition(srp.getId());
 		}
 
-		void addSchedulingResultPartition(SchedulingResultPartition srp) {
+		void addSchedulingResultPartition(SchedulingResultPartition<?, ?> srp) {
 			SchedulingIntermediateDataSet sid = getOrCreateSchedulingIntermediateDataSetIfAbsent(srp.getResultId());
 			sid.addSchedulingResultPartition(srp);
 		}
 
-		boolean allPartitionsFinished(SchedulingResultPartition srp) {
+		boolean allPartitionsFinished(SchedulingResultPartition<?, ?> srp) {
 			SchedulingIntermediateDataSet sid = getSchedulingIntermediateDataSet(srp.getResultId());
 			return sid.allPartitionsFinished();
 		}
@@ -146,7 +155,7 @@ public class InputDependencyConstraintChecker {
 	 */
 	private static class SchedulingIntermediateDataSet {
 
-		private final List<SchedulingResultPartition> partitions;
+		private final List<SchedulingResultPartition<?, ?>> partitions;
 
 		private final Set<IntermediateResultPartitionID> producingPartitionIds;
 
@@ -168,12 +177,12 @@ public class InputDependencyConstraintChecker {
 			return producingPartitionIds.isEmpty();
 		}
 
-		void addSchedulingResultPartition(SchedulingResultPartition partition) {
+		void addSchedulingResultPartition(SchedulingResultPartition<?, ?> partition) {
 			partitions.add(partition);
 			producingPartitionIds.add(partition.getId());
 		}
 
-		List<SchedulingResultPartition> getSchedulingResultPartitions() {
+		List<SchedulingResultPartition<?, ?>> getSchedulingResultPartitions() {
 			return Collections.unmodifiableList(partitions);
 		}
 	}

@@ -112,3 +112,33 @@
     ;; Remove all symlinks in /etc/service except sshd.
     ;; This is only relevant when tests are run in Docker because there sshd is started using runit.
     (meh (c/exec :find (c/lit (str "/etc/service -mindepth 1 -maxdepth 1 -type l -not -name 'sshd' -delete"))))))
+
+;;; jstack
+
+(defn- includes-any?
+  [s substrs]
+  (some #(clojure.string/includes? s %) substrs))
+
+(defn- jps!
+  ([]
+   (map #(clojure.string/split % #"\s")
+        (-> (c/exec :jps)
+            (clojure.string/trim)
+            (clojure.string/split #"\n"))))
+
+  ([class-name-patterns]
+   (->> (jps!)
+        (filter #(= 2 (count %)))
+        (filter (fn [[_ class-name]] (includes-any? class-name class-name-patterns))))))
+
+(defn- write-jstack!
+  [pid out-path]
+  (c/exec :jstack :-l pid :> out-path))
+
+(defn dump-jstack-by-pattern!
+  "Dumps the output of jstack for all JVMs that match one of the specified patterns."
+  [out-dir & class-name-patterns]
+  (let [pid-class-names (jps! class-name-patterns)]
+    (doseq [[pid class-name] pid-class-names]
+      (let [out-path (str out-dir "/jstack_" pid "_" class-name)]
+        (write-jstack! pid out-path)))))

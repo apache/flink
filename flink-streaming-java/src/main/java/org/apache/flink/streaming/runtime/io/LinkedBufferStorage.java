@@ -20,11 +20,11 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
-import java.io.IOException;
 import java.util.Optional;
 
 /**
- * Implementation of {@link BufferStorage} that links two {@link BufferStorage} together.
+ * Implementation of {@link BufferStorage} that links the main {@link BufferStorage}
+ * with an arbitrary number of other {@link BufferStorage}s together.
  * Each of the linked {@link BufferStorage} will store buffers independently, but they will be
  * linked together for {@link #rollOver()} - if one is rolled over, other will do that as well.
  *
@@ -34,18 +34,18 @@ public class LinkedBufferStorage implements BufferStorage {
 
 	private final BufferStorage mainStorage;
 
-	private final BufferStorage linkedStorage;
+	private final BufferStorage[] linkedStorage;
 
 	private long maxBufferedBytes;
 
-	public LinkedBufferStorage(BufferStorage mainStorage, BufferStorage linkedStorage, long maxBufferedBytes) {
+	public LinkedBufferStorage(BufferStorage mainStorage, long maxBufferedBytes, BufferStorage ...linkedStorage) {
 		this.mainStorage = mainStorage;
 		this.linkedStorage = linkedStorage;
 		this.maxBufferedBytes = maxBufferedBytes;
 	}
 
 	@Override
-	public void add(BufferOrEvent boe) throws IOException {
+	public void add(BufferOrEvent boe) {
 		mainStorage.add(boe);
 	}
 
@@ -55,19 +55,29 @@ public class LinkedBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public void rollOver() throws IOException {
+	public void rollOver() {
 		mainStorage.rollOver();
-		linkedStorage.rollOver();
+		for (BufferStorage linked : linkedStorage) {
+			linked.rollOver();
+		}
 	}
 
 	@Override
 	public long getPendingBytes() {
-		return mainStorage.getPendingBytes() + linkedStorage.getPendingBytes();
+		long pendingBytes = mainStorage.getPendingBytes();
+		for (BufferStorage linked : linkedStorage) {
+			pendingBytes += linked.getPendingBytes();
+		}
+		return pendingBytes;
 	}
 
 	@Override
 	public long getRolledBytes() {
-		return mainStorage.getRolledBytes() + linkedStorage.getRolledBytes();
+		long rolledBytes = mainStorage.getRolledBytes();
+		for (BufferStorage linked : linkedStorage) {
+			rolledBytes += linked.getRolledBytes();
+		}
+		return rolledBytes;
 	}
 
 	@Override
@@ -76,7 +86,7 @@ public class LinkedBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNext() throws IOException {
+	public Optional<BufferOrEvent> pollNext() {
 		return mainStorage.pollNext();
 	}
 
@@ -86,7 +96,7 @@ public class LinkedBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		mainStorage.close();
 	}
 }

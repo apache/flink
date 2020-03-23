@@ -22,7 +22,7 @@ constructFlinkClassPath() {
     local FLINK_CLASSPATH
 
     while read -d '' -r jarfile ; do
-        if [[ "$jarfile" =~ .*flink-dist.*.jar ]]; then
+        if [[ "$jarfile" =~ .*/flink-dist[^/]*.jar$ ]]; then
             FLINK_DIST="$FLINK_DIST":"$jarfile"
         elif [[ "$FLINK_CLASSPATH" == "" ]]; then
             FLINK_CLASSPATH="$jarfile";
@@ -40,6 +40,20 @@ constructFlinkClassPath() {
     fi
 
     echo "$FLINK_CLASSPATH""$FLINK_DIST"
+}
+
+findFlinkDistJar() {
+    local FLINK_DIST="`find "$FLINK_LIB_DIR" -name 'flink-dist*.jar'`"
+
+    if [[ "$FLINK_DIST" == "" ]]; then
+        # write error message to stderr since stdout is stored as the classpath
+        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_LIB_DIR.")
+
+        # exit function with empty classpath to force process failure
+        exit 1
+    fi
+
+    echo "$FLINK_DIST"
 }
 
 # These are used to mangle paths that are passed to java when using
@@ -106,17 +120,6 @@ DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Direc
 
 KEY_JOBM_MEM_SIZE="jobmanager.heap.size"
 KEY_JOBM_MEM_MB="jobmanager.heap.mb"
-KEY_TASKM_MEM_SIZE="taskmanager.heap.size"
-KEY_TASKM_MEM_MB="taskmanager.heap.mb"
-KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
-KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
-KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
-KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
-
-KEY_TASKM_NET_BUF_FRACTION="taskmanager.network.memory.fraction"
-KEY_TASKM_NET_BUF_MIN="taskmanager.network.memory.min"
-KEY_TASKM_NET_BUF_MAX="taskmanager.network.memory.max"
-KEY_TASKM_NET_BUF_NR="taskmanager.network.numberOfBuffers" # fallback
 
 KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
 
@@ -371,72 +374,6 @@ if [ "${FLINK_JM_HEAP}" == 0 ]; then
     FLINK_JM_HEAP_MB=$(readFromConfig ${KEY_JOBM_MEM_MB} 0 "${YAML_CONF}")
 fi
 
-# Define FLINK_TM_HEAP if it is not already set
-if [ -z "${FLINK_TM_HEAP}" ]; then
-    FLINK_TM_HEAP=$(readFromConfig ${KEY_TASKM_MEM_SIZE} 0 "${YAML_CONF}")
-fi
-
-# Try read old config key, if new key not exists
-if [ "${FLINK_TM_HEAP}" == 0 ]; then
-    FLINK_TM_HEAP_MB=$(readFromConfig ${KEY_TASKM_MEM_MB} 0 "${YAML_CONF}")
-fi
-
-# Define FLINK_TM_MEM_MANAGED_SIZE if it is not already set
-if [ -z "${FLINK_TM_MEM_MANAGED_SIZE}" ]; then
-    FLINK_TM_MEM_MANAGED_SIZE=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_SIZE} 0 "${YAML_CONF}")
-
-    if hasUnit ${FLINK_TM_MEM_MANAGED_SIZE}; then
-        FLINK_TM_MEM_MANAGED_SIZE=$(getMebiBytes $(parseBytes ${FLINK_TM_MEM_MANAGED_SIZE}))
-    else
-        FLINK_TM_MEM_MANAGED_SIZE=$(getMebiBytes $(parseBytes ${FLINK_TM_MEM_MANAGED_SIZE}"m"))
-    fi
-fi
-
-# Define FLINK_TM_MEM_MANAGED_FRACTION if it is not already set
-if [ -z "${FLINK_TM_MEM_MANAGED_FRACTION}" ]; then
-    FLINK_TM_MEM_MANAGED_FRACTION=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_FRACTION} 0.7 "${YAML_CONF}")
-fi
-
-# Define FLINK_TM_OFFHEAP if it is not already set
-if [ -z "${FLINK_TM_OFFHEAP}" ]; then
-    FLINK_TM_OFFHEAP=$(readFromConfig ${KEY_TASKM_OFFHEAP} "false" "${YAML_CONF}")
-fi
-
-# Define FLINK_TM_MEM_PRE_ALLOCATE if it is not already set
-if [ -z "${FLINK_TM_MEM_PRE_ALLOCATE}" ]; then
-    FLINK_TM_MEM_PRE_ALLOCATE=$(readFromConfig ${KEY_TASKM_MEM_PRE_ALLOCATE} "false" "${YAML_CONF}")
-fi
-
-
-# Define FLINK_TM_NET_BUF_FRACTION if it is not already set
-if [ -z "${FLINK_TM_NET_BUF_FRACTION}" ]; then
-    FLINK_TM_NET_BUF_FRACTION=$(readFromConfig ${KEY_TASKM_NET_BUF_FRACTION} 0.1 "${YAML_CONF}")
-fi
-
-# Define FLINK_TM_NET_BUF_MIN and FLINK_TM_NET_BUF_MAX if not already set (as a fallback)
-if [ -z "${FLINK_TM_NET_BUF_MIN}" -a -z "${FLINK_TM_NET_BUF_MAX}" ]; then
-    FLINK_TM_NET_BUF_MIN=$(readFromConfig ${KEY_TASKM_NET_BUF_NR} -1 "${YAML_CONF}")
-    if [ $FLINK_TM_NET_BUF_MIN != -1 ]; then
-        FLINK_TM_NET_BUF_MIN=$(parseBytes ${FLINK_TM_NET_BUF_MIN})
-        FLINK_TM_NET_BUF_MAX=${FLINK_TM_NET_BUF_MIN}
-    fi
-fi
-
-# Define FLINK_TM_NET_BUF_MIN if it is not already set
-if [ -z "${FLINK_TM_NET_BUF_MIN}" -o "${FLINK_TM_NET_BUF_MIN}" = "-1" ]; then
-    # default: 64MB = 67108864 bytes (same as the previous default with 2048 buffers of 32k each)
-    FLINK_TM_NET_BUF_MIN=$(readFromConfig ${KEY_TASKM_NET_BUF_MIN} 67108864 "${YAML_CONF}")
-    FLINK_TM_NET_BUF_MIN=$(parseBytes ${FLINK_TM_NET_BUF_MIN})
-fi
-
-# Define FLINK_TM_NET_BUF_MAX if it is not already set
-if [ -z "${FLINK_TM_NET_BUF_MAX}" -o "${FLINK_TM_NET_BUF_MAX}" = "-1" ]; then
-    # default: 1GB = 1073741824 bytes
-    FLINK_TM_NET_BUF_MAX=$(readFromConfig ${KEY_TASKM_NET_BUF_MAX} 1073741824 "${YAML_CONF}")
-    FLINK_TM_NET_BUF_MAX=$(parseBytes ${FLINK_TM_NET_BUF_MAX})
-fi
-
-
 # Verify that NUMA tooling is available
 command -v numactl >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
@@ -521,7 +458,7 @@ fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
-# KEY_JOBM_MEM_SIZE and KEY_TASKM_MEM_SIZE for that!
+# KEY_JOBM_MEM_SIZE and TaskManagerOptions#TOTAL_PROCESS_MEMORY for that!
 if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""
 fi
@@ -576,7 +513,7 @@ rotateLogFilesWithPrefix() {
     while read -r log ; do
         rotateLogFile "$log"
     # find distinct set of log file names, ignoring the rotation number (trailing dot and digit)
-    done < <(find "$dir" ! -type d -path "${prefix}*" | sed -E s/\.[0-9]+$// | sort | uniq)
+    done < <(find "$dir" ! -type d -path "${prefix}*" | sed s/\.[0-9][0-9]*$// | sort | uniq)
 }
 
 rotateLogFile() {
@@ -678,108 +615,33 @@ TMSlaves() {
     fi
 }
 
-useOffHeapMemory() {
-    [[ "`echo ${FLINK_TM_OFFHEAP} | tr '[:upper:]' '[:lower:]'`" == "true" ]]
+runBashJavaUtilsCmd() {
+    local cmd=$1
+    local conf_dir=$2
+    local class_path="${3:-$FLINK_BIN_DIR/bash-java-utils.jar:`findFlinkDistJar`}"
+    class_path=`manglePathList ${class_path}`
+
+    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} 2>&1 | tail -n 1000`
+    if [[ $? -ne 0 ]]; then
+        echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
+        # Print the output in case the user redirect the log to console.
+        echo "$output" 1>&2
+        exit 1
+    fi
+
+    echo "$output"
 }
 
-HAVE_AWK=
-# same as org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config)
-calculateNetworkBufferMemory() {
-    local network_buffers_bytes
-    if [ "${FLINK_TM_HEAP_MB}" -le "0" ]; then
-        echo "Variable 'FLINK_TM_HEAP' not set (usually read from '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE})."
+extractExecutionParams() {
+    local execution_config=$1
+    local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
+
+    if ! [[ $execution_config =~ ^${EXECUTION_PREFIX}.* ]]; then
+        echo "[ERROR] Unexpected result: $execution_config" 1>&2
+        echo "[ERROR] The last line of the BashJavaUtils outputs is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
+        echo "$output" 1>&2
         exit 1
     fi
 
-    if [[ "${FLINK_TM_NET_BUF_MIN}" = "${FLINK_TM_NET_BUF_MAX}" ]]; then
-        # fix memory size for network buffers
-        network_buffers_bytes=${FLINK_TM_NET_BUF_MIN}
-    else
-        if [[ "${FLINK_TM_NET_BUF_MIN}" -gt "${FLINK_TM_NET_BUF_MAX}" ]]; then
-            echo "[ERROR] Configured TaskManager network buffer memory min/max '${FLINK_TM_NET_BUF_MIN}'/'${FLINK_TM_NET_BUF_MAX}' are not valid."
-            echo "Min must be less than or equal to max."
-            echo "Please set '${KEY_TASKM_NET_BUF_MIN}' and '${KEY_TASKM_NET_BUF_MAX}' in ${FLINK_CONF_FILE}."
-            exit 1
-        fi
-
-        # Bash only performs integer arithmetic so floating point computation is performed using awk
-        if [[ -z "${HAVE_AWK}" ]] ; then
-            command -v awk >/dev/null 2>&1
-            if [[ $? -ne 0 ]]; then
-                echo "[ERROR] Program 'awk' not found."
-                echo "Please install 'awk' or define '${KEY_TASKM_NET_BUF_MIN}' and '${KEY_TASKM_NET_BUF_MAX}' instead of '${KEY_TASKM_NET_BUF_FRACTION}' in ${FLINK_CONF_FILE}."
-                exit 1
-            fi
-            HAVE_AWK=true
-        fi
-
-        # We calculate the memory using a fraction of the total memory
-        if [[ `awk '{ if ($1 > 0.0 && $1 < 1.0) print "1"; }' <<< "${FLINK_TM_NET_BUF_FRACTION}"` != "1" ]]; then
-            echo "[ERROR] Configured TaskManager network buffer memory fraction '${FLINK_TM_NET_BUF_FRACTION}' is not a valid value."
-            echo "It must be between 0.0 and 1.0."
-            echo "Please set '${KEY_TASKM_NET_BUF_FRACTION}' in ${FLINK_CONF_FILE}."
-            exit 1
-        fi
-
-        network_buffers_bytes=`awk "BEGIN { x = ${FLINK_TM_HEAP_MB} * 1048576 * ${FLINK_TM_NET_BUF_FRACTION}; netbuf = x > ${FLINK_TM_NET_BUF_MAX} ? ${FLINK_TM_NET_BUF_MAX} : x < ${FLINK_TM_NET_BUF_MIN} ? ${FLINK_TM_NET_BUF_MIN} : x; printf \"%.0f\n\", netbuf }"`
-    fi
-
-    # recalculate the JVM heap memory by taking the network buffers into account
-    local tm_heap_size_bytes=$((${FLINK_TM_HEAP_MB} << 20)) # megabytes to bytes
-    if [[ "${tm_heap_size_bytes}" -le "${network_buffers_bytes}" ]]; then
-        echo "[ERROR] Configured TaskManager memory size (${FLINK_TM_HEAP_MB} MB, from '${KEY_TASKM_MEM_SIZE}') must be larger than the network buffer memory size (${network_buffers_bytes} bytes, from: '${KEY_TASKM_NET_BUF_FRACTION}', '${KEY_TASKM_NET_BUF_MIN}', '${KEY_TASKM_NET_BUF_MAX}', and '${KEY_TASKM_NET_BUF_NR}')."
-        exit 1
-    fi
-
-    echo ${network_buffers_bytes}
-}
-
-# same as org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config)
-calculateTaskManagerHeapSizeMB() {
-    if [ "${FLINK_TM_HEAP_MB}" -le "0" ]; then
-        echo "Variable 'FLINK_TM_HEAP' not set (usually read from '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE})."
-        exit 1
-    fi
-
-    local network_buffers_mb=$(($(calculateNetworkBufferMemory) >> 20)) # bytes to megabytes
-    # network buffers are always off-heap and thus need to be deduced from the heap memory size
-    local tm_heap_size_mb=$((${FLINK_TM_HEAP_MB} - network_buffers_mb))
-
-    if useOffHeapMemory; then
-
-        if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
-            # We split up the total memory in heap and off-heap memory
-            if [[ "${tm_heap_size_mb}" -le "${FLINK_TM_MEM_MANAGED_SIZE}" ]]; then
-                echo "[ERROR] Remaining TaskManager memory size (${tm_heap_size_mb} MB, from: '${KEY_TASKM_MEM_SIZE}' (${FLINK_TM_HEAP_MB} MB) minus network buffer memory size (${network_buffers_mb} MB, from: '${KEY_TASKM_NET_BUF_FRACTION}', '${KEY_TASKM_NET_BUF_MIN}', '${KEY_TASKM_NET_BUF_MAX}', and '${KEY_TASKM_NET_BUF_NR}')) must be larger than the managed memory size (${FLINK_TM_MEM_MANAGED_SIZE} MB, from: '${KEY_TASKM_MEM_MANAGED_SIZE}')."
-                exit 1
-            fi
-
-            tm_heap_size_mb=$((tm_heap_size_mb - FLINK_TM_MEM_MANAGED_SIZE))
-        else
-            # Bash only performs integer arithmetic so floating point computation is performed using awk
-            if [[ -z "${HAVE_AWK}" ]] ; then
-                command -v awk >/dev/null 2>&1
-                if [[ $? -ne 0 ]]; then
-                    echo "[ERROR] Program 'awk' not found."
-                    echo "Please install 'awk' or define '${KEY_TASKM_MEM_MANAGED_SIZE}' instead of '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}."
-                    exit 1
-                fi
-                HAVE_AWK=true
-            fi
-
-            # We calculate the memory using a fraction of the total memory
-            if [[ `awk '{ if ($1 > 0.0 && $1 < 1.0) print "1"; }' <<< "${FLINK_TM_MEM_MANAGED_FRACTION}"` != "1" ]]; then
-                echo "[ERROR] Configured TaskManager managed memory fraction '${FLINK_TM_MEM_MANAGED_FRACTION}' is not a valid value."
-                echo "It must be between 0.0 and 1.0."
-                echo "Please set '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}."
-                exit 1
-            fi
-
-            # recalculate the JVM heap memory by taking the off-heap ratio into account
-            local offheap_managed_memory_size=`awk "BEGIN { printf \"%.0f\n\", ${tm_heap_size_mb} * ${FLINK_TM_MEM_MANAGED_FRACTION} }"`
-            tm_heap_size_mb=$((tm_heap_size_mb - offheap_managed_memory_size))
-        fi
-    fi
-
-    echo ${tm_heap_size_mb}
+    echo ${execution_config} | sed "s/$EXECUTION_PREFIX//"
 }

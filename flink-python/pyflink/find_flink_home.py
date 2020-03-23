@@ -47,12 +47,8 @@ def _find_flink_home():
                 os.environ['FLINK_HOME'] = build_target
                 return build_target
 
-            if sys.version < "3":
-                import imp
-                module_home = imp.find_module("pyflink")[1]
-            else:
-                from importlib.util import find_spec
-                module_home = os.path.dirname(find_spec("pyflink").origin)
+            from importlib.util import find_spec
+            module_home = os.path.dirname(find_spec("pyflink").origin)
 
             if _is_flink_home(module_home):
                 os.environ['FLINK_HOME'] = module_home

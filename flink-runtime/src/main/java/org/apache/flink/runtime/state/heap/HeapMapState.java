@@ -162,6 +162,12 @@ class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public boolean isEmpty() {
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		return userMap == null || userMap.isEmpty();
+	}
+
+	@Override
 	public byte[] getSerializedValue(
 			final byte[] serializedKeyAndNamespace,
 			final TypeSerializer<K> safeKeySerializer,

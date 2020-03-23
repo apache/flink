@@ -1,8 +1,8 @@
 ---
-title:  "YARN Setup"
+title:  "YARN 设置"
 nav-title: YARN
 nav-parent_id: deployment
-nav-pos: 2
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -65,7 +65,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - at least Apache Hadoop 2.2
 - HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
 
-If you have troubles using the Flink YARN client, have a look in the [FAQ section](http://flink.apache.org/faq.html#yarn-deployment).
+If you have troubles using the Flink YARN client, have a look in the [FAQ section](https://flink.apache.org/faq.html#yarn-deployment).
 
 ### Start Flink Session
 
@@ -121,7 +121,7 @@ The system will use the configuration in `conf/flink-conf.yaml`. Please follow o
 
 Flink on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `io.tmp.dirs` (we are using the tmp directories given by YARN) and `parallelism.default` if the number of slots has been specified.
 
-If you don't want to change the configuration file to set configuration parameters, there is the option to pass dynamic properties via the `-D` flag. So you can pass parameters this way: `-Dfs.overwrite-files=true -Dtaskmanager.network.memory.min=536346624`.
+If you don't want to change the configuration file to set configuration parameters, there is the option to pass dynamic properties via the `-D` flag. So you can pass parameters this way: `-Dfs.overwrite-files=true -Dtaskmanager.memory.network.min=536346624`.
 
 The example invocation starts a single container for the ApplicationMaster which runs the Job Manager.
 
@@ -141,9 +141,11 @@ If you do not want to keep the Flink YARN client running all the time, it's also
 The parameter for that is called `-d` or `--detached`.
 
 In that case, the Flink YARN client will only submit Flink to the cluster and then close itself.
-Note that in this case its not possible to stop the YARN session using Flink.
 
-Use the YARN utilities (`yarn application -kill <appId>`) to stop the YARN session.
+In order to stop the Flink cluster gracefully use the following command: `echo "stop" | ./bin/yarn-session.sh -id <appId>`.
+
+If this should not be possible, then you can also kill Flink via YARN's web interface or via its utilities: `yarn application -kill <appId>`.
+Note, however, that killing Flink might not clean up all job artifacts and temporary files.
 
 #### Attach to an existing Session
 
@@ -261,6 +263,15 @@ The user-jars position in the class path can be controlled by setting the parame
 Flink's YARN client has the following configuration parameters to control how to behave in case of container failures. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
 
 - `yarn.application-attempts`: The number of ApplicationMaster (+ its TaskManager containers) attempts. If this value is set to 1 (default), the entire YARN session will fail when the Application master fails. Higher values specify the number of restarts of the ApplicationMaster by YARN.
+
+## Setup for application priority on YARN
+
+Flink's YARN client has the following configuration parameters to setup application priority. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
+
+- `yarn.application.priority`: A non-negative integer indicating the priority for submitting a Flink YARN application. 
+It will only take effect if YARN priority scheduling setting is enabled. Larger integer corresponds with higher priority. 
+If priority is negative or set to '-1'(default), Flink will unset yarn priority setting and use cluster default priority. 
+Please refer to YARN's official documentation for specific settings required to enable priority scheduling for the targeted YARN version.
 
 ## Debugging a failed YARN session
 

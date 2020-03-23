@@ -25,9 +25,11 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -47,12 +49,15 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -68,6 +73,7 @@ import static org.junit.Assert.fail;
  * Tests for timestamps, watermarks, and event-time sources.
  */
 @SuppressWarnings("serial")
+@Category(AlsoRunWithLegacyScheduler.class)
 public class TimestampITCase extends TestLogger {
 
 	private static final int NUM_TASK_MANAGERS = 2;
@@ -87,7 +93,7 @@ public class TimestampITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
 		return config;
 	}
 
@@ -117,7 +123,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(initialTime, numWatermarks));
 		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(initialTime, numWatermarks / 2));
@@ -167,7 +172,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks));
 		DataStream<Integer> source2 = env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks / 2));
@@ -194,13 +198,14 @@ public class TimestampITCase extends TestLogger {
 					// send stop until the job is stopped
 					do {
 						try {
-							clusterClient.stopWithSavepoint(id, false, "test");
+							clusterClient.stopWithSavepoint(id, false, "test").get();
 						}
 						catch (Exception e) {
-							if (
-									!(e.getCause() instanceof CheckpointException) ||
-									!e.getCause().getMessage().contains("Not all required tasks are currently running.")
-							) {
+							boolean ignoreException = ExceptionUtils.findThrowable(e, CheckpointException.class)
+								.map(CheckpointException::getCheckpointFailureReason)
+								.map(reason -> reason == CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING)
+								.orElse(false);
+							if (!ignoreException) {
 								throw e;
 							}
 						}
@@ -254,7 +259,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0L, numElements));
 		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(0L, numElements));
@@ -279,7 +283,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyNonWatermarkingSource(numElements));
 		DataStream<Integer> source2 = env.addSource(new MyNonWatermarkingSource(numElements));
@@ -307,7 +310,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -370,7 +372,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -429,7 +430,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(1);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -489,7 +489,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -548,7 +547,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -602,8 +600,7 @@ public class TimestampITCase extends TestLogger {
 				StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0, 10));
 
@@ -623,8 +620,7 @@ public class TimestampITCase extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
@@ -653,8 +649,7 @@ public class TimestampITCase extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));

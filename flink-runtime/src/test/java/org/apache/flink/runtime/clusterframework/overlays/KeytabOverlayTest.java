@@ -46,7 +46,7 @@ public class KeytabOverlayTest extends ContainerOverlayTestBase {
 		ContainerSpecification spec = new ContainerSpecification();
 		overlay.configure(spec);
 
-		assertEquals(TARGET_PATH.getPath(), spec.getDynamicConfiguration().getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB));
+		assertEquals(TARGET_PATH.getPath(), spec.getFlinkConfiguration().getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB));
 		checkArtifact(spec, TARGET_PATH);
 	}
 

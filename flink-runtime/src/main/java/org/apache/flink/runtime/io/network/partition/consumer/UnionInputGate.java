@@ -108,7 +108,7 @@ public class UnionInputGate extends InputGate {
 
 				currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
 
-				CompletableFuture<?> available = inputGate.isAvailable();
+				CompletableFuture<?> available = inputGate.getAvailableFuture();
 
 				if (available.isDone()) {
 					inputGatesWithData.add(inputGate);
@@ -118,7 +118,7 @@ public class UnionInputGate extends InputGate {
 			}
 
 			if (!inputGatesWithData.isEmpty()) {
-				isAvailable = AVAILABLE;
+				availabilityHelper.resetAvailable();
 			}
 		}
 
@@ -185,11 +185,11 @@ public class UnionInputGate extends InputGate {
 					// enqueue the inputGate at the end to avoid starvation
 					inputGatesWithData.add(inputGate.get());
 				} else if (!inputGate.get().isFinished()) {
-					inputGate.get().isAvailable().thenRun(() -> queueInputGate(inputGate.get()));
+					inputGate.get().getAvailableFuture().thenRun(() -> queueInputGate(inputGate.get()));
 				}
 
 				if (inputGatesWithData.isEmpty()) {
-					resetIsAvailable();
+					availabilityHelper.resetUnavailable();
 				}
 
 				if (bufferOrEvent.isPresent()) {
@@ -232,12 +232,11 @@ public class UnionInputGate extends InputGate {
 	}
 
 	private void markAvailable() {
-		CompletableFuture<?> toNotfiy;
+		CompletableFuture<?> toNotify;
 		synchronized (inputGatesWithData) {
-			toNotfiy = isAvailable;
-			isAvailable = AVAILABLE;
+			toNotify = availabilityHelper.getUnavailableToResetAvailable();
 		}
-		toNotfiy.complete(null);
+		toNotify.complete(null);
 	}
 
 	@Override
@@ -271,8 +270,7 @@ public class UnionInputGate extends InputGate {
 
 			if (availableInputGates == 0) {
 				inputGatesWithData.notifyAll();
-				toNotify = isAvailable;
-				isAvailable = AVAILABLE;
+				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
 		}
 
@@ -287,7 +285,7 @@ public class UnionInputGate extends InputGate {
 				if (blocking) {
 					inputGatesWithData.wait();
 				} else {
-					resetIsAvailable();
+					availabilityHelper.resetUnavailable();
 					return Optional.empty();
 				}
 			}

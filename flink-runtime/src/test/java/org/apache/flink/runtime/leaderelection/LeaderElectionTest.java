@@ -25,7 +25,8 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
@@ -101,7 +102,7 @@ public class LeaderElectionTest extends TestLogger {
 			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 			assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
 
-			leaderElectionService.confirmLeaderSessionID(leaderSessionId);
+			leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
 
 			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 
@@ -132,7 +133,7 @@ public class LeaderElectionTest extends TestLogger {
 		}
 
 		@Override
-		public String getAddress() {
+		public String getDescription() {
 			return "foobar";
 		}
 

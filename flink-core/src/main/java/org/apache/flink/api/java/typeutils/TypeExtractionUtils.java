@@ -35,8 +35,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.shaded.asm6.org.objectweb.asm.Type.getConstructorDescriptor;
-import static org.apache.flink.shaded.asm6.org.objectweb.asm.Type.getMethodDescriptor;
+import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getConstructorDescriptor;
+import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getMethodDescriptor;
 
 @Internal
 public class TypeExtractionUtils {

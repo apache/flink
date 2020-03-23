@@ -32,8 +32,13 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystemFactory;
 import org.apache.flink.core.plugin.PluginManager;
-import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TemporaryClassLoaderContext;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMultimap;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,9 +54,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
@@ -228,6 +235,23 @@ public abstract class FileSystem {
 	/** The default factory that is used when no scheme matches. */
 	private static final FileSystemFactory FALLBACK_FACTORY = loadHadoopFsFactory();
 
+	/** All known plugins for a given scheme, do not fallback for those. */
+	private static final Multimap<String, String> DIRECTLY_SUPPORTED_FILESYSTEM =
+		ImmutableMultimap.<String, String>builder()
+			.put("wasb", "flink-fs-azure-hadoop")
+			.put("wasbs", "flink-fs-azure-hadoop")
+			.put("oss", "flink-oss-fs-hadoop")
+			.put("s3", "flink-s3-fs-hadoop")
+			.put("s3", "flink-s3-fs-presto")
+			.put("s3a", "flink-s3-fs-hadoop")
+			.put("s3p", "flink-s3-fs-presto")
+			.put("swift", "flink-swift-fs-hadoop")
+			// mapr deliberately omitted for now (no dedicated plugin)
+			.build();
+
+	/** Exceptions for DIRECTLY_SUPPORTED_FILESYSTEM. */
+	private static final Set<String> ALLOWED_FALLBACK_FILESYSTEMS = new HashSet<>();
+
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
 	private static URI defaultScheme;
@@ -294,7 +318,8 @@ public abstract class FileSystem {
 			factorySuppliers.add(() -> ServiceLoader.load(FileSystemFactory.class).iterator());
 
 			if (pluginManager != null) {
-				factorySuppliers.add(() -> pluginManager.load(FileSystemFactory.class));
+				factorySuppliers.add(() ->
+					Iterators.transform(pluginManager.load(FileSystemFactory.class), PluginFileSystemFactory::of));
 			}
 
 			final List<FileSystemFactory> fileSystemFactories = loadFileSystemFactories(factorySuppliers);
@@ -325,6 +350,11 @@ public abstract class FileSystem {
 							CoreOptions.DEFAULT_FILESYSTEM_SCHEME + "') is invalid: " + stringifiedUri, e);
 				}
 			}
+
+			ALLOWED_FALLBACK_FILESYSTEMS.clear();
+			final Iterable<String> allowedFallbackFilesystems = Splitter.on(';').omitEmptyStrings().trimResults()
+				.split(config.getString(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS));
+			allowedFallbackFilesystems.forEach(ALLOWED_FALLBACK_FILESYSTEMS::add);
 		}
 		finally {
 			LOCK.unlock();
@@ -434,19 +464,34 @@ public abstract class FileSystem {
 
 			if (factory != null) {
 				ClassLoader classLoader = factory.getClassLoader();
-				try (TemporaryClassLoaderContext classLoaderContext = new TemporaryClassLoaderContext(classLoader)) {
+				try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 					fs = factory.create(uri);
 				}
-			}
-			else {
+			} else if (!ALLOWED_FALLBACK_FILESYSTEMS.contains(uri.getScheme()) &&
+					DIRECTLY_SUPPORTED_FILESYSTEM.containsKey(uri.getScheme())) {
+				final Collection<String> plugins = DIRECTLY_SUPPORTED_FILESYSTEM.get(uri.getScheme());
+				throw new UnsupportedFileSystemSchemeException(String.format(
+					"Could not find a file system implementation for scheme '%s'. The scheme is " +
+						"directly supported by Flink through the following plugin%s: %s. Please ensure that each " +
+						"plugin resides within its own subfolder within the plugins directory. See https://ci.apache" +
+						".org/projects/flink/flink-docs-stable/ops/plugins.html for more information. If you want to " +
+						"use a Hadoop file system for that scheme, please add the scheme to the configuration fs" +
+						".allowed-fallback-filesystems. For a full list of supported file systems, " +
+						"please see https://ci.apache.org/projects/flink/flink-docs-stable/ops/filesystems/.",
+						uri.getScheme(),
+						plugins.size() == 1 ? "" : "s",
+						String.join(", ", plugins)
+					));
+			} else {
 				try {
 					fs = FALLBACK_FACTORY.create(uri);
 				}
 				catch (UnsupportedFileSystemSchemeException e) {
 					throw new UnsupportedFileSystemSchemeException(
-							"Could not find a file system implementation for scheme '" + uri.getScheme() +
-									"'. The scheme is not directly supported by Flink and no Hadoop file " +
-									"system to support this scheme could be loaded.", e);
+						"Could not find a file system implementation for scheme '" + uri.getScheme() +
+							"'. The scheme is not directly supported by Flink and no Hadoop file system to " +
+							"support this scheme could be loaded. For a full list of supported file systems, " +
+							"please see https://ci.apache.org/projects/flink/flink-docs-stable/ops/filesystems/.", e);
 				}
 			}
 
@@ -715,7 +760,9 @@ public abstract class FileSystem {
 
 	/**
 	 * Gets a description of the characteristics of this file system.
+	 * @deprecated this method is not used anymore.
 	 */
+	@Deprecated
 	public abstract FileSystemKind getKind();
 
 	// ------------------------------------------------------------------------

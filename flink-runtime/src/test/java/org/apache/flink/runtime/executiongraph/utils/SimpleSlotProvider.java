@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.utils;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -47,7 +47,6 @@ import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A testing utility slot provider that simply has a predefined pool of slots.
@@ -60,12 +59,11 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
 	private final HashMap<SlotRequestId, SlotContext> allocatedSlots;
 
-	public SimpleSlotProvider(JobID jobId, int numSlots) {
-		this(jobId, numSlots, new SimpleAckingTaskManagerGateway());
+	public SimpleSlotProvider(int numSlots) {
+		this(numSlots, new SimpleAckingTaskManagerGateway());
 	}
 
-	public SimpleSlotProvider(JobID jobId, int numSlots, TaskManagerGateway taskManagerGateway) {
-		checkNotNull(jobId, "jobId");
+	public SimpleSlotProvider(int numSlots, TaskManagerGateway taskManagerGateway) {
 		checkArgument(numSlots >= 0, "numSlots must be >= 0");
 
 		this.slots = new ArrayDeque<>(numSlots);
@@ -76,7 +74,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i),
 				0,
 				taskManagerGateway,
-				ResourceProfile.UNKNOWN);
+				ResourceProfile.ANY);
 			slots.add(as);
 		}
 
@@ -88,7 +86,6 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
-			boolean allowQueued,
 			Time allocationTimeout) {
 		final SlotContext slot;
 
@@ -99,19 +96,18 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				slot = slots.removeFirst();
 			}
 			if (slot != null) {
-				TestingLogicalSlot result = new TestingLogicalSlot(
-					slot.getTaskManagerLocation(),
-					slot.getTaskManagerGateway(),
-					slot.getPhysicalSlotNumber(),
-					slot.getAllocationId(),
-					slotRequestId,
-					new SlotSharingGroupId(),
-					null,
-					this);
+				TestingLogicalSlot result = new TestingLogicalSlotBuilder()
+					.setTaskManagerLocation(slot.getTaskManagerLocation())
+					.setTaskManagerGateway(slot.getTaskManagerGateway())
+					.setSlotNumber(slot.getPhysicalSlotNumber())
+					.setAllocationId(slot.getAllocationId())
+					.setSlotRequestId(slotRequestId)
+					.setSlotSharingGroupId(task.getSlotSharingGroupId())
+					.setSlotOwner(this)
+					.createTestingLogicalSlot();
 				allocatedSlots.put(slotRequestId, slot);
 				return CompletableFuture.completedFuture(result);
-			}
-			else {
+			} else {
 				return FutureUtils.completedExceptionally(new NoResourceAvailableException());
 			}
 		}
@@ -138,7 +134,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				logicalSlot.getTaskManagerLocation(),
 				logicalSlot.getPhysicalSlotNumber(),
 				logicalSlot.getTaskManagerGateway(),
-				ResourceProfile.UNKNOWN);
+				ResourceProfile.ANY);
 
 			slots.add(as);
 			allocatedSlots.remove(logicalSlot.getSlotRequestId());

@@ -70,7 +70,7 @@ public class JarDeleteHandlerTest extends TestLogger {
 	@Before
 	public void setUp() throws Exception {
 		jarDir = temporaryFolder.newFolder().toPath();
-		restfulGateway = TestingRestfulGateway.newBuilder().build();
+		restfulGateway = new TestingRestfulGateway.Builder().build();
 		jarDeleteHandler = new JarDeleteHandler(
 			() -> CompletableFuture.completedFuture(restfulGateway),
 			Time.seconds(10),

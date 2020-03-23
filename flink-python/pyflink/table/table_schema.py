@@ -15,14 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import _to_java_type, _from_java_type
 from pyflink.util.utils import to_jarray
-
-if sys.version >= '3':
-    unicode = str
 
 __all__ = ['TableSchema']
 
@@ -65,7 +61,7 @@ class TableSchema(object):
         :param field: The index of the field or the name of the field.
         :return: The data type of the specified field.
         """
-        if not isinstance(field, (int, str, unicode)):
+        if not isinstance(field, (int, str)):
             raise TypeError("Expected field index or field name, got %s" % type(field))
         optional_result = self._j_table_schema.getFieldDataType(field)
         if optional_result.isPresent():

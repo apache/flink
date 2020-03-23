@@ -1,0 +1,148 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// NOTE: File flink_fn_execution_pb2.py is generated from this file. Please re-generate it by calling
+// gen_protos.py whenever this file is changed.
+syntax = "proto3";
+
+package org.apache.flink.fn_execution.v1;
+
+option java_package = "org.apache.flink.fnexecution.v1";
+option java_outer_classname = "FlinkFnApi";
+
+// User-defined function definition. It supports chaining functions, that's, the execution
+// result of one user-defined function as the input of another user-defined function.
+message UserDefinedFunction {
+  message Input {
+    oneof input {
+      UserDefinedFunction udf = 1;
+      int32 inputOffset = 2;
+      bytes inputConstant = 3;
+    }
+  }
+
+  // The serialized representation of the user-defined function
+  bytes payload = 1;
+
+  // The input arguments of the user-defined function, it could be one of the following:
+  // 1. A column from the input row
+  // 2. The result of another user-defined function
+  // 3. The constant value of the column
+  repeated Input inputs = 2;
+}
+
+// A list of user-defined functions to be executed in a batch.
+message UserDefinedFunctions {
+  repeated UserDefinedFunction udfs = 1;
+}
+
+// A representation of the data schema.
+message Schema {
+  enum TypeName {
+    ROW = 0;
+    TINYINT = 1;
+    SMALLINT = 2;
+    INT = 3;
+    BIGINT = 4;
+    DECIMAL = 5;
+    FLOAT = 6;
+    DOUBLE = 7;
+    DATE = 8;
+    TIME = 9;
+    TIMESTAMP = 10;
+    BOOLEAN = 11;
+    BINARY = 12;
+    VARBINARY = 13;
+    CHAR = 14;
+    VARCHAR = 15;
+    ARRAY = 16;
+    MAP = 17;
+    MULTISET = 18;
+    LOCAL_ZONED_TIMESTAMP = 19;
+    ZONED_TIMESTAMP = 20;
+  }
+
+  message MapInfo {
+    FieldType key_type = 1;
+    FieldType value_type = 2;
+  }
+
+  message TimeInfo {
+    int32 precision = 1;
+  }
+
+  message TimestampInfo {
+    int32 precision = 1;
+  }
+
+  message LocalZonedTimestampInfo {
+    int32 precision = 1;
+  }
+
+  message ZonedTimestampInfo {
+    int32 precision = 1;
+  }
+
+  message DecimalInfo {
+    int32 precision = 1;
+    int32 scale = 2;
+  }
+
+  message BinaryInfo {
+    int32 length = 1;
+  }
+
+  message VarBinaryInfo {
+    int32 length = 1;
+  }
+
+  message CharInfo {
+    int32 length = 1;
+  }
+
+  message VarCharInfo {
+    int32 length = 1;
+  }
+
+  message FieldType {
+    TypeName type_name = 1;
+    bool nullable = 2;
+    oneof type_info {
+      FieldType collection_element_type = 3;
+      MapInfo map_info = 4;
+      Schema row_schema = 5;
+      DecimalInfo decimal_info = 6;
+      TimeInfo time_info = 7;
+      TimestampInfo timestamp_info = 8;
+      LocalZonedTimestampInfo local_zoned_timestamp_info = 9;
+      ZonedTimestampInfo zoned_timestamp_info = 10;
+      BinaryInfo binary_info = 11;
+      VarBinaryInfo var_binary_info = 12;
+      CharInfo char_info = 13;
+      VarCharInfo var_char_info = 14;
+    }
+  }
+
+  message Field {
+    string name = 1;
+    string description = 2;
+    FieldType type = 3;
+  }
+
+  repeated Field fields = 1;
+}

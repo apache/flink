@@ -150,7 +150,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 		}
 
 		if (LOG.isTraceEnabled()) {
-			LOG.debug(
+			LOG.trace(
 				"Stored local state for checkpoint {} in subtask ({} - {} - {}) : {}.",
 				checkpointId, jobID, jobVertexID, subtaskIndex, localState);
 		} else if (LOG.isDebugEnabled()) {

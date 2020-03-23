@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <OUT> The output type of the operator
  */
 @Internal
-public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
+public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OUT> {
 
 	private final StreamOperator<OUT> operator;
 
@@ -61,6 +61,7 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 
 	protected SimpleOperatorFactory(StreamOperator<OUT> operator) {
 		this.operator = checkNotNull(operator);
+		this.chainingStrategy = operator.getChainingStrategy();
 	}
 
 	public StreamOperator<OUT> getOperator() {
@@ -71,6 +72,9 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 	@Override
 	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamTask<?, ?> containingTask,
 			StreamConfig config, Output<StreamRecord<OUT>> output) {
+		if (operator instanceof AbstractStreamOperator) {
+			((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
+		}
 		if (operator instanceof SetupableStreamOperator) {
 			((SetupableStreamOperator) operator).setup(containingTask, config, output);
 		}
@@ -79,22 +83,13 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 
 	@Override
 	public void setChainingStrategy(ChainingStrategy strategy) {
+		this.chainingStrategy = strategy;
 		operator.setChainingStrategy(strategy);
-	}
-
-	@Override
-	public ChainingStrategy getChainingStrategy() {
-		return operator.getChainingStrategy();
 	}
 
 	@Override
 	public boolean isStreamSource() {
 		return operator instanceof StreamSource;
-	}
-
-	@Override
-	public boolean isOperatorSelectiveReading() {
-		return operator instanceof InputSelectable;
 	}
 
 	@Override
@@ -116,5 +111,10 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 	@Override
 	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
 		((InputTypeConfigurable) operator).setInputType(type, executionConfig);
+	}
+
+	@Override
+	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+		return operator.getClass();
 	}
 }

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
@@ -48,6 +49,7 @@ public class FieldAccessorTest {
 				(TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(t);
 
 		FieldAccessor<Tuple2<String, Integer>, String> f0 = FieldAccessorFactory.getAccessor(tpeInfo, "f0", null);
+		assertEquals(String.class, f0.getFieldType().getTypeClass());
 		assertEquals("aa", f0.get(t));
 		assertEquals("aa", t.f0);
 		t = f0.set(t, "b");
@@ -55,6 +57,7 @@ public class FieldAccessorTest {
 		assertEquals("b", t.f0);
 
 		FieldAccessor<Tuple2<String, Integer>, Integer> f1 = FieldAccessorFactory.getAccessor(tpeInfo, "f1", null);
+		assertEquals(Integer.class, f1.getFieldType().getTypeClass());
 		assertEquals(5, (int) f1.get(t));
 		assertEquals(5, (int) t.f1);
 		t = f1.set(t, 7);
@@ -64,6 +67,7 @@ public class FieldAccessorTest {
 		assertEquals("b", t.f0);
 
 		FieldAccessor<Tuple2<String, Integer>, Integer> f1n = FieldAccessorFactory.getAccessor(tpeInfo, 1, null);
+		assertEquals(Integer.class, f1n.getFieldType().getTypeClass());
 		assertEquals(7, (int) f1n.get(t));
 		assertEquals(7, (int) t.f1);
 		t = f1n.set(t, 10);
@@ -74,6 +78,7 @@ public class FieldAccessorTest {
 		assertEquals("b", t.f0);
 
 		FieldAccessor<Tuple2<String, Integer>, Integer> f1ns = FieldAccessorFactory.getAccessor(tpeInfo, "1", null);
+		assertEquals(Integer.class, f1ns.getFieldType().getTypeClass());
 		assertEquals(10, (int) f1ns.get(t));
 		assertEquals(10, (int) t.f1);
 		t = f1ns.set(t, 11);
@@ -85,6 +90,7 @@ public class FieldAccessorTest {
 
 		// This is technically valid (the ".0" is selecting the 0th field of a basic type).
 		FieldAccessor<Tuple2<String, Integer>, String> f0f0 = FieldAccessorFactory.getAccessor(tpeInfo, "f0.0", null);
+		assertEquals(String.class, f0f0.getFieldType().getTypeClass());
 		assertEquals("b", f0f0.get(t));
 		assertEquals("b", t.f0);
 		t = f0f0.set(t, "cc");
@@ -110,11 +116,13 @@ public class FieldAccessorTest {
 
 		FieldAccessor<Tuple2<String, Tuple3<Integer, Long, Double>>, String> f0 = FieldAccessorFactory
 			.getAccessor(tpeInfo, "f0", null);
+		assertEquals(String.class, f0.getFieldType().getTypeClass());
 		assertEquals("aa", f0.get(t));
 		assertEquals("aa", t.f0);
 
 		FieldAccessor<Tuple2<String, Tuple3<Integer, Long, Double>>, Double> f1f2 = FieldAccessorFactory
 			.getAccessor(tpeInfo, "f1.f2", null);
+		assertEquals(Double.class, f1f2.getFieldType().getTypeClass());
 		assertEquals(2.0, f1f2.get(t), 0);
 		assertEquals(2.0, t.f1.f2, 0);
 		t = f1f2.set(t, 3.0);
@@ -125,6 +133,7 @@ public class FieldAccessorTest {
 
 		FieldAccessor<Tuple2<String, Tuple3<Integer, Long, Double>>, Tuple3<Integer, Long, Double>> f1 =
 			FieldAccessorFactory.getAccessor(tpeInfo, "f1", null);
+		assertEquals(Tuple3.class, f1.getFieldType().getTypeClass());
 		assertEquals(Tuple3.of(5, 9L, 3.0), f1.get(t));
 		assertEquals(Tuple3.of(5, 9L, 3.0), t.f1);
 		t = f1.set(t, Tuple3.of(8, 12L, 4.0));
@@ -135,6 +144,7 @@ public class FieldAccessorTest {
 
 		FieldAccessor<Tuple2<String, Tuple3<Integer, Long, Double>>, Tuple3<Integer, Long, Double>> f1n =
 			FieldAccessorFactory.getAccessor(tpeInfo, 1, null);
+		assertEquals(Tuple3.class, f1n.getFieldType().getTypeClass());
 		assertEquals(Tuple3.of(8, 12L, 4.0), f1n.get(t));
 		assertEquals(Tuple3.of(8, 12L, 4.0), t.f1);
 		t = f1n.set(t, Tuple3.of(10, 13L, 5.0));
@@ -175,6 +185,7 @@ public class FieldAccessorTest {
 				(TupleTypeInfo<Tuple2<String, Foo>>) TypeExtractor.getForObject(t);
 
 		FieldAccessor<Tuple2<String, Foo>, Long> f1tf1 = FieldAccessorFactory.getAccessor(tpeInfo, "f1.t.f1", null);
+		assertEquals(Long.class, f1tf1.getFieldType().getTypeClass());
 		assertEquals(9L, (long) f1tf1.get(t));
 		assertEquals(9L, (long) t.f1.t.f1);
 		t = f1tf1.set(t, 12L);
@@ -182,6 +193,7 @@ public class FieldAccessorTest {
 		assertEquals(12L, (long) t.f1.t.f1);
 
 		FieldAccessor<Tuple2<String, Foo>, String> f1tf0 = FieldAccessorFactory.getAccessor(tpeInfo, "f1.t.f0", null);
+		assertEquals(String.class, f1tf0.getFieldType().getTypeClass());
 		assertEquals("ddd", f1tf0.get(t));
 		assertEquals("ddd", t.f1.t.f0);
 		t = f1tf0.set(t, "alma");
@@ -190,6 +202,8 @@ public class FieldAccessorTest {
 
 		FieldAccessor<Tuple2<String, Foo>, Foo> f1 = FieldAccessorFactory.getAccessor(tpeInfo, "f1", null);
 		FieldAccessor<Tuple2<String, Foo>, Foo> f1n = FieldAccessorFactory.getAccessor(tpeInfo, 1, null);
+		assertEquals(Foo.class, f1.getFieldType().getTypeClass());
+		assertEquals(Foo.class, f1n.getFieldType().getTypeClass());
 		assertEquals(Tuple2.of("alma", 12L), f1.get(t).t);
 		assertEquals(Tuple2.of("alma", 12L), f1n.get(t).t);
 		assertEquals(Tuple2.of("alma", 12L), t.f1.t);
@@ -261,6 +275,7 @@ public class FieldAccessorTest {
 		PojoTypeInfo<Outer> tpeInfo = (PojoTypeInfo<Outer>) TypeInformation.of(Outer.class);
 
 		FieldAccessor<Outer, Long> fix = FieldAccessorFactory.getAccessor(tpeInfo, "i.x", null);
+		assertEquals(Long.class, fix.getFieldType().getTypeClass());
 		assertEquals(4L, (long) fix.get(o));
 		assertEquals(4L, o.i.x);
 		o = fix.set(o, 22L);
@@ -268,6 +283,7 @@ public class FieldAccessorTest {
 		assertEquals(22L, o.i.x);
 
 		FieldAccessor<Outer, Inner> fi = FieldAccessorFactory.getAccessor(tpeInfo, "i", null);
+		assertEquals(Inner.class, fi.getFieldType().getTypeClass());
 		assertEquals(22L, fi.get(o).x);
 		assertEquals(22L, (long) fix.get(o));
 		assertEquals(22L, o.i.x);
@@ -328,6 +344,7 @@ public class FieldAccessorTest {
 		PojoTypeInfo<ArrayInPojo> tpeInfo = (PojoTypeInfo<ArrayInPojo>) TypeInformation.of(ArrayInPojo.class);
 
 		FieldAccessor<ArrayInPojo, Integer> fix = FieldAccessorFactory.getAccessor(tpeInfo, "arr.1", null);
+		assertEquals(Integer.class, fix.getFieldType().getTypeClass());
 		assertEquals(4, (int) fix.get(o));
 		assertEquals(4L, o.arr[1]);
 		o = fix.set(o, 8);
@@ -341,12 +358,14 @@ public class FieldAccessorTest {
 		TypeInformation<Long> tpeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 
 		FieldAccessor<Long, Long> f = FieldAccessorFactory.getAccessor(tpeInfo, 0, null);
+		assertEquals(Long.class, f.getFieldType().getTypeClass());
 		assertEquals(7L, (long) f.get(x));
 		x = f.set(x, 12L);
 		assertEquals(12L, (long) f.get(x));
 		assertEquals(12L, (long) x);
 
 		FieldAccessor<Long, Long> f2 = FieldAccessorFactory.getAccessor(tpeInfo, "*", null);
+		assertEquals(Long.class, f2.getFieldType().getTypeClass());
 		assertEquals(12L, (long) f2.get(x));
 		x = f2.set(x, 14L);
 		assertEquals(14L, (long) f2.get(x));
@@ -368,4 +387,23 @@ public class FieldAccessorTest {
 
 		FieldAccessor<Long, Long> f = FieldAccessorFactory.getAccessor(tpeInfo, "foo", null);
 	}
+
+	/**
+	 * Validates that no ClassCastException happens
+	 * should not fail e.g. like in FLINK-8255.
+	 */
+	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
+	public void testRowTypeInfo() {
+		TypeInformation<?>[] typeList = new TypeInformation<?>[]{
+			new RowTypeInfo(
+				BasicTypeInfo.SHORT_TYPE_INFO,
+				BasicTypeInfo.BIG_DEC_TYPE_INFO)
+		};
+
+		String[] fieldNames = new String[]{"row"};
+		RowTypeInfo rowTypeInfo = new RowTypeInfo(typeList, fieldNames);
+
+		FieldAccessor f = FieldAccessorFactory.getAccessor(rowTypeInfo, "row.0", null);
+	}
+
 }

@@ -75,6 +75,7 @@ import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -82,6 +83,7 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -217,6 +219,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				checkpointResponder,
+				new NoOpTaskOperatorEventGateway(),
 				new TestGlobalAggregateManager(),
 				blobService,
 				new BlobLibraryCacheManager(
@@ -474,7 +477,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		public void init() {}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			triggerCheckpointOnBarrier(
 				new CheckpointMetaData(
 					11L,
@@ -485,7 +488,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 			while (isRunning()) {
 				Thread.sleep(1L);
 			}
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 
 		@Override

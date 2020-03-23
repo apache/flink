@@ -206,7 +206,7 @@ class TimeAttributesITCase extends AbstractTestBase {
         'rowtime.ceil(TimeIntervalUnit.DAY).as('ceilDay))
       .insertInto("testSink")
 
-    env.execute()
+     tEnv.execute("job name")
 
     val expected = Seq(
       "1970-01-01 00:00:00.007,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
@@ -512,7 +512,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
     tEnv.registerTable("T1", table)
-    val querySql = "select rowtime as ts, string as msg from T1"
+    val querySql = "select rowtime as ts, `string` as msg from T1"
 
     val results = tEnv.sqlQuery(querySql).toAppendStream[Pojo1]
     results.addSink(new StreamITCase.StringSink[Pojo1])

@@ -25,18 +25,23 @@ TEST=flink-heavy-deployment-stress-test
 TEST_PROGRAM_NAME=HeavyDeploymentStressTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_config_key "taskmanager.heap.mb" "512" # 512Mb x 10TMs = 5Gb total heap
+set_config_key "akka.ask.timeout" "60 s"
+set_config_key "web.timeout" "60000"
 
-set_config_key "taskmanager.memory.size" "8" # 8Mb
-set_config_key "taskmanager.network.memory.min" "8mb"
-set_config_key "taskmanager.network.memory.max" "8mb"
+set_config_key "taskmanager.memory.process.size" "1024m" # 1024Mb x 5TMs = 5Gb total heap
+
+set_config_key "taskmanager.memory.managed.size" "8" # 8Mb
+set_config_key "taskmanager.memory.network.min" "128mb"
+set_config_key "taskmanager.memory.network.max" "128mb"
 set_config_key "taskmanager.network.request-backoff.max" "60000"
 set_config_key "taskmanager.memory.segment-size" "8kb"
+set_config_key "taskmanager.memory.jvm-metaspace.size" "64m"
+set_config_key "taskmanager.memory.framework.off-heap.size" "200m"
 
-set_config_key "taskmanager.numberOfTaskSlots" "10" # 10 slots per TM
+set_config_key "taskmanager.numberOfTaskSlots" "20" # 20 slots per TM
 
 start_cluster # this also starts 1TM
-start_taskmanagers 9 # 1TM + 9TM = 10TM a 10 slots = 100 slots
+start_taskmanagers 4 # 1TM + 4TM = 5TM a 20 slots = 100 slots
 
 # This call will result in a deployment with state meta data of 100 x 100 x 40 union states x each 40 entries.
 # We can scale up the numbers to make the test even heavier.

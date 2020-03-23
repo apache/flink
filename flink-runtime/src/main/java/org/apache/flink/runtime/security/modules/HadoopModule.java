@@ -115,7 +115,7 @@ public class HadoopModule implements SecurityModule {
 							Credentials.class);
 						addCredentialsMethod.invoke(loginUser, credentials);
 					} catch (NoSuchMethodException e) {
-						LOG.warn("Could not find method implementations in the shaded jar. Exception: {}", e);
+						LOG.warn("Could not find method implementations in the shaded jar.", e);
 					} catch (InvocationTargetException e) {
 						throw e.getTargetException();
 					}
@@ -129,7 +129,7 @@ public class HadoopModule implements SecurityModule {
 					Method loginUserFromSubjectMethod = UserGroupInformation.class.getMethod("loginUserFromSubject", Subject.class);
 					loginUserFromSubjectMethod.invoke(null, (Subject) null);
 				} catch (NoSuchMethodException e) {
-					LOG.warn("Could not find method implementations in the shaded jar. Exception: {}", e);
+					LOG.warn("Could not find method implementations in the shaded jar.", e);
 				} catch (InvocationTargetException e) {
 					throw e.getTargetException();
 				}
@@ -137,19 +137,10 @@ public class HadoopModule implements SecurityModule {
 				loginUser = UserGroupInformation.getLoginUser();
 			}
 
-			if (UserGroupInformation.isSecurityEnabled()) {
-				// note: UGI::hasKerberosCredentials inaccurately reports false
-				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
-				// so we check only in ticket cache scenario.
-				if (securityConfig.useTicketCache() && !loginUser.hasKerberosCredentials()) {
-					// a delegation token is an adequate substitute in most cases
-					if (!HadoopUtils.hasHDFSDelegationToken()) {
-						LOG.warn("Hadoop security is enabled but current login user does not have Kerberos credentials");
-					}
-				}
-			}
+			boolean isCredentialsConfigured = HadoopUtils.isCredentialsConfigured(
+				loginUser, securityConfig.useTicketCache());
 
-			LOG.info("Hadoop user set to {}", loginUser);
+			LOG.info("Hadoop user set to {}, credentials check status: {}", loginUser, isCredentialsConfigured);
 
 		} catch (Throwable ex) {
 			throw new SecurityInstallException("Unable to set the Hadoop login user", ex);

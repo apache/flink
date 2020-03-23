@@ -168,6 +168,7 @@ public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T>
 	@Override
 	public void close() throws IOException {
 		if (wrt != null) {
+			this.wrt.flush();
 			this.wrt.close();
 		}
 		super.close();

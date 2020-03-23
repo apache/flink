@@ -50,7 +50,7 @@ public class NettyPartitionRequestClientTest {
 	public void testRetriggerPartitionRequest() throws Exception {
 		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 
-		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
 		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
@@ -109,7 +109,7 @@ public class NettyPartitionRequestClientTest {
 
 	@Test
 	public void testDoublePartitionRequest() throws Exception {
-		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
 		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));

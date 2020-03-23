@@ -30,6 +30,7 @@ import java.util.Map;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -94,8 +95,8 @@ public class HashTableITCase extends TestLogger {
 		this.pairBuildSideComparator = new IntPairComparator();
 		this.pairProbeSideComparator = new IntPairComparator();
 		this.pairComparator = new IntPairPairComparator();
-		
-		this.memManager = new MemoryManager(32 * 1024 * 1024,1);
+
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(32 * 1024 * 1024).build();
 		this.ioManager = new IOManagerAsync();
 	}
 	

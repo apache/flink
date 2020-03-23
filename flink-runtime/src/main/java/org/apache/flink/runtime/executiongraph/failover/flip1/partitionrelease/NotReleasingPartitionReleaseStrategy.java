@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -48,7 +47,7 @@ public class NotReleasingPartitionReleaseStrategy implements PartitionReleaseStr
 	public static class Factory implements PartitionReleaseStrategy.Factory {
 
 		@Override
-		public PartitionReleaseStrategy createInstance(final SchedulingTopology schedulingStrategy, final FailoverTopology failoverTopology) {
+		public PartitionReleaseStrategy createInstance(final SchedulingTopology<?, ?> schedulingStrategy) {
 			return new NotReleasingPartitionReleaseStrategy();
 		}
 	}

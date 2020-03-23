@@ -119,9 +119,7 @@ public class TableImpl implements Table {
 
 	@Override
 	public Table select(Expression... fields) {
-		List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-			.map(f -> f.accept(lookupResolver))
-			.collect(Collectors.toList());
+		List<Expression> expressionsWithResolvedCalls = preprocessExpressions(fields);
 		CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 			expressionsWithResolvedCalls
 		);
@@ -407,8 +405,8 @@ public class TableImpl implements Table {
 	}
 
 	@Override
-	public void insertInto(String tablePath, String... tablePathContinued) {
-		tableEnvironment.insertInto(this, tablePath, tablePathContinued);
+	public void insertInto(String tablePath) {
+		tableEnvironment.insertInto(tablePath, this);
 	}
 
 	@Override
@@ -464,9 +462,7 @@ public class TableImpl implements Table {
 	}
 
 	private Table addColumnsOperation(boolean replaceIfExist, List<Expression> fields) {
-		List<Expression> expressionsWithResolvedCalls = fields.stream()
-			.map(f -> f.accept(lookupResolver))
-			.collect(Collectors.toList());
+		List<Expression> expressionsWithResolvedCalls = preprocessExpressions(fields);
 		CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 			expressionsWithResolvedCalls
 		);
@@ -563,6 +559,16 @@ public class TableImpl implements Table {
 		return new TableImpl(tableEnvironment, operation, operationTreeBuilder, lookupResolver);
 	}
 
+	private List<Expression> preprocessExpressions(List<Expression> expressions) {
+		return preprocessExpressions(expressions.toArray(new Expression[0]));
+	}
+
+	private List<Expression> preprocessExpressions(Expression[] expressions) {
+		return Arrays.stream(expressions)
+			.map(f -> f.accept(lookupResolver))
+			.collect(Collectors.toList());
+	}
+
 	private static final class GroupedTableImpl implements GroupedTable {
 
 		private final TableImpl table;
@@ -582,9 +588,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -716,7 +720,8 @@ public class TableImpl implements Table {
 
 		@Override
 		public WindowGroupedTable groupBy(Expression... fields) {
-			List<Expression> fieldsWithoutWindow = Arrays.stream(fields)
+			List<Expression> fieldsWithoutWindow = table.preprocessExpressions(fields)
+				.stream()
 				.filter(f -> !window.getAlias().equals(f))
 				.collect(Collectors.toList());
 			if (fields.length != fieldsWithoutWindow.size() + 1) {
@@ -749,9 +754,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -816,9 +819,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -873,9 +874,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);

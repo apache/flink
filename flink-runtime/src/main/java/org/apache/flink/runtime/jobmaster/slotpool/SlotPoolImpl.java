@@ -38,9 +38,11 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -348,7 +350,7 @@ public class SlotPoolImpl implements SlotPool {
 	private void slotRequestToResourceManagerFailed(SlotRequestId slotRequestID, Throwable failure) {
 		final PendingRequest request = pendingRequests.getKeyA(slotRequestID);
 		if (request != null) {
-			if (request.isBatchRequest) {
+			if (isBatchRequestAndFailureCanBeIgnored(request, failure)) {
 				log.debug("Ignoring failed request to the resource manager for a batch slot request.");
 			} else {
 				pendingRequests.removeKeyA(slotRequestID);
@@ -368,6 +370,11 @@ public class SlotPoolImpl implements SlotPool {
 				"Adding as pending request [{}]",  pendingRequest.getSlotRequestId());
 
 		waitingForResourceManager.put(pendingRequest.getSlotRequestId(), pendingRequest);
+	}
+
+	private boolean isBatchRequestAndFailureCanBeIgnored(PendingRequest request, Throwable failure){
+		return request.isBatchRequest &&
+			!ExceptionUtils.findThrowable(failure, UnfulfillableSlotRequestException.class).isPresent();
 	}
 
 	// ------------------------------------------------------------------------
@@ -444,8 +451,19 @@ public class SlotPoolImpl implements SlotPool {
 
 	@Override
 	@Nonnull
-	public Collection<SlotInfo> getAvailableSlotsInformation() {
-		return availableSlots.listSlotInfo();
+	public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
+		final Map<ResourceID, Set<AllocatedSlot>> availableSlotsByTaskManager = availableSlots.getSlotsByTaskManager();
+		final Map<ResourceID, Set<AllocatedSlot>> allocatedSlotsSlotsByTaskManager = allocatedSlots.getSlotsByTaskManager();
+
+		return availableSlotsByTaskManager.entrySet().stream()
+			.flatMap(entry -> {
+				final int numberAllocatedSlots = allocatedSlotsSlotsByTaskManager.getOrDefault(entry.getKey(), Collections.emptySet()).size();
+				final int numberAvailableSlots = entry.getValue().size();
+				final double taskExecutorUtilization = (double) numberAllocatedSlots / (numberAllocatedSlots + numberAvailableSlots);
+
+				return entry.getValue().stream().map(slot -> SlotInfoWithUtilization.from(slot, taskExecutorUtilization));
+			})
+			.collect(Collectors.toList());
 	}
 
 	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
@@ -679,7 +697,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		final PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
 		if (pendingRequest != null) {
-			if (pendingRequest.isBatchRequest) {
+			if (isBatchRequestAndFailureCanBeIgnored(pendingRequest, cause)) {
 				// pending batch requests don't react to this signal --> put it back
 				pendingRequests.put(pendingRequest.getSlotRequestId(), allocationID, pendingRequest);
 			} else {
@@ -1138,6 +1156,10 @@ public class SlotPoolImpl implements SlotPool {
 		Collection<SlotInfo> listSlotInfo() {
 			return new ArrayList<>(allocatedSlotsById.values());
 		}
+
+		Map<ResourceID, Set<AllocatedSlot>> getSlotsByTaskManager() {
+			return Collections.unmodifiableMap(allocatedSlotsByTaskManager);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -1301,6 +1323,10 @@ public class SlotPoolImpl implements SlotPool {
 
 		Set<AllocatedSlot> getSlotsForTaskManager(ResourceID resourceId) {
 			return availableSlotsByTaskManager.getOrDefault(resourceId, Collections.emptySet());
+		}
+
+		Map<ResourceID, Set<AllocatedSlot>> getSlotsByTaskManager() {
+			return Collections.unmodifiableMap(availableSlotsByTaskManager);
 		}
 	}
 

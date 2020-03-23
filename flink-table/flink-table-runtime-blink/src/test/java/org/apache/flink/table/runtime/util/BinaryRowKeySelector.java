@@ -26,9 +26,9 @@ import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
-import org.apache.flink.table.types.InternalSerializers;
+import org.apache.flink.table.runtime.types.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
  * A utility class which extracts key from BaseRow.

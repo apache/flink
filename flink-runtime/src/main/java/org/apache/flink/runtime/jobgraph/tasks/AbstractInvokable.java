@@ -24,6 +24,12 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
+
+import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,9 +56,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the initial state structure by the Garbage Collector.
  *
  * <p>Any subclass that supports recoverable state and participates in
- * checkpointing needs to override {@link #triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)},
+ * checkpointing needs to override {@link #triggerCheckpointAsync(CheckpointMetaData, CheckpointOptions, boolean)},
  * {@link #triggerCheckpointOnBarrier(CheckpointMetaData, CheckpointOptions, CheckpointMetrics)},
- * {@link #abortCheckpointOnBarrier(long, Throwable)} and {@link #notifyCheckpointComplete(long)}.
+ * {@link #abortCheckpointOnBarrier(long, Throwable)} and {@link #notifyCheckpointCompleteAsync(long)}.
  */
 public abstract class AbstractInvokable {
 
@@ -206,10 +212,13 @@ public abstract class AbstractInvokable {
 	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
 	 *                          to fire any registered event-time timers
 	 *
-	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
+	 * @return future with value of {@code false} if the checkpoint was not carried out, {@code true} otherwise
 	 */
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
-		throw new UnsupportedOperationException(String.format("triggerCheckpoint not supported by %s", this.getClass().getName()));
+	public Future<Boolean> triggerCheckpointAsync(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime) {
+		throw new UnsupportedOperationException(String.format("triggerCheckpointAsync not supported by %s", this.getClass().getName()));
 	}
 
 	/**
@@ -244,10 +253,15 @@ public abstract class AbstractInvokable {
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received
 	 * the notification from all participating tasks.
 	 *
-	 * @param checkpointId The ID of the checkpoint that is complete..
-	 * @throws Exception The notification method may forward its exceptions.
+	 * @param checkpointId The ID of the checkpoint that is complete.
+	 *
+	 * @return future that completes when the notification has been processed by the task.
 	 */
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		throw new UnsupportedOperationException(String.format("notifyCheckpointComplete not supported by %s", this.getClass().getName()));
+	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+		throw new UnsupportedOperationException(String.format("notifyCheckpointCompleteAsync not supported by %s", this.getClass().getName()));
+	}
+
+	public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event) throws FlinkException {
+		throw new UnsupportedOperationException("dispatchOperatorEvent not supported by " + getClass().getName());
 	}
 }

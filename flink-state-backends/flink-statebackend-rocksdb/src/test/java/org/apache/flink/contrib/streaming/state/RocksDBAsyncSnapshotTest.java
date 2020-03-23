@@ -35,10 +35,9 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -69,7 +68,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -85,7 +83,6 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -94,6 +91,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
@@ -212,21 +210,15 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			testHarness.bufferSize,
 			taskStateManagerTestMock);
 
+		AtomicReference<Throwable> errorRef = new AtomicReference<>();
+		mockEnv.setExternalExceptionHandler(errorRef::set);
 		testHarness.invoke(mockEnv);
+		testHarness.waitForTaskRunning();
 
 		final OneInputStreamTask<String, String> task = testHarness.getTask();
 
-		// wait for the task to be running
-		for (Field field: StreamTask.class.getDeclaredFields()) {
-			if (field.getName().equals("isRunning")) {
-				field.setAccessible(true);
-				while (!field.getBoolean(task)) {
-					Thread.sleep(10);
-				}
-			}
-		}
-
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+		task.triggerCheckpointAsync(new CheckpointMetaData(42, 17), CheckpointOptions.forCheckpointWithDefaultLocation(), false)
+			.get();
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -243,7 +235,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 
 		testHarness.waitForTaskCompletion();
-		if (mockEnv.wasFailedExternally()) {
+		if (errorRef.get() != null) {
 			fail("Unexpected exception during execution.");
 		}
 	}
@@ -327,23 +319,15 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		blockerCheckpointStreamFactory.setWaiterLatch(new OneShotLatch());
 
 		testHarness.invoke(mockEnv);
+		testHarness.waitForTaskRunning();
 
 		final OneInputStreamTask<String, String> task = testHarness.getTask();
 
-		// wait for the task to be running
-		for (Field field: StreamTask.class.getDeclaredFields()) {
-			if (field.getName().equals("isRunning")) {
-				field.setAccessible(true);
-				while (!field.getBoolean(task)) {
-					Thread.sleep(10);
-				}
-			}
-		}
-
-		task.triggerCheckpoint(
+		task.triggerCheckpointAsync(
 			new CheckpointMetaData(42, 17),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			false);
+			false)
+			.get();
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		blockerCheckpointStreamFactory.getWaiterLatch().await();
@@ -385,7 +369,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		long checkpointId = 1L;
 		long timestamp = 42L;
 
-		Environment env = new DummyEnvironment("test task", 1, 0);
+		MockEnvironment env = MockEnvironment.builder().build();
 
 		final IOException testException = new IOException("Test exception");
 		CheckpointStateOutputStream outputStream = spy(new FailingStream(testException));
@@ -430,6 +414,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		} finally {
 			IOUtils.closeQuietly(keyedStateBackend);
 			keyedStateBackend.dispose();
+			IOUtils.closeQuietly(env);
 		}
 	}
 
