@@ -24,8 +24,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 
-import javax.annotation.Nullable;
-
+import java.util.Collections;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -70,10 +69,9 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 		return this.containeredTaskManagerParameters.taskManagerEnv();
 	}
 
-	@Nullable
 	@Override
 	public Map<String, String> getAnnotations() {
-		return flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS);
+		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
 	}
 
 	public String getTaskManagerMainContainerName() {
