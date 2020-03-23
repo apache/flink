@@ -16,51 +16,33 @@
  limitations under the License.
  */
 
-package org.apache.flink.api.connector.source;
+package org.apache.flink.runtime.source.event;
 
-import org.apache.flink.annotation.Public;
-
-import java.io.Serializable;
-import java.util.Objects;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
 /**
- * A container class hosting the information of a {@link SourceReader}.
+ * An {@link OperatorEvent} that registers a {@link org.apache.flink.api.connector.source.SourceReader SourceReader}
+ * to the SourceCoordinator.
  */
-@Public
-public final class ReaderInfo implements Serializable {
+public class ReaderRegistrationEvent implements OperatorEvent {
 	private final int subtaskId;
 	private final String location;
 
-	public ReaderInfo(int subtaskId, String location) {
+	public ReaderRegistrationEvent(int subtaskId, String location) {
 		this.subtaskId = subtaskId;
 		this.location = location;
 	}
 
-	/**
-	 * @return the ID of the subtask that runs the source reader.
-	 */
-	public int getSubtaskId() {
+	public int subtaskId() {
 		return subtaskId;
 	}
 
-	/**
-	 * @return the location of the subtask that runs this source reader.
-	 */
-	public String getLocation() {
+	public String location() {
 		return location;
 	}
 
 	@Override
-	public int hashCode() {
-		return Objects.hash(subtaskId, location);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof ReaderInfo)) {
-			return false;
-		}
-		ReaderInfo other = (ReaderInfo) obj;
-		return subtaskId == other.subtaskId && location.equals(other.location);
+	public String toString() {
+		return String.format("ReaderRegistrationEvent[subtaskId = %d, location = %s)", subtaskId, location);
 	}
 }
