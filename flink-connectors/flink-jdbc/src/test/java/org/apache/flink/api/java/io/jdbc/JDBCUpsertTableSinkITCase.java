@@ -18,24 +18,15 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.sources.InputFormatTableSource;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
@@ -49,7 +40,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -230,14 +220,12 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 	}
 
 	@Test
-	public void testBatchUpsert() throws Exception {
-		StreamExecutionEnvironment bsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-		StreamTableEnvironment bsTableEnv = StreamTableEnvironment.create(bsEnv, bsSettings);
-		RowTypeInfo rt = (RowTypeInfo) Types.ROW_NAMED(new String[]{"NAME", "SCORE"}, Types.STRING, Types.LONG);
-		Table source = bsTableEnv.fromTableSource(new CollectionTableSource(generateRecords(2), rt));
-		bsTableEnv.registerTable("sourceTable", source);
-		bsTableEnv.sqlUpdate(
+	public void testBatchSink() throws Exception {
+		EnvironmentSettings bsSettings = EnvironmentSettings.newInstance()
+				.useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tEnv = TableEnvironment.create(bsSettings);
+
+		tEnv.sqlUpdate(
 			"CREATE TABLE USER_RESULT(" +
 				"NAME VARCHAR," +
 				"SCORE BIGINT" +
@@ -247,57 +235,19 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				"'connector.table' = '" + OUTPUT_TABLE3 + "'" +
 				")");
 
-		bsTableEnv.sqlUpdate("insert into USER_RESULT SELECT s.NAME, s.SCORE " +
-			"FROM sourceTable as s ");
-		bsTableEnv.execute("test");
+		tEnv.sqlUpdate("INSERT INTO USER_RESULT\n" +
+				"SELECT user_name, score " +
+				"FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), " +
+				"(42, 'Kim'), (1, 'Bob')) " +
+				"AS UserCountTable(score, user_name)");
+		tEnv.execute("test");
 
 		check(new Row[] {
-			Row.of("a0", 0L),
-			Row.of("a1", 1L)
+				Row.of("Bob", 1),
+				Row.of("Tom", 22),
+				Row.of("Kim", 42),
+				Row.of("Kim", 42),
+				Row.of("Bob", 1)
 		}, DB_URL, OUTPUT_TABLE3, new String[]{"NAME", "SCORE"});
-	}
-
-	private List<Row> generateRecords(int numRecords) {
-		int arity = 2;
-		List<Row> res = new ArrayList<>(numRecords);
-		for (long i = 0; i < numRecords; i++) {
-			Row row = new Row(arity);
-			row.setField(0, "a" + i);
-			row.setField(1, i);
-			res.add(row);
-		}
-		return res;
-	}
-
-	private static class CollectionTableSource extends InputFormatTableSource<Row> {
-
-		private final Collection<Row> data;
-		private final RowTypeInfo rowTypeInfo;
-
-		CollectionTableSource(Collection<Row> data, RowTypeInfo rowTypeInfo) {
-			this.data = data;
-			this.rowTypeInfo = rowTypeInfo;
-		}
-
-		@Override
-		public DataType getProducedDataType() {
-			return TypeConversions.fromLegacyInfoToDataType(rowTypeInfo);
-		}
-
-		@Override
-		public TypeInformation<Row> getReturnType() {
-			return rowTypeInfo;
-		}
-
-		@Override
-		public InputFormat<Row, ?> getInputFormat() {
-			return new CollectionInputFormat<>(data, rowTypeInfo.createSerializer(new ExecutionConfig()));
-		}
-
-		@Override
-		public TableSchema getTableSchema() {
-			return new TableSchema.Builder().fields(rowTypeInfo.getFieldNames(),
-				TypeConversions.fromLegacyInfoToDataType(rowTypeInfo.getFieldTypes())).build();
-		}
 	}
 }
