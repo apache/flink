@@ -39,6 +39,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -143,7 +144,7 @@ public class KubernetesUtils {
 		labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
 		labels.put(Constants.LABEL_APP_KEY, clusterId);
 		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
-		return labels;
+		return Collections.unmodifiableMap(labels);
 	}
 
 	/**

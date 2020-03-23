@@ -18,11 +18,12 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -42,7 +43,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * General tests for the {@link KubernetesTaskManagerParameters}.
  */
-public class KubernetesTaskManagerParametersTest {
+public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
 	private static final int TASK_MANAGER_MEMORY = 1024;
 	private static final double TASK_MANAGER_CPU = 1.2;
@@ -58,11 +59,11 @@ public class KubernetesTaskManagerParametersTest {
 		}
 	};
 
-	private Configuration flinkConfig = new Configuration();
 	private KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
 
 	@Before
-	public void setup() {
+	public void setup() throws Exception {
+		super.setup();
 		flinkConfig.set(TaskManagerOptions.CPU_CORES, TASK_MANAGER_CPU);
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TASK_MANAGER_MEMORY + "m"));
 		flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
@@ -129,5 +130,19 @@ public class KubernetesTaskManagerParametersTest {
 	@Test
 	public void testGetDynamicProperties() {
 		assertEquals(DYNAMIC_PROPERTIES, kubernetesTaskManagerParameters.getDynamicProperties());
+	}
+
+	@Test
+	public void testPrioritizeBuiltInLabels() {
+		final Map<String, String> userLabels = new HashMap<>();
+		userLabels.put(Constants.LABEL_TYPE_KEY, "user-label-type");
+		userLabels.put(Constants.LABEL_APP_KEY, "user-label-app");
+		userLabels.put(Constants.LABEL_COMPONENT_KEY, "user-label-component-tm");
+
+		flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
+
+		final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
+		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
+		assertThat(kubernetesTaskManagerParameters.getLabels(), is(equalTo(expectedLabels)));
 	}
 }

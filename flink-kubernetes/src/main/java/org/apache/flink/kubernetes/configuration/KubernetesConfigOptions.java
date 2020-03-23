@@ -112,6 +112,20 @@ public class KubernetesConfigOptions {
 	// The following config options could be overridden by KubernetesCliOptions.
 	// ---------------------------------------------------------------------------------
 
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_LABELS =
+		key("kubernetes.jobmanager.labels")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The labels to be set for JobManager pod. Specified as key:value pairs separated by commas. " +
+			"For example, version:alphav1,deploy:test.");
+
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_LABELS =
+		key("kubernetes.taskmanager.labels")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The labels to be set for TaskManager pods. Specified as key:value pairs separated by commas. " +
+			"For example, version:alphav1,deploy:test.");
+
 	public static final ConfigOption<String> CLUSTER_ID =
 		key("kubernetes.cluster-id")
 		.stringType()

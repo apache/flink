@@ -56,7 +56,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 	@Test
 	public void testPod() {
 		assertEquals(POD_NAME, this.resultPod.getMetadata().getName());
-		assertEquals(3, this.resultPod.getMetadata().getLabels().size());
+		assertEquals(5, this.resultPod.getMetadata().getLabels().size());
 		assertEquals(2, this.resultPod.getSpec().getVolumes().size());
 	}
 
