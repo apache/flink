@@ -64,13 +64,9 @@ public class PostgresTablePath {
 		return String.format("%s.%s", pgSchemaName, pgTableName);
 	}
 
-	public String getFullPathWithQuotes() {
-		return String.format("`%s.%s`", pgSchemaName, pgTableName);
-	}
-
 	@Override
 	public String toString() {
-		return getFullPathWithQuotes();
+		return getFullPath();
 	}
 
 	@Override

@@ -45,7 +45,16 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
+import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_PASSWORD;
+import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_TABLE;
+import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_TYPE_VALUE_JDBC;
+import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_URL;
+import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_USERNAME;
 
 /**
  * Catalog for PostgreSQL.
@@ -169,7 +178,8 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 
 		PostgresTablePath pgPath = PostgresTablePath.fromFlinkTableName(tablePath.getObjectName());
 
-		try (Connection conn = DriverManager.getConnection(baseUrl + tablePath.getDatabaseName(), username, pwd)) {
+		String dbUrl = baseUrl + tablePath.getDatabaseName();
+		try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd)) {
 
 			PreparedStatement ps = conn.prepareStatement(
 				String.format("SELECT * FROM %s;", pgPath.getFullPath()));
@@ -186,9 +196,18 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 
 			TableSchema tableSchema = new TableSchema.Builder().fields(names, types).build();
 
+			Map<String, String> props = new HashMap<>();
+			props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_JDBC);
+			props.put(CONNECTOR_PROPERTY_VERSION, "1");
+
+			props.put(CONNECTOR_URL, dbUrl);
+			props.put(CONNECTOR_TABLE, pgPath.getFullPath());
+			props.put(CONNECTOR_USERNAME, username);
+			props.put(CONNECTOR_PASSWORD, pwd);
+
 			return new CatalogTableImpl(
 				tableSchema,
-				new HashMap<>(),
+				props,
 				""
 			);
 		} catch (Exception e) {
