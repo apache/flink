@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors.python;
+package org.apache.flink.table.descriptors;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Map;
 
 /**
  * Describes a custom connector to an other system.
  */
-@Internal
+@PublicEvolving
 public class CustomConnectorDescriptor extends ConnectorDescriptor {
 
 	private final DescriptorProperties properties;
