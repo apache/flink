@@ -768,7 +768,7 @@ public class StreamExecutionEnvironment {
 			});
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
-		configuration.getOptional(ExecutionOptions.JOB_LISTENERS)
+		configuration.getOptional(DeploymentOptions.JOB_LISTENERS)
 			.ifPresent(l -> {
 				for (String listener : l) {
 					try {
