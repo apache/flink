@@ -143,9 +143,11 @@ public abstract class AbstractOrcColumnVector implements
 			bcv.isNull[0] = true;
 			bcv.isRepeating = true;
 		} else {
-			bcv.fill(value instanceof byte[] ?
+			byte[] bytes = value instanceof byte[] ?
 					(byte[]) value :
-					value.toString().getBytes(StandardCharsets.UTF_8));
+					value.toString().getBytes(StandardCharsets.UTF_8);
+			bcv.initBuffer(bytes.length);
+			bcv.fill(bytes);
 			bcv.isNull[0] = false;
 		}
 		return bcv;
