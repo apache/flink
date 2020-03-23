@@ -36,6 +36,7 @@ import java.sql.SQLException;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link JDBCCatalogFactory}.
@@ -73,6 +74,8 @@ public class JDBCCatalogFactoryTest {
 			.createCatalog(TEST_CATALOG_NAME, properties);
 
 		checkEquals(catalog, (JDBCCatalog) actualCatalog);
+
+		assertTrue(((JDBCCatalog) actualCatalog).getInternal() instanceof PostgresCatalog);
 	}
 
 	private static void checkEquals(JDBCCatalog c1, JDBCCatalog c2) {

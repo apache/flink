@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.util.StringUtils;
+
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
@@ -25,6 +27,7 @@ import static org.apache.flink.table.descriptors.JDBCCatalogValidator.CATALOG_JD
 import static org.apache.flink.table.descriptors.JDBCCatalogValidator.CATALOG_JDBC_PASSWORD;
 import static org.apache.flink.table.descriptors.JDBCCatalogValidator.CATALOG_JDBC_USERNAME;
 import static org.apache.flink.table.descriptors.JDBCCatalogValidator.CATALOG_TYPE_VALUE_JDBC;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Descriptor for {@link org.apache.flink.api.java.io.jdbc.catalog.JDBCCatalog}.
@@ -39,6 +42,11 @@ public class JDBCCatalogDescriptor extends CatalogDescriptor {
 	public JDBCCatalogDescriptor(String defaultDatabase, String username, String pwd, String baseUrl) {
 
 		super(CATALOG_TYPE_VALUE_JDBC, 1);
+
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase));
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(username));
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(pwd));
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(baseUrl));
 
 		this.defaultDatabase = defaultDatabase;
 		this.username = username;

@@ -349,6 +349,11 @@ public final class JDBCDialects {
 		}
 
 		@Override
+		public String quoteIdentifier(String identifier) {
+			return identifier;
+		}
+
+		@Override
 		public String dialectName() {
 			return "postgresql";
 		}
