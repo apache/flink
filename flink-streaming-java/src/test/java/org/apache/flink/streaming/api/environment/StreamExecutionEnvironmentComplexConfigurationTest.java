@@ -123,7 +123,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 		assertThat(envFromConfiguration.getJobListeners().get(1), instanceOf(BasicJobExecutedCounter.class));
 	}
 
-	static class BasicJobSubmittedCounter implements JobListener {
+	public static class BasicJobSubmittedCounter implements JobListener {
 		private int count = 0;
 
 		@Override
@@ -137,7 +137,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 		}
 	}
 
-	static class BasicJobExecutedCounter implements JobListener {
+	public static class BasicJobExecutedCounter implements JobListener {
 		private int count = 0;
 
 		@Override
