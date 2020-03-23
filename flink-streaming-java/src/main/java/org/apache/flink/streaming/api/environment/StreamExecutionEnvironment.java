@@ -238,7 +238,7 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Gets the config JobListeners
+	 * Gets the config JobListeners.
 	 */
 	public List<JobListener> getJobListeners() {
 		return jobListeners;

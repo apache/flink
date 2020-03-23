@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -125,7 +126,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 
 		@Override
 		public void onJobSubmitted(@Nullable JobClient jobClient, @Nullable Throwable throwable) {
-			count ++;
+			this.count = this.count + 1;
 		}
 
 		@Override
@@ -139,7 +140,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 
 		@Override
 		public void onJobSubmitted(@Nullable JobClient jobClient, @Nullable Throwable throwable) {
-			count ++;
+			this.count = this.count + 1;
 		}
 
 		@Override
