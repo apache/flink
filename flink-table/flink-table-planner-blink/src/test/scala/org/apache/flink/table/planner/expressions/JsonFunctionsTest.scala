@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -191,5 +192,14 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testSqlApi("json_query(f8, 'strict $.name1' null on error)", "null")
     testSqlApi("json_query(f8, 'strict $' null on empty)", "{\"name\":\"flink\"}")
     testSqlApi("json_query(cast(f2 as varchar), 'lax $' null on empty)", "null")
+
+    // invalid input and path
+    testSqlApi("json_query('{]', 'invalid $.name')", "null")
+    testSqlApi("json_query('{]', '$.name')", "null")
+    testSqlApi("json_query(f8, 'invalid $.aa')", "null")
+    testSqlApi("json_query(f8, '$.aa')", "null")
+    // wrong field types
+    expectedException.expect(classOf[CodeGenException])
+    testSqlApi("json_query(f7, 'lax $' null on empty)", "{\"name\":\"flink\"}")
   }
 }
