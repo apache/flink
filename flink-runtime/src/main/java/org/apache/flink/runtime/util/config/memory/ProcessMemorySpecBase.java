@@ -22,6 +22,30 @@ import org.apache.flink.configuration.MemorySize;
 
 /**
  * Process memory components.
+ *
+ * <p>The process memory consists of the following components.
+ * <ul>
+ *     <li>Total Flink Memory</li>
+ *     <li>JVM Metaspace</li>
+ *     <li>JVM Overhead</li>
+ * </ul>
+ * Among all the components, We use the Total Process Memory to refer to all the memory components,
+ * while the Total Flink Memory refers to all the internal components except JVM Metaspace and JVM Overhead.
+ *
+ * <p>The relationships of process memory components are shown below.
+ * <pre>
+ *               ┌ ─ ─ Total Process Memory  ─ ─ ┐
+ *               │┌─────────────────────────────┐│
+ *                │      Total Flink Memory     │
+ *               │└─────────────────────────────┘│
+ *               │┌─────────────────────────────┐│
+ *                │        JVM Metaspace        │
+ *               │└─────────────────────────────┘│
+ *                ┌─────────────────────────────┐
+ *               ││        JVM Overhead         ││
+ *                └─────────────────────────────┘
+ *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+ * </pre>
  */
 public class ProcessMemorySpecBase<IM extends FlinkMemory> implements ProcessMemorySpec {
 	private static final long serialVersionUID = 1L;
