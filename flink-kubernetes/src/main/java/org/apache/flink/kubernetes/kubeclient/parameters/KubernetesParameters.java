@@ -59,8 +59,6 @@ public interface KubernetesParameters {
 
 	/**
 	 *	A map of user-specified annotations that are set to the JobManager and TaskManager pods.
-	 *
-	 * @return a map of annotations or null if not set.
 	 */
 	Map<String, String> getAnnotations();
 
