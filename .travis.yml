@@ -59,7 +59,8 @@ before_script:
 
 # Install maven 3.2.5 since xenial uses 3.3.9 for which shading is broken
 before_install:
-   - source ./tools/travis/setup_maven.sh
+   - source ./tools/ci/maven-utils.sh
+   - setup_maven
 
 notifications:
   slack:

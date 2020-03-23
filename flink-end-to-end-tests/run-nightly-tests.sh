@@ -16,7 +16,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+set -x 
 END_TO_END_DIR="`dirname \"$0\"`" # relative
 END_TO_END_DIR="`( cd \"$END_TO_END_DIR\" && pwd -P)`" # absolutized and normalized
 if [ -z "$END_TO_END_DIR" ] ; then
@@ -32,6 +32,7 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+source "${END_TO_END_DIR}/../tools/ci/maven-utils.sh"
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
@@ -41,7 +42,7 @@ echo "Flink distribution directory: $FLINK_DIR"
 
 echo "Java and Maven version"
 java -version
-mvn -version
+run_mvn -version
 
 echo "Free disk space"
 df -h
@@ -224,12 +225,12 @@ mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIF
 LOG4J_PROPERTIES=${HERE}/../tools/log4j-travis.properties
 
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.wagon.http.pool=false -Dfast -Pskip-webui-build"
+MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build"
 e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
 e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 2 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')"
 
 PROFILE="$PROFILE -Pe2e-travis1 -Pe2e-travis2 -Pe2e-travis3 -Pe2e-travis4 -Pe2e-travis5 -Pe2e-travis6"
-mvn ${MVN_COMMON_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} verify -pl ${e2e_modules} -DdistDir=$(readlink -e build-target)
+run_mvn ${MVN_COMMON_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} verify -pl ${e2e_modules} -DdistDir=$(readlink -e build-target)
 
 EXIT_CODE=$?
 
