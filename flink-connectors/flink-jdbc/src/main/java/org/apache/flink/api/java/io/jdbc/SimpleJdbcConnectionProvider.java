@@ -33,12 +33,15 @@ class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializab
 
 	private transient volatile Connection connection;
 
+	private static final int connectionCheckTimeOut = 60;
+
 	public SimpleJdbcConnectionProvider(JdbcConnectionOptions jdbcOptions) {
 		this.jdbcOptions = jdbcOptions;
 	}
 
 	@Override
 	public Connection getConnection() throws SQLException, ClassNotFoundException {
+		connection = null;
 		if (connection == null) {
 			synchronized (this) {
 				if (connection == null) {

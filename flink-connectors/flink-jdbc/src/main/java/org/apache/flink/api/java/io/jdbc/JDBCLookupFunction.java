@@ -60,6 +60,7 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCLookupFunction.class);
 	private static final long serialVersionUID = 1L;
+	private static final int connectionCheckTimeout = 60;
 
 	private final String query;
 	private final String drivername;
@@ -112,8 +113,7 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 	@Override
 	public void open(FunctionContext context) throws Exception {
 		try {
-			establishConnection();
-			statement = dbConn.prepareStatement(query);
+			establishConnectionAndPreparedStatement();
 			this.cache = cacheMaxSize == -1 || cacheExpireMs == -1 ? null : CacheBuilder.newBuilder()
 					.expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
 					.maximumSize(cacheMaxSize)
@@ -139,6 +139,14 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 
 		for (int retry = 1; retry <= maxRetryTimes; retry++) {
 			try {
+				try {
+					if (!dbConn.isValid(connectionCheckTimeout)) {
+						establishConnectionAndPreparedStatement();
+					}
+				} catch (Exception e) {
+					LOG.error("JDBC connection is not valid,rebuild connection failure", e);
+					continue;
+				}
 				statement.clearParameters();
 				for (int i = 0; i < keys.length; i++) {
 					JDBCUtils.setField(statement, keySqlTypes[i], keys[i], i);
@@ -190,6 +198,11 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 		} else {
 			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
+	}
+
+	private void establishConnectionAndPreparedStatement() throws Exception {
+		establishConnection();
+		statement = dbConn.prepareStatement(query);
 	}
 
 	@Override

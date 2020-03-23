@@ -37,10 +37,12 @@ public class JdbcTestFixture {
 	public static final String INPUT_TABLE = "books";
 	static final String OUTPUT_TABLE = "newbooks";
 	static final String OUTPUT_TABLE_2 = "newbooks2";
+	static final String OUTPUT_TABLE_3 = "newbooks3";
 	static final String SELECT_ALL_BOOKS = "select * from " + INPUT_TABLE;
 	static final String SELECT_ID_BOOKS = "select id from " + INPUT_TABLE;
 	static final String SELECT_ALL_NEWBOOKS = "select * from " + OUTPUT_TABLE;
 	static final String SELECT_ALL_NEWBOOKS_2 = "select * from " + OUTPUT_TABLE_2;
+	static final String SELECT_ALL_NEWBOOKS_3 = "select * from " + OUTPUT_TABLE_3;
 	static final String SELECT_EMPTY = "select * from books WHERE QTY < 0";
 	public static final String INSERT_TEMPLATE = "insert into %s (id, title, author, price, qty) values (?,?,?,?,?)";
 	static final String SELECT_ALL_BOOKS_SPLIT_BY_ID = SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
@@ -143,6 +145,7 @@ public class JdbcTestFixture {
 			createTable(conn, JdbcTestFixture.INPUT_TABLE);
 			createTable(conn, OUTPUT_TABLE);
 			createTable(conn, OUTPUT_TABLE_2);
+			createTable(conn, OUTPUT_TABLE_3);
 		}
 	}
 
@@ -173,6 +176,7 @@ public class JdbcTestFixture {
 			stat.executeUpdate("DROP TABLE " + INPUT_TABLE);
 			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE);
 			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE_2);
+			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE_3);
 		}
 	}
 

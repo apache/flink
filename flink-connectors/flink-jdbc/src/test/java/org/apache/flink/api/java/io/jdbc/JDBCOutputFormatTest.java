@@ -32,11 +32,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.INPUT_TABLE;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.OUTPUT_TABLE;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.OUTPUT_TABLE_2;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.TEST_DATA;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
@@ -235,6 +231,46 @@ public class JDBCOutputFormatTest extends JDBCDataTestBase {
 			}
 		} finally {
 			jdbcOutputFormat.close();
+		}
+	}
+
+	@Test
+	public void testJDBCOutputFormatIfConnectionClosed() throws IOException, SQLException {
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
+			.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_3))
+			.finish();
+		jdbcOutputFormat.open(0, 1);
+
+		for (int i = 0; i < 3; i++) {
+			jdbcOutputFormat.writeRecord(toRow(TEST_DATA[i]));
+		}
+
+		jdbcOutputFormat.connection.close();
+
+		for (int i = 3; i < TEST_DATA.length; i++) {
+			jdbcOutputFormat.writeRecord(toRow(TEST_DATA[i]));
+		}
+
+		jdbcOutputFormat.close();
+
+		try (
+			Connection dbConn = DriverManager.getConnection(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl());
+			PreparedStatement statement = dbConn.prepareStatement(JdbcTestFixture.SELECT_ALL_NEWBOOKS_3);
+			ResultSet resultSet = statement.executeQuery()
+		) {
+			int recordCount = 3;
+			while (resultSet.next()) {
+				assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+				assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+				assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+				assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+				assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+
+				recordCount++;
+			}
+			assertEquals(TEST_DATA.length, recordCount);
 		}
 	}
 

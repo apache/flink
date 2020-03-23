@@ -50,6 +50,8 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	final JdbcInsertOptions insertOptions;
 	private final JdbcExecutionOptions batchOptions;
 
+	private static final int connectionCheckTimeout = 60;
+
 	private transient PreparedStatement upload;
 	private transient int batchCount = 0;
 
@@ -87,8 +89,12 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	}
 
 	@Override
-	public void writeRecord(Row row) {
+	public void writeRecord(Row row) throws IOException{
 		try {
+			if (!connection.isValid(connectionCheckTimeout)) {
+				LOG.error("JDBC connection is closed,start to open a new connection");
+				establishConnectionAndPreparedStatement();
+			}
 			setRecordToStatement(upload, insertOptions.getFieldTypes(), row);
 			upload.addBatch();
 		} catch (SQLException e) {
@@ -143,6 +149,19 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	public int[] getFieldTypes() {
 		return insertOptions.getFieldTypes();
+	}
+
+	private void establishConnectionAndPreparedStatement() throws IOException {
+		try {
+			establishConnection();
+			upload = connection.prepareStatement(insertOptions.getQuery());
+		} catch (SQLException sqe) {
+			throw new IllegalArgumentException("open() failed.", sqe);
+		} catch (ClassNotFoundException cnfe) {
+			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
+		} catch (Exception e) {
+			throw new IOException("unable to open JDBC writer", e);
+		}
 	}
 
 	/**
