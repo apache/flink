@@ -58,6 +58,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getCachedFiles = javaEnv.getCachedFiles
 
   /**
+    * Gets the config JobListeners.
+    */
+  def getJobListeners = javaEnv.getJobListeners
+
+  /**
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
