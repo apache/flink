@@ -28,17 +28,18 @@ import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContex
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
+import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.DataType
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+
 import java.lang.reflect.Modifier
 import java.util
-
-import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 
 import scala.collection.JavaConversions._
 
@@ -87,30 +88,11 @@ class BatchExecSink[T](
             translateToTransformation(withChangeFlag = true, planner)
 
           case upsertSink: UpsertStreamTableSink[T] =>
-            // check for append only table
-            val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(this)
-            upsertSink.setIsAppendOnly(isAppendOnlyTable)
-            val tableKeys = {
-              val sinkFieldNames = upsertSink.getTableSchema.getFieldNames
-              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner, sinkFieldNames) match {
-                case Some(keys) => keys.sortBy(_.length).headOption
-                case None => None
-              }
-            }
-
-            // check that we have keys if the table has changes (is not append-only)
-            tableKeys match {
-              case Some(keys) => upsertSink.setKeyFields(keys)
-              case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
-              case None if !isAppendOnlyTable => throw new TableException(
-                "UpsertStreamTableSink requires that Table has" +
-                  " a full primary keys if it is updated.")
-            }
-
+            upsertSink.setIsAppendOnly(true)
+            upsertSink.setKeyFields(
+              UpdatingPlanChecker.getUniqueKeyForUpsertSink(this, planner, upsertSink).orNull)
             translateToTransformation(withChangeFlag = true, planner)
-          case _: AppendStreamTableSink[T] =>
-            // we can insert the bounded DataStream into a StreamTableSink
-            translateToTransformation(withChangeFlag = false, planner)
+
           case _ =>
             translateToTransformation(withChangeFlag = false, planner)
         }
