@@ -27,11 +27,11 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.util.function.FunctionWithException;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * Builder to create a {@link StreamTaskMailboxTestHarness} to test {@link MultipleInputStreamTask}.
@@ -42,7 +42,7 @@ public class MultipleInputStreamTaskTestHarnessBuilder<OUT> extends StreamTaskMa
 	private final ArrayList<Integer> inputChannelsPerGate = new ArrayList<>();
 
 	public MultipleInputStreamTaskTestHarnessBuilder(
-			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
 			TypeInformation<OUT> outputType) {
 		super(taskFactory, outputType);
 	}

@@ -43,7 +43,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 
-	public StreamIterationTail(Environment environment) {
+	public StreamIterationTail(Environment environment) throws Exception {
 		super(environment);
 	}
 

@@ -330,7 +330,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	public static class CancelFailingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
-		public CancelFailingTask(Environment env) {
+		public CancelFailingTask(Environment env) throws Exception {
 			super(env);
 		}
 
@@ -442,7 +442,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	public static class CancelThrowingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
-		public CancelThrowingTask(Environment env) {
+		public CancelThrowingTask(Environment env) throws Exception {
 			super(env);
 		}
 
@@ -1109,7 +1109,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	public static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
-		public NoOpStreamTask(Environment environment) {
+		public NoOpStreamTask(Environment environment) throws Exception {
 			super(environment);
 		}
 
@@ -1264,7 +1264,10 @@ public class StreamTaskTest extends TestLogger {
 
 		private final OperatorChain<String, AbstractStreamOperator<String>> overrideOperatorChain;
 
-		MockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+		MockStreamTask(
+				Environment env,
+				OperatorChain<String, AbstractStreamOperator<String>> operatorChain,
+				Thread.UncaughtExceptionHandler uncaughtExceptionHandler) throws Exception {
 			super(env, null, uncaughtExceptionHandler);
 			this.overrideOperatorChain = operatorChain;
 		}
@@ -1315,7 +1318,9 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	private static MockStreamTask createMockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain) {
+	private static MockStreamTask createMockStreamTask(
+			Environment env,
+			OperatorChain<String, AbstractStreamOperator<String>> operatorChain) throws Exception {
 		return new MockStreamTask(env, operatorChain, FatalExitExceptionHandler.INSTANCE);
 	}
 
@@ -1328,7 +1333,7 @@ public class StreamTaskTest extends TestLogger {
 
 		private static volatile boolean fail;
 
-		public StateBackendTestSource(Environment env) {
+		public StateBackendTestSource(Environment env) throws Exception {
 			super(env);
 		}
 
@@ -1418,7 +1423,7 @@ public class StreamTaskTest extends TestLogger {
 		/** Flag to wait until time trigger has been called. */
 		private transient boolean hasTimerTriggered;
 
-		ThreadInspectingTask(Environment env) {
+		ThreadInspectingTask(Environment env) throws Exception {
 			super(env);
 			Thread currentThread = Thread.currentThread();
 			taskThreadId = currentThread.getId();
