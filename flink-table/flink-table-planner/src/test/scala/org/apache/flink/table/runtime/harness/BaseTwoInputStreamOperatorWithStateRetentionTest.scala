@@ -149,7 +149,8 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest extends HarnessTestBase {
     * the timestamps of the clean-up timers that fired (not the registered
     * ones, which can be deleted without firing).
     */
-  class StubOperatorWithStateTTL(tableConfig: TableConfig) extends BaseTwoInputStreamOperatorWithStateRetention(tableConfig) {
+  class StubOperatorWithStateTTL(
+    tableConfig: TableConfig) extends BaseTwoInputStreamOperatorWithStateRetention(tableConfig) {
 
     val firedCleanUpTimers: mutable.Buffer[JLong] = ArrayBuffer.empty
 
