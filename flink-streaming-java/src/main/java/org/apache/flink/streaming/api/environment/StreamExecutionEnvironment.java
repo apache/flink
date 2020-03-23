@@ -84,6 +84,8 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
@@ -240,6 +242,7 @@ public class StreamExecutionEnvironment {
 	/**
 	 * Gets the config JobListeners.
 	 */
+	@PublicEvolving
 	public List<JobListener> getJobListeners() {
 		return jobListeners;
 	}
@@ -771,14 +774,15 @@ public class StreamExecutionEnvironment {
 		configuration.getOptional(DeploymentOptions.JOB_LISTENERS)
 			.ifPresent(l -> {
 				for (String listener : l) {
+					JobListener jobListener;
 					try {
-						Class<? extends JobListener> clazz =
-							Class.forName(listener, true, classLoader)
-								.asSubclass(JobListener.class);
-
-						jobListeners.add(clazz.newInstance());
-					} catch (Throwable t) {
-						throw new RuntimeException("Could not load JobListener : " + listener, t);
+						jobListener = InstantiationUtil.instantiate(
+							listener,
+							JobListener.class,
+							classLoader);
+						jobListeners.add(jobListener);
+					} catch (FlinkException e) {
+						throw new RuntimeException("Could not load JobListener : " + listener, e);
 					}
 				}
 			});

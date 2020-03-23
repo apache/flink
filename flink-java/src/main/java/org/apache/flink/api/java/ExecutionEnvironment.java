@@ -65,6 +65,8 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
@@ -402,6 +404,21 @@ public class ExecutionEnvironment {
 				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
 			});
 		config.configure(configuration, classLoader);
+		configuration.getOptional(DeploymentOptions.JOB_LISTENERS)
+			.ifPresent(l -> {
+				for (String listener : l) {
+					JobListener jobListener;
+					try {
+						jobListener = InstantiationUtil.instantiate(
+							listener,
+							JobListener.class,
+							classLoader);
+						jobListeners.add(jobListener);
+					} catch (FlinkException e) {
+						throw new RuntimeException("Could not load JobListener : " + listener, e);
+					}
+				}
+			});
 	}
 
 	// --------------------------------------------------------------------------------------------

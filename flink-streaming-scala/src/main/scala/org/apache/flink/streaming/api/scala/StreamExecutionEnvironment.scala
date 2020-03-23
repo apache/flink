@@ -60,6 +60,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
     * Gets the config JobListeners.
     */
+  @PublicEvolving
   def getJobListeners = javaEnv.getJobListeners
 
   /**
