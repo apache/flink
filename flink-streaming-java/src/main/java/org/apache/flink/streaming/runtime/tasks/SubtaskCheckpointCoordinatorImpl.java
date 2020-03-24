@@ -26,6 +26,8 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
@@ -99,7 +101,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		env.declineCheckpoint(checkpointId, cause);
 
 		// notify all downstream operators that they should not wait for a barrier from us
-		actionExecutor.runThrowing(() -> operatorChain.broadcastCheckpointCancelMarker(checkpointId));
+		actionExecutor.runThrowing(() -> operatorChain.broadcastEvent(new CancelCheckpointMarker(checkpointId)));
 	}
 
 	@Override
@@ -133,7 +135,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		operatorChain.prepareSnapshotPreBarrier(metadata.getCheckpointId());
 
 		// Step (2): Send the checkpoint barrier downstream
-		operatorChain.broadcastCheckpointBarrier(metadata.getCheckpointId(), metadata.getTimestamp(), options);
+		operatorChain.broadcastEvent(
+			new CheckpointBarrier(metadata.getCheckpointId(), metadata.getTimestamp(), options));
 
 		// Step (3): Take the state snapshot. This should be largely asynchronous, to not impact progress of the streaming topology
 
