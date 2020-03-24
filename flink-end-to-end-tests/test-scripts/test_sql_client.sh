@@ -106,9 +106,8 @@ function prepare_elasticsearch {
   elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "linux" ]]; then
     DOWNLOAD_URL=$ELASTICSEARCH7_LINUX_DOWNLOAD_URL
   else
-    echo "Unsupported elasticsearch version($ELASTICSEARCH_VERSION) for OS: $OS_TYPE, fallback to elasticsearh($ELASTICSEARCH_VERSION)."
-    DOWNLOAD_URL=$ELASTICSEARCH6_DOWNLOAD_URL
-    ELASTICSEARCH_VERSION=6
+    echo "[ERROR] Unsupported elasticsearch version($ELASTICSEARCH_VERSION) for OS: $OS_TYPE"
+    exit 1
   fi
 
   setup_elasticsearch $DOWNLOAD_URL
