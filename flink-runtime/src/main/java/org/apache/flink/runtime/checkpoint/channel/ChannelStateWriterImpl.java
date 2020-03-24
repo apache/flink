@@ -136,9 +136,14 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	@Override
 	public ChannelStateWriteResult getWriteResult(long checkpointId) {
 		LOG.debug("requested write result, checkpoint id: {}", checkpointId);
-		ChannelStateWriteResult result = results.remove(checkpointId);
+		ChannelStateWriteResult result = results.get(checkpointId);
 		Preconditions.checkArgument(result != null, "channel state write result not found for checkpoint id " + checkpointId);
 		return result;
+	}
+
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) {
+		results.remove(checkpointId);
 	}
 
 	public void open() {

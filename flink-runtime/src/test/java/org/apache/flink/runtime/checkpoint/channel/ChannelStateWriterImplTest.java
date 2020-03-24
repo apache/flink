@@ -36,6 +36,7 @@ import java.util.function.Consumer;
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -64,11 +65,23 @@ public class ChannelStateWriterImplTest {
 		try (ChannelStateWriterImpl writer = openWriter()) {
 			callStart(writer);
 			result = writer.getWriteResult(CHECKPOINT_ID);
+			ChannelStateWriteResult result2 = writer.getWriteResult(CHECKPOINT_ID);
+			assertSame(result, result2);
 			assertFalse(result.resultSubpartitionStateHandles.isDone());
 			assertFalse(result.inputChannelStateHandles.isDone());
 		}
 		assertTrue(result.inputChannelStateHandles.isDone());
 		assertTrue(result.resultSubpartitionStateHandles.isDone());
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testResultCleanup() throws IOException {
+		try (ChannelStateWriterImpl writer = openWriter()) {
+			callStart(writer);
+			writer.getWriteResult(CHECKPOINT_ID);
+			writer.notifyCheckpointComplete(CHECKPOINT_ID);
+			writer.getWriteResult(CHECKPOINT_ID);
+		}
 	}
 
 	@Test
