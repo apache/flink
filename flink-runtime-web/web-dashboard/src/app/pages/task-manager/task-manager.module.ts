@@ -19,14 +19,14 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ShareModule } from 'share/share.module';
+import { TaskManagerLogDetailComponent } from './log-detail/task-manager-log-detail.component';
+import { TaskManagerLogListComponent } from './log-list/task-manager-log-list.component';
 
 import { TaskManagerRoutingModule } from './task-manager-routing.module';
 import { TaskManagerListComponent } from './list/task-manager-list.component';
 import { TaskManagerMetricsComponent } from './metrics/task-manager-metrics.component';
 import { TaskManagerComponent } from './task-manager.component';
 import { TaskManagerStatusComponent } from './status/task-manager-status.component';
-import { TaskManagerLogsComponent } from './logs/task-manager-logs.component';
-import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.component';
 
 @NgModule({
   imports: [CommonModule, ShareModule, TaskManagerRoutingModule],
@@ -35,8 +35,8 @@ import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.compone
     TaskManagerMetricsComponent,
     TaskManagerComponent,
     TaskManagerStatusComponent,
-    TaskManagerLogsComponent,
-    TaskManagerStdoutComponent
+    TaskManagerLogListComponent,
+    TaskManagerLogDetailComponent
   ]
 })
 export class TaskManagerModule {}
