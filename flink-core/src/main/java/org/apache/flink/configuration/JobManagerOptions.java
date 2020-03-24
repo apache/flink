@@ -110,11 +110,10 @@ public class JobManagerOptions {
 		key("jobmanager.memory.process.size")
 			.memoryType()
 			.noDefaultValue()
-			.withDescription(String.format(
-				"Total Process Memory size for the JobManager. This includes all the memory that a " +
-					"JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. " +
-					"In containerized setups, this should be set to the container memory. See also " +
-					"'jobmanager.memory.flink.size' for Total Flink Memory size configuration."));
+			.withDescription("Total Process Memory size for the JobManager. This includes all the memory that a " +
+				"JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. " +
+				"In containerized setups, this should be set to the container memory. See also " +
+				"'jobmanager.memory.flink.size' for Total Flink Memory size configuration.");
 
 	/**
 	 * Total Flink Memory size for the JobManager.
@@ -172,7 +171,7 @@ public class JobManagerOptions {
 		"memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size " +
 		"of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the " +
 		"derived size is less or greater than the configured min or max size, the min or max size will be used. The " +
-		"exact size of JVM Overhead can be explicitly specified by setting the min or max size to the same value.";
+		"exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.";
 
 	/**
 	 * Min JVM Overhead size for the JobManager.

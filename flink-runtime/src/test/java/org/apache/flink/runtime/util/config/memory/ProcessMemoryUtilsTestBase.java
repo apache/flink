@@ -50,16 +50,16 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 	private static Map<String, String> oldEnvVariables;
 
 	private final ProcessMemoryOptions options;
-	private final LegacyHeapOptions legacyHeapOptions;
+	private final LegacyMemoryOptions legacyMemoryOptions;
 	private final ConfigOption<MemorySize> newOptionForLegacyHeapOption;
 
 	@SuppressWarnings("JUnitTestCaseWithNonTrivialConstructors")
 	protected ProcessMemoryUtilsTestBase(
 			ProcessMemoryOptions options,
-			LegacyHeapOptions legacyHeapOptions,
+			LegacyMemoryOptions legacyMemoryOptions,
 			ConfigOption<MemorySize> newOptionForLegacyHeapOption) {
 		this.options = checkNotNull(options);
-		this.legacyHeapOptions = checkNotNull(legacyHeapOptions);
+		this.legacyMemoryOptions = checkNotNull(legacyMemoryOptions);
 		this.newOptionForLegacyHeapOption = checkNotNull(newOptionForLegacyHeapOption);
 	}
 
@@ -233,7 +233,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize legacyHeapSize = MemorySize.parse("1g");
 
 		Configuration conf = new Configuration();
-		conf.set(legacyHeapOptions.getHeap(), legacyHeapSize);
+		conf.set(legacyMemoryOptions.getHeap(), legacyHeapSize);
 
 		testConfigLegacyHeapMemory(conf, legacyHeapSize);
 	}
@@ -243,7 +243,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize jvmHeapSize = MemorySize.parse("1g");
 
 		Configuration conf = new Configuration();
-		conf.set(legacyHeapOptions.getHeapMb(), jvmHeapSize.getMebiBytes());
+		conf.set(legacyMemoryOptions.getHeapMb(), jvmHeapSize.getMebiBytes());
 
 		testConfigLegacyHeapMemory(conf, jvmHeapSize);
 	}
@@ -253,7 +253,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize jvmHeapSize = MemorySize.parse("1g");
 
 		Map<String, String> env = new HashMap<>();
-		env.put(legacyHeapOptions.getEnvVar(), "1g");
+		env.put(legacyMemoryOptions.getEnvVar(), "1g");
 		CommonTestUtils.setEnv(env);
 
 		testConfigLegacyHeapMemory(new Configuration(), jvmHeapSize);
@@ -266,7 +266,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 
 		Configuration conf = new Configuration();
 		conf.set(getNewOptionForLegacyHeapOption(), newOptionValue);
-		conf.set(legacyHeapOptions.getHeap(), legacyHeapSize);
+		conf.set(legacyMemoryOptions.getHeap(), legacyHeapSize);
 
 		testConfigLegacyHeapMemory(conf, newOptionValue);
 	}

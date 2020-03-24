@@ -22,11 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 
 /**
- * Utility to derive Total Flink Memory from internal memory components and back.
- * @param <IM> the FLink memory components
+ * Utility to derive Total Flink Memory from its required memory components and back.
+ * @param <FM> the FLink memory components
  */
-public interface FlinkMemoryUtils<IM extends FlinkMemory> {
-	IM deriveFromInternalMemory(Configuration config);
+public interface FlinkMemoryUtils<FM extends FlinkMemory> {
+	FM deriveFromRequiredFineGrainedOptions(Configuration config);
 
-	IM deriveFromTotalFlinkMemory(Configuration config, MemorySize totalFlinkMemorySize);
+	FM deriveFromTotalFlinkMemory(Configuration config, MemorySize totalFlinkMemorySize);
 }

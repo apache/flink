@@ -29,15 +29,18 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 
 /**
- * Utilities to fallback to new options from the legacy heap ones.
+ * Utilities to fallback to new options from the legacy ones for the backwards compatibility.
+ *
+ * <p>If {@link LegacyMemoryOptions} are set, they are interpreted as other new memory options for the backwards
+ * compatibility.
  */
-public class LegacyHeapMemoryUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(LegacyHeapMemoryUtils.class);
+public class MemoryBackwardsCompatibilityUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(MemoryBackwardsCompatibilityUtils.class);
 
-	private final LegacyHeapOptions legacyHeapOptions;
+	private final LegacyMemoryOptions legacyMemoryOptions;
 
-	public LegacyHeapMemoryUtils(LegacyHeapOptions legacyHeapOptions) {
-		this.legacyHeapOptions = legacyHeapOptions;
+	public MemoryBackwardsCompatibilityUtils(LegacyMemoryOptions legacyMemoryOptions) {
+		this.legacyMemoryOptions = legacyMemoryOptions;
 	}
 
 	public Configuration getConfWithLegacyHeapSizeMappedToNewConfigOption(
@@ -60,7 +63,7 @@ public class LegacyHeapMemoryUtils {
 
 	private Optional<MemorySize> getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(Configuration configuration) {
 		@SuppressWarnings("CallToSystemGetenv")
-		String totalProcessEnv = System.getenv(legacyHeapOptions.getEnvVar());
+		String totalProcessEnv = System.getenv(legacyMemoryOptions.getEnvVar());
 		if (totalProcessEnv != null) {
 			//noinspection OverlyBroadCatchBlock
 			try {
@@ -72,12 +75,12 @@ public class LegacyHeapMemoryUtils {
 			}
 		}
 
-		if (configuration.contains(legacyHeapOptions.getHeap())) {
-			return Optional.of(ProcessMemoryUtils.getMemorySizeFromConfig(configuration, legacyHeapOptions.getHeap()));
+		if (configuration.contains(legacyMemoryOptions.getHeap())) {
+			return Optional.of(ProcessMemoryUtils.getMemorySizeFromConfig(configuration, legacyMemoryOptions.getHeap()));
 		}
 
-		if (configuration.contains(legacyHeapOptions.getHeapMb())) {
-			final long legacyHeapMemoryMB = configuration.getInteger(legacyHeapOptions.getHeapMb());
+		if (configuration.contains(legacyMemoryOptions.getHeapMb())) {
+			final long legacyHeapMemoryMB = configuration.getInteger(legacyMemoryOptions.getHeapMb());
 			if (legacyHeapMemoryMB < 0) {
 				throw new IllegalConfigurationException(
 					"Configured total process memory size (" + legacyHeapMemoryMB + "MB) must not be less than 0.");

@@ -33,9 +33,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Common utils to parse JVM process memory configuration for JM or TM.
  *
- * <p>The utility calculates all common process memory components from {@link ProcessMemorySpecBase}.
+ * <p>The utility calculates all common process memory components from {@link CommonProcessMemorySpec}.
  *
- * <p>It is required to configure at least one subset of options:
+ * <p>It is required to configure at least one subset of the following options and recommended to configure only one:
  * <ul>
  *     <li>{@link ProcessMemoryOptions#getRequiredFineGrainedOptions()}</li>
  *     <li>{@link ProcessMemoryOptions#getTotalFlinkMemoryOption()}</li>
@@ -52,20 +52,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link FlinkMemoryUtils} is implemented for the respective processes: JM/TM, according to the specific
  * structure of their {@link FlinkMemory}.
  *
- * @param <IM> the FLink memory component structure
+ * @param <FM> the FLink memory component structure
  */
-public class ProcessMemoryUtils<IM extends FlinkMemory> {
+public class ProcessMemoryUtils<FM extends FlinkMemory> {
 	private static final Logger LOG = LoggerFactory.getLogger(ProcessMemoryUtils.class);
 
 	private final ProcessMemoryOptions options;
-	private final FlinkMemoryUtils<IM> flinkMemoryUtils;
+	private final FlinkMemoryUtils<FM> flinkMemoryUtils;
 
-	public ProcessMemoryUtils(ProcessMemoryOptions options, FlinkMemoryUtils<IM> flinkMemoryUtils) {
+	public ProcessMemoryUtils(ProcessMemoryOptions options, FlinkMemoryUtils<FM> flinkMemoryUtils) {
 		this.options = checkNotNull(options);
 		this.flinkMemoryUtils = checkNotNull(flinkMemoryUtils);
 	}
 
-	public ProcessMemorySpecBase<IM> memoryProcessSpecFromConfig(Configuration config) {
+	public CommonProcessMemorySpec<FM> memoryProcessSpecFromConfig(Configuration config) {
 		if (options.getRequiredFineGrainedOptions().stream().allMatch(config::contains)) {
 			// all internal memory options are configured, use these to derive total Flink and process memory
 			return deriveProcessSpecWithExplicitInternalMemory(config);
@@ -81,32 +81,32 @@ public class ProcessMemoryUtils<IM extends FlinkMemory> {
 		return failBecauseRequiredOptionsNotConfigured();
 	}
 
-	private ProcessMemorySpecBase<IM> deriveProcessSpecWithExplicitInternalMemory(Configuration config) {
-		IM flinkInternalMemory = flinkMemoryUtils.deriveFromInternalMemory(config);
+	private CommonProcessMemorySpec<FM> deriveProcessSpecWithExplicitInternalMemory(Configuration config) {
+		FM flinkInternalMemory = flinkMemoryUtils.deriveFromRequiredFineGrainedOptions(config);
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
 			config,
 			flinkInternalMemory.getTotalFlinkMemorySize());
-		return new ProcessMemorySpecBase<>(flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return new CommonProcessMemorySpec<>(flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
-	private ProcessMemorySpecBase<IM> deriveProcessSpecWithTotalFlinkMemory(Configuration config) {
+	private CommonProcessMemorySpec<FM> deriveProcessSpecWithTotalFlinkMemory(Configuration config) {
 		MemorySize totalFlinkMemorySize = getMemorySizeFromConfig(config, options.getTotalFlinkMemoryOption());
-		IM flinkInternalMemory = flinkMemoryUtils.deriveFromTotalFlinkMemory(config, totalFlinkMemorySize);
+		FM flinkInternalMemory = flinkMemoryUtils.deriveFromTotalFlinkMemory(config, totalFlinkMemorySize);
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, totalFlinkMemorySize);
-		return new ProcessMemorySpecBase<>(flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return new CommonProcessMemorySpec<>(flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
-	private ProcessMemorySpecBase<IM> deriveProcessSpecWithTotalProcessMemory(Configuration config) {
+	private CommonProcessMemorySpec<FM> deriveProcessSpecWithTotalProcessMemory(Configuration config) {
 		MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, options.getTotalProcessMemoryOption());
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
 			deriveJvmMetaspaceAndOverheadWithTotalProcessMemory(config, totalProcessMemorySize);
 		MemorySize totalFlinkMemorySize = totalProcessMemorySize.subtract(
 			jvmMetaspaceAndOverhead.getTotalJvmMetaspaceAndOverheadSize());
-		IM flinkInternalMemory = flinkMemoryUtils.deriveFromTotalFlinkMemory(config, totalFlinkMemorySize);
-		return new ProcessMemorySpecBase<>(flinkInternalMemory, jvmMetaspaceAndOverhead);
+		FM flinkInternalMemory = flinkMemoryUtils.deriveFromTotalFlinkMemory(config, totalFlinkMemorySize);
+		return new CommonProcessMemorySpec<>(flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
-	private ProcessMemorySpecBase<IM> failBecauseRequiredOptionsNotConfigured() {
+	private CommonProcessMemorySpec<FM> failBecauseRequiredOptionsNotConfigured() {
 		String[] internalMemoryOptionKeys = options.getRequiredFineGrainedOptions().stream().map(ConfigOption::key).toArray(String[]::new);
 		throw new IllegalConfigurationException(String.format(
 			"Either required fine-grained memory (%s), or Total Flink Memory size (%s), or Total Process Memory size " +

@@ -22,18 +22,14 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
+import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.config.memory.LegacyHeapMemoryUtils;
-import org.apache.flink.runtime.util.config.memory.LegacyHeapOptions;
+import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
+import org.apache.flink.runtime.util.config.memory.LegacyMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
-import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemoryUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 
@@ -41,7 +37,6 @@ import java.util.Collections;
  * JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args.
  */
 public class JobManagerProcessUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProcessUtils.class);
 
 	static final ProcessMemoryOptions JM_PROCESS_MEMORY_OPTIONS = new ProcessMemoryOptions(
 		Collections.singletonList(JobManagerOptions.JVM_HEAP_MEMORY),
@@ -54,8 +49,8 @@ public class JobManagerProcessUtils {
 			JobManagerOptions.JVM_OVERHEAD_FRACTION));
 
 	@SuppressWarnings("deprecation")
-	static final LegacyHeapOptions JM_LEGACY_HEAP_OPTIONS =
-		new LegacyHeapOptions(
+	static final LegacyMemoryOptions JM_LEGACY_HEAP_OPTIONS =
+		new LegacyMemoryOptions(
 			"FLINK_JM_HEAP",
 			JobManagerOptions.JOB_MANAGER_HEAP_MEMORY,
 			JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB);
@@ -64,46 +59,18 @@ public class JobManagerProcessUtils {
 		JM_PROCESS_MEMORY_OPTIONS,
 		new JobManagerFlinkMemoryUtils());
 
-	private static final LegacyHeapMemoryUtils LEGACY_MEMORY_UTILS = new LegacyHeapMemoryUtils(JM_LEGACY_HEAP_OPTIONS);
+	private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS = new MemoryBackwardsCompatibilityUtils(JM_LEGACY_HEAP_OPTIONS);
 
 	private JobManagerProcessUtils() {
 	}
 
 	public static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
-		return createMemoryProcessSpec(config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
+		return createMemoryProcessSpec(PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
 	}
 
 	private static JobManagerProcessSpec createMemoryProcessSpec(
-			Configuration config,
-			ProcessMemorySpecBase<JobManagerFlinkMemory> processMemory) {
-		JobManagerFlinkMemory flinkMemory = processMemory.getFlinkMemory();
-		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = processMemory.getJvmMetaspaceAndOverhead();
-		verifyJvmHeapSize(flinkMemory.getJvmHeapMemorySize());
-		verifyJobStoreCacheSize(config, flinkMemory.getJvmHeapMemorySize());
-		return new JobManagerProcessSpec(flinkMemory, jvmMetaspaceAndOverhead);
-	}
-
-	private static void verifyJvmHeapSize(MemorySize jvmHeapSize) {
-		if (jvmHeapSize.compareTo(JobManagerOptions.MIN_JVM_HEAP_SIZE) < 1) {
-			LOG.warn(
-				"The configured or derived JVM heap memory size ({}) is less than its recommended minimum value ({})",
-				jvmHeapSize.toHumanReadableString(),
-				JobManagerOptions.MIN_JVM_HEAP_SIZE);
-		}
-	}
-
-	private static void verifyJobStoreCacheSize(Configuration config, MemorySize jvmHeapSize) {
-		MemorySize jobStoreCacheHeapSize =
-			MemorySize.parse(config.getLong(JobManagerOptions.JOB_STORE_CACHE_SIZE) + "b");
-		if (jvmHeapSize.compareTo(jobStoreCacheHeapSize) < 1) {
-			LOG.warn(
-				"The configured or derived JVM heap memory size ({}: {}) is less than the configured or default size " +
-					"of the job store cache ({}: {})",
-				JobManagerOptions.JOB_STORE_CACHE_SIZE.key(),
-				jvmHeapSize.toHumanReadableString(),
-				JobManagerOptions.JVM_HEAP_MEMORY.key(),
-				jobStoreCacheHeapSize.toHumanReadableString());
-		}
+			CommonProcessMemorySpec<JobManagerFlinkMemory> processMemory) {
+		return new JobManagerProcessSpec(processMemory.getFlinkMemory(), processMemory.getJvmMetaspaceAndOverhead());
 	}
 
 	public static Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(

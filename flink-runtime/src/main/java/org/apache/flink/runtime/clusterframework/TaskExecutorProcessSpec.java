@@ -21,8 +21,8 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
-import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
 
 /**
@@ -75,7 +75,7 @@ import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlink
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class TaskExecutorProcessSpec extends ProcessMemorySpecBase<TaskExecutorFlinkMemory> {
+public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecutorFlinkMemory> {
 	private static final long serialVersionUID = 1L;
 
 	private final CPUResource cpuCores;

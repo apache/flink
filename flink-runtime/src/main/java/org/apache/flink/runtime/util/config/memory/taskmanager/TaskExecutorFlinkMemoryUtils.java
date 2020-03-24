@@ -40,7 +40,7 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
 	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorFlinkMemoryUtils.class);
 
 	@Override
-	public TaskExecutorFlinkMemory deriveFromInternalMemory(Configuration config) {
+	public TaskExecutorFlinkMemory deriveFromRequiredFineGrainedOptions(Configuration config) {
 		final MemorySize taskHeapMemorySize = getTaskHeapMemorySize(config);
 		final MemorySize managedMemorySize = getManagedMemorySize(config);
 

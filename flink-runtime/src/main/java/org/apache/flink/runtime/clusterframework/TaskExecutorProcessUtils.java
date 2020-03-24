@@ -25,12 +25,12 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.config.memory.LegacyHeapMemoryUtils;
-import org.apache.flink.runtime.util.config.memory.LegacyHeapOptions;
+import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
+import org.apache.flink.runtime.util.config.memory.LegacyMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
-import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemoryUtils;
@@ -59,8 +59,8 @@ public class TaskExecutorProcessUtils {
 			TaskManagerOptions.JVM_OVERHEAD_FRACTION));
 
 	@SuppressWarnings("deprecation")
-	static final LegacyHeapOptions TM_LEGACY_HEAP_OPTIONS =
-		new LegacyHeapOptions(
+	static final LegacyMemoryOptions TM_LEGACY_HEAP_OPTIONS =
+		new LegacyMemoryOptions(
 			"FLINK_TM_HEAP",
 			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
 			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
@@ -69,7 +69,7 @@ public class TaskExecutorProcessUtils {
 		TM_PROCESS_MEMORY_OPTIONS,
 		new TaskExecutorFlinkMemoryUtils());
 
-	private static final LegacyHeapMemoryUtils LEGACY_MEMORY_UTILS = new LegacyHeapMemoryUtils(TM_LEGACY_HEAP_OPTIONS);
+	private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS = new MemoryBackwardsCompatibilityUtils(TM_LEGACY_HEAP_OPTIONS);
 
 	private TaskExecutorProcessUtils() {}
 
@@ -137,7 +137,7 @@ public class TaskExecutorProcessUtils {
 
 	private static TaskExecutorProcessSpec createMemoryProcessSpec(
 			final Configuration config,
-			final ProcessMemorySpecBase<TaskExecutorFlinkMemory> processMemory) {
+			final CommonProcessMemorySpec<TaskExecutorFlinkMemory> processMemory) {
 		TaskExecutorFlinkMemory flinkMemory = processMemory.getFlinkMemory();
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = processMemory.getJvmMetaspaceAndOverhead();
 		return new TaskExecutorProcessSpec(getCpuCores(config), flinkMemory, jvmMetaspaceAndOverhead);

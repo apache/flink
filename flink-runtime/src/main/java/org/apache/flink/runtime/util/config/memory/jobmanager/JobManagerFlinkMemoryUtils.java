@@ -25,12 +25,17 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.FlinkMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * {@link FlinkMemoryUtils} for Job Manager.
  */
 public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFlinkMemory> {
+	private static final Logger LOG = LoggerFactory.getLogger(JobManagerFlinkMemoryUtils.class);
+
 	@Override
-	public JobManagerFlinkMemory deriveFromInternalMemory(Configuration config) {
+	public JobManagerFlinkMemory deriveFromRequiredFineGrainedOptions(Configuration config) {
 		MemorySize jvmHeapMemorySize = ProcessMemoryUtils.getMemorySizeFromConfig(config, JobManagerOptions.JVM_HEAP_MEMORY);
 		MemorySize offHeapMemorySize = ProcessMemoryUtils.getMemorySizeFromConfig(config, JobManagerOptions.OFF_HEAP_MEMORY);
 		MemorySize derivedTotalFlinkMemorySize = jvmHeapMemorySize.add(offHeapMemorySize);
@@ -49,13 +54,11 @@ public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFl
 			}
 		}
 
-		return new JobManagerFlinkMemory(jvmHeapMemorySize, offHeapMemorySize);
+		return createJobManagerFlinkMemory(config, jvmHeapMemorySize, offHeapMemorySize);
 	}
 
 	@Override
-	public JobManagerFlinkMemory deriveFromTotalFlinkMemory(
-		Configuration config,
-		MemorySize totalFlinkMemorySize) {
+	public JobManagerFlinkMemory deriveFromTotalFlinkMemory(Configuration config, MemorySize totalFlinkMemorySize) {
 		MemorySize offHeapMemorySize = ProcessMemoryUtils.getMemorySizeFromConfig(config, JobManagerOptions.OFF_HEAP_MEMORY);
 		if (totalFlinkMemorySize.compareTo(offHeapMemorySize) < 1) {
 			throw new IllegalConfigurationException(
@@ -64,6 +67,38 @@ public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFl
 				offHeapMemorySize.toHumanReadableString());
 		}
 		MemorySize derivedJvmHeapMemorySize = totalFlinkMemorySize.subtract(offHeapMemorySize);
-		return new JobManagerFlinkMemory(derivedJvmHeapMemorySize, offHeapMemorySize);
+		return createJobManagerFlinkMemory(config, derivedJvmHeapMemorySize, offHeapMemorySize);
+	}
+
+	private static JobManagerFlinkMemory createJobManagerFlinkMemory(
+			Configuration config,
+			MemorySize jvmHeap,
+			MemorySize offHeapMemory) {
+		verifyJvmHeapSize(jvmHeap);
+		verifyJobStoreCacheSize(config, offHeapMemory);
+		return new JobManagerFlinkMemory(jvmHeap, offHeapMemory);
+	}
+
+	private static void verifyJvmHeapSize(MemorySize jvmHeapSize) {
+		if (jvmHeapSize.compareTo(JobManagerOptions.MIN_JVM_HEAP_SIZE) < 1) {
+			LOG.warn(
+				"The configured or derived JVM heap memory size ({}) is less than its recommended minimum value ({})",
+				jvmHeapSize.toHumanReadableString(),
+				JobManagerOptions.MIN_JVM_HEAP_SIZE);
+		}
+	}
+
+	private static void verifyJobStoreCacheSize(Configuration config, MemorySize jvmHeapSize) {
+		MemorySize jobStoreCacheHeapSize =
+			MemorySize.parse(config.getLong(JobManagerOptions.JOB_STORE_CACHE_SIZE) + "b");
+		if (jvmHeapSize.compareTo(jobStoreCacheHeapSize) < 1) {
+			LOG.warn(
+				"The configured or derived JVM heap memory size ({}: {}) is less than the configured or default size " +
+					"of the job store cache ({}: {})",
+				JobManagerOptions.JOB_STORE_CACHE_SIZE.key(),
+				jvmHeapSize.toHumanReadableString(),
+				JobManagerOptions.JVM_HEAP_MEMORY.key(),
+				jobStoreCacheHeapSize.toHumanReadableString());
+		}
 	}
 }

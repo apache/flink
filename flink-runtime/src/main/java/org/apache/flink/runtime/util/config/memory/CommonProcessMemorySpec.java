@@ -21,7 +21,7 @@ package org.apache.flink.runtime.util.config.memory;
 import org.apache.flink.configuration.MemorySize;
 
 /**
- * Process memory components.
+ * Common memory components of Flink processes (e.g. JM or TM).
  *
  * <p>The process memory consists of the following components.
  * <ul>
@@ -31,6 +31,8 @@ import org.apache.flink.configuration.MemorySize;
  * </ul>
  * Among all the components, We use the Total Process Memory to refer to all the memory components,
  * while the Total Flink Memory refers to all the internal components except JVM Metaspace and JVM Overhead.
+ * The internal components of Total Flink Memory, represented by {@link FlinkMemory}, are specific to concrete
+ * Flink process (e.g. JM or TM).
  *
  * <p>The relationships of process memory components are shown below.
  * <pre>
@@ -47,18 +49,18 @@ import org.apache.flink.configuration.MemorySize;
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class ProcessMemorySpecBase<IM extends FlinkMemory> implements ProcessMemorySpec {
+public class CommonProcessMemorySpec<FM extends FlinkMemory> implements ProcessMemorySpec {
 	private static final long serialVersionUID = 1L;
 
-	private final IM flinkMemory;
+	private final FM flinkMemory;
 	private final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead;
 
-	protected ProcessMemorySpecBase(IM flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+	protected CommonProcessMemorySpec(FM flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
 		this.flinkMemory = flinkMemory;
 		this.jvmMetaspaceAndOverhead = jvmMetaspaceAndOverhead;
 	}
 
-	public IM getFlinkMemory() {
+	public FM getFlinkMemory() {
 		return flinkMemory;
 	}
 

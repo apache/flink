@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
-import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
 
 /**
@@ -55,7 +55,7 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class JobManagerProcessSpec extends ProcessMemorySpecBase<JobManagerFlinkMemory> {
+public class JobManagerProcessSpec extends CommonProcessMemorySpec<JobManagerFlinkMemory> {
 	private static final long serialVersionUID = 1L;
 
 	JobManagerProcessSpec(JobManagerFlinkMemory flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
