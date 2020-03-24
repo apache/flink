@@ -32,6 +32,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Common utils to parse JVM process memory configuration for JM or TM.
+ *
+ * <p>The utility calculates all common process memory components from {@link ProcessMemorySpecBase}.
+ *
+ * <p>It is required to configure at least one subset of options:
+ * <ul>
+ *     <li>{@link ProcessMemoryOptions#getRequiredFineGrainedOptions()}</li>
+ *     <li>{@link ProcessMemoryOptions#getTotalFlinkMemoryOption()}</li>
+ *     <li>{@link ProcessMemoryOptions#getTotalProcessMemoryOption()}</li>
+ * </ul>
+ * Otherwise the calculation fails.
+ *
+ * <p>The utility derives the Total Process Memory from the Total Flink Memory and JVM components and back.
+ * To perform the calculations, it uses the provided {@link ProcessMemoryOptions} which are different for different
+ * Flink processes: JM/TM.
+ *
+ * <p>The utility also calls the provided FlinkMemoryUtils to derive {@link FlinkMemory} components from
+ * {@link ProcessMemoryOptions#getRequiredFineGrainedOptions()} or from the Total Flink memory. The concrete
+ * {@link FlinkMemoryUtils} is implemented for the respective processes: JM/TM, according to the specific
+ * structure of their {@link FlinkMemory}.
+ *
+ * @param <IM> the FLink memory component structure
  */
 public class ProcessMemoryUtils<IM extends FlinkMemory> {
 	private static final Logger LOG = LoggerFactory.getLogger(ProcessMemoryUtils.class);
