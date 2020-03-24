@@ -74,14 +74,12 @@ function post_test_validation {
         echo "Checking of logs skipped."
     fi
 
-    local failed=0
     # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
     # Do not clean up if either fails.
     if [[ ${exit_code} == 0 ]]; then
         if [[ ${EXIT_CODE} != 0 ]]; then
             printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files\n\n"
             exit_code=1
-            failed=1
         else
             printf "\n[PASS] '${description}' passed after ${time_elapsed}! Test exited with exit code 0.\n\n"
         fi
@@ -91,20 +89,18 @@ function post_test_validation {
         else
             printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code}\n\n"
         fi
-        failed=1
-    fi
-
-    # make logs available if ARTIFACTS_DIR is set and there's an error
-    if [[ ${ARTIFACTS_DIR} != "" && ${failed} == 1 ]]; then
-        mkdir ${ARTIFACTS_DIR}/e2e-flink-logs 
-        cp $FLINK_DIR/log/* ${ARTIFACTS_DIR}/e2e-flink-logs/
-        echo "Published e2e logs into debug logs artifact:"
-        ls ${ARTIFACTS_DIR}/e2e-flink-logs/
     fi
 
     if [[ ${exit_code} == 0 ]]; then
         cleanup
     else
+        # make logs available if ARTIFACTS_DIR is set
+        if [[ ${ARTIFACTS_DIR} != "" ]]; then
+            mkdir ${ARTIFACTS_DIR}/e2e-flink-logs 
+            cp $FLINK_DIR/log/* ${ARTIFACTS_DIR}/e2e-flink-logs/
+            echo "Published e2e logs into debug logs artifact:"
+            ls ${ARTIFACTS_DIR}/e2e-flink-logs/
+        fi
         exit "${exit_code}"
     fi
 }
