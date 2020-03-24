@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 
@@ -32,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
  * Writes channel state during checkpoint/savepoint.
  */
 @Internal
-public interface ChannelStateWriter extends Closeable {
+public interface ChannelStateWriter extends Closeable, CheckpointListener {
 
 	/**
 	 * Channel state write result.
@@ -146,7 +147,6 @@ public interface ChannelStateWriter extends Closeable {
 	ChannelStateWriteResult getWriteResult(long checkpointId);
 
 	ChannelStateWriter NO_OP = new ChannelStateWriter() {
-
 		@Override
 		public void start(long checkpointId, CheckpointOptions checkpointOptions) {
 		}
@@ -181,6 +181,9 @@ public interface ChannelStateWriter extends Closeable {
 		@Override
 		public void close() {
 		}
-	};
 
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) {
+		}
+	};
 }
