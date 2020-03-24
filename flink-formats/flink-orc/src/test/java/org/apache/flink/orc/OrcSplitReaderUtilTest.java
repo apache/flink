@@ -59,6 +59,7 @@ public class OrcSplitReaderUtilTest {
 										DataTypes.FIELD("int0", DataTypes.INT()),
 										DataTypes.FIELD("int1", DataTypes.INT()))
 						)));
+		test("decimal(4,2)", DataTypes.DECIMAL(4, 2));
 	}
 
 	private void test(String expected, DataType type) {
