@@ -149,4 +149,16 @@ public class HiveModuleTest {
 			assertFalse(hiveModule.getFunctionDefinition(banned).isPresent());
 		}
 	}
+
+	@Test
+	public void testConstantReturnValue() throws Exception {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+		tableEnv.unloadModule("core");
+		tableEnv.loadModule("hive", new HiveModule());
+
+		List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select str_to_map('a:1,b:2,c:3',',',':')"));
+
+		assertEquals("[{a=1, b=2, c=3}]", results.toString());
+	}
 }
