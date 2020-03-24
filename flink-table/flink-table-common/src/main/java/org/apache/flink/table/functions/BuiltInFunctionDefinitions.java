@@ -721,14 +721,6 @@ public final class BuiltInFunctionDefinitions {
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
 
-	// json functions
-	public static final BuiltInFunctionDefinition JSON_EXISTS =
-		new BuiltInFunctionDefinition.Builder()
-			.name("json_exists")
-			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
-			.build();
-
 	// collection
 	public static final BuiltInFunctionDefinition AT =
 		new BuiltInFunctionDefinition.Builder()
