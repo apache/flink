@@ -77,26 +77,26 @@ Flink supports the following Hive versions.
     - 3.1.1
     - 3.1.2
 
-请注意，Hive本身在不同功能上有着不同的适用版本，这些适配性问题不是由Flink所引起的：
+请注意，某些功能是否可用取决于您使用的Hive版本，这些限制不是由Flink所引起的：
 
-- Hive内置函数，已在1.2.0及更高版本予以支持。
-- 列约束，也就是PRIMARY KEY 和 NOT NULL，已在3.1.0及更高版本予以支持。
-- 更改表的统计信息，已在1.2.0及更高版本予以支持。
-- `DATE`列统计，已在1.2.0及更高版本予以支持。
-- 2.0.x版本不支持写入ORC表。
+- Hive内置函数在使用Hive-1.2.0及更高版本时支持。
+- 列约束，也就是PRIMARY KEY 和 NOT NULL，在使用Hive-3.1.0及更高版本时支持。
+- 更改表的统计信息，在使用Hive-1.2.0及更高版本时支持。
+- `DATE`列统计信息，在使用Hive-1.2.0及更高版时支持。
+- 使用Hive-2.0.x版本时不支持写入ORC表。
 
 ### 依赖项
 
-要与Hive集成，您需要在Flink下的`/lib/`目录中添加一些额外的依赖关系，
-使得集成在Table API的程序或SQL Client中的SQL能够起到作用。
+要与Hive集成，您需要在Flink下的`/lib/`目录中添加一些额外的依赖包，
+以便通过Table API或SQL Client与Hive进行交互。
 或者，您可以将这些依赖项放在专用文件夹中，并分别使用Table API程序或SQL Client的`-C`或`-l`选项将它们添加到classpath中。
 
 Apache Hive 是基于Hadoop之上构建的, 首先您需要hadoop的依赖，请参考
 [Providing Hadoop classes]({{ site.baseurl }}/ops/deployment/hadoop.html#providing-hadoop-classes).
 
-有两种添加Hive依赖项的方法。第一种是使用Flink捆绑Hive的Jar包。您可以根据使用的metastore的版本来选择捆绑的Hive jar。第二个方式是分别添加每个所需的jar包。如果您使用的Hive版本尚未在此处列出，则第二种方法会更适合。
+有两种添加Hive依赖项的方法。第一种是使用Flink提供的Hive Jar包。您可以根据使用的metastore的版本来选择对应的Hive jar。第二个方式是分别添加每个所需的jar包。如果您使用的Hive版本尚未在此处列出，则第二种方法会更适合。
 
-#### 使用捆绑的Hive jar
+#### 使用Flink提供的Hive jar
 
 下表列出了所有可用的Hive jar。您可以选择一个并放在Flink发行版的`/lib/` 目录中。
 
