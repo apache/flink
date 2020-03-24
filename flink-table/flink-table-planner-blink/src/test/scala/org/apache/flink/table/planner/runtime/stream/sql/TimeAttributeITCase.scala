@@ -19,15 +19,15 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, Schema}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
-
 import java.sql.Timestamp
 import java.time.LocalDateTime
 import java.util.TimeZone
@@ -86,6 +86,39 @@ class TimeAttributeITCase extends StreamingTestBase {
   }
 
   @Test
+  def testWindowAggregateOnWatermarkFromDescriptor(): Unit = {
+    tEnv.connect(
+      new CustomConnectorDescriptor("COLLECTION", 1, false)
+        .property("is-bounded", "false"))
+      .withSchema(
+        new Schema()
+          .field("log_ts", "STRING")
+          .field("ts", "TIMESTAMP(3)")
+          .field("a", "INT")
+          .field("b", "DOUBLE")
+          .watermark("ts", "`ts` - INTERVAL '0.001' SECOND", DataTypes.TIMESTAMP(3)))
+      .createTemporaryTable("src")
+
+    val query =
+      """
+        |SELECT TUMBLE_END(ts, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
+      """.stripMargin
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute("SQL JOB")
+
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2,3.0",
+      "1970-01-01T00:00:00.006,2,7.0",
+      "1970-01-01T00:00:00.009,2,6.0",
+      "1970-01-01T00:00:00.018,1,4.0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testWindowAggregateOnCustomizedWatermark(): Unit = {
     JavaFunc5.openCalled = false
     JavaFunc5.closeCalled = false
@@ -110,6 +143,42 @@ class TimeAttributeITCase extends StreamingTestBase {
         |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
       """.stripMargin
     tEnv.sqlUpdate(ddl)
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute("SQL JOB")
+
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2,3.0",
+      "1970-01-01T00:00:00.006,2,7.0",
+      "1970-01-01T00:00:00.009,2,6.0",
+      "1970-01-01T00:00:00.018,1,4.0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertTrue(JavaFunc5.openCalled)
+    assertTrue(JavaFunc5.closeCalled)
+  }
+
+  @Test
+  def testWindowAggregateOnCustomizedWatermarkFromDescriptor(): Unit = {
+    JavaFunc5.openCalled = false
+    JavaFunc5.closeCalled = false
+    tEnv.registerFunction("myFunc", new JavaFunc5)
+    tEnv.connect(
+      new CustomConnectorDescriptor("COLLECTION", 1, false)
+        .property("is-bounded", "false"))
+      .withSchema(
+        new Schema()
+          .field("log_ts", "STRING")
+          .field("ts", "TIMESTAMP(3)")
+          .field("a", "INT")
+          .field("b", "DOUBLE")
+          .watermark("ts", "`myFunc`(`ts`, `a`)", DataTypes.TIMESTAMP(3)))
+      .createTemporaryTable("src")
+    val query =
+      """
+        |SELECT TUMBLE_END(ts, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
+      """.stripMargin
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute("SQL JOB")
@@ -160,6 +229,39 @@ class TimeAttributeITCase extends StreamingTestBase {
   }
 
   @Test
+  def testWindowAggregateOnComputedRowtimeFromDescriptor(): Unit = {
+    tEnv.connect(
+      new CustomConnectorDescriptor("COLLECTION", 1, false)
+        .property("is-bounded", "false"))
+      .withSchema(
+        new Schema()
+          .field("log_ts", "STRING")
+          .field("ts", "TIMESTAMP(3)")
+          .field("a", "INT")
+          .field("b", "DOUBLE")
+          .field("rowtime", "TIMESTAMP(3)", "CAST(`log_ts` AS TIMESTAMP(3))")
+          .watermark("rowtime", "`rowtime` - INTERVAL '0.001' SECOND", DataTypes.TIMESTAMP(3)))
+      .createTemporaryTable("src")
+    val query =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
+        |FROM src
+        |GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute("SQL JOB")
+
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2,3.0",
+      "1970-01-01T00:00:00.006,2,7.0",
+      "1970-01-01T00:00:00.009,2,6.0",
+      "1970-01-01T00:00:00.018,1,4.0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+
+  }
+
+  @Test
   def testWindowAggregateOnNestedRowtime(): Unit = {
     val ddl =
       """
@@ -181,6 +283,28 @@ class TimeAttributeITCase extends StreamingTestBase {
         |GROUP BY TUMBLE(col.ts, INTERVAL '0.003' SECOND)
       """.stripMargin
     tEnv.sqlUpdate(ddl)
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Nested field 'col.ts' as rowtime attribute is not supported right now.")
+    tEnv.sqlQuery(query)
+  }
+
+  @Test
+  def testWindowAggregateOnNestedRowtimeFromDescriptor(): Unit = {
+    tEnv.connect(
+      new CustomConnectorDescriptor("COLLECTION", 1, false)
+        .property("is-bounded", "false"))
+      .withSchema(
+        new Schema()
+          .field("col", "ROW<ts TIMESTAMP(3), a INT, b DOUBLE>")
+          .watermark("col.ts", "`col`.`ts` - INTERVAL '0.001' SECOND", DataTypes.TIMESTAMP(3)))
+      .createTemporaryTable("src")
+    val query =
+      """
+        |SELECT TUMBLE_END(col.ts, INTERVAL '0.003' SECOND), COUNT(*)
+        |FROM src
+        |GROUP BY TUMBLE(col.ts, INTERVAL '0.003' SECOND)
+      """.stripMargin
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Nested field 'col.ts' as rowtime attribute is not supported right now.")

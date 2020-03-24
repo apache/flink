@@ -26,9 +26,12 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -86,6 +89,8 @@ public class DescriptorProperties {
 	public static final String TABLE_SCHEMA_DATA_TYPE = "data-type";
 
 	public static final String TABLE_SCHEMA_EXPR = "expr";
+
+	public static final String TABLE_SCHEMA_PROCTIME = "proctime";
 
 	public static final String WATERMARK = "watermark";
 
@@ -209,6 +214,15 @@ public class DescriptorProperties {
 		final String[] fieldExpressions = schema.getTableColumns().stream()
 			.map(column -> column.getExpr().orElse(null))
 			.toArray(String[]::new);
+		final String[] proctimeFlags = Arrays.stream(schema.getFieldDataTypes())
+			.map(dt -> {
+				final LogicalType logicalType = dt.getLogicalType();
+				if (logicalType instanceof TimestampType
+						&& ((TimestampType) logicalType).getKind() == TimestampKind.PROCTIME) {
+					return "true";
+				}
+				return null;
+			}).toArray(String[]::new);
 
 		final List<List<String>> values = new ArrayList<>();
 		for (int i = 0; i < schema.getFieldCount(); i++) {
@@ -216,12 +230,13 @@ public class DescriptorProperties {
 				Arrays.asList(
 					fieldNames[i],
 					fieldTypes[i].getLogicalType().asSerializableString(),
-					fieldExpressions[i]));
+					fieldExpressions[i],
+					proctimeFlags[i]));
 		}
 
 		putIndexedOptionalProperties(
 			key,
-			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_DATA_TYPE, TABLE_SCHEMA_EXPR),
+			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_DATA_TYPE, TABLE_SCHEMA_EXPR, TABLE_SCHEMA_PROCTIME),
 			values);
 
 		if (!schema.getWatermarkSpecs().isEmpty()) {
@@ -609,16 +624,29 @@ public class DescriptorProperties {
 			final String legacyTypeKey = key + '.' + i + '.' + TABLE_SCHEMA_TYPE;
 			final String typeKey = key + '.' + i + '.' + TABLE_SCHEMA_DATA_TYPE;
 			final String exprKey = key + '.' + i + '.' + TABLE_SCHEMA_EXPR;
+			final String proctimeKey = key + '.' + i + '.' + TABLE_SCHEMA_PROCTIME;
 
 			final String name = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
 
-			final DataType type;
+			DataType type;
 			if (containsKey(typeKey)) {
 				type = getDataType(typeKey);
 			} else if (containsKey(legacyTypeKey)) {
 				type = TypeConversions.fromLegacyInfoToDataType(getType(legacyTypeKey));
 			} else {
 				throw exceptionSupplier(typeKey).get();
+			}
+
+			final Optional<Boolean> proctime = getOptionalBoolean(proctimeKey);
+			if (proctime.isPresent() && proctime.get()) {
+				final LogicalType logicalType = type.getLogicalType();
+				if (logicalType instanceof TimestampType
+						&& ((TimestampType) logicalType).getPrecision() == 3) {
+					type = new AtomicDataType(new TimestampType(true, TimestampKind.PROCTIME, 3));
+				} else {
+					throw new ValidationException("Property with key '" + proctimeKey  + "' should be bind to a PROCTIME TimestampType." +
+						"This is a bug because the validation logic should have checked that before.");
+				}
 			}
 
 			final Optional<String> expr = optionalGet(exprKey);

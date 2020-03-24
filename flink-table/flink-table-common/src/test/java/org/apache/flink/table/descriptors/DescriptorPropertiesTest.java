@@ -22,7 +22,10 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.LogicalTypeParserTest;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import org.junit.Test;
 
@@ -182,6 +185,8 @@ public class DescriptorPropertiesTest {
 			.field("f2", DataTypes.STRING())
 			.field("f3", DataTypes.BIGINT(), "f0 + 1")
 			.field("f4", DataTypes.DECIMAL(10, 3))
+			.field("pt", new AtomicDataType(
+				new TimestampType(true, TimestampKind.PROCTIME, 3)), "PROCTIME()")
 			.watermark(
 				"f1.q2",
 				"`f1`.`q2` - INTERVAL '5' SECOND",
@@ -203,10 +208,18 @@ public class DescriptorPropertiesTest {
 		expected.put("schema.3.expr", "f0 + 1");
 		expected.put("schema.4.name", "f4");
 		expected.put("schema.4.data-type", "DECIMAL(10, 3)");
+		expected.put("schema.5.name", "pt");
+		expected.put("schema.5.data-type", "TIMESTAMP(3)");
+		expected.put("schema.5.expr", "PROCTIME()");
+		expected.put("schema.5.proctime", "true");
 		expected.put("schema.watermark.0.rowtime", "f1.q2");
 		expected.put("schema.watermark.0.strategy.expr", "`f1`.`q2` - INTERVAL '5' SECOND");
 		expected.put("schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
 		assertEquals(expected, actual);
+
+		Schema schemaDesc = new Schema().schema(schema);
+		Map<String, String> schemaProps = schemaDesc.toProperties();
+		assertEquals(expected, schemaProps);
 
 		TableSchema restored = properties.getTableSchema("schema");
 		assertEquals(schema, restored);

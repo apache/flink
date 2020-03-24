@@ -22,8 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -52,11 +55,20 @@ public class Schema implements Descriptor {
 	@Deprecated
 	public static final String SCHEMA_TYPE = "type";
 	public static final String SCHEMA_DATA_TYPE = "data-type";
+	public static final String SCHEMA_EXPR = "expr";
 	public static final String SCHEMA_PROCTIME = "proctime";
 	public static final String SCHEMA_FROM = "from";
 
-	// maps a field name to a list of properties that describe type, origin, and the time attribute
+	public static final String WATERMARK = "watermark";
+	public static final String WATERMARK_ROWTIME = "rowtime";
+	public static final String WATERMARK_STRATEGY_EXPR = "strategy.expr";
+	public static final String WATERMARK_STRATEGY_DATA_TYPE = "strategy.data-type";
+
+	// maps a field name to a list of properties that describe type and origin.
 	private final Map<String, LinkedHashMap<String, String>> tableSchema = new LinkedHashMap<>();
+
+	// maps a watermark to a list of properties that describe type and expression of the time attribute
+	private final Map<String, LinkedHashMap<String, String>> watermarks = new LinkedHashMap<>();
 
 	private String lastField;
 
@@ -69,9 +81,23 @@ public class Schema implements Descriptor {
 	 */
 	public Schema schema(TableSchema schema) {
 		tableSchema.clear();
+		watermarks.clear();
 		lastField = null;
 		for (int i = 0; i < schema.getFieldCount(); i++) {
-			field(schema.getFieldName(i).get(), schema.getFieldDataType(i).get());
+			final String fieldName = schema.getFieldName(i).get();
+			final DataType fieldType = schema.getFieldDataType(i).get();
+			final String fieldExpr = schema.getTableColumn(i).get().getExpr().orElse(null);
+
+			if (fieldType.getLogicalType() instanceof TimestampType
+					&& ((TimestampType) fieldType.getLogicalType()).getKind() == TimestampKind.PROCTIME) {
+				proctime(fieldName);
+			} else {
+				field(fieldName, fieldType, fieldExpr);
+			}
+		}
+
+		for (WatermarkSpec spec : schema.getWatermarkSpecs()) {
+			watermark(spec.getRowtimeAttribute(), spec.getWatermarkExpr(), spec.getWatermarkExprOutputType());
 		}
 		return this;
 	}
@@ -85,10 +111,24 @@ public class Schema implements Descriptor {
 	 * @param fieldType the type information of the field
 	 */
 	public Schema field(String fieldName, DataType fieldType) {
-		addField(fieldName, fieldType.getLogicalType().asSerializableString());
-		return this;
+		return field(fieldName, fieldType, null);
 	}
 
+
+	/**
+	 * Adds a field with the field name and the data type. Required.
+	 * This method can be called multiple times. The call order of this method defines
+	 * also the order of the fields in a row.
+	 *
+	 * @param fieldName the field name
+	 * @param fieldType the type information of the field
+	 * @param fieldExpr Computed column expression, it should be a SQL-style expression whose
+	 *                  identifiers should be all quoted and expanded.
+	 */
+	public Schema field(String fieldName, DataType fieldType, String fieldExpr) {
+		addField(fieldName, fieldType.getLogicalType().asSerializableString(), fieldExpr);
+		return this;
+	}
 
 	/**
 	 * Adds a field with the field name and the type information. Required.
@@ -107,7 +147,19 @@ public class Schema implements Descriptor {
 	}
 
 	/**
-	 * Adds a field with the field name and the type string. Required.
+	 * Adds a field with the field name, the type string. Required.
+	 * This method can be called multiple times. The call order of this method defines
+	 * also the order of the fields in a row.
+	 *
+	 * @param fieldName the field name
+	 * @param fieldType the type string of the field
+	 */
+	public Schema field(String fieldName, String fieldType) {
+		return field(fieldName, fieldType, null);
+	}
+
+	/**
+	 * Adds a field with the field name, the type string and the computed column. Required.
 	 * This method can be called multiple times. The call order of this method defines
 	 * also the order of the fields in a row.
 	 *
@@ -117,24 +169,35 @@ public class Schema implements Descriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type string of the field
+	 * @param fieldExpr Computed column expression, it should be a SQL-style expression whose
+	 *                  identifiers should be all quoted and expanded.
 	 */
-	public Schema field(String fieldName, String fieldType) {
+	public Schema field(String fieldName, String fieldType, String fieldExpr) {
 		if (isLegacyTypeString(fieldType)) {
 			// fallback to legacy parser
 			TypeInformation<?> typeInfo = TypeStringUtils.readTypeInfo(fieldType);
-			return field(fieldName, TypeConversions.fromLegacyInfoToDataType(typeInfo));
+			return field(fieldName, TypeConversions.fromLegacyInfoToDataType(typeInfo), fieldExpr);
 		} else {
-			return addField(fieldName, fieldType);
+			return addField(fieldName, fieldType, fieldExpr);
 		}
 	}
 
 	private Schema addField(String fieldName, String fieldType) {
+		addField(fieldName, fieldType, null);
+		return this;
+	}
+
+	private Schema addField(String fieldName, String fieldType, String fieldExpr) {
 		if (tableSchema.containsKey(fieldName)) {
 			throw new ValidationException("Duplicate field name " + fieldName + ".");
 		}
 
 		LinkedHashMap<String, String> fieldProperties = new LinkedHashMap<>();
 		fieldProperties.put(SCHEMA_DATA_TYPE, fieldType);
+
+		if (null != fieldExpr) {
+			fieldProperties.put(SCHEMA_EXPR, fieldExpr);
+		}
 
 		tableSchema.put(fieldName, fieldProperties);
 
@@ -173,13 +236,29 @@ public class Schema implements Descriptor {
 	 * Specifies the previously defined field as a processing-time attribute.
 	 *
 	 * <p>E.g. field("proctime", Types.SQL_TIMESTAMP).proctime()
+	 *
+	 * @deprecated This method will be removed in future versions as it should be computed column.
+	 *              Please use {@link #proctime(String)} instead.
 	 */
+	@Deprecated
 	public Schema proctime() {
 		if (lastField == null) {
 			throw new ValidationException("No field defined previously. Use field() before.");
 		}
 		tableSchema.get(lastField).put(SCHEMA_PROCTIME, "true");
+		tableSchema.get(lastField).put(SCHEMA_EXPR, "PROCTIME()");
 		lastField = null;
+		return this;
+	}
+
+	/**
+	 * Specifies the computed column as a processing-time attribute.
+	 *
+	 * <p>E.g. proctime("pt")
+	 */
+	public Schema proctime(String proctimeAttribute) {
+		addField(proctimeAttribute, "TIMESTAMP(3)", "PROCTIME()");
+		tableSchema.get(proctimeAttribute).put(SCHEMA_PROCTIME, "true");
 		return this;
 	}
 
@@ -187,13 +266,64 @@ public class Schema implements Descriptor {
 	 * Specifies the previously defined field as an event-time attribute.
 	 *
 	 * <p>E.g. field("rowtime", Types.SQL_TIMESTAMP).rowtime(...)
+	 *
+	 * @deprecated This method will be removed in future versions as is inconsistent with watermarks
+	 *              of TableSchema. Please use {@link #watermark(String, String, DataType)} instead.
 	 */
+	@Deprecated
 	public Schema rowtime(Rowtime rowtime) {
 		if (lastField == null) {
 			throw new ValidationException("No field defined previously. Use field() before.");
 		}
 		tableSchema.get(lastField).putAll(rowtime.toProperties());
 		lastField = null;
+		return this;
+	}
+
+	/**
+	 * Specifies the previously defined field as an event-time attribute and specifies the watermark strategy.
+	 *
+	 * <p>E.g. watermark("ts", "`ts` - INTERVAL '5' SECOND", DataTypes.TIMESTAMP(3))
+	 */
+	public Schema watermark(
+			String rowtimeAttribute,
+			String watermarkExpressionString,
+			DataType watermarkExprOutputType) {
+		addWatermark(
+			rowtimeAttribute,
+			watermarkExpressionString,
+			watermarkExprOutputType.getLogicalType().asSerializableString());
+		return this;
+	}
+
+	public Schema watermark(
+			String rowtimeAttribute,
+			String watermarkExpressionString,
+			String watermarkExprOutputType) {
+		if (isLegacyTypeString(watermarkExprOutputType)) {
+			// fallback to legacy parser
+			TypeInformation<?> typeInfo = TypeStringUtils.readTypeInfo(watermarkExprOutputType);
+			return watermark(
+				rowtimeAttribute,
+				watermarkExpressionString,
+				TypeConversions.fromLegacyInfoToDataType(typeInfo));
+		} else {
+			return addWatermark(rowtimeAttribute, watermarkExpressionString, watermarkExprOutputType);
+		}
+	}
+
+	private Schema addWatermark(
+			String rowtimeAttribute,
+			String watermarkExpressionString,
+			String watermarkExprOutputType) {
+		if (watermarks.containsKey(rowtimeAttribute)) {
+			throw new ValidationException("Duplicate watermark " + rowtimeAttribute + ".");
+		}
+
+		LinkedHashMap<String, String> watermarkProperties = new LinkedHashMap<>();
+		watermarkProperties.put(WATERMARK_STRATEGY_EXPR, watermarkExpressionString);
+		watermarkProperties.put(WATERMARK_STRATEGY_DATA_TYPE, watermarkExprOutputType);
+		watermarks.put(rowtimeAttribute, watermarkProperties);
 		return this;
 	}
 
@@ -215,6 +345,20 @@ public class Schema implements Descriptor {
 		properties.putIndexedVariableProperties(
 			SCHEMA,
 			subKeyValues);
+
+		List<Map<String, String>> watermarkKeyValues = new ArrayList<>();
+		for (Map.Entry<String, LinkedHashMap<String, String>> entry : watermarks.entrySet()) {
+			String name = entry.getKey();
+			LinkedHashMap<String, String> props = entry.getValue();
+			Map<String, String> map = new HashMap<>();
+			map.put(WATERMARK_ROWTIME, name);
+			map.putAll(props);
+			watermarkKeyValues.add(map);
+		}
+		properties.putIndexedVariableProperties(
+			SCHEMA + '.' + WATERMARK,
+			watermarkKeyValues);
+
 		return properties.asMap();
 	}
 }

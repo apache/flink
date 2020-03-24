@@ -22,12 +22,17 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
+import org.apache.flink.table.types.DataType;
 
 import java.util.Map;
 
 /**
  * Rowtime descriptor for describing an event time attribute in the schema.
+ *
+ * @deprecated This class will be removed in future versions as is inconsistent with watermarks of
+ *              TableSchema. Please use {@link Schema#watermark(String, String, DataType)} instead.
  */
+@Deprecated
 @PublicEvolving
 public class Rowtime implements Descriptor {
 
