@@ -54,5 +54,5 @@ public class DeploymentOptions {
 			.stringType()
 			.asList()
 			.noDefaultValue()
-			.withDescription("User can register JobListeners with configuration. And it doesn't support JobListener with arguments constructor");
+			.withDescription("User can register JobListeners with configuration. And it doesn't support JobListener with arguments constructor.");
 }
