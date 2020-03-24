@@ -21,9 +21,9 @@ package org.apache.flink.table.utils
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
-import org.apache.flink.table.descriptors.DescriptorProperties._
+import org.apache.flink.table.descriptors.DescriptorProperties.{TABLE_SCHEMA_EXPR, WATERMARK, WATERMARK_ROWTIME, WATERMARK_STRATEGY_EXPR, WATERMARK_STRATEGY_DATA_TYPE}
 import org.apache.flink.table.descriptors.Rowtime._
-import org.apache.flink.table.descriptors.Schema._
+import org.apache.flink.table.descriptors.Schema.{SCHEMA, SCHEMA_TYPE, SCHEMA_DATA_TYPE, SCHEMA_NAME, SCHEMA_FROM, SCHEMA_PROCTIME}
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
 import org.apache.flink.table.factories.{StreamTableSinkFactory, StreamTableSourceFactory, TableFactory}
 import org.apache.flink.table.sinks.StreamTableSink
@@ -137,9 +137,9 @@ class InMemoryTableFactory(terminationCount: Int)
     properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY)
 
     // watermark
-    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
-    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
-    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME)
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR)
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE)
 
     // computed column
     properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR)
