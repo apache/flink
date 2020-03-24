@@ -48,7 +48,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test for {@link PostgresCatalog}.
  */
-public class PostgresCatalogITCase {
+public class PostgresCatalogTest {
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
