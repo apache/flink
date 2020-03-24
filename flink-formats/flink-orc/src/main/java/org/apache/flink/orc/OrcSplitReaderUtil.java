@@ -147,8 +147,8 @@ public class OrcSplitReaderUtil {
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) type;
 				return TypeDescription.createDecimal()
-						.withPrecision(decimalType.getPrecision())
-						.withScale(decimalType.getScale());
+						.withScale(decimalType.getScale())
+						.withPrecision(decimalType.getPrecision());
 			case TINYINT:
 				return TypeDescription.createByte();
 			case SMALLINT:
