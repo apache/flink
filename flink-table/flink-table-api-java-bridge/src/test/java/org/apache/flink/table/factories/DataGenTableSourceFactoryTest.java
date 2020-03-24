@@ -31,8 +31,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.sources.datagen.DataGenTableSource;
-import org.apache.flink.table.sources.datagen.DataGenTableSourceFactory;
+import org.apache.flink.table.factories.DataGenTableSourceFactory.DataGenTableSource;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,16 +39,16 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.END;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.FIELDS;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.KIND;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.LENGTH;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.MAX;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.MIN;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.RANDOM;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.ROWS_PER_SECOND;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.SEQUENCE;
-import static org.apache.flink.table.sources.datagen.DataGenTableSourceFactory.START;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.KIND;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.LENGTH;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.MAX;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.MIN;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.RANDOM;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.ROWS_PER_SECOND;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.SEQUENCE;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
 import static org.junit.Assert.assertTrue;
 
 /**

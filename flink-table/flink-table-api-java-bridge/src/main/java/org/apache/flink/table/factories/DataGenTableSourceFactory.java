@@ -16,21 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources.datagen;
+package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions.OptionBuilder;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
+import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
@@ -42,7 +52,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * Factory for creating configured instances of {@link DataGenTableSource} in a stream environment.
  */
-@Experimental
+@PublicEvolving
 public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
 	public static final String IDENTIFIER = "datagen";
@@ -203,6 +213,80 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 						options.get(endKey.intType().noDefaultValue()));
 			default:
 				throw new ValidationException("Unsupported type: " + type);
+		}
+	}
+
+	/**
+	 * A {@link StreamTableSource} that emits each number from a given interval exactly once,
+	 * possibly in parallel. See {@link StatefulSequenceSource}.
+	 */
+	static class DataGenTableSource implements ScanTableSource {
+
+		private final DataGenerator[] fieldGenerators;
+		private final TableSchema schema;
+		private final long rowsPerSecond;
+
+		private DataGenTableSource(DataGenerator[] fieldGenerators, TableSchema schema, long rowsPerSecond) {
+			this.fieldGenerators = fieldGenerators;
+			this.schema = schema;
+			this.rowsPerSecond = rowsPerSecond;
+		}
+
+		@Override
+		public ScanRuntimeProvider getScanRuntimeProvider(Context context) {
+			return SourceFunctionProvider.of(createSource(), false);
+		}
+
+		@VisibleForTesting
+		DataGeneratorSource<RowData> createSource() {
+			return new DataGeneratorSource<>(new DataGenTableSource.RowGenerator(), rowsPerSecond);
+		}
+
+		@Override
+		public DynamicTableSource copy() {
+			return new DataGenTableSource(fieldGenerators, schema, rowsPerSecond);
+		}
+
+		@Override
+		public String asSummaryString() {
+			return "DataGenTableSource";
+		}
+
+		@Override
+		public ChangelogMode getChangelogMode() {
+			return ChangelogMode.insertOnly();
+		}
+
+		private class RowGenerator implements DataGenerator<RowData> {
+
+			@Override
+			public void open(
+					String name,
+					FunctionInitializationContext context,
+					RuntimeContext runtimeContext) throws Exception {
+				for (int i = 0; i < fieldGenerators.length; i++) {
+					fieldGenerators[i].open(schema.getFieldName(i).get(), context, runtimeContext);
+				}
+			}
+
+			@Override
+			public boolean hasNext() {
+				for (DataGenerator generator : fieldGenerators) {
+					if (!generator.hasNext()) {
+						return false;
+					}
+				}
+				return true;
+			}
+
+			@Override
+			public RowData next() {
+				GenericRowData row = new GenericRowData(schema.getFieldCount());
+				for (int i = 0; i < fieldGenerators.length; i++) {
+					row.setField(i, fieldGenerators[i].next());
+				}
+				return row;
+			}
 		}
 	}
 }
