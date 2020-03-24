@@ -32,7 +32,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -50,25 +49,16 @@ import static org.junit.Assert.assertThat;
 public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> extends TestLogger {
 	private static Map<String, String> oldEnvVariables;
 
-	private final JvmMetaspaceAndOverheadOptions jvmOptions;
-	private final List<ConfigOption<MemorySize>> requiredFineGrainedOptions;
-	private final ConfigOption<MemorySize> totalFlinkMemoryOption;
-	private final ConfigOption<MemorySize> totalProcessMemoryOption;
+	private final ProcessMemoryOptions options;
 	private final LegacyHeapOptions legacyHeapOptions;
 	private final ConfigOption<MemorySize> newOptionForLegacyHeapOption;
 
 	@SuppressWarnings("JUnitTestCaseWithNonTrivialConstructors")
 	protected ProcessMemoryUtilsTestBase(
-			JvmMetaspaceAndOverheadOptions jvmOptions,
-			List<ConfigOption<MemorySize>> requiredFineGrainedOptions,
-			ConfigOption<MemorySize> totalFlinkMemoryOption,
-			ConfigOption<MemorySize> totalProcessMemoryOption,
+			ProcessMemoryOptions options,
 			LegacyHeapOptions legacyHeapOptions,
 			ConfigOption<MemorySize> newOptionForLegacyHeapOption) {
-		this.jvmOptions = checkNotNull(jvmOptions);
-		this.requiredFineGrainedOptions = checkNotNull(requiredFineGrainedOptions);
-		this.totalFlinkMemoryOption = checkNotNull(totalFlinkMemoryOption);
-		this.totalProcessMemoryOption = checkNotNull(totalProcessMemoryOption);
+		this.options = checkNotNull(options);
 		this.legacyHeapOptions = checkNotNull(legacyHeapOptions);
 		this.newOptionForLegacyHeapOption = checkNotNull(newOptionForLegacyHeapOption);
 	}
@@ -108,7 +98,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize totalFlinkMemorySize = MemorySize.parse("1g");
 
 		Configuration conf = new Configuration();
-		conf.set(totalFlinkMemoryOption, totalFlinkMemorySize);
+		conf.set(options.getTotalFlinkMemoryOption(), totalFlinkMemorySize);
 
 		T processSpec = processSpecFromConfig(conf);
 		assertThat(processSpec.getTotalFlinkMemorySize(), is(totalFlinkMemorySize));
@@ -119,7 +109,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize totalProcessMemorySize = MemorySize.parse("2g");
 
 		Configuration conf = new Configuration();
-		conf.set(totalProcessMemoryOption, totalProcessMemorySize);
+		conf.set(options.getTotalProcessMemoryOption(), totalProcessMemorySize);
 
 		T processSpec = processSpecFromConfig(conf);
 		assertThat(processSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
@@ -130,9 +120,9 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		try {
 			JobManagerProcessUtils.processSpecFromConfig(new Configuration());
 		} catch (IllegalConfigurationException e) {
-			requiredFineGrainedOptions.forEach(option -> assertThat(e.getMessage(), containsString(option.key())));
-			assertThat(e.getMessage(), containsString(totalFlinkMemoryOption.key()));
-			assertThat(e.getMessage(), containsString(totalProcessMemoryOption.key()));
+			options.getRequiredFineGrainedOptions().forEach(option -> assertThat(e.getMessage(), containsString(option.key())));
+			assertThat(e.getMessage(), containsString(options.getTotalFlinkMemoryOption().key()));
+			assertThat(e.getMessage(), containsString(options.getTotalProcessMemoryOption().key()));
 		}
 	}
 
@@ -141,7 +131,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize jvmMetaspaceSize = MemorySize.parse("50m");
 
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getJvmMetaspaceOption(), jvmMetaspaceSize);
+		conf.set(options.getJvmOptions().getJvmMetaspaceOption(), jvmMetaspaceSize);
 
 		validateInAllConfigurations(
 			conf,
@@ -154,8 +144,8 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize maxSize = MemorySize.parse("200m");
 
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getJvmOverheadMax(), maxSize);
-		conf.set(jvmOptions.getJvmOverheadMin(), minSize);
+		conf.set(options.getJvmOptions().getJvmOverheadMax(), maxSize);
+		conf.set(options.getJvmOptions().getJvmOverheadMin(), minSize);
 
 		validateInAllConfigurations(conf, JobManagerProcessSpec -> {
 			assertThat(JobManagerProcessSpec.getJvmOverheadSize().getBytes(),
@@ -170,8 +160,8 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize maxSize = MemorySize.parse("50m");
 
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getJvmOverheadMax(), maxSize);
-		conf.set(jvmOptions.getJvmOverheadMin(), minSize);
+		conf.set(options.getJvmOptions().getJvmOverheadMax(), maxSize);
+		conf.set(options.getJvmOptions().getJvmOverheadMin(), minSize);
 
 		validateFailInAllConfigurations(conf);
 	}
@@ -183,9 +173,9 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		@SuppressWarnings("MagicNumber") float fraction = 0.2f;
 
 		Configuration conf = new Configuration();
-		conf.set(jvmOptions.getJvmOverheadMax(), maxSize);
-		conf.set(jvmOptions.getJvmOverheadMin(), minSize);
-		conf.setFloat(jvmOptions.getJvmOverheadFraction(), fraction);
+		conf.set(options.getJvmOptions().getJvmOverheadMax(), maxSize);
+		conf.set(options.getJvmOptions().getJvmOverheadMin(), minSize);
+		conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), fraction);
 
 		validateInAllConfigurations(
 			conf,
@@ -198,27 +188,27 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 	public void testConfigJvmOverheadFractionFailureNegative() {
 		Configuration conf = new Configuration();
 		//noinspection MagicNumber
-		conf.setFloat(jvmOptions.getJvmOverheadFraction(), -0.1f);
+		conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), -0.1f);
 		validateFailInAllConfigurations(conf);
 	}
 
 	@Test
 	public void testConfigJvmOverheadFractionFailureNoLessThanOne() {
 		Configuration conf = new Configuration();
-		conf.setFloat(jvmOptions.getJvmOverheadFraction(), 1.0f);
+		conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), 1.0f);
 		validateFailInAllConfigurations(conf);
 	}
 
 	@Test
 	public void testConfigJvmOverheadDeriveFromProcessAndFlinkMemorySize() {
 		Configuration conf = new Configuration();
-		conf.set(totalProcessMemoryOption, MemorySize.parse("1000m"));
-		conf.set(totalFlinkMemoryOption, MemorySize.parse("800m"));
-		conf.set(jvmOptions.getJvmMetaspaceOption(), MemorySize.parse("100m"));
-		conf.set(jvmOptions.getJvmOverheadMin(), MemorySize.parse("50m"));
-		conf.set(jvmOptions.getJvmOverheadMax(), MemorySize.parse("200m"));
+		conf.set(options.getTotalProcessMemoryOption(), MemorySize.parse("1000m"));
+		conf.set(options.getTotalFlinkMemoryOption(), MemorySize.parse("800m"));
+		conf.set(options.getJvmOptions().getJvmMetaspaceOption(), MemorySize.parse("100m"));
+		conf.set(options.getJvmOptions().getJvmOverheadMin(), MemorySize.parse("50m"));
+		conf.set(options.getJvmOptions().getJvmOverheadMax(), MemorySize.parse("200m"));
 		//noinspection MagicNumber
-		conf.set(jvmOptions.getJvmOverheadFraction(), 0.5f);
+		conf.set(options.getJvmOptions().getJvmOverheadFraction(), 0.5f);
 
 		T jobManagerProcessSpec = processSpecFromConfig(conf);
 		assertThat(jobManagerProcessSpec.getJvmOverheadSize(), is(MemorySize.parse("100m")));
@@ -227,13 +217,13 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 	@Test
 	public void testConfigJvmOverheadDeriveFromProcessAndFlinkMemorySizeFailure() {
 		Configuration conf = new Configuration();
-		conf.set(totalProcessMemoryOption, MemorySize.parse("1000m"));
-		conf.set(totalFlinkMemoryOption, MemorySize.parse("800m"));
-		conf.set(jvmOptions.getJvmMetaspaceOption(), MemorySize.parse("100m"));
-		conf.set(jvmOptions.getJvmOverheadMin(), MemorySize.parse("150m"));
-		conf.set(jvmOptions.getJvmOverheadMax(), MemorySize.parse("200m"));
+		conf.set(options.getTotalProcessMemoryOption(), MemorySize.parse("1000m"));
+		conf.set(options.getTotalFlinkMemoryOption(), MemorySize.parse("800m"));
+		conf.set(options.getJvmOptions().getJvmMetaspaceOption(), MemorySize.parse("100m"));
+		conf.set(options.getJvmOptions().getJvmOverheadMin(), MemorySize.parse("150m"));
+		conf.set(options.getJvmOptions().getJvmOverheadMax(), MemorySize.parse("200m"));
 		//noinspection MagicNumber
-		conf.set(jvmOptions.getJvmOverheadFraction(), 0.5f);
+		conf.set(options.getJvmOptions().getJvmOverheadFraction(), 0.5f);
 
 		validateFail(conf);
 	}
@@ -295,11 +285,11 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 		MemorySize jvmOverhead = MemorySize.parse("100m");
 
 		Configuration conf = new Configuration();
-		conf.set(totalProcessMemoryOption, totalProcessMemory);
-		conf.set(totalFlinkMemoryOption, totalFlinkMemory);
-		conf.set(jvmOptions.getJvmMetaspaceOption(), jvmMetaspace);
-		conf.set(jvmOptions.getJvmOverheadMin(), jvmOverhead);
-		conf.set(jvmOptions.getJvmOverheadMax(), jvmOverhead);
+		conf.set(options.getTotalProcessMemoryOption(), totalProcessMemory);
+		conf.set(options.getTotalFlinkMemoryOption(), totalFlinkMemory);
+		conf.set(options.getJvmOptions().getJvmMetaspaceOption(), jvmMetaspace);
+		conf.set(options.getJvmOptions().getJvmOverheadMin(), jvmOverhead);
+		conf.set(options.getJvmOptions().getJvmOverheadMax(), jvmOverhead);
 
 		validateFail(conf);
 	}

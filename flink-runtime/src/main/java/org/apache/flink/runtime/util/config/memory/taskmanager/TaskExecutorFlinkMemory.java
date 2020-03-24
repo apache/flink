@@ -25,6 +25,44 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Flink internal memory components of Task Executor.
+ *
+ * <p>A TaskExecutor's internal Flink memory consists of the following components.
+ * <ul>
+ *     <li>Framework Heap Memory</li>
+ *     <li>Framework Off-Heap Memory</li>
+ *     <li>Task Heap Memory</li>
+ *     <li>Task Off-Heap Memory</li>
+ *     <li>Network Memory</li>
+ *     <li>Managed Memory</li>
+ * </ul>
+ *
+ * <p>The relationships of TaskExecutor Flink memory components are shown below.
+ * <pre>
+ *               ┌ ─ ─  Total Flink Memory - ─ ─ ┐
+ *               |┌ ─ ─ - - - On-Heap - - - ─ ─ ┐|
+ *                 ┌───────────────────────────┐
+ *               |││   Framework Heap Memory   ││|
+ *                 └───────────────────────────┘
+ *               │ ┌───────────────────────────┐ │
+ *                ||      Task Heap Memory     ││
+ *               │ └───────────────────────────┘ │
+ *                └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+ *               |┌ ─ ─ - - - Off-Heap  - - ─ ─ ┐|
+ *                │┌───────────────────────────┐│
+ *               │ │ Framework Off-Heap Memory │ │ ─┐
+ *                │└───────────────────────────┘│   │
+ *               │ ┌───────────────────────────┐ │  │
+ *                ││   Task Off-Heap Memory    ││   ┼─ JVM Direct Memory
+ *               │ └───────────────────────────┘ │  │
+ *                │┌───────────────────────────┐│   │
+ *               │ │      Network Memory       │ │ ─┘
+ *                │└───────────────────────────┘│
+ *               │ ┌───────────────────────────┐ │
+ *                |│      Managed Memory       │|
+ *               │ └───────────────────────────┘ │
+ *                └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+ *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+ * </pre>
  */
 public class TaskExecutorFlinkMemory implements FlinkMemory {
 	private static final long serialVersionUID = 1L;

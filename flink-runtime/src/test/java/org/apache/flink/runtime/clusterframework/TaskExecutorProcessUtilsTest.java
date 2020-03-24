@@ -35,9 +35,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS;
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_LEGACY_HEAP_OPTIONS;
-import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_REQUIRED_FINE_GRAINED_OPTIONS;
+import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_PROCESS_MEMORY_OPTIONS;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
@@ -77,13 +76,7 @@ public class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<Tas
 		.build();
 
 	public TaskExecutorProcessUtilsTest() {
-		super(
-			TM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
-			TM_REQUIRED_FINE_GRAINED_OPTIONS,
-			TaskManagerOptions.TOTAL_FLINK_MEMORY,
-			TaskManagerOptions.TOTAL_PROCESS_MEMORY,
-			TM_LEGACY_HEAP_OPTIONS,
-			TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+		super(TM_PROCESS_MEMORY_OPTIONS, TM_LEGACY_HEAP_OPTIONS, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
 
 	@Test

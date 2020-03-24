@@ -29,14 +29,14 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 
 /**
- * Utilities to fallback to new options from the lecacy ones.
+ * Utilities to fallback to new options from the legacy heap ones.
  */
-public class LegacyMemoryUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(LegacyMemoryUtils.class);
+public class LegacyHeapMemoryUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(LegacyHeapMemoryUtils.class);
 
 	private final LegacyHeapOptions legacyHeapOptions;
 
-	public LegacyMemoryUtils(LegacyHeapOptions legacyHeapOptions) {
+	public LegacyHeapMemoryUtils(LegacyHeapOptions legacyHeapOptions) {
 		this.legacyHeapOptions = legacyHeapOptions;
 	}
 

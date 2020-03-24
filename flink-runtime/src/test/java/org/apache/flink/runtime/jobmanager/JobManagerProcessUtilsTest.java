@@ -28,7 +28,8 @@ import org.junit.Test;
 
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.TM_REQUIRED_FINE_GRAINED_OPTIONS;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_LEGACY_HEAP_OPTIONS;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_PROCESS_MEMORY_OPTIONS;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -42,13 +43,7 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 	private static final MemorySize TOTAL_PROCESS_MEM_SIZE = MemorySize.parse("1536m");
 
 	public JobManagerProcessUtilsTest() {
-		super(
-			JobManagerProcessUtils.JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS,
-			TM_REQUIRED_FINE_GRAINED_OPTIONS,
-			JobManagerOptions.TOTAL_FLINK_MEMORY,
-			JobManagerOptions.TOTAL_PROCESS_MEMORY,
-			JobManagerProcessUtils.JM_LEGACY_HEAP_OPTIONS,
-			JobManagerOptions.TOTAL_PROCESS_MEMORY);
+		super(JM_PROCESS_MEMORY_OPTIONS, JM_LEGACY_HEAP_OPTIONS, JobManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
 
 	@Test

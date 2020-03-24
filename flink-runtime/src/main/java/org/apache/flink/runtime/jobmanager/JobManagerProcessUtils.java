@@ -24,8 +24,9 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
+import org.apache.flink.runtime.util.config.memory.LegacyHeapMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.LegacyHeapOptions;
-import org.apache.flink.runtime.util.config.memory.LegacyMemoryUtils;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemorySpecBase;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
@@ -35,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
-import java.util.List;
 
 /**
  * JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args.
@@ -43,15 +43,15 @@ import java.util.List;
 public class JobManagerProcessUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProcessUtils.class);
 
-	static final List<ConfigOption<MemorySize>> TM_REQUIRED_FINE_GRAINED_OPTIONS =
-		Collections.singletonList(JobManagerOptions.JVM_HEAP_MEMORY);
-
-	static final JvmMetaspaceAndOverheadOptions JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS =
+	static final ProcessMemoryOptions JM_PROCESS_MEMORY_OPTIONS = new ProcessMemoryOptions(
+		Collections.singletonList(JobManagerOptions.JVM_HEAP_MEMORY),
+		JobManagerOptions.TOTAL_FLINK_MEMORY,
+		JobManagerOptions.TOTAL_PROCESS_MEMORY,
 		new JvmMetaspaceAndOverheadOptions(
 			JobManagerOptions.JVM_METASPACE,
 			JobManagerOptions.JVM_OVERHEAD_MIN,
 			JobManagerOptions.JVM_OVERHEAD_MAX,
-			JobManagerOptions.JVM_OVERHEAD_FRACTION);
+			JobManagerOptions.JVM_OVERHEAD_FRACTION));
 
 	@SuppressWarnings("deprecation")
 	static final LegacyHeapOptions JM_LEGACY_HEAP_OPTIONS =
@@ -61,13 +61,10 @@ public class JobManagerProcessUtils {
 			JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB);
 
 	private static final ProcessMemoryUtils<JobManagerFlinkMemory> PROCESS_MEMORY_UTILS = new ProcessMemoryUtils<>(
-		TM_REQUIRED_FINE_GRAINED_OPTIONS,
-		new JobManagerFlinkMemoryUtils(),
-		JobManagerOptions.TOTAL_FLINK_MEMORY,
-		JobManagerOptions.TOTAL_PROCESS_MEMORY,
-		JM_JVM_METASPACE_AND_OVERHEAD_OPTIONS);
+		JM_PROCESS_MEMORY_OPTIONS,
+		new JobManagerFlinkMemoryUtils());
 
-	private static final LegacyMemoryUtils LEGACY_MEMORY_UTILS = new LegacyMemoryUtils(JM_LEGACY_HEAP_OPTIONS);
+	private static final LegacyHeapMemoryUtils LEGACY_MEMORY_UTILS = new LegacyHeapMemoryUtils(JM_LEGACY_HEAP_OPTIONS);
 
 	private JobManagerProcessUtils() {
 	}
