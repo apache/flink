@@ -63,14 +63,10 @@ under the License.
 								</includes>
 								<excludes>
 									<!-- These dependencies are not required. -->
-									<exclude>com.carrotsearch:hppc</exclude>
 									<exclude>com.tdunning:t-digest</exclude>
 									<exclude>joda-time:joda-time</exclude>
 									<exclude>net.sf.jopt-simple:jopt-simple</exclude>
 									<exclude>org.elasticsearch:jna</exclude>
-									<exclude>org.elasticsearch:elasticsearch-geo</exclude>
-									<exclude>org.elasticsearch.plugin:lang-mustache-client</exclude>
-									<exclude>com.github.spullara.mustache.java:compiler</exclude>
 									<exclude>org.hdrhistogram:HdrHistogram</exclude>
 									<exclude>org.yaml:snakeyaml</exclude>
 								</excludes>
@@ -114,6 +110,8 @@ under the License.
 										<exclude>META-INF/services/org.apache.lucene.**</exclude>
 										<exclude>META-INF/services/org.elasticsearch.**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<!-- exclude log4j properties file -->
+										<exclude>Log4j-charsets.properties</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -142,6 +140,14 @@ under the License.
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.carrotsearch.hppc</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.carrotsearch.hppc</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.github.mustachejava</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.github.mustachejava</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
