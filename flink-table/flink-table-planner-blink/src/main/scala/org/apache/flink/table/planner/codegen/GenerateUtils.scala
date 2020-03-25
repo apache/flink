@@ -208,21 +208,23 @@ object GenerateUtils {
   // --------------------------- General Generate Utils ----------------------------------
 
   /**
-    * Generates a record declaration statement. The record can be any type of RowData or
-    * other types.
+    * Generates a record declaration statement, and add it to reusable member. The record
+    * can be any type of RowData or other types.
     *
     * @param t  the record type
     * @param clazz  the specified class of the type (only used when RowType)
     * @param recordTerm the record term to be declared
     * @param recordWriterTerm the record writer term (only used when BinaryRowData type)
-    * @return the record declaration statement
+    * @param ctx the code generator context
+    * @return the record initialization statement
    */
   @tailrec
   def generateRecordStatement(
       t: LogicalType,
       clazz: Class[_],
       recordTerm: String,
-      recordWriterTerm: Option[String] = None)
+      recordWriterTerm: Option[String] = None,
+      ctx: CodeGeneratorContext)
     : String = t.getTypeRoot match {
     // ordered by type root definition
     case ROW | STRUCTURED_TYPE if clazz == classOf[BinaryRowData] =>
@@ -231,26 +233,33 @@ object GenerateUtils {
       )
       val binaryRowWriter = className[BinaryRowWriter]
       val typeTerm = clazz.getCanonicalName
+      ctx.addReusableMember(s"$typeTerm $recordTerm = new $typeTerm(${getFieldCount(t)});")
+      ctx.addReusableMember(
+        s"$binaryRowWriter $writerTerm = new $binaryRowWriter($recordTerm);")
       s"""
-         |final $typeTerm $recordTerm = new $typeTerm(${getFieldCount(t)});
-         |final $binaryRowWriter $writerTerm = new $binaryRowWriter($recordTerm);
+         |$recordTerm = new $typeTerm(${getFieldCount(t)});
+         |$writerTerm = new $binaryRowWriter($recordTerm);
          |""".stripMargin.trim
     case ROW | STRUCTURED_TYPE if clazz == classOf[GenericRowData] ||
         clazz == classOf[BoxedWrapperRowData] =>
       val typeTerm = clazz.getCanonicalName
-      s"final $typeTerm $recordTerm = new $typeTerm(${getFieldCount(t)});"
+      ctx.addReusableMember(s"$typeTerm $recordTerm = new $typeTerm(${getFieldCount(t)});")
+      s"$recordTerm = new $typeTerm(${getFieldCount(t)});"
     case ROW | STRUCTURED_TYPE if clazz == classOf[JoinedRowData] =>
       val typeTerm = clazz.getCanonicalName
-      s"final $typeTerm $recordTerm = new $typeTerm();"
+      ctx.addReusableMember(s"$typeTerm $recordTerm = new $typeTerm();")
+      s"$recordTerm = new $typeTerm();"
     case DISTINCT_TYPE =>
       generateRecordStatement(
         t.asInstanceOf[DistinctType].getSourceType,
         clazz,
         recordTerm,
-        recordWriterTerm)
+        recordWriterTerm,
+        ctx)
     case _ =>
       val typeTerm = boxedTypeTermForType(t)
-      s"final $typeTerm $recordTerm = new $typeTerm();"
+      ctx.addReusableMember(s"$typeTerm $recordTerm = new $typeTerm();")
+      s"$recordTerm = new $typeTerm();"
   }
 
   def generateNullLiteral(
