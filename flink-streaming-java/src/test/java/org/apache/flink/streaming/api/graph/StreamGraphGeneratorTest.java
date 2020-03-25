@@ -331,11 +331,11 @@ public class StreamGraphGeneratorTest extends TestLogger {
 			BasicTypeInfo.STRING_TYPE_INFO,
 			3);
 
-		transform.addInput(source1.getTransformation());
-		transform.addInput(source2.getTransformation());
-		transform.addInput(source3.getTransformation());
+		env.addOperator(transform
+			.addInput(source1.getTransformation())
+			.addInput(source2.getTransformation())
+			.addInput(source3.getTransformation()));
 
-		env.addOperator(transform);
 		StreamGraph streamGraph = env.getStreamGraph();
 		assertEquals(4, streamGraph.getStreamNodes().size());
 
