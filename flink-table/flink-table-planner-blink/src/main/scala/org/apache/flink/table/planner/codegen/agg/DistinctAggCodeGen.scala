@@ -481,10 +481,11 @@ class DistinctAggCodeGen(
           if (useBackupDataView) {
             // this is called in the merge method
             val otherMapViewTerm = newName("otherMapView")
+            ctx.addReusableMember(s"private $MAP_VIEW $otherMapViewTerm;")
             val code =
               s"""
                  |${expr.code}
-                 |$MAP_VIEW $otherMapViewTerm = null;
+                 |$otherMapViewTerm = null;
                  |if (!${expr.nullTerm}) {
                  | $otherMapViewTerm = ${genToExternal(ctx, externalAccType, expr.resultTerm)};
                  |}
