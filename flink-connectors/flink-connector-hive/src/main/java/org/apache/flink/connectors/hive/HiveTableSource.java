@@ -35,6 +35,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
@@ -51,6 +52,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -66,6 +68,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 /**
@@ -281,6 +284,8 @@ public class HiveTableSource implements
 			String dbName = tablePath.getDatabaseName();
 			String tableName = tablePath.getObjectName();
 			List<String> partitionColNames = catalogTable.getPartitionKeys();
+			Table hiveTable = client.getTable(dbName, tableName);
+			Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
 			if (partitionColNames != null && partitionColNames.size() > 0) {
 				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
@@ -309,11 +314,11 @@ public class HiveTableSource implements
 						}
 						partitionColValues.put(partitionColName, partitionObject);
 					}
-					HiveTablePartition hiveTablePartition = new HiveTablePartition(sd, partitionColValues);
+					HiveTablePartition hiveTablePartition = new HiveTablePartition(sd, partitionColValues, tableProps);
 					allHivePartitions.add(hiveTablePartition);
 				}
 			} else {
-				allHivePartitions.add(new HiveTablePartition(client.getTable(dbName, tableName).getSd()));
+				allHivePartitions.add(new HiveTablePartition(hiveTable.getSd(), tableProps));
 			}
 		} catch (TException e) {
 			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
