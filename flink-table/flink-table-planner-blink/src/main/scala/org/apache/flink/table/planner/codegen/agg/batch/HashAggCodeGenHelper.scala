@@ -407,7 +407,8 @@ object HashAggCodeGenHelper {
       outRowWriter = None,
       reusedOutRow = true,
       outRowAlreadyExists = true,
-      allowSplit = false
+      allowSplit = false,
+      methodName = null
     )
   }
 
