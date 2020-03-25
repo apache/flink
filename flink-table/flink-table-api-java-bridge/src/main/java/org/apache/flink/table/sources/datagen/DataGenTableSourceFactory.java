@@ -163,36 +163,40 @@ public class DataGenTableSourceFactory implements TableSourceFactory<Row> {
 	private DataGenerator createSequenceGenerator(String name, DataType type, DescriptorProperties params) {
 		String startKey = SCHEMA + "." + name + "." + GENERATOR + "." + START;
 		String endKey = SCHEMA + "." + name + "." + GENERATOR + "." + END;
+
+		params.validateExclusion(startKey);
+		params.validateExclusion(endKey);
+
 		switch (type.getLogicalType().getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
 				return SequenceGenerator.stringGenerator(
-						params.getOptionalLong(startKey).orElse(Long.MIN_VALUE),
-						params.getOptionalLong(endKey).orElse(Long.MAX_VALUE));
+						params.getLong(startKey),
+						params.getLong(endKey));
 			case TINYINT:
 				return SequenceGenerator.byteGenerator(
-						params.getOptionalByte(startKey).orElse(Byte.MIN_VALUE),
-						params.getOptionalByte(endKey).orElse(Byte.MAX_VALUE));
+						params.getByte(startKey),
+						params.getByte(endKey));
 			case SMALLINT:
 				return SequenceGenerator.shortGenerator(
-						params.getOptionalShort(startKey).orElse(Short.MIN_VALUE),
-						params.getOptionalShort(endKey).orElse(Short.MAX_VALUE));
+						params.getShort(startKey),
+						params.getShort(endKey));
 			case INTEGER:
 				return SequenceGenerator.intGenerator(
-						params.getOptionalInt(startKey).orElse(Integer.MIN_VALUE),
-						params.getOptionalInt(endKey).orElse(Integer.MAX_VALUE));
+						params.getInt(startKey),
+						params.getInt(endKey));
 			case BIGINT:
 				return SequenceGenerator.longGenerator(
-						params.getOptionalLong(startKey).orElse(Long.MIN_VALUE),
-						params.getOptionalLong(endKey).orElse(Long.MAX_VALUE));
+						params.getLong(startKey),
+						params.getLong(endKey));
 			case FLOAT:
 				return SequenceGenerator.floatGenerator(
-						params.getOptionalShort(startKey).orElse(Short.MIN_VALUE),
-						params.getOptionalShort(endKey).orElse(Short.MAX_VALUE));
+						params.getShort(startKey),
+						params.getShort(endKey));
 			case DOUBLE:
 				return SequenceGenerator.doubleGenerator(
-						params.getOptionalInt(startKey).orElse(Integer.MIN_VALUE),
-						params.getOptionalInt(endKey).orElse(Integer.MAX_VALUE));
+						params.getInt(startKey),
+						params.getInt(endKey));
 			default:
 				throw new ValidationException("Unsupported type: " + type);
 		}
