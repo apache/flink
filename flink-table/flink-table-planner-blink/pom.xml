@@ -320,7 +320,6 @@ under the License.
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>commons-codec:commons-codec</include>
-									<include>org.apache.commons:commons-lang3</include>
 									<include>commons-io:commons-io</include>
 
 									<!-- flink-table-planner-blink dependencies -->
