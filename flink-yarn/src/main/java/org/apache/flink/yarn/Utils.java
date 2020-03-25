@@ -180,7 +180,7 @@ public final class Utils {
 		Path yarnFilesDir = getYarnFilesDir(homedir, appId);
 		String suffix = (relativeTargetPath.isEmpty() ? "" : relativeTargetPath + "/") + localSrcPath.getName();
 
-		Path dst = new Path(homedir, suffix);
+		Path dst = new Path(yarnFilesDir, suffix);
 
 		LOG.debug("Copying from {} to {} with replication number {}", localSrcPath, dst, replication);
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
