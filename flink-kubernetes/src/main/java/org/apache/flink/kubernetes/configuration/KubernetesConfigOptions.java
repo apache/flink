@@ -101,17 +101,6 @@ public class KubernetesConfigOptions {
 		.defaultValue("%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%")
 		.withDescription("Template for the kubernetes jobmanager and taskmanager container start invocation.");
 
-	public static final ConfigOption<String> SERVICE_CREATE_TIMEOUT =
-		key("kubernetes.service.create-timeout")
-		.stringType()
-		.defaultValue("1 min")
-		.withDescription("Timeout used for creating the service. The timeout value requires a time-unit " +
-			"specifier (ms/s/min/h/d).");
-
-  	// ---------------------------------------------------------------------------------
-	// The following config options could be overridden by KubernetesCliOptions.
-	// ---------------------------------------------------------------------------------
-
 	public static final ConfigOption<Map<String, String>> JOB_MANAGER_LABELS =
 		key("kubernetes.jobmanager.labels")
 		.mapType()
