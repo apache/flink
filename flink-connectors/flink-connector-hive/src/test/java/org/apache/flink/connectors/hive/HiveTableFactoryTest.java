@@ -73,7 +73,7 @@ public class HiveTableFactoryTest {
 
 		Map<String, String> properties = new HashMap<>();
 		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
-		properties.put("connector", "COLLECTION");
+		properties.put("connector.type", "COLLECTION");
 
 		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");

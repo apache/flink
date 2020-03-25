@@ -246,7 +246,6 @@ public class Schema implements Descriptor {
 			throw new ValidationException("No field defined previously. Use field() before.");
 		}
 		tableSchema.get(lastField).put(SCHEMA_PROCTIME, "true");
-		tableSchema.get(lastField).put(SCHEMA_EXPR, "PROCTIME()");
 		lastField = null;
 		return this;
 	}
