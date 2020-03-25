@@ -1334,4 +1334,30 @@ class AggregateITCase(
     val expected = Seq("3,29.39,tom123@gmail.com")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testAggregationCodeSplit(): Unit = {
+
+    val t = env.fromCollection(TestData.smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val columnNumber = 500
+
+    val selectList = Stream.range(3, columnNumber)
+      .map(i => s"SUM(CASE WHEN a IS NOT NULL AND a > $i THEN 0 WHEN a < 0 THEN 0 ELSE $i END)")
+      .mkString(",")
+    val sqlQuery = s"select $selectList from MyTable group by b, c"
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Stream.range(3, columnNumber).map(_.toString).mkString(",")
+    assertEquals(sink.getRawResults.size, 3)
+    sink.getRetractResults.foreach(result =>
+      assertEquals(expected, result)
+    )
+  }
 }
