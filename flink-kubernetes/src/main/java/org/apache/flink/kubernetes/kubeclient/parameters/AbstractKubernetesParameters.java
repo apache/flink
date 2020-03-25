@@ -28,6 +28,7 @@ import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +105,7 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 		commonLabels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
 		commonLabels.put(Constants.LABEL_APP_KEY, getClusterId());
 
-		return commonLabels;
+		return Collections.unmodifiableMap(commonLabels);
 	}
 
 	@Override
