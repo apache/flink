@@ -252,15 +252,4 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 	 */
 	@VisibleForTesting
 	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
-
-	/**
-	 * Gets the proto representation of the base MetricGroup used for all user-defined functions.
-	 */
-	protected FlinkFnApi.MetricGroupInfo getBaseMetricGroupInfo() {
-		if (flinkMetricContainer != null) {
-			return flinkMetricContainer.getBaseMetricGroupInfo();
-		} else {
-			return FlinkFnApi.MetricGroupInfo.newBuilder().build();
-		}
-	}
 }

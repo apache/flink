@@ -119,7 +119,7 @@ public class PythonConfig implements Serializable {
 		pythonRequirementsCacheDirInfo = config.getString(PYTHON_REQUIREMENTS_CACHE, null);
 		pythonArchivesInfo = config.getString(PYTHON_ARCHIVES, null);
 		pythonExec = config.getString(PYTHON_EXEC, null);
-		metricEnabled = config.getBoolean(PythonOptions.PYTHON_UDF_METRIC_ENABLED);
+		metricEnabled = config.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
 	}
 
 	public int getMaxBundleSize() {

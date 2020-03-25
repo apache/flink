@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.util.Preconditions;
@@ -130,7 +131,7 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 		PythonEnvironmentManager environmentManager,
 		StateRequestHandler stateRequestHandler,
 		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
+		@Nullable FlinkMetricContainer flinkMetricContainer) {
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
 		this.environmentManager = Preconditions.checkNotNull(environmentManager);
@@ -234,4 +235,15 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	public abstract ExecutableStage createExecutableStage() throws Exception;
 
 	public abstract OutputReceiverFactory createOutputReceiverFactory();
+
+	/**
+	 * Gets the proto representation of the base MetricGroup used for all user-defined functions.
+	 */
+	protected FlinkFnApi.MetricGroupInfo getBaseMetricGroupInfo() {
+		if (flinkMetricContainer != null) {
+			return flinkMetricContainer.getBaseMetricGroupInfo();
+		} else {
+			return FlinkFnApi.MetricGroupInfo.newBuilder().build();
+		}
+	}
 }

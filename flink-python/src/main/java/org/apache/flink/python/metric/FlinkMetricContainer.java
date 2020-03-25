@@ -18,6 +18,7 @@
 
 package org.apache.flink.python.metric;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
@@ -29,6 +30,7 @@ import java.util.Arrays;
  * Helper class for forwarding metric group information from Java to Python and forward Python
  * metrics to Java accumulators and metrics.
  */
+@Internal
 public class FlinkMetricContainer {
 
 	private static final String METRIC_KEY_SEPARATOR =

@@ -83,11 +83,11 @@ public class PythonOptions {
 			"worker. Otherwise, this configuration takes no effect.");
 
 	/**
-	 * The configuration to enable or disable metric for Python UDFs.
+	 * The configuration to enable or disable metric for Python execution.
 	 */
-	public static final ConfigOption<Boolean> PYTHON_UDF_METRIC_ENABLED = ConfigOptions
-		.key("python.udf.metric.enabled")
+	public static final ConfigOption<Boolean> PYTHON_METRIC_ENABLED = ConfigOptions
+		.key("python.metric.enabled")
 		.defaultValue(true)
-		.withDescription("When it is false, metric for Python UDFs will be disabled. You can " +
-			"disable the metric to achieve a better performance at some circumstance.");
+		.withDescription("When it is false, metric for Python will be disabled. You can " +
+			"disable the metric to achieve better performance at some circumstance.");
 }

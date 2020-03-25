@@ -17,13 +17,16 @@
 ################################################################################
 import abc
 from enum import Enum
+from typing import Dict, List
 
 
 class MetricGroup(abc.ABC):
 
     def add_group(self, name: str, extra: str = None) -> 'MetricGroup':
         """
-        if extra is not None, creates a new key-value MetricGroup pair. The key group
+        Creates a new MetricGroup and adds it to this groups sub-groups.
+
+        If extra is not None, creates a new key-value MetricGroup pair. The key group
         is added to this groups sub-groups, while the value group is added to the key
         group's sub-groups. This method returns the value group.
 
@@ -33,14 +36,14 @@ class MetricGroup(abc.ABC):
         """
         pass
 
-    def get_scope_components(self) -> []:
+    def get_scope_components(self) -> List[str]:
         """
         Gets the scope as an array of the scope components, for example
         `["host-7", "taskmanager-2", "window_word_count", "my-mapper"]`
         """
         pass
 
-    def get_all_variables(self) -> map:
+    def get_all_variables(self) -> Dict[str, str]:
         """
         Returns a map of all variables and their associated value, for example
         `{"<host>"="host-7", "<tm_id>"="taskmanager-2"}`
@@ -95,14 +98,14 @@ class GenericMetricGroup(MetricGroup):
             child_variables[self._name] = name
 
         # add scope components
-        child_compoents = self.get_scope_components().copy()
-        child_compoents.append(name)
+        child_components = self.get_scope_components().copy()
+        child_components.append(name)
 
         sub_group = GenericMetricGroup(
             self,
             name,
             child_variables,
-            child_compoents,
+            child_components,
             self._delimiter,
             metric_group_type)
         self._sub_groups.append(sub_group)

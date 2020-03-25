@@ -39,7 +39,7 @@ class SubtractOne(ScalarFunction, unittest.TestCase):
 
 class UserDefinedFunctionTests(object):
 
-    def test_chaining_scalar_function(self):
+    def test_udf_with_metric(self):
         self.t_env.register_function(
             "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
