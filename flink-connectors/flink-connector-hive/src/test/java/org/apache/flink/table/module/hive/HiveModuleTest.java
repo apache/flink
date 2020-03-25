@@ -155,7 +155,7 @@ public class HiveModuleTest {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
 		tableEnv.unloadModule("core");
-		tableEnv.loadModule("hive", new HiveModule());
+		tableEnv.loadModule("hive", new HiveModule(HiveShimLoader.getHiveVersion()));
 
 		List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select str_to_map('a:1,b:2,c:3',',',':')"));
 
