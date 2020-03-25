@@ -62,7 +62,7 @@ object TestSinkUtil {
     }
   }
 
-  def rowToString(row: Row, tz: TimeZone): String = {
+  def rowToString(row: Row, tz: TimeZone = TimeZone.getTimeZone("UTC")): String = {
     val sb = StringBuilder.newBuilder
     for (i <- 0 until row.getArity ) {
       if (i > 0) {
