@@ -62,7 +62,7 @@ EXIT_CODE=0
 # mirror. We use a different mirror because the official maven central mirrors
 # often lead to connection timeouts (probably due to rate-limiting)
 
-MVN="run_mvn clean install $MAVEN_OPTS -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -U -DskipTests $PROFILE"
+MVN="run_mvn clean install $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests"
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then

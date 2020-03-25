@@ -44,7 +44,7 @@ run_mvn archetype:generate                                          \
 
 cd "${ARTIFACT_ID}"
 
-run_mvn clean package -nsu > compile-output.txt
+run_mvn clean package > compile-output.txt
 
 if [[ `grep -c "BUILD FAILURE" compile-output.txt` -eq '1' ]]; then
     echo "Failure: The walk-through did not successfully compile"

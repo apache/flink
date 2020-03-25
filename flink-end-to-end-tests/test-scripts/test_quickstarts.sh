@@ -68,7 +68,7 @@ sed -i -e ''$(($position + 1))'i\
 
 sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
 
-run_mvn clean package -nsu
+run_mvn clean package
 
 cd target
 jar tvf flink-quickstart-${TEST_TYPE}-0.1.jar > contentsInJar.txt

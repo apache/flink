@@ -20,9 +20,19 @@ MAVEN_VERSION="3.2.5"
 MAVEN_CACHE_DIR=${HOME}/maven_cache
 MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 
-
-# adding -Dmaven.wagon.http.pool=false (see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html)
-export MVN_GLOBAL_OPTIONS="-Dmaven.wagon.http.pool=false --settings $CI_DIR/google-mirror-settings.xml -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS"
+export MVN_GLOBAL_OPTIONS=""
+# see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html
+MVN_GLOBAL_OPTIONS+="-Dmaven.wagon.http.pool=false "
+# use google mirror everywhere
+MVN_GLOBAL_OPTIONS+="--settings $CI_DIR/google-mirror-settings.xml "
+# logging 
+MVN_GLOBAL_OPTIONS+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
+# supress snapshot updates
+MVN_GLOBAL_OPTIONS+="--no-snapshot-updates "
+# enable non-interactive batch mode
+MVN_GLOBAL_OPTIONS+="-B "
+# globally control the build profile details
+MVN_GLOBAL_OPTIONS+="$PROFILE "
 
 # Utility for invoking Maven in CI
 function run_mvn {
