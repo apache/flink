@@ -16,7 +16,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-set -x 
+
 END_TO_END_DIR="`dirname \"$0\"`" # relative
 END_TO_END_DIR="`( cd \"$END_TO_END_DIR\" && pwd -P)`" # absolutized and normalized
 if [ -z "$END_TO_END_DIR" ] ; then
