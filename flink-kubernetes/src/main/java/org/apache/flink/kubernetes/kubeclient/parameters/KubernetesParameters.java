@@ -53,6 +53,11 @@ public interface KubernetesParameters {
 	Map<String, String> getLabels();
 
 	/**
+	 * A collection of node selector to constrain a pod to only be able to run on particular node(s).
+	 */
+	Map<String, String> getNodeSelector();
+
+	/**
 	 * A collection of customized environments that are attached to the JobManager and TaskManager Container(s).
 	 */
 	Map<String, String> getEnvironments();

@@ -59,6 +59,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 				.endMetadata()
 			.editOrNewSpec()
 				.withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
+				.withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
 				.endSpec()
 			.build();
 

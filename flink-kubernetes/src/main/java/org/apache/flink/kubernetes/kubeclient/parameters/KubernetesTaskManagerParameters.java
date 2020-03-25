@@ -69,6 +69,12 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	}
 
 	@Override
+	public Map<String, String> getNodeSelector() {
+		return Collections.unmodifiableMap(
+			flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR).orElse(Collections.emptyMap()));
+	}
+
+	@Override
 	public Map<String, String> getEnvironments() {
 		return this.containeredTaskManagerParameters.taskManagerEnv();
 	}

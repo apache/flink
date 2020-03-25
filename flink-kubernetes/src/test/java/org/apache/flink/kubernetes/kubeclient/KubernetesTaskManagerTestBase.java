@@ -60,6 +60,13 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		}
 	};
 
+	protected final Map<String, String> nodeSelector = new HashMap<String, String>() {
+		{
+			put("env", "production");
+			put("disk", "ssd");
+		}
+	};
+
 	protected TaskExecutorProcessSpec taskExecutorProcessSpec;
 
 	protected ContaineredTaskManagerParameters containeredTaskManagerParameters;
@@ -78,6 +85,7 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		customizedEnvs.forEach((k, v) ->
 				flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k, v));
 		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
+		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
 
 		taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);
 		containeredTaskManagerParameters = ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec,
