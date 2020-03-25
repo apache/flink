@@ -164,8 +164,12 @@ public class DataGenTableSourceFactory implements TableSourceFactory<Row> {
 		String startKey = SCHEMA + "." + name + "." + GENERATOR + "." + START;
 		String endKey = SCHEMA + "." + name + "." + GENERATOR + "." + END;
 
-		params.validateExclusion(startKey);
-		params.validateExclusion(endKey);
+		if (!params.containsKey(startKey)) {
+			throw new ValidationException("Could not find required property '" + startKey + "'.");
+		}
+		if (!params.containsKey(endKey)) {
+			throw new ValidationException("Could not find required property '" + endKey + "'.");
+		}
 
 		switch (type.getLogicalType().getTypeRoot()) {
 			case CHAR:
