@@ -115,6 +115,20 @@ public class KubernetesConfigOptions {
 		.withDescription("The labels to be set for TaskManager pods. Specified as key:value pairs separated by commas. " +
 			"For example, version:alphav1,deploy:test.");
 
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_NODE_SELECTOR =
+		key("kubernetes.jobmanager.node-selector")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The node selector to be set for JobManager pod. Specified as key:value pairs separated by " +
+			"commas. For example, environment:production,disk:ssd.");
+
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_NODE_SELECTOR =
+		key("kubernetes.taskmanager.node-selector")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The node selector to be set for TaskManager pods. Specified as key:value pairs separated by " +
+			"commas. For example, environment:production,disk:ssd.");
+
 	public static final ConfigOption<String> CLUSTER_ID =
 		key("kubernetes.cluster-id")
 		.stringType()

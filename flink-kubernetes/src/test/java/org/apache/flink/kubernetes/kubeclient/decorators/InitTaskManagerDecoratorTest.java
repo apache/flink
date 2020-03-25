@@ -163,4 +163,9 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
 		assertEquals(IMAGE_PULL_SECRETS, resultSecrets);
 	}
+
+	@Test
+	public void testNodeSelector() {
+		assertThat(this.resultPod.getSpec().getNodeSelector(), is(equalTo(nodeSelector)));
+	}
 }
