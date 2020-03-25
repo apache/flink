@@ -27,7 +27,7 @@ MVN_GLOBAL_OPTIONS+="-Dmaven.wagon.http.pool=false "
 MVN_GLOBAL_OPTIONS+="--settings $CI_DIR/google-mirror-settings.xml "
 # logging 
 MVN_GLOBAL_OPTIONS+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
-# supress snapshot updates
+# suppress snapshot updates
 MVN_GLOBAL_OPTIONS+="--no-snapshot-updates "
 # enable non-interactive batch mode
 MVN_GLOBAL_OPTIONS+="-B "

@@ -19,7 +19,7 @@
 
 echo $M2_HOME
 echo $PATH
-echo $MAVEN_OPTS
+echo $MAVEN_OPTS 
 
 mvn -version
 
@@ -90,7 +90,7 @@ EXIT_CODE=0
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
-	MVN="mvn clean install -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -DskipTests"
+	MVN="run_mvn clean install -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -DskipTests"
 	$MVN
 	EXIT_CODE=$?
 
