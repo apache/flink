@@ -253,7 +253,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * Adds the given files to the list of files to ship.
 	 *
 	 * <p>Note that any file matching "<tt>flink-dist*.jar</tt>" will be excluded from the upload by
-	 * {@link #uploadAndRegisterFiles(Collection, FileSystem, ApplicationId, List, Map, String, StringBuilder, int)}
+	 * {@link #uploadAndRegisterFiles(Collection, FileSystem, Path, ApplicationId, List, Map, String, StringBuilder, int)}
 	 * since we upload the Flink uber jar ourselves and do not need to deploy it multiple times.
 	 *
 	 * @param shipFiles files to ship
@@ -405,9 +405,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	public void killCluster(ApplicationId applicationId) throws FlinkException {
 		try {
 			yarnClient.killApplication(applicationId);
+
+			final Path homeDir = FileSystem.get(yarnConfiguration).getHomeDirectory();
+			final Path yarnFilesDir = Utils.getYarnFilesDir(homeDir, applicationId.toString());
 			Utils.deleteApplicationFiles(Collections.singletonMap(
 					YarnConfigKeys.FLINK_YARN_FILES,
-					Utils.getYarnFilesDir(FileSystem.get(yarnConfiguration), applicationId).toUri().toString()));
+					yarnFilesDir.toUri().toString()));
 		} catch (YarnException | IOException e) {
 			throw new FlinkException("Could not kill the Yarn Flink cluster with id " + applicationId + '.', e);
 		}
@@ -706,7 +709,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				if (!path.getFileSystem().isDistributedFS()) {
 					Path localPath = new Path(path.getPath());
 					Tuple2<Path, Long> remoteFileInfo =
-						Utils.uploadLocalFileToRemote(fs, appId, localPath, entry.getKey(), fileReplication);
+						Utils.uploadLocalFileToRemote(fs, appId.toString(), localPath, homeDir, entry.getKey(), fileReplication);
 					jobGraph.setUserArtifactRemotePath(entry.getKey(), remoteFileInfo.f0.toString());
 				}
 			}
@@ -725,6 +728,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		List<String> systemClassPaths = uploadAndRegisterFiles(
 			systemShipFiles,
 			fs,
+			homeDir,
 			appId,
 			paths,
 			localResources,
@@ -736,6 +740,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		uploadAndRegisterFiles(
 			shipOnlyFiles,
 			fs,
+			homeDir,
 			appId,
 			paths,
 			localResources,
@@ -746,6 +751,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		final List<String> userClassPaths = uploadAndRegisterFiles(
 			userJarFiles,
 			fs,
+			homeDir,
 			appId,
 			paths,
 			localResources,
@@ -780,6 +786,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				appId,
 				flinkJarPath,
 				localResources,
+				homeDir,
 				"",
 				fileReplication);
 
@@ -806,6 +813,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 						appId,
 						new Path(tmpJobGraphFile.toURI()),
 						localResources,
+						homeDir,
 						"",
 						fileReplication);
 				paths.add(pathFromYarnURL);
@@ -834,6 +842,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				appId,
 				new Path(tmpConfigurationFile.getAbsolutePath()),
 				localResources,
+				homeDir,
 				"",
 				fileReplication);
 			envShipFileList.append(flinkConfigKey).append("=").append(remotePathConf).append(",");
@@ -851,7 +860,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			}
 		}
 
-		final Path yarnFilesDir = Utils.getYarnFilesDir(fs, appId);
+		final Path yarnFilesDir = Utils.getYarnFilesDir(homeDir, appId.toString());
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 		fs.setPermission(yarnFilesDir, permission); // set permission for path.
 
@@ -872,6 +881,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					appId,
 					yarnSitePath,
 					localResources,
+					homeDir,
 					"",
 					fileReplication);
 
@@ -886,6 +896,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 						appId,
 						krb5ConfPath,
 						localResources,
+						homeDir,
 						"",
 						fileReplication);
 				hasKrb5 = true;
@@ -907,6 +918,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					appId,
 					new Path(keytab),
 					localResources,
+					homeDir,
 					"",
 					fileReplication);
 			} else {
@@ -1078,12 +1090,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			ApplicationId appId,
 			Path localSrcPath,
 			Map<String, LocalResource> localResources,
+			Path targetHomeDir,
 			String relativeTargetPath,
 			int replication) throws IOException {
 		Tuple2<Path, LocalResource> resource = Utils.setupLocalResource(
 				fs,
-				appId,
+				appId.toString(),
 				localSrcPath,
+				targetHomeDir,
 				relativeTargetPath,
 				replication);
 
@@ -1110,6 +1124,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * 		files to upload
 	 * @param fs
 	 * 		file system to upload to
+	 * @param targetHomeDir
+	 * 		remote home directory to upload to
 	 * @param appId
 	 * 		application ID
 	 * @param remotePaths
@@ -1128,6 +1144,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	static List<String> uploadAndRegisterFiles(
 			Collection<File> shipFiles,
 			FileSystem fs,
+			Path targetHomeDir,
 			ApplicationId appId,
 			List<Path> remotePaths,
 			Map<String, LocalResource> localResources,
@@ -1170,6 +1187,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 						appId,
 						localPath,
 						localResources,
+						targetHomeDir,
 						relativePath.getParent().toString(),
 						replication);
 				remotePaths.add(remotePath);
