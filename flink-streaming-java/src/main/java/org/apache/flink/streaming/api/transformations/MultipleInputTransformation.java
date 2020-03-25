@@ -36,7 +36,8 @@ public class MultipleInputTransformation<OUT> extends AbstractMultipleInputTrans
 		super(name, operatorFactory, outputType, parallelism);
 	}
 
-	public void addInput(Transformation<?> input) {
+	public MultipleInputTransformation<OUT> addInput(Transformation<?> input) {
 		inputs.add(input);
+		return this;
 	}
 }

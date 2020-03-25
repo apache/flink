@@ -45,9 +45,10 @@ public class KeyedMultipleInputTransformation<OUT> extends AbstractMultipleInput
 		this.stateKeyType = stateKeyType;
 	}
 
-	public void addInput(Transformation<?> input, KeySelector<?, ?> keySelector) {
+	public KeyedMultipleInputTransformation<OUT> addInput(Transformation<?> input, KeySelector<?, ?> keySelector) {
 		inputs.add(input);
 		getStateKeySelectors().add(keySelector);
+		return this;
 	}
 
 	public TypeInformation<?> getStateKeyType() {

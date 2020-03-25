@@ -72,11 +72,10 @@ public class MultipleInputITCase extends AbstractTestBase {
 			BasicTypeInfo.LONG_TYPE_INFO,
 			1);
 
-		transform.addInput(source1.getTransformation());
-		transform.addInput(source2.getTransformation());
-		transform.addInput(source3.getTransformation());
-
-		env.addOperator(transform);
+		env.addOperator(transform
+			.addInput(source1.getTransformation())
+			.addInput(source2.getTransformation())
+			.addInput(source3.getTransformation()));
 
 		new MultipleConnectedStreams(env)
 			.transform(transform)
@@ -109,10 +108,10 @@ public class MultipleInputITCase extends AbstractTestBase {
 			BasicTypeInfo.LONG_TYPE_INFO);
 		KeySelector<Long, Long> keySelector = (KeySelector<Long, Long>) value -> value % 3;
 
-		transform.addInput(source1.getTransformation(), keySelector);
-		transform.addInput(source2.getTransformation(), keySelector);
-		transform.addInput(source3.getTransformation(), keySelector);
-		env.addOperator(transform);
+		env.addOperator(transform
+			.addInput(source1.getTransformation(), keySelector)
+			.addInput(source2.getTransformation(), keySelector)
+			.addInput(source3.getTransformation(), keySelector));
 
 		new MultipleConnectedStreams(env)
 			.transform(transform)
