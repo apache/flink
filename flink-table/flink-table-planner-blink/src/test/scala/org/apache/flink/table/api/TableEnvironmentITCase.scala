@@ -42,8 +42,11 @@ import org.junit.{Assert, Before, Rule, Test}
 
 import _root_.java.io.File
 import _root_.java.util
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util.{List => JList}
 
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 
 import _root_.scala.collection.mutable
 
@@ -271,6 +274,18 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     tableEnv.sqlUpdate("drop table dest1")
     tableEnv.sqlUpdate("insert into dest2 select x from src")
     tableEnv.execute("insert dest2")
+  }
+
+  @Test
+  def testCompareDecimalColWithNull(): Unit = {
+    TestCollectionTableFactory.reset()
+    val rows: JList[Row] = util.Arrays.asList(row(new JBigDecimal("123.123")))
+    TestCollectionTableFactory.initData(rows)
+    val tableEnv = TableEnvironmentImpl.create(settings)
+    tableEnv.sqlUpdate("create table tbl (d decimal(15,8)) with('connector' = 'COLLECTION')")
+    val results = TableUtils.collectToList(tableEnv.sqlQuery(
+      "select * from tbl where d>cast('123456789.123' as decimal(15,8))"))
+    assertEquals(0, results.size())
   }
 
   private def registerCsvTableSink(
