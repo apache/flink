@@ -55,7 +55,7 @@ public class ConfigurationUtilsTest extends TestLogger {
 	}
 
 	@Test
-		public void testHideSensitiveValues() {
+	public void testHideSensitiveValues() {
 		final Map<String, String> keyValuePairs = new HashMap<>();
 		keyValuePairs.put("foobar", "barfoo");
 		final String secretKey1 = "secret.key";
@@ -72,6 +72,24 @@ public class ConfigurationUtilsTest extends TestLogger {
 		final Map<String, String> hiddenSensitiveValues = ConfigurationUtils.hideSensitiveValues(keyValuePairs);
 
 		assertThat(hiddenSensitiveValues, is(equalTo(expectedKeyValuePairs)));
+	}
+
+	@Test
+	public void testGetPrefixedKeyValuePairs() {
+		final String prefix = "test.prefix.";
+		final Map<String, String> expectedKeyValuePairs = new HashMap<String, String>() {
+			{
+				put("k1", "v1");
+				put("k2", "v2");
+			}
+		};
+
+		final Configuration configuration =  new Configuration();
+		expectedKeyValuePairs.forEach((k, v) -> configuration.setString(prefix + k, v));
+
+		final Map<String, String> resultKeyValuePairs = ConfigurationUtils.getPrefixedKeyValuePairs(prefix, configuration);
+
+		assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
 	}
 
 }

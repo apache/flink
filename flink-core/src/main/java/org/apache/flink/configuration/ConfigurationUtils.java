@@ -219,6 +219,21 @@ public class ConfigurationUtils {
 		return configs;
 	}
 
+	/**
+	 * Extract and parse Flink configuration properties with a given name prefix and
+	 * return the result as a Map.
+	 */
+	public static Map<String, String> getPrefixedKeyValuePairs(String prefix, Configuration configuration) {
+		Map<String, String> result  = new HashMap<>();
+		for (Map.Entry<String, String> entry: configuration.toMap().entrySet()) {
+			if (entry.getKey().startsWith(prefix) && entry.getKey().length() > prefix.length()) {
+				String key = entry.getKey().substring(prefix.length());
+				result.put(key, entry.getValue());
+			}
+		}
+		return result;
+	}
+
 	// Make sure that we cannot instantiate this class
 	private ConfigurationUtils() {
 	}
