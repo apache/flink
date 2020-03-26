@@ -81,8 +81,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	@Rule
 	public final FlinkResource flink = new LocalStandaloneFlinkResourceFactory()
-		.create(FlinkResourceSetup.builder().build())
-		.get();
+		.create(FlinkResourceSetup.builder().build());
 
 	@Rule
 	public final KafkaResource kafka;
