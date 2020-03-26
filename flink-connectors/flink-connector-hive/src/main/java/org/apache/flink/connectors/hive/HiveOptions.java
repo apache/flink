@@ -45,4 +45,9 @@ public class HiveOptions {
 			key("table.exec.hive.infer-source-parallelism.max")
 					.defaultValue(1000)
 					.withDescription("Sets max infer parallelism for source operator.");
+
+	public static final ConfigOption<Integer> TABLE_EXEC_HIVE_PARTITION_LIMIT_REQUEST =
+		key("table.exec.hive.partition-limit-request")
+			.defaultValue(-1)
+			.withDescription("This limits the number of partitions that can be requested.");
 }

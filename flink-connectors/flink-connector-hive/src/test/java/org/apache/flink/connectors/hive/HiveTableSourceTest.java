@@ -19,8 +19,10 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -441,6 +443,33 @@ public class HiveTableSourceTest {
 		Transformation transformation = execNode.translateToPlan(planner);
 		Assert.assertEquals(1, ((PartitionTransformation) ((OneInputTransformation) transformation).getInput())
 			.getInput().getParallelism());
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testPartitionLimit() {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "test_partition_limit";
+		hiveShell.execute("CREATE TABLE source_db.test_partition_limit " +
+		                  "(year STRING, value INT) partitioned by (pt int);");
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		             .addRow(new Object[]{"2014", 3})
+		             .addRow(new Object[]{"2014", 4})
+		             .commit("pt=0");
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		             .addRow(new Object[]{"2015", 2})
+		             .addRow(new Object[]{"2015", 5})
+		             .commit("pt=2");
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tEnv.getConfig().getConfiguration().setInteger(
+			HiveOptions.TABLE_EXEC_HIVE_PARTITION_LIMIT_REQUEST, 1);
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		Table table = tEnv.sqlQuery("select * from hive.source_db.test_partition_limit");
+		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
+		RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
+		ExecNode execNode = planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
+		@SuppressWarnings("unchecked")
+		Transformation transformation = execNode.translateToPlan(planner);
 	}
 
 	@Test

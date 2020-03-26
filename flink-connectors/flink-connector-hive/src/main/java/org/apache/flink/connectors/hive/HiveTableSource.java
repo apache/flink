@@ -138,6 +138,12 @@ public class HiveTableSource implements
 	@Override
 	public DataStream<BaseRow> getDataStream(StreamExecutionEnvironment execEnv) {
 		List<HiveTablePartition> allHivePartitions = initAllPartitions();
+		int partitionLimit = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_PARTITION_LIMIT_REQUEST);
+		if (partitionLimit != -1){
+			if (allHivePartitions.size() > partitionLimit){
+				throw new RuntimeException(String.format("Number of partitions scanned (=%s)  exceeds limit (=%s)", allHivePartitions.size(), partitionLimit));
+			}
+		}
 
 		@SuppressWarnings("unchecked")
 		TypeInformation<BaseRow> typeInfo =
