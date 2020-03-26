@@ -110,11 +110,16 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		if (inputSelectionHandler.areAllInputsSelected()) {
-			return isAnyInputAvailable();
-		} else {
-			throw new UnsupportedOperationException();
+		if (inputSelectionHandler.isAnyInputAvailable() || inputSelectionHandler.areAllInputsFinished()) {
+			return AVAILABLE;
 		}
+		final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
+		for (int i = 0; i < inputProcessors.length; i++) {
+			if (!inputSelectionHandler.isInputFinished(i) && inputSelectionHandler.isInputSelected(i)) {
+				inputProcessors[i].networkInput.getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null));
+			}
+		}
+		return anyInputAvailable;
 	}
 
 	@Override
@@ -200,19 +205,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 				inputSelectionHandler.setAvailableInput(i);
 			}
 		}
-	}
-
-	private CompletableFuture<?> isAnyInputAvailable() {
-		if (inputSelectionHandler.isAnyInputAvailable() || inputSelectionHandler.areAllInputsFinished()) {
-			return AVAILABLE;
-		}
-		final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
-		for (int i = 0; i < inputProcessors.length; i++) {
-			if (!inputSelectionHandler.isInputFinished(i)) {
-				inputProcessors[i].networkInput.getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null));
-			}
-		}
-		return anyInputAvailable;
 	}
 
 	private int getInputId(int inputIndex) {
