@@ -131,7 +131,7 @@ t_env.execute("tutorial_job")
 Firstly, you need to prepare input data in the "/tmp/input" file. You can choose the following command line to prepare the input data:
 
 {% highlight bash %}
-$ echo "flink\npyflink\nflink" > /tmp/input
+$ echo -e  "flink\npyflink\nflink" > /tmp/input
 {% endhighlight %}
 
 Next, you can run this example on the command line (Note: if the result file "/tmp/output" has already existed, you need to remove the file before running the example):
