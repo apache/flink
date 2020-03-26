@@ -46,6 +46,13 @@ public class StringUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testByteArrayToString() {
+		byte[] array = "10".getBytes();
+		String controlString = StringUtils.arrayToString(array);
+		assertEquals("10", controlString);
+	}
+
+	@Test
 	public void testStringToHexArray() {
 		String hex = "019f314a";
 		byte[] hexArray = StringUtils.hexStringToByte(hex);

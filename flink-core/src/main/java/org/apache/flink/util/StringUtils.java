@@ -143,7 +143,7 @@ public final class StringUtils {
 			return Arrays.toString((Object[]) array);
 		}
 		if (array instanceof byte[]) {
-			return Arrays.toString((byte[]) array);
+			return new String((byte[]) array);
 		}
 		if (array instanceof double[]) {
 			return Arrays.toString((double[]) array);
