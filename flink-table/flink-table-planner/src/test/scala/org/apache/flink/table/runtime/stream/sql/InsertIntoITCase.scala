@@ -46,7 +46,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val input = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(r => r._2)
 
-    tEnv.registerDataStream("sourceTable", input, 'a, 'b, 'c, 't.rowtime)
+    tEnv.createTemporaryView("sourceTable", input, 'a, 'b, 'c, 't.rowtime)
 
     val fieldNames = Array("d", "e", "t")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
@@ -82,7 +82,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text)
     tEnv.registerTableSink(
       "targetTable",
       new TestRetractSink().configure(
@@ -122,7 +122,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestRetractSink().configure(
@@ -170,7 +170,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(Array("cnt", "cTrue"), false).configure(
@@ -217,7 +217,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(Array("wend", "num"), true).configure(
@@ -268,7 +268,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(Array("wstart", "wend", "num"), true).configure(
@@ -320,7 +320,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(null, true).configure(
@@ -370,7 +370,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(null, true).configure(

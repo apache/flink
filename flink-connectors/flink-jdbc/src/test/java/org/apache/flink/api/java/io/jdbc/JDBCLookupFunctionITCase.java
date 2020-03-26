@@ -45,6 +45,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /**
  * IT case for {@link JDBCLookupFunction}.
  */
@@ -142,7 +144,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 					new Tuple2<>(2, 5),
 					new Tuple2<>(3, 5),
 					new Tuple2<>(3, 8)
-				)), "id1, id2");
+				)), $("id1"), $("id2"));
 
 		tEnv.registerTable("T", t);
 

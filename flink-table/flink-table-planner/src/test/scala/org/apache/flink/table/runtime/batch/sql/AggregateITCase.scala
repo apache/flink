@@ -50,7 +50,7 @@ class AggregateITCase(
     val sqlQuery = "SELECT sum(_1), min(_1), max(_1), count(_1), avg(_1) FROM MyTable"
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.createTemporaryView("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -86,7 +86,7 @@ class AggregateITCase(
     val sqlQuery = "SELECT sum(_1) FROM MyTable"
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.createTemporaryView("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -240,7 +240,7 @@ class AggregateITCase(
       "SELECT _2, _3, avg(_1) as a, GROUP_ID() as g FROM MyTable GROUP BY GROUPING SETS (_2, _3)"
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.createTemporaryView("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
 
@@ -334,7 +334,7 @@ class AggregateITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
@@ -363,7 +363,7 @@ class AggregateITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
@@ -386,7 +386,7 @@ class AggregateITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("t1", ds, 'a, 'b, 'c, 'ts)
 
     val t2 = tEnv.sqlQuery("SELECT b, COLLECT(b) as `set`" +
         "FROM t1 " +
@@ -422,7 +422,7 @@ class AggregateITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // min time unit is seconds
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
@@ -457,7 +457,7 @@ class AggregateITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
@@ -489,7 +489,7 @@ class AggregateITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
@@ -532,7 +532,7 @@ class AggregateITCase(
       // create timestamps
       .filter(x => (x._2 % 2) == 0)
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
@@ -561,7 +561,7 @@ class AggregateITCase(
       // create timestamps
       .filter(x => (x._2 % 2) == 0)
       .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
-    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+    tEnv.createTemporaryView("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(

@@ -49,7 +49,7 @@ class AggregationsITCase(
     val tEnv = BatchTableEnvironment.create(env, config)
 
     val inputTable = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b)
-    tEnv.registerDataSet("MyTable", inputTable)
+    tEnv.createTemporaryView("MyTable", inputTable)
 
     val result = tEnv.scan("MyTable")
       .where('a.get("_1") > 0)

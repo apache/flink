@@ -173,7 +173,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
     val dataStream = env.fromElements[T]().javaStream
     val tableEnv = getTableEnv
-    TableTestUtil.registerDataStream(tableEnv, name, dataStream, Some(fields.toArray))
+    TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
     tableEnv.scan(name)
   }
 
@@ -1130,7 +1130,7 @@ object TableTestUtil {
       .getRelBuilder.queryOperation(table.getQueryOperation).build()
   }
 
-  def registerDataStream[T](
+  def createTemporaryView[T](
       tEnv: TableEnvironment,
       name: String,
       dataStream: DataStream[T],

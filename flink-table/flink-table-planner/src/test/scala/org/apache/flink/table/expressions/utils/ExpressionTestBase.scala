@@ -88,7 +88,7 @@ abstract class ExpressionTestBase {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env).asInstanceOf[BatchTableEnvironmentImpl]
-    tEnv.registerDataSet(tableName, dataSetMock)
+    tEnv.createTemporaryView(tableName, dataSetMock)
     functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
     // prepare RelBuilder
