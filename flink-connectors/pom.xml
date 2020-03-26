@@ -96,6 +96,7 @@ under the License.
 			</activation>
 			<modules>
 				<module>flink-sql-connector-elasticsearch6</module>
+				<module>flink-sql-connector-elasticsearch7</module>
 				<module>flink-sql-connector-kafka-0.9</module>
 				<module>flink-sql-connector-kafka-0.10</module>
 				<module>flink-sql-connector-kafka-0.11</module>
