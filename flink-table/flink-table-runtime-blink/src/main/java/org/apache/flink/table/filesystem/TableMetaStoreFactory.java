@@ -68,5 +68,14 @@ public interface TableMetaStoreFactory extends Serializable {
 		 * @param partitionPath partition location path.
 		 */
 		void createPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception;
+
+		/**
+		 * When inserting to an existing partition, the existing partition may need to be updated.
+		 *
+		 * @param partitionSpec the full spec of the target partition
+		 * @param partitionPath partition location path
+		 */
+		default void alterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
+		}
 	}
 }

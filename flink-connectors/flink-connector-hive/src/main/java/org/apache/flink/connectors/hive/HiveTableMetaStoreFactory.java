@@ -28,6 +28,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
@@ -103,6 +104,22 @@ public class HiveTableMetaStoreFactory implements TableMetaStoreFactory {
 					new ArrayList<>(partSpec.values()), newSd, new HashMap<>());
 			partition.setValues(new ArrayList<>(partSpec.values()));
 			client.add_partition(partition);
+		}
+
+		@Override
+		public void alterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
+			Partition partition = client.getPartition(database, tableName, new ArrayList<>(partitionSpec.values()));
+			StorageDescriptor partSD = partition.getSd();
+			// the following logic copied from Hive::alterPartitionSpecInMemory
+			partSD.setOutputFormat(sd.getOutputFormat());
+			partSD.setInputFormat(sd.getInputFormat());
+			partSD.getSerdeInfo().setSerializationLib(sd.getSerdeInfo().getSerializationLib());
+			partSD.getSerdeInfo().setParameters(sd.getSerdeInfo().getParameters());
+			partSD.setBucketCols(sd.getBucketCols());
+			partSD.setNumBuckets(sd.getNumBuckets());
+			partSD.setSortCols(sd.getSortCols());
+			partSD.setLocation(partitionPath.toString());
+			client.alter_partition(database, tableName, partition);
 		}
 
 		@Override
