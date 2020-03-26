@@ -166,6 +166,22 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 				if (i >= maxRetryTimes) {
 					throw e;
 				}
+				boolean isValid = false;
+				try {
+					isValid = connection.isValid(1);
+				} catch (SQLException ex) {
+					LOG.warn("Check connection valid failed.", ex);
+				}
+
+				try {
+					if (!isValid) {
+						LOG.warn("This connection is not valid, trying to reconnect.");
+						establishConnection();
+						jdbcWriter.open(connection);
+					}
+				} catch (Exception ex) {
+					LOG.error("Reconnect failed.", ex);
+				}
 				Thread.sleep(1000 * i);
 			}
 		}
@@ -199,7 +215,9 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		}
 
 		try {
-			jdbcWriter.close();
+			if (jdbcWriter != null) {
+				jdbcWriter.close();
+			}
 		} catch (SQLException e) {
 			LOG.warn("Close JDBC writer failed.", e);
 		}
