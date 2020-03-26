@@ -97,7 +97,7 @@ public class PythonOptionsTest {
 	}
 
 	@Test
-	public void testPthonMetricEnabled() {
+	public void testPythonMetricEnabled() {
 		final Configuration configuration = new Configuration();
 		final boolean isMetricEnabled = configuration.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
 		assertThat(isMetricEnabled, is(equalTo(PythonOptions.PYTHON_METRIC_ENABLED.defaultValue())));

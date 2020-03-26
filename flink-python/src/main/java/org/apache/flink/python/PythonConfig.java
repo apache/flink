@@ -104,7 +104,7 @@ public class PythonConfig implements Serializable {
 	private final String pythonExec;
 
 	/**
-	 * Whether metric is enabled for Python UDFs.
+	 * Whether metric is enabled.
 	 */
 	private final boolean metricEnabled;
 
