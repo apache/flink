@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
@@ -47,6 +48,16 @@ public class LogInfo implements Serializable {
 	public LogInfo(@JsonProperty(NAME) String name, @JsonProperty(SIZE) long size) {
 		this.name = Preconditions.checkNotNull(name);
 		this.size = size;
+	}
+
+	@JsonIgnore
+	public String getName() {
+		return name;
+	}
+
+	@JsonIgnore
+	public long getSize() {
+		return size;
 	}
 
 	@Override

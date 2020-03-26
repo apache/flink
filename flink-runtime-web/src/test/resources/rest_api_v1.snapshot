@@ -378,6 +378,41 @@
       }
     }
   }, {
+    "url" : "/jobmanager/logs",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogListInfo",
+      "properties" : {
+        "logs" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
+            "properties" : {
+              "name" : {
+                "type" : "string"
+              },
+              "size" : {
+                "type" : "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
     "url" : "/jobmanager/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -2702,13 +2737,13 @@
     },
     "response" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:LogListInfo",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogListInfo",
       "properties" : {
         "logs" : {
           "type" : "array",
           "items" : {
             "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:LogInfo",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
             "properties" : {
               "name" : {
                 "type" : "string"

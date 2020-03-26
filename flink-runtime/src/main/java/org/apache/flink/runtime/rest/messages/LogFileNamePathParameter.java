@@ -16,28 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
-import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 
 /**
- * Parameters for {@link TaskManagerCustomLogHandler}.
+ * Parameters used by {@link TaskManagerCustomLogHandler} and {@link JobManagerCustomLogHandler}.
  */
-public class TaskManagerFileMessageParameters extends TaskManagerMessageParameters {
+public class LogFileNamePathParameter extends MessagePathParameter<String> {
 
-	public final LogFileNamePathParameter logFileNamePathParameter = new LogFileNamePathParameter();
+	public static final String KEY = "filename";
+
+	public LogFileNamePathParameter() {
+		super(KEY);
+	}
 
 	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			logFileNamePathParameter,
-			taskManagerIdParameter
-		));
+	protected String convertFromString(String value) {
+		return value;
+	}
+
+	@Override
+	protected String convertToString(String value) {
+		return value;
+	}
+
+	@Override
+	public String getDescription() {
+		return "String value that identifies the file name from which to read.";
 	}
 }

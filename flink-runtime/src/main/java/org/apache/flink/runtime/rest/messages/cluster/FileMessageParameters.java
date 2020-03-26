@@ -16,34 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages.cluster;
 
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
+import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * TaskManager id path parameter used by {@link TaskManagerCustomLogHandler}.
+ * Parameters for {@link JobManagerCustomLogHandler}.
  */
-public class LogFileNamePathParameter extends MessagePathParameter<String> {
+public class FileMessageParameters extends MessageParameters {
 
-	public static final String KEY = "filename";
+	public final LogFileNamePathParameter logFileNamePathParameter = new LogFileNamePathParameter();
 
-	public LogFileNamePathParameter() {
-		super(KEY);
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singleton(logFileNamePathParameter);
 	}
 
 	@Override
-	protected String convertFromString(String value) {
-		return value;
-	}
-
-	@Override
-	protected String convertToString(String value) {
-		return value;
-	}
-
-	@Override
-	public String getDescription() {
-		return "String value that identifies the file name from which to read.";
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptyList();
 	}
 }

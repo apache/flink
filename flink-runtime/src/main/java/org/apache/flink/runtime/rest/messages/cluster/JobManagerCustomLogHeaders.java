@@ -16,22 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
 /**
- * Headers for the {@link TaskManagerCustomLogHandler}.
+ * Headers for the {@link JobManagerCustomLogHandler}.
  */
-public class TaskManagerCustomLogHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerFileMessageParameters> {
+public class JobManagerCustomLogHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, FileMessageParameters> {
 
-	private static final TaskManagerCustomLogHeaders INSTANCE = new TaskManagerCustomLogHeaders();
+	private static final JobManagerCustomLogHeaders INSTANCE = new JobManagerCustomLogHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/logs/:%s", TaskManagerIdPathParameter.KEY, LogFileNamePathParameter.KEY);
+	private static final String URL = String.format("/jobmanager/logs/:%s", LogFileNamePathParameter.KEY);
+
+	private JobManagerCustomLogHeaders() {}
+
+	public static JobManagerCustomLogHeaders getInstance() {
+		return INSTANCE;
+	}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -39,8 +45,8 @@ public class TaskManagerCustomLogHeaders implements UntypedResponseMessageHeader
 	}
 
 	@Override
-	public TaskManagerFileMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerFileMessageParameters();
+	public FileMessageParameters getUnresolvedMessageParameters() {
+		return new FileMessageParameters();
 	}
 
 	@Override
@@ -51,9 +57,5 @@ public class TaskManagerCustomLogHeaders implements UntypedResponseMessageHeader
 	@Override
 	public String getTargetRestEndpointURL() {
 		return URL;
-	}
-
-	public static TaskManagerCustomLogHeaders getInstance() {
-		return INSTANCE;
 	}
 }

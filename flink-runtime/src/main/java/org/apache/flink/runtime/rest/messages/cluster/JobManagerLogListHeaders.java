@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -27,17 +28,17 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Headers for the {@link TaskManagerLogListHandler}.
+ * Headers for the {@link JobManagerLogListHandler}.
  */
-public class TaskManagerLogsHeaders implements MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
+public class JobManagerLogListHeaders implements MessageHeaders<EmptyRequestBody, LogListInfo, EmptyMessageParameters> {
 
-	private static final TaskManagerLogsHeaders INSTANCE = new TaskManagerLogsHeaders();
+	private static final JobManagerLogListHeaders INSTANCE = new JobManagerLogListHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/logs", TaskManagerIdPathParameter.KEY);
+	private static final String URL = "/jobmanager/logs";
 
-	private TaskManagerLogsHeaders() {}
+	private JobManagerLogListHeaders() {}
 
-	public static TaskManagerLogsHeaders getInstance() {
+	public static JobManagerLogListHeaders getInstance() {
 		return INSTANCE;
 	}
 
@@ -53,7 +54,7 @@ public class TaskManagerLogsHeaders implements MessageHeaders<EmptyRequestBody, 
 
 	@Override
 	public String getDescription() {
-		return "Returns the list of log files on a TaskManager.";
+		return "Returns the list of log files on the JobManager.";
 	}
 
 	@Override
@@ -62,8 +63,8 @@ public class TaskManagerLogsHeaders implements MessageHeaders<EmptyRequestBody, 
 	}
 
 	@Override
-	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters();
+	public EmptyMessageParameters getUnresolvedMessageParameters() {
+		return EmptyMessageParameters.getInstance();
 	}
 
 	@Override
