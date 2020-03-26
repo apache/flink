@@ -58,7 +58,7 @@ function setup_maven {
 	fi
 
 	export M2_HOME="${MAVEN_VERSIONED_DIR}"
-	export PATH=${M2_HOME}/bin:${PATH}
+	echo "##vso[task.setvariable variable=M2_HOME]$M2_HOME"
 
 	# just in case: clean up the .m2 home and remove invalid jar files
 	if [ -d "${HOME}/.m2/repository/" ]; then

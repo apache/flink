@@ -19,7 +19,7 @@
 
 echo $M2_HOME
 echo $PATH
-echo $MAVEN_OPTS 
+echo $MAVEN_OPTS
 
 mvn -version
 

@@ -163,7 +163,6 @@ jobs:
     - script: |
         source ./tools/ci/maven-utils.sh
         setup_maven
-        echo "##vso[task.setvariable variable=M2_HOME]$M2_HOME"
       displayName: Setup Maven 3.2.5
     - script: ./tools/azure-pipelines/setup_docker.sh
       displayName: Setup Docker
