@@ -71,6 +71,7 @@ final class FlinkDistribution {
 	private final Path conf;
 	private final Path log;
 	private final Path bin;
+	private final Path plugins;
 
 	private final Configuration defaultConfig;
 
@@ -80,6 +81,7 @@ final class FlinkDistribution {
 		lib = distributionDir.resolve("lib");
 		conf = distributionDir.resolve("conf");
 		log = distributionDir.resolve("log");
+		plugins = distributionDir.resolve("plugins");
 
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
 	}
@@ -218,7 +220,8 @@ final class FlinkDistribution {
 		}
 		if (jarOptional.isPresent()) {
 			final Path sourceJar = jarOptional.get();
-			final Path targetJar = target.resolve(sourceJar.getFileName());
+			final Path targetJar = target.resolve(operation.getJarNamePrefix()).resolve(sourceJar.getFileName());
+			Files.createDirectories(targetJar.getParent());
 			switch (operation.getOperationType()){
 				case COPY:
 					Files.copy(sourceJar, targetJar);
@@ -241,6 +244,8 @@ final class FlinkDistribution {
 				return lib;
 			case OPT:
 				return opt;
+			case PLUGINS:
+				return plugins;
 			default:
 				throw new IllegalStateException();
 		}
