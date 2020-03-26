@@ -112,7 +112,7 @@ public class MultipleInputSelectionHandler {
 	}
 
 	boolean shouldSetAvailableForAnotherInput() {
-		return availableInputsMask != allSelectedMask && inputSelection.areAllInputsSelected();
+		return (inputSelection.getInputMask() & allSelectedMask & ~availableInputsMask) != 0;
 	}
 
 	void setAvailableInput(int inputIndex) {
