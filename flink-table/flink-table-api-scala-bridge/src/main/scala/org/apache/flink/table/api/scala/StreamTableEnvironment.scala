@@ -98,15 +98,50 @@ trait StreamTableEnvironment extends TableEnvironment {
   /**
     * Converts the given [[DataStream]] into a [[Table]] with specified field names.
     *
+    * There are two modes for mapping original fields to the fields of the [[Table]]:
+    *
+    * 1. Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+    * attributes at arbitrary positions using arbitrary names (except those that exist in the
+    * result schema). In this mode, fields can be reordered and projected out. This mode can
+    * be used for any input type, including POJOs.
+    *
     * Example:
     *
     * {{{
     *   val stream: DataStream[(String, Long)] = ...
-    *   val tab: Table = tableEnv.fromDataStream(stream, 'a, 'b)
+    *   val table: Table = tableEnv.fromDataStream(
+    *      stream,
+    *      $"_2", // reorder and use the original field
+    *      $"rowtime".rowtime, // extract the internally attached timestamp into an event-time
+    *                          // attribute named 'rowtime'
+    *      $"_1" as "name" // reorder and give the original field a better name
+    *   )
+    * }}}
+    *
+    * <p>2. Reference input fields by position:
+    * In this mode, fields are simply renamed. Event-time attributes can
+    * replace the field on their position in the input data (if it is of correct type) or be
+    * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and none of
+    * the `fields` references a field of the input type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val stream: DataStream[(String, Long)] = ...
+    *   val table: Table = tableEnv.fromDataStream(
+    *      stream,
+    *      $"a", // rename the first field to 'a'
+    *      $"b" // rename the second field to 'b'
+    *      $"rowtime".rowtime // extract the internally attached timestamp into an event-time attribute named 'rowtime'
+    *   )
     * }}}
     *
     * @param dataStream The [[DataStream]] to be converted.
-    * @param fields The field names of the resulting [[Table]].
+    * @param fields The fields expressions to map original fields of the DataStream to the fields of
+    *               the [[Table]].
     * @tparam T The type of the [[DataStream]].
     * @return The converted [[Table]].
     */
@@ -156,11 +191,47 @@ trait StreamTableEnvironment extends TableEnvironment {
     * Creates a view from the given [[DataStream]] in a given path with specified field names.
     * Registered views can be referenced in SQL queries.
     *
+    * There are two modes for mapping original fields to the fields of the View:
+    *
+    * 1. Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+    * attributes at arbitrary positions using arbitrary names (except those that exist in the
+    * result schema). In this mode, fields can be reordered and projected out. This mode can
+    * be used for any input type, including POJOs.
+    *
     * Example:
     *
     * {{{
     *   val stream: DataStream[(String, Long)] = ...
-    *   tableEnv.registerDataStream("myTable", stream, 'a, 'b)
+    *   tableEnv.registerDataStream(
+    *      "myTable",
+    *      stream,
+    *      $"_2", // reorder and use the original field
+    *      $"rowtime".rowtime, // extract the internally attached timestamp into an event-time
+    *                          // attribute named 'rowtime'
+    *      $"_1" as "name" // reorder and give the original field a better name
+    *   )
+    * }}}
+    *
+    * 2. Reference input fields by position:
+    * In this mode, fields are simply renamed. Event-time attributes can
+    * replace the field on their position in the input data (if it is of correct type) or be
+    * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and none of
+    * the `fields` references a field of the input type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val stream: DataStream[(String, Long)] = ...
+    *   tableEnv.registerDataStream(
+    *      "myTable",
+    *      stream,
+    *      $"a", // rename the first field to 'a'
+    *      $"b" // rename the second field to 'b'
+    *      $"rowtime".rowtime // adds an event-time attribute named 'rowtime'
+    *   )
     * }}}
     *
     * The view is registered in the namespace of the current catalog and database. To register the
@@ -172,7 +243,8 @@ trait StreamTableEnvironment extends TableEnvironment {
     *
     * @param name The name under which the [[DataStream]] is registered in the catalog.
     * @param dataStream The [[DataStream]] to register.
-    * @param fields The field names of the registered view.
+    * @param fields The fields expressions to map original fields of the DataStream to the fields of
+    *               the View.
     * @tparam T The type of the [[DataStream]] to register.
     * @deprecated use [[createTemporaryView]]
     */
@@ -183,11 +255,47 @@ trait StreamTableEnvironment extends TableEnvironment {
     * Creates a view from the given [[DataStream]] in a given path with specified field names.
     * Registered views can be referenced in SQL queries.
     *
+    * There are two modes for mapping original fields to the fields of the View:
+    *
+    * 1. Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+    * attributes at arbitrary positions using arbitrary names (except those that exist in the
+    * result schema). In this mode, fields can be reordered and projected out. This mode can
+    * be used for any input type, including POJOs.
+    *
     * Example:
     *
     * {{{
     *   val stream: DataStream[(String, Long)] = ...
-    *   tableEnv.createTemporaryView("cat.db.myTable", stream, 'a, 'b)
+    *   tableEnv.createTemporaryView(
+    *      "cat.db.myTable",
+    *      stream,
+    *      $"_2", // reorder and use the original field
+    *      $"rowtime".rowtime, // extract the internally attached timestamp into an event-time
+    *                          // attribute named 'rowtime'
+    *      $"_1" as "name" // reorder and give the original field a better name
+    *   )
+    * }}}
+    *
+    * 2. Reference input fields by position:
+    * In this mode, fields are simply renamed. Event-time attributes can
+    * replace the field on their position in the input data (if it is of correct type) or be
+    * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and none of
+    * the `fields` references a field of the input type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val stream: DataStream[(String, Long)] = ...
+    *   tableEnv.createTemporaryView(
+    *      "cat.db.myTable",
+    *      stream,
+    *      $"a", // rename the first field to 'a'
+    *      $"b" // rename the second field to 'b'
+    *      $"rowtime".rowtime // adds an event-time attribute named 'rowtime'
+    *   )
     * }}}
     *
     * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
@@ -197,7 +305,8 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @param path The path under which the [[DataStream]] is created.
     *             See also the [[TableEnvironment]] class description for the format of the path.
     * @param dataStream The [[DataStream]] out of which to create the view.
-    * @param fields The field names of the created view.
+    * @param fields The fields expressions to map original fields of the DataStream to the fields of
+    *               the View.
     * @tparam T The type of the [[DataStream]].
     */
   def createTemporaryView[T](path: String, dataStream: DataStream[T], fields: Expression*): Unit
