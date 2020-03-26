@@ -24,6 +24,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.AbstractPythonFunctionRunner;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -88,8 +89,9 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 		RowType inputType,
 		RowType outputType,
 		String functionUrn,
-		Map<String, String> jobOptions) {
-		super(taskName, resultReceiver, environmentManager, StateRequestHandler.unsupported(), jobOptions);
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, environmentManager, StateRequestHandler.unsupported(), jobOptions, flinkMetricContainer);
 		this.functionUrn = functionUrn;
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);

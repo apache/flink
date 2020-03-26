@@ -26,6 +26,8 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
+from pyflink.table import FunctionContext
+from pyflink.metrics.metricbase import GenericMetricGroup
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
@@ -45,8 +47,9 @@ class StatelessFunctionOperation(Operation):
         self.variable_dict = {}
         self.user_defined_funcs = []
         self.func = self.generate_func(self.spec.serialized_fn)
+        base_metric_group = GenericMetricGroup(None, None)
         for user_defined_func in self.user_defined_funcs:
-            user_defined_func.open(None)
+            user_defined_func.open(FunctionContext(base_metric_group))
 
     def setup(self):
         super(StatelessFunctionOperation, self).setup()

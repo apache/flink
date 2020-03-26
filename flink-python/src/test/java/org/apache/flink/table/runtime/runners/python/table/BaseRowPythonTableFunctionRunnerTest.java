@@ -25,6 +25,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -75,6 +76,7 @@ public class BaseRowPythonTableFunctionRunnerTest extends AbstractPythonTableFun
 			environmentManager,
 			inputType,
 			outputType,
-			Collections.emptyMap());
+			Collections.emptyMap(),
+			PythonTestUtils.createMockFlinkMetricContainer());
 	}
 }

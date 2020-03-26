@@ -175,6 +175,8 @@ run sdist.
                 'pyflink.dataset',
                 'pyflink.common',
                 'pyflink.fn_execution',
+                'pyflink.metrics',
+                'pyflink.ml',
                 'pyflink.lib',
                 'pyflink.opt',
                 'pyflink.conf',

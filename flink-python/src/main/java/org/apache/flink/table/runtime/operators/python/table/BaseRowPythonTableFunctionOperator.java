@@ -127,7 +127,8 @@ public class BaseRowPythonTableFunctionOperator
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType,
-			jobOptions);
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 
 	private Projection<BaseRow, BinaryRow> createUdtfInputProjection() {

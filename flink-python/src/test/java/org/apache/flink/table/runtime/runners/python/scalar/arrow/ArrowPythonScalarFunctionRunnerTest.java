@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -174,7 +175,8 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 			outputType,
 			maxArrowBatchSize,
 			Collections.emptyMap(),
-			jobBundleFactory) {
+			jobBundleFactory,
+			PythonTestUtils.createMockFlinkMetricContainer()) {
 			@Override
 			public ArrowWriter<Row> createArrowWriter() {
 				return ArrowUtils.createRowArrowWriter(root, getInputType());

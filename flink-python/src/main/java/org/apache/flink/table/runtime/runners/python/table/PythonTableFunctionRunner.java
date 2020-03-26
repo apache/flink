@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
@@ -47,8 +48,9 @@ public class PythonTableFunctionRunner extends AbstractPythonTableFunctionRunner
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		Map<String, String> jobOptions) {
-		super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType, jobOptions);
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
 	}
 
 	@Override

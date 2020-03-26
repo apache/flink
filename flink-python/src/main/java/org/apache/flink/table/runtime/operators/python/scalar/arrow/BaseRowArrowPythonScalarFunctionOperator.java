@@ -103,7 +103,8 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType,
 			getPythonConfig().getMaxArrowBatchSize(),
-			jobOptions);
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 
 	@Override

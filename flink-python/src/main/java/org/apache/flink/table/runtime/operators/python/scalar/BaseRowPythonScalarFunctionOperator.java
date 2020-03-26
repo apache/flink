@@ -90,6 +90,7 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonSc
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType,
-			jobOptions);
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 }

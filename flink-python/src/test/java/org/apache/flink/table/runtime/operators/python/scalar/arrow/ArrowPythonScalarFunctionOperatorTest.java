@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScal
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -100,7 +101,8 @@ public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionO
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
 				getPythonConfig().getMaxArrowBatchSize(),
-				jobOptions) {
+				jobOptions,
+				PythonTestUtils.createMockFlinkMetricContainer()) {
 				@Override
 				public ArrowWriter<Row> createArrowWriter() {
 					return ArrowUtils.createRowArrowWriter(root, getInputType());
