@@ -18,6 +18,9 @@
 
 package org.apache.flink.tests.util.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -28,6 +31,8 @@ import java.util.function.Supplier;
  */
 public enum FactoryUtils {
 	;
+
+	private static final Logger LOG = LoggerFactory.getLogger(FactoryUtils.class);
 
 	/**
 	 * Loads all factories for the given class using the {@link ServiceLoader} and attempts to create an instance.
@@ -49,7 +54,9 @@ public enum FactoryUtils {
 			try {
 				R resource = factoryInvoker.invoke(factory);
 				instantiatedResources.add(resource);
+				LOG.info("Instantiated {}.", resource.getClass().getSimpleName());
 			} catch (Exception e) {
+				LOG.debug("Factory {} could not instantiate instance.", factory.getClass().getSimpleName(), e);
 				errorsDuringInitialization.add(e);
 			}
 		}
