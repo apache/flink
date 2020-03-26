@@ -449,15 +449,15 @@ public class HiveTableSourceTest {
 		final String dbName = "source_db";
 		final String tblName = "test_partition_limit";
 		hiveShell.execute("CREATE TABLE source_db.test_partition_limit " +
-		                  "(year STRING, value INT) partitioned by (pt int);");
+					"(year STRING, value INT) partitioned by (pt int);");
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
-		             .addRow(new Object[]{"2014", 3})
-		             .addRow(new Object[]{"2014", 4})
-		             .commit("pt=0");
+					.addRow(new Object[]{"2014", 3})
+					.addRow(new Object[]{"2014", 4})
+					.commit("pt=0");
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
-		             .addRow(new Object[]{"2015", 2})
-		             .addRow(new Object[]{"2015", 5})
-		             .commit("pt=2");
+					.addRow(new Object[]{"2015", 2})
+					.addRow(new Object[]{"2015", 5})
+					.commit("pt=2");
 		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.getConfig().getConfiguration().setInteger(
 			HiveOptions.TABLE_EXEC_HIVE_PARTITION_LIMIT_REQUEST, 1);
