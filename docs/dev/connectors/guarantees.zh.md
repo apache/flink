@@ -81,7 +81,7 @@ under the License.
   </tbody>
 </table>
 
-在精确一次状态语义的基础上，为了保证端对端精确一次的语义，sink 需要参与 checkpointing 机制。下表列举了 Flink 与其自带 sink 的交付保证（假设精确一次状态更新）。
+为了保证端到端精确一次的数据交付（在精确一次的状态语义上更进一步），sink需要参与 checkpointing 机制。下表列举了 Flink 与其自带 sink 的交付保证（假设精确一次状态更新）。
 
 <table class="table table-bordered">
   <thead>
