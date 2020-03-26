@@ -30,6 +30,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -48,6 +51,9 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Arrays;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
  * InputFormat to read data from a database and generate Rows.
@@ -110,7 +116,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	private String queryTemplate;
 	private int resultSetType;
 	private int resultSetConcurrency;
-	private RowTypeInfo rowTypeInfo;
+	private RowType rowType;
 
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
@@ -127,7 +133,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 
 	@Override
 	public RowTypeInfo getProducedType() {
-		return rowTypeInfo;
+		return (RowTypeInfo) fromDataTypeToLegacyInfo(fromLogicalToDataType(rowType));
 	}
 
 	@Override
@@ -293,7 +299,13 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 				return null;
 			}
 			for (int pos = 0; pos < row.getArity(); pos++) {
-				row.setField(pos, resultSet.getObject(pos + 1));
+				LogicalType type = rowType.getTypeAt(pos);
+				Object v = resultSet.getObject(pos + 1);
+				if (type instanceof SmallIntType) {
+					row.setField(pos, ((Integer) v).shortValue());
+				} else {
+					row.setField(pos, v);
+				}
 			}
 			//update hasNext after we've read the record
 			hasNext = resultSet.next();
@@ -398,8 +410,8 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			return this;
 		}
 
-		public JDBCInputFormatBuilder setRowTypeInfo(RowTypeInfo rowTypeInfo) {
-			format.rowTypeInfo = rowTypeInfo;
+		public JDBCInputFormatBuilder setRowType(RowType rowType) {
+			format.rowType = rowType;
 			return this;
 		}
 
@@ -431,8 +443,8 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
 			}
-			if (format.rowTypeInfo == null) {
-				throw new IllegalArgumentException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
+			if (format.rowType == null) {
+				throw new IllegalArgumentException("No " + RowType.class.getSimpleName() + " supplied");
 			}
 			if (format.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");

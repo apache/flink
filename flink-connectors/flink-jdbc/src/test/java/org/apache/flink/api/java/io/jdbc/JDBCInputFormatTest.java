@@ -35,7 +35,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.ROW_TYPE_INFO;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.ROW_TYPE;
 import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS;
 import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.SELECT_EMPTY;
 import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.TEST_DATA;
@@ -72,7 +72,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername("org.apache.derby.jdbc.idontexist")
 				.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -83,7 +83,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -94,7 +94,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery("iamnotsql")
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -104,7 +104,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.finish();
 	}
 
@@ -114,7 +114,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 			.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setRowType(ROW_TYPE)
 			.setFetchSize(-7)
 			.finish();
 	}
@@ -125,7 +125,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 			.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setRowType(ROW_TYPE)
 			.setFetchSize(Integer.MIN_VALUE)
 			.finish();
 	}
@@ -136,7 +136,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 			.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setRowType(ROW_TYPE)
 			.finish();
 		jdbcInputFormat.openInputFormat();
 
@@ -153,7 +153,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 			.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setRowType(ROW_TYPE)
 			.setFetchSize(desiredFetchSize)
 			.finish();
 		jdbcInputFormat.openInputFormat();
@@ -167,7 +167,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 			.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setRowType(ROW_TYPE)
 			.finish();
 		jdbcInputFormat.openInputFormat();
 
@@ -186,7 +186,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 			.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setRowType(ROW_TYPE)
 			.setAutoCommit(desiredAutoCommit)
 			.finish();
 
@@ -201,7 +201,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		//this query does not exploit parallelism
@@ -232,7 +232,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(JdbcTestFixture.SELECT_ALL_BOOKS_SPLIT_BY_ID)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.setParametersProvider(pramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -268,7 +268,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(JdbcTestFixture.SELECT_ALL_BOOKS_SPLIT_BY_ID)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.setParametersProvider(pramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -304,7 +304,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(JdbcTestFixture.SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.setParametersProvider(paramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -344,7 +344,7 @@ public class JDBCInputFormatTest extends JDBCDataTestBase {
 				.setDrivername(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(SELECT_EMPTY)
-				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowType(ROW_TYPE)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		try {

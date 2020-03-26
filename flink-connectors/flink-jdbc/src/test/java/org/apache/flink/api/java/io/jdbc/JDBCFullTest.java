@@ -38,7 +38,7 @@ import java.sql.Statement;
 import java.sql.Types;
 
 import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.OUTPUT_TABLE;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.ROW_TYPE_INFO;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.ROW_TYPE;
 import static org.hamcrest.core.StringContains.containsString;
 
 /**
@@ -83,7 +83,7 @@ public class JDBCFullTest extends JDBCDataTestBase {
 				.setDrivername(getDbMetadata().getDriverClass())
 				.setDBUrl(getDbMetadata().getUrl())
 				.setQuery(JdbcTestFixture.SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO);
+				.setRowType(ROW_TYPE);
 
 		if (exploitParallelism) {
 			final int fetchSize = 1;

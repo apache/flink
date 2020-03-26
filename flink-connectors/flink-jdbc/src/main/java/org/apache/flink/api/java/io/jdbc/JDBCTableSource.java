@@ -31,6 +31,7 @@ import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
@@ -151,11 +152,11 @@ public class JDBCTableSource implements
 	}
 
 	private JDBCInputFormat getInputFormat() {
-		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
+		final RowType rowType = (RowType) producedDataType.getLogicalType();
 		JDBCInputFormat.JDBCInputFormatBuilder builder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(options.getDriverName())
 				.setDBUrl(options.getDbURL())
-				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
+				.setRowType(rowType);
 		options.getUsername().ifPresent(builder::setUsername);
 		options.getPassword().ifPresent(builder::setPassword);
 
@@ -163,6 +164,7 @@ public class JDBCTableSource implements
 			builder.setFetchSize(readOptions.getFetchSize());
 		}
 
+		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
 		final JDBCDialect dialect = options.getDialect();
 		String query = dialect.getSelectFromStatement(
 			options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]);

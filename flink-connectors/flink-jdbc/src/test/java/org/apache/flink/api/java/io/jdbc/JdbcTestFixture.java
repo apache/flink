@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -27,6 +28,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Test data and helper objects for JDBC tests.
@@ -96,12 +99,12 @@ public class JdbcTestFixture {
 		}
 	}
 
-	static final RowTypeInfo ROW_TYPE_INFO = new RowTypeInfo(
+	static final RowType ROW_TYPE = (RowType) fromLegacyInfoToDataType(new RowTypeInfo(
 		BasicTypeInfo.INT_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
 		BasicTypeInfo.DOUBLE_TYPE_INFO,
-		BasicTypeInfo.INT_TYPE_INFO);
+		BasicTypeInfo.INT_TYPE_INFO)).getLogicalType();
 
 	private static String getCreateQuery(String tableName) {
 		return "CREATE TABLE " + tableName + " (" +
