@@ -24,10 +24,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
+
 import org.junit.Test
 import org.mockito.Mockito.{mock, when}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.table.api.Expressions.$
 
 class CorrelateStringExpressionTest extends TableTestBase {
 
@@ -42,7 +44,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val sDs = mock(classOf[DataStream[Row]])
     when(sDs.javaStream).thenReturn(jDs)
 
-    val jTab = util.javaTableEnv.fromDataStream(jDs, "a, b, c")
+    val jTab = util.javaTableEnv.fromDataStream(jDs, $("a"), $("b"), $("c"))
     val sTab = util.tableEnv.fromDataStream(sDs, 'a, 'b, 'c)
 
     // test cross join
@@ -111,7 +113,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val sDs = mock(classOf[DataStream[Row]])
     when(sDs.javaStream).thenReturn(jDs)
 
-    val jTab = util.javaTableEnv.fromDataStream(jDs, "a, b, c")
+    val jTab = util.javaTableEnv.fromDataStream(jDs, $("a"), $("b"), $("c"))
     val sTab = util.tableEnv.fromDataStream(sDs, 'a, 'b, 'c)
 
     // test flatMap

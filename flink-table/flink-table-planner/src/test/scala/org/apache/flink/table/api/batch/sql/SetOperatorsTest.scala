@@ -20,11 +20,13 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 
 class SetOperatorsTest extends TableTestBase {
@@ -251,7 +253,7 @@ class SetOperatorsTest extends TableTestBase {
     val typeInfo = Types.ROW(
       new GenericTypeInfo(classOf[NonPojo]),
       new GenericTypeInfo(classOf[NonPojo]))
-    val table = util.addJavaTable(typeInfo, "A", "a, b")
+    val table = util.addJavaTable(typeInfo, "A", $("a"), $("b"))
 
     val expected = binaryNode(
       "DataSetUnion",

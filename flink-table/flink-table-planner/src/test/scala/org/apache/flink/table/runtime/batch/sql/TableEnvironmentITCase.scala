@@ -45,7 +45,7 @@ class TableEnvironmentITCase(
     val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", ds, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE a > 9"
 

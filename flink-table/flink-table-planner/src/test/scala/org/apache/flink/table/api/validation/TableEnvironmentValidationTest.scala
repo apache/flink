@@ -117,10 +117,10 @@ class TableEnvironmentValidationTest extends TableTestBase {
     val tEnv = BatchTableEnvironment.create(env)
 
     val ds1 = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds1)
+    tEnv.createTemporaryView("MyTable", ds1)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
     // Must fail. Name is already in use.
-    tEnv.registerDataSet("MyTable", ds2)
+    tEnv.createTemporaryView("MyTable", ds2)
   }
 
   @Test(expected = classOf[TableException])
@@ -140,7 +140,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
     tEnv.registerTable("MyTable", t1)
     val t2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv)
     // Must fail. Name is already in use.
-    tEnv.registerDataSet("MyTable", t2)
+    tEnv.createTemporaryView("MyTable", t2)
   }
 
   @Test(expected = classOf[TableException])

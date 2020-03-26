@@ -66,6 +66,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -213,9 +214,14 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
 		List<Expression> expressions = ExpressionParser.parseExpressionList(fields);
+		return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
+	}
+
+	@Override
+	public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
 		JavaDataStreamQueryOperation<T> queryOperation = asQueryOperation(
 			dataStream,
-			Optional.of(expressions));
+			Optional.of(Arrays.asList(fields)));
 
 		return createTable(queryOperation);
 	}
@@ -237,6 +243,14 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
+		createTemporaryView(path, fromDataStream(dataStream, fields));
+	}
+
+	@Override
+	public <T> void createTemporaryView(
+			String path,
+			DataStream<T> dataStream,
+			Expression... fields) {
 		createTemporaryView(path, fromDataStream(dataStream, fields));
 	}
 

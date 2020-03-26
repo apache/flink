@@ -64,7 +64,7 @@ class TableEnvironmentTest {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Temporary table `default_catalog`.`default_database`.`MyTable` already exists")
-    tableEnv.registerDataStream("MyTable", env.fromElements[(Int, Long)]())
+    tableEnv.createTemporaryView("MyTable", env.fromElements[(Int, Long)]())
   }
 
   @Test

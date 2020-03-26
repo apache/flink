@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.descriptors.BatchTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.module.ModuleManager;
@@ -92,7 +93,7 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	/**
 	 * Converts the given {@link DataSet} into a {@link Table} with specified field names.
 	 *
-	 * Example:
+	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -107,6 +108,25 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * @return The converted {@link Table}.
 	 */
 	<T> Table fromDataSet(DataSet<T> dataSet, String fields);
+
+	/**
+	 * Converts the given {@link DataSet} into a {@link Table} with specified field names.
+	 *
+	 * Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   Table tab = tableEnv.fromDataSet(set, $("a"), $("b").as("name"), $("timestamp").rowtime());
+	 * }
+	 * </pre>
+	 *
+	 * @param dataSet The {@link DataSet} to be converted.
+	 * @param fields The field names of the resulting {@link Table}.
+	 * @param <T> The type of the {@link DataSet}.
+	 * @return The converted {@link Table}.
+	 */
+	<T> Table fromDataSet(DataSet<T> dataSet, Expression... fields);
 
 	/**
 	 * Creates a view from the given {@link DataSet}.
@@ -201,6 +221,31 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * @param <T> The type of the {@link DataSet}.
 	 */
 	<T> void createTemporaryView(String path, DataSet<T> dataSet, String fields);
+
+	/**
+	 * Creates a view from the given {@link DataSet} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   tableEnv.createTemporaryView("cat.db.myTable", set, $("b").as("name"), $("timestamp").rowtime());
+	 * }
+	 * </pre>
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the view is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataSet The {@link DataSet} out of which to create the view.
+	 * @param fields The field names of the registered view.
+	 * @param <T> The type of the {@link DataSet}.
+	 */
+	<T> void createTemporaryView(String path, DataSet<T> dataSet, Expression... fields);
 
 	/**
 	 * Converts the given {@link Table} into a {@link DataSet} of a specified type.

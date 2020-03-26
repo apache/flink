@@ -214,7 +214,7 @@ class AggregateRemoveITCase(
       (3, 2, "A", "Hi"),
       (5, 2, "B", "Hello"),
       (6, 3, "C", "Hello world")))
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Int, String, String)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Int, String, String)](
       tEnv,
       "T",
       ds1.javaStream,
@@ -223,7 +223,7 @@ class AggregateRemoveITCase(
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
     )
 
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, String)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, String)](
       tEnv,
       "MyTable",
       env.fromCollection(TestData.smallTupleData3).javaStream,
@@ -232,7 +232,7 @@ class AggregateRemoveITCase(
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
     )
 
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, Int, String, Long)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, Int, String, Long)](
       tEnv,
       "MyTable2",
       env.fromCollection(TestData.smallTupleData5).javaStream,

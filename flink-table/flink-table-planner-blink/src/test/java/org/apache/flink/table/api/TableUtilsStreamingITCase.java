@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -58,7 +59,7 @@ public class TableUtilsStreamingITCase {
 			Row.of(2, 21L),
 			Row.of(2, 22L),
 			Row.of(3, 31L));
-		tEnv.registerTable("T", tEnv.fromDataStream(env.fromCollection(sourceData), "a, b"));
+		tEnv.registerTable("T", tEnv.fromDataStream(env.fromCollection(sourceData), $("a"), $("b")));
 
 		String sql = "SELECT b FROM T WHERE a NOT IN (1, 2, 4, 5)";
 		List<Row> expected = Collections.singletonList(Row.of(31L));

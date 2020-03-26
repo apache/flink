@@ -439,7 +439,7 @@ class CalcITCase(
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t1", ds, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc2(c)='ABC#Hello'"
 
@@ -460,7 +460,7 @@ class CalcITCase(
     tEnv.registerFunction("RichFunc3", new RichFunc3)
 
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t1", ds, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc3(c)=true"
 
@@ -508,7 +508,7 @@ class CalcITCase(
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t1", ds, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT c FROM t1 where " +
       "RichFunc2(c)='Abc#Hello' or RichFunc1(a)=3 and b=2"

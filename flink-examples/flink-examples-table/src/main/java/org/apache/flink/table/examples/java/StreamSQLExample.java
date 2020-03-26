@@ -28,6 +28,8 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import java.util.Arrays;
 import java.util.Objects;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /**
  * Simple example for demonstrating the use of SQL on a Stream Table in Java.
  *
@@ -79,9 +81,9 @@ public class StreamSQLExample {
 			new Order(4L, "beer", 1)));
 
 		// convert DataStream to Table
-		Table tableA = tEnv.fromDataStream(orderA, "user, product, amount");
+		Table tableA = tEnv.fromDataStream(orderA, $("user"), $("product"), $("amount"));
 		// register DataStream as Table
-		tEnv.registerDataStream("OrderB", orderB, "user, product, amount");
+		tEnv.createTemporaryView("OrderB", orderB, $("user"), $("product"), $("amount"));
 
 		// union the two tables
 		Table result = tEnv.sqlQuery("SELECT * FROM " + tableA + " WHERE amount > 2 UNION ALL " +

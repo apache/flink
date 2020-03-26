@@ -99,7 +99,7 @@ class PruneAggregateCallITCase(
 
   private def checkResult(str: String, rows: Seq[Row]): Unit = {
     super.before()
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, String)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, String)](
       tEnv,
       "MyTable",
       failingDataSource(TestData.smallTupleData3).javaStream,
@@ -108,7 +108,7 @@ class PruneAggregateCallITCase(
       Some(FlinkStatistic.UNKNOWN)
     )
 
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, Int, String, Long)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, Int, String, Long)](
       tEnv,
       "MyTable2",
       failingDataSource(TestData.smallTupleData5).javaStream,
