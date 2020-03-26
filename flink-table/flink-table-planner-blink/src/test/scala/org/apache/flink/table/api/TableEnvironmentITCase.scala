@@ -255,9 +255,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
   def testClearOperation(): Unit = {
     TestCollectionTableFactory.reset()
     val tableEnv = TableEnvironmentImpl.create(settings)
-    tableEnv.sqlUpdate("create table dest1(x map<int,bigint>) with('connector' = 'COLLECTION')")
-    tableEnv.sqlUpdate("create table dest2(x int) with('connector' = 'COLLECTION')")
-    tableEnv.sqlUpdate("create table src(x int) with('connector' = 'COLLECTION')")
+    tableEnv.sqlUpdate(
+      "create table dest1(x map<int,bigint>) with('connector.type' = 'COLLECTION')")
+    tableEnv.sqlUpdate("create table dest2(x int) with('connector.type' = 'COLLECTION')")
+    tableEnv.sqlUpdate("create table src(x int) with('connector.type' = 'COLLECTION')")
 
     try {
       // it would fail due to query and sink type mismatch
