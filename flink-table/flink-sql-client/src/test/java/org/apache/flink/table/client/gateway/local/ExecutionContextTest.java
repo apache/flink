@@ -28,6 +28,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.ParserConfigOptions;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -246,6 +247,10 @@ public class ExecutionContextTest {
 		assertTrue(
 			tableEnv.getConfig().getConfiguration().getBoolean(
 				OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED));
+
+		assertFalse(
+			tableEnv.getConfig().getConfiguration().getBoolean(
+				ParserConfigOptions.TABLE_PARSER_CASE_SENSITIVE_ENABLED));
 
 		// these options are not modified and should be equal to their default value
 		assertEquals(
