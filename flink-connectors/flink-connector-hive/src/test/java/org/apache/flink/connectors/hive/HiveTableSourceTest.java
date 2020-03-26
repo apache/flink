@@ -19,10 +19,8 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
