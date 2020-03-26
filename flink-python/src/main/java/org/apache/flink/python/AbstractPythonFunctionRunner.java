@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.util.Preconditions;
@@ -59,7 +58,7 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 
 	private static final String MAIN_INPUT_ID = "input";
 
-	protected final String taskName;
+	private final String taskName;
 
 	/**
 	 * The Python function execution result receiver.
@@ -123,7 +122,7 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	/**
 	 * The flinkMetricContainer will be set to null if metric is configured to be turned off.
 	 */
-	@Nullable protected FlinkMetricContainer flinkMetricContainer;
+	@Nullable private FlinkMetricContainer flinkMetricContainer;
 
 	public AbstractPythonFunctionRunner(
 		String taskName,
@@ -235,15 +234,4 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	public abstract ExecutableStage createExecutableStage() throws Exception;
 
 	public abstract OutputReceiverFactory createOutputReceiverFactory();
-
-	/**
-	 * Gets the proto representation of the base MetricGroup used for all user-defined functions.
-	 */
-	protected FlinkFnApi.MetricGroupInfo getBaseMetricGroupInfo() {
-		if (flinkMetricContainer != null) {
-			return flinkMetricContainer.getBaseMetricGroupInfo();
-		} else {
-			return FlinkFnApi.MetricGroupInfo.newBuilder().build();
-		}
-	}
 }

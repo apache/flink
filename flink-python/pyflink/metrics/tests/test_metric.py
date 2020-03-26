@@ -17,42 +17,24 @@
 ################################################################################
 
 import unittest
-from pyflink.metrics.metricbase import GenericMetricGroup
+from pyflink.metrics.metricbase import GenericMetricGroup, MetricGroup
 
 
 class MetricTests(unittest.TestCase):
 
-    base_metric_group = GenericMetricGroup(None, 'base', {'key': 'value'}, ['key', 'value'], '.')
+    base_metric_group = GenericMetricGroup(None, None)
+
+    @staticmethod
+    def print_metric_group_path(mg: MetricGroup) -> str:
+        if mg._parent is None:
+            return 'root'
+        else:
+            return MetricTests.print_metric_group_path(mg._parent) + '.' + mg._name
 
     def test_add_group(self):
         new_group = MetricTests.base_metric_group.add_group('my_group')
-        self.assertEqual(new_group.get_all_variables(), {'key': 'value'})
-        self.assertEqual(new_group.get_scope_components(), ['key', 'value', 'my_group'])
-        self.assertEqual(new_group.get_metric_identifier(
-            'my_metric'), 'key.value.my_group.my_metric')
+        self.assertEqual(MetricTests.print_metric_group_path(new_group), 'root.my_group')
 
     def test_add_group_with_variable(self):
-        new_group = MetricTests.base_metric_group.add_group('my_key_group', 'my_value_group')
-        self.assertEqual(
-            new_group.get_all_variables(), {
-                'key': 'value', 'my_key_group': 'my_value_group'})
-        self.assertEqual(
-            new_group.get_scope_components(), [
-                'key', 'value', 'my_key_group', 'my_value_group'])
-        self.assertEqual(new_group.get_metric_identifier('my_metric'),
-                         'key.value.my_key_group.my_value_group.my_metric')
-
-    def test_variable_replace(self):
-        self.assertEqual(MetricTests.base_metric_group.get_all_variables(), {'key': 'value'})
-        self.assertEqual(MetricTests.base_metric_group.get_scope_components(), ['key', 'value'])
-        self.assertEqual(
-            MetricTests.base_metric_group.get_metric_identifier('my_metric'),
-            'key.value.my_metric')
-
-        # test variable replace
-        new_group = MetricTests.base_metric_group.add_group('key', 'new_value')
-        self.assertEqual(new_group.get_all_variables(), {'key': 'new_value'})
-        self.assertEqual(new_group.get_scope_components(), ['key', 'value', 'key', 'new_value'])
-        self.assertEqual(
-            new_group.get_metric_identifier('my_metric'),
-            'key.value.key.new_value.my_metric')
+        new_group = MetricTests.base_metric_group.add_group('key', 'value')
+        self.assertEqual(MetricTests.print_metric_group_path(new_group), 'root.key.value')

@@ -69,8 +69,6 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
 			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
 		}
-		// add metric group proto
-		builder.setBaseMetricGroupInfo(getBaseMetricGroupInfo());
 		return builder.build();
 	}
 }

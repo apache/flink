@@ -101,9 +101,6 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 		FlinkFnApi.UserDefinedFunction udf = udfs.getUdfs(0);
 		assertEquals(1, udf.getInputsCount());
 		assertEquals(0, udf.getInputs(0).getInputOffset());
-		assertEquals(
-			"scope_components: \"root\"\ndelimiter: \".\"\n",
-			udfs.getBaseMetricGroupInfo().toString());
 	}
 
 	@Test

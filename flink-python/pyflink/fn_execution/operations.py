@@ -46,10 +46,8 @@ class StatelessFunctionOperation(Operation):
 
         self.variable_dict = {}
         self.user_defined_funcs = []
-        self.func = self.generate_func(self.spec.serialized_fn.udfs)
-        variables, scope_components, delimiter = self._parse_metric_group_info(
-            self.spec.serialized_fn.base_metric_group_info)
-        base_metric_group = GenericMetricGroup(None, None, variables, scope_components, delimiter)
+        self.func = self.generate_func(self.spec.serialized_fn)
+        base_metric_group = GenericMetricGroup(None, None)
         for user_defined_func in self.user_defined_funcs:
             user_defined_func.open(FunctionContext(base_metric_group))
 
@@ -164,14 +162,6 @@ class StatelessFunctionOperation(Operation):
         self.variable_dict[constant_value_name] = parsed_constant_value
         return constant_value_name
 
-    @staticmethod
-    def _parse_metric_group_info(base_metric_group_info):
-        variables = {}
-        variables.update(base_metric_group_info.variables)
-        components = []
-        components.extend(base_metric_group_info.scope_components)
-        return variables, components, base_metric_group_info.delimiter
-
 
 class ScalarFunctionOperation(StatelessFunctionOperation):
     def __init__(self, name, spec, counter_factory, sampler, consumers):
@@ -208,14 +198,14 @@ class TableFunctionOperation(StatelessFunctionOperation):
     SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter, ScalarFunctionOperation)
+        factory, transform_proto, consumers, parameter.udfs, ScalarFunctionOperation)
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
     TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter, TableFunctionOperation)
+        factory, transform_proto, consumers, parameter.udfs, TableFunctionOperation)
 
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
