@@ -34,6 +34,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -50,7 +51,6 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -1102,7 +1102,7 @@ public class FlinkKafkaProducer<IN>
 			// The parallelStream executes the consumer in a separated thread pool.
 			// Because the consumer(e.g. Kafka) uses the context classloader to construct some class
 			// we should set the correct classloader for it.
-			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
+			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(classLoader)) {
 				// don't mess with the original configuration or any other properties of the
 				// original object
 				// -> create an internal kafka producer on our own and do not rely on
