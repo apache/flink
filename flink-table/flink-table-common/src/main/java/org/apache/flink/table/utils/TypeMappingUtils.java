@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.utils;
 
+import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
@@ -27,11 +28,14 @@ import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -271,6 +275,41 @@ public final class TypeMappingUtils {
 				}
 
 				return defaultMethod(other);
+			}
+
+			@Override
+			public Void visit(ArrayType arrayType) {
+				ArrayType logicalArrayType = (ArrayType) logicalFieldType;
+				checkIfCompatible(
+					arrayType.getElementType(),
+					logicalArrayType.getElementType(),
+					exceptionSupplier);
+				return null;
+			}
+
+			@Override
+			public Void visit(MapType mapType) {
+				MapType logicalMapType = (MapType) logicalFieldType;
+				checkIfCompatible(
+					mapType.getKeyType(),
+					logicalMapType.getKeyType(),
+					exceptionSupplier);
+				checkIfCompatible(
+					mapType.getValueType(),
+					logicalMapType.getValueType(),
+					exceptionSupplier);
+				return null;
+			}
+
+			@Override
+			public Void visit(RowType rowType) {
+				RowType logicalRowType = (RowType) logicalFieldType;
+				IntStream.range(0, logicalRowType.getFieldCount())
+					.forEach(idx -> checkIfCompatible(
+						rowType.getTypeAt(idx),
+						logicalRowType.getTypeAt(idx),
+						exceptionSupplier));
+				return null;
 			}
 
 			@Override

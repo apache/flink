@@ -77,6 +77,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 			.field("currency", DataTypes.STRING())
 			.field("log_ts", DataTypes.TIMESTAMP(3))
 			.field("ts", DataTypes.TIMESTAMP(3), "log_ts + INTERVAL '1' SECOND")
+			.field("nested", DataTypes.ARRAY(DataTypes.ROW(DataTypes.FIELD("score", DataTypes.DECIMAL(38, 18)))))
 			.watermark("ts", "ts", DataTypes.TIMESTAMP(3))
 			.build();
 		Map<String, String> properties = new HashMap<>();
@@ -122,7 +123,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 //		tEnv.sqlUpdate(ddl);
 
 		String initialValues = "INSERT INTO kafka\n" +
-			"SELECT CAST(price AS DECIMAL(10, 2)), currency, CAST(ts AS TIMESTAMP(3))\n" +
+			"SELECT CAST(price AS DECIMAL(10, 2)), currency, CAST(ts AS TIMESTAMP(3)), ARRAY[ROW(CAST(price AS DECIMAL(38, 18)))]\n" +
 			"FROM (VALUES (2.02,'Euro','2019-12-12 00:00:00.001001'), \n" +
 			"  (1.11,'US Dollar','2019-12-12 00:00:01.002001'), \n" +
 			"  (50,'Yen','2019-12-12 00:00:03.004001'), \n" +
@@ -140,7 +141,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 			"  CAST(TUMBLE_END(ts, INTERVAL '5' SECOND) AS VARCHAR),\n" +
 			"  CAST(MAX(ts) AS VARCHAR),\n" +
 			"  COUNT(*),\n" +
-			"  CAST(MAX(price) AS DECIMAL(10, 2))\n" +
+			"  CAST(MAX(price) AS DECIMAL(10, 2)),\n" +
+			"  CAST(MAX(nested[1].score) AS DECIMAL(10, 2))\n" +
 			"FROM kafka\n" +
 			"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
 
@@ -160,8 +162,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		}
 
 		List<String> expected = Arrays.asList(
-			"2019-12-12 00:00:05.000,2019-12-12 00:00:04.004,3,50.00",
-			"2019-12-12 00:00:10.000,2019-12-12 00:00:06.006,2,5.33");
+			"2019-12-12 00:00:05.000,2019-12-12 00:00:04.004,3,50.00,50.00",
+			"2019-12-12 00:00:10.000,2019-12-12 00:00:06.006,2,5.33,5.33");
 
 		assertEquals(expected, TestingSinkFunction.rows);
 
