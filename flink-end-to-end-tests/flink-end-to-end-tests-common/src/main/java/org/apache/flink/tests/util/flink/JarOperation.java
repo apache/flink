@@ -18,18 +18,20 @@
 package org.apache.flink.tests.util.flink;
 
 /**
- * Represents a move operation for a jar.
+ * Represents a move/copy operation for a jar.
  */
-class JarMove {
+class JarOperation {
 
 	private final String jarNamePrefix;
 	private final JarLocation source;
 	private final JarLocation target;
+	private final OperationType operationType;
 
-	JarMove(String jarNamePrefix, JarLocation source, JarLocation target) {
+	JarOperation(String jarNamePrefix, JarLocation source, JarLocation target, OperationType operationType) {
 		this.jarNamePrefix = jarNamePrefix;
 		this.source = source;
 		this.target = target;
+		this.operationType = operationType;
 	}
 
 	public String getJarNamePrefix() {
@@ -42,5 +44,14 @@ class JarMove {
 
 	public JarLocation getTarget() {
 		return target;
+	}
+
+	public OperationType getOperationType() {
+		return operationType;
+	}
+
+	public enum OperationType {
+		COPY,
+		MOVE;
 	}
 }

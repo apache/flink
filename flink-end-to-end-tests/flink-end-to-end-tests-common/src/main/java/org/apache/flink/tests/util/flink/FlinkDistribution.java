@@ -206,22 +206,32 @@ final class FlinkDistribution {
 		AutoClosableProcess.runBlocking(commands.toArray(new String[0]));
 	}
 
-	public void moveJar(JarMove move) throws IOException {
-		final Path source = mapJarLocationToPath(move.getSource());
-		final Path target = mapJarLocationToPath(move.getTarget());
+	public void performJarOperation(JarOperation operation) throws IOException {
+		final Path source = mapJarLocationToPath(operation.getSource());
+		final Path target = mapJarLocationToPath(operation.getTarget());
 
 		final Optional<Path> jarOptional;
 		try (Stream<Path> files = Files.walk(source)) {
 			jarOptional = files
-				.filter(path -> path.getFileName().toString().startsWith(move.getJarNamePrefix()))
+				.filter(path -> path.getFileName().toString().startsWith(operation.getJarNamePrefix()))
 				.findFirst();
 		}
 		if (jarOptional.isPresent()) {
 			final Path sourceJar = jarOptional.get();
 			final Path targetJar = target.resolve(sourceJar.getFileName());
-			Files.move(sourceJar, targetJar);
+			switch (operation.getOperationType()){
+				case COPY:
+					Files.copy(sourceJar, targetJar);
+					break;
+				case MOVE:
+					Files.move(sourceJar, targetJar);
+					break;
+				default:
+					throw new IllegalStateException();
+			}
+
 		} else {
-			throw new FileNotFoundException("No jar could be found matching the pattern " + move.getJarNamePrefix() + ".");
+			throw new FileNotFoundException("No jar could be found matching the pattern " + operation.getJarNamePrefix() + ".");
 		}
 	}
 
