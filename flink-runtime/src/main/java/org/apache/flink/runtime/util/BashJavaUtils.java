@@ -41,7 +41,7 @@ public class BashJavaUtils {
 
 		switch (Command.valueOf(args[0])) {
 			case GET_TM_RESOURCE_PARAMS:
-				getTmResourceParams(args);
+				getTmResourceParams(Arrays.copyOfRange(args, 1, args.length));
 				break;
 			default:
 				// unexpected, Command#valueOf should fail if a unknown command is passed in
@@ -61,7 +61,7 @@ public class BashJavaUtils {
 	}
 
 	private static Configuration getConfigurationForStandaloneTaskManagers(String[] args) throws Exception {
-		Configuration configuration = TaskManagerRunner.loadConfiguration(Arrays.copyOfRange(args, 1, args.length));
+		Configuration configuration = TaskManagerRunner.loadConfiguration(args);
 		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
 			configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
 	}
