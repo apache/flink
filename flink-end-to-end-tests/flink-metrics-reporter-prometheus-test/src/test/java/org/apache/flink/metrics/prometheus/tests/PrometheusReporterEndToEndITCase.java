@@ -152,7 +152,7 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 		final FlinkResourceSetup.FlinkResourceSetupBuilder builder = FlinkResourceSetup.builder();
 		params.getBuilderSetup().accept(builder);
 		builder.addConfiguration(getFlinkConfig(params.getInstantiationType()));
-		dist = new LocalStandaloneFlinkResourceFactory().create(builder.build()).get();
+		dist = new LocalStandaloneFlinkResourceFactory().create(builder.build());
 	}
 
 	@Rule
