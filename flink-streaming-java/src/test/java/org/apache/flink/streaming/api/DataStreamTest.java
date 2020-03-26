@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -1230,6 +1231,32 @@ public class DataStreamTest extends TestLogger {
 				Object[].class, new GenericTypeInfo<>(Object.class));
 
 		testKeyRejection(keySelector, keyTypeInfo);
+	}
+
+	private enum TestEnum {
+		FOO, BAR
+	}
+
+	@Test
+	public void testEnumKeyRejection() {
+		KeySelector<Tuple2<TestEnum, String>, TestEnum> keySelector =
+			new KeySelector<Tuple2<TestEnum, String>, TestEnum>() {
+
+			@Override
+			public TestEnum getKey(
+				Tuple2<TestEnum, String> value) throws Exception {
+				return value.f0;
+			}
+		};
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<TestEnum, String>> input = env.fromElements(Tuple2.of(TestEnum.FOO, "Foo"), Tuple2.of(TestEnum.BAR, "Bar"));
+
+		// adjust the rule
+		expectedException.expect(InvalidProgramException.class);
+		expectedException.expectMessage(new StringStartsWith("Type " + EnumTypeInfo.of(TestEnum.class) + " cannot be used as key."));
+
+		input.keyBy(keySelector);
 	}
 
 	private <K> void testKeyRejection(KeySelector<Tuple2<Integer[], String>, K> keySelector, TypeInformation<K> expectedKeyType) {
