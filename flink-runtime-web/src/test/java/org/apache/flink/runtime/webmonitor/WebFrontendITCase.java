@@ -204,6 +204,16 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
+	public void getCustomLogFiles() throws Exception {
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+		String customFileName = "test.log";
+		final String logDir = logFiles.logFile.getParent();
+		FileUtils.writeStringToFile(new File(logDir, customFileName), "job manager custom log");
+		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/logs/" + customFileName);
+		assertThat(logs, containsString("job manager custom log"));
+	}
+
+	@Test
 	public void getTaskManagerLogAndStdoutFiles() throws Exception {
 		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
 

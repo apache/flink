@@ -16,21 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.files;
+package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
 /**
- * Rest handler specification for the stdout file of the main cluster component.
+ * Headers for the {@link JobManagerLogFileHandler}.
  */
-public class StdoutFileHandlerSpecification implements RestHandlerSpecification {
+public class JobManagerLogFileHeader implements UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
 
-	private static final StdoutFileHandlerSpecification INSTANCE = new StdoutFileHandlerSpecification();
+	private static final JobManagerLogFileHeader INSTANCE = new JobManagerLogFileHeader();
 
-	private static final String URL = "/jobmanager/stdout";
+	private static final String URL = "/jobmanager/log";
 
-	private StdoutFileHandlerSpecification() {}
+	private JobManagerLogFileHeader() {}
+
+	@Override
+	public Class<EmptyRequestBody> getRequestClass() {
+		return EmptyRequestBody.class;
+	}
+
+	@Override
+	public EmptyMessageParameters getUnresolvedMessageParameters() {
+		return EmptyMessageParameters.getInstance();
+	}
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
@@ -42,7 +55,7 @@ public class StdoutFileHandlerSpecification implements RestHandlerSpecification 
 		return URL;
 	}
 
-	public static StdoutFileHandlerSpecification getInstance() {
+	public static JobManagerLogFileHeader getInstance() {
 		return INSTANCE;
 	}
 }

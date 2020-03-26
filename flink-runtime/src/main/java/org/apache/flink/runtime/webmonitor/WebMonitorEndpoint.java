@@ -35,6 +35,10 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
@@ -71,11 +75,8 @@ import org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandl
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingHandlers;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointDisposalHandlers;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
-import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
-import org.apache.flink.runtime.rest.handler.legacy.files.LogFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
-import org.apache.flink.runtime.rest.handler.legacy.files.StdoutFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
@@ -107,6 +108,10 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeader
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogFileHeader;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerStdoutFileHeader;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
@@ -129,8 +134,6 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
-
-import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
@@ -612,16 +615,42 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		// load the log and stdout file handler for the main cluster component
 		final WebMonitorUtils.LogFileLocation logFileLocation = WebMonitorUtils.LogFileLocation.find(clusterConfiguration);
 
-		final ChannelInboundHandler logFileHandler = createStaticFileHandler(
+		final JobManagerLogFileHandler jobManagerLogFileHandler = new JobManagerLogFileHandler(
+			leaderRetriever,
 			timeout,
-			logFileLocation.logFile);
+			responseHeaders,
+			JobManagerLogFileHeader.getInstance(),
+			logFileLocation
+		);
 
-		final ChannelInboundHandler stdoutFileHandler = createStaticFileHandler(
+		final JobManagerStdoutFileHandler jobManagerStdoutFileHandler = new JobManagerStdoutFileHandler(
+			leaderRetriever,
 			timeout,
-			logFileLocation.stdOutFile);
+			responseHeaders,
+			JobManagerStdoutFileHeader.getInstance(),
+			logFileLocation
+		);
 
-		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstance(), logFileHandler));
-		handlers.add(Tuple2.of(StdoutFileHandlerSpecification.getInstance(), stdoutFileHandler));
+		final JobManagerCustomLogHandler jobManagerCustomLogHandler = new JobManagerCustomLogHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JobManagerCustomLogHeaders.getInstance(),
+			logFileLocation
+		);
+
+		final JobManagerLogListHandler jobManagerLogListHandler = new JobManagerLogListHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JobManagerLogListHeaders.getInstance(),
+			logFileLocation
+		);
+
+		handlers.add(Tuple2.of(JobManagerLogFileHeader.getInstance(), jobManagerLogFileHandler));
+		handlers.add(Tuple2.of(JobManagerStdoutFileHeader.getInstance(), jobManagerStdoutFileHandler));
+		handlers.add(Tuple2.of(JobManagerCustomLogHeaders.getInstance(), jobManagerCustomLogHandler));
+		handlers.add(Tuple2.of(JobManagerLogListHeaders.getInstance(), jobManagerLogListHandler));
 
 		// TaskManager log and stdout file handler
 
@@ -673,26 +702,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			.forEachOrdered(handler -> archivingHandlers.add((JsonArchivist) handler));
 
 		return handlers;
-	}
-
-	@Nonnull
-	private ChannelInboundHandler createStaticFileHandler(
-			Time timeout,
-			File fileToServe) {
-
-		if (fileToServe == null) {
-			return new ConstantTextHandler("(file unavailable)");
-		} else {
-			try {
-				return new StaticFileServerHandler<>(
-					leaderRetriever,
-					timeout,
-					fileToServe);
-			} catch (IOException e) {
-				log.info("Cannot load log file handler.", e);
-				return new ConstantTextHandler("(log file unavailable)");
-			}
-		}
 	}
 
 	@Override
