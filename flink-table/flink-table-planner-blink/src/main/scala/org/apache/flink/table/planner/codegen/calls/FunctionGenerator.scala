@@ -808,6 +808,11 @@ object FunctionGenerator {
 
   addSqlFunctionMethod(
     JSON_EXISTS,
+    Seq(VARCHAR, CHAR),
+    BuiltInMethods.JSON_EXISTS)
+
+  addSqlFunctionMethod(
+    JSON_EXISTS,
     Seq(CHAR, CHAR, RAW),
     BuiltInMethods.JSON_EXISTS_ERROR_BEHAVIOR)
 

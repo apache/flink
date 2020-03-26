@@ -24,6 +24,7 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
+import org.hamcrest.Matchers.startsWith
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -146,6 +147,8 @@ class JsonFunctionsTest extends ExpressionTestBase {
       + "'invalid $.foo' true on error)", "true")
     testSqlApi("json_exists('{}', "
       + "'invalid $.foo' unknown on error)", "null")
+    testSqlApi("json_exists(cast('{\"foo\":\"bar\"}' as varchar), "
+      + "'strict $.foo1')", "false")
 
     // not exists
     testSqlApi("json_exists('{\"foo\":\"bar\"}', "
@@ -165,8 +168,12 @@ class JsonFunctionsTest extends ExpressionTestBase {
 
     // nulls
     testSqlApi("json_exists(cast(null as varchar), 'lax $' unknown on error)", "null")
-    // error types
+  }
+
+  @Test
+  def testJsonFuncError(): Unit = {
     expectedException.expect(classOf[CodeGenException])
+    expectedException.expectMessage(startsWith("Unsupported call: JSON_EXISTS"))
     testSqlApi("json_exists(f7, 'lax $' unknown on error)", "null")
   }
 }
