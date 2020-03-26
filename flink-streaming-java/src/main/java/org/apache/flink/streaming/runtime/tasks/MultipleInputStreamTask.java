@@ -88,11 +88,8 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			Collection<InputGate>[] inputGates,
 			TypeSerializer<?>[] inputDeserializers,
 			WatermarkGauge[] inputWatermarkGauges) {
-		if (headOperator instanceof InputSelectable) {
-			throw new UnsupportedOperationException();
-		}
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
-			null,
+			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
 			inputGates.length);
 
 		InputGate[] unionedInputGates = new InputGate[inputGates.length];
