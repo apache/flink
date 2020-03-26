@@ -19,6 +19,7 @@
 import datetime
 
 import cloudpickle
+from contextlib import ExitStack
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker.operations import Operation
@@ -46,20 +47,28 @@ class StatelessFunctionOperation(Operation):
 
         self.variable_dict = {}
         self.user_defined_funcs = []
-        self.func = self.generate_func(self.spec.serialized_fn)
-        base_metric_group = GenericMetricGroup(None, None)
+        self.func = self.generate_func(self.spec.serialized_fn.udfs)
+        self._metric_enabled = self.spec.serialized_fn.metric_enabled
+        self.base_metric_group = GenericMetricGroup(
+            None, None, metric_enabled=self._metric_enabled)
         for user_defined_func in self.user_defined_funcs:
-            user_defined_func.open(FunctionContext(base_metric_group))
+            user_defined_func.open(FunctionContext(self.base_metric_group))
 
     def setup(self):
         super(StatelessFunctionOperation, self).setup()
 
     def start(self):
-        with self.scoped_start_state:
+        with ExitStack() as stack:
+            if self._metric_enabled:
+                stack.enter_context(self.scoped_start_state)
             super(StatelessFunctionOperation, self).start()
 
     def finish(self):
-        super(StatelessFunctionOperation, self).finish()
+        with ExitStack() as stack:
+            if self._metric_enabled:
+                stack.enter_context(self.scoped_start_state)
+            super(StatelessFunctionOperation, self).finish()
+            self._update_gauge(self.base_metric_group)
 
     def needs_finalization(self):
         return False
@@ -68,8 +77,11 @@ class StatelessFunctionOperation(Operation):
         super(StatelessFunctionOperation, self).reset()
 
     def teardown(self):
-        for user_defined_func in self.user_defined_funcs:
-            user_defined_func.close(None)
+        with ExitStack() as stack:
+            if self._metric_enabled:
+                stack.enter_context(self.scoped_start_state)
+            for user_defined_func in self.user_defined_funcs:
+                user_defined_func.close()
 
     def progress_metrics(self):
         metrics = super(StatelessFunctionOperation, self).progress_metrics()
@@ -81,9 +93,16 @@ class StatelessFunctionOperation(Operation):
         return metrics
 
     def process(self, o: WindowedValue):
-        output_stream = self.consumer.output_stream
-        self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
-        output_stream.maybe_flush()
+        with ExitStack() as stack:
+            if self._metric_enabled:
+                stack.enter_context(self.scoped_start_state)
+            output_stream = self.consumer.output_stream
+            self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
+            output_stream.maybe_flush()
+
+    def monitoring_infos(self, transform_id):
+        # only pass user metric to Java
+        return super().user_monitoring_infos(transform_id)
 
     def generate_func(self, udfs):
         pass
@@ -162,6 +181,15 @@ class StatelessFunctionOperation(Operation):
         self.variable_dict[constant_value_name] = parsed_constant_value
         return constant_value_name
 
+    @staticmethod
+    def _update_gauge(base_metric_group):
+        for name in base_metric_group._flink_gauge:
+            flink_gauge = base_metric_group._flink_gauge[name]
+            beam_gauge = base_metric_group._beam_gauge[name]
+            beam_gauge.set(flink_gauge())
+        for sub_group in base_metric_group._sub_groups:
+            StatelessFunctionOperation._update_gauge(sub_group)
+
 
 class ScalarFunctionOperation(StatelessFunctionOperation):
     def __init__(self, name, spec, counter_factory, sampler, consumers):
@@ -198,14 +226,14 @@ class TableFunctionOperation(StatelessFunctionOperation):
     SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter.udfs, ScalarFunctionOperation)
+        factory, transform_proto, consumers, parameter, ScalarFunctionOperation)
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
     TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter.udfs, TableFunctionOperation)
+        factory, transform_proto, consumers, parameter, TableFunctionOperation)
 
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,

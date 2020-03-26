@@ -39,6 +39,9 @@ class FunctionContext(object):
         self._base_metric_group = base_metric_group
 
     def get_metric_group(self) -> MetricGroup:
+        if not self._base_metric_group._metric_enabled:
+            raise RuntimeError("Metric has not been enabled. You can enable "
+                               "metric with the 'python.metric.enabled' configuration.")
         return self._base_metric_group
 
 
