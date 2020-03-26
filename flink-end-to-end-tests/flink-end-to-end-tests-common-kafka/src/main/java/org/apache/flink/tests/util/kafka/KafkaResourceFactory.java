@@ -30,7 +30,8 @@ public interface KafkaResourceFactory {
 	 * Returns a {@link KafkaResource} instance. If the instance could not be instantiated (for example, because a
 	 * mandatory parameter was missing), then an empty {@link Optional} should be returned.
 	 *
-	 * @return KafkaResource instance, or an empty Optional if the instance could not be instantiated
+	 * @return KafkaResource instance
+	 * @throws Exception if the instance could not be instantiated
 	 */
-	Optional<KafkaResource> create(String kafkaVersion);
+	KafkaResource create(String kafkaVersion) throws Exception;
 }
