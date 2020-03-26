@@ -24,6 +24,7 @@ import org.apache.flink.runtime.util.BashJavaUtils;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -39,25 +40,53 @@ import static org.junit.Assert.assertThat;
 public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	private static final String RUN_BASH_JAVA_UTILS_CMD_SCRIPT = "src/test/bin/runBashJavaUtilsCmd.sh";
+	private static final String RUN_EXTRACT_LOGGING_OUTPUTS_SCRIPT = "src/test/bin/runExtractLoggingOutputs.sh";
 
 	@Test
 	public void testGetTmResourceParamsConfigs() throws Exception {
-		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString()};
+		int expectedResultLines = 2;
+		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString(), String.valueOf(expectedResultLines)};
 		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-		assertThat(lines.size(), is(2));
+		assertThat(lines.size(), is(expectedResultLines));
 		ConfigurationUtils.parseJvmArgString(lines.get(0));
 		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
 	}
 
 	@Test
 	public void testConfigOverwrittenByDynamicOpts() throws Exception {
+		int expectedResultLines = 2;
 		double cpuCores = 39.0;
-		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString(), "-D" + TaskManagerOptions.CPU_CORES.key() + "=" + cpuCores};
+		String[] commands = {
+			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+			BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString(),
+			String.valueOf(expectedResultLines),
+			"-D" + TaskManagerOptions.CPU_CORES.key() + "=" + cpuCores};
 		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-		assertThat(lines.size(), is(2));
+		assertThat(lines.size(), is(expectedResultLines));
 		Map<String, String> configs = ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
 		assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())), is(cpuCores));
+	}
+
+	@Test
+	public void testExtractLoggingOutputs() throws Exception {
+		StringBuilder input = new StringBuilder();
+		List<String> expectedOutput = new ArrayList<>();
+
+		for (int i = 0; i < 5; ++i) {
+			String line = "BashJavaUtils output line " + i + " `~!@#$%^&*()-_=+;:,.'\"\\\t/?";
+			if (i % 2 == 0) {
+				expectedOutput.add(line);
+			} else {
+				line = BashJavaUtils.EXECUTION_PREFIX + line;
+			}
+			input.append(line + "\n");
+		}
+
+		String[] commands = {RUN_EXTRACT_LOGGING_OUTPUTS_SCRIPT, input.toString()};
+		List<String> actualOutput = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(actualOutput, is(expectedOutput));
 	}
 }
