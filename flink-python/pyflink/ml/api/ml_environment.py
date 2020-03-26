@@ -18,7 +18,7 @@
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import BatchTableEnvironment, StreamTableEnvironment
+from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
 
 
 class MLEnvironment(object):

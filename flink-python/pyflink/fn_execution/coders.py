@@ -32,7 +32,7 @@ from apache_beam.typehints import typehints
 from pyflink.fn_execution import coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.sdk_worker_main import pipeline_options
-from pyflink.table import Row
+from pyflink.table.types import Row
 
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
 FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
