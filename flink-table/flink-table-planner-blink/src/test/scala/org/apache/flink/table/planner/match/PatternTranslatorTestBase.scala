@@ -68,7 +68,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    TableTestUtil.registerDataStream(
+    TableTestUtil.createTemporaryView(
       tEnv, tableName, dataStreamMock.javaStream, Some(Array[Expression]('f0, 'proctime.proctime)))
 
     // prepare RelBuilder

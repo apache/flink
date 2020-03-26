@@ -21,10 +21,12 @@ package org.apache.flink.table.api.batch.table.stringexpr
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.Expressions.$
+import org.apache.flink.table.api.{Expressions, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.{PojoTableFunc, TableFunc2, _}
 import org.apache.flink.types.Row
+
 import org.junit.Test
 import org.mockito.Mockito.{mock, when}
 
@@ -42,7 +44,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val sDs = mock(classOf[DataSet[Row]])
     when(sDs.javaSet).thenReturn(jDs)
 
-    val jTab = util.javaTableEnv.fromDataSet(jDs, "a, b, c")
+    val jTab = util.javaTableEnv.fromDataSet(jDs, $("a"), $("b"), $("c"))
     val sTab = util.tableEnv.fromDataSet(sDs, 'a, 'b, 'c)
 
     // test cross join

@@ -61,7 +61,7 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 		tableEnv = BatchTableEnvironment.create(env, new TableConfig());
 
 		DataSet<Tuple3<Integer, Long, String>> dataSet = CollectionDataSets.get3TupleDataSet(env);
-		tableEnv.registerDataSet(TABLE_NAME, dataSet);
+		tableEnv.createTemporaryView(TABLE_NAME, dataSet);
 
 		MapOperator<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> dataSetWithNulls =
 			dataSet.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>() {
@@ -74,7 +74,7 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 					return value;
 				}
 			});
-		tableEnv.registerDataSet(TABLE_WITH_NULLS_NAME, dataSetWithNulls);
+		tableEnv.createTemporaryView(TABLE_WITH_NULLS_NAME, dataSetWithNulls);
 	}
 
 	@Test

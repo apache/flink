@@ -33,6 +33,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -211,6 +212,25 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	<T> Table fromDataStream(DataStream<T> dataStream, String fields);
 
 	/**
+	 * Converts the given {@link DataStream} into a {@link Table} with specified field names.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   Table tab = tableEnv.fromDataStream(stream, $("a"), $("b").as("name"), $("timestamp").rowtime());
+	 * }
+	 * </pre>
+	 *
+	 * @param dataStream The {@link DataStream} to be converted.
+	 * @param fields The field expressions of the resulting {@link Table}.
+	 * @param <T> The type of the {@link DataStream}.
+	 * @return The converted {@link Table}.
+	 */
+	<T> Table fromDataStream(DataStream<T> dataStream, Expression... fields);
+
+	/**
 	 * Creates a view from the given {@link DataStream}.
 	 * Registered views can be referenced in SQL queries.
 	 *
@@ -274,7 +294,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param dataStream The {@link DataStream} to register.
 	 * @param fields The field names of the registered view.
 	 * @param <T> The type of the {@link DataStream} to register.
-	 * @deprecated use {@link #createTemporaryView(String, DataStream, String)}
+	 * @deprecated use {@link #createTemporaryView(String, DataStream, Expression...)}
 	 */
 	@Deprecated
 	<T> void registerDataStream(String name, DataStream<T> dataStream, String fields);
@@ -303,6 +323,31 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param <T> The type of the {@link DataStream}.
 	 */
 	<T> void createTemporaryView(String path, DataStream<T> dataStream, String fields);
+
+	/**
+	 * Creates a view from the given {@link DataStream} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   tableEnv.createTemporaryView("cat.db.myTable", stream, $("a"), $("b").as("name"), $("timestamp").rowtime())
+	 * }
+	 * </pre>
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the {@link DataStream} is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataStream The {@link DataStream} out of which to create the view.
+	 * @param fields The field expressions of the created view.
+	 * @param <T> The type of the {@link DataStream}.
+	 */
+	<T> void createTemporaryView(String path, DataStream<T> dataStream, Expression... fields);
 
 	/**
 	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
