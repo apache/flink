@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -34,7 +35,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class BashJavaUtils {
 
-	private static final String EXECUTION_PREFIX = "BASH_JAVA_UTILS_EXEC_RESULT:";
+	@VisibleForTesting
+	public static final String EXECUTION_PREFIX = "BASH_JAVA_UTILS_EXEC_RESULT:";
 
 	public static void main(String[] args) throws Exception {
 		checkArgument(args.length > 0, "Command not specified.");
