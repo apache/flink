@@ -18,18 +18,13 @@
 
 package org.apache.flink.tests.util.kafka;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * A {@link KafkaResourceFactory} for the {@link LocalStandaloneKafkaResourceFactory}.
  */
 public final class LocalStandaloneKafkaResourceFactory implements KafkaResourceFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneKafkaResourceFactory.class);
 
 	@Override
 	public KafkaResource create(final String kafkaVersion) {
-		LOG.info("Created {}.", LocalStandaloneKafkaResource.class.getSimpleName());
 		return new LocalStandaloneKafkaResource(kafkaVersion);
 	}
 }

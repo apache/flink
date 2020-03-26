@@ -20,9 +20,6 @@ package org.apache.flink.tests.util.cache;
 
 import org.apache.flink.tests.util.parameters.ParameterProperty;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -31,7 +28,6 @@ import java.util.Optional;
  * A {@link DownloadCacheFactory} for the {@link TravisDownloadCache}.
  */
 public final class TravisDownloadCacheFactory implements DownloadCacheFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(TravisDownloadCacheFactory.class);
 
 	private static final ParameterProperty<Path> TMP_DIR = new ParameterProperty<>("cache-dir", value -> Paths.get(value));
 	private static final ParameterProperty<Integer> BUILDS_TO_LIVE = new ParameterProperty<>("cache-btl", Integer::parseInt);
@@ -43,18 +39,14 @@ public final class TravisDownloadCacheFactory implements DownloadCacheFactory {
 		final Optional<Integer> timeToLive = BUILDS_TO_LIVE.get();
 		final Optional<Integer> buildNumber = BUILD_NUMBER.get();
 		if (!tmpDir.isPresent()) {
-			LOG.debug("Not loading {} because {} was not set.", TravisDownloadCache.class, TMP_DIR.getPropertyName());
 			throw new IllegalArgumentException(String.format("Not loading %s because %s was not set.", TravisDownloadCache.class, TMP_DIR.getPropertyName()));
 		}
 		if (!timeToLive.isPresent()) {
-			LOG.debug("Not loading {} because {} was not set.", TravisDownloadCache.class, BUILDS_TO_LIVE.getPropertyName());
 			throw new IllegalArgumentException(String.format("Not loading %s because %s was not set.", TravisDownloadCache.class, BUILDS_TO_LIVE.getPropertyName()));
 		}
 		if (!buildNumber.isPresent()) {
-			LOG.debug("Not loading {} because {} was not set.", TravisDownloadCache.class, BUILD_NUMBER.getPropertyName());
 			throw new IllegalArgumentException(String.format("Not loading %s because %s was not set.", TravisDownloadCache.class, BUILD_NUMBER.getPropertyName()));
 		}
-		LOG.info("Created {}.", TravisDownloadCache.class.getSimpleName());
 		return new TravisDownloadCache(tmpDir.get(), timeToLive.get(), buildNumber.get());
 	}
 }

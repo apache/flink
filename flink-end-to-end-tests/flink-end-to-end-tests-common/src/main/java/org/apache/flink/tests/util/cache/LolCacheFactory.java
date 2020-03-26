@@ -19,8 +19,6 @@
 package org.apache.flink.tests.util.cache;
 
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -28,13 +26,11 @@ import java.io.IOException;
  * A {@link DownloadCacheFactory} for the {@link LolCache}.
  */
 public final class LolCacheFactory implements DownloadCacheFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(LolCacheFactory.class);
 
 	@Override
 	public DownloadCache create() throws IOException {
 		final TemporaryFolder folder = new TemporaryFolder();
 		folder.create();
-		LOG.info("Created {}.", LolCache.class.getSimpleName());
 		return new LolCache(folder);
 	}
 }
