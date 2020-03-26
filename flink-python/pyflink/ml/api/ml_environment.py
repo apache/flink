@@ -16,8 +16,8 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.dataset.execution_environment import ExecutionEnvironment
+from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
 
 
