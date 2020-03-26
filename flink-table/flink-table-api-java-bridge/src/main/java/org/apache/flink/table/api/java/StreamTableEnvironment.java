@@ -208,7 +208,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param fields The field names of the resulting {@link Table}.
 	 * @param <T> The type of the {@link DataStream}.
 	 * @return The converted {@link Table}.
+	 * @deprecated use {@link #fromDataStream(DataStream, Expression...)}
 	 */
+	@Deprecated
 	<T> Table fromDataStream(DataStream<T> dataStream, String fields);
 
 	/**
@@ -321,7 +323,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param dataStream The {@link DataStream} out of which to create the view.
 	 * @param fields The field names of the created view.
 	 * @param <T> The type of the {@link DataStream}.
+	 * @deprecated use {@link #createTemporaryView(String, DataStream, Expression...)}
 	 */
+	@Deprecated
 	<T> void createTemporaryView(String path, DataStream<T> dataStream, String fields);
 
 	/**

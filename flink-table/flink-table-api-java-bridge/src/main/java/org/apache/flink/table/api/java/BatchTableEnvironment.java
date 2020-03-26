@@ -106,7 +106,9 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * @param fields The field names of the resulting {@link Table}.
 	 * @param <T> The type of the {@link DataSet}.
 	 * @return The converted {@link Table}.
+	 * @deprecated use {@link #fromDataSet(DataSet, Expression...)}
 	 */
+	@Deprecated
 	<T> Table fromDataSet(DataSet<T> dataSet, String fields);
 
 	/**
@@ -219,7 +221,9 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * @param dataSet The {@link DataSet} out of which to create the view.
 	 * @param fields The field names of the registered view.
 	 * @param <T> The type of the {@link DataSet}.
+	 * @deprecated use {@link #createTemporaryView(String, DataSet, Expression...)}
 	 */
+	@Deprecated
 	<T> void createTemporaryView(String path, DataSet<T> dataSet, String fields);
 
 	/**
