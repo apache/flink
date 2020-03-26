@@ -43,7 +43,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
 		assertEquals(2, lines.size());
-		ConfigurationUtils.parseTmResourceJvmParams(lines.get(lines.size() - 2));
-		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(lines.size() - 1));
+		ConfigurationUtils.parseTmResourceJvmParams(lines.get(0));
+		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
 	}
 }
