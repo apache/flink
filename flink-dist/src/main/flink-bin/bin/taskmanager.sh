@@ -49,8 +49,8 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     # Startup parameters
 
     java_utils_output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_PARAMS ${FLINK_CONF_DIR})
-    logging_output=${java_utils_output} | head -n -2
-    params_output=${java_utils_output} | tail -n 2
+    logging_output=$(echo "${java_utils_output}" | head -n -2)
+    params_output=$(echo "${java_utils_output}" | tail -n 2)
 
     jvm_params=$(extractExecutionParams "$(echo "$params_output" | head -n 1)")
     if [[ $? -ne 0 ]]; then
