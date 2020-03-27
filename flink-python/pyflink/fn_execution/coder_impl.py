@@ -27,7 +27,7 @@ import pyarrow as pa
 from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, create_OutputStream
 
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table import Row
+from pyflink.table.types import Row
 
 
 class FlattenRowCoderImpl(StreamCoderImpl):
