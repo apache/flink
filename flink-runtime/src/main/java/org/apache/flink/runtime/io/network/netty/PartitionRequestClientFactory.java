@@ -26,10 +26,14 @@ import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportExcept
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -40,65 +44,47 @@ import java.util.concurrent.ConcurrentMap;
  * instances.
  */
 class PartitionRequestClientFactory {
+	private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestClientFactory.class);
 
 	private final NettyClient nettyClient;
+
+	private final int retryNumber;
 
 	private final ConcurrentMap<ConnectionID, Object> clients = new ConcurrentHashMap<ConnectionID, Object>();
 
 	PartitionRequestClientFactory(NettyClient nettyClient) {
+		this(nettyClient, 0);
+	}
+
+	PartitionRequestClientFactory(NettyClient nettyClient, int retryNumber) {
 		this.nettyClient = nettyClient;
+		this.retryNumber = retryNumber;
 	}
 
 	/**
 	 * Atomically establishes a TCP connection to the given remote address and
 	 * creates a {@link NettyPartitionRequestClient} instance for this connection.
 	 */
-	NettyPartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException {
-		Object entry;
+	NettyPartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
 		NettyPartitionRequestClient client = null;
-
 		while (client == null) {
-			entry = clients.get(connectionId);
-
-			if (entry != null) {
-				// Existing channel or connecting channel
-				if (entry instanceof NettyPartitionRequestClient) {
-					client = (NettyPartitionRequestClient) entry;
+			client = (NettyPartitionRequestClient) clients.computeIfAbsent(connectionId, unused -> {
+				int tried = 0;
+				while (true) {
+					ConnectingChannel connectingChannel = null;
+					try {
+						connectingChannel = new ConnectingChannel(connectionId, this);
+						nettyClient.connect(connectionId.getAddress()).addListener(connectingChannel);
+						return connectingChannel.waitForChannel();
+					} catch (IOException | InterruptedException | ChannelException e) {
+						LOG.error("Failed {} times to connect to {}", tried, connectionId.getAddress(), e);
+						if (++tried > retryNumber) {
+							throw new CompletionException(e);
+						}
+					}
 				}
-				else {
-					ConnectingChannel future = (ConnectingChannel) entry;
-					client = future.waitForChannel();
+			});
 
-					clients.replace(connectionId, future, client);
-				}
-			}
-			else {
-				// No channel yet. Create one, but watch out for a race.
-				// We create a "connecting future" and atomically add it to the map.
-				// Only the thread that really added it establishes the channel.
-				// The others need to wait on that original establisher's future.
-				ConnectingChannel connectingChannel = new ConnectingChannel(connectionId, this);
-				Object old = clients.putIfAbsent(connectionId, connectingChannel);
-
-				if (old == null) {
-					nettyClient.connect(connectionId.getAddress()).addListener(connectingChannel);
-
-					client = connectingChannel.waitForChannel();
-
-					clients.replace(connectionId, connectingChannel, client);
-				}
-				else if (old instanceof ConnectingChannel) {
-					client = ((ConnectingChannel) old).waitForChannel();
-
-					clients.replace(connectionId, old, client);
-				}
-				else {
-					client = (NettyPartitionRequestClient) old;
-				}
-			}
-
-			// Make sure to increment the reference count before handing a client
-			// out to ensure correct bookkeeping for channel closing.
 			if (!client.incrementReferenceCounter()) {
 				destroyPartitionRequestClient(connectionId, client);
 				client = null;
