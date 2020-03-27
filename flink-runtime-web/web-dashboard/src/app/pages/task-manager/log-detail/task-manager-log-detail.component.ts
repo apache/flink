@@ -21,8 +21,6 @@ import { TaskManagerService } from 'services';
 import { first } from 'rxjs/operators';
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 
-const DEFAULT_LOG_NAME = 'taskmanager.log';
-
 @Component({
   selector: 'flink-task-manager-log-detail',
   templateUrl: './task-manager-log-detail.component.html',
@@ -77,14 +75,14 @@ export class TaskManagerLogDetailComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.hasLogName = this.activatedRoute.snapshot.data.hasLogName;
-    if (this.hasLogName) {
-      this.logName = this.activatedRoute.snapshot.params.logName;
-    } else {
-      this.logName = DEFAULT_LOG_NAME;
-    }
     this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
       this.taskManagerDetail = data;
+      this.hasLogName = this.activatedRoute.snapshot.data.hasLogName;
+      if (this.hasLogName) {
+        this.logName = this.activatedRoute.snapshot.params.logName;
+      } else {
+        this.logName = `taskmanager_${data.id}_log`;
+      }
       this.reloadLog();
     });
   }
