@@ -241,6 +241,7 @@ public class JobLeaderService {
 
 		/** Rpc connection to the job leader. */
 		@GuardedBy("lock")
+		@Nullable
 		private RegisteredRpcConnection<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> rpcConnection;
 
 		/** Leader id of the current job leader. */
@@ -311,6 +312,7 @@ public class JobLeaderService {
 						// the leader lost leadership but there is no other leader yet.
 						if (rpcConnection != null) {
 							rpcConnection.close();
+							rpcConnection = null;
 						}
 
 						jobManagerLostLeadership = Optional.ofNullable(currentJobMasterId);
