@@ -56,6 +56,8 @@ public class PostgresCatalogTestBase {
 	protected static final String TABLE3 = "t3";
 	protected static final String TABLE4 = "t4";
 	protected static final String TABLE5 = "t5";
+	protected static final String TABLE_PRIMITIVE_TYPE = "dt";
+	protected static final String TABLE_ARRAY_TYPE = "dt2";
 
 	protected static String baseUrl;
 	protected static PostgresCatalog catalog;
@@ -81,14 +83,18 @@ public class PostgresCatalogTestBase {
 		createTable(PostgresTablePath.fromFlinkTableName(TABLE4), getSimpleTable().pgSchemaSql);
 		createTable(PostgresTablePath.fromFlinkTableName(TABLE5), getSimpleTable().pgSchemaSql);
 
-		executeSQL(DEFAULT_DATABASE, String.format("insert into public.%s values (1);", TABLE1));
-
-		// table: testdb.public.t2
-		// table: testdb.test_schema.t3
-		// table: testdb.public.datatypes
+		// table: test.public.t2
+		// table: test.test_schema.t3
+		// table: postgres.public.dt
+		// table: postgres.public.dT2
 		createTable(TEST_DB, PostgresTablePath.fromFlinkTableName(TABLE2), getSimpleTable().pgSchemaSql);
 		createTable(TEST_DB, new PostgresTablePath(TEST_SCHEMA, TABLE3), getSimpleTable().pgSchemaSql);
-		createTable(TEST_DB, PostgresTablePath.fromFlinkTableName("datatypes"), getDataTypesTable().pgSchemaSql);
+		createTable(PostgresTablePath.fromFlinkTableName(TABLE_PRIMITIVE_TYPE), getPrimitiveTable().pgSchemaSql);
+		createTable(PostgresTablePath.fromFlinkTableName(TABLE_ARRAY_TYPE), getArrayTable().pgSchemaSql);
+
+		executeSQL(DEFAULT_DATABASE, String.format("insert into public.%s values (%s);", TABLE1, getSimpleTable().values));
+		executeSQL(DEFAULT_DATABASE, String.format("insert into %s values (%s);", TABLE_PRIMITIVE_TYPE, getPrimitiveTable().values));
+		executeSQL(DEFAULT_DATABASE, String.format("insert into %s values (%s);", TABLE_ARRAY_TYPE, getArrayTable().values));
 	}
 
 	public static void createTable(PostgresTablePath tablePath, String tableSchemaSql) throws SQLException {
@@ -126,10 +132,12 @@ public class PostgresCatalogTestBase {
 	public static class TestTable {
 		TableSchema schema;
 		String pgSchemaSql;
+		String values;
 
-		public TestTable(TableSchema schema, String pgSchemaSql) {
+		public TestTable(TableSchema schema, String pgSchemaSql, String values) {
 			this.schema = schema;
 			this.pgSchemaSql = pgSchemaSql;
+			this.values = values;
 		}
 	}
 
@@ -138,78 +146,124 @@ public class PostgresCatalogTestBase {
 			TableSchema.builder()
 				.field("id", DataTypes.INT())
 				.build(),
-			"id integer"
+			"id integer",
+			"1"
 		);
 	}
 
-	public static TestTable getDataTypesTable() {
+	// TODO: add back timestamptz and time types.
+	//  Flink currently doens't support converting time's precision and PostgresDialect doesn't support timestamptz
+	public static TestTable getPrimitiveTable() {
 		return new TestTable(
 			TableSchema.builder()
 				.field("int", DataTypes.INT())
-				.field("int_arr", DataTypes.ARRAY(DataTypes.INT()))
 				.field("bytea", DataTypes.BYTES())
-				.field("bytea_arr", DataTypes.ARRAY(DataTypes.BYTES()))
 				.field("short", DataTypes.SMALLINT())
-				.field("short_arr", DataTypes.ARRAY(DataTypes.SMALLINT()))
 				.field("long", DataTypes.BIGINT())
-				.field("long_arr", DataTypes.ARRAY(DataTypes.BIGINT()))
 				.field("real", DataTypes.FLOAT())
-				.field("real_arr", DataTypes.ARRAY(DataTypes.FLOAT()))
 				.field("double_precision", DataTypes.DOUBLE())
-				.field("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
 				.field("numeric", DataTypes.DECIMAL(10, 5))
-				.field("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
 				.field("boolean", DataTypes.BOOLEAN())
-				.field("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
 				.field("text", DataTypes.STRING())
-				.field("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
 				.field("char", DataTypes.CHAR(1))
-				.field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
 				.field("character", DataTypes.CHAR(3))
-				.field("character_arr", DataTypes.ARRAY(DataTypes.CHAR(3)))
 				.field("character_varying", DataTypes.VARCHAR(20))
-				.field("character_varying_arr", DataTypes.ARRAY(DataTypes.VARCHAR(20)))
 				.field("timestamp", DataTypes.TIMESTAMP(5))
-				.field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
-				.field("timestamptz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4))
-				.field("timestamptz_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4)))
+//				.field("timestamptz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4))
 				.field("date", DataTypes.DATE())
-				.field("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
-				.field("time", DataTypes.TIME(3))
-				.field("time_arr", DataTypes.ARRAY(DataTypes.TIME(3)))
+//				.field("time", DataTypes.TIME())
 				.build(),
 			"int integer, " +
-				"int_arr integer[], " +
 				"bytea bytea, " +
-				"bytea_arr bytea[], " +
 				"short smallint, " +
-				"short_arr smallint[], " +
 				"long bigint, " +
-				"long_arr bigint[], " +
 				"real real, " +
-				"real_arr real[], " +
 				"double_precision double precision, " +
-				"double_precision_arr double precision[], " +
 				"numeric numeric(10, 5), " +
-				"numeric_arr numeric(10, 5)[], " +
 				"boolean boolean, " +
-				"boolean_arr boolean[], " +
 				"text text, " +
-				"text_arr text[], " +
 				"char char, " +
-				"char_arr char[], " +
 				"character character(3), " +
-				"character_arr character(3)[], " +
 				"character_varying character varying(20), " +
-				"character_varying_arr character varying(20)[], " +
 				"timestamp timestamp(5), " +
-				"timestamp_arr timestamp(5)[], " +
-				"timestamptz timestamptz(4), " +
-				"timestamptz_arr timestamptz(4)[], " +
-				"date date, " +
-				"date_arr date[], " +
-				"time time(3), " +
-				"time_arr time(3)[]"
+//				"timestamptz timestamptz(4), " +
+				"date date",
+//				"time time, " +
+			"1," +
+				"'2'," +
+				"3," +
+				"4," +
+				"5.5," +
+				"6.6," +
+				"7.7," +
+				"true," +
+				"'a'," +
+				"'b'," +
+				"'c'," +
+				"'d'," +
+				"'2016-06-22 19:10:25'," +
+//				"'2006-06-22 19:10:25',
+				"'2015-01-01'"
+//				"'00:51:02.746572',
 		);
+	}
+
+	// TODO: add back timestamptz and time types.
+	//  Flink currently doens't support converting time's precision and PostgresDialect doesn't support timestamptz
+	public static TestTable getArrayTable() {
+		return new TestTable(
+			TableSchema.builder()
+				.field("int_arr", DataTypes.ARRAY(DataTypes.INT()))
+				.field("bytea_arr", DataTypes.ARRAY(DataTypes.BYTES()))
+				.field("short_arr", DataTypes.ARRAY(DataTypes.SMALLINT()))
+				.field("long_arr", DataTypes.ARRAY(DataTypes.BIGINT()))
+				.field("real_arr", DataTypes.ARRAY(DataTypes.FLOAT()))
+				.field("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
+				.field("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
+				.field("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
+				.field("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
+				.field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
+				.field("character_arr", DataTypes.ARRAY(DataTypes.CHAR(3)))
+				.field("character_varying_arr", DataTypes.ARRAY(DataTypes.VARCHAR(20)))
+//				.field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
+//				.field("timestamptz_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4)))
+//				.field("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
+//				.field("time_arr", DataTypes.ARRAY(DataTypes.TIME()))
+				.build(),
+
+				"int_arr integer[], " +
+				"bytea_arr bytea[], " +
+				"short_arr smallint[], " +
+				"long_arr bigint[], " +
+				"real_arr real[], " +
+				"double_precision_arr double precision[], " +
+				"numeric_arr numeric(10, 5)[], " +
+				"boolean_arr boolean[], " +
+				"text_arr text[], " +
+				"char_arr char[], " +
+				"character_arr character(3)[], " +
+				"character_varying_arr character varying(20)[]",
+//				"timestamp_arr timestamp(5)[], " +
+//				"timestamptz_arr timestamptz(4)[], " +
+//				"date_arr date[]",
+//				"time_arr time[]",
+
+				String.format("'{1,2,3}'," +
+				"'{2,3,4}'," +
+				"'{3,4,5}'," +
+				"'{4,5,6}'," +
+				"'{5.5,6.6,7.7}'," +
+				"'{6.6,7.7,8.8}'," +
+				"'{7.7,8.8,9.9}'," +
+				"'{true,false,true}'," +
+				"'{a,b,c}'," +
+				"'{b,c,d}'," +
+				"'{b,c,d}'," +
+				"'{b,c,d}'"
+//				"'{\"2016-06-22 19:10:25\", \"2019-06-22 19:10:25\"}'," +
+//				"'{\"2006-06-22 19:10:25\", \"2009-06-22 19:10:25\"}'," +
+//				"'{\"2015-01-01\", \"2020-01-01\"}'"
+//				"'{\"00:51:02.746572\", \"00:59:02.746572\"}'");
+		));
 	}
 }
