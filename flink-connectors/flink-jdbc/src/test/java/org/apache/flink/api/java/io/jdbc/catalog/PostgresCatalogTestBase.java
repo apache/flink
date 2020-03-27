@@ -151,8 +151,7 @@ public class PostgresCatalogTestBase {
 		);
 	}
 
-	// TODO: add back timestamptz and time types.
-	//  Flink currently doens't support converting time's precision and PostgresDialect doesn't support timestamptz
+	// TODO: add back timestamptz once blink planner supports timestamp with timezone
 	public static TestTable getPrimitiveTable() {
 		return new TestTable(
 			TableSchema.builder()
@@ -171,7 +170,7 @@ public class PostgresCatalogTestBase {
 				.field("timestamp", DataTypes.TIMESTAMP(5))
 //				.field("timestamptz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4))
 				.field("date", DataTypes.DATE())
-//				.field("time", DataTypes.TIME())
+				.field("time", DataTypes.TIME(0))
 				.build(),
 			"int integer, " +
 				"bytea bytea, " +
@@ -187,8 +186,8 @@ public class PostgresCatalogTestBase {
 				"character_varying character varying(20), " +
 				"timestamp timestamp(5), " +
 //				"timestamptz timestamptz(4), " +
-				"date date",
-//				"time time, " +
+				"date date, " +
+				"time time(0)",
 			"1," +
 				"'2'," +
 				"3," +
@@ -203,13 +202,12 @@ public class PostgresCatalogTestBase {
 				"'d'," +
 				"'2016-06-22 19:10:25'," +
 //				"'2006-06-22 19:10:25',
-				"'2015-01-01'"
-//				"'00:51:02.746572',
+				"'2015-01-01'," +
+				"'00:51:02.746572'"
 		);
 	}
 
-	// TODO: add back timestamptz and time types.
-	//  Flink currently doens't support converting time's precision and PostgresDialect doesn't support timestamptz
+	// TODO: add back timestamptz once blink planner supports timestamp with timezone
 	public static TestTable getArrayTable() {
 		return new TestTable(
 			TableSchema.builder()
@@ -225,10 +223,10 @@ public class PostgresCatalogTestBase {
 				.field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
 				.field("character_arr", DataTypes.ARRAY(DataTypes.CHAR(3)))
 				.field("character_varying_arr", DataTypes.ARRAY(DataTypes.VARCHAR(20)))
-//				.field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
+				.field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
 //				.field("timestamptz_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4)))
-//				.field("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
-//				.field("time_arr", DataTypes.ARRAY(DataTypes.TIME()))
+				.field("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
+				.field("time_arr", DataTypes.ARRAY(DataTypes.TIME(0)))
 				.build(),
 
 				"int_arr integer[], " +
@@ -242,11 +240,11 @@ public class PostgresCatalogTestBase {
 				"text_arr text[], " +
 				"char_arr char[], " +
 				"character_arr character(3)[], " +
-				"character_varying_arr character varying(20)[]",
-//				"timestamp_arr timestamp(5)[], " +
+				"character_varying_arr character varying(20)[], " +
+				"timestamp_arr timestamp(5)[], " +
 //				"timestamptz_arr timestamptz(4)[], " +
-//				"date_arr date[]",
-//				"time_arr time[]",
+				"date_arr date[], " +
+				"time_arr time(0)[]",
 
 				String.format("'{1,2,3}'," +
 				"'{2,3,4}'," +
@@ -259,11 +257,11 @@ public class PostgresCatalogTestBase {
 				"'{a,b,c}'," +
 				"'{b,c,d}'," +
 				"'{b,c,d}'," +
-				"'{b,c,d}'"
-//				"'{\"2016-06-22 19:10:25\", \"2019-06-22 19:10:25\"}'," +
+				"'{b,c,d}'," +
+				"'{\"2016-06-22 19:10:25\", \"2019-06-22 19:10:25\"}'," +
 //				"'{\"2006-06-22 19:10:25\", \"2009-06-22 19:10:25\"}'," +
-//				"'{\"2015-01-01\", \"2020-01-01\"}'"
-//				"'{\"00:51:02.746572\", \"00:59:02.746572\"}'");
+				"'{\"2015-01-01\", \"2020-01-01\"}'," +
+				"'{\"00:51:02.746572\", \"00:59:02.746572\"}'"
 		));
 	}
 }
