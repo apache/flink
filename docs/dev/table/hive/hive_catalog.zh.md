@@ -22,61 +22,44 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Hive Metastore has evolved into the de facto metadata hub over the years in Hadoop ecosystem. Many companies have a single
-Hive Metastore service instance in their production to manage all of their metadata, either Hive metadata or non-Hive metadata,
- as the source of truth.
- 
-For users who have both Hive and Flink deployments, `HiveCatalog` enables them to use Hive Metastore to manage Flink's metadata.
+多年来，Hive Metastore 在 Hadoop 生态系统中已发展成为事实上的元数据中心。 实际上，许多公司在其生产环境中都有一个 Hive Metastore 服务实例，以管理其所有元数据（ Hive 元数据或非 Hive 元数据）。
 
-For users who have just Flink deployment, `HiveCatalog` is the only persistent catalog provided out-of-box by Flink.
-Without a persistent catalog, users using [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html) have to repeatedly
-create meta-objects like a Kafka table in each session, which wastes a lot of time. `HiveCatalog` fills this gap by empowering
-users to create tables and other meta-objects only once, and reference and manage them with convenience later on across sessions.
+对于同时部署了 Hive 和 Flink 部署的用户，`HiveCatalog` 使他们能够使用 Hive Metastore 来管理 Flink 的元数据。
 
+对于仅部署了 Flink 的用户，`HiveCatalog` 是 Flink 提供的唯一现成的持久 Catalog。如果没有持久 Catalog，使用 [Flink SQL CREATE DDL]({{site.baseurl}}/zh/dev/table/SQL/CREATE.html) 的用户必须在每个会话（session）中重复创建像 Kafka 表这样的元对象（meta-objects），这会浪费很多时间。`HiveCatalog` 填补了这一空白，用户只需要创建一次表和其他元对象，就可以在以后的会话中方便地引用和管理它们。
 
-## Set up HiveCatalog
+## 设置 HiveCatalog
 
-### Dependencies
+### 依赖
 
-Setting up a `HiveCatalog` in Flink requires the same [dependencies]({{ site.baseurl }}/dev/table/hive/#dependencies) 
-as those of an overall Flink-Hive integration.
+在 Flink 中设置 `HiveCatalog` 需要的依赖和设置整个 Flink-Hive 集成需要的[依赖]({{ site.baseurl }}/zh/dev/table/hive/#dependencies)是一样的。
 
-### Configuration
+### 配置
 
-Setting up a `HiveCatalog` in Flink requires the same [configuration]({{ site.baseurl }}/dev/table/hive/#connecting-to-hive) 
-as those of an overall Flink-Hive integration.
+在 Flink 中设置 `HiveCatalog` 需要的配置和设置整个 Flink-Hive 集成需要的[配置]({{ site.baseurl }}/zh/dev/table/hive/#connecting-to-hive)是一样的。
 
 
-## How to use HiveCatalog
+## 怎么使用 HiveCatalog
 
-Once configured properly, `HiveCatalog` should just work out of box. Users can create Flink meta-objects with DDL, and shoud
-see them immediately afterwards.
+一旦正确的完成配置，`HiveCatalog` 就可以正常工作了。用户可以使用 DDL 来创建 Flink 元对象，然后就可以立即看到这些元对象。
 
-`HiveCatalog` can be used to handle two kinds of tables: Hive-compatible tables and generic tables. Hive-compatible tables
-are those stored in a Hive-compatible way, in terms of both metadata and data in the storage layer. Therefore, Hive-compatible tables
-created via Flink can be queried from Hive side.
+`HiveCatalog` 可用于处理两种表： Hive 兼容表（Hive-compatible tables）和通用表（generic tables）。Hive 兼容表就存储层中的元数据和数据而言，是以 Hive 兼容方式存储的数据。因此，通过 Flink 创建的 Hive 兼容表可以从 Hive 端查询。
 
-Generic tables, on the other hand, are specific to Flink. When creating generic tables with `HiveCatalog`, we're just using
-HMS to persist the metadata. While these tables are visible to Hive, it's unlikely Hive is able to understand
-the metadata. And therefore using such tables in Hive leads to undefined behavior.
+另一方面，通用表是 Flink 特有的。使用 `HiveCatalog` 创建通用表时，我们使用 HMS 来持久化元数据。虽然这些表对 Hive 可见，但 Hive 不太可能理解这些元数据。因此，在 Hive 中使用这样的表会导致不可知的行为。
 
-Flink uses the property '*is_generic*' to tell whether a table is Hive-compatible or generic. When creating a table with
-`HiveCatalog`, it's by default considered generic. If you'd like to create a Hive-compatible table, make sure to set
-`is_generic` to false in your table properties.
+Flink 使用属性 '*is_generic*' 来判断表是 Hive 兼容表还是通用表。使用 `HiveCatalog` 创建表时，默认情况下被视为通用表。如果要创建 Hive 兼容表，请确保在表属性中将 `is_generic` 设置为 false 。
 
-As stated above, generic tables shouldn't be used from Hive. In Hive CLI, you can call `DESCRIBE FORMATTED` for a table and
-decide whether it's generic or not by checking the `is_generic` property. Generic tables will have `is_generic=true`.
+如上所述，不应在 Hive 中使用通用表。在 Hive CLI 中，可以调用表的 `DESCRIBE FORMATTED` ，并通过检查 `is_generic` 属性来确定它是否是通用表。通用表有 `is_generic=true` 的属性。
 
-### Example
+### 示例
 
-We will walk through a simple example here.
+我们将在这里解析一个简单的例子。
 
-#### step 1: set up a Hive Metastore
+#### 第一步：设置 Hive Metastore
 
-Have a Hive Metastore running. 
+运行 Hive Metastore。
 
-Here, we set up a local Hive Metastore and our `hive-site.xml` file in local path `/opt/hive-conf/hive-site.xml`.
-We have some configs like the following:
+在这里，我们设置了本地 Hive Metastore，`hive-site.xml`文件位于本地路径  `/opt/hive-conf/hive-site.xml` 中。我们有如下配置：
 
 {% highlight xml %}
 
@@ -119,9 +102,7 @@ We have some configs like the following:
 </configuration>
 {% endhighlight %}
 
-
-Test connection to the HMS with Hive Cli. Running some commands, we can see we have a database named `default` and there's no table in it.
-
+用 Hive Cli 测试与 HMS 的连接。运行一些命令，可以看到我们有一个名为 `default` 的数据库，并且其中没有表。
 
 {% highlight bash %}
 
@@ -136,9 +117,9 @@ Time taken: 0.028 seconds, Fetched: 0 row(s)
 {% endhighlight %}
 
 
-#### step 2: configure Flink cluster and SQL CLI
+#### 第二步：配置 Flink 集群和 SQL CLI
 
-Add all Hive dependencies to `/lib` dir in Flink distribution, and modify SQL CLI's yaml config file `sql-cli-defaults.yaml` as following:
+将所有的 Hive 依赖添加到 Flink 中的 `/lib` 目录中，然后修改 SQL CLI 的 yaml 配置文件 `sql-cli-defaults.yaml`，如下所示：
 
 {% highlight yaml %}
 
@@ -156,9 +137,9 @@ catalogs:
 {% endhighlight %}
 
 
-#### step 3: set up a Kafka cluster
+#### 第三部：设置 kafka 集群
 
-Bootstrap a local Kafka 2.3.0 cluster with a topic named "test", and produce some simple data to the topic as tuple of name and age.
+启动本地 Kafka 2.3.0 集群，创建一个 topic，名为 “test” ，并为该 topic 产生一些简单的由名称和年龄的元组数据。
 
 {% highlight bash %}
 
@@ -168,8 +149,7 @@ localhost$ bin/kafka-console-producer.sh --broker-list localhost:9092 --topic te
 
 {% endhighlight %}
 
-
-These message can be seen by starting a Kafka console consumer.
+通过启动Kafka控制台消费组（Kafka console consumer），可以看到这些消息。
 
 {% highlight bash %}
 localhost$ bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
@@ -180,9 +160,9 @@ john,21
 {% endhighlight %}
 
 
-#### step 4: start SQL Client, and create a Kafka table with Flink SQL DDL
+#### 第四步：启动 SQL Client, 通过 Flink SQL DDL 创建 Kafka 表
 
-Start Flink SQL Client, create a simple Kafka 2.3.0 table via DDL, and verify its schema.
+启动 Flink SQL Client，通过 DDL 创建一个简单的 Kafka 2.3.0 的表，然后验证表的 schema
 
 {% highlight bash %}
 
@@ -204,7 +184,7 @@ root
 
 {% endhighlight %}
 
-Verify the table is also visible to Hive via Hive Cli, and note that the table has property `is_generic=true`:
+通过 Hive Cli 验证该表对 Hive 也是可见的，注意该表具有 `is_generic=true` 的属性：
 
 {% highlight bash %}
 hive> show tables;
@@ -255,17 +235,16 @@ Time taken: 0.158 seconds, Fetched: 36 row(s)
 {% endhighlight %}
 
 
-#### step 5: run Flink SQL to query the Kakfa table
+#### 第五步：运行 Flink SQL 查询 Kafka 表
 
-Run a simple select query from Flink SQL Client in a Flink cluster, either standalone or yarn-session.
+从 Flink 群集中的 Flink SQL Client 运行一个简单的选择查询，集群可以是 standalone 模式也可以是 yarn-session 模式。
 
 {% highlight bash %}
 Flink SQL> select * from mykafka;
 
 {% endhighlight %}
 
-
-Produce some more messages in the Kafka topic
+向 Kafka topic 中生产更多的消息
 
 {% highlight bash %}
 localhost$ bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
@@ -278,9 +257,7 @@ kaiky,18
 
 {% endhighlight %}
 
-
-You should see results produced by Flink in SQL Client now, as:
-
+现在，你应该可以在 SQL Client 中看到 Flink 生成的结果，如下所示：
 
 {% highlight bash %}
              SQL Query Result (Table)
@@ -295,18 +272,17 @@ You should see results produced by Flink in SQL Client now, as:
 
 {% endhighlight %}
 
-## Supported Types
+## 支持的类型
 
-`HiveCatalog` supports all Flink types for generic tables.
+`HiveCatalog` 支持通用表的所有 Flink 类型。
 
-For Hive-compatible tables, `HiveCatalog` needs to map Flink data types to corresponding Hive types as described in
-the following table:
+对于Hive兼容表，`HiveCatalog` 需要将 Flink 数据类型映射到相应的 Hive 类型，如下表所述：
 
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-center" style="width: 25%">Flink Data Type</th>
-      <th class="text-center">Hive Data Type</th>
+      <th class="text-center" style="width: 25%">Flink 数据类型</th>
+      <th class="text-center">Hive 数据类型</th>
     </tr>
   </thead>
   <tbody>
@@ -381,11 +357,11 @@ the following table:
   </tbody>
 </table>
 
-Something to note about the type mapping:
-* Hive's `CHAR(p)` has a maximum length of 255
-* Hive's `VARCHAR(p)` has a maximum length of 65535
-* Hive's `MAP` only supports primitive key types while Flink's `MAP` can be any data type
-* Hive's `UNION` type is not supported
-* Hive's `TIMESTAMP` always has precision 9 and doesn't support other precisions. Hive UDFs, on the other hand, can process `TIMESTAMP` values with a precision <= 9.
-* Hive doesn't support Flink's `TIMESTAMP_WITH_TIME_ZONE`, `TIMESTAMP_WITH_LOCAL_TIME_ZONE`, and `MULTISET`
-* Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type yet
+有关类型映射的注意事项：
+* Hive 的 `CHAR(p)` 最大长度为255
+* Hive 的 `VARCHAR(p)` 最大长度为65535
+* Hive 的 `MAP` 仅支持原始键类型，而 Flink 的 `MAP` 可以是任何数据类型
+* Hive 的 `UNION` 类型不受支持
+* Hive 的 `TIMESTAMP` 精度始终是 9，不支持其他精度。而 Hive UDF 可以处理精度 <= 9 的 `TIMESTAMP` 值。
+* Hive 不支持 Flink 的 `TIMESTAMP_WITH_TIME_ZONE`、`TIMESTAMP_WITH_LOCAL_TIME_ZONE` 和 `MULTISET`
+* Flink 的 `INTERVAL` 类型尚未映射到 Hive 的 `INTERVAL` 类型
