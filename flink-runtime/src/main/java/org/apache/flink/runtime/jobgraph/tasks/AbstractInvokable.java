@@ -138,7 +138,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return The environment of this task.
 	 */
-	public Environment getEnvironment() {
+	public final Environment getEnvironment() {
 		return this.environment;
 	}
 
@@ -147,7 +147,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return user code class loader of this invokable.
 	 */
-	public ClassLoader getUserCodeClassLoader() {
+	public final ClassLoader getUserCodeClassLoader() {
 		return getEnvironment().getUserClassLoader();
 	}
 
@@ -174,7 +174,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}
 	 */
-	public Configuration getTaskConfiguration() {
+	public final Configuration getTaskConfiguration() {
 		return this.environment.getTaskConfiguration();
 	}
 
