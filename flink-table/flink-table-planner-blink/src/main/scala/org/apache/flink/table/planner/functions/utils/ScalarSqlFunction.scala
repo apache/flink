@@ -80,20 +80,8 @@ object ScalarSqlFunction {
       */
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-        val sqlTypes = opBinding.collectOperandTypes().asScala.toArray
         val parameters = getOperandType(opBinding).toArray
-
-        val arguments = sqlTypes.indices.map(i =>
-          if (opBinding.isOperandNull(i, false)) {
-            null
-          } else if (opBinding.isOperandLiteral(i, false)) {
-            opBinding.getOperandLiteralValue(
-              i, getDefaultExternalClassForType(parameters(i))).asInstanceOf[AnyRef]
-          } else {
-            null
-          }
-        ).toArray
-        val resultType = getResultTypeOfScalarFunction(scalarFunction, arguments, parameters)
+        val resultType = getResultTypeOfScalarFunction(scalarFunction, parameters)
         typeFactory.createFieldTypeFromLogicalType(
           fromDataTypeToLogicalType(resultType))
       }
