@@ -88,6 +88,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 		this.errorHandler = new Consumer<Throwable>() {
 			@Override
 			public void accept(Throwable t) {
+				LOG.error("Received uncaught exception.", t);
 				if (!uncaughtFetcherException.compareAndSet(null, t)) {
 					// Add the exception to the exception list.
 					uncaughtFetcherException.get().addSuppressed(t);

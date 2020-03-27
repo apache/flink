@@ -99,7 +99,7 @@ public interface OperatorCoordinator extends AutoCloseable {
 
 		void failJob(Throwable cause);
 
-		int numSubtasks();
+		int currentParallelism();
 	}
 
 	// ------------------------------------------------------------------------

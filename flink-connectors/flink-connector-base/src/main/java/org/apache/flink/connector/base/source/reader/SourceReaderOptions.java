@@ -31,18 +31,21 @@ public class SourceReaderOptions {
 	public static final ConfigOption<Long> SOURCE_READER_CLOSE_TIMEOUT =
 		ConfigOptions
 				.key("source.reader.close.timeout")
+				.longType()
 				.defaultValue(30000L)
-				.withDescription("The timeout when close the source reader");
+				.withDescription("The timeout when closing the source reader");
 
 	public static final ConfigOption<String> SOURCE_READER_BOUNDEDNESS =
 		ConfigOptions
 				.key("boundedness")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("The boundedness of the source.");
 
 	public static final ConfigOption<Integer> ELEMENT_QUEUE_CAPACITY =
 		ConfigOptions
 				.key("source.reader.element.queue.capacity")
+				.intType()
 				.defaultValue(100)
 				.withDescription("The capacity of the element queue in the source reader.");
 

@@ -75,7 +75,7 @@ final class ExecutionJobVertexCoordinatorContext implements OperatorCoordinator.
 	}
 
 	@Override
-	public int numSubtasks() {
+	public int currentParallelism() {
 		return jobVertex.getParallelism();
 	}
 

@@ -18,9 +18,6 @@
 
 package org.apache.flink.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.function.Consumer;
 
 /**
@@ -29,7 +26,6 @@ import java.util.function.Consumer;
  * is not usable.
  */
 public class ThrowableCatchingRunnable implements Runnable {
-	private static final Logger LOG = LoggerFactory.getLogger(ThrowableCatchingRunnable.class);
 	private final Consumer<Throwable> exceptionHandler;
 	private final Runnable runnable;
 
@@ -45,7 +41,6 @@ public class ThrowableCatchingRunnable implements Runnable {
 		try {
 			runnable.run();
 		} catch (Throwable t) {
-			LOG.error("Received uncaught exception.", t);
 			exceptionHandler.accept(t);
 		}
 	}
