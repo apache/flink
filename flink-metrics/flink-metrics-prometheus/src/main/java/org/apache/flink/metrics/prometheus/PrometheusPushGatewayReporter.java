@@ -21,6 +21,7 @@ package org.apache.flink.metrics.prometheus;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.util.AbstractID;
