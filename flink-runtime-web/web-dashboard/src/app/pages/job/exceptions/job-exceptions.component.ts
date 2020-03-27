@@ -19,7 +19,7 @@
 import { formatDate } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { JobExceptionItemInterface } from 'interfaces';
-import { distinctUntilChanged, flatMap } from 'rxjs/operators';
+import { distinctUntilChanged, flatMap, tap } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
@@ -44,27 +44,22 @@ export class JobExceptionsComponent implements OnInit {
     this.jobService.jobDetail$
       .pipe(
         distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        flatMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions))
+        flatMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions)),
+        tap(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        })
       )
-      .subscribe(
-        data => {
-          // @ts-ignore
-          if (data['root-exception']) {
-            this.rootException =
-              formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
-          } else {
-            this.rootException = 'No Root Exception';
-          }
-          this.truncated = data.truncated;
-          this.listOfException = data['all-exceptions'];
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
+      .subscribe(data => {
+        // @ts-ignore
+        if (data['root-exception']) {
+          this.rootException = formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
+        } else {
+          this.rootException = 'No Root Exception';
         }
-      );
+        this.truncated = data.truncated;
+        this.listOfException = data['all-exceptions'];
+      });
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
