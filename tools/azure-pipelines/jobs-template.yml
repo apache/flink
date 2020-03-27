@@ -105,9 +105,7 @@ jobs:
       path: $(CACHE_FLINK_DIR)
       artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
 
-  # only for the python stage (which runs a full mvn install), download the cache
   - task: Cache@2
-    condition: eq(variables['module'], 'python')
     inputs:
       key: $(CACHE_KEY)
       restoreKeys: $(CACHE_FALLBACK_KEY)
