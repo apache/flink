@@ -20,7 +20,6 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
@@ -47,11 +46,9 @@ import java.util.function.BiConsumer;
  */
 public class MockStreamTaskBuilder {
 	private final Environment environment;
-	private String name = "Mock Task";
 	private Object checkpointLock = new Object();
 	private StreamConfig config;
 	private ExecutionConfig executionConfig = new ExecutionConfig();
-	private CloseableRegistry closableRegistry = new CloseableRegistry();
 	private StreamStatusMaintainer streamStatusMaintainer = new MockStreamStatusMaintainer();
 	private CheckpointStorageWorkerView checkpointStorage;
 	private TimerService timerService = new TestProcessingTimeService();
@@ -71,11 +68,6 @@ public class MockStreamTaskBuilder {
 		this.streamTaskStateInitializer = new StreamTaskStateInitializerImpl(environment, stateBackend);
 	}
 
-	public MockStreamTaskBuilder setName(String name) {
-		this.name = name;
-		return this;
-	}
-
 	public MockStreamTaskBuilder setCheckpointLock(Object checkpointLock) {
 		this.checkpointLock = checkpointLock;
 		return this;
@@ -93,11 +85,6 @@ public class MockStreamTaskBuilder {
 
 	public MockStreamTaskBuilder setStreamTaskStateInitializer(StreamTaskStateInitializer streamTaskStateInitializer) {
 		this.streamTaskStateInitializer = streamTaskStateInitializer;
-		return this;
-	}
-
-	public MockStreamTaskBuilder setClosableRegistry(CloseableRegistry closableRegistry) {
-		this.closableRegistry = closableRegistry;
 		return this;
 	}
 
@@ -139,12 +126,10 @@ public class MockStreamTaskBuilder {
 	public MockStreamTask build() throws Exception {
 		return new MockStreamTask(
 			environment,
-			name,
 			checkpointLock,
 			config,
 			executionConfig,
 			streamTaskStateInitializer,
-			closableRegistry,
 			streamStatusMaintainer,
 			checkpointStorage,
 			timerService,

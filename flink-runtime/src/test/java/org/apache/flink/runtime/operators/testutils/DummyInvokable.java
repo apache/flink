@@ -35,17 +35,8 @@ public class DummyInvokable extends AbstractInvokable {
 		super(new DummyEnvironment("test", 1, 0));
 	}
 
-	public DummyInvokable(Environment environment, @Nullable TaskStateSnapshot initialState) {
-		super(environment);
-	}
-
 	@Override
 	public void invoke() {}
-
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return getClass().getClassLoader();
-	}
 
 	@Override
 	public int getCurrentNumberOfSubtasks() {
@@ -55,11 +46,6 @@ public class DummyInvokable extends AbstractInvokable {
 	@Override
 	public int getIndexInSubtaskGroup() {
 		return 0;
-	}
-
-	@Override
-	public final Configuration getTaskConfiguration() {
-		return new Configuration();
 	}
 
 	@Override

@@ -661,7 +661,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * Gets the name of the task, in the form "taskname (2/5)".
 	 * @return The name of the task.
 	 */
-	public String getName() {
+	public final String getName() {
 		return getEnvironment().getTaskInfo().getTaskNameWithSubtasks();
 	}
 
@@ -842,7 +842,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		handleException(exception);
 	}
 
-	public ExecutorService getAsyncOperationsThreadPool() {
+	public final ExecutorService getAsyncOperationsThreadPool() {
 		return asyncOperationsThreadPool;
 	}
 
@@ -1034,7 +1034,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	public CloseableRegistry getCancelables() {
+	public final CloseableRegistry getCancelables() {
 		return cancelables;
 	}
 

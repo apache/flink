@@ -123,23 +123,23 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	protected MockEnvironment(
-		JobID jobID,
-		JobVertexID jobVertexID,
-		String taskName,
-		long offHeapMemorySize,
-		MockInputSplitProvider inputSplitProvider,
-		int bufferSize,
-		Configuration taskConfiguration,
-		ExecutionConfig executionConfig,
-		IOManager ioManager,
-		TaskStateManager taskStateManager,
-		GlobalAggregateManager aggregateManager,
-		int maxParallelism,
-		int parallelism,
-		int subtaskIndex,
-		ClassLoader userCodeClassLoader,
-		TaskMetricGroup taskMetricGroup,
-		TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
+			JobID jobID,
+			JobVertexID jobVertexID,
+			String taskName,
+			MockInputSplitProvider inputSplitProvider,
+			int bufferSize,
+			Configuration taskConfiguration,
+			ExecutionConfig executionConfig,
+			IOManager ioManager,
+			TaskStateManager taskStateManager,
+			GlobalAggregateManager aggregateManager,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex,
+			ClassLoader userCodeClassLoader,
+			TaskMetricGroup taskMetricGroup,
+			TaskManagerRuntimeInfo taskManagerRuntimeInfo,
+			MemoryManager memManager) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
@@ -150,7 +150,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.inputs = new LinkedList<InputGate>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
 
-		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, offHeapMemorySize).build();
+		this.memManager = memManager;
 		this.ioManager = ioManager;
 		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 
@@ -335,7 +335,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public void declineCheckpoint(long checkpointId, Throwable cause) {
-		throw new UnsupportedOperationException();
+		throw new UnsupportedOperationException(cause);
 	}
 
 	@Override

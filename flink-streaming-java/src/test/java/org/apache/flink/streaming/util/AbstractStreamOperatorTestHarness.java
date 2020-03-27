@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -114,8 +113,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	private final Optional<MockEnvironment> internalEnvironment;
 
 	protected StreamTaskStateInitializer streamTaskStateInitializer;
-
-	CloseableRegistry closableRegistry;
 
 	private final TaskMailbox taskMailbox;
 
@@ -234,7 +231,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		this.config.setCheckpointingEnabled(true);
 		this.config.setOperatorID(operatorID);
 		this.executionConfig = env.getExecutionConfig();
-		this.closableRegistry = new CloseableRegistry();
 		this.checkpointLock = new Object();
 
 		this.environment = Preconditions.checkNotNull(env);
@@ -258,7 +254,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			.setConfig(config)
 			.setExecutionConfig(executionConfig)
 			.setStreamTaskStateInitializer(streamTaskStateInitializer)
-			.setClosableRegistry(closableRegistry)
 			.setCheckpointStorage(checkpointStorage)
 			.setTimerService(processingTimeService)
 			.setHandleAsyncException(handleAsyncException)
