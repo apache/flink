@@ -49,7 +49,7 @@ public class FutureNotifier {
 			boolean newFutureSet = futureRef.compareAndSet(null, newFuture);
 			// If someone created a future after our previous check, use that future.
 			// Otherwise, use the new future.
-			return newFutureSet ? newFuture : prevFuture;
+			return newFutureSet ? newFuture : future();
 		}
 	}
 
