@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 
 
 /**
- * This interface gives access to transient, named, global aggregates.  This can be sued to share
+ * This interface gives access to transient, named, global aggregates.  This can be used to share
  * state amongst parallel tasks in a job.  It is not designed for high throughput updates
  * and the aggregates do NOT survive a job failure.  Each call to the updateGlobalAggregate()
  * method results in serialized RPC communication with the JobMaster so use with care.
