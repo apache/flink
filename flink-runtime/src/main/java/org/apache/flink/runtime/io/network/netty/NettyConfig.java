@@ -116,6 +116,10 @@ public class NettyConfig {
 		return config.getInteger(NettyShuffleEnvironmentOptions.CLIENT_CONNECT_TIMEOUT_SECONDS);
 	}
 
+	public int getNetworkRetries() {
+		return config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_RETRIES);
+	}
+
 	public int getSendAndReceiveBufferSize() {
 		return config.getInteger(NettyShuffleEnvironmentOptions.SEND_RECEIVE_BUFFER_SIZE);
 	}
