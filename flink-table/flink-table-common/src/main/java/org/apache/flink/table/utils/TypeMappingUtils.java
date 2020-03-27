@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.utils;
 
-import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
