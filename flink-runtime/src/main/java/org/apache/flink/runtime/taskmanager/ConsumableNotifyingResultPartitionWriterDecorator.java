@@ -70,6 +70,11 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
+	public BufferBuilder tryGetBufferBuilder() throws IOException {
+		return partitionWriter.tryGetBufferBuilder();
+	}
+
+	@Override
 	public ResultPartitionID getPartitionId() {
 		return partitionWriter.getPartitionId();
 	}

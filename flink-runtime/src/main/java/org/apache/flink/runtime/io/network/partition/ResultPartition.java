@@ -208,6 +208,12 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
+	public BufferBuilder tryGetBufferBuilder() throws IOException {
+		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder();
+		return bufferBuilder;
+	}
+
+	@Override
 	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
 		checkNotNull(bufferConsumer);
 

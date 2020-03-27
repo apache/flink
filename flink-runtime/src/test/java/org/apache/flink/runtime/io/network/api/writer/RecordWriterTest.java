@@ -65,6 +65,7 @@ import org.apache.flink.testutils.serialization.types.Util;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -83,11 +84,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -154,8 +157,21 @@ public class RecordWriterTest {
 				}
 			};
 
+			Answer<BufferBuilder> nonBlockingRequest = new Answer<BufferBuilder>() {
+				@Override
+				public BufferBuilder answer(InvocationOnMock invocation) throws Throwable {
+					sync.countDown();
+
+					if (sync.getCount() == 1) {
+						return new BufferBuilder(memorySegment, recycler);
+					}
+					return null;
+				}
+			};
+
 			BufferProvider bufferProvider = mock(BufferProvider.class);
 			when(bufferProvider.requestBufferBuilderBlocking()).thenAnswer(request);
+			when(bufferProvider.requestBufferBuilder()).thenAnswer(nonBlockingRequest);
 
 			ResultPartitionWriter partitionWriter = new RecyclingPartitionWriter(bufferProvider);
 
@@ -192,7 +208,8 @@ public class RecordWriterTest {
 			recordWriter.clearBuffers();
 
 			// Verify that buffer have been requested twice
-			verify(bufferProvider, times(2)).requestBufferBuilderBlocking();
+			verify(bufferProvider, times(1)).requestBufferBuilderBlocking();
+			verify(bufferProvider, times(2)).requestBufferBuilder();
 
 			// Verify that the written out buffer has only been recycled once
 			// (by the partition writer).
@@ -467,6 +484,7 @@ public class RecordWriterTest {
 			buffer.recycleBuffer();
 			assertTrue(recordWriter.getAvailableFuture().isDone());
 			assertEquals(recordWriter.AVAILABLE, recordWriter.getAvailableFuture());
+
 		} finally {
 			localPool.lazyDestroy();
 			globalPool.destroy();
@@ -524,6 +542,57 @@ public class RecordWriterTest {
 			globalPool.destroyAllBufferPools();
 			globalPool.destroy();
 		}
+	}
+
+	@Test
+	public void testIdleTime() throws IOException, InterruptedException {
+		// setup
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1);
+		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
+			.setBufferPoolFactory(p -> localPool)
+			.build();
+		resultPartition.setup();
+		final ResultPartitionWriter partitionWrapper = new ConsumableNotifyingResultPartitionWriterDecorator(
+			new NoOpTaskActions(),
+			new JobID(),
+			resultPartition,
+			new NoOpResultPartitionConsumableNotifier());
+		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
+		BufferBuilder builder = recordWriter.getBufferBuilder();
+		assertEquals(0, recordWriter.getIdleTimeMsPerSecond().getCount());
+
+		final Object runningLock = new Object();
+		AtomicReference<BufferBuilder> asyncRequestResult = new AtomicReference<>();
+		final Thread requestThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					// notify that the request thread start to run.
+					synchronized (runningLock) {
+						runningLock.notify();
+					}
+					// wait for buffer.
+					asyncRequestResult.set(recordWriter.getBufferBuilder());
+				} catch (Exception e) {
+				}
+			}
+		});
+		requestThread.start();
+
+		// wait until request thread start to run.
+		synchronized (runningLock) {
+			runningLock.wait();
+		}
+		Thread.sleep(10);
+		//recycle the buffer
+		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(builder);
+
+		buffer.recycleBuffer();
+		requestThread.join();
+		assertThat(recordWriter.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThanOrEqualTo(10L));
+		assertNotNull(asyncRequestResult.get());
+
 	}
 
 	private void verifyBroadcastBufferOrEventIndependence(boolean broadcastEvent) throws Exception {
@@ -615,6 +684,11 @@ public class RecordWriterTest {
 		}
 
 		@Override
+		public BufferBuilder tryGetBufferBuilder() throws IOException {
+			return bufferProvider.requestBufferBuilder();
+		}
+
+		@Override
 		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
 			return queues[targetChannel].add(buffer);
 		}
@@ -645,6 +719,11 @@ public class RecordWriterTest {
 		@Override
 		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
 			return bufferProvider.requestBufferBuilderBlocking();
+		}
+
+		@Override
+		public BufferBuilder tryGetBufferBuilder() throws IOException {
+			return bufferProvider.requestBufferBuilder();
 		}
 	}
 
