@@ -578,6 +578,11 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 		TERMINATING;
 
 		@Override
+		public State terminate(AkkaRpcActor<?> akkaRpcActor) {
+			return TERMINATING;
+		}
+
+		@Override
 		public boolean isRunning() {
 			return true;
 		}
