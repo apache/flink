@@ -18,8 +18,10 @@
 
 package org.apache.flink.api.java.io.jdbc.dialect;
 
+import org.apache.flink.api.java.io.jdbc.source.row.converter.JDBCRowConverter;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -37,6 +39,13 @@ public interface JDBCDialect extends Serializable {
 	 * @return True if the dialect can be applied on the given jdbc url.
 	 */
 	boolean canHandle(String url);
+
+	/**
+	 * Get a row converter for the database according to the given row type.
+	 * @param rowType the given row type
+	 * @return a row converter for the database
+	 */
+	JDBCRowConverter getRowConverter(RowType rowType);
 
 	/**
 	 * Check if this dialect instance support a specific data type in table schema.

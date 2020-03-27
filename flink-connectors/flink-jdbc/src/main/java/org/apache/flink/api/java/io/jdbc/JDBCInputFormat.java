@@ -23,6 +23,9 @@ import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialect;
+import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialects;
+import org.apache.flink.api.java.io.jdbc.source.row.converter.JDBCRowConverter;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -30,9 +33,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -118,9 +119,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	private int resultSetConcurrency;
 	private RowType rowType;
 
+	private transient JDBCDialect dialect;
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
+	private transient JDBCRowConverter converter;
 	private int fetchSize;
 	// Boolean to distinguish between default value and explicitly set autoCommit mode.
 	private Boolean autoCommit;
@@ -144,6 +147,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	@Override
 	public void openInputFormat() {
 		//called once per inputFormat (on open)
+
 		try {
 			Class.forName(drivername);
 			if (username == null) {
@@ -157,16 +161,19 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			if (autoCommit != null) {
 				dbConn.setAutoCommit(autoCommit);
 			}
-
 			statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
 			if (fetchSize == Integer.MIN_VALUE || fetchSize > 0) {
 				statement.setFetchSize(fetchSize);
 			}
+
 		} catch (SQLException se) {
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
 		}
+
+		dialect = JDBCDialects.get(dbURL).get();
+		converter = dialect.getRowConverter(rowType);
 	}
 
 	@Override
@@ -288,25 +295,17 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	/**
 	 * Stores the next resultSet row in a tuple.
 	 *
-	 * @param row row to be reused.
+	 * @param reuse row to be reused.
 	 * @return row containing next {@link Row}
 	 * @throws java.io.IOException
 	 */
 	@Override
-	public Row nextRecord(Row row) throws IOException {
+	public Row nextRecord(Row reuse) throws IOException {
 		try {
 			if (!hasNext) {
 				return null;
 			}
-			for (int pos = 0; pos < row.getArity(); pos++) {
-				LogicalType type = rowType.getTypeAt(pos);
-				Object v = resultSet.getObject(pos + 1);
-				if (type instanceof SmallIntType) {
-					row.setField(pos, ((Integer) v).shortValue());
-				} else {
-					row.setField(pos, v);
-				}
-			}
+			Row row = converter.setRow(resultSet, reuse);
 			//update hasNext after we've read the record
 			hasNext = resultSet.next();
 			return row;
