@@ -34,6 +34,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -1096,18 +1097,24 @@ public class FlinkKafkaProducer<IN>
 	// ----------------------------------- Utilities --------------------------
 
 	private void abortTransactions(final Set<String> transactionalIds) {
+		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 		transactionalIds.parallelStream().forEach(transactionalId -> {
-			// don't mess with the original configuration or any other properties of the
-			// original object
-			// -> create an internal kafka producer on our own and do not rely on
-			//    initTransactionalProducer().
-			final Properties myConfig = new Properties();
-			myConfig.putAll(producerConfig);
-			initTransactionalProducerConfig(myConfig, transactionalId);
-			try (FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer =
-					new FlinkKafkaInternalProducer<>(myConfig)) {
-				// it suffices to call initTransactions - this will abort any lingering transactions
-				kafkaProducer.initTransactions();
+			// The parallelStream executes the consumer in a separated thread pool.
+			// Because the consumer(e.g. Kafka) uses the context classloader to construct some class
+			// we should set the correct classloader for it.
+			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(classLoader)) {
+				// don't mess with the original configuration or any other properties of the
+				// original object
+				// -> create an internal kafka producer on our own and do not rely on
+				//    initTransactionalProducer().
+				final Properties myConfig = new Properties();
+				myConfig.putAll(producerConfig);
+				initTransactionalProducerConfig(myConfig, transactionalId);
+				try (FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer =
+						new FlinkKafkaInternalProducer<>(myConfig)) {
+					// it suffices to call initTransactions - this will abort any lingering transactions
+					kafkaProducer.initTransactions();
+				}
 			}
 		});
 	}
