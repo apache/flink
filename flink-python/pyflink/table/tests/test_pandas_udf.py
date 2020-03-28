@@ -19,6 +19,8 @@ import datetime
 import decimal
 import unittest
 
+import pytz
+
 from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
@@ -243,19 +245,63 @@ class PandasUDFITTests(object):
                             "1000000000000000000.059999999999999999,2014-09-13,01:00:01"])
 
 
+class BlinkPandasUDFITTests(object):
+
+    def test_data_types_only_supported_in_blink_planner(self):
+        import pandas as pd
+
+        timezone = self.t_env.get_config().get_local_timezone()
+        local_datetime = pytz.timezone(timezone).localize(
+            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+
+        def local_zoned_timestamp_func(local_zoned_timestamp_param):
+            assert isinstance(local_zoned_timestamp_param, pd.Series)
+            assert isinstance(local_zoned_timestamp_param[0], datetime.datetime), \
+                'local_zoned_timestamp_param of wrong type %s !' % type(
+                    local_zoned_timestamp_param[0])
+            assert local_zoned_timestamp_param[0] == local_datetime, \
+                'local_zoned_timestamp_param is wrong value %s, %s!' % \
+                (local_zoned_timestamp_param[0], local_datetime)
+            return local_zoned_timestamp_param
+
+        self.t_env.register_function(
+            "local_zoned_timestamp_func",
+            udf(local_zoned_timestamp_func,
+                [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)],
+                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3),
+                udf_type="pandas"))
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a'], [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        t = self.t_env.from_elements(
+            [(local_datetime,)],
+            DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
+
+        t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))") \
+            .insert_into("Results")
+        self.t_env.execute("test")
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["1970-01-01T00:00:00.123Z"])
+
+
 class StreamPandasUDFITTests(PandasUDFITTests,
                              PyFlinkStreamTableTestCase):
     pass
 
 
 class BlinkBatchPandasUDFITTests(PandasUDFITTests,
+                                 BlinkPandasUDFITTests,
                                  PyFlinkBlinkBatchTableTestCase):
     pass
 
 
 class BlinkStreamPandasUDFITTests(PandasUDFITTests,
+                                  BlinkPandasUDFITTests,
                                   PyFlinkBlinkStreamTableTestCase):
     pass
+
 
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT(),
      udf_type='pandas')

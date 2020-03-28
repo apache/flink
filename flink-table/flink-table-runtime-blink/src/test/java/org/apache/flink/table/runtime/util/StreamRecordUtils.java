@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.util;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -25,6 +26,7 @@ import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
@@ -121,6 +123,9 @@ public class StreamRecordUtils {
 			} else if (value instanceof Decimal) {
 				Decimal decimal = (Decimal) value;
 				writer.writeDecimal(j, decimal, decimal.getPrecision());
+			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof SqlTimestamp) {
+				SqlTimestamp timestamp = (SqlTimestamp) ((Tuple2) value).f0;
+				writer.writeTimestamp(j, timestamp, (int) ((Tuple2) value).f1);
 			} else {
 				throw new RuntimeException("Not support yet!");
 			}

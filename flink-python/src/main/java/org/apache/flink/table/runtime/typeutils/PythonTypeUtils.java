@@ -143,6 +143,26 @@ public final class PythonTypeUtils {
 	}
 
 	/**
+	 * Converts the internal representation of a SQL TIMESTAMP (long) to the Java
+	 * type used for UDF parameters ({@link java.sql.Timestamp}).
+	 *
+	 * <p>Note: The implementation refers to {@link SqlDateTimeUtils#internalToTimestamp}.
+	 */
+	public static java.sql.Timestamp internalToTimestamp(long v) {
+		return new java.sql.Timestamp(v - LOCAL_TZ.getOffset(v));
+	}
+
+	/** Converts the Java type used for UDF parameters of SQL TIMESTAMP type
+	 * ({@link java.sql.Timestamp}) to internal representation (long).
+	 *
+	 * <p>Note: The implementation refers to {@link SqlDateTimeUtils#timestampToInternal}.
+	 */
+	public static long timestampToInternal(java.sql.Timestamp ts) {
+		long time = ts.getTime();
+		return time + LOCAL_TZ.getOffset(time);
+	}
+
+	/**
 	 * Convert LogicalType to conversion class for flink planner.
 	 */
 	public static class LogicalTypeToConversionClassConverter extends LogicalTypeDefaultVisitor<Class> {

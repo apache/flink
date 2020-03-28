@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.arrow.readers.IntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.RowArrowReader;
 import org.apache.flink.table.runtime.arrow.readers.SmallIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TimeFieldReader;
+import org.apache.flink.table.runtime.arrow.readers.TimestampFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TinyIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarBinaryFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarCharFieldReader;
@@ -44,6 +45,7 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowSmallIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTimeColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowTimestampColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarCharColumnVector;
@@ -58,6 +60,7 @@ import org.apache.flink.table.runtime.arrow.writers.BaseRowFloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowSmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowTimeWriter;
+import org.apache.flink.table.runtime.arrow.writers.BaseRowTimestampWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowTinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowVarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowVarCharWriter;
@@ -70,6 +73,7 @@ import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.TimeWriter;
+import org.apache.flink.table.runtime.arrow.writers.TimestampWriter;
 import org.apache.flink.table.runtime.arrow.writers.TinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
@@ -81,6 +85,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
@@ -105,6 +110,7 @@ import org.apache.arrow.vector.TimeMicroVector;
 import org.apache.arrow.vector.TimeMilliVector;
 import org.apache.arrow.vector.TimeNanoVector;
 import org.apache.arrow.vector.TimeSecVector;
+import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -191,6 +197,8 @@ public final class ArrowUtils {
 		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
 			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
 			return new TimeWriter(vector);
+		} else if (vector instanceof TimeStampVector && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
+			return new TimestampWriter(vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -236,9 +244,11 @@ public final class ArrowUtils {
 			return new BaseRowDecimalWriter(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
 		} else if (vector instanceof DateDayVector) {
 			return new BaseRowDateWriter((DateDayVector) vector);
-		}  else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
+		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
 			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
 			return new BaseRowTimeWriter(vector);
+		} else if (vector instanceof TimeStampVector && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
+			return new BaseRowTimestampWriter(vector, ((LocalZonedTimestampType) fieldType).getPrecision());
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -284,6 +294,8 @@ public final class ArrowUtils {
 		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
 			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
 			return new TimeFieldReader(vector);
+		} else if (vector instanceof TimeStampVector && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
+			return new TimestampFieldReader(vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -329,6 +341,8 @@ public final class ArrowUtils {
 		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
 			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
 			return new ArrowTimeColumnVector(vector);
+		} else if (vector instanceof TimeStampVector && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
+			return new ArrowTimestampColumnVector(vector);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -404,6 +418,19 @@ public final class ArrowUtils {
 				return new ArrowType.Time(TimeUnit.MICROSECOND, 64);
 			} else {
 				return new ArrowType.Time(TimeUnit.NANOSECOND, 64);
+			}
+		}
+
+		@Override
+		public ArrowType visit(LocalZonedTimestampType localZonedTimestampType) {
+			if (localZonedTimestampType.getPrecision() == 0) {
+				return new ArrowType.Timestamp(TimeUnit.SECOND, null);
+			} else if (localZonedTimestampType.getPrecision() >= 1 && localZonedTimestampType.getPrecision() <= 3) {
+				return new ArrowType.Timestamp(TimeUnit.MILLISECOND, null);
+			} else if (localZonedTimestampType.getPrecision() >= 4 && localZonedTimestampType.getPrecision() <= 6) {
+				return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
+			} else {
+				return new ArrowType.Timestamp(TimeUnit.NANOSECOND, null);
 			}
 		}
 
