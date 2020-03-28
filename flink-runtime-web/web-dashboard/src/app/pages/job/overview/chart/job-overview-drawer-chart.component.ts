@@ -42,6 +42,10 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
   listOfMetricName: string[] = [];
   listOfSelectedMetric: string[] = [];
   listOfUnselectedMetric: string[] = [];
+  optionList: string[] = [];
+  showList: string[] = [];
+  showListPageNum = 0;
+  showListPageSize = 10;
   cacheMetricKey: string;
   @ViewChildren(JobChartComponent) listOfJobChartComponent: QueryList<JobChartComponent>;
 
@@ -52,6 +56,15 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
       this.listOfSelectedMetric = this.jobService.metricsCacheMap.get(this.cacheMetricKey) || [];
       this.updateUnselectedMetricList();
       this.cdr.markForCheck();
+      this.optionList = this.listOfUnselectedMetric;
+      this.showList = [
+        ...this.showList,
+        ...this.optionList.slice(
+          this.showListPageNum * this.showListPageSize,
+          (this.showListPageNum + 1) * this.showListPageSize
+        )
+      ];
+      this.showListPageNum++;
     });
   }
 
@@ -64,15 +77,46 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
   closeMetric(metric: string) {
     this.listOfSelectedMetric = this.listOfSelectedMetric.filter(item => item !== metric);
     this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
+    this.showList = [metric, ...this.showList];
     this.updateUnselectedMetricList();
   }
 
   updateUnselectedMetricList() {
     this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
+    this.showList = this.showList.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
+    this.optionList = this.listOfUnselectedMetric;
   }
 
   constructor(private metricsService: MetricsService, private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
+  nzOnSearch(val: string) {
+    this.showListPageNum = 0;
+    if (val) {
+      this.optionList = this.listOfUnselectedMetric.filter(item => item.includes(val));
+    } else {
+      this.optionList = this.listOfUnselectedMetric;
+    }
+    this.showList = [
+      ...this.optionList.slice(
+        this.showListPageNum * this.showListPageSize,
+        (this.showListPageNum + 1) * this.showListPageSize
+      )
+    ];
+    this.showListPageNum++;
+  }
+
+  loadMore(): void {
+    if (this.showListPageNum <= this.optionList.length / this.showListPageSize) {
+      this.showList = [
+        ...this.showList,
+        ...this.optionList.slice(
+          this.showListPageNum * this.showListPageSize,
+          (this.showListPageNum + 1) * this.showListPageSize
+        )
+      ];
+      this.showListPageNum++;
+    }
+  }
   ngOnInit() {
     this.jobService.jobWithVertex$
       .pipe(
