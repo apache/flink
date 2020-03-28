@@ -52,9 +52,9 @@ public class SplitAssignmentTrackerTest {
 		tracker.recordSplitAssignment(getSplitsAssignment(3, 0));
 		tracker.recordSplitAssignment(getSplitsAssignment(2, 6));
 
-		verifyAssignment(Arrays.asList("0", "6"), tracker.currentSplitsAssignment().get(0));
-		verifyAssignment(Arrays.asList("1", "2", "7", "8"), tracker.currentSplitsAssignment().get(1));
-		verifyAssignment(Arrays.asList("3", "4", "5"), tracker.currentSplitsAssignment().get(2));
+		verifyAssignment(Arrays.asList("0", "6"), tracker.uncheckpointedAssignments().get(0));
+		verifyAssignment(Arrays.asList("1", "2", "7", "8"), tracker.uncheckpointedAssignments().get(1));
+		verifyAssignment(Arrays.asList("3", "4", "5"), tracker.uncheckpointedAssignments().get(2));
 	}
 
 	@Test
@@ -65,10 +65,6 @@ public class SplitAssignmentTrackerTest {
 
 		// Serialize
 		takeSnapshot(tracker, checkpointId);
-		// verify current assignments.
-		verifyAssignment(Arrays.asList("0"), tracker.currentSplitsAssignment().get(0));
-		verifyAssignment(Arrays.asList("1", "2"), tracker.currentSplitsAssignment().get(1));
-		verifyAssignment(Arrays.asList("3", "4", "5"), tracker.currentSplitsAssignment().get(2));
 
 		// Verify the uncheckpointed assignments.
 		assertTrue(tracker.uncheckpointedAssignments().isEmpty());
@@ -98,7 +94,6 @@ public class SplitAssignmentTrackerTest {
 		// Deserialize
 		SplitAssignmentTracker<MockSourceSplit> deserializedTracker = restoreSnapshot(bytes);
 		// Verify the restore was successful.
-		assertEquals(deserializedTracker.currentSplitsAssignment(), tracker.currentSplitsAssignment());
 		assertEquals(deserializedTracker.assignmentsByCheckpointId(), tracker.assignmentsByCheckpointId());
 		assertEquals(deserializedTracker.uncheckpointedAssignments(), tracker.uncheckpointedAssignments());
 	}

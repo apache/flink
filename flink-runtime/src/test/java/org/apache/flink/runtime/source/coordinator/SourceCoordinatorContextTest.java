@@ -94,10 +94,11 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 		}
 
 		// The tracker should have recorded the assignments.
-		verifyAssignment(Arrays.asList("0"), splitSplitAssignmentTracker.currentSplitsAssignment().get(0));
-		verifyAssignment(Arrays.asList("1", "2"), splitSplitAssignmentTracker.currentSplitsAssignment().get(1));
+		verifyAssignment(Arrays.asList("0"), splitSplitAssignmentTracker.uncheckpointedAssignments().get(0));
+		verifyAssignment(Arrays.asList("1", "2"), splitSplitAssignmentTracker.uncheckpointedAssignments().get(1));
 		// The OperatorCoordinatorContext should have received the event sending call.
-		assertEquals("There should be two events sent to the subtasks.", 2, operatorCoordinatorContext.getEventsToOperator().size());
+		assertEquals("There should be two events sent to the subtasks.",
+				2, operatorCoordinatorContext.getEventsToOperator().size());
 
 		// Assert the events to subtask0.
 		List<OperatorEvent> eventsToSubtask0 = operatorCoordinatorContext.getEventsToOperatorBySubtaskId(0);
@@ -154,7 +155,6 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 			restoredContext.restoreState(new MockSourceSplitSerializer(), in);
 		}
 		assertEquals(context.registeredReaders(), restoredContext.registeredReaders());
-		assertEquals(splitSplitAssignmentTracker.currentSplitsAssignment(), restoredTracker.currentSplitsAssignment());
 		assertEquals(splitSplitAssignmentTracker.uncheckpointedAssignments(), restoredTracker.uncheckpointedAssignments());
 		assertEquals(splitSplitAssignmentTracker.assignmentsByCheckpointId(), restoredTracker.assignmentsByCheckpointId());
 

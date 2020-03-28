@@ -81,7 +81,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 	}
 
 	@Override
-	public int numSubtasks() {
+	public int currentParallelism() {
 		return numSubtasks;
 	}
 

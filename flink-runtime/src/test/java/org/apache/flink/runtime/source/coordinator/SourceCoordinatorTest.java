@@ -95,7 +95,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 					4, enumerator.getUnassignedSplits().size());
 			assertTrue(context.registeredReaders().containsKey(0));
 			assertTrue(enumerator.getHandledSourceEvent().isEmpty());
-			verifyAssignment(Arrays.asList("0", "3"), splitSplitAssignmentTracker.currentSplitsAssignment().get(0));
+			verifyAssignment(Arrays.asList("0", "3"), splitSplitAssignmentTracker.uncheckpointedAssignments().get(0));
 		});
 	}
 
@@ -153,7 +153,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 			assertTrue(splitSplitAssignmentTracker.uncheckpointedAssignments().isEmpty());
 			verifyAssignment(Arrays.asList("0", "3"), splitSplitAssignmentTracker.assignmentsByCheckpointId(100L).get(0));
 			verifyAssignment(Arrays.asList("6"), splitSplitAssignmentTracker.assignmentsByCheckpointId(101L).get(0));
-			verifyAssignment(Arrays.asList("0", "3", "6"), splitSplitAssignmentTracker.currentSplitsAssignment().get(0));
 
 			List<OperatorEvent> eventsToReader0 = operatorCoordinatorContext.getEventsToOperator().get(0);
 			assertEquals(2, eventsToReader0.size());
@@ -175,7 +174,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 						assignment.containsKey(0));
 			}
 			assertFalse(splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
-			assertFalse(splitSplitAssignmentTracker.currentSplitsAssignment().containsKey(0));
 			// The split enumerator should now contains the splits used to be assigned to reader 0.
 			assertEquals(7, enumerator.getUnassignedSplits().size());
 		});
@@ -200,7 +198,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 			assertFalse(context.registeredReaders().containsKey(0));
 			// The assigned splits are not reverted.
 			assertEquals(4, enumerator.getUnassignedSplits().size());
-			verifyAssignment(Arrays.asList("0", "3"), splitSplitAssignmentTracker.currentSplitsAssignment().get(0));
 			assertFalse(splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
 			assertTrue(splitSplitAssignmentTracker.assignmentsByCheckpointId().isEmpty());
 		});

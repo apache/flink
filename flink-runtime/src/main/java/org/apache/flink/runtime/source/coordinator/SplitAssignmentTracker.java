@@ -29,7 +29,6 @@ import org.apache.flink.util.function.FunctionWithException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,13 +50,10 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	// The split assignments since the last checkpoint attempt.
 	// The mapping is [SubtaskId -> LinkedHashSet[SourceSplits]].
 	private Map<Integer, LinkedHashSet<SplitT>> uncheckpointedAssignments;
-	// The current split assignments. This is an aggregated view of all the historical assignments.
-	private final Map<Integer, LinkedHashSet<SplitT>> currentAssignments;
 
 	public SplitAssignmentTracker() {
 		this.assignmentsByCheckpointId = new TreeMap<>();
 		this.uncheckpointedAssignments = new HashMap<>();
-		this.currentAssignments = new HashMap<>();
 	}
 
 	/**
@@ -78,9 +74,6 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 		Map<Long, Map<Integer, LinkedHashSet<byte[]>>> serializedState = convertAssignmentsByCheckpoints(
 				assignmentsByCheckpointId, splitSerializer::serialize);
 		out.writeObject(serializedState);
-
-		// Write the current assignment to the snapshot.
-		out.writeObject(convertAssignment(currentAssignments, splitSerializer::serialize));
 	}
 
 	/**
@@ -102,13 +95,6 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 				serializedState,
 				(byte[] splitBytes) -> splitSerializer.deserialize(version, splitBytes));
 		assignmentsByCheckpointId.putAll(deserializedState);
-
-		// Read the current assignments.
-		Map<Integer, LinkedHashSet<byte[]>> serializedAssignments = (Map<Integer, LinkedHashSet<byte[]>>) in.readObject();
-		Map<Integer, LinkedHashSet<SplitT>> assignments = convertAssignment(
-				serializedAssignments,
-				(byte[] serializedSplit) -> splitSerializer.deserialize(version, serializedSplit));
-		currentAssignments.putAll(assignments);
 	}
 
 	/**
@@ -122,21 +108,11 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	}
 
 	/**
-	 * Get the current split assignment.
-	 *
-	 * @return the current split assignment.
-	 */
-	Map<Integer, LinkedHashSet<SplitT>> currentSplitsAssignment() {
-		return Collections.unmodifiableMap(currentAssignments);
-	}
-
-	/**
 	 * Record a new split assignment.
 	 *
 	 * @param splitsAssignment the new split assignment.
 	 */
 	public void recordSplitAssignment(SplitsAssignment<SplitT> splitsAssignment) {
-		addSplitAssignment(splitsAssignment, currentAssignments);
 		addSplitAssignment(splitsAssignment, uncheckpointedAssignments);
 	}
 
@@ -151,13 +127,12 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	 * @return A list of splits that needs to be added back to the {@link SplitEnumerator}.
 	 */
 	public List<SplitT> getAndRemoveUncheckpointedAssignment(int failedSubtaskId) {
-		List<SplitT> toPutBack = splitsToAddBack(failedSubtaskId);
-		LinkedHashSet<SplitT> assignment = currentAssignments.get(failedSubtaskId);
-		assignment.removeAll(toPutBack);
-		if (assignment.isEmpty()) {
-			currentAssignments.remove(failedSubtaskId);
-		}
-		return toPutBack;
+		List<SplitT> splits = new ArrayList<>();
+		assignmentsByCheckpointId.values().forEach(assignments -> {
+			removeFromAssignment(failedSubtaskId, assignments, splits);
+		});
+		removeFromAssignment(failedSubtaskId, uncheckpointedAssignments, splits);
+		return splits;
 	}
 
 	// ------------- Methods visible for testing ----------------
@@ -178,15 +153,6 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	}
 
 	// -------------- private helpers ---------------
-
-	private List<SplitT> splitsToAddBack(int subtaskId) {
-		List<SplitT> splits = new ArrayList<>();
-		assignmentsByCheckpointId.values().forEach(assignments -> {
-			removeFromAssignment(subtaskId, assignments, splits);
-		});
-		removeFromAssignment(subtaskId, uncheckpointedAssignments, splits);
-		return splits;
-	}
 
 	private void removeFromAssignment(
 			int subtaskId,
