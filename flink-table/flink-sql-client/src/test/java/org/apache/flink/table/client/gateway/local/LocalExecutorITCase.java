@@ -348,6 +348,14 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("ONE_PHASE",
 				executor.getExecutionContext(sessionId)
 						.getTableEnvironment().getConfig().getConfiguration().getString(key, null));
+
+		// reset all properties
+		executor.resetSessionProperties(sessionId);
+		// check the config in Environment
+		assertNull(executor.getSessionProperties(sessionId).get(key));
+		// check the config in TableConfig
+		assertNull(executor.getExecutionContext(sessionId)
+				.getTableEnvironment().getConfig().getConfiguration().getString(key, null));
 	}
 
 	@Test
