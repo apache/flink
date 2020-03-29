@@ -398,4 +398,60 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val expected = mutable.MutableList("1,1", "2,3", "3,6", "4,10", "5,15", "6,21")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testJsonArrayAgg(): Unit = {
+    val data = new mutable.MutableList[(Int, String, String)]
+    data .+=((1, "foo", "bar"))
+    data .+=((1, "foo2", null))
+    data .+=((3, "foo3", "bar3"))
+    data .+=((3, "foo3", "true"))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT json_arrayagg(c) FROM MyTable
+         |GROUP BY a
+    """.stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink()
+    result.addSink(sink)
+    env.execute()
+    val expected = List(
+      "[\"bar\",null]",
+      "[\"bar3\",\"true\"]")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testJsonArrayAggWithRetract(): Unit = {
+    val data = new mutable.MutableList[(Int, String, String)]
+    data .+=((1, "foo", "bar"))
+    data .+=((1, "foo2", null))
+    data .+=((3, "foo3", "bar3"))
+    data .+=((3, "foo3", "true"))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT json_arrayagg(c) FROM
+         |(SELECT b,c,json_arrayagg(c) FROM MyTable
+         |GROUP BY b,c)
+         |GROUP BY c
+    """.stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink()
+    result.addSink(sink)
+    env.execute()
+    val expected = List(
+      "[\"bar\"]",
+      "[\"bar3\"]",
+      "[\"true\"]",
+      "[null]")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }
