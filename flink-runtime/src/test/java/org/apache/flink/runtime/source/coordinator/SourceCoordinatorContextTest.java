@@ -37,9 +37,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.getSplitsAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
+import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;

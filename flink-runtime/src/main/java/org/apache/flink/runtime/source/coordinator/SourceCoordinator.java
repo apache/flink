@@ -75,9 +75,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	/** A flag marking whether the coordinator has started. */
 	private boolean started;
 
-	public SourceCoordinator(ExecutorService coordinatorExecutor,
-							 Source<?, SplitT, EnumChkT> source,
-							 SourceCoordinatorContext<SplitT> context) {
+	public SourceCoordinator(
+			ExecutorService coordinatorExecutor,
+			Source<?, SplitT, EnumChkT> source,
+			SourceCoordinatorContext<SplitT> context) {
 		this.coordinatorExecutor = coordinatorExecutor;
 		this.source = source;
 		this.enumCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
