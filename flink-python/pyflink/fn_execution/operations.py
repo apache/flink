@@ -49,8 +49,9 @@ class StatelessFunctionOperation(Operation):
         self.user_defined_funcs = []
         self.func = self.generate_func(self.spec.serialized_fn.udfs)
         self._metric_enabled = self.spec.serialized_fn.metric_enabled
-        self.base_metric_group = GenericMetricGroup(
-            None, None, metric_enabled=self._metric_enabled)
+        self.base_metric_group = None
+        if self._metric_enabled:
+            self.base_metric_group = GenericMetricGroup(None, None)
         for user_defined_func in self.user_defined_funcs:
             user_defined_func.open(FunctionContext(self.base_metric_group))
 

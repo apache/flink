@@ -28,8 +28,6 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
-
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.BeamUrns;
@@ -66,7 +64,7 @@ public class FlinkMetricContainerTest {
 	@Mock
 	private MetricGroup metricGroup;
 
-	FlinkMetricContainer container;
+	private FlinkMetricContainer container;
 
 	private static final String GAUGE_URN =
 		BeamUrns.getUrn(MetricsApi.MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
@@ -90,7 +88,7 @@ public class FlinkMetricContainerTest {
 	}
 
 	@Test
-	public void testGetNameSpaceArray() throws JsonProcessingException {
+	public void testGetNameSpaceArray() {
 		String json = "[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\"]";
 		MetricKey key = MetricKey.create("step", MetricName.named(json, "name"));
 		assertThat(FlinkMetricContainer.getNameSpaceArray(key), is(DEFAULT_SCOPE_COMPONENTS));

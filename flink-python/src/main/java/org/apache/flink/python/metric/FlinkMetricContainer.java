@@ -92,7 +92,7 @@ public final class FlinkMetricContainer {
 	}
 
 	/**
-	 * Update Flink's internal metrics ({@link this#flinkCounterCache}) with the latest metrics for
+	 * Update Flink's internal metrics ({@link #flinkCounterCache}) with the latest metrics for
 	 * a given step.
 	 */
 	private void updateMetrics(String stepName) {
@@ -122,12 +122,10 @@ public final class FlinkMetricContainer {
 			// get metric type
 			ArrayList<String> scopeComponents = getNameSpaceArray(metricResult.getKey());
 			if ((scopeComponents.size() % 2) != 0) {
-				Meter meter;
-				if (flinkMeterCache.containsKey(flinkMetricIdentifier)) {
-					meter = flinkMeterCache.get(flinkMetricIdentifier);
-				} else {
+				Meter meter = flinkMeterCache.get(flinkMetricIdentifier);
+				if (null == meter) {
 					int timeSpanInSeconds =
-						Integer.valueOf(scopeComponents.get(scopeComponents.size() - 1));
+						Integer.parseInt(scopeComponents.get(scopeComponents.size() - 1));
 					MetricGroup metricGroup =
 						registerMetricGroup(metricResult.getKey(), baseMetricGroup);
 					meter = metricGroup.meter(
@@ -139,10 +137,8 @@ public final class FlinkMetricContainer {
 				Long update = metricResult.getAttempted();
 				meter.markEvent(update);
 			} else {
-				Counter counter;
-				if (flinkCounterCache.containsKey(flinkMetricIdentifier)) {
-					counter = flinkCounterCache.get(flinkMetricIdentifier);
-				} else {
+				Counter counter = flinkCounterCache.get(flinkMetricIdentifier);
+				if (null == counter) {
 					MetricGroup metricGroup =
 						registerMetricGroup(metricResult.getKey(), baseMetricGroup);
 					counter = metricGroup.counter(metricResult.getKey().metricName().getName());
@@ -209,8 +205,8 @@ public final class FlinkMetricContainer {
 		try {
 			return new ObjectMapper().readValue(metricName.getNamespace(), ArrayList.class);
 		} catch (JsonProcessingException e) {
-			e.printStackTrace();
-			throw new RuntimeException(String.format("Parse namespace[%s] error. ", metricName.getNamespace()));
+			throw new RuntimeException(
+				String.format("Parse namespace[%s] error. ", metricName.getNamespace()), e);
 		}
 	}
 
@@ -246,7 +242,7 @@ public final class FlinkMetricContainer {
 	 */
 	public static class FlinkDistributionGauge implements Gauge<DistributionResult> {
 
-		DistributionResult data;
+		private DistributionResult data;
 
 		FlinkDistributionGauge(DistributionResult data) {
 			this.data = data;
@@ -267,7 +263,7 @@ public final class FlinkMetricContainer {
 	 */
 	public static class FlinkGauge implements Gauge<Long> {
 
-		GaugeResult data;
+		private GaugeResult data;
 
 		FlinkGauge(GaugeResult data) {
 			this.data = data;

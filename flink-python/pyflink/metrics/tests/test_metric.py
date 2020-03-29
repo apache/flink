@@ -48,8 +48,7 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(MetricTests.print_metric_group_path(new_group), 'root.key.value')
 
     def test_metric_not_enabled(self):
-        mg = GenericMetricGroup(None, None, metric_enabled=False)
-        fc = FunctionContext(mg)
+        fc = FunctionContext(None)
         with self.assertRaises(RuntimeError):
             fc.get_metric_group()
 

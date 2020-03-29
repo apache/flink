@@ -78,15 +78,13 @@ class GenericMetricGroup(MetricGroup):
             self,
             parent,
             name,
-            metric_group_type=MetricGroupType.generic,
-            metric_enabled=True):
+            metric_group_type=MetricGroupType.generic):
         self._parent = parent
         self._sub_groups = []
         self._name = name
         self._metric_group_type = metric_group_type
         self._flink_gauge = {}
         self._beam_gauge = {}
-        self._metric_enabled = metric_enabled
 
     def _add_group(self, name: str, metric_group_type) -> 'MetricGroup':
         for group in self._sub_groups:
@@ -120,9 +118,7 @@ class GenericMetricGroup(MetricGroup):
     def meter(self, name: str, time_span_in_seconds: int = 60) -> 'Meter':
         from apache_beam.metrics.metric import Metrics
         # There is no meter type in Beam, use counter to implement meter
-        return Meter(
-            Metrics.counter(self._get_namespace(time_span_in_seconds), name),
-            time_span_in_seconds)
+        return Meter(Metrics.counter(self._get_namespace(time_span_in_seconds), name))
 
     def distribution(self, name: str) -> 'Distribution':
         from apache_beam.metrics.metric import Metrics
@@ -138,7 +134,7 @@ class GenericMetricGroup(MetricGroup):
             return names, types
 
     def _get_namespace(self, time=None) -> str:
-        (names, metric_group_type) = self._get_metric_group_names_and_types()
+        names, metric_group_type = self._get_metric_group_names_and_types()
         names.extend(metric_group_type)
         if time is not None:
             names.append(str(time))
@@ -187,15 +183,11 @@ class Meter(Metric):
 
     Metric for measuring throughput."""
 
-    def __init__(self, inner_counter, time_span_in_seconds=60):
+    def __init__(self, inner_counter):
         self._inner_counter = inner_counter
-        self._time_span_in_seconds = time_span_in_seconds
 
     def make_event(self, value=1):
         self._inner_counter.inc(value)
-
-    def get_time_span_in_seconds(self):
-        return self._time_span_in_seconds
 
     def get_count(self):
         from apache_beam.metrics.execution import MetricsEnvironment
