@@ -206,6 +206,25 @@ public class BufferBuilderAndConsumerTest {
 		testIsFinished(BUFFER_INT_SIZE);
 	}
 
+	@Test
+	public void testWritableBytes() {
+		BufferBuilder bufferBuilder = createBufferBuilder();
+		assertEquals(bufferBuilder.getMaxCapacity(), bufferBuilder.getWritableBytes());
+
+		ByteBuffer byteBuffer = toByteBuffer(1, 2, 3);
+		bufferBuilder.append(byteBuffer);
+		assertEquals(bufferBuilder.getMaxCapacity() - byteBuffer.position(), bufferBuilder.getWritableBytes());
+
+		assertEquals(bufferBuilder.getMaxCapacity() - byteBuffer.position(), bufferBuilder.getWritableBytes());
+	}
+
+	@Test
+	public void testWritableBytesWhenFull() {
+		BufferBuilder bufferBuilder = createBufferBuilder();
+		bufferBuilder.append(toByteBuffer(new int[bufferBuilder.getMaxCapacity()]));
+		assertEquals(0, bufferBuilder.getWritableBytes());
+	}
+
 	private static void testIsFinished(int writes) {
 		BufferBuilder bufferBuilder = createBufferBuilder();
 		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
