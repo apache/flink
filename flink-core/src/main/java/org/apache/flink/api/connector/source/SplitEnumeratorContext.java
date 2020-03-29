@@ -75,8 +75,9 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	 * by the source coordinator. When this method is invoked multiple times, The <code>Coallble</code>s
 	 * may be executed in a thread pool concurrently.
 	 *
-	 * <p>It is important to make sure that the callable does not modify
-	 * any shared state. Otherwise the there might be unexpected behavior.
+	 * <p>It is important to make sure that the callable does not modify any shared state, especially
+	 * the states that will be a part of the {@link SplitEnumerator#snapshotState()}. Otherwise the
+	 * there might be unexpected behavior.
 	 *
 	 * @param callable a callable to call.
 	 * @param handler a handler that handles the return value of or the exception thrown from the callable.
@@ -88,8 +89,9 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	 * be executed by the source coordinator. When this method is invoked multiple times, The
 	 * <code>Coallble</code>s may be executed in a thread pool concurrently.
 	 *
-	 * <p>It is important to make sure that the callable does not modify
-	 * any shared state. Otherwise the there might be unexpected behavior.
+	 * <p>It is important to make sure that the callable does not modify any shared state, especially
+	 * the states that will be a part of the {@link SplitEnumerator#snapshotState()}. Otherwise the
+	 * there might be unexpected behavior.
 	 *
 	 * @param callable the callable to call.
 	 * @param handler a handler that handles the return value of or the exception thrown from the callable.
