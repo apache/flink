@@ -279,7 +279,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			getCancelables(),
 			getAsyncOperationsThreadPool(),
 			getEnvironment(),
-			this);
+			this,
+			false); // todo: pass true if unaligned checkpoints enabled
 
 		// if the clock is not already set, then assign a default TimeServiceProvider
 		if (timerService == null) {
