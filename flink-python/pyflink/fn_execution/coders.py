@@ -34,7 +34,7 @@ from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.sdk_worker_main import pipeline_options
 from pyflink.table.types import Row, TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, to_arrow_type
+    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType
 
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
 FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
@@ -452,6 +452,8 @@ class ArrowCoder(DeterministicCoder):
                     flink_fn_execution_pb2.Schema.TypeName.LOCAL_ZONED_TIMESTAMP:
                 return LocalZonedTimestampType(field.type.local_zoned_timestamp_info.precision,
                                                field.type.nullable)
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.TIMESTAMP:
+                return TimestampType(field.type.timestamp_info.precision, field.type.nullable)
             else:
                 raise ValueError("field_type %s is not supported." % field.type)
 

@@ -142,6 +142,17 @@ class PandasUDFITTests(object):
                 'time_param of wrong type %s !' % type(time_param[0])
             return time_param
 
+        timestamp_value = datetime.datetime(1970, 1, 1, 0, 0, 0, 123000)
+
+        def timestamp_func(timestamp_param):
+            assert isinstance(timestamp_param, pd.Series)
+            assert isinstance(timestamp_param[0], datetime.datetime), \
+                'timestamp_param of wrong type %s !' % type(timestamp_param[0])
+            assert timestamp_param[0] == timestamp_value, \
+                'timestamp_param is wrong value %s, should be %s!' % (timestamp_param[0],
+                                                                      timestamp_value)
+            return timestamp_param
+
         self.t_env.register_function(
             "tinyint_func",
             udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT(), udf_type="pandas"))
@@ -191,19 +202,25 @@ class PandasUDFITTests(object):
             "time_func",
             udf(time_func, [DataTypes.TIME()],   DataTypes.TIME(), udf_type="pandas"))
 
+        self.t_env.register_function(
+            "timestamp_func",
+            udf(timestamp_func, [DataTypes.TIMESTAMP(3)], DataTypes.TIMESTAMP(3),
+                udf_type="pandas"))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'],
             [DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT(), DataTypes.BIGINT(),
              DataTypes.BOOLEAN(), DataTypes.BOOLEAN(), DataTypes.FLOAT(), DataTypes.DOUBLE(),
              DataTypes.STRING(), DataTypes.STRING(), DataTypes.BYTES(), DataTypes.DECIMAL(38, 18),
-             DataTypes.DECIMAL(38, 18), DataTypes.DATE(), DataTypes.TIME()])
+             DataTypes.DECIMAL(38, 18), DataTypes.DATE(), DataTypes.TIME(), DataTypes.TIMESTAMP(3)])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
             [(1, 32767, -2147483648, 1, True, False, 1.0, 1.0, 'hello', '中文',
               bytearray(b'flink'), decimal.Decimal('1000000000000000000.05'),
               decimal.Decimal('1000000000000000000.05999999999999999899999999999'),
-              datetime.date(2014, 9, 13), datetime.time(hour=1, minute=0, second=1))],
+              datetime.date(2014, 9, 13), datetime.time(hour=1, minute=0, second=1),
+              timestamp_value)],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
@@ -219,7 +236,8 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("l", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("m", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("n", DataTypes.DATE()),
-                 DataTypes.FIELD("o", DataTypes.TIME())]))
+                 DataTypes.FIELD("o", DataTypes.TIME()),
+                 DataTypes.FIELD("p", DataTypes.TIMESTAMP(3))]))
 
         t.select("tinyint_func(a),"
                  "smallint_func(b),"
@@ -235,14 +253,16 @@ class PandasUDFITTests(object):
                  "decimal_func(l),"
                  "decimal_func(m),"
                  "date_func(n),"
-                 "time_func(o)") \
+                 "time_func(o),"
+                 "timestamp_func(p)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
                             "[102, 108, 105, 110, 107],1000000000000000000.050000000000000000,"
-                            "1000000000000000000.059999999999999999,2014-09-13,01:00:01"])
+                            "1000000000000000000.059999999999999999,2014-09-13,01:00:01,"
+                            "1970-01-01 00:00:00.123"])
 
 
 class BlinkPandasUDFITTests(object):

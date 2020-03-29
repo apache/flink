@@ -2324,7 +2324,7 @@ def to_arrow_type(data_type):
             return pa.time64('us')
         else:
             return pa.time64('ns')
-    elif type(data_type) == LocalZonedTimestampType:
+    elif type(data_type) in [LocalZonedTimestampType, TimestampType]:
         if data_type.precision == 0:
             return pa.timestamp('s')
         elif 1 <= data_type.precision <= 3:
