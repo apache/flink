@@ -89,6 +89,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -160,6 +161,14 @@ public class ArrowUtilsTest {
 		testFields.add(Tuple7.of("f19", new LocalZonedTimestampType(4), new ArrowType.Timestamp(TimeUnit.MICROSECOND, null),
 			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f20", new LocalZonedTimestampType(8), new ArrowType.Timestamp(TimeUnit.NANOSECOND, null),
+			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+		testFields.add(Tuple7.of("f21", new TimestampType(0), new ArrowType.Timestamp(TimeUnit.SECOND, null),
+			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+		testFields.add(Tuple7.of("f22", new TimestampType(2), new ArrowType.Timestamp(TimeUnit.MILLISECOND, null),
+			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+		testFields.add(Tuple7.of("f23", new TimestampType(4), new ArrowType.Timestamp(TimeUnit.MICROSECOND, null),
+			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+		testFields.add(Tuple7.of("f24", new TimestampType(8), new ArrowType.Timestamp(TimeUnit.NANOSECOND, null),
 			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();

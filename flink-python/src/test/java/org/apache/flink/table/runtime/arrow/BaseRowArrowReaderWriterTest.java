@@ -38,6 +38,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -112,6 +113,10 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 		fieldTypes.add(new LocalZonedTimestampType(2));
 		fieldTypes.add(new LocalZonedTimestampType(4));
 		fieldTypes.add(new LocalZonedTimestampType(8));
+		fieldTypes.add(new TimestampType(0));
+		fieldTypes.add(new TimestampType(2));
+		fieldTypes.add(new TimestampType(4));
+		fieldTypes.add(new TimestampType(8));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (int i = 0; i < fieldTypes.size(); i++) {
@@ -140,15 +145,19 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 	@Override
 	public BaseRow[] getTestData() {
 		BaseRow row1 = StreamRecordUtils.baserow((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
+			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000),
 			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000));
 		BinaryRow row2 = StreamRecordUtils.binaryrow((byte) 1, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
+			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8),
 			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8));
 		BaseRow row3 = StreamRecordUtils.baserow(null, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
+			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000),
 			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000));
 		BinaryRow row4 = StreamRecordUtils.binaryrow((byte) 1, null, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
+			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8),
 			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8));
-		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		return new BaseRow[]{row1, row2, row3, row4, row5, row6};
 	}
 }

@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -80,6 +81,10 @@ public class RowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Row> {
 		fieldTypes.add(new LocalZonedTimestampType(2));
 		fieldTypes.add(new LocalZonedTimestampType(4));
 		fieldTypes.add(new LocalZonedTimestampType(8));
+		fieldTypes.add(new TimestampType(0));
+		fieldTypes.add(new TimestampType(2));
+		fieldTypes.add(new TimestampType(4));
+		fieldTypes.add(new TimestampType(8));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (int i = 0; i < fieldTypes.size(); i++) {
@@ -109,14 +114,17 @@ public class RowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Row> {
 	public Row[] getTestData() {
 		Row row1 = Row.of((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), new BigDecimal(1), SqlDateTimeUtils.internalToDate(100),
 			SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000),
+			new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000),
 			new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000));
 		Row row2 = Row.of(null, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), new BigDecimal(1), SqlDateTimeUtils.internalToDate(100),
 			SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000),
+			new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000),
 			new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000));
 		Row row3 = Row.of((byte) 1, null, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), new BigDecimal(1), SqlDateTimeUtils.internalToDate(100),
 			SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000), SqlDateTimeUtils.internalToTime(3600000),
+			new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000),
 			new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000), new Timestamp(3600000));
-		Row row4 = Row.of(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+		Row row4 = Row.of(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		return new Row[]{row1, row2, row3, row4};
 	}
 }

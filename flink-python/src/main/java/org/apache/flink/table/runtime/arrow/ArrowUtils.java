@@ -90,6 +90,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -248,7 +249,13 @@ public final class ArrowUtils {
 			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
 			return new BaseRowTimeWriter(vector);
 		} else if (vector instanceof TimeStampVector && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
-			return new BaseRowTimestampWriter(vector, ((LocalZonedTimestampType) fieldType).getPrecision());
+			int precision;
+			if (fieldType instanceof LocalZonedTimestampType) {
+				precision = ((LocalZonedTimestampType) fieldType).getPrecision();
+			} else {
+				precision = ((TimestampType) fieldType).getPrecision();
+			}
+			return new BaseRowTimestampWriter(vector, precision);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -428,6 +435,19 @@ public final class ArrowUtils {
 			} else if (localZonedTimestampType.getPrecision() >= 1 && localZonedTimestampType.getPrecision() <= 3) {
 				return new ArrowType.Timestamp(TimeUnit.MILLISECOND, null);
 			} else if (localZonedTimestampType.getPrecision() >= 4 && localZonedTimestampType.getPrecision() <= 6) {
+				return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
+			} else {
+				return new ArrowType.Timestamp(TimeUnit.NANOSECOND, null);
+			}
+		}
+
+		@Override
+		public ArrowType visit(TimestampType timestampType) {
+			if (timestampType.getPrecision() == 0) {
+				return new ArrowType.Timestamp(TimeUnit.SECOND, null);
+			} else if (timestampType.getPrecision() >= 1 && timestampType.getPrecision() <= 3) {
+				return new ArrowType.Timestamp(TimeUnit.MILLISECOND, null);
+			} else if (timestampType.getPrecision() >= 4 && timestampType.getPrecision() <= 6) {
 				return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
 			} else {
 				return new ArrowType.Timestamp(TimeUnit.NANOSECOND, null);
