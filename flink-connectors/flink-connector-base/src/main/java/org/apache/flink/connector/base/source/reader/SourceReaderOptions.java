@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.base.source.reader;
 
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -35,13 +34,6 @@ public class SourceReaderOptions {
 				.defaultValue(30000L)
 				.withDescription("The timeout when closing the source reader");
 
-	public static final ConfigOption<String> SOURCE_READER_BOUNDEDNESS =
-		ConfigOptions
-				.key("boundedness")
-				.stringType()
-				.noDefaultValue()
-				.withDescription("The boundedness of the source.");
-
 	public static final ConfigOption<Integer> ELEMENT_QUEUE_CAPACITY =
 		ConfigOptions
 				.key("source.reader.element.queue.capacity")
@@ -51,12 +43,10 @@ public class SourceReaderOptions {
 
 	// --------------- final fields ----------------------
 	public final long sourceReaderCloseTimeout;
-	public final Boundedness boundedness;
 	public final int elementQueueCapacity;
 
 	public SourceReaderOptions(Configuration config) {
 		this.sourceReaderCloseTimeout = config.getLong(SOURCE_READER_CLOSE_TIMEOUT);
-		this.boundedness = config.getEnum(Boundedness.class, SOURCE_READER_BOUNDEDNESS);
 		this.elementQueueCapacity = config.getInteger(ELEMENT_QUEUE_CAPACITY);
 	}
 }

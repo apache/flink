@@ -57,7 +57,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 	 */
 	@Test
 	public void testRead() throws Exception {
-		SourceReader<Integer, SplitT> reader = createReader(Boundedness.BOUNDED);
+		SourceReader<Integer, SplitT> reader = createReader();
 		reader.addSplits(getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
 		ValidatingSourceOutput output = new ValidatingSourceOutput();
 		while (output.count < 100) {
@@ -128,7 +128,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 
 	// ---------------- helper methods -----------------
 
-	protected abstract SourceReader<Integer, SplitT> createReader(Boundedness boundedness);
+	protected abstract SourceReader<Integer, SplitT> createReader();
 
 	protected abstract List<SplitT> getSplits(int numSplits, int numRecordsPerSplit, Boundedness boundedness);
 
@@ -141,7 +141,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 			ValidatingSourceOutput output,
 			int n,
 			Boundedness boundedness) throws Exception {
-		SourceReader<Integer, SplitT> reader = createReader(boundedness);
+		SourceReader<Integer, SplitT> reader = createReader();
 		// Add splits to start the fetcher.
 		reader.addSplits(splits);
 		// Poll all the n records of the single split.

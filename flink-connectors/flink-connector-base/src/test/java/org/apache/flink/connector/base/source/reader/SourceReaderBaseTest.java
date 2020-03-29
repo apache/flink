@@ -72,7 +72,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 					@Override
 					public void wakeUp() {}
 				},
-				getConfig(Boundedness.BOUNDED),
+				getConfig(),
 				null);
 
 		ValidatingSourceOutput output = new ValidatingSourceOutput();
@@ -88,7 +88,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 	// ---------------- helper methods -----------------
 
 	@Override
-	protected MockSourceReader createReader(Boundedness boundedness) {
+	protected MockSourceReader createReader() {
 		FutureNotifier futureNotifier = new FutureNotifier();
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
 				new FutureCompletingBlockingQueue<>(futureNotifier);
@@ -98,7 +98,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 				futureNotifier,
 				elementsQueue,
 				() -> mockSplitReader,
-				getConfig(boundedness),
+				getConfig(),
 				null);
 	}
 
@@ -130,11 +130,10 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		return split.index();
 	}
 
-	private Configuration getConfig(Boundedness boundedness) {
+	private Configuration getConfig() {
 		Configuration config = new Configuration();
 		config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
 		config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
-		config.setString(SourceReaderOptions.SOURCE_READER_BOUNDEDNESS, boundedness.name());
 		return config;
 	}
 }
