@@ -544,6 +544,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			containingTask.getMailboxExecutorFactory().createExecutor(operatorConfig.getChainIndex()));
 	}
 
+	@Nullable
+	StreamOperator<?> getTailOperator() {
+		return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Collectors for output chaining
 	// ------------------------------------------------------------------------

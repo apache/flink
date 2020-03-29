@@ -21,31 +21,44 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
+
 	private static final Logger LOG = LoggerFactory.getLogger(SubtaskCheckpointCoordinatorImpl.class);
 
-	private final CheckpointStorageWorkerView checkpointStorage;
+	private final CachingCheckpointStorageWorkerView checkpointStorage;
 	private final String taskName;
 	private final CloseableRegistry closeableRegistry;
 	private final ExecutorService executorService;
 	private final Environment env;
 	private final AsyncExceptionHandler asyncExceptionHandler;
+	private final ChannelStateWriter channelStateWriter;
 	private final StreamTaskActionExecutor actionExecutor;
 
 	SubtaskCheckpointCoordinatorImpl(
@@ -55,19 +68,32 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			CloseableRegistry closeableRegistry,
 			ExecutorService executorService,
 			Environment env,
-			AsyncExceptionHandler asyncExceptionHandler) {
-		this.checkpointStorage = checkNotNull(checkpointStorage);
+			AsyncExceptionHandler asyncExceptionHandler,
+			boolean sendChannelState) throws IOException {
+		this.checkpointStorage = new CachingCheckpointStorageWorkerView(checkNotNull(checkpointStorage));
 		this.taskName = checkNotNull(taskName);
 		this.closeableRegistry = checkNotNull(closeableRegistry);
 		this.executorService = checkNotNull(executorService);
 		this.env = checkNotNull(env);
 		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
 		this.actionExecutor = checkNotNull(actionExecutor);
+		this.channelStateWriter = sendChannelState ? openChannelStateWriter() : ChannelStateWriter.NO_OP;
+		this.closeableRegistry.registerCloseable(this);
+	}
+
+	private ChannelStateWriterImpl openChannelStateWriter() {
+		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(this.checkpointStorage);
+		writer.open();
+		return writer;
 	}
 
 	@Override
 	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws Exception {
 		LOG.debug("Aborting checkpoint via cancel-barrier {} for task {}", checkpointId, taskName);
+
+		checkpointStorage.clearCacheFor(checkpointId);
+
+		channelStateWriter.abort(checkpointId, cause);
 
 		// notify the coordinator that we decline this checkpoint
 		env.declineCheckpoint(checkpointId, cause);
@@ -79,6 +105,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	@Override
 	public CheckpointStorageWorkerView getCheckpointStorage() {
 		return checkpointStorage;
+	}
+
+	@Override
+	public ChannelStateWriter getChannelStateWriter() {
+		return channelStateWriter;
 	}
 
 	@Override
@@ -110,23 +141,24 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		// Step (3): Take the state snapshot. This should be largely asynchronous, to not
 		//           impact progress of the streaming topology
 
-		CheckpointStreamFactory storage = checkpointStorage.resolveCheckpointStorageLocation(
-			checkpointMetaData.getCheckpointId(),
-			checkpointOptions.getTargetLocation());
-
 		long startSyncPartNano = System.nanoTime();
 
 		HashMap<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress = new HashMap<>(operatorChain.getNumberOfOperators());
+		ChannelStateWriteResult channelStateWriteResult =
+			checkpointOptions.getCheckpointType() == CHECKPOINT ? channelStateWriter.getWriteResult(checkpointMetaData.getCheckpointId()) :
+				ChannelStateWriteResult.EMPTY;
 		try {
 			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
-				StreamOperator<?> op = operatorWrapper.getStreamOperator();
-				OperatorSnapshotFutures snapshotInProgress = checkpointStreamOperator(
-					op,
-					checkpointMetaData,
-					checkpointOptions,
-					storage,
-					isCanceled);
-				operatorSnapshotsInProgress.put(op.getOperatorID(), snapshotInProgress);
+				operatorSnapshotsInProgress.put(
+					operatorWrapper.getStreamOperator().getOperatorID(),
+					buildOperatorSnapshotFutures(
+						checkpointMetaData,
+						checkpointOptions,
+						operatorChain,
+						operatorWrapper.getStreamOperator(),
+						isCanceled,
+						channelStateWriteResult)
+				);
 			}
 
 			if (LOG.isDebugEnabled()) {
@@ -185,6 +217,79 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			} else {
 				env.declineCheckpoint(checkpointMetaData.getCheckpointId(), ex);
 			}
+		} finally {
+			checkpointStorage.clearCacheFor(checkpointMetaData.getCheckpointId());
+		}
+	}
+
+	private OperatorSnapshotFutures buildOperatorSnapshotFutures(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			OperatorChain<?, ?> operatorChain,
+			StreamOperator<?> op,
+			Supplier<Boolean> isCanceled,
+			ChannelStateWriteResult channelStateWriteResult) throws Exception {
+		CheckpointStreamFactory storage = checkpointStorage.resolveCheckpointStorageLocation(
+			checkpointMetaData.getCheckpointId(),
+			checkpointOptions.getTargetLocation());
+		OperatorSnapshotFutures snapshotInProgress = checkpointStreamOperator(
+			op,
+			checkpointMetaData,
+			checkpointOptions,
+			storage,
+			isCanceled);
+		if (op == operatorChain.getHeadOperator()) {
+			snapshotInProgress.setInputChannelStateFuture(
+				channelStateWriteResult
+					.getInputChannelStateHandles()
+					.thenApply(StateObjectCollection::new)
+					.thenApply(SnapshotResult::of));
+		}
+		if (op == operatorChain.getTailOperator()) {
+			snapshotInProgress.setResultSubpartitionStateFuture(
+				channelStateWriteResult
+					.getResultSubpartitionStateHandles()
+					.thenApply(StateObjectCollection::new)
+					.thenApply(SnapshotResult::of));
+		}
+		return snapshotInProgress;
+	}
+
+	@Override
+	public void close() throws IOException {
+		channelStateWriter.close();
+	}
+
+	// Caches checkpoint output stream factories to prevent multiple output stream per checkpoint.
+	// This could result from requesting output stream by different entities (this and channelStateWriter)
+	// We can't just pass a stream to the channelStateWriter because it can receive checkpoint call earlier than this class
+	// in some unaligned checkpoints scenarios
+	private static class CachingCheckpointStorageWorkerView implements CheckpointStorageWorkerView {
+		private final Map<Long, CheckpointStreamFactory> cache = new ConcurrentHashMap<>();
+		private final CheckpointStorageWorkerView delegate;
+
+		private CachingCheckpointStorageWorkerView(CheckpointStorageWorkerView delegate) {
+			this.delegate = delegate;
+		}
+
+		void clearCacheFor(long checkpointId) {
+			cache.remove(checkpointId);
+		}
+
+		@Override
+		public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) {
+			return cache.computeIfAbsent(checkpointId, id -> {
+				try {
+					return delegate.resolveCheckpointStorageLocation(checkpointId, reference);
+				} catch (IOException e) {
+					throw new FlinkRuntimeException(e);
+				}
+			});
+		}
+
+		@Override
+		public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
+			return delegate.createTaskOwnedStateStream();
 		}
 	}
 

@@ -21,8 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 
+import java.io.Closeable;
 import java.util.function.Supplier;
 
 /**
@@ -35,7 +37,9 @@ import java.util.function.Supplier;
  * </ol>
  */
 @Internal
-interface SubtaskCheckpointCoordinator {
+interface SubtaskCheckpointCoordinator extends Closeable {
+
+	ChannelStateWriter getChannelStateWriter();
 
 	CheckpointStorageWorkerView getCheckpointStorage();
 
