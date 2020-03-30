@@ -96,6 +96,8 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> Optional<T> getValueAs(Class<T> clazz) {
+		Preconditions.checkArgument(!clazz.isPrimitive());
+
 		if (value == null) {
 			return Optional.empty();
 		}
