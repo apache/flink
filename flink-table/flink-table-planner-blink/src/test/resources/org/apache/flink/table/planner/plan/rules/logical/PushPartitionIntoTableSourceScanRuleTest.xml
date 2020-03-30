@@ -16,10 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testNoPartitionFieldPredicate">
+  <TestCase name="testNoPartitionFieldPredicate[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -27,7 +26,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -35,13 +33,30 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testNoPartitionFieldPredicateWithVirtualColumn">
+  <TestCase name="testNoPartitionFieldPredicate[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE id > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNoPartitionFieldPredicateWithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -50,7 +65,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -59,13 +73,32 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalFilter(condition=[>($0, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate1">
+  <TestCase name="testNoPartitionFieldPredicateWithVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE id > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalFilter(condition=[>($0, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate1[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -73,42 +106,35 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testPartialPartitionFieldPredicatePushDown">
+  <TestCase name="testOnlyPartitionFieldPredicate1[true]">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
-
+      <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
-+- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
++- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
-+- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate1WithVirtualColumn">
+  <TestCase name="testOnlyPartitionFieldPredicate1WithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A']]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -117,7 +143,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -125,13 +150,50 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate2">
+  <TestCase name="testPartialPartitionFieldPredicatePushDown[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate1WithVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate2[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part2 > 1]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -139,20 +201,35 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate2WithVirtualColumn">
+  <TestCase name="testOnlyPartitionFieldPredicate2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[>($3, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate2WithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part2 > 1]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -161,7 +238,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -169,13 +245,31 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate3">
+  <TestCase name="testOnlyPartitionFieldPredicate2WithVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[>($3, 1)])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate3[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -183,20 +277,35 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate3WithVirtualColumn">
+  <TestCase name="testOnlyPartitionFieldPredicate3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate3WithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -205,7 +314,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -213,13 +321,31 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate4">
+  <TestCase name="testOnlyPartitionFieldPredicate3WithVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=2}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate4[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -227,20 +353,35 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyPartitionFieldPredicate4WithVirtualColumn">
+  <TestCase name="testOnlyPartitionFieldPredicate4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyPartitionFieldPredicate4WithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -249,7 +390,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -257,13 +397,50 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testPartialPartitionFieldPredicatePushDownWithVirtualColumn">
+  <TestCase name="testOnlyPartitionFieldPredicate4WithVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialPartitionFieldPredicatePushDown[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialPartitionFieldPredicatePushDownWithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -272,7 +449,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -281,13 +457,32 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testPartitionFieldPredicateAndOtherPredicate">
+  <TestCase name="testPartialPartitionFieldPredicatePushDownWithVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionFieldPredicateAndOtherPredicate[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A']]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -295,7 +490,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -303,13 +497,30 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testPartitionFieldPredicateAndOtherPredicateWithVirtualColumn">
+  <TestCase name="testPartitionFieldPredicateAndOtherPredicate[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionFieldPredicateAndOtherPredicateWithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A']]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -318,7 +529,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -327,59 +537,70 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalFilter(condition=[>($0, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testPartitionFieldPredicateOrOtherPredicate">
+  <TestCase name="testPartitionFieldPredicateAndOtherPredicateWithVirtualColumn[true]">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A']]>
-
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
-+- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
-+- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-
-    </Resource>
-  </TestCase>
-  <TestCase name="testWithUdfAndVirtualColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3]]>
-
+      <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A']]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
-+- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
++- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
    +- LogicalFilter(condition=[>($0, 2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testPartitionFieldPredicateOrOtherPredicateWithVirtualColumn">
+  <TestCase name="testPartitionFieldPredicateOrOtherPredicate[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionFieldPredicateOrOtherPredicate[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionFieldPredicateOrOtherPredicateWithVirtualColumn[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A']]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -388,7 +609,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -397,13 +617,53 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
    +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testWithUdf">
+  <TestCase name="testWithUdfAndVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalFilter(condition=[>($0, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionFieldPredicateOrOtherPredicateWithVirtualColumn[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithUdf[false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -411,7 +671,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -419,7 +678,46 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]])
 ]]>
-
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithUdf[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithUdfAndVirtualColumn[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalFilter(condition=[>($0, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]])
+]]>
     </Resource>
   </TestCase>
 </Root>

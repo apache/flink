@@ -234,7 +234,7 @@ public class HiveTableSource implements
 
 	@Override
 	public List<Map<String, String>> getPartitions() {
-		throw new RuntimeException("This method is not expected to be called. " +
+		throw new UnsupportedOperationException(
 				"Please use Catalog API to retrieve all partitions of a table");
 	}
 
