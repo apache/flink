@@ -81,6 +81,7 @@ public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPyth
 	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
 		builder.addUdfs(getUserDefinedFunctionProto(tableFunction));
+		builder.setMetricEnabled(flinkMetricContainer != null);
 		return builder.build();
 	}
 
