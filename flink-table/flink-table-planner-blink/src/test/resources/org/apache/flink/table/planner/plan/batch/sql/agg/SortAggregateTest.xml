@@ -737,7 +737,7 @@ Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
       +- Exchange(distribution=[hash[a]])
          +- LocalSortAggregate(groupBy=[a], select=[a, Partial_MAX(b) AS max$0])
             +- Sort(orderBy=[a ASC])
-               +- Calc(select=[a, _UTF-16LE'test' AS c, b])
+               +- Calc(select=[a, b])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -762,7 +762,7 @@ Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
 +- SortAggregate(isMerge=[false], groupBy=[a], select=[a, MAX(b) AS EXPR$1])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, _UTF-16LE'test' AS c, b])
+         +- Calc(select=[a, b])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -789,7 +789,7 @@ Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
       +- Exchange(distribution=[hash[a]])
          +- LocalSortAggregate(groupBy=[a], select=[a, Partial_MAX(b) AS max$0])
             +- Sort(orderBy=[a ASC])
-               +- Calc(select=[a, _UTF-16LE'test' AS c, b])
+               +- Calc(select=[a, b])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

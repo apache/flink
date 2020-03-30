@@ -717,7 +717,7 @@ Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MAX(max$0) AS EXPR$1])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashAggregate(groupBy=[a], select=[a, Partial_MAX(b) AS max$0])
-         +- Calc(select=[a, _UTF-16LE'test' AS c, b])
+         +- Calc(select=[a, b])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -741,7 +741,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
 Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
 +- HashAggregate(isMerge=[false], groupBy=[a], select=[a, MAX(b) AS EXPR$1])
    +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, _UTF-16LE'test' AS c, b])
+      +- Calc(select=[a, b])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -766,7 +766,7 @@ Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MAX(max$0) AS EXPR$1])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashAggregate(groupBy=[a], select=[a, Partial_MAX(b) AS max$0])
-         +- Calc(select=[a, _UTF-16LE'test' AS c, b])
+         +- Calc(select=[a, b])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
