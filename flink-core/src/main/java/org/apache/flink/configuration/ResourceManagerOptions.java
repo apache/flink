@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 /**
@@ -55,6 +56,16 @@ public class ResourceManagerOptions {
 		.withDescription("Defines the network port to connect to for communication with the resource manager. By" +
 			" default, the port of the JobManager, because the same ActorSystem is used." +
 			" Its not possible to use this configuration key to define port ranges.");
+
+	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+	public static final ConfigOption<Integer> MAX_SLOT_NUM = ConfigOptions
+		.key("slotmanager.max-number-of-slots")
+		.intType()
+		.defaultValue(Integer.MAX_VALUE)
+		.withDescription("Defines the maximum number of slots that the Flink cluster allocates. This configuration option " +
+			"is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option " +
+			"for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take " +
+			"effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
 	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.
