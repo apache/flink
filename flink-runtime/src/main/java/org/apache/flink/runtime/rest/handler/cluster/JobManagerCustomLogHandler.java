@@ -22,9 +22,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.FileMessageParameters;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogFileNamePathParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -51,9 +51,12 @@ public class JobManagerCustomLogHandler extends AbstractJobManagerFileHandler<Fi
 
 	@Override
 	protected File getFile(HandlerRequest<EmptyRequestBody, FileMessageParameters> handlerRequest) {
-		final String logDir = logFileLocation.logFile.getParent();
-		if (logFileLocation.logFile == null || StringUtils.isNullOrWhitespaceOnly(logFileLocation.logFile.getParent())) {
+		if (logFileLocation.logFile == null) {
 			throw new CompletionException(new RestHandlerException("Can not get JobManager log dir.", HttpResponseStatus.NOT_FOUND));
+		}
+		final String logDir = logFileLocation.logFile.getParent();
+		if (StringUtils.isNullOrWhitespaceOnly(logDir)) {
+			throw new CompletionException(new RestHandlerException("JobManager log dir is empty.", HttpResponseStatus.NOT_FOUND));
 		}
 		String filename = handlerRequest.getPathParameter(LogFileNamePathParameter.class);
 		return new File(logDir, filename);

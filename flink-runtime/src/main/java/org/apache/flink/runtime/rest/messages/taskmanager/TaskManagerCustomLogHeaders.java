@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
 /**

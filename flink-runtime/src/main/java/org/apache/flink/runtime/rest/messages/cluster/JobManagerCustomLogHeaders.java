@@ -21,8 +21,8 @@ package org.apache.flink.runtime.rest.messages.cluster;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogFileNamePathParameter;
 
 /**
  * Headers for the {@link JobManagerCustomLogHandler}.

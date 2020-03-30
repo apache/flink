@@ -65,13 +65,12 @@ public class JobManagerLogListHandler extends AbstractRestHandler<RestfulGateway
 	protected CompletableFuture<LogListInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
 		if (logFileLocation.logFile == null || StringUtils.isNullOrWhitespaceOnly(logFileLocation.logFile.getParent())) {
 			return CompletableFuture.completedFuture(new LogListInfo(Collections.emptyList()));
-		} else {
-			final File[] logFiles = new File(logFileLocation.logFile.getParent()).listFiles();
-			final List<LogInfo> logsWithLength = Arrays.stream(logFiles)
-				.filter(File::isFile)
-				.map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
-				.collect(Collectors.toList());
-			return CompletableFuture.completedFuture(new LogListInfo(logsWithLength));
 		}
+		final File[] logFiles = new File(logFileLocation.logFile.getParent()).listFiles();
+		final List<LogInfo> logsWithLength = Arrays.stream(logFiles)
+			.filter(File::isFile)
+			.map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
+			.collect(Collectors.toList());
+		return CompletableFuture.completedFuture(new LogListInfo(logsWithLength));
 	}
 }

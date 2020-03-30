@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
 /**
  * Parameters used by {@link TaskManagerCustomLogHandler} and {@link JobManagerCustomLogHandler}.
