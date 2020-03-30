@@ -128,8 +128,8 @@ LogicalProject(four=[$1], EXPR$0=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[4 AS four, EXPR$0])
-+- GroupAggregate(groupBy=[a, four], select=[a, four, SUM(b) AS EXPR$0])
-   +- Exchange(distribution=[hash[a, four]])
++- GroupAggregate(groupBy=[a], select=[a, SUM(b) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, 4 AS four, b])
          +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -147,8 +147,8 @@ LogicalProject(four=[$1], EXPR$0=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[4 AS four, EXPR$0])
-+- GroupAggregate(groupBy=[b, four], select=[b, four, SUM(a) AS EXPR$0])
-   +- Exchange(distribution=[hash[b, four]])
++- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0])
+   +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, 4 AS four, a])
          +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
