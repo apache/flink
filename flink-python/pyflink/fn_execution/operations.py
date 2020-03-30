@@ -19,7 +19,6 @@
 import datetime
 
 import cloudpickle
-from contextlib import ExitStack
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker.operations import Operation
