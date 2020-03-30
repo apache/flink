@@ -27,7 +27,6 @@ under the License.
 	<packaging>jar</packaging>
 
 	<name>Flink Quickstart Job</name>
-	<url>http://www.myorganization.org</url>
 
 	<repositories>
 		<repository>
