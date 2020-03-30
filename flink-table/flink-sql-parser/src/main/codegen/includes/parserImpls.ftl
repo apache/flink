@@ -601,12 +601,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     }]
     [
         <PARTITIONED> <BY>
-        partitionColumns = ParenthesizedSimpleIdentifierList() {
-            if (!((FlinkSqlConformance) this.conformance).allowCreatePartitionedTable()) {
-                throw SqlUtil.newContextException(getPos(),
-                    ParserResource.RESOURCE.createPartitionedTableIsOnlyAllowedForHive());
-            }
-        }
+        partitionColumns = ParenthesizedSimpleIdentifierList()
     ]
     [
         <WITH>

@@ -62,7 +62,6 @@ class PartitionableSinkITCase extends AbstractTestBase {
   def before(): Unit = {
     batchExec.setParallelism(1)
     tEnv = BatchTableEnvironment.create(batchExec)
-    tEnv.getConfig.setSqlDialect(SqlDialect.HIVE)
     registerTableSource("nonSortTable", testData.toList)
     registerTableSource("sortTable", testData1.toList)
     PartitionableSinkITCase.init()
