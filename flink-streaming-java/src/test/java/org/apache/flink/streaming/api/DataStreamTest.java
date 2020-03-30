@@ -1193,7 +1193,7 @@ public class DataStreamTest extends TestLogger {
 			}
 		};
 
-		testKeyRejection(keySelector, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+		testArrayKeyRejection(keySelector, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
 	}
 
 	@Test
@@ -1208,7 +1208,7 @@ public class DataStreamTest extends TestLogger {
 			}
 		};
 
-		testKeyRejection(keySelector, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO);
+		testArrayKeyRejection(keySelector, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO);
 	}
 
 	@Test
@@ -1230,7 +1230,23 @@ public class DataStreamTest extends TestLogger {
 		ObjectArrayTypeInfo<Object[], Object> keyTypeInfo = ObjectArrayTypeInfo.getInfoFor(
 				Object[].class, new GenericTypeInfo<>(Object.class));
 
-		testKeyRejection(keySelector, keyTypeInfo);
+		testArrayKeyRejection(keySelector, keyTypeInfo);
+	}
+
+	private <K> void testArrayKeyRejection(KeySelector<Tuple2<Integer[], String>, K> keySelector, TypeInformation<K> expectedKeyType) {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<Integer[], String>> input = env.fromElements(
+			new Tuple2<>(new Integer[] {1, 2}, "barfoo")
+		);
+
+		Assert.assertEquals(expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
+
+		// adjust the rule
+		expectedException.expect(InvalidProgramException.class);
+		expectedException.expectMessage(new StringStartsWith("Type " + expectedKeyType + " cannot be used as key."));
+
+		input.keyBy(keySelector);
 	}
 
 	private enum TestEnum {
@@ -1259,21 +1275,6 @@ public class DataStreamTest extends TestLogger {
 		input.keyBy(keySelector);
 	}
 
-	private <K> void testKeyRejection(KeySelector<Tuple2<Integer[], String>, K> keySelector, TypeInformation<K> expectedKeyType) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Tuple2<Integer[], String>> input = env.fromElements(
-				new Tuple2<>(new Integer[] {1, 2}, "barfoo")
-		);
-
-		Assert.assertEquals(expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
-
-		// adjust the rule
-		expectedException.expect(InvalidProgramException.class);
-		expectedException.expectMessage(new StringStartsWith("Type " + expectedKeyType + " cannot be used as key."));
-
-		input.keyBy(keySelector);
-	}
 
 	////////////////			Composite Key Tests : POJOs			////////////////
 

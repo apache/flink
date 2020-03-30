@@ -219,11 +219,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		try {
 			return (type instanceof PojoTypeInfo)
 					? !type.getTypeClass().getMethod("hashCode").getDeclaringClass().equals(Object.class)
-					: !(type instanceof PrimitiveArrayTypeInfo || type instanceof BasicArrayTypeInfo || type instanceof ObjectArrayTypeInfo || type instanceof EnumTypeInfo);
+					: !(isArrayType(type) || isEnumType(type));
 		} catch (NoSuchMethodException ignored) {
 			// this should never happen as we are just searching for the hashCode() method.
 		}
 		return false;
+	}
+
+	private static boolean isArrayType(TypeInformation<?> type) {
+		return type instanceof PrimitiveArrayTypeInfo || type instanceof BasicArrayTypeInfo || type instanceof ObjectArrayTypeInfo;
+	}
+
+	private static boolean isEnumType(TypeInformation<?> type) {
+		return type instanceof EnumTypeInfo;
 	}
 
 	// ------------------------------------------------------------------------
