@@ -364,7 +364,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 			if (operator == null) {
 				this.operator = StreamOperatorFactoryUtil.createOperator(factory, mockTask, config,
-						new MockOutput(outputSerializer)).f0;
+						new MockOutput(outputSerializer), null).f0;
 			} else {
 				if (operator instanceof AbstractStreamOperator) {
 					((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
@@ -379,7 +379,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState()}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(StreamTaskStateInitializer)}.
 	 * Calls {@link org.apache.flink.streaming.api.operators.SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)}
 	 * if it was not called before.
 	 *

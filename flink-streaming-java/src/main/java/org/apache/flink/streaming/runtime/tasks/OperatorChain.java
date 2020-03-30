@@ -168,7 +168,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 						operatorFactory,
 						containingTask,
 						configuration,
-						output);
+						output,
+						operatorEventDispatcher);
 
 				OP headOperator = headOperatorAndTimeService.f0;
 				headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
@@ -468,7 +469,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				operatorConfig.getStreamOperatorFactory(userCodeClassloader),
 				containingTask,
 				operatorConfig,
-				chainedOperatorOutput);
+				chainedOperatorOutput,
+				operatorEventDispatcher);
 
 		OneInputStreamOperator<IN, OUT> chainedOperator = chainedOperatorAndTimeService.f0;
 		allOperatorWrappers.add(createOperatorWrapper(chainedOperator, containingTask, operatorConfig, chainedOperatorAndTimeService.f1));
