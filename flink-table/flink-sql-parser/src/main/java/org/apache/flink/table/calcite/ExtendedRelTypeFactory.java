@@ -16,21 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils;
+package org.apache.flink.table.calcite;
 
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.annotation.Internal;
+
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 
 /**
- * Test for {@link BigDecimalTypeInfo}.
+ * A factory for creating {@link RelDataType} instances including Flink-specific extensions.
+ *
+ * <p>This interface exists because the parser module has no access to the planner's type factory.
  */
-public class BigDecimalTypeInfoTest extends TypeInformationTestBase<BigDecimalTypeInfo> {
+@Internal
+public interface ExtendedRelTypeFactory extends RelDataTypeFactory {
 
-	@Override
-	protected BigDecimalTypeInfo[] getTestData() {
-		return new BigDecimalTypeInfo[] {
-				new BigDecimalTypeInfo(38, 18),
-				new BigDecimalTypeInfo(17, 0),
-				new BigDecimalTypeInfo(25, 21)
-		};
-	}
+	/**
+	 * Creates a RAW type such as {@code RAW('org.my.Class', 'sW3Djsds...')}.
+	 */
+	RelDataType createRawType(String className, String serializerString);
 }

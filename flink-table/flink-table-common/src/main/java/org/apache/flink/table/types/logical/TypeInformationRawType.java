@@ -45,8 +45,11 @@ import java.util.Set;
  * <p>This type has no serializable string representation.
  *
  * <p>If no type information is supplied, generic type serialization for {@link Object} is used.
+ *
+ * @deprecated Use {@link RawType} instead.
  */
 @PublicEvolving
+@Deprecated
 public final class TypeInformationRawType<T> extends LogicalType {
 
 	private static final String FORMAT = "RAW('%s', ?)";

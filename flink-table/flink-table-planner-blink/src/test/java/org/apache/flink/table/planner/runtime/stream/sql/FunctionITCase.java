@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -32,16 +35,21 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.codegen.CodeGenException;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.time.DayOfWeek;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -495,20 +503,50 @@ public class FunctionITCase extends StreamingTestBase {
 		);
 
 		final List<Row> sinkData = Arrays.asList(
-			Row.of(1, "1+2012-12-12 12:12:12.123456789", "[1, 2, 3]+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "[1, 2, 3]"),
-			Row.of(2, "2+2012-12-12 12:12:12.123456789", "[2, 3, 4]+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "[2, 3, 4]"),
-			Row.of(3, "3+2012-12-12 12:12:12.123456789", "[3, 4, 5]+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "[3, 4, 5]"),
-			Row.of(null, "null+2012-12-12 12:12:12.123456789", "null+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "null")
+			Row.of(
+				1,
+				"1+2012-12-12 12:12:12.123456789",
+				"[1, 2, 3]+2012-12-12 12:12:12.123456789",
+				new BigDecimal("123.40"),
+				ByteBuffer.wrap(new byte[]{1, 2, 3})),
+			Row.of(
+				2,
+				"2+2012-12-12 12:12:12.123456789",
+				"[2, 3, 4]+2012-12-12 12:12:12.123456789",
+				new BigDecimal("123.40"),
+				ByteBuffer.wrap(new byte[]{2, 3, 4})),
+			Row.of(
+				3,
+				"3+2012-12-12 12:12:12.123456789",
+				"[3, 4, 5]+2012-12-12 12:12:12.123456789",
+				new BigDecimal("123.40"),
+				ByteBuffer.wrap(new byte[]{3, 4, 5})),
+			Row.of(
+				null,
+				"null+2012-12-12 12:12:12.123456789",
+				"null+2012-12-12 12:12:12.123456789",
+				new BigDecimal("123.40"),
+				null)
 		);
 
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
+		final RawType<Object> rawType = new RawType<>(
+			Object.class,
+			new KryoSerializer<>(Object.class, new ExecutionConfig()));
+
 		tEnv().sqlUpdate(
 			"CREATE TABLE SourceTable(i INT, b BYTES) " +
 			"WITH ('connector' = 'COLLECTION')");
 		tEnv().sqlUpdate(
-			"CREATE TABLE SinkTable(i INT, s1 STRING, s2 STRING, d DECIMAL(5, 2), s3 STRING) " +
+			"CREATE TABLE SinkTable(" +
+			"  i INT, " +
+			"  s1 STRING, " +
+			"  s2 STRING, " +
+			"  d DECIMAL(5, 2)," +
+			"  r " + rawType.asSerializableString() +
+			") " +
 			"WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("ComplexScalarFunction", ComplexScalarFunction.class);
@@ -559,6 +597,81 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
+	public void testRawLiteralScalarFunction() throws Exception {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of(1, DayOfWeek.MONDAY),
+			Row.of(2, DayOfWeek.FRIDAY),
+			Row.of(null, null)
+		);
+
+		final Row[] sinkData = new Row[]{
+			Row.of(
+				1,
+				"MONDAY",
+				DayOfWeek.MONDAY),
+			Row.of(
+				1,
+				"MONDAY",
+				DayOfWeek.MONDAY),
+			Row.of(
+				2,
+				"FRIDAY",
+				DayOfWeek.FRIDAY),
+			Row.of(
+				2,
+				"FRIDAY",
+				DayOfWeek.FRIDAY),
+			Row.of(
+				null,
+				null,
+				null),
+			Row.of(
+				null,
+				null,
+				null)
+		};
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		final RawType<DayOfWeek> rawType = new RawType<>(
+			DayOfWeek.class,
+			new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()));
+
+		tEnv().sqlUpdate(
+			"CREATE TABLE SourceTable(" +
+			"  i INT, " +
+			"  r " + rawType.asSerializableString() +
+			") " +
+			"WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate(
+			"CREATE TABLE SinkTable(" +
+			"  i INT, " +
+			"  s STRING, " +
+			"  r " + rawType.asSerializableString() +
+			") " +
+			"WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("RawLiteralScalarFunction", RawLiteralScalarFunction.class);
+		tEnv().sqlUpdate(
+			"INSERT INTO SinkTable " +
+			"  (SELECT " +
+			"    i, " +
+			"    RawLiteralScalarFunction(r, TRUE), " +
+			"    RawLiteralScalarFunction(r, FALSE) " +
+			"   FROM SourceTable)" +
+			"UNION ALL " +
+			"  (SELECT " +
+			"    i, " +
+			"    RawLiteralScalarFunction(r, TRUE), " +
+			"    RawLiteralScalarFunction(r, FALSE) " +
+			"  FROM SourceTable)");
+		tEnv().execute("Test Job");
+
+		assertThat(TestCollectionTableFactory.getResult(), containsInAnyOrder(sinkData));
 	}
 
 	@Test
@@ -732,8 +845,45 @@ public class FunctionITCase extends StreamingTestBase {
 			return new BigDecimal("123.4"); // 1 digit is missing
 		}
 
-		public String eval(byte[] bytes) {
-			return Arrays.toString(bytes);
+		public @DataTypeHint("RAW") ByteBuffer eval(byte[] bytes) {
+			if (bytes == null) {
+				return null;
+			}
+			return ByteBuffer.wrap(bytes);
+		}
+	}
+
+	/**
+	 * A function that returns either STRING or RAW type depending on a literal.
+	 */
+	public static class RawLiteralScalarFunction extends ScalarFunction {
+		public Object eval(DayOfWeek dayOfWeek, Boolean asString) {
+			if (dayOfWeek == null) {
+				return null;
+			}
+			if (asString) {
+				return dayOfWeek.toString();
+			}
+			return dayOfWeek;
+		}
+
+		@Override
+		public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+			final DataType dayOfWeekDataType =
+				DataTypes.RAW(DayOfWeek.class).toDataType(typeFactory);
+			return TypeInference.newBuilder()
+				.typedArguments(
+					dayOfWeekDataType,
+					DataTypes.BOOLEAN().notNull())
+				.outputTypeStrategy((callContext -> {
+					final boolean asString = callContext.getArgumentValue(1, Boolean.class)
+						.orElse(false);
+					if (asString) {
+						return Optional.of(DataTypes.STRING());
+					}
+					return Optional.of(dayOfWeekDataType);
+				}))
+				.build();
 		}
 	}
 

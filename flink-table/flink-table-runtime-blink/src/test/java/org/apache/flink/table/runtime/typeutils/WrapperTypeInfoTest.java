@@ -18,19 +18,30 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+
+import java.time.DayOfWeek;
 
 /**
- * Test for {@link BigDecimalTypeInfo}.
+ * Test for {@link WrapperTypeInfo}.
  */
-public class BigDecimalTypeInfoTest extends TypeInformationTestBase<BigDecimalTypeInfo> {
+public class WrapperTypeInfoTest extends TypeInformationTestBase<WrapperTypeInfo<?>> {
 
 	@Override
-	protected BigDecimalTypeInfo[] getTestData() {
-		return new BigDecimalTypeInfo[] {
-				new BigDecimalTypeInfo(38, 18),
-				new BigDecimalTypeInfo(17, 0),
-				new BigDecimalTypeInfo(25, 21)
+	protected WrapperTypeInfo<?>[] getTestData() {
+		return new WrapperTypeInfo<?>[] {
+				new WrapperTypeInfo<>(
+					Object.class,
+					new KryoSerializer<>(Object.class, new ExecutionConfig())),
+				new WrapperTypeInfo<>(
+					DayOfWeek.class,
+					new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig())),
+				new WrapperTypeInfo<>(
+					Integer.class,
+					IntSerializer.INSTANCE)
 		};
 	}
 }
