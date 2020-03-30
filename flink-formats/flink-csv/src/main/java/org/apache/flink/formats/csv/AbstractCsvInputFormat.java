@@ -58,28 +58,28 @@ public abstract class AbstractCsvInputFormat<T> extends FileInputFormat<T> {
 
 		csvInputStream = stream;
 
-		long realStart = splitStart;
+		long csvStart = splitStart;
 		if (splitStart != 0) {
-			realStart = findNextLegalSeparator();
+			csvStart = findNextLineStartOffset();
 		}
 
 		if (splitLength != READ_WHOLE_SPLIT_FLAG) {
 			stream.seek(splitStart + splitLength);
-			long firstByteOfNextLine = findNextLegalSeparator();
-			stream.seek(realStart);
-			csvInputStream = new BoundedInputStream(stream, firstByteOfNextLine - realStart);
+			long nextLineStartOffset = findNextLineStartOffset();
+			stream.seek(csvStart);
+			csvInputStream = new BoundedInputStream(stream, nextLineStartOffset - csvStart);
 		} else {
-			stream.seek(realStart);
+			stream.seek(csvStart);
 		}
 	}
 
 	/**
-	 * Find next legal line separator and set next offset (first byte offset of next line) to stream.
+	 * Find next legal line separator to return next offset (first byte offset of next line).
 	 *
 	 * NOTE: Because of the particularity of UTF-8 encoding, we can determine the number of bytes
 	 * of this character only by comparing the first byte, so we do not need to traverse M*N in comparison.
 	 */
-	private long findNextLegalSeparator() throws IOException {
+	private long findNextLineStartOffset() throws IOException {
 		boolean usesEscapeChar = csvSchema.usesEscapeChar();
 		byte[] escapeBytes = Character.toString((char) csvSchema.getEscapeChar())
 				.getBytes(StandardCharsets.UTF_8);
