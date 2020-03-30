@@ -46,14 +46,6 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
     val operandTypes = operands.map(_.resultType).toArray
-    val arguments = operands.map {
-      case expr if expr.literal =>
-        getConverterForDataType(fromLogicalTypeToDataType(expr.resultType))
-            .asInstanceOf[DataFormatConverters.DataFormatConverter[Any, Any]]
-            .toExternal(expr.literalValue.get)
-            .asInstanceOf[AnyRef]
-      case _ => null
-    }.toArray
     // determine function method and result class
     val resultClass = getResultTypeClassOfScalarFunction(scalarFunction, operandTypes)
 
@@ -70,7 +62,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val evalResult = s"$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")})"
     val resultExternalType = UserDefinedFunctionUtils.getResultTypeOfScalarFunction(
-      scalarFunction, arguments, operandTypes)
+      scalarFunction, operandTypes)
     val setResult = {
       if (resultClass.isPrimitive && isInternalClass(resultExternalType)) {
         s"$resultTerm = $evalResult;"
