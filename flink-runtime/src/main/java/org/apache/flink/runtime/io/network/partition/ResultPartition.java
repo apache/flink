@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -38,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -108,6 +110,12 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	@Nullable
 	protected final BufferCompressor bufferCompressor;
 
+	private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+
+	private final int maxBacklogInSubpartition;
+
+	private int unavailableSubpartitionsCnt;
+
 	public ResultPartition(
 		String owningTaskName,
 		int partitionIndex,
@@ -117,7 +125,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		int numTargetKeyGroups,
 		ResultPartitionManager partitionManager,
 		@Nullable BufferCompressor bufferCompressor,
-		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory,
+		int maxBacklogInSubpartition) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		Preconditions.checkArgument(0 <= partitionIndex, "The partition index must be positive.");
@@ -129,6 +138,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.partitionManager = checkNotNull(partitionManager);
 		this.bufferCompressor = bufferCompressor;
 		this.bufferPoolFactory = bufferPoolFactory;
+		this.maxBacklogInSubpartition = maxBacklogInSubpartition;
+		this.unavailableSubpartitionsCnt = 0;
 	}
 
 	/**
@@ -332,6 +343,11 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return numTargetKeyGroups;
 	}
 
+	@VisibleForTesting
+	public int getUnavailableSubpartitionsCnt() {
+		return unavailableSubpartitionsCnt;
+	}
+
 	/**
 	 * Releases buffers held by this result partition.
 	 *
@@ -362,9 +378,16 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return isReleased.get();
 	}
 
+	/**
+	 * Whether this partition is available.
+	 *
+	 * <p>A partition is available only when buffer pool is available and there isn't any unavailable subpartition.</p>
+	 */
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		return bufferPool.getAvailableFuture();
+		CompletableFuture<?> poolAvailabeFuture = bufferPool.getAvailableFuture();
+		return unavailableSubpartitionsCnt == 0 ? poolAvailabeFuture : CompletableFuture.allOf(
+				poolAvailabeFuture, availabilityHelper.getAvailableFuture());
 	}
 
 	@Override
@@ -396,5 +419,34 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
+	}
+
+	/**
+	 * Check whether all subpartitions' backlogs are less than the limitation of max backlogs, and make this partition
+	 * available again if yes.
+	 */
+	@GuardedBy("buffers")
+	public void notifyDecreaseBacklog(int buffersInBacklog) {
+		if (buffersInBacklog == maxBacklogInSubpartition) {
+			unavailableSubpartitionsCnt--;
+			if (unavailableSubpartitionsCnt == 0) {
+				CompletableFuture<?> toNotify = availabilityHelper.getUnavailableToResetAvailable();
+				toNotify.complete(null);
+			}
+		}
+	}
+
+	/**
+	 * Check whether any subpartition's backlog exceeds the limitation of max backlogs, and make this partition
+	 * unavailabe if yes.
+	 */
+	@GuardedBy("buffers")
+	public void notifyIncreaseBacklog(int buffersInBacklog) {
+		if (buffersInBacklog == maxBacklogInSubpartition + 1) {
+			unavailableSubpartitionsCnt++;
+			if (unavailableSubpartitionsCnt == 1) {
+				availabilityHelper.resetUnavailable();
+			}
+		}
 	}
 }

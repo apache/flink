@@ -74,6 +74,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final String compressionCodec;
 
+	private final int maxBacklogsPerSubpartition;
+
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
@@ -88,7 +90,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			BoundedBlockingSubpartitionType blockingSubpartitionType,
 			boolean forcePartitionReleaseOnConsumption,
 			boolean blockingShuffleCompressionEnabled,
-			String compressionCodec) {
+			String compressionCodec,
+			int maxBacklogsPerSubpartition) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -104,6 +107,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
+		this.maxBacklogsPerSubpartition = maxBacklogsPerSubpartition;
 	}
 
 	// ------------------------------------------------------------------------
@@ -164,6 +168,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		return compressionCodec;
 	}
 
+	public int getMaxBacklogsPerSubpartition() {
+		return maxBacklogsPerSubpartition;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -199,6 +207,8 @@ public class NettyShuffleEnvironmentConfiguration {
 		int buffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
 		int extraBuffersPerGate = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
+		int maxBacklogsPerSubpartition = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_MAX_BACKLOGS_PER_SUBPARTITION);
+
 		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
 		String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
@@ -229,7 +239,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			blockingSubpartitionType,
 			forcePartitionReleaseOnConsumption,
 			blockingShuffleCompressionEnabled,
-			compressionCodec);
+			compressionCodec,
+			maxBacklogsPerSubpartition);
 	}
 
 	/**

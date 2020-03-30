@@ -402,6 +402,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 		assert Thread.holdsLock(buffers);
 		if (isBuffer) {
 			buffersInBacklog--;
+			parent.notifyDecreaseBacklog(buffersInBacklog);
 		}
 	}
 
@@ -415,6 +416,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 		if (buffer != null && buffer.isBuffer()) {
 			buffersInBacklog++;
+			parent.notifyIncreaseBacklog(buffersInBacklog);
 		}
 	}
 

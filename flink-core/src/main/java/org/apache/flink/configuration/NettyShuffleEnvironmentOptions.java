@@ -175,6 +175,19 @@ public class NettyShuffleEnvironmentOptions {
 				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
 	/**
+	 * Number of max backlogs can be used for each output subparition.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Integer> NETWORK_MAX_BACKLOGS_PER_SUBPARTITION =
+			key("taskmanager.network.max-backlogs-per-subpartition")
+					.defaultValue(Integer.MAX_VALUE)
+					.withDescription("Number of max backlogs can be used for each output subpartition." +
+							" If a subpartition exceeds the number of max backlogs, it will make the ResultPartition unavailable and" +
+							" block the processing. This benefits in reducing the in-flight data and speeding up the barrier alignment" +
+							" when most of the buffers are going to one subpartition (data skew). This limitation is not strictly" +
+							" guaranteed, which usually happens in one-to-many operators like flatmap.");
+
+	/**
 	 * The timeout for requesting exclusive buffers for each channel.
 	 */
 	@Documentation.ExcludeFromDocumentation("This option is purely implementation related, and may be removed as the implementation changes.")

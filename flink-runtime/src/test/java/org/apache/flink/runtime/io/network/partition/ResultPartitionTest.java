@@ -51,6 +51,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
@@ -354,6 +355,94 @@ public class ResultPartitionTest {
 			} else {
 				assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
 			}
+		} finally {
+			resultPartition.release();
+			network.close();
+		}
+	}
+
+	/**
+	 * Tests {@link ResultPartition#getAvailableFuture()}.
+	 */
+	@Test
+	public void testIsAvailableOrNot() throws IOException, InterruptedException {
+		final int numAllBuffers = 10;
+		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
+				.setNumNetworkBuffers(numAllBuffers).build();
+		final ResultPartition resultPartition = createPartition(network, ResultPartitionType.PIPELINED, 1);
+
+		try {
+			resultPartition.setup();
+
+			resultPartition.getBufferPool().setNumBuffers(2);
+
+			assertTrue(resultPartition.getAvailableFuture().isDone());
+
+			resultPartition.getBufferBuilder();
+			resultPartition.getBufferBuilder();
+			assertFalse(resultPartition.getAvailableFuture().isDone());
+		} finally {
+			resultPartition.release();
+			network.close();
+		}
+	}
+
+	/**
+	 * Tests {@link ResultPartition#getAvailableFuture()} with configured max backlogs.
+	 */
+	@Test
+	public void testMaxBacklogsAndAvailability() throws IOException, InterruptedException {
+		final int numAllBuffers = 10;
+		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
+				.setNumNetworkBuffers(numAllBuffers).build();
+		final ResultPartition resultPartition = new ResultPartitionBuilder()
+				.setResultPartitionManager(network.getResultPartitionManager())
+				.setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
+				.setResultPartitionType(ResultPartitionType.PIPELINED)
+				.setNumberOfSubpartitions(2)
+				.setMaxBacklogsPerSubpartition(1)
+				.build();
+
+		try {
+			resultPartition.setup();
+
+			assertTrue(resultPartition.getAvailableFuture().isDone());
+
+			BufferAvailabilityListener listener0 = mock(BufferAvailabilityListener.class);
+			BufferAvailabilityListener listener1 = mock(BufferAvailabilityListener.class);
+			ResultSubpartition partition0 = resultPartition.subpartitions[0];
+			ResultSubpartition partition1 = resultPartition.subpartitions[1];
+			ResultSubpartitionView view0 = partition0.createReadView(listener0);
+			ResultSubpartitionView view1 = partition1.createReadView(listener1);
+
+			// send one record to subpartition-0 and subpartition-1 respectively
+			final BufferBuilder bufferBuilder0 = resultPartition.getBufferBuilder();
+			final BufferBuilder bufferBuilder1 = resultPartition.getBufferBuilder();
+			resultPartition.addBufferConsumer(bufferBuilder0.createBufferConsumer(), 0);
+			resultPartition.addBufferConsumer(bufferBuilder1.createBufferConsumer(), 1);
+			bufferBuilder0.finish();
+			bufferBuilder1.finish();
+			assertTrue(resultPartition.getAvailableFuture().isDone());
+			assertEquals(0, resultPartition.getUnavailableSubpartitionsCnt());
+
+			// send one record to subpartition-0
+			final BufferBuilder bufferBuilder2 = resultPartition.getBufferBuilder();
+			resultPartition.addBufferConsumer(bufferBuilder2.createBufferConsumer(), 0);
+			bufferBuilder2.finish();
+			assertEquals(1, resultPartition.getUnavailableSubpartitionsCnt());
+
+			CompletableFuture<?> isAvailable = resultPartition.getAvailableFuture();
+			assertFalse(isAvailable.isDone());
+
+			// release one buffer in subpartition-1
+			view1.getNextBuffer();
+			assertEquals(1, resultPartition.getUnavailableSubpartitionsCnt());
+			assertFalse(isAvailable.isDone());
+
+			// release one buffer in subpartition-0
+			view0.getNextBuffer();
+			assertEquals(0, resultPartition.getUnavailableSubpartitionsCnt());
+			assertTrue(isAvailable.isDone());
 		} finally {
 			resultPartition.release();
 			network.close();

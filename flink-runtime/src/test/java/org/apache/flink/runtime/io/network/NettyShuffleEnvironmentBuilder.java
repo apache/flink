@@ -49,6 +49,8 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private int floatingNetworkBuffersPerGate = 8;
 
+	private int maxBacklogsPerSubpartition = Integer.MAX_VALUE;
+
 	private boolean blockingShuffleCompressionEnabled = false;
 
 	private String compressionCodec = "LZ4";
@@ -89,6 +91,11 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
+	public NettyShuffleEnvironmentBuilder setMaxBacklogsPerSubpartition(int maxBacklogsPerSubpartition) {
+		this.maxBacklogsPerSubpartition = maxBacklogsPerSubpartition;
+		return this;
+	}
+
 	public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		return this;
@@ -125,7 +132,8 @@ public class NettyShuffleEnvironmentBuilder {
 				BoundedBlockingSubpartitionType.AUTO,
 				false,
 				blockingShuffleCompressionEnabled,
-				compressionCodec),
+				compressionCodec,
+				maxBacklogsPerSubpartition),
 			taskManagerLocation,
 			new TaskEventDispatcher(),
 			metricGroup);

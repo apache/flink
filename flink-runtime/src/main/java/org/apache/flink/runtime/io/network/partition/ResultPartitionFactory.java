@@ -64,6 +64,8 @@ public class ResultPartitionFactory {
 
 	private final String compressionCodec;
 
+	private final int maxBacklogsPerSubpartition;
+
 	public ResultPartitionFactory(
 		ResultPartitionManager partitionManager,
 		FileChannelManager channelManager,
@@ -74,7 +76,8 @@ public class ResultPartitionFactory {
 		int networkBufferSize,
 		boolean forcePartitionReleaseOnConsumption,
 		boolean blockingShuffleCompressionEnabled,
-		String compressionCodec) {
+		String compressionCodec,
+		int maxBacklogsPerSubpartition) {
 
 		this.partitionManager = partitionManager;
 		this.channelManager = channelManager;
@@ -86,6 +89,7 @@ public class ResultPartitionFactory {
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		this.compressionCodec = compressionCodec;
+		this.maxBacklogsPerSubpartition = maxBacklogsPerSubpartition;
 	}
 
 	public ResultPartition create(
@@ -127,7 +131,8 @@ public class ResultPartitionFactory {
 				maxParallelism,
 				partitionManager,
 				bufferCompressor,
-				bufferPoolFactory)
+				bufferPoolFactory,
+				maxBacklogsPerSubpartition)
 			: new ResultPartition(
 				taskNameWithSubtaskAndId,
 				partitionIndex,
@@ -137,7 +142,8 @@ public class ResultPartitionFactory {
 				maxParallelism,
 				partitionManager,
 				bufferCompressor,
-				bufferPoolFactory);
+				bufferPoolFactory,
+				maxBacklogsPerSubpartition);
 
 		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);
 
