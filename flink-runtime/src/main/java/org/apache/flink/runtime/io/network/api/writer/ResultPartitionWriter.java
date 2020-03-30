@@ -59,7 +59,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	/**
 	 * Requests a {@link BufferBuilder} from this partition for writing data.
 	 */
-	BufferBuilder getBufferBuilder() throws IOException, InterruptedException;
+	BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
 
 
 	/**
@@ -67,7 +67,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 *
 	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
 	 */
-	BufferBuilder tryGetBufferBuilder() throws IOException;
+	BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException;
 
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.

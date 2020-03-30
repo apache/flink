@@ -45,13 +45,13 @@ public abstract class AbstractCollectingResultPartitionWriter extends MockResult
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		return bufferProvider.requestBufferBuilderBlocking();
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
-		return bufferProvider.requestBufferBuilder();
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		return bufferProvider.requestBufferBuilder(targetChannel);
 	}
 
 	@Override
