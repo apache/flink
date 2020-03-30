@@ -331,6 +331,11 @@ public class MailboxProcessor implements Closeable {
 		return idleTime;
 	}
 
+	@VisibleForTesting
+	public boolean hasMail() {
+		return mailbox.hasMail();
+	}
+
 	/**
 	 * Helper method to make sure that the mailbox loop will check the control flow flags in the next iteration.
 	 */

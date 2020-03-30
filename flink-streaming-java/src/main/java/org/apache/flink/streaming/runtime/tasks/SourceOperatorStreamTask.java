@@ -19,9 +19,10 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.SourceReaderOperator;
+import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
@@ -30,17 +31,18 @@ import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A subclass of {@link StreamTask} for executing the {@link SourceReaderOperator}.
+ * A subclass of {@link StreamTask} for executing the {@link SourceOperator}.
  */
 @Internal
-public class SourceReaderStreamTask<T> extends StreamTask<T, SourceReaderOperator<T>> {
+public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T, ?>> {
 
-	public SourceReaderStreamTask(Environment env) throws Exception {
+	public SourceOperatorStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 
@@ -59,9 +61,9 @@ public class SourceReaderStreamTask<T> extends StreamTask<T, SourceReaderOperato
 
 	/**
 	 * Implementation of {@link DataOutput} that wraps a specific {@link Output} to emit
-	 * stream elements for {@link SourceReaderOperator}.
+	 * stream elements for {@link SourceOperator}.
 	 */
-	private static class StreamTaskSourceOutput<T> extends AbstractDataOutput<T> {
+	private static class StreamTaskSourceOutput<T> extends AbstractDataOutput<T> implements SourceOutput<T> {
 
 		private final Output<StreamRecord<T>> output;
 
@@ -86,6 +88,28 @@ public class SourceReaderStreamTask<T> extends StreamTask<T, SourceReaderOperato
 		@Override
 		public void emitWatermark(Watermark watermark) {
 			output.emitWatermark(watermark);
+		}
+
+		// ------------------- methods from SourceOutput -------------
+
+		@Override
+		public void collect(T record) throws Exception {
+			output.collect(new StreamRecord<>(record));
+		}
+
+		@Override
+		public void collect(T record, long timestamp) throws Exception {
+			output.collect(new StreamRecord<>(record, timestamp));
+		}
+
+		@Override
+		public void emitWatermark(org.apache.flink.api.common.eventtime.Watermark watermark) {
+			output.emitWatermark(new Watermark(watermark.getTimestamp()));
+		}
+
+		@Override
+		public void markIdle() {
+			emitStreamStatus(StreamStatus.IDLE);
 		}
 	}
 }

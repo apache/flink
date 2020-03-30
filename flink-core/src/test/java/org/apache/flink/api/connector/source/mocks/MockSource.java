@@ -27,6 +27,8 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -35,10 +37,12 @@ import java.util.Set;
 public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSourceSplit>> {
 	private final Boundedness boundedness;
 	private final int numSplits;
+	private List<MockSourceReader> createdReaders;
 
 	public MockSource(Boundedness boundedness, int numSplits) {
 		this.boundedness = boundedness;
 		this.numSplits = numSplits;
+		this.createdReaders = new ArrayList<>();
 	}
 
 	@Override
@@ -48,7 +52,9 @@ public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSour
 
 	@Override
 	public SourceReader<Integer, MockSourceSplit> createReader(SourceReaderContext readerContext) {
-		throw new UnsupportedOperationException();
+		MockSourceReader mockSourceReader = new MockSourceReader();
+		createdReaders.add(mockSourceReader);
+		return mockSourceReader;
 	}
 
 	@Override
@@ -71,5 +77,11 @@ public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSour
 	@Override
 	public SimpleVersionedSerializer<Set<MockSourceSplit>> getEnumeratorCheckpointSerializer() {
 		return new MockSplitEnumeratorCheckpointSerializer();
+	}
+
+	// --------------- methods for testing -------------
+
+	public List<MockSourceReader> getCreatedReaders() {
+		return createdReaders;
 	}
 }
