@@ -18,7 +18,6 @@
 
 package org.apache.flink.formats.csv;
 
-import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -31,12 +30,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MappingIt
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
-import org.apache.commons.compress.utils.BoundedInputStream;
-
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 
@@ -59,12 +54,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 3.New csv not support read first N, it will throw exception.
  * 4.Only support configure line delimiter: "\r" or "\n" or "\r\n".
  */
-public class RowCsvInputFormat extends FileInputFormat<Row> {
+public class RowCsvInputFormat extends AbstractCsvInputFormat<Row> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final TypeInformation[] fieldTypes;
-	private final CsvSchema csvSchema;
 
 	private final String[] selectedFieldNames;
 	private final boolean ignoreParseErrors;
@@ -82,10 +76,9 @@ public class RowCsvInputFormat extends FileInputFormat<Row> {
 			CsvSchema csvSchema,
 			int[] selectedFields,
 			boolean ignoreParseErrors) {
-		setFilePaths(filePaths);
+		super(filePaths, csvSchema);
 
 		this.fieldTypes = checkNotNull(fieldTypes);
-		this.csvSchema = checkNotNull(csvSchema);
 		checkArgument(fieldTypes.length == csvSchema.size());
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.selectedFieldNames = Arrays.stream(checkNotNull(selectedFields))
@@ -93,33 +86,13 @@ public class RowCsvInputFormat extends FileInputFormat<Row> {
 	}
 
 	@Override
-	public boolean supportsMultiPaths() {
-		return true;
-	}
-
-	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-
 		prepareConverter();
-
-		InputStream realStream = stream;
-
-		long realStart = splitStart;
-		if (splitStart != 0) {
-			realStart = findNextLegalSeparator();
-		}
-
-		if (splitLength != READ_WHOLE_SPLIT_FLAG) {
-			stream.seek(splitStart + splitLength);
-			long firstByteOfNextLine = findNextLegalSeparator();
-			stream.seek(realStart);
-			realStream = new BoundedInputStream(stream, firstByteOfNextLine - realStart);
-		} else {
-			stream.seek(realStart);
-		}
-
-		this.iterator = new CsvMapper().readerFor(JsonNode.class).with(csvSchema).readValues(realStream);
+		this.iterator = new CsvMapper()
+				.readerFor(JsonNode.class)
+				.with(csvSchema)
+				.readValues(csvInputStream);
 	}
 
 	private void prepareConverter() {
@@ -139,63 +112,8 @@ public class RowCsvInputFormat extends FileInputFormat<Row> {
 		};
 	}
 
-	/**
-	 * Find next legal line separator and set next offset (first byte offset of next line) to stream.
-	 *
-	 * NOTE: Because of the particularity of UTF-8 encoding, we can determine the number of bytes
-	 * of this character only by comparing the first byte, so we do not need to traverse M*N in comparison.
-	 */
-	private long findNextLegalSeparator() throws IOException {
-		boolean usesEscapeChar = csvSchema.usesEscapeChar();
-		byte[] escapeBytes = Character.toString((char) csvSchema.getEscapeChar())
-				.getBytes(StandardCharsets.UTF_8);
-		long startPos = stream.getPos();
-
-		byte b;
-		while ((b = (byte) stream.read()) != -1) {
-			if (b == '\r' || b == '\n') {
-				// If there may be escape tags ahead
-				if (usesEscapeChar && stream.getPos() - startPos <= escapeBytes.length) {
-					long front = stream.getPos() - escapeBytes.length - 1;
-					if (front > 0) {
-						stream.seek(front);
-						byte[] readBytes = new byte[escapeBytes.length];
-						stream.read(readBytes); // we have judge front must bigger than zero
-						stream.read(); // back to current next one
-						if (Arrays.equals(escapeBytes, readBytes)) {
-							// equal, we should skip this one line separator
-							continue;
-						}
-					}
-				}
-
-				long pos = stream.getPos();
-
-				// deal with "\r\n", next one maybe '\n', so we need skip it.
-				if (b == '\r' && (byte) stream.read() == '\n') {
-					return stream.getPos();
-				} else {
-					return pos;
-				}
-			} else if (usesEscapeChar && b == escapeBytes[0]) {
-				boolean equal = true;
-				for (int i = 1; i < escapeBytes.length; i++) {
-					if ((byte) stream.read() != escapeBytes[i]) {
-						equal = false;
-						break;
-					}
-				}
-				if (equal) {
-					// equal, we should skip next one
-					stream.skip(1);
-				}
-			}
-		}
-		return stream.getPos();
-	}
-
 	@Override
-	public boolean reachedEnd() throws IOException {
+	public boolean reachedEnd() {
 		return end;
 	}
 
