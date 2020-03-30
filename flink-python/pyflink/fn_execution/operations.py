@@ -59,15 +59,11 @@ class StatelessFunctionOperation(Operation):
         super(StatelessFunctionOperation, self).setup()
 
     def start(self):
-        with ExitStack() as stack:
-            if self._metric_enabled:
-                stack.enter_context(self.scoped_start_state)
+        with self.scoped_start_state:
             super(StatelessFunctionOperation, self).start()
 
     def finish(self):
-        with ExitStack() as stack:
-            if self._metric_enabled:
-                stack.enter_context(self.scoped_start_state)
+        with self.scoped_finish_state:
             super(StatelessFunctionOperation, self).finish()
             self._update_gauge(self.base_metric_group)
 
@@ -78,9 +74,7 @@ class StatelessFunctionOperation(Operation):
         super(StatelessFunctionOperation, self).reset()
 
     def teardown(self):
-        with ExitStack() as stack:
-            if self._metric_enabled:
-                stack.enter_context(self.scoped_start_state)
+        with self.scoped_finish_state:
             for user_defined_func in self.user_defined_funcs:
                 user_defined_func.close()
 
@@ -94,9 +88,7 @@ class StatelessFunctionOperation(Operation):
         return metrics
 
     def process(self, o: WindowedValue):
-        with ExitStack() as stack:
-            if self._metric_enabled:
-                stack.enter_context(self.scoped_start_state)
+        with self.scoped_process_state:
             output_stream = self.consumer.output_stream
             self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
             output_stream.maybe_flush()
@@ -184,12 +176,13 @@ class StatelessFunctionOperation(Operation):
 
     @staticmethod
     def _update_gauge(base_metric_group):
-        for name in base_metric_group._flink_gauge:
-            flink_gauge = base_metric_group._flink_gauge[name]
-            beam_gauge = base_metric_group._beam_gauge[name]
-            beam_gauge.set(flink_gauge())
-        for sub_group in base_metric_group._sub_groups:
-            StatelessFunctionOperation._update_gauge(sub_group)
+        if base_metric_group is not None:
+            for name in base_metric_group._flink_gauge:
+                flink_gauge = base_metric_group._flink_gauge[name]
+                beam_gauge = base_metric_group._beam_gauge[name]
+                beam_gauge.set(flink_gauge())
+            for sub_group in base_metric_group._sub_groups:
+                StatelessFunctionOperation._update_gauge(sub_group)
 
 
 class ScalarFunctionOperation(StatelessFunctionOperation):
