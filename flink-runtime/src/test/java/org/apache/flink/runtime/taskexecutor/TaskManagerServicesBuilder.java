@@ -31,8 +31,10 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import static org.mockito.Mockito.mock;
 
@@ -52,6 +54,7 @@ public class TaskManagerServicesBuilder {
 	private JobLeaderService jobLeaderService;
 	private TaskExecutorLocalStateStoresManager taskStateManager;
 	private TaskEventDispatcher taskEventDispatcher;
+	private ExecutorService ioExecutor;
 
 	public TaskManagerServicesBuilder() {
 		unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
@@ -64,6 +67,7 @@ public class TaskManagerServicesBuilder {
 		jobManagerTable = new JobManagerTable();
 		jobLeaderService = new JobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
+		ioExecutor = TestingUtils.defaultExecutor();
 	}
 
 	public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(UnresolvedTaskManagerLocation unresolvedTaskManagerLocation) {
@@ -111,6 +115,11 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
+	public TaskManagerServicesBuilder setIOExecutorService(ExecutorService ioExecutor) {
+		this.ioExecutor = ioExecutor;
+		return this;
+	}
+
 	public TaskManagerServices build() {
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
@@ -123,6 +132,7 @@ public class TaskManagerServicesBuilder {
 			jobManagerTable,
 			jobLeaderService,
 			taskStateManager,
-			taskEventDispatcher);
+			taskEventDispatcher,
+			ioExecutor);
 	}
 }
