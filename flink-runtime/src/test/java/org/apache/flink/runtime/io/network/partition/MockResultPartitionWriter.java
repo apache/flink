@@ -70,7 +70,7 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -79,8 +79,7 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 		throw new UnsupportedOperationException();
 	}
 
-	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 

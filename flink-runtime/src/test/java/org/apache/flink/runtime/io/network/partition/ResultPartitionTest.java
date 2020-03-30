@@ -360,6 +360,32 @@ public class ResultPartitionTest {
 		}
 	}
 
+	/**
+	 * Tests {@link ResultPartition#getAvailableFuture()}.
+	 */
+	@Test
+	public void testIsAvailableOrNot() throws IOException, InterruptedException {
+		final int numAllBuffers = 10;
+		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
+				.setNumNetworkBuffers(numAllBuffers).build();
+		final ResultPartition resultPartition = createPartition(network, ResultPartitionType.PIPELINED, 1);
+
+		try {
+			resultPartition.setup();
+
+			resultPartition.getBufferPool().setNumBuffers(2);
+
+			assertTrue(resultPartition.getAvailableFuture().isDone());
+
+			resultPartition.getBufferBuilder(0);
+			resultPartition.getBufferBuilder(0);
+			assertFalse(resultPartition.getAvailableFuture().isDone());
+		} finally {
+			resultPartition.release();
+			network.close();
+		}
+	}
+
 	@Test
 	public void testPipelinedPartitionBufferPool() throws Exception {
 		testPartitionBufferPool(ResultPartitionType.PIPELINED_BOUNDED);
@@ -470,7 +496,11 @@ public class ResultPartitionTest {
 						ResultSubpartition.BufferAndBacklog bufferAndBacklog = view.getNextBuffer();
 						if (bufferAndBacklog != null) {
 							Buffer buffer = bufferAndBacklog.buffer();
-							BufferBuilderAndConsumerTest.assertContent(buffer, partition.getBufferPool(), states);
+							BufferBuilderAndConsumerTest.assertContent(
+								buffer,
+								partition.getBufferPool()
+									.getSubpartitionBufferRecyclers()[subpartition.getSubPartitionIndex()],
+								states);
 							buffer.recycleBuffer();
 							numConsumedBuffers++;
 						} else {

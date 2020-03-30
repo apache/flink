@@ -22,6 +22,8 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
@@ -46,6 +48,16 @@ public class NoOpBufferPool implements BufferPool {
 
 	@Override
 	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -87,6 +99,12 @@ public class NoOpBufferPool implements BufferPool {
 	@Override
 	public int bestEffortGetNumOfUsedBuffers() {
 		throw new UnsupportedOperationException();
+	}
+
+	@Nullable
+	@Override
+	public BufferRecycler[] getSubpartitionBufferRecyclers() {
+		return new BufferRecycler[0];
 	}
 
 	@Override

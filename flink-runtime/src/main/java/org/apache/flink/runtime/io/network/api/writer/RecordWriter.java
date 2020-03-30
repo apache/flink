@@ -225,11 +225,6 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	abstract BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
 
 	/**
-	 * Requests a new {@link BufferBuilder} for the target channel and returns it.
-	 */
-	abstract BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException;
-
-	/**
 	 * Marks the current {@link BufferBuilder} as finished if present and clears the state for next one.
 	 */
 	abstract void tryFinishCurrentBufferBuilder(int targetChannel);
@@ -289,12 +284,14 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		targetPartition.addBufferConsumer(consumer, targetChannel);
 	}
 
-	@VisibleForTesting
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		BufferBuilder builder = targetPartition.tryGetBufferBuilder();
+	/**
+	 * Requests a new {@link BufferBuilder} for the target channel and returns it.
+	 */
+	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		BufferBuilder builder = targetPartition.tryGetBufferBuilder(targetChannel);
 		if (builder == null) {
 			long start = System.currentTimeMillis();
-			builder = targetPartition.getBufferBuilder();
+			builder = targetPartition.getBufferBuilder(targetChannel);
 			idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
 		}
 		return builder;

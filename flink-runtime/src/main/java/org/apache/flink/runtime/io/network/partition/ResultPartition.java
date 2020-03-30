@@ -206,15 +206,15 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkInProduceState();
 
-		return bufferPool.requestBufferBuilderBlocking();
+		return bufferPool.requestBufferBuilderBlocking(targetChannel);
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
-		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder();
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
 		return bufferBuilder;
 	}
 
