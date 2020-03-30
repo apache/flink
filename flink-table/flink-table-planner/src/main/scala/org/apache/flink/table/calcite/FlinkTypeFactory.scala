@@ -48,7 +48,9 @@ import scala.collection.mutable
   * Flink specific type factory that represents the interface between Flink's [[TypeInformation]]
   * and Calcite's [[RelDataType]].
   */
-class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImpl(typeSystem) {
+class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
+  extends JavaTypeFactoryImpl(typeSystem)
+  with ExtendedRelTypeFactory {
 
   // NOTE: for future data types it might be necessary to
   // override more methods of RelDataTypeFactoryImpl
@@ -242,6 +244,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       elementType,
       isNullable = false)
     canonize(relType)
+  }
+
+  override def createRawType(className: String, serializerString: String): RelDataType = {
+    throw new TableException("RAW types are only supported in the Blink planner.")
   }
 
   override def createTypeWithNullability(

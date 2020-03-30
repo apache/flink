@@ -18,88 +18,70 @@
 
 package org.apache.flink.sql.parser.type;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.calcite.ExtendedRelTypeFactory;
+
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Litmus;
+import org.apache.calcite.util.NlsString;
+
+import java.util.Objects;
 
 /**
- * Parse SQL MAP type, i.e. MAP&lt;INT NOT NULL, TIMESTAMP NULL&gt;, the key and value can specify
- * a suffix to indicate if the type is nullable, default is nullable.
+ * Represents a raw type such as {@code RAW('org.my.Class', 'sW3Djsds...')}.
  *
- * <p>MAP type does not belong to standard SQL.
+ * <p>The raw type does not belong to standard SQL.
  */
-public class SqlMapTypeNameSpec extends SqlTypeNameSpec {
+@Internal
+public final class SqlRawTypeNameSpec extends SqlTypeNameSpec {
 
-	private final SqlDataTypeSpec keyType;
-	private final SqlDataTypeSpec valType;
+	private static final String RAW_TYPE_NAME = "RAW";
 
-	/**
-	 * Creates a {@code SqlMapTypeNameSpec}.
-	 *
-	 * @param keyType key type
-	 * @param valType value type
-	 * @param pos     the parser position
-	 */
-	public SqlMapTypeNameSpec(
-			SqlDataTypeSpec keyType,
-			SqlDataTypeSpec valType,
-			SqlParserPos pos) {
-		super(new SqlIdentifier(SqlTypeName.MAP.getName(), pos), pos);
-		this.keyType = keyType;
-		this.valType = valType;
-	}
+	private final SqlNode className;
 
-	public SqlDataTypeSpec getKeyType() {
-		return keyType;
-	}
+	private final SqlNode serializerString;
 
-	public SqlDataTypeSpec getValType() {
-		return valType;
+	public SqlRawTypeNameSpec(SqlNode className, SqlNode serializerString, SqlParserPos pos) {
+		super(new SqlIdentifier(RAW_TYPE_NAME, pos), pos);
+		this.className = className;
+		this.serializerString = serializerString;
 	}
 
 	@Override
 	public RelDataType deriveType(SqlValidator validator) {
-		return validator.getTypeFactory()
-			.createMapType(
-				keyType.deriveType(validator),
-				valType.deriveType(validator));
+		return ((ExtendedRelTypeFactory) validator.getTypeFactory()).createRawType(
+			((NlsString) SqlLiteral.value(className)).getValue(),
+			((NlsString) SqlLiteral.value(serializerString)).getValue());
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("MAP");
-		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
+		writer.keyword(RAW_TYPE_NAME);
+		final SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "(", ")");
 		writer.sep(","); // configures the writer
-		keyType.unparse(writer, leftPrec, rightPrec);
-		// Default is nullable.
-		if (!keyType.getNullable()) {
-			writer.keyword("NOT NULL");
-		}
+		className.unparse(writer, leftPrec, rightPrec);
 		writer.sep(",");
-		valType.unparse(writer, leftPrec, rightPrec);
-		// Default is nullable.
-		if (!valType.getNullable()) {
-			writer.keyword("NOT NULL");
-		}
+		serializerString.unparse(writer, leftPrec, rightPrec);
 		writer.endList(frame);
 	}
 
 	@Override
 	public boolean equalsDeep(SqlTypeNameSpec spec, Litmus litmus) {
-		if (!(spec instanceof SqlMapTypeNameSpec)) {
+		if (!(spec instanceof SqlRawTypeNameSpec)) {
 			return litmus.fail("{} != {}", this, spec);
 		}
-		SqlMapTypeNameSpec that = (SqlMapTypeNameSpec) spec;
-		if (!this.keyType.equalsDeep(that.keyType, litmus)) {
+		SqlRawTypeNameSpec that = (SqlRawTypeNameSpec) spec;
+		if (!Objects.equals(this.className, that.className)) {
 			return litmus.fail("{} != {}", this, spec);
 		}
-		if (!this.valType.equalsDeep(that.valType, litmus)) {
+		if (!Objects.equals(this.serializerString, that.serializerString)) {
 			return litmus.fail("{} != {}", this, spec);
 		}
 		return litmus.succeed();
