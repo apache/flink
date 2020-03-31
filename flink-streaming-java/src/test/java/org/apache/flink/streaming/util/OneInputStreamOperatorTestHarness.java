@@ -21,7 +21,6 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -47,7 +46,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			TypeSerializer<IN> typeSerializerIn) throws Exception {
 		this(operator, 1, 1, 0);
 
-		config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -59,7 +58,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		OperatorID operatorID) throws Exception {
 		this(operator, maxParallelism, parallelism, subtaskIndex, operatorID);
 
-		config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -68,15 +67,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		MockEnvironment environment) throws Exception {
 		this(operator, environment);
 
-		config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
 		this(operator, 1, 1, 0);
-	}
-
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperatorFactory<IN, OUT> factory) throws Exception {
-		this(factory, 1, 1, 0);
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -108,7 +103,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			MockEnvironment environment) throws Exception {
 		this(factory, environment);
 
-		config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -122,7 +117,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			TypeSerializer<IN> typeSerializerIn) throws Exception {
 		this(factory, 1, 1, 0);
 
-		config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -171,14 +166,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		getOneInputOperator().processWatermark(mark);
 	}
 
-	public void endInput() throws Exception {
-		if (operator instanceof BoundedOneInput) {
-			((BoundedOneInput) operator).endInput();
-		}
-	}
-
 	public long getCurrentWatermark() {
 		return currentWatermark;
 	}
-
 }

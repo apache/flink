@@ -331,16 +331,13 @@ public class InputGateFairnessTest {
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels) {
 
-			super(
-				owningTaskName,
-				0,
+			super(owningTaskName,
 				consumedResultId,
 				ResultPartitionType.PIPELINED,
 				consumedSubpartitionIndex,
 				numberOfInputChannels,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-				STUB_BUFFER_POOL_FACTORY,
-				null);
+				STUB_BUFFER_POOL_FACTORY);
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");

@@ -141,6 +141,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * @see RuntimeContext
  */
 @PublicEvolving
+@SuppressWarnings("deprecation")
 public interface CheckpointedFunction {
 
 	/**
@@ -149,7 +150,7 @@ public interface CheckpointedFunction {
 	 * the Function was initialized, or offered now by {@link FunctionSnapshotContext} itself.
 	 *
 	 * @param context the context for drawing a snapshot of the operator
-	 * @throws Exception Thrown, if state could not be created ot restored.
+	 * @throws Exception
 	 */
 	void snapshotState(FunctionSnapshotContext context) throws Exception;
 
@@ -158,7 +159,8 @@ public interface CheckpointedFunction {
 	 * execution. Functions typically set up their state storing data structures in this method.
 	 *
 	 * @param context the context for initializing the operator
-	 * @throws Exception Thrown, if state could not be created ot restored.
+	 * @throws Exception
 	 */
 	void initializeState(FunctionInitializationContext context) throws Exception;
+
 }

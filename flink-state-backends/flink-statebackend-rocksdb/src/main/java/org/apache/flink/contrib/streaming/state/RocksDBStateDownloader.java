@@ -19,6 +19,9 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -28,9 +31,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +103,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 			StateHandleID stateHandleID = entry.getKey();
 			StreamStateHandle remoteFileHandle = entry.getValue();
 
-			Path path = restoreInstancePath.resolve(stateHandleID.toString());
+			Path path = new Path(restoreInstancePath, stateHandleID.toString());
 
 			runnables.add(ThrowingRunnable.unchecked(
 				() -> downloadDataForStateHandle(path, remoteFileHandle, closeableRegistry)));
@@ -120,14 +120,14 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 		CloseableRegistry closeableRegistry) throws IOException {
 
 		FSDataInputStream inputStream = null;
-		OutputStream outputStream = null;
+		FSDataOutputStream outputStream = null;
 
 		try {
+			FileSystem restoreFileSystem = restoreFilePath.getFileSystem();
 			inputStream = remoteFileHandle.openInputStream();
 			closeableRegistry.registerCloseable(inputStream);
 
-			Files.createDirectories(restoreFilePath.getParent());
-			outputStream = Files.newOutputStream(restoreFilePath);
+			outputStream = restoreFileSystem.create(restoreFilePath, FileSystem.WriteMode.OVERWRITE);
 			closeableRegistry.registerCloseable(outputStream);
 
 			byte[] buffer = new byte[8 * 1024];

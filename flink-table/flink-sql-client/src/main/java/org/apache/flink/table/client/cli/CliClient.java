@@ -224,12 +224,11 @@ public class CliClient {
 		terminal.flush();
 
 		final Optional<SqlCommandCall> parsedStatement = parseCommand(statement);
-		// only support INSERT INTO/OVERWRITE
+		// only support INSERT INTO
 		return parsedStatement.map(cmdCall -> {
 			switch (cmdCall.command) {
 				case INSERT_INTO:
-				case INSERT_OVERWRITE:
-					return callInsert(cmdCall);
+					return callInsertInto(cmdCall);
 				default:
 					printError(CliStrings.MESSAGE_UNSUPPORTED_SQL);
 					return false;
@@ -285,7 +284,6 @@ public class CliClient {
 			case USE:
 				callUseDatabase(cmdCall);
 				break;
-			case DESC:
 			case DESCRIBE:
 				callDescribe(cmdCall);
 				break;
@@ -296,14 +294,7 @@ public class CliClient {
 				callSelect(cmdCall);
 				break;
 			case INSERT_INTO:
-			case INSERT_OVERWRITE:
-				callInsert(cmdCall);
-				break;
-			case CREATE_TABLE:
-				callCreateTable(cmdCall);
-				break;
-			case DROP_TABLE:
-				callDropTable(cmdCall);
+				callInsertInto(cmdCall);
 				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
@@ -313,18 +304,6 @@ public class CliClient {
 				break;
 			case SOURCE:
 				callSource(cmdCall);
-				break;
-			case CREATE_DATABASE:
-				callCreateDatabase(cmdCall);
-				break;
-			case DROP_DATABASE:
-				callDropDatabase(cmdCall);
-				break;
-			case ALTER_DATABASE:
-				callAlterDatabase(cmdCall);
-				break;
-			case ALTER_TABLE:
-				callAlterTable(cmdCall);
 				break;
 			default:
 				throw new SqlClientException("Unsupported command: " + cmdCall.command);
@@ -368,7 +347,7 @@ public class CliClient {
 		}
 		// set a property
 		else {
-			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1].trim());
+			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1]);
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SET).toAnsi());
 		}
 		terminal.flush();
@@ -513,39 +492,25 @@ public class CliClient {
 			printExecutionException(e);
 			return;
 		}
-
-		if (resultDesc.isTableauMode()) {
-			try (CliTableauResultView tableauResultView = new CliTableauResultView(
-					terminal, executor, sessionId, resultDesc)) {
-				if (resultDesc.isMaterialized()) {
-					tableauResultView.displayBatchResults();
-				} else {
-					tableauResultView.displayStreamResults();
-				}
-			} catch (SqlExecutionException e) {
-				printExecutionException(e);
-			}
+		final CliResultView view;
+		if (resultDesc.isMaterialized()) {
+			view = new CliTableResultView(this, resultDesc);
 		} else {
-			final CliResultView view;
-			if (resultDesc.isMaterialized()) {
-				view = new CliTableResultView(this, resultDesc);
-			} else {
-				view = new CliChangelogResultView(this, resultDesc);
-			}
+			view = new CliChangelogResultView(this, resultDesc);
+		}
 
-			// enter view
-			try {
-				view.open();
+		// enter view
+		try {
+			view.open();
 
-				// view left
-				printInfo(CliStrings.MESSAGE_RESULT_QUIT);
-			} catch (SqlExecutionException e) {
-				printExecutionException(e);
-			}
+			// view left
+			printInfo(CliStrings.MESSAGE_RESULT_QUIT);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
 		}
 	}
 
-	private boolean callInsert(SqlCommandCall cmdCall) {
+	private boolean callInsertInto(SqlCommandCall cmdCall) {
 		printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
 		try {
@@ -558,25 +523,6 @@ public class CliClient {
 			return false;
 		}
 		return true;
-	}
-
-	private void callCreateTable(SqlCommandCall cmdCall) {
-		try {
-			executor.createTable(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-			return;
-		}
-	}
-
-	private void callDropTable(SqlCommandCall cmdCall) {
-		try {
-			executor.dropTable(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_TABLE_REMOVED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
 	}
 
 	private void callCreateView(SqlCommandCall cmdCall) {
@@ -646,46 +592,6 @@ public class CliClient {
 		// try to run it
 		final Optional<SqlCommandCall> call = parseCommand(stmt);
 		call.ifPresent(this::callCommand);
-	}
-
-	private void callCreateDatabase(SqlCommandCall cmdCall) {
-		final String createDatabaseStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, createDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callDropDatabase(SqlCommandCall cmdCall) {
-		final String dropDatabaseStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, dropDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_REMOVED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callAlterDatabase(SqlCommandCall cmdCall) {
-		final String alterDatabaseStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, alterDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_ALTER_SUCCEEDED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(CliStrings.MESSAGE_DATABASE_ALTER_FAILED, e);
-		}
-	}
-
-	private void callAlterTable(SqlCommandCall cmdCall) {
-		final String alterTableStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, alterTableStmt);
-			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------

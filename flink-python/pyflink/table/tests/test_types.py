@@ -33,8 +33,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _array_type_mappings, _merge_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
-                                 _to_java_type, _from_java_type, ZonedTimestampType,
-                                 LocalZonedTimestampType)
+                                 _to_java_type, _from_java_type, ZonedTimestampType)
 
 
 class ExamplePointUDT(UserDefinedType):
@@ -536,23 +535,11 @@ class TypesTests(unittest.TestCase):
 
     def test_local_zoned_timestamp_type(self):
         lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
-        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
-        self.assertEqual(0, lztst.to_sql_type(ts))
-
-        import pytz
-        # suppose the timezone of the data is +9:00
-        timezone = pytz.timezone("Asia/Tokyo")
-        orig_epoch = LocalZonedTimestampType.EPOCH_ORDINAL
-        try:
-            # suppose the local timezone is +8:00
-            LocalZonedTimestampType.EPOCH_ORDINAL = 28800000000
-            ts_tokyo = timezone.localize(ts)
-            self.assertEqual(-3600000000, lztst.to_sql_type(ts_tokyo))
-        finally:
-            LocalZonedTimestampType.EPOCH_ORDINAL = orig_epoch
+        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000, tzinfo=UTCOffsetTimezone(1))
+        self.assertEqual(-3600000000, lztst.to_sql_type(ts))
 
         if sys.version_info >= (3, 6):
-            ts2 = lztst.from_sql_type(0)
+            ts2 = lztst.from_sql_type(-3600000000)
             self.assertEqual(ts.astimezone(), ts2.astimezone())
 
     def test_zoned_timestamp_type(self):
@@ -803,7 +790,7 @@ class DataTypeConvertTests(unittest.TestCase):
                       DataTypes.DOUBLE(),
                       DataTypes.DATE(),
                       DataTypes.TIME(),
-                      DataTypes.TIMESTAMP(3)]
+                      DataTypes.TIMESTAMP()]
 
         java_types = [_to_java_type(item) for item in test_types]
 
@@ -815,7 +802,7 @@ class DataTypeConvertTests(unittest.TestCase):
         gateway = get_gateway()
         JDataTypes = gateway.jvm.DataTypes
         java_types = [JDataTypes.TIME(3).notNull(),
-                      JDataTypes.TIMESTAMP(3).notNull(),
+                      JDataTypes.TIMESTAMP().notNull(),
                       JDataTypes.VARBINARY(100).notNull(),
                       JDataTypes.BINARY(2).notNull(),
                       JDataTypes.VARCHAR(30).notNull(),
@@ -825,7 +812,7 @@ class DataTypeConvertTests(unittest.TestCase):
         converted_python_types = [_from_java_type(item) for item in java_types]
 
         expected = [DataTypes.TIME(3, False),
-                    DataTypes.TIMESTAMP(3).not_null(),
+                    DataTypes.TIMESTAMP().not_null(),
                     DataTypes.VARBINARY(100, False),
                     DataTypes.BINARY(2, False),
                     DataTypes.VARCHAR(30, False),

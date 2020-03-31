@@ -38,8 +38,7 @@ public final class PersistingDownloadCache extends AbstractDownloadCache {
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 	private static final String CACHE_FILE_NAME_DELIMITER = "__";
 	private static final Pattern CACHE_FILE_NAME_PATTERN =
-		Pattern.compile(
-			"(?<hash>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<date>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<name>.*)");
+		Pattern.compile("(?<hash>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<date>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<name>.*)");
 
 	private final Period ttl;
 

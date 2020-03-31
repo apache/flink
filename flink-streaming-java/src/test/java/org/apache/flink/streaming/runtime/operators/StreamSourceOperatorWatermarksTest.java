@@ -107,9 +107,7 @@ public class StreamSourceOperatorWatermarksTest {
 			testHarness.waitForTaskCompletion();
 			fail("should throw an exception");
 		} catch (Throwable t) {
-			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
-				throw t;
-			}
+			assertTrue(ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent());
 		}
 		assertTrue(testHarness.getOutput().isEmpty());
 	}
@@ -122,13 +120,11 @@ public class StreamSourceOperatorWatermarksTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 		Thread.sleep(200);
-		testHarness.getTask().cancel();
+		testHarness.getTask().cancel(); // cancel task
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Throwable t) {
-			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
-				throw t;
-			}
+			assertTrue(ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent());
 		}
 		assertTrue(testHarness.getOutput().isEmpty());
 	}
@@ -144,14 +140,14 @@ public class StreamSourceOperatorWatermarksTest {
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
-		MockStreamTask<?, ?> task = setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, processingTimeService);
+		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, processingTimeService);
 
 		final List<StreamElement> output = new ArrayList<>();
 
 		StreamSourceContexts.getSourceContext(
 			TimeCharacteristic.IngestionTime,
 			processingTimeService,
-			task.getCheckpointLock(),
+			operator.getContainingTask().getCheckpointLock(),
 			operator.getContainingTask().getStreamStatusMaintainer(),
 			new CollectorOutput<String>(output),
 			operator.getExecutionConfig().getAutoWatermarkInterval(),
@@ -178,7 +174,7 @@ public class StreamSourceOperatorWatermarksTest {
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
-	private static <T> MockStreamTask setupSourceOperator(
+	private static <T> void setupSourceOperator(
 			StreamSource<T, ?> operator,
 			TimeCharacteristic timeChar,
 			long watermarkInterval,
@@ -206,7 +202,6 @@ public class StreamSourceOperatorWatermarksTest {
 			.build();
 
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
-		return mockTask;
 	}
 
 	private static <T> StreamTaskTestHarness<T> setupSourceStreamTask(

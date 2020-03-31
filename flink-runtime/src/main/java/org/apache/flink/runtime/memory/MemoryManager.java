@@ -26,8 +26,6 @@ import org.apache.flink.runtime.util.KeyedBudgetManager;
 import org.apache.flink.runtime.util.KeyedBudgetManager.AcquisitionResult;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.LongFunctionWithException;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +38,6 @@ import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.EnumMap;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -50,7 +47,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 
 import static org.apache.flink.core.memory.MemorySegmentFactory.allocateOffHeapUnsafeMemory;
 import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnpooledSegment;
@@ -87,8 +83,6 @@ public class MemoryManager {
 
 	private final KeyedBudgetManager<MemoryType> budgetByType;
 
-	private final SharedResources sharedResources;
-
 	/** Flag whether the close() has already been invoked. */
 	private volatile boolean isShutDown;
 
@@ -106,7 +100,6 @@ public class MemoryManager {
 		this.allocatedSegments = new ConcurrentHashMap<>();
 		this.reservedMemory = new ConcurrentHashMap<>();
 		this.budgetByType = new KeyedBudgetManager<>(memorySizeByType, pageSize);
-		this.sharedResources = new SharedResources();
 		verifyIntTotalNumberOfPages(memorySizeByType, budgetByType.maxTotalNumberOfPages());
 
 		LOG.debug(
@@ -495,32 +488,23 @@ public class MemoryManager {
 				reservations.compute(
 					memoryType,
 					(mt, currentlyReserved) -> {
-						long newReservedMemory = 0;
-						if (currentlyReserved != null) {
-							if (currentlyReserved < size) {
-								LOG.warn(
-									"Trying to release more memory {} than it was reserved {} so far for the owner {}",
-									size,
-									currentlyReserved,
-									owner);
-							}
-
-							newReservedMemory = releaseAndCalculateReservedMemory(size, memoryType, currentlyReserved);
+						if (currentlyReserved == null || currentlyReserved < size) {
+							LOG.warn(
+								"Trying to release more memory {} than it was reserved {} so far for the owner {}",
+								size,
+								currentlyReserved == null ? 0 : currentlyReserved,
+								owner);
+							//noinspection ReturnOfNull
+							return null;
+						} else {
+							return currentlyReserved - size;
 						}
-
-						return newReservedMemory == 0 ? null : newReservedMemory;
 					});
 			}
 			//noinspection ReturnOfNull
 			return reservations == null || reservations.isEmpty() ? null : reservations;
 		});
-	}
-
-	private long releaseAndCalculateReservedMemory(long memoryToFree, MemoryType memoryType, long currentlyReserved) {
-		final long effectiveMemoryToRelease = Math.min(currentlyReserved, memoryToFree);
-		budgetByType.releaseBudgetForKey(memoryType, effectiveMemoryToRelease);
-
-		return currentlyReserved - effectiveMemoryToRelease;
+		budgetByType.releaseBudgetForKey(memoryType, size);
 	}
 
 	private void checkMemoryReservationPreconditions(Object owner, MemoryType memoryType, long size) {
@@ -549,107 +533,6 @@ public class MemoryManager {
 			//noinspection ReturnOfNull
 			return reservations == null || reservations.isEmpty() ? null : reservations;
 		});
-	}
-
-	// ------------------------------------------------------------------------
-	//  Shared opaque memory resources
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Acquires a shared memory resource, that uses all the memory of this memory manager.
-	 * This method behaves otherwise exactly as {@link #getSharedMemoryResourceForManagedMemory(String, LongFunctionWithException, double)}.
-	 */
-	public <T extends AutoCloseable> OpaqueMemoryResource<T> getSharedMemoryResourceForManagedMemory(
-			String type,
-			LongFunctionWithException<T, Exception> initializer) throws Exception {
-
-		return getSharedMemoryResourceForManagedMemory(type, initializer, 1.0);
-	}
-
-	/**
-	 * Acquires a shared memory resource, identified by a type string. If the resource already exists, this
-	 * returns a descriptor to the resource. If the resource does not yet exist, the given memory fraction
-	 * is reserved and the resource is initialized with that size.
-	 *
-	 * <p>The memory for the resource is reserved from the memory budget of this memory manager (thus
-	 * determining the size of the resource), but resource itself is opaque, meaning the memory manager
-	 * does not understand its structure.
-	 *
-	 * <p>The OpaqueMemoryResource object returned from this method must be closed once not used any further.
-	 * Once all acquisitions have closed the object, the resource itself is closed.
-	 *
-	 * <p><b>Important:</b> The failure semantics are as follows: If the memory manager fails to reserve
-	 * the memory, the external resource initializer will not be called. If an exception is thrown when the
-	 * opaque resource is closed (last lease is released), the memory manager will still un-reserve the
-	 * memory to make sure its own accounting is clean. The exception will need to be handled by the caller of
-	 * {@link OpaqueMemoryResource#close()}. For example, if this indicates that native memory was not released
-	 * and the process might thus have a memory leak, the caller can decide to kill the process as a result.
-	 */
-	public <T extends AutoCloseable> OpaqueMemoryResource<T> getSharedMemoryResourceForManagedMemory(
-			String type,
-			LongFunctionWithException<T, Exception> initializer,
-			double fractionToInitializeWith) throws Exception {
-
-		// if we need to allocate the resource (no shared resource allocated, yet), this would be the size to use
-		final long numBytes = computeMemorySize(fractionToInitializeWith);
-
-		// initializer and releaser as functions that are pushed into the SharedResources,
-		// so that the SharedResources can decide in (thread-safely execute) when initialization
-		// and release should happen
-		final LongFunctionWithException<T, Exception> reserveAndInitialize = (size) -> {
-			try {
-				reserveMemory(type, MemoryType.OFF_HEAP, size);
-			} catch (MemoryReservationException e) {
-				throw new MemoryAllocationException("Could not created the shared memory resource of size " + size +
-					". Not enough memory left to reserve from the slot's managed memory.", e);
-			}
-
-			return initializer.apply(size);
-		};
-
-		final Consumer<Long> releaser = (size) -> releaseMemory(type, MemoryType.OFF_HEAP, size);
-
-		// This object identifies the lease in this request. It is used only to identify the release operation.
-		// Using the object to represent the lease is a bit nicer safer than just using a reference counter.
-		final Object leaseHolder = new Object();
-
-		final SharedResources.ResourceAndSize<T> resource =
-				sharedResources.getOrAllocateSharedResource(type, leaseHolder, reserveAndInitialize, numBytes);
-
-		// the actual size may theoretically be different from what we requested, if allocated it was by
-		// someone else before with a different value for fraction (should not happen in practice, though).
-		final long size = resource.size();
-
-		final ThrowingRunnable<Exception> disposer = () -> sharedResources.release(type, leaseHolder, releaser);
-
-		return new OpaqueMemoryResource<>(resource.resourceHandle(), size, disposer);
-	}
-
-	/**
-	 * Acquires a shared resource, identified by a type string. If the resource already exists, this
-	 * returns a descriptor to the resource. If the resource does not yet exist, the method initializes
-	 * a new resource using the initializer function and given size.
-	 *
-	 * <p>The resource opaque, meaning the memory manager does not understand its structure.
-	 *
-	 * <p>The OpaqueMemoryResource object returned from this method must be closed once not used any further.
-	 * Once all acquisitions have closed the object, the resource itself is closed.
-	 */
-	public <T extends AutoCloseable> OpaqueMemoryResource<T> getExternalSharedMemoryResource(
-			String type,
-			LongFunctionWithException<T, Exception> initializer,
-			long numBytes) throws Exception {
-
-		// This object identifies the lease in this request. It is used only to identify the release operation.
-		// Using the object to represent the lease is a bit nicer safer than just using a reference counter.
-		final Object leaseHolder = new Object();
-
-		final SharedResources.ResourceAndSize<T> resource =
-				sharedResources.getOrAllocateSharedResource(type, leaseHolder, initializer, numBytes);
-
-		final ThrowingRunnable<Exception> disposer = () -> sharedResources.release(type, leaseHolder);
-
-		return new OpaqueMemoryResource<>(resource.resourceHandle(), resource.size(), disposer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -683,16 +566,6 @@ public class MemoryManager {
 	 */
 	public long getMemorySizeByType(MemoryType memoryType) {
 		return budgetByType.maxTotalBudgetForKey(memoryType);
-	}
-
-	/**
-	 * Returns the available amount of the certain type of memory handled by this memory manager.
-	 *
-	 * @param memoryType The type of memory.
-	 * @return The available amount of memory.
-	 */
-	public long availableMemory(MemoryType memoryType) {
-		return budgetByType.availableBudgetForKey(memoryType);
 	}
 
 	/**
@@ -832,15 +705,5 @@ public class MemoryManager {
 		public AllocationRequest build() {
 			return new AllocationRequest(owner, output, numberOfPages, types);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  factories for testing
-	// ------------------------------------------------------------------------
-
-	public static MemoryManager forDefaultPageSize(long size) {
-		final Map<MemoryType, Long> memorySizes = new HashMap<>();
-		memorySizes.put(MemoryType.OFF_HEAP, size);
-		return new MemoryManager(memorySizes, DEFAULT_PAGE_SIZE);
 	}
 }

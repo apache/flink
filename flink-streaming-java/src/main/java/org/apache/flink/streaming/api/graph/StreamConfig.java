@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Internal configuration for a {@link StreamOperator}. This is created and populated by the
@@ -74,8 +73,8 @@ public class StreamConfig implements Serializable {
 	private static final String ITERATION_ID = "iterationId";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
-	private static final String TYPE_SERIALIZERS_IN_COUNT = "typeSerializer_in_count";
-	private static final String TYPE_SERIALIZERS_IN_PATTERN = "typeSerializer_in_%d";
+	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
+	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
 	private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
 	private static final String ITERATON_WAIT = "iterationWait";
@@ -97,7 +96,8 @@ public class StreamConfig implements Serializable {
 
 	private static final String TIME_CHARACTERISTIC = "timechar";
 
-	private static final String MANAGED_MEMORY_FRACTION = "managedMemFraction";
+	private static final String MANAGED_MEMORY_FRACTION_ON_HEAP = "managedMemFractionOnHeap";
+	private static final String MANAGED_MEMORY_FRACTION_OFF_HEAP = "managedMemFractionOffHeap";
 
 	// ------------------------------------------------------------------------
 	//  Default Values
@@ -134,16 +134,28 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
 
-	public void setManagedMemoryFraction(double managedMemFraction) {
+	public void setManagedMemoryFractionOnHeap(double managedMemFractionOnHeap) {
 		checkArgument(
-			managedMemFraction >= 0.0 && managedMemFraction <= 1.0,
-			String.format("managedMemFraction should be in range [0.0, 1.0], but was: %s", managedMemFraction));
+			managedMemFractionOnHeap >= 0.0 && managedMemFractionOnHeap <= 1.0,
+			String.format("managedMemFractionOnHeap should be in range [0.0, 1.0], but was: %s", managedMemFractionOnHeap));
 
-		config.setDouble(MANAGED_MEMORY_FRACTION, managedMemFraction);
+		config.setDouble(MANAGED_MEMORY_FRACTION_ON_HEAP, managedMemFractionOnHeap);
 	}
 
-	public double getManagedMemoryFraction() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION, DEFAULT_MANAGED_MEMORY_FRACTION);
+	public double getManagedMemoryFractionOnHeap() {
+		return config.getDouble(MANAGED_MEMORY_FRACTION_ON_HEAP, DEFAULT_MANAGED_MEMORY_FRACTION);
+	}
+
+	public void setManagedMemoryFractionOffHeap(double managedMemFractionOffHeap) {
+		checkArgument(
+			managedMemFractionOffHeap >= 0.0 && managedMemFractionOffHeap <= 1.0,
+			String.format("managedMemFractionOffHeap should be in range [0.0, 1.0], but was: %s", managedMemFractionOffHeap));
+
+		config.setDouble(MANAGED_MEMORY_FRACTION_OFF_HEAP, managedMemFractionOffHeap);
+	}
+
+	public double getManagedMemoryFractionOffHeap() {
+		return config.getDouble(MANAGED_MEMORY_FRACTION_OFF_HEAP, DEFAULT_MANAGED_MEMORY_FRACTION);
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {
@@ -159,11 +171,12 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setTypeSerializersIn(TypeSerializer<?> ...serializers) {
-		config.setInteger(TYPE_SERIALIZERS_IN_COUNT, serializers.length);
-		for (int i = 0; i < serializers.length; i++) {
-			setTypeSerializer(String.format(TYPE_SERIALIZERS_IN_PATTERN, i), serializers[i]);
-		}
+	public void setTypeSerializerIn1(TypeSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_IN_1, serializer);
+	}
+
+	public void setTypeSerializerIn2(TypeSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_IN_2, serializer);
 	}
 
 	public void setTypeSerializerOut(TypeSerializer<?> serializer) {
@@ -174,40 +187,19 @@ public class StreamConfig implements Serializable {
 		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), serializer);
 	}
 
-	@Deprecated
 	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
-		return getTypeSerializerIn(0, cl);
-	}
-
-	@Deprecated
-	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
-		return getTypeSerializerIn(1, cl);
-	}
-
-	public TypeSerializer<?>[] getTypeSerializersIn(ClassLoader cl) {
-		int typeSerializersCount = config.getInteger(TYPE_SERIALIZERS_IN_COUNT, -1);
-		checkState(
-			typeSerializersCount >= 0,
-			"Missing value for %s in the config? [%d]",
-			TYPE_SERIALIZERS_IN_COUNT,
-			typeSerializersCount);
-		TypeSerializer<?>[] typeSerializers = new TypeSerializer<?>[typeSerializersCount];
-		for (int i = 0; i < typeSerializers.length; i++) {
-			typeSerializers[i] = getTypeSerializerIn(i, cl);
-		}
-		return typeSerializers;
-	}
-
-	public <T> TypeSerializer<T> getTypeSerializerIn(int index, ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(
-				this.config,
-				String.format(TYPE_SERIALIZERS_IN_PATTERN, index),
-				cl);
+			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_1, cl);
 		} catch (Exception e) {
-			throw new StreamTaskException(
-				String.format("Could not instantiate serializer for [%d] input.", index),
-				e);
+			throw new StreamTaskException("Could not instantiate serializer.", e);
+		}
+	}
+
+	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_2, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate serializer.", e);
 		}
 	}
 

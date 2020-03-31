@@ -22,6 +22,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
+import javax.annotation.Nullable;
+
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -30,7 +32,7 @@ import static org.junit.Assert.assertEquals;
 public class CreditBasedCheckpointBarrierAlignerTest extends CheckpointBarrierAlignerTestBase {
 
 	@Override
-	CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) {
+	CheckpointedInputGate createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) {
 		return new CheckpointedInputGate(gate, new CachedBufferStorage(PAGE_SIZE), "Testing", toNotify);
 	}
 

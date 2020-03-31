@@ -51,6 +51,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import akka.pattern.AskTimeoutException;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -62,11 +63,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -236,23 +235,13 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 					},
 					TestingUtils.defaultExecutor()));
 
-			TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
-				taskExecutorGateway.getAddress(),
-				taskExecutorResourceID,
-				dataPort,
-				hardwareDescription,
-				ResourceProfile.ZERO,
-				ResourceProfile.ZERO);
-
 			CompletableFuture<RegistrationResponse> firstFuture =
-				rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
+				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, fastTimeout);
 			try {
 				firstFuture.get();
 				fail("Should have failed because connection to taskmanager is delayed beyond timeout");
 			} catch (Exception e) {
-				final Throwable cause = ExceptionUtils.stripExecutionException(e);
-				assertThat(cause, instanceOf(TimeoutException.class));
-				assertThat(cause.getMessage(), containsString("ResourceManagerGateway.registerTaskExecutor"));
+				assertThat(ExceptionUtils.stripExecutionException(e), instanceOf(AskTimeoutException.class));
 			}
 
 			startConnection.await();
@@ -260,7 +249,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			// second registration after timeout is with no delay, expecting it to be succeeded
 			rpcService.resetRpcGatewayFutureFunction();
 			CompletableFuture<RegistrationResponse> secondFuture =
-				rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT);
+				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, TIMEOUT);
 			RegistrationResponse response = secondFuture.get();
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
@@ -346,13 +335,10 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
 	private CompletableFuture<RegistrationResponse> registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, String taskExecutorAddress) {
 		return resourceManagerGateway.registerTaskExecutor(
-			new TaskExecutorRegistration(
-				taskExecutorAddress,
-				taskExecutorResourceID,
-				dataPort,
-				hardwareDescription,
-				ResourceProfile.ZERO,
-				ResourceProfile.ZERO),
+			taskExecutorAddress,
+			taskExecutorResourceID,
+			dataPort,
+			hardwareDescription,
 			TIMEOUT);
 	}
 }

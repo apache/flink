@@ -49,7 +49,6 @@ public final class StreamPlannerFactory implements PlannerFactory {
 		return new StreamPlanner(executor, tableConfig, functionCatalog, catalogManager);
 	}
 
-	@Override
 	public Map<String, String> optionalContext() {
 		Map<String, String> map = new HashMap<>();
 		map.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());

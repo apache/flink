@@ -24,7 +24,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -81,7 +80,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, addressString);
 		config.setString(TaskManagerOptions.HOST, addressString);
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		return config;
 	}
 

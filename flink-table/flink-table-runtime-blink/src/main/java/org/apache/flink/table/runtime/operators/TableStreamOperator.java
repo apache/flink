@@ -46,11 +46,4 @@ public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
 		super.dispose();
 	}
 
-	/**
-	 * Compute memory size from memory faction.
-	 */
-	public long computeMemorySize() {
-		return getContainingTask().getEnvironment().getMemoryManager().computeMemorySize(
-				getOperatorConfig().getManagedMemoryFraction());
-	}
 }

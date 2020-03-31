@@ -22,19 +22,20 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-
-import org.apache.commons.io.IOUtils;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Function;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -43,13 +44,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 
-	private final ClusterClientProvider<ClusterID> clusterClientProvider;
+	private final ClusterClient<ClusterID> clusterClient;
 
 	private final JobID jobID;
 
-	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID) {
+	private final AtomicBoolean running = new AtomicBoolean(true);
+
+	public ClusterClientJobClientAdapter(final ClusterClient<ClusterID> clusterClient, final JobID jobID) {
 		this.jobID = checkNotNull(jobID);
-		this.clusterClientProvider = checkNotNull(clusterClientProvider);
+		this.clusterClient = checkNotNull(clusterClient);
 	}
 
 	@Override
@@ -59,78 +62,62 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 
 	@Override
 	public CompletableFuture<JobStatus> getJobStatus() {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient -> clusterClient.getJobStatus(jobID)));
+		return clusterClient.getJobStatus(jobID);
 	}
 
 	@Override
 	public CompletableFuture<Void> cancel() {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient -> clusterClient.cancel(jobID).thenApply((ignored) -> null)));
+		return clusterClient.cancel(jobID).thenApply(FunctionUtils.nullFn());
 	}
 
 	@Override
 	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient ->
-						clusterClient.stopWithSavepoint(jobID, advanceToEndOfEventTime, savepointDirectory)));
+		return clusterClient.stopWithSavepoint(jobID, advanceToEndOfEventTime, savepointDirectory);
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient ->
-						clusterClient.triggerSavepoint(jobID, savepointDirectory)));
+		return clusterClient.triggerSavepoint(jobID, savepointDirectory);
 	}
 
 	@Override
 	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
-		checkNotNull(classLoader);
-
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient ->
-						clusterClient.getAccumulators(jobID, classLoader)));
+		return clusterClient.getAccumulators(jobID, classLoader);
 	}
 
 	@Override
 	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
 		checkNotNull(userClassloader);
 
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient -> clusterClient
-					.requestJobResult(jobID)
-					.thenApply((jobResult) -> {
-						try {
-							return jobResult.toJobExecutionResult(userClassloader);
-						} catch (Throwable t) {
-							throw new CompletionException(
-									new ProgramInvocationException("Job failed", jobID, t));
-						}
-					})));
+		final CompletableFuture<JobResult> jobResultFuture = clusterClient.requestJobResult(jobID);
+		return jobResultFuture.handle((jobResult, throwable) -> {
+			if (throwable != null) {
+				ExceptionUtils.checkInterrupted(throwable);
+				throw new CompletionException(new ProgramInvocationException("Could not run job", jobID, throwable));
+			} else {
+				try {
+					return jobResult.toJobExecutionResult(userClassloader);
+				} catch (JobExecutionException | IOException | ClassNotFoundException e) {
+					throw new CompletionException(new ProgramInvocationException("Job failed", jobID, e));
+				}
+			}
+		});
 	}
 
-	private static <T> CompletableFuture<T> bridgeClientRequest(
-			ClusterClientProvider<?> clusterClientProvider,
-			Function<ClusterClient<?>, CompletableFuture<T>> resultRetriever) {
-
-		ClusterClient<?> clusterClient = clusterClientProvider.getClusterClient();
-
-		CompletableFuture<T> resultFuture;
-		try {
-			resultFuture = resultRetriever.apply(clusterClient);
-		} catch (Throwable throwable) {
-			IOUtils.closeQuietly(clusterClient::close);
-			return FutureUtils.completedExceptionally(throwable);
+	@Override
+	public final void close() {
+		if (running.compareAndSet(true, false)) {
+			doClose();
 		}
-
-		return resultFuture.whenCompleteAsync(
-				(jobResult, throwable) -> IOUtils.closeQuietly(clusterClient::close));
 	}
 
+	/**
+	 * Method to be overridden by subclass which contains actual close actions.
+	 *
+	 * <p>We do close in this way to ensure multiple calls to {@link #close()}
+	 * are executed at most once guarded by {@link #running} flag.
+	 */
+	protected void doClose() {
+
+	}
 }

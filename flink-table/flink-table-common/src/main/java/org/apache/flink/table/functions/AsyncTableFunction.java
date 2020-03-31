@@ -20,9 +20,6 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.types.inference.TypeInference;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -108,10 +105,5 @@ public abstract class AsyncTableFunction<T> extends UserDefinedFunction {
 	@Override
 	public final FunctionKind getKind() {
 		return FunctionKind.ASYNC_TABLE;
-	}
-
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Async table functions are not updated to the new type system yet.");
 	}
 }

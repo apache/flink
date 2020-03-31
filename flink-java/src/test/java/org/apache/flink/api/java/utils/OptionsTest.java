@@ -28,7 +28,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the Options utility class.
  */
-@Deprecated
 public class OptionsTest {
 
 	@Rule

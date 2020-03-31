@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
@@ -53,6 +52,8 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 	private final TwoInputSelectionHandler inputSelectionHandler;
 
+	private final Object lock;
+
 	private final StreamTaskInput<IN1> input1;
 	private final StreamTaskInput<IN2> input2;
 
@@ -81,6 +82,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			CheckpointedInputGate[] checkpointedInputGates,
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
+			Object lock,
 			IOManager ioManager,
 			StreamStatusMaintainer streamStatusMaintainer,
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
@@ -90,17 +92,20 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			OperatorChain<?, ?> operatorChain,
 			Counter numRecordsIn) {
 
+		this.lock = checkNotNull(lock);
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
 		this.output1 = new StreamTaskNetworkOutput<>(
 			streamOperator,
 			record -> processRecord1(record, streamOperator, numRecordsIn),
+			lock,
 			streamStatusMaintainer,
 			input1WatermarkGauge,
 			0);
 		this.output2 = new StreamTaskNetworkOutput<>(
 			streamOperator,
 			record -> processRecord2(record, streamOperator, numRecordsIn),
+			lock,
 			streamStatusMaintainer,
 			input2WatermarkGauge,
 			1);
@@ -161,12 +166,12 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		int readingInputIndex;
 		if (isPrepared) {
 			readingInputIndex = selectNextReadingInputIndex();
-			assert readingInputIndex != InputSelection.NONE_AVAILABLE;
+			assert readingInputIndex != -1;
 		} else {
 			// the preparations here are not placed in the constructor because all work in it
 			// must be executed after all operators are opened.
 			readingInputIndex = selectFirstReadingInputIndex();
-			if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
+			if (readingInputIndex == -1) {
 				return InputStatus.NOTHING_AVAILABLE;
 			}
 		}
@@ -197,8 +202,10 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 	private void checkFinished(InputStatus status, int inputIndex) throws Exception {
 		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endHeadOperatorInput(getInputId(inputIndex));
-			inputSelectionHandler.nextSelection();
+			synchronized (lock) {
+				operatorChain.endHeadOperatorInput(getInputId(inputIndex));
+				inputSelectionHandler.nextSelection();
+			}
 		}
 	}
 
@@ -245,8 +252,8 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		checkInputSelectionAgainstIsFinished();
 
 		int readingInputIndex = inputSelectionHandler.selectNextInputIndex(lastReadInputIndex);
-		if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
-			return InputSelection.NONE_AVAILABLE;
+		if (readingInputIndex == -1) {
+			return -1;
 		}
 
 		// to avoid starvation, if the input selection is ALL and availableInputsMask is not ALL,
@@ -337,10 +344,11 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		private StreamTaskNetworkOutput(
 				TwoInputStreamOperator<IN1, IN2, ?> operator,
 				ThrowingConsumer<StreamRecord<T>, Exception> recordConsumer,
+				Object lock,
 				StreamStatusMaintainer streamStatusMaintainer,
 				WatermarkGauge inputWatermarkGauge,
 				int inputIndex) {
-			super(streamStatusMaintainer);
+			super(streamStatusMaintainer, lock);
 
 			this.operator = checkNotNull(operator);
 			this.recordConsumer = checkNotNull(recordConsumer);
@@ -350,48 +358,56 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 		@Override
 		public void emitRecord(StreamRecord<T> record) throws Exception {
-			recordConsumer.accept(record);
+			synchronized (lock) {
+				recordConsumer.accept(record);
+			}
 		}
 
 		@Override
 		public void emitWatermark(Watermark watermark) throws Exception {
-			inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
-			if (inputIndex == 0) {
-				operator.processWatermark1(watermark);
-			} else {
-				operator.processWatermark2(watermark);
+			synchronized (lock) {
+				inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+				if (inputIndex == 0) {
+					operator.processWatermark1(watermark);
+				} else {
+					operator.processWatermark2(watermark);
+				}
 			}
 		}
 
 		@Override
 		public void emitStreamStatus(StreamStatus streamStatus) {
-			final StreamStatus anotherStreamStatus;
-			if (inputIndex == 0) {
-				firstStatus = streamStatus;
-				anotherStreamStatus = secondStatus;
-			} else {
-				secondStatus = streamStatus;
-				anotherStreamStatus = firstStatus;
-			}
+			synchronized (lock) {
+				final StreamStatus anotherStreamStatus;
+				if (inputIndex == 0) {
+					firstStatus = streamStatus;
+					anotherStreamStatus = secondStatus;
+				} else {
+					secondStatus = streamStatus;
+					anotherStreamStatus = firstStatus;
+				}
 
-			// check if we need to toggle the task's stream status
-			if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
-				if (streamStatus.isActive()) {
-					// we're no longer idle if at least one input has become active
-					streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-				} else if (anotherStreamStatus.isIdle()) {
-					// we're idle once both inputs are idle
-					streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
+				// check if we need to toggle the task's stream status
+				if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
+					if (streamStatus.isActive()) {
+						// we're no longer idle if at least one input has become active
+						streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
+					} else if (anotherStreamStatus.isIdle()) {
+						// we're idle once both inputs are idle
+						streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
+					}
 				}
 			}
 		}
 
 		@Override
 		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-			if (inputIndex == 0) {
-				operator.processLatencyMarker1(latencyMarker);
-			} else {
-				operator.processLatencyMarker2(latencyMarker);
+			synchronized (lock) {
+				if (inputIndex == 0) {
+					operator.processLatencyMarker1(latencyMarker);
+				} else {
+					operator.processLatencyMarker2(latencyMarker);
+				}
 			}
 		}
 	}

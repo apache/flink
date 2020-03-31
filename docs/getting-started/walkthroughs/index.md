@@ -1,9 +1,9 @@
 ---
 title: "Code Walkthroughs"
 nav-id: walkthroughs
-nav-title: 'Code Walkthroughs'
+nav-title: '<i class="fa fa-bolt title appetizer" aria-hidden="true"></i> Code Walkthroughs'
 nav-parent_id: getting-started
-nav-pos: 20
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

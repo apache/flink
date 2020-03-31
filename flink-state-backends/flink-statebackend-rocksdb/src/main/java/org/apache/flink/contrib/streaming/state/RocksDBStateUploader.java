@@ -19,6 +19,9 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -32,9 +35,6 @@ import org.apache.flink.util.function.CheckedSupplier;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -107,14 +107,14 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 		Path filePath,
 		CheckpointStreamFactory checkpointStreamFactory,
 		CloseableRegistry closeableRegistry) throws IOException {
-
-		InputStream inputStream = null;
+		FSDataInputStream inputStream = null;
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
 
 		try {
 			final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
-			inputStream = Files.newInputStream(filePath);
+			FileSystem backupFileSystem = filePath.getFileSystem();
+			inputStream = backupFileSystem.open(filePath);
 			closeableRegistry.registerCloseable(inputStream);
 
 			outputStream = checkpointStreamFactory

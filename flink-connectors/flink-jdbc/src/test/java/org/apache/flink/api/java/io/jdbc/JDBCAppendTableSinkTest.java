@@ -59,21 +59,16 @@ public class JDBCAppendTableSinkTest {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Row> ds = env.fromCollection(Collections.singleton(Row.of("foo")), ROW_TYPE);
-		sink.consumeDataStream(ds);
+		sink.emitDataStream(ds);
 
-		Collection<Integer> sinkIds = env
-				.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
-				.getSinkIDs();
+		Collection<Integer> sinkIds = env.getStreamGraph().getSinkIDs();
 		assertEquals(1, sinkIds.size());
 		int sinkId = sinkIds.iterator().next();
 
-		StreamSink planSink = (StreamSink) env
-				.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
-				.getStreamNode(sinkId)
-				.getOperator();
-		assertTrue(planSink.getUserFunction() instanceof JdbcSinkFunction);
+		StreamSink planSink = (StreamSink) env.getStreamGraph().getStreamNode(sinkId).getOperator();
+		assertTrue(planSink.getUserFunction() instanceof JDBCSinkFunction);
 
-		JdbcSinkFunction sinkFunction = (JdbcSinkFunction) planSink.getUserFunction();
+		JDBCSinkFunction sinkFunction = (JDBCSinkFunction) planSink.getUserFunction();
 		assertSame(sink.getOutputFormat(), sinkFunction.outputFormat);
 	}
 

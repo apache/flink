@@ -21,7 +21,6 @@ package org.apache.flink.test.manual;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -55,7 +54,7 @@ public class StreamingScalabilityAndLatency {
 
 		try {
 			Configuration config = new Configuration();
-			config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
+			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
 			config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 20000);
 
 			config.setInteger("taskmanager.net.server.numThreads", 1);

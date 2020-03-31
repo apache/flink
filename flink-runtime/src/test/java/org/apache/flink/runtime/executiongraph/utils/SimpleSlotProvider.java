@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.utils;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -47,6 +48,7 @@ import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A testing utility slot provider that simply has a predefined pool of slots.
@@ -59,11 +61,12 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
 	private final HashMap<SlotRequestId, SlotContext> allocatedSlots;
 
-	public SimpleSlotProvider(int numSlots) {
-		this(numSlots, new SimpleAckingTaskManagerGateway());
+	public SimpleSlotProvider(JobID jobId, int numSlots) {
+		this(jobId, numSlots, new SimpleAckingTaskManagerGateway());
 	}
 
-	public SimpleSlotProvider(int numSlots, TaskManagerGateway taskManagerGateway) {
+	public SimpleSlotProvider(JobID jobId, int numSlots, TaskManagerGateway taskManagerGateway) {
+		checkNotNull(jobId, "jobId");
 		checkArgument(numSlots >= 0, "numSlots must be >= 0");
 
 		this.slots = new ArrayDeque<>(numSlots);

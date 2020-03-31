@@ -225,10 +225,5 @@ public class PipelineOptions {
 					"accessible from any user-defined function in the (distributed) runtime under a local path. " +
 					"Files may be local files (which will be distributed via BlobServer), or files in a distributed " +
 					"file system. The runtime will copy the files temporarily to a local cache, if needed.")
-				.linebreak()
-				.linebreak()
-				.text("Example:")
-				.linebreak()
-				.add(TextElement.code("name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`"))
 				.build());
 }

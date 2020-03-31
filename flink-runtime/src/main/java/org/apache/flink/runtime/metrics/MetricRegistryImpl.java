@@ -30,7 +30,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
-import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -55,7 +54,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
@@ -66,11 +64,12 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 	private final Object lock = new Object();
 
-	private final List<ReporterAndSettings> reporters;
+	private final List<MetricReporter> reporters;
 	private final ScheduledExecutorService executor;
 
 	private final ScopeFormats scopeFormats;
 	private final char globalDelimiter;
+	private final List<Character> delimiters;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -97,6 +96,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 		this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
 		this.scopeFormats = config.getScopeFormats();
 		this.globalDelimiter = config.getDelimiter();
+		this.delimiters = new ArrayList<>(10);
 		this.terminationFuture = new CompletableFuture<>();
 		this.isShutdown = false;
 
@@ -145,19 +145,14 @@ public class MetricRegistryImpl implements MetricRegistry {
 					} else {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
+					reporters.add(reporterInstance);
 
 					String delimiterForReporter = reporterSetup.getDelimiter().orElse(String.valueOf(globalDelimiter));
 					if (delimiterForReporter.length() != 1) {
 						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
 						delimiterForReporter = String.valueOf(globalDelimiter);
 					}
-
-					reporters.add(new ReporterAndSettings(
-						reporterInstance,
-						new ReporterScopedSettings(
-							reporters.size(),
-							delimiterForReporter.charAt(0),
-							reporterSetup.getExcludedVariables())));
+					this.delimiters.add(delimiterForReporter.charAt(0));
 				}
 				catch (Throwable t) {
 					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);
@@ -226,10 +221,10 @@ public class MetricRegistryImpl implements MetricRegistry {
 		return this.globalDelimiter;
 	}
 
-	@VisibleForTesting
-	char getDelimiter(int reporterIndex) {
+	@Override
+	public char getDelimiter(int reporterIndex) {
 		try {
-			return reporters.get(reporterIndex).getSettings().getDelimiter();
+			return delimiters.get(reporterIndex);
 		} catch (IndexOutOfBoundsException e) {
 			LOG.warn("Delimiter for reporter index {} not found, returning global delimiter.", reporterIndex);
 			return this.globalDelimiter;
@@ -243,7 +238,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 	@VisibleForTesting
 	public List<MetricReporter> getReporters() {
-		return reporters.stream().map(ReporterAndSettings::getReporter).collect(Collectors.toList());
+		return reporters;
 	}
 
 	/**
@@ -281,9 +276,9 @@ public class MetricRegistryImpl implements MetricRegistry {
 				}
 
 				Throwable throwable = null;
-				for (ReporterAndSettings reporterAndSettings : reporters) {
+				for (MetricReporter reporter : reporters) {
 					try {
-						reporterAndSettings.getReporter().close();
+						reporter.close();
 					} catch (Throwable t) {
 						throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 					}
@@ -336,11 +331,11 @@ public class MetricRegistryImpl implements MetricRegistry {
 			} else {
 				if (reporters != null) {
 					for (int i = 0; i < reporters.size(); i++) {
-						ReporterAndSettings reporterAndSettings = reporters.get(i);
+						MetricReporter reporter = reporters.get(i);
 						try {
-							if (reporterAndSettings != null) {
-								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(reporterAndSettings.getSettings(), group);
-								reporterAndSettings.getReporter().notifyOfAddedMetric(metric, metricName, front);
+							if (reporter != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+								reporter.notifyOfAddedMetric(metric, metricName, front);
 							}
 						} catch (Exception e) {
 							LOG.warn("Error while registering metric: {}.", metricName, e);
@@ -377,10 +372,10 @@ public class MetricRegistryImpl implements MetricRegistry {
 				if (reporters != null) {
 					for (int i = 0; i < reporters.size(); i++) {
 						try {
-						ReporterAndSettings reporterAndSettings = reporters.get(i);
-							if (reporterAndSettings != null) {
-								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(reporterAndSettings.getSettings(), group);
-								reporterAndSettings.getReporter().notifyOfRemovedMetric(metric, metricName, front);
+						MetricReporter reporter = reporters.get(i);
+							if (reporter != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+								reporter.notifyOfRemovedMetric(metric, metricName, front);
 							}
 						} catch (Exception e) {
 							LOG.warn("Error while unregistering metric: {}.", metricName, e);
@@ -442,25 +437,6 @@ public class MetricRegistryImpl implements MetricRegistry {
 			} catch (Throwable t) {
 				LOG.warn("Error while reporting metrics", t);
 			}
-		}
-	}
-
-	private static class ReporterAndSettings {
-
-		private final MetricReporter reporter;
-		private final ReporterScopedSettings settings;
-
-		private ReporterAndSettings(MetricReporter reporter, ReporterScopedSettings settings) {
-			this.reporter = Preconditions.checkNotNull(reporter);
-			this.settings = Preconditions.checkNotNull(settings);
-		}
-
-		public MetricReporter getReporter() {
-			return reporter;
-		}
-
-		public ReporterScopedSettings getSettings() {
-			return settings;
 		}
 	}
 }

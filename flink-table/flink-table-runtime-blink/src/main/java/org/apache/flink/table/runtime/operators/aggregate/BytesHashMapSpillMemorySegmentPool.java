@@ -55,11 +55,6 @@ public class BytesHashMapSpillMemorySegmentPool implements MemorySegmentPool {
 	}
 
 	@Override
-	public int freePages() {
-		return Integer.MAX_VALUE;
-	}
-
-	@Override
 	public int pageSize() {
 		return pageSize;
 	}

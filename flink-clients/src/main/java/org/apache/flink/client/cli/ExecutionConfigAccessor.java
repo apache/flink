@@ -77,7 +77,7 @@ public class ExecutionConfigAccessor {
 		return new ExecutionConfigAccessor(configuration);
 	}
 
-	public Configuration applyToConfiguration(final Configuration baseConfiguration) {
+	Configuration applyToConfiguration(final Configuration baseConfiguration) {
 		baseConfiguration.addAll(configuration);
 		return baseConfiguration;
 	}

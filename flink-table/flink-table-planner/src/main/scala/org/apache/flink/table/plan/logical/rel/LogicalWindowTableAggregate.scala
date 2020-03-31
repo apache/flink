@@ -50,7 +50,7 @@ class LogicalWindowTableAggregate(
     for (property <- namedProperties) {
       pw.item(property.name, property.property)
     }
-    pw.item("window", window.toString)
+    pw
   }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): TableAggregate = {

@@ -25,12 +25,10 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
@@ -42,8 +40,6 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -52,14 +48,12 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -68,8 +62,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -173,7 +165,7 @@ public class SourceStreamTaskTest {
 	}
 
 	@Test
-	public void testClosingAllOperatorsOnChainProperly() throws Exception {
+	public void testMarkingEndOfInput() throws Exception {
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
 			SourceStreamTask::new,
 			BasicTypeInfo.STRING_TYPE_INFO);
@@ -192,19 +184,20 @@ public class SourceStreamTaskTest {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
 		testHarness.invoke();
 		testHarness.waitForTaskCompletion();
 
-		ArrayList<StreamRecord<String>> expected = new ArrayList<>();
-		Collections.addAll(expected,
-			new StreamRecord<>("Hello"),
-			new StreamRecord<>("[Source0]: End of input"),
-			new StreamRecord<>("[Source0]: Bye"),
-			new StreamRecord<>("[Operator1]: End of input"),
-			new StreamRecord<>("[Operator1]: Bye"));
+		expectedOutput.add(new StreamRecord<>("Hello"));
+		expectedOutput.add(new StreamRecord<>("[Source0]: EndOfInput"));
+		expectedOutput.add(new StreamRecord<>("[Source0]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator1]: EndOfInput"));
+		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
 
-		final Object[] output = testHarness.getOutput().toArray();
-		assertArrayEquals("Output was not correct.", expected.toArray(), output);
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
 	}
 
 	@Test
@@ -230,15 +223,13 @@ public class SourceStreamTaskTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.invoke();
-		CancelTestSource.getDataProcessing().await();
+		CancelTestSource.getDataProcessing().get();
 		testHarness.getTask().cancel();
 
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Throwable t) {
-			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
-				throw t;
-			}
+			assertTrue(ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent());
 		}
 
 		expectedOutput.add(new StreamRecord<>("Hello"));
@@ -246,200 +237,6 @@ public class SourceStreamTaskTest {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 			expectedOutput,
 			testHarness.getOutput());
-	}
-
-	@Test
-	public void testCancellationWithSourceBlockedOnLock() throws Exception {
-		testCancellationWithSourceBlockedOnLock(false, false);
-	}
-
-	@Test
-	public void testCancellationWithSourceBlockedOnLockWithPendingMail() throws Exception {
-		testCancellationWithSourceBlockedOnLock(true, false);
-	}
-
-	@Test
-	public void testCancellationWithSourceBlockedOnLockAndThrowingOnError() throws Exception {
-		testCancellationWithSourceBlockedOnLock(false, true);
-	}
-
-	@Test
-	public void testCancellationWithSourceBlockedOnLockWithPendingMailAndThrowingOnError() throws Exception {
-		testCancellationWithSourceBlockedOnLock(true, true);
-	}
-
-	/**
-	 * Note that this test is testing also for the shared cancellation logic inside {@link StreamTask}
-	 * which, as of the time this test is being written, is not tested anywhere else
-	 * (like {@link StreamTaskTest} or {@link OneInputStreamTaskTest}).
-	 */
-	public void testCancellationWithSourceBlockedOnLock(boolean withPendingMail, boolean throwInCancel) throws Exception {
-		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
-			SourceStreamTask::new,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		CancelLockingSource.reset();
-		testHarness
-			.setupOperatorChain(
-				new OperatorID(),
-				new StreamSource<>(new CancelLockingSource(throwInCancel)))
-			.chain(
-				new OperatorID(),
-				new TestBoundedOneInputStreamOperator("Operator1"),
-				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
-			.finish();
-
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-		testHarness.invoke();
-		CancelLockingSource.awaitRunning();
-		if (withPendingMail) {
-			// This pending mail should be blocked on checkpointLock acquisition, blocking the
-			// mailbox (task) thread.
-			testHarness.getTask().getMailboxExecutorFactory().createExecutor(0).execute(
-				() -> assertFalse(
-					"This should never execute before task cancelation",
-					testHarness.getTask().isRunning()),
-				"Test");
-		}
-
-		try {
-			testHarness.getTask().cancel();
-		}
-		catch (ExpectedTestException e) {
-			checkState(throwInCancel);
-		}
-
-		try {
-			testHarness.waitForTaskCompletion();
-		} catch (Throwable t) {
-			if (!ExceptionUtils.findThrowable(t, InterruptedException.class).isPresent() &&
-				!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
-				throw t;
-			}
-		}
-	}
-
-	/**
-	 * A source that locks if cancellation attempts to cleanly shut down.
-	 */
-	public static class CancelLockingSource implements SourceFunction<String> {
-		private static final long serialVersionUID = 8713065281092996042L;
-
-		private static CompletableFuture<Void> isRunning = new CompletableFuture<>();
-
-		private final boolean throwOnCancel;
-
-		private volatile boolean cancelled = false;
-
-		public CancelLockingSource(boolean throwOnCancel) {
-			this.throwOnCancel = throwOnCancel;
-		}
-
-		public static void reset() {
-			isRunning = new CompletableFuture<>();
-		}
-
-		public static void awaitRunning() throws ExecutionException, InterruptedException {
-			isRunning.get();
-		}
-
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			synchronized (ctx.getCheckpointLock()) {
-				while (!cancelled) {
-					isRunning.complete(null);
-
-					if (throwOnCancel) {
-						Thread.sleep(1000000000);
-					}
-					else {
-						try {
-							//noinspection SleepWhileHoldingLock
-							Thread.sleep(1000000000);
-						} catch (InterruptedException ignored) {
-						}
-					}
-				}
-			}
-		}
-
-		@Override
-		public void cancel() {
-			if (throwOnCancel) {
-				throw new ExpectedTestException();
-			}
-			cancelled = true;
-		}
-	}
-
-	@Test
-	public void testInterruptionExceptionNotSwallowed() throws Exception {
-		testInterruptionExceptionNotSwallowed(InterruptedException::new);
-	}
-
-	@Test
-	public void testWrappedInterruptionExceptionNotSwallowed() throws Exception {
-		testInterruptionExceptionNotSwallowed(() ->
-			new RuntimeException(new FlinkRuntimeException(new InterruptedException())));
-	}
-
-	private void testInterruptionExceptionNotSwallowed(InterruptedSource.ExceptionGenerator exceptionGenerator)
-			throws Exception {
-		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
-			SourceStreamTask::new,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		CancelLockingSource.reset();
-		testHarness
-			.setupOperatorChain(
-				new OperatorID(),
-				new StreamSource<>(new InterruptedSource(exceptionGenerator)))
-			.chain(
-				new OperatorID(),
-				new TestBoundedOneInputStreamOperator("Operator1"),
-				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
-			.finish();
-
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-		testHarness.invoke();
-		try {
-			testHarness.waitForTaskCompletion();
-		} catch (Exception e) {
-			if (!ExceptionUtils.findThrowable(e, InterruptedException.class).isPresent()) {
-				throw e;
-			}
-		}
-	}
-
-	/**
-	 * A source that locks if cancellation attempts to cleanly shut down.
-	 */
-	public static class InterruptedSource implements SourceFunction<String> {
-		interface ExceptionGenerator extends CheckedSupplier<Exception>, Serializable {}
-
-		private static final long serialVersionUID = 8713065281092996042L;
-
-		private ExceptionGenerator exceptionGenerator;
-
-		public InterruptedSource(final ExceptionGenerator exceptionGenerator) {
-			this.exceptionGenerator = exceptionGenerator;
-		}
-
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			synchronized (ctx.getCheckpointLock()) {
-				Thread.currentThread().interrupt();
-				throw exceptionGenerator.get();
-			}
-		}
-
-		@Override
-		public void cancel() {
-		}
 	}
 
 	/**
@@ -618,9 +415,9 @@ public class SourceStreamTaskTest {
 	private static class CancelTestSource extends FromElementsFunction<String> {
 		private static final long serialVersionUID = 8713065281092996067L;
 
-		private static MultiShotLatch dataProcessing = new MultiShotLatch();
+		private static CompletableFuture<Void> dataProcessing = new CompletableFuture<>();
 
-		private static MultiShotLatch cancellationWaiting = new MultiShotLatch();
+		private static CompletableFuture<Void> cancellationWaiting = new CompletableFuture<>();
 
 		public CancelTestSource(TypeSerializer<String> serializer, String... elements) throws IOException {
 			super(serializer, elements);
@@ -630,17 +427,18 @@ public class SourceStreamTaskTest {
 		public void run(SourceContext<String> ctx) throws Exception {
 			super.run(ctx);
 
-			dataProcessing.trigger();
-			cancellationWaiting.await();
+			dataProcessing.complete(null);
+			cancellationWaiting.get();
 		}
 
 		@Override
 		public void cancel() {
 			super.cancel();
-			cancellationWaiting.trigger();
+
+			cancellationWaiting.complete(null);
 		}
 
-		public static MultiShotLatch getDataProcessing() {
+		public static CompletableFuture<Void> getDataProcessing() {
 			return dataProcessing;
 		}
 	}
@@ -697,20 +495,12 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void endInput() {
-			output("[" + name + "]: End of input");
+			output.collect(new StreamRecord<>("[" + name + "]: EndOfInput"));
 		}
 
 		@Override
-		public void close() throws Exception {
-			ProcessingTimeService timeService = getProcessingTimeService();
-			timeService.registerTimer(timeService.getCurrentProcessingTime(), t -> output("[" + name + "]: Timer registered in close"));
-
-			output("[" + name + "]: Bye");
-			super.close();
-		}
-
-		private void output(String record) {
-			output.collect(new StreamRecord<>(record));
+		public void close() {
+			output.collect(new StreamRecord<>("[" + name + "]: Bye"));
 		}
 	}
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
@@ -33,7 +32,7 @@ public final class SlideWithSize {
 	private final Expression size;
 
 	SlideWithSize(Expression size) {
-		this.size = ApiExpressionUtils.unwrapFromApi(size);
+		this.size = size;
 	}
 
 	/**

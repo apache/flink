@@ -38,12 +38,9 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -51,7 +48,6 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 
 import java.util.Collections;
 import java.util.Map;
@@ -85,8 +81,6 @@ public class SavepointEnvironment implements Environment {
 
 	private final IOManager ioManager;
 
-	private final MemoryManager memoryManager;
-
 	private final AccumulatorRegistry accumulatorRegistry;
 
 	private SavepointEnvironment(RuntimeContext ctx, Configuration configuration, int maxParallelism, int indexOfSubtask, PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
@@ -103,7 +97,6 @@ public class SavepointEnvironment implements Environment {
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
 		this.ioManager = new IOManagerAsync();
-		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 	}
 
@@ -169,7 +162,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public MemoryManager getMemoryManager() {
-		return memoryManager;
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
@@ -220,11 +213,6 @@ public class SavepointEnvironment implements Environment {
 	@Override
 	public void declineCheckpoint(long checkpointId, Throwable cause) {
 		throw new UnsupportedOperationException(ERROR_MSG);
-	}
-
-	@Override
-	public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
-		return new NoOpTaskOperatorEventGateway();
 	}
 
 	@Override
@@ -305,15 +293,6 @@ public class SavepointEnvironment implements Environment {
 				indexOfSubtask,
 				prioritizedOperatorSubtaskState);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  mocks / stand-ins
-	// ------------------------------------------------------------------------
-
-	private static final class NoOpTaskOperatorEventGateway implements TaskOperatorEventGateway {
-		@Override
-		public void sendOperatorEventToCoordinator(OperatorID operator, SerializedValue<OperatorEvent> event) {}
 	}
 }
 

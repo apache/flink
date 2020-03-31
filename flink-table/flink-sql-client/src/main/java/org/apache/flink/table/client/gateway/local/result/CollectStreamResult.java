@@ -19,11 +19,11 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.experimental.SocketStreamIterator;
@@ -38,10 +38,6 @@ import org.apache.flink.types.Row;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A result that works similarly to {@link DataStreamUtils#collect(DataStream)}.
@@ -50,25 +46,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class CollectStreamResult<C> extends BasicResult<C> implements DynamicResult<C> {
 
+	private final TypeInformation<Row> outputType;
 	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
 	private final CollectStreamTableSink collectTableSink;
 	private final ResultRetrievalThread retrievalThread;
-	private final ClassLoader classLoader;
-	private CompletableFuture<JobExecutionResult> jobExecutionResultFuture;
+	private final JobMonitoringThread monitoringThread;
+	private ProgramDeployer<C> deployer;
 
 	protected final Object resultLock;
-	protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
+	protected SqlExecutionException executionException;
 
-	public CollectStreamResult(
-			TableSchema tableSchema,
-			ExecutionConfig config,
-			InetAddress gatewayAddress,
-			int gatewayPort,
-			ClassLoader classLoader) {
+	public CollectStreamResult(RowTypeInfo outputType, TableSchema tableSchema, ExecutionConfig config,
+			InetAddress gatewayAddress, int gatewayPort) {
+		this.outputType = outputType;
+
 		resultLock = new Object();
 
 		// create socket stream iterator
-		final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, tableSchema.toRowType());
+		final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, outputType);
 		final TypeSerializer<Tuple2<Boolean, Row>> serializer = socketType.createSerializer(config);
 		try {
 			// pass gateway port and address such that iterator knows where to bind to
@@ -81,25 +76,22 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 		// pass binding address and port such that sink knows where to send to
 		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer, tableSchema);
 		retrievalThread = new ResultRetrievalThread();
-
-		this.classLoader = checkNotNull(classLoader);
+		monitoringThread = new JobMonitoringThread();
 	}
 
 	@Override
-	public void startRetrieval(ProgramDeployer deployer) {
+	public TypeInformation<Row> getOutputType() {
+		return outputType;
+	}
+
+	@Override
+	public void startRetrieval(ProgramDeployer<C> deployer) {
 		// start listener thread
 		retrievalThread.start();
 
-		jobExecutionResultFuture = deployer
-				.deploy()
-				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
-				.whenComplete((unused, throwable) -> {
-					if (throwable != null) {
-						executionException.compareAndSet(
-								null,
-								new SqlExecutionException("Error while submitting job.", throwable));
-					}
-				});
+		// start deployer
+		this.deployer = deployer;
+		monitoringThread.start();
 	}
 
 	@Override
@@ -111,25 +103,26 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 	public void close() {
 		retrievalThread.isRunning = false;
 		retrievalThread.interrupt();
+		monitoringThread.interrupt();
 		iterator.close();
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	protected <T> TypedResult<T> handleMissingResult() {
-
 		// check if the monitoring thread is still there
 		// we need to wait until we know what is going on
-		if (!jobExecutionResultFuture.isDone()) {
+		if (monitoringThread.isAlive()) {
 			return TypedResult.empty();
 		}
-
-		if (executionException.get() != null) {
-			throw executionException.get();
+		// the job finished with an exception
+		else if (executionException != null) {
+			throw executionException;
 		}
-
 		// we assume that a bounded job finished
-		return TypedResult.endOfStream();
+		else {
+			return TypedResult.endOfStream();
+		}
 	}
 
 	protected boolean isRetrieving() {
@@ -137,6 +130,20 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 	}
 
 	protected abstract void processRecord(Tuple2<Boolean, Row> change);
+
+	// --------------------------------------------------------------------------------------------
+
+	private class JobMonitoringThread extends Thread {
+
+		@Override
+		public void run() {
+			try {
+				deployer.run();
+			} catch (SqlExecutionException e) {
+				executionException = e;
+			}
+		}
+	}
 
 	// --------------------------------------------------------------------------------------------
 

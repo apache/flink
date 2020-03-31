@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 
 /**
@@ -42,8 +41,8 @@ public abstract class GroupWindow {
 	private final Expression timeField;
 
 	GroupWindow(Expression alias, Expression timeField) {
-		this.alias = ApiExpressionUtils.unwrapFromApi(alias);
-		this.timeField = ApiExpressionUtils.unwrapFromApi(timeField);
+		this.alias = alias;
+		this.timeField = timeField;
 	}
 
 	public Expression getAlias() {

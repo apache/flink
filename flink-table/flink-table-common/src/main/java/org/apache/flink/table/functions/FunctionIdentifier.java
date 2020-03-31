@@ -25,6 +25,7 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -95,9 +96,12 @@ public final class FunctionIdentifier implements Serializable {
 	/**
 	 * List of the component names of this function identifier.
 	 */
-	public List<String> toList() {
+	public List<String> getNames() {
 		if (objectIdentifier != null) {
-			return objectIdentifier.toList();
+			return Arrays.asList(
+				objectIdentifier.getCatalogName(),
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName());
 		} else if (functionName != null) {
 			return Collections.singletonList(functionName);
 		} else {

@@ -104,7 +104,7 @@ public class LogicalTypeAssignableTest {
 
 				{new TimeType(), new TimeType(9), false},
 
-				{new TimestampType(9), new TimestampType(3), true},
+				{new TimestampType(9), new TimestampType(3), false},
 
 				{new ZonedTimestampType(9), new ZonedTimestampType(3), false},
 

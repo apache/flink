@@ -671,7 +671,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				return false;
 			} else {
 				this.readPos = offset;
-				this.limit = read + offset;
+				this.limit = read;
 				return true;
 			}
 		}

@@ -32,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
  * A client that is scoped to a specific job.
  */
 @PublicEvolving
-public interface JobClient {
+public interface JobClient extends AutoCloseable {
 
 	/**
 	 * Returns the {@link JobID} that uniquely identifies the job this client is scoped to.
@@ -83,4 +83,9 @@ public interface JobClient {
 	 * @param userClassloader the classloader used to de-serialize the accumulators of the job.
 	 */
 	CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader);
+
+	@Override
+	default void close() {
+
+	}
 }

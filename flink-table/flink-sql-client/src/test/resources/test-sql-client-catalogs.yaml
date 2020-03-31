@@ -56,8 +56,6 @@ tables:
         type: INT
       - name: StringField2
         type: VARCHAR
-      - name: TimestampField3
-        type: TIMESTAMP
     connector:
       type: filesystem
       path: "$VAR_SOURCE_PATH2"
@@ -68,8 +66,6 @@ tables:
           type: INT
         - name: StringField2
           type: VARCHAR
-        - name: TimestampField3
-          type: TIMESTAMP
       line-delimiter: "\n"
       comment-prefix: "#"
   - name: TestView2

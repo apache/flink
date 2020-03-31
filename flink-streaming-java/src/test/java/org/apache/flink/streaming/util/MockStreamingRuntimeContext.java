@@ -49,7 +49,7 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
 			new MockStreamOperator(),
 			new MockEnvironmentBuilder()
 				.setTaskName("mockTask")
-				.setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+				.setMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
 				.build(),
 			Collections.emptyMap());
 
@@ -94,7 +94,7 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
 		}
 
 		@Override
-		public ProcessingTimeService getProcessingTimeService() {
+		protected ProcessingTimeService getProcessingTimeService() {
 			if (testProcessingTimeService == null) {
 				testProcessingTimeService = new TestProcessingTimeService();
 			}

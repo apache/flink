@@ -54,7 +54,7 @@ public class SourceFunctionUtil {
 		try (MockEnvironment environment =
 				new MockEnvironmentBuilder()
 					.setTaskName("MockTask")
-					.setManagedMemorySize(3 * 1024 * 1024)
+					.setMemorySize(3 * 1024 * 1024)
 					.setInputSplitProvider(new MockInputSplitProvider())
 					.setBufferSize(1024)
 					.build()) {

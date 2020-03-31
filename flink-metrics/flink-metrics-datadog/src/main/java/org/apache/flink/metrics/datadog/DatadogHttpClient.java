@@ -56,7 +56,7 @@ public class DatadogHttpClient {
 	private final String proxyHost;
 	private final int proxyPort;
 
-	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, boolean validateApiKey) {
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
@@ -75,9 +75,7 @@ public class DatadogHttpClient {
 
 		seriesUrl = String.format(SERIES_URL_FORMAT, apiKey);
 		validateUrl = String.format(VALIDATE_URL_FORMAT, apiKey);
-		if (validateApiKey) {
-			validateApiKey();
-		}
+		validateApiKey();
 	}
 
 	Proxy getProxy() {
@@ -101,8 +99,8 @@ public class DatadogHttpClient {
 		}
 	}
 
-	public void send(DSeries request) throws Exception {
-		String postBody = serialize(request);
+	public void send(DatadogHttpReporter.DatadogHttpRequest request) throws Exception {
+		String postBody = serialize(request.getSeries());
 
 		Request r = new Request.Builder()
 			.url(seriesUrl)

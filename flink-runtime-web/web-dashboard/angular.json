@@ -46,6 +46,11 @@
               "src/assets",
               {
                 "glob": "**/*",
+                "input": "./old-version/",
+                "output": "/old-version/"
+              },
+              {
+                "glob": "**/*",
                 "input": "./node_modules/monaco-editor/min/vs",
                 "output": "libs/vs"
               }

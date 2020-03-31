@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -31,9 +31,7 @@ import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 /**
  * The factory of {@link WatermarkAssignerOperator}.
  */
-public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFactory<BaseRow>
-	implements OneInputStreamOperatorFactory<BaseRow, BaseRow> {
-
+public class WatermarkAssignerOperatorFactory implements OneInputStreamOperatorFactory<BaseRow, BaseRow> {
 	private static final long serialVersionUID = 1L;
 
 	private final int rowtimeFieldIndex;
@@ -41,6 +39,8 @@ public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFact
 	private final long idleTimeout;
 
 	private final GeneratedWatermarkGenerator generatedWatermarkGenerator;
+
+	private ChainingStrategy strategy = ChainingStrategy.HEAD;
 
 	public WatermarkAssignerOperatorFactory(
 			int rowtimeFieldIndex,
@@ -55,13 +55,19 @@ public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFact
 	@Override
 	public StreamOperator createStreamOperator(StreamTask containingTask, StreamConfig config, Output output) {
 		WatermarkGenerator watermarkGenerator = generatedWatermarkGenerator.newInstance(containingTask.getUserCodeClassLoader());
-		WatermarkAssignerOperator operator = new WatermarkAssignerOperator(
-			rowtimeFieldIndex,
-			watermarkGenerator,
-			idleTimeout,
-			processingTimeService);
+		WatermarkAssignerOperator operator = new WatermarkAssignerOperator(rowtimeFieldIndex, watermarkGenerator, idleTimeout);
 		operator.setup(containingTask, config, output);
 		return operator;
+	}
+
+	@Override
+	public void setChainingStrategy(ChainingStrategy strategy) {
+		this.strategy = strategy;
+	}
+
+	@Override
+	public ChainingStrategy getChainingStrategy() {
+		return strategy;
 	}
 
 	@Override

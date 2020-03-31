@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -56,10 +57,7 @@ public class StreamTaskTimerTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		testHarness = startTestHarness();
-
-		StreamTask<?, ?> task = testHarness.getTask();
-		timeService = task.getProcessingTimeServiceFactory().createProcessingTimeService(
-			task.getMailboxExecutorFactory().createExecutor(testHarness.getStreamConfig().getChainIndex()));
+		timeService = testHarness.getTask().getProcessingTimeService(0);
 	}
 
 	@After
@@ -70,9 +68,38 @@ public class StreamTaskTimerTest extends TestLogger {
 	@Test
 	public void testOpenCloseAndTimestamps() {
 		// first one spawns thread
-		timeService.registerTimer(System.currentTimeMillis(), timestamp -> {});
+		timeService.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
+			@Override
+			public void onProcessingTime(long timestamp) {
+			}
+		});
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
+	}
+
+	@Test
+	public void timeTriggerIsCalledWithAcquiredCheckpointLock() throws Exception {
+		AtomicReference<Throwable> errorRef = new AtomicReference<>();
+		OneShotLatch latch = new OneShotLatch();
+		Object checkpointLock = testHarness.getTask().getCheckpointLock();
+		ProcessingTimeCallback callback = timestamp -> {
+			try {
+				assertTrue(Thread.holdsLock(checkpointLock));
+				latch.trigger();
+			}
+			catch (Throwable t) {
+				errorRef.compareAndSet(null, t);
+				latch.trigger();
+			}
+		};
+
+		timeService.registerTimer(System.currentTimeMillis(), callback);
+		latch.await();
+		verifyNoException(errorRef.get());
+
+		timeService.scheduleAtFixedRate(callback, 0, 100);
+		latch.await();
+		verifyNoException(errorRef.get());
 	}
 
 	@Test
@@ -174,7 +201,6 @@ public class StreamTaskTimerTest extends TestLogger {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		streamConfig.setChainIndex(0);
 		streamConfig.setStreamOperator(new StreamMap<String, String>(new DummyMapFunction<>()));
 
 		testHarness.invoke();

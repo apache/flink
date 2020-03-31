@@ -18,24 +18,23 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory, TableSourceFactoryContextImpl}
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder}
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.flink.table.planner.calcite.FlinkToRelContext
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
-import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
-import org.apache.flink.table.utils.TableConnectorUtils.generateRuntimeName
+
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableScan
 
-import java.util
 import java.util.{List => JList}
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 /**
   * A [[FlinkPreparingTableBase]] implementation which defines the interfaces required to translate
@@ -63,120 +62,71 @@ class CatalogSourceTable[T](
       .toMap
   }
 
-  override def getQualifiedName: JList[String] = {
-    // Do not explain source, we already have full names, table source should be created in toRel.
-    val ret = new util.ArrayList[String](names)
-    // Add class name to distinguish TableSourceTable.
-    val name = generateRuntimeName(getClass, catalogTable.getSchema.getFieldNames)
-    ret.add(s"catalog_source: [$name]")
-    ret
-  }
+  lazy val tableSource: TableSource[T] = findAndCreateTableSource().asInstanceOf[TableSource[T]]
+
+  override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
 
   override def toRel(context: RelOptTable.ToRelContext): RelNode = {
     val cluster = context.getCluster
-    val flinkContext = cluster
-        .getPlanner
-        .getContext
-        .unwrap(classOf[FlinkContext])
-
-    val tableSource = findAndCreateTableSource(flinkContext.getTableConfig.getConfiguration)
     val tableSourceTable = new TableSourceTable[T](
       relOptSchema,
-      schemaTable.getTableIdentifier,
+      names,
       rowType,
       statistic,
       tableSource,
       schemaTable.isStreamingMode,
       catalogTable)
-
-    // 1. push table scan
-
-    // Get row type of physical fields.
-    val physicalFields = getRowType
-      .getFieldList
-      .filter(f => !columnExprs.contains(f.getName))
-      .map(f => f.getIndex)
-      .toArray
-    // Copy this table with physical scan row type.
-    val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
-    val scan = LogicalTableScan.create(cluster, newRelTable)
-    val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema)
-    relBuilder.push(scan)
-
-    val toRexFactory = flinkContext.getSqlExprToRexConverterFactory
-
-    // 2. push computed column project
-    val fieldNames = rowType.getFieldNames.asScala
-    if (columnExprs.nonEmpty) {
+    if (columnExprs.isEmpty) {
+      LogicalTableScan.create(cluster, tableSourceTable)
+    } else {
+      // Get row type of physical fields.
+      val physicalFields = getRowType
+        .getFieldList
+        .filter(f => !columnExprs.contains(f.getName))
+        .map(f => f.getIndex)
+        .toArray
+      // Copy this table with physical scan row type.
+      val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
+      val scan = LogicalTableScan.create(cluster, newRelTable)
+      val toRelContext = context.asInstanceOf[FlinkToRelContext]
+      val relBuilder = toRelContext.createRelBuilder()
+      val fieldNames = rowType.getFieldNames.asScala
       val fieldExprs = fieldNames
-          .map { name =>
-            if (columnExprs.contains(name)) {
-              columnExprs(name)
-            } else {
-              s"`$name`"
-            }
-          }.toArray
-      val rexNodes = toRexFactory.create(newRelTable.getRowType).convertToRexNodes(fieldExprs)
-      relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
+        .map { name =>
+          if (columnExprs.contains(name)) {
+            columnExprs(name)
+          } else {
+            name
+          }
+        }.toArray
+      val rexNodes = toRelContext
+        .createSqlExprToRexConverter(newRelTable.getRowType)
+        .convertToRexNodes(fieldExprs)
+      relBuilder.push(scan)
+        .projectNamed(rexNodes.toList, fieldNames, true)
+        .build()
     }
-
-    // 3. push watermark assigner
-    val watermarkSpec = catalogTable
-      .getSchema
-      // we only support single watermark currently
-      .getWatermarkSpecs.asScala.headOption
-    if (schemaTable.isStreamingMode && watermarkSpec.nonEmpty) {
-      if (TableSourceValidation.hasRowtimeAttribute(tableSource)) {
-        throw new TableException(
-          "If watermark is specified in DDL, the underlying TableSource of connector" +
-              " shouldn't return an non-empty list of RowtimeAttributeDescriptor" +
-              " via DefinedRowtimeAttributes interface.")
-      }
-      val rowtime = watermarkSpec.get.getRowtimeAttribute
-      if (rowtime.contains(".")) {
-        throw new TableException(
-          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-      }
-      val rowtimeIndex = fieldNames.indexOf(rowtime)
-      val watermarkRexNode = toRexFactory
-          .create(rowType)
-          .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
-      relBuilder.watermark(rowtimeIndex, watermarkRexNode)
-    }
-
-    // 4. returns the final RelNode
-    relBuilder.build()
   }
 
-  /** Create the table source. */
-  private def findAndCreateTableSource(conf: ReadableConfig): TableSource[T] = {
+  /** Create the table source lazily. */
+  private def findAndCreateTableSource(): TableSource[_] = {
     val tableFactoryOpt = schemaTable.getTableFactory
-    val context = new TableSourceFactoryContextImpl(
-      schemaTable.getTableIdentifier, catalogTable, conf)
     val tableSource = if (tableFactoryOpt.isPresent) {
       tableFactoryOpt.get() match {
         case tableSourceFactory: TableSourceFactory[_] =>
-          tableSourceFactory.createTableSource(context)
-        case _ => throw new ValidationException("Cannot query a sink-only table. "
+          tableSourceFactory.createTableSource(
+            schemaTable.getTableIdentifier.toObjectPath,
+            catalogTable)
+        case _ => throw new TableException("Cannot query a sink-only table. "
           + "TableFactory provided by catalog must implement TableSourceFactory")
       }
     } else {
-      TableFactoryUtil.findAndCreateTableSource(context)
+      TableFactoryUtil.findAndCreateTableSource(catalogTable)
     }
-
-    // validation
-    val tableName = schemaTable.getTableIdentifier.asSummaryString();
-    tableSource match {
-      case ts: StreamTableSource[_] =>
-        if (!schemaTable.isStreamingMode && !ts.isBounded) {
-          throw new ValidationException("Cannot query on an unbounded source in batch mode, " +
-            s"but '$tableName' is unbounded.")
-        }
-      case _ =>
-        throw new ValidationException("Catalog tables only support "
-          + "StreamTableSource and InputFormatTableSource")
+    if (!tableSource.isInstanceOf[StreamTableSource[_]]) {
+      throw new TableException("Catalog tables support only "
+        + "StreamTableSource and InputFormatTableSource")
     }
-
-    tableSource.asInstanceOf[TableSource[T]]
+    tableSource
   }
 }

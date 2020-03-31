@@ -21,22 +21,22 @@ package org.apache.flink.orc;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
-import org.apache.orc.RecordReader;
+import org.apache.orc.Reader;
 import org.apache.orc.StripeInformation;
-import org.apache.orc.impl.RecordReaderImpl;
-import org.apache.orc.impl.SchemaEvolution;
+import org.apache.orc.TypeDescription;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
@@ -47,9 +47,8 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.IntStream;
 
-import static org.apache.commons.lang3.reflect.FieldUtils.readDeclaredField;
-import static org.apache.flink.orc.shim.OrcShimV200.getOffsetAndLengthForSplit;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -177,7 +176,7 @@ public class OrcRowInputFormatTest {
 	}
 
 	@Test
-	public void testProjectionMaskNested() throws Exception {
+	public void testProjectionMaskNested() throws IOException{
 		rowOrcInputFormat =
 			new OrcRowInputFormat(getPath(TEST_FILE_NESTED), TEST_SCHEMA_NESTED, new Configuration());
 
@@ -197,16 +196,11 @@ public class OrcRowInputFormatTest {
 			true, true, true, true, true, // nested field 9 is in
 			false, false, false, false, // nested field 10 is out
 			true, true, true, true, true}; // nested field 11 is in
-		assertArrayEquals(expected, getInclude(spy.getReader().getRecordReader()));
-	}
-
-	private static boolean[] getInclude(RecordReader reader) throws IllegalAccessException {
-		SchemaEvolution evolution = (SchemaEvolution) readDeclaredField(reader, "evolution", true);
-		return evolution.getReaderIncluded();
+		assertArrayEquals(expected, spy.getReader().getOptions().getInclude());
 	}
 
 	@Test
-	public void testSplitStripesGivenSplits() throws Exception {
+	public void testSplitStripesGivenSplits() throws IOException {
 		rowOrcInputFormat =
 			new OrcRowInputFormat(getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
 
@@ -216,34 +210,37 @@ public class OrcRowInputFormatTest {
 
 		spy.openInputFormat();
 		spy.open(splits[0]);
-		assertOffsetAndLen(spy.getReader(), 3L, 137005L);
+		assertOptions(spy.getReader(), 3L, 137005L);
 		spy.open(splits[1]);
-		assertOffsetAndLen(spy.getReader(), 137008L, 136182L);
+		assertOptions(spy.getReader(), 137008L, 136182L);
 		spy.open(splits[2]);
-		assertOffsetAndLen(spy.getReader(), 273190L, 123633L);
+		assertOptions(spy.getReader(), 273190L, 123633L);
 	}
 
-	@SuppressWarnings("unchecked")
-	private static List<StripeInformation> getStripes(RecordReader reader) throws IllegalAccessException {
-		return (List<StripeInformation>) readDeclaredField(reader, "stripes", true);
+	private static void assertOptions(OrcSplitReader reader, long offset, long length) {
+		Reader.Options options = reader.getOptions();
+		Assert.assertEquals(offset, options.getOffset());
+		Assert.assertEquals(length, options.getLength());
 	}
 
-	private static void assertOffsetAndLen(
-			OrcSplitReader reader, long offset, long length) throws IllegalAccessException {
-		List<StripeInformation> stripes = getStripes(reader.getRecordReader());
-		long min = Long.MAX_VALUE;
-		long max = Long.MIN_VALUE;
-		for (StripeInformation stripe : stripes) {
-			if (stripe.getOffset() < min) {
-				min = stripe.getOffset();
-			}
-			if (stripe.getOffset() + stripe.getLength() > max) {
-				max = stripe.getOffset() + stripe.getLength();
-			}
-		}
+	private static OrcRowSplitReader newReaderWithStripes(
+			List<StripeInformation> stripes, FileInputSplit split) throws IOException {
+		TypeDescription td = TypeDescription.fromString(TEST_SCHEMA_FLAT);
+		return new OrcRowSplitReader(
+				new Configuration(),
+				td,
+				IntStream.range(0, td.getChildren().size()).toArray(),
+				new ArrayList<>(),
+				1024,
+				split.getPath(),
+				split.getStart(),
+				split.getLength()) {
 
-		assertEquals(offset, min);
-		assertEquals(length, max - min);
+			@Override
+			List<StripeInformation> getStripes(Reader orcReader) {
+				return stripes;
+			}
+		};
 	}
 
 	@Test
@@ -272,17 +269,21 @@ public class OrcRowInputFormatTest {
 		stripes.add(stripe5);
 
 		// split ranging 2 stripes
-		assertEquals(new Tuple2<>(10L, 190L), getOffsetAndLengthForSplit(0, 150, stripes));
-
+		OrcRowSplitReader reader = newReaderWithStripes(
+				stripes, new FileInputSplit(0, new Path(getPath(TEST_FILE_FLAT)), 0, 150, new String[]{}));
+		assertOptions(reader, 10L, 190L);
 		// split ranging 0 stripes
-		assertEquals(new Tuple2<>(0L, 0L), getOffsetAndLengthForSplit(150, 10, stripes));
-
+		reader = newReaderWithStripes(
+				stripes, new FileInputSplit(1, new Path(getPath(TEST_FILE_FLAT)), 150, 10, new String[]{}));
+		assertOptions(reader, 0L, 0L);
 		// split ranging 1 stripe
-		assertEquals(new Tuple2<>(200L, 100L), getOffsetAndLengthForSplit(160, 41, stripes));
-
+		reader = newReaderWithStripes(
+				stripes, new FileInputSplit(2, new Path(getPath(TEST_FILE_FLAT)), 160, 41, new String[]{}));
+		assertOptions(reader, 200L, 100L);
 		// split ranging 2 stripe
-		assertEquals(new Tuple2<>(300L, 200L), getOffsetAndLengthForSplit(201, 299, stripes));
-
+		reader = newReaderWithStripes(
+				stripes, new FileInputSplit(3, new Path(getPath(TEST_FILE_FLAT)), 201, 299, new String[]{}));
+		assertOptions(reader, 300L, 200L);
 	}
 
 	@Test
@@ -420,7 +421,7 @@ public class OrcRowInputFormatTest {
 		spy.open(splits[0]);
 
 		// verify predicate configuration
-		SearchArgument sarg = getSearchArgument(spy.getReader().getRecordReader());
+		SearchArgument sarg = spy.getReader().getOptions().getSearchArgument();
 		assertNotNull(sarg);
 		assertEquals("(and leaf-0 leaf-1 leaf-2 leaf-3 leaf-4 leaf-5 leaf-6 leaf-7 leaf-8)", sarg.getExpression().toString());
 		assertEquals(9, sarg.getLeaves().size());
@@ -434,12 +435,6 @@ public class OrcRowInputFormatTest {
 		assertEquals("(EQUALS double1 -15.0)", leaves.get(6).toString());
 		assertEquals("(IS_NULL string1)", leaves.get(7).toString());
 		assertEquals("(EQUALS string1 hello)", leaves.get(8).toString());
-	}
-
-	private static SearchArgument getSearchArgument(RecordReader reader) throws IllegalAccessException {
-		RecordReaderImpl.SargApplier applier =
-				(RecordReaderImpl.SargApplier) readDeclaredField(reader, "sargApp", true);
-		return (SearchArgument) readDeclaredField(applier, "sarg", true);
 	}
 
 	@Test
@@ -466,7 +461,7 @@ public class OrcRowInputFormatTest {
 		spy.open(splits[0]);
 
 		// verify predicate configuration
-		SearchArgument sarg = getSearchArgument(spy.getReader().getRecordReader());
+		SearchArgument sarg = spy.getReader().getOptions().getSearchArgument();
 		assertNotNull(sarg);
 		assertEquals("(or leaf-0 leaf-1)", sarg.getExpression().toString());
 		assertEquals(2, sarg.getLeaves().size());
@@ -495,7 +490,7 @@ public class OrcRowInputFormatTest {
 		spy.open(splits[0]);
 
 		// verify predicate configuration
-		SearchArgument sarg = getSearchArgument(spy.getReader().getRecordReader());
+		SearchArgument sarg = spy.getReader().getOptions().getSearchArgument();
 		assertNotNull(sarg);
 		assertEquals("(not leaf-0)", sarg.getExpression().toString());
 		assertEquals(1, sarg.getLeaves().size());
@@ -923,33 +918,6 @@ public class OrcRowInputFormatTest {
 				assertNotNull(rowOrcInputFormat.nextRecord(null));
 				cnt++;
 			}
-		}
-		// check that all rows have been read
-		assertEquals(1920800, cnt);
-	}
-
-	@Test
-	public void testReadFileInManySplits() throws IOException {
-
-		rowOrcInputFormat = new OrcRowInputFormat(getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
-		rowOrcInputFormat.selectFields(0, 1);
-
-		FileInputSplit[] splits = rowOrcInputFormat.createInputSplits(4);
-		assertEquals(4, splits.length);
-		rowOrcInputFormat.openInputFormat();
-
-		long cnt = 0;
-		// read all splits
-		for (FileInputSplit split : splits) {
-
-			// open split
-			rowOrcInputFormat.open(split);
-			// read and count all rows
-			while (!rowOrcInputFormat.reachedEnd()) {
-				assertNotNull(rowOrcInputFormat.nextRecord(null));
-				cnt++;
-			}
-			rowOrcInputFormat.close();
 		}
 		// check that all rows have been read
 		assertEquals(1920800, cnt);

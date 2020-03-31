@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -48,9 +46,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class InputChannel {
 
 	protected final int channelIndex;
-
-	/** The info of the input channel to identify it globally within a task. */
-	protected final InputChannelInfo channelInfo;
 
 	protected final ResultPartitionID partitionId;
 
@@ -93,7 +88,6 @@ public abstract class InputChannel {
 
 		this.inputGate = checkNotNull(inputGate);
 		this.channelIndex = channelIndex;
-		this.channelInfo = new InputChannelInfo(inputGate.getGateIndex(), channelIndex);
 		this.partitionId = checkNotNull(partitionId);
 
 		this.initialBackoff = initial;
@@ -110,11 +104,6 @@ public abstract class InputChannel {
 
 	int getChannelIndex() {
 		return channelIndex;
-	}
-
-	@VisibleForTesting
-	InputChannelInfo getChannelInfo() {
-		return channelInfo;
 	}
 
 	public ResultPartitionID getPartitionId() {

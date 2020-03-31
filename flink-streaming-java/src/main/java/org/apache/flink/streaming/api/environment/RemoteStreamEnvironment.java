@@ -21,13 +21,14 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.RemoteEnvironmentConfigUtils;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
-import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
@@ -110,7 +111,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
 	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths) {
-		this(host, port, clientConfiguration, jarFiles, globalClasspaths, null);
+		this(host, port, clientConfiguration, jarFiles, null, null);
 	}
 
 	/**
@@ -146,7 +147,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@PublicEvolving
 	public RemoteStreamEnvironment(
-			final PipelineExecutorServiceLoader executorServiceLoader,
+			final ExecutorServiceLoader executorServiceLoader,
 			final String host,
 			final int port,
 			final Configuration clientConfiguration,
@@ -206,7 +207,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		// these should be set in the end to overwrite any values from the client config provided in the constructor.
-		effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote");
+		effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote-cluster");
 		effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
 
 		return effectiveConfiguration;
@@ -214,7 +215,17 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		return super.execute(streamGraph);
+		transformations.clear();
+		try {
+			return super.execute(streamGraph);
+		}
+		catch (ProgramInvocationException e) {
+			throw e;
+		}
+		catch (Exception e) {
+			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
+			throw new ProgramInvocationException("The program execution failed" + term, e);
+		}
 	}
 
 	@Override

@@ -37,7 +37,7 @@ public final class UnresolvedReferenceExpression implements Expression {
 
 	private final String name;
 
-	UnresolvedReferenceExpression(String name) {
+	public UnresolvedReferenceExpression(String name) {
 		this.name = Preconditions.checkNotNull(name);
 	}
 

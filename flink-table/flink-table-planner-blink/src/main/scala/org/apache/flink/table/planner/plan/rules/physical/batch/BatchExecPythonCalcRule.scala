@@ -41,7 +41,7 @@ class BatchExecPythonCalcRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val program = calc.getProgram
-    program.getExprList.asScala.exists(containsPythonCall(_))
+    program.getExprList.asScala.exists(containsPythonCall)
   }
 
   def convert(rel: RelNode): RelNode = {

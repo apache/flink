@@ -22,10 +22,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExceptionHandler;
 import org.apache.flink.runtime.operators.sort.IndexedSorter;
@@ -35,13 +36,13 @@ import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
 import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
-import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.slf4j.Logger;
@@ -51,6 +52,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
@@ -109,12 +111,15 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 	 * The memory segments used first for sorting and later for reading/pre-fetching
 	 * during the external merge.
 	 */
-	private final List<LazyMemorySegmentPool> sortReadMemory;
+	private final List<List<MemorySegment>> sortReadMemory;
 
 	/**
 	 * Records all sort buffer.
 	 */
 	private final List<BinaryInMemorySortBuffer> sortBuffers;
+
+	/** The memory manager through which memory is allocated and released. */
+	private final MemoryManager memoryManager;
 
 	// ------------------------------------------------------------------------
 	//                            Miscellaneous Fields
@@ -194,7 +199,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 			final Object owner, MemoryManager memoryManager, long reservedMemorySize,
 			IOManager ioManager, AbstractRowSerializer<BaseRow> inputSerializer,
 			BinaryRowSerializer serializer, NormalizedKeyComputer normalizedKeyComputer,
-			RecordComparator comparator, Configuration conf) {
+			RecordComparator comparator, Configuration conf) throws IOException {
 		this(owner, memoryManager, reservedMemorySize, ioManager,
 				inputSerializer, serializer, normalizedKeyComputer, comparator,
 				conf, AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue());
@@ -206,7 +211,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 			BinaryRowSerializer serializer,
 			NormalizedKeyComputer normalizedKeyComputer,
 			RecordComparator comparator, Configuration conf,
-			float startSpillingFraction) {
+			float startSpillingFraction) throws IOException {
 		int maxNumFileHandles = conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
 		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
 		this.compressionCodecFactory = this.compressionEnable
@@ -220,8 +225,8 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		checkArgument(maxNumFileHandles >= 2);
 		checkNotNull(ioManager);
 		checkNotNull(normalizedKeyComputer);
-		checkNotNull(memoryManager);
 		this.serializer = (BinaryRowSerializer) serializer.duplicate();
+		this.memoryManager = checkNotNull(memoryManager);
 		this.memorySegmentSize = memoryManager.getPageSize();
 
 		if (reservedMemorySize < SORTER_MIN_NUM_SORT_MEM) {
@@ -241,9 +246,19 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		}
 		final int numSegmentsPerSortBuffer = sortMemPages / numSortBuffers;
 		this.sortReadMemory = new ArrayList<>();
+		List<MemorySegment> readMemory;
+		try {
+			readMemory = memoryManager.allocatePages(owner, sortMemPages);
+		} catch (MemoryAllocationException e) {
+			LOG.error("Can't allocate {} pages from fixed memory pool.", sortMemPages, e);
+			throw new RuntimeException(e);
+		}
 
 		// circular circularQueues pass buffers between the threads
 		final CircularQueues circularQueues = new CircularQueues();
+
+		// allocate the sort buffers and fill empty queue with them
+		final Iterator<MemorySegment> segments = readMemory.iterator();
 
 		LOG.info("BinaryExternalSorter with initial memory segments {}, " +
 				"maxNumFileHandles({}), compressionEnable({}), compressionCodecFactory({}), compressionBlockSize({}).",
@@ -251,18 +266,19 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 				compressionEnable ? compressionCodecFactory.getClass() : null, compressionBlockSize);
 
 		this.sortBuffers = new ArrayList<>();
-		int totalBuffers = sortMemPages;
 		for (int i = 0; i < numSortBuffers; i++) {
 			// grab some memory
-			int sortSegments = Math.min(i == numSortBuffers - 1 ? Integer.MAX_VALUE : numSegmentsPerSortBuffer, totalBuffers);
-			totalBuffers -= sortSegments;
-			LazyMemorySegmentPool pool = new LazyMemorySegmentPool(owner, memoryManager, sortSegments);
-			this.sortReadMemory.add(pool);
+			final List<MemorySegment> sortSegments = new ArrayList<>(numSegmentsPerSortBuffer);
+			for (int k = (i == numSortBuffers - 1 ? Integer.MAX_VALUE : numSegmentsPerSortBuffer); k > 0 && segments
+					.hasNext(); k--) {
+				sortSegments.add(segments.next());
+			}
+			this.sortReadMemory.add(sortSegments);
 			final BinaryInMemorySortBuffer buffer = BinaryInMemorySortBuffer.createBuffer(
-					normalizedKeyComputer, inputSerializer, serializer, comparator, pool);
+					normalizedKeyComputer, inputSerializer, serializer, comparator, sortSegments);
 
 			// add to empty queue
-			CircularElement element = new CircularElement(i, buffer);
+			CircularElement element = new CircularElement(i, buffer, sortSegments);
 			circularQueues.empty.add(element);
 			this.sortBuffers.add(buffer);
 		}
@@ -306,7 +322,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 		// start the thread that handles merging from second storage
 		this.mergeThread = getMergingThread(
-				exceptionHandler, circularQueues, maxNumFileHandles, merger);
+			exceptionHandler, circularQueues, ioManager, maxNumFileHandles, merger);
 
 		// propagate the context class loader to the spawned threads
 		ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
@@ -437,12 +453,30 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 			// floating segments are released in `dispose()` method
 			this.sortBuffers.forEach(BinaryInMemorySortBuffer::dispose);
 			this.sortBuffers.clear();
-		} catch (Throwable e) {
-			LOG.info("error.", e);
+		} catch (Throwable ignored) {
+			LOG.info("error.", ignored);
 		}
 
-		sortReadMemory.forEach(LazyMemorySegmentPool::close);
+		releaseCoreSegments();
 		sortReadMemory.clear();
+	}
+
+	private void releaseCoreSegments() {
+		// NOTE: This method can only be called after disposing some buffers
+
+		List<MemorySegment> coreSegments = new ArrayList<>();
+		for (List<MemorySegment> segs : sortReadMemory) {
+			coreSegments.addAll(segs);
+		}
+
+		try {
+			if (!coreSegments.isEmpty()) {
+				this.memoryManager.release(coreSegments);
+			}
+			coreSegments.clear();
+		} catch (Throwable ignored) {
+			LOG.info("error.", ignored);
+		}
 	}
 
 	private ThreadBase getSortingThread(ExceptionHandler<IOException> exceptionHandler,
@@ -458,10 +492,9 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 	private MergingThread getMergingThread(
 			ExceptionHandler<IOException> exceptionHandler,
-			CircularQueues queues,
-			int maxNumFileHandles,
-			BinaryExternalMerger merger) {
-		return new MergingThread(exceptionHandler, queues, maxNumFileHandles, merger);
+			CircularQueues queues, IOManager ioManager,
+			int maxNumFileHandles, BinaryExternalMerger merger) {
+		return new MergingThread(exceptionHandler, queues, ioManager, maxNumFileHandles, merger);
 	}
 
 	public void write(BaseRow current) throws IOException {
@@ -623,15 +656,18 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 		final int id; // just for debug.
 		final BinaryInMemorySortBuffer buffer;
+		final List<MemorySegment> memory; // for release memory
 
-		private CircularElement() {
+		public CircularElement() {
 			this.id = -1;
 			this.buffer = null;
+			this.memory = null;
 		}
 
-		private CircularElement(int id, BinaryInMemorySortBuffer buffer) {
+		public CircularElement(int id, BinaryInMemorySortBuffer buffer, List<MemorySegment> memory) {
 			this.id = id;
 			this.buffer = buffer;
+			this.memory = memory;
 		}
 	}
 
@@ -1018,7 +1054,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 					}
 				}
 			}
-			sortReadMemory.forEach(LazyMemorySegmentPool::cleanCache);
+			releaseCoreSegments();
 		}
 	}
 
@@ -1028,16 +1064,18 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 	 */
 	private class MergingThread extends ThreadBase {
 
+		private final IOManager ioManager;                // I/O manager to create channels
+
 		private final int maxFanIn;
 
 		private final BinaryExternalMerger merger;
 
-		private MergingThread(
+		public MergingThread(
 				ExceptionHandler<IOException> exceptionHandler,
-				CircularQueues queues,
-				int maxNumFileHandles,
-				BinaryExternalMerger merger) {
+				CircularQueues queues, IOManager ioManager,
+				int maxNumFileHandles, BinaryExternalMerger merger) {
 			super(exceptionHandler, "SortMerger merging thread", queues);
+			this.ioManager = ioManager;
 			this.maxFanIn = maxNumFileHandles;
 			this.merger = merger;
 		}

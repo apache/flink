@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.SqlProperty
 import org.apache.flink.sql.parser.dml.RichSqlInsert
-import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.appendPartitionProjects
 
 import org.apache.calcite.plan.RelOptTable
@@ -46,14 +45,10 @@ class PreValidateReWriter(
     val typeFactory: RelDataTypeFactory) extends SqlBasicVisitor[Unit] {
   override def visit(call: SqlCall): Unit = {
     call match {
-      case r: RichSqlInsert if r.getStaticPartitions.nonEmpty => r.getSource match {
-        case select: SqlSelect =>
-          appendPartitionProjects(r, catalogReader, typeFactory, select, r.getStaticPartitions)
-        case source =>
-          throw new ValidationException(
-            s"INSERT INTO <table> PARTITION statement only support SELECT clause for now," +
-                s" '$source' is not supported yet.")
-      }
+      case r: RichSqlInsert if r.getStaticPartitions.nonEmpty
+        && r.getSource.isInstanceOf[SqlSelect] =>
+        appendPartitionProjects(r, catalogReader, typeFactory,
+          r.getSource.asInstanceOf[SqlSelect], r.getStaticPartitions)
       case _ =>
     }
   }

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 
 import org.junit.After;
 import org.junit.Test;
@@ -367,7 +366,7 @@ public class CheckpointBarrierTrackerTest {
 	//  Utils
 	// ------------------------------------------------------------------------
 	private static CheckpointedInputGate createBarrierTracker(int numberOfChannels, BufferOrEvent[] sequence) {
-		return createBarrierTracker(numberOfChannels, sequence, new DummyCheckpointInvokable());
+		return createBarrierTracker(numberOfChannels, sequence, null);
 	}
 
 	private static CheckpointedInputGate createBarrierTracker(

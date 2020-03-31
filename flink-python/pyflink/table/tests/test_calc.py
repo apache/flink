@@ -64,17 +64,18 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
     def test_from_element(self):
         t_env = self.t_env
         field_names = ["a", "b", "c", "d", "e", "f", "g", "h",
-                       "i", "j", "k", "l", "m", "n", "o", "p", "q", "r"]
+                       "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s"]
         field_types = [DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.STRING(),
                        DataTypes.STRING(), DataTypes.DATE(),
                        DataTypes.TIME(),
-                       DataTypes.TIMESTAMP(3),
-                       DataTypes.INTERVAL(DataTypes.SECOND(3)),
+                       DataTypes.TIMESTAMP(),
+                       DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
+                       DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND()),
                        DataTypes.ARRAY(DataTypes.DOUBLE()),
                        DataTypes.ARRAY(DataTypes.DOUBLE(False)),
                        DataTypes.ARRAY(DataTypes.STRING()),
                        DataTypes.ARRAY(DataTypes.DATE()),
-                       DataTypes.DECIMAL(38, 18),
+                       DataTypes.DECIMAL(10, 0),
                        DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
                                       DataTypes.FIELD("b", DataTypes.DOUBLE())]),
                        DataTypes.MAP(DataTypes.STRING(), DataTypes.DOUBLE()),
@@ -88,7 +89,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t_env.register_table_sink("Results", table_sink)
         t = t_env.from_elements(
             [(1, 1.0, "hi", "hello", datetime.date(1970, 1, 2), datetime.time(1, 0, 0),
-              datetime.datetime(1970, 1, 2, 0, 0),
+              datetime.datetime(1970, 1, 2, 0, 0), datetime.datetime(1970, 1, 2, 0, 0),
               datetime.timedelta(days=1, microseconds=10),
               [1.0, None], array.array("d", [1.0, 2.0]),
               ["abc"], [datetime.date(1970, 1, 2)], Decimal(1), Row("a", "b")(1, 2.0),
@@ -100,7 +101,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         actual = source_sink_utils.results()
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'
-                    '86400000,[1.0, null],[1.0, 2.0],[abc],[1970-01-02],'
+                    '1970-01-02 00:00:00.0,86400000,[1.0, null],[1.0, 2.0],[abc],[1970-01-02],'
                     '1,1,2.0,{key=1.0},[65, 66, 67, 68],[1.0, 2.0],[3.0, 4.0]']
         self.assert_equals(actual, expected)
 
@@ -109,17 +110,18 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
                                              .new_instance().use_blink_planner()
                                              .in_batch_mode().build())
         field_names = ["a", "b", "c", "d", "e", "f", "g", "h",
-                       "i", "j", "k", "l", "m", "n", "o", "p", "q"]
+                       "i", "j", "k", "l", "m", "n", "o", "p", "q", "r"]
         field_types = [DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.STRING(),
                        DataTypes.STRING(), DataTypes.DATE(),
                        DataTypes.TIME(),
-                       DataTypes.TIMESTAMP(3),
-                       DataTypes.INTERVAL(DataTypes.SECOND(3)),
+                       DataTypes.TIMESTAMP(),
+                       DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
+                       DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND()),
                        DataTypes.ARRAY(DataTypes.DOUBLE()),
                        DataTypes.ARRAY(DataTypes.DOUBLE(False)),
                        DataTypes.ARRAY(DataTypes.STRING()),
                        DataTypes.ARRAY(DataTypes.DATE()),
-                       DataTypes.DECIMAL(38, 18),
+                       DataTypes.DECIMAL(10, 0),
                        DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
                                       DataTypes.FIELD("b", DataTypes.DOUBLE())]),
                        DataTypes.MAP(DataTypes.STRING(), DataTypes.DOUBLE()),
@@ -133,7 +135,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t_env.register_table_sink("Results", table_sink)
         t = t_env.from_elements(
             [(1, 1.0, "hi", "hello", datetime.date(1970, 1, 2), datetime.time(1, 0, 0),
-              datetime.datetime(1970, 1, 2, 0, 0),
+              datetime.datetime(1970, 1, 2, 0, 0), datetime.datetime(1970, 1, 2, 0, 0),
               datetime.timedelta(days=1, microseconds=10),
               [1.0, None], array.array("d", [1.0, 2.0]),
               ["abc"], [datetime.date(1970, 1, 2)], Decimal(1), Row("a", "b")(1, 2.0),
@@ -145,7 +147,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         actual = source_sink_utils.results()
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'
-                    '86400000,[1.0, null],[1.0, 2.0],[abc],[1970-01-02],'
+                    '1970-01-02 00:00:00.0,86400000,[1.0, null],[1.0, 2.0],[abc],[1970-01-02],'
                     '1.000000000000000000,1,2.0,{key=1.0},[65, 66, 67, 68],[3.0, 4.0]']
         self.assert_equals(actual, expected)
 

@@ -69,11 +69,23 @@ public class Elasticsearch7ApiCallBridge implements ElasticsearchApiCallBridge<R
 	}
 
 	@Override
-	public RestHighLevelClient createClient(Map<String, String> clientConfig) {
+	public RestHighLevelClient createClient(Map<String, String> clientConfig) throws IOException {
 		RestClientBuilder builder = RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
 		restClientFactory.configureRestClientBuilder(builder);
 
 		RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Pinging Elasticsearch cluster via hosts {} ...", httpHosts);
+		}
+
+		if (!rhlClient.ping(RequestOptions.DEFAULT)) {
+			throw new RuntimeException("There are no reachable Elasticsearch nodes!");
+		}
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
+		}
 
 		return rhlClient;
 	}
@@ -127,20 +139,5 @@ public class Elasticsearch7ApiCallBridge implements ElasticsearchApiCallBridge<R
 			bulkProcessor,
 			flushOnCheckpoint,
 			numPendingRequestsRef);
-	}
-
-	@Override
-	public void verifyClientConnection(RestHighLevelClient client) throws IOException {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Pinging Elasticsearch cluster via hosts {} ...", httpHosts);
-		}
-
-		if (!client.ping(RequestOptions.DEFAULT)) {
-			throw new RuntimeException("There are no reachable Elasticsearch nodes!");
-		}
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Elasticsearch RestHighLevelClient is connected to {}", httpHosts.toString());
-		}
 	}
 }

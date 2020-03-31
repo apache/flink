@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 
@@ -39,19 +38,11 @@ public class AkkaRpcServiceConfiguration {
 
 	private final long maximumFramesize;
 
-	private final boolean captureAskCallStack;
-
-	public AkkaRpcServiceConfiguration(
-			@Nonnull Configuration configuration,
-			@Nonnull Time timeout,
-			long maximumFramesize,
-			boolean captureAskCallStack) {
-
+	public AkkaRpcServiceConfiguration(@Nonnull Configuration configuration, @Nonnull Time timeout, long maximumFramesize) {
 		checkArgument(maximumFramesize > 0L, "Maximum framesize must be positive.");
 		this.configuration = configuration;
 		this.timeout = timeout;
 		this.maximumFramesize = maximumFramesize;
-		this.captureAskCallStack = captureAskCallStack;
 	}
 
 	@Nonnull
@@ -68,18 +59,12 @@ public class AkkaRpcServiceConfiguration {
 		return maximumFramesize;
 	}
 
-	public boolean captureAskCallStack() {
-		return captureAskCallStack;
-	}
-
 	public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
 		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
 
 		final long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 
-		final boolean captureAskCallStacks = configuration.get(AkkaOptions.CAPTURE_ASK_CALLSTACK);
-
-		return new AkkaRpcServiceConfiguration(configuration, timeout, maximumFramesize, captureAskCallStacks);
+		return new AkkaRpcServiceConfiguration(configuration, timeout, maximumFramesize);
 	}
 
 	public static AkkaRpcServiceConfiguration defaultConfiguration() {

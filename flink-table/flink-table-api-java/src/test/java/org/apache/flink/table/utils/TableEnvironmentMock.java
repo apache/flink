@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.module.ModuleManager;
 
 /**
@@ -63,17 +65,24 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 	}
 
 	private static TableEnvironmentMock getInstance(boolean isStreamingMode) {
-		final TableConfig config = createTableConfig();
-		final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+		final CatalogManager catalogManager = createCatalogManager();
 		final ModuleManager moduleManager = new ModuleManager();
 		return new TableEnvironmentMock(
 			catalogManager,
 			moduleManager,
-			config,
+			createTableConfig(),
 			createExecutor(),
-			createFunctionCatalog(config, catalogManager, moduleManager),
+			createFunctionCatalog(catalogManager, moduleManager),
 			createPlanner(),
 			isStreamingMode);
+	}
+
+	private static CatalogManager createCatalogManager() {
+		return new CatalogManager(
+			EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
+			new GenericInMemoryCatalog(
+				EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
+				EnvironmentSettings.DEFAULT_BUILTIN_DATABASE));
 	}
 
 	private static TableConfig createTableConfig() {
@@ -84,11 +93,8 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 		return new ExecutorMock();
 	}
 
-	private static FunctionCatalog createFunctionCatalog(
-			TableConfig config,
-			CatalogManager catalogManager,
-			ModuleManager moduleManager) {
-		return new FunctionCatalog(config, catalogManager, moduleManager);
+	private static FunctionCatalog createFunctionCatalog(CatalogManager catalogManager, ModuleManager moduleManager) {
+		return new FunctionCatalog(catalogManager, moduleManager);
 	}
 
 	private static PlannerMock createPlanner() {

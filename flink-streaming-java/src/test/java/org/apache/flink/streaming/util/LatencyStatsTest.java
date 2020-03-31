@@ -187,6 +187,11 @@ public class LatencyStatsTest extends TestLogger {
 		}
 
 		@Override
+		public char getDelimiter(int index) {
+			return 0;
+		}
+
+		@Override
 		public int getNumberReporters() {
 			return 0;
 		}

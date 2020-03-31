@@ -26,7 +26,7 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import javax.annotation.Nullable;
 
 /**
  * The {@link CheckpointBarrierHandler} reacts to checkpoint barrier arriving from the input channels.
@@ -36,12 +36,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CheckpointBarrierHandler {
 
 	/** The listener to be notified on complete checkpoints. */
+	@Nullable
 	private final AbstractInvokable toNotifyOnCheckpoint;
 
-	private long latestCheckpointStartDelayNanos;
-
-	public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
-		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
+	public CheckpointBarrierHandler(@Nullable AbstractInvokable toNotifyOnCheckpoint) {
+		this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 	}
 
 	public abstract void releaseBlocksAndResetBarriers();
@@ -73,25 +72,22 @@ public abstract class CheckpointBarrierHandler {
 
 	public abstract long getAlignmentDurationNanos();
 
-	public long getCheckpointStartDelayNanos() {
-		return latestCheckpointStartDelayNanos;
-	}
-
 	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
 
 	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws Exception {
-		CheckpointMetaData checkpointMetaData =
-			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
+		if (toNotifyOnCheckpoint != null) {
+			CheckpointMetaData checkpointMetaData =
+				new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
-		CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
-			.setBytesBufferedInAlignment(bufferedBytes)
-			.setAlignmentDurationNanos(alignmentDurationNanos)
-			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
+			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+				.setBytesBufferedInAlignment(bufferedBytes)
+				.setAlignmentDurationNanos(alignmentDurationNanos);
 
-		toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
-			checkpointMetaData,
-			checkpointBarrier.getCheckpointOptions(),
-			checkpointMetrics);
+			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+				checkpointMetaData,
+				checkpointBarrier.getCheckpointOptions(),
+				checkpointMetrics);
+		}
 	}
 
 	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws Exception {
@@ -100,12 +96,8 @@ public abstract class CheckpointBarrierHandler {
 	}
 
 	protected void notifyAbort(long checkpointId, CheckpointException cause) throws Exception {
-		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
-	}
-
-	protected void markCheckpointStart(long checkpointCreationTimestamp) {
-		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
-			0,
-			System.currentTimeMillis() - checkpointCreationTimestamp);
+		if (toNotifyOnCheckpoint != null) {
+			toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
+		}
 	}
 }

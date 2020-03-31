@@ -20,16 +20,12 @@ package org.apache.flink.table.functions.hive.conversion;
 
 import org.apache.flink.annotation.Internal;
 
-import javax.annotation.Nullable;
-
-import java.io.Serializable;
-
 /**
  * Interface to convert Flink object to Hive object.
  */
 @FunctionalInterface
 @Internal
-public interface HiveObjectConversion extends Serializable {
+public interface HiveObjectConversion {
 
-	@Nullable Object toHiveObject(@Nullable Object o);
+	Object toHiveObject(Object o);
 }

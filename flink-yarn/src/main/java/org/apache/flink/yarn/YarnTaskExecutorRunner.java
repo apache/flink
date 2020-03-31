@@ -21,12 +21,18 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
+import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -41,6 +47,7 @@ import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
@@ -73,24 +80,39 @@ public class YarnTaskExecutorRunner {
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		runTaskManagerSecurely(args);
+		run(args);
 	}
 
 	/**
 	 * The instance entry point for the YARN task executor. Obtains user group information and calls
-	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)} as a
+	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)}  as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
 	 */
-	private static void runTaskManagerSecurely(String[] args) {
+	private static void run(String[] args) {
 		try {
 			LOG.debug("All environment variables: {}", ENV);
 
 			final String currDir = ENV.get(Environment.PWD.key());
 			LOG.info("Current working Directory: {}", currDir);
 
-			final Configuration configuration = TaskManagerRunner.loadConfiguration(args);
+      // Some dynamic properties for task manager are added to args, such as managed memory size.
+			final CommandLineParser<ClusterConfiguration> commandLineParser =
+				new CommandLineParser<>(new ClusterConfigurationParserFactory());
+
+			ClusterConfiguration clusterConfiguration = null;
+			try {
+				clusterConfiguration = commandLineParser.parse(args);
+			} catch (FlinkParseException e) {
+				LOG.error("Could not parse command line arguments {}.", args, e);
+				commandLineParser.printHelp(YarnTaskExecutorRunner.class.getSimpleName());
+				System.exit(1);
+			}
+
+			final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(
+				clusterConfiguration.getDynamicProperties());
+			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir, dynamicProperties);
 
 			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
@@ -122,31 +144,36 @@ public class YarnTaskExecutorRunner {
 
 		setupConfigurationFromVariables(configuration, currDir, variables);
 
-		SecurityUtils.install(new SecurityConfiguration(configuration));
+		installSecurityContext(configuration);
 	}
 
 	private static void setupConfigurationFromVariables(Configuration configuration, String currDir, Map<String, String> variables) throws IOException {
 		final String yarnClientUsername = variables.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
-		final String localKeytabPath = variables.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
-		LOG.info("TM: local keytab path obtained {}", localKeytabPath);
+		final String remoteKeytabPath = variables.get(YarnConfigKeys.KEYTAB_PATH);
+		LOG.info("TM: remote keytab path obtained {}", remoteKeytabPath);
 
-		final String keytabPrincipal = variables.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-		LOG.info("TM: keytab principal obtained {}", keytabPrincipal);
+		final String remoteKeytabPrincipal = variables.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
+		LOG.info("TM: remote keytab principal obtained {}", remoteKeytabPrincipal);
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
-		String keytabPath = Utils.resolveKeytabPath(currDir, localKeytabPath);
+		String keytabPath = null;
+		if (remoteKeytabPath != null) {
+			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+			keytabPath = f.getAbsolutePath();
+			LOG.info("keytab path: {}", keytabPath);
+		}
 
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
 		LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 				currentUser.getShortUserName(), yarnClientUsername);
 
-		if (keytabPath != null && keytabPrincipal != null) {
+		if (keytabPath != null && remoteKeytabPrincipal != null) {
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 		}
 
 		// use the hostname passed by job manager
@@ -154,5 +181,10 @@ public class YarnTaskExecutorRunner {
 		if (taskExecutorHostname != null) {
 			configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
 		}
+	}
+
+	private static void installSecurityContext(Configuration configuration) throws Exception {
+		SecurityConfiguration sc = new SecurityConfiguration(configuration);
+		SecurityUtils.install(sc);
 	}
 }

@@ -46,11 +46,6 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 		this.slotNumber = slotNumber;
 	}
 
-	private SlotID(ResourceID resourceID) {
-		this.resourceId = checkNotNull(resourceID, "ResourceID must not be null");
-		this.slotNumber = -1;
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -87,13 +82,6 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 
 	@Override
 	public String toString() {
-		return resourceId + "_" + (slotNumber >= 0 ? slotNumber : "dynamic");
-	}
-
-	/**
-	 * Generate a SlotID without actual slot index for dynamic slot allocation.
-	 */
-	public static SlotID generateDynamicSlotID(ResourceID resourceID) {
-		return new SlotID(resourceID);
+		return resourceId + "_" + slotNumber;
 	}
 }

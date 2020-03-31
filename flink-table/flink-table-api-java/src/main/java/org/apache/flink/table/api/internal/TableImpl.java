@@ -119,7 +119,9 @@ public class TableImpl implements Table {
 
 	@Override
 	public Table select(Expression... fields) {
-		List<Expression> expressionsWithResolvedCalls = preprocessExpressions(fields);
+		List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
+			.map(f -> f.accept(lookupResolver))
+			.collect(Collectors.toList());
 		CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 			expressionsWithResolvedCalls
 		);
@@ -462,7 +464,9 @@ public class TableImpl implements Table {
 	}
 
 	private Table addColumnsOperation(boolean replaceIfExist, List<Expression> fields) {
-		List<Expression> expressionsWithResolvedCalls = preprocessExpressions(fields);
+		List<Expression> expressionsWithResolvedCalls = fields.stream()
+			.map(f -> f.accept(lookupResolver))
+			.collect(Collectors.toList());
 		CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 			expressionsWithResolvedCalls
 		);
@@ -559,16 +563,6 @@ public class TableImpl implements Table {
 		return new TableImpl(tableEnvironment, operation, operationTreeBuilder, lookupResolver);
 	}
 
-	private List<Expression> preprocessExpressions(List<Expression> expressions) {
-		return preprocessExpressions(expressions.toArray(new Expression[0]));
-	}
-
-	private List<Expression> preprocessExpressions(Expression[] expressions) {
-		return Arrays.stream(expressions)
-			.map(f -> f.accept(lookupResolver))
-			.collect(Collectors.toList());
-	}
-
 	private static final class GroupedTableImpl implements GroupedTable {
 
 		private final TableImpl table;
@@ -588,7 +582,9 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
+			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
+				.map(f -> f.accept(table.lookupResolver))
+				.collect(Collectors.toList());
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -720,8 +716,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public WindowGroupedTable groupBy(Expression... fields) {
-			List<Expression> fieldsWithoutWindow = table.preprocessExpressions(fields)
-				.stream()
+			List<Expression> fieldsWithoutWindow = Arrays.stream(fields)
 				.filter(f -> !window.getAlias().equals(f))
 				.collect(Collectors.toList());
 			if (fields.length != fieldsWithoutWindow.size() + 1) {
@@ -754,7 +749,9 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
+			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
+				.map(f -> f.accept(table.lookupResolver))
+				.collect(Collectors.toList());
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -819,7 +816,9 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
+			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
+				.map(f -> f.accept(table.lookupResolver))
+				.collect(Collectors.toList());
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -874,7 +873,9 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
+			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
+				.map(f -> f.accept(table.lookupResolver))
+				.collect(Collectors.toList());
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);

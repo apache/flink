@@ -21,7 +21,6 @@ package org.apache.flink.api.common.time;
 import org.apache.flink.annotation.Internal;
 
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 
 /**
  * This class stores a deadline, as obtained via {@link #now()} or from {@link #plus(Duration)}.
@@ -46,19 +45,6 @@ public class Deadline {
 	 */
 	public Duration timeLeft() {
 		return Duration.ofNanos(Math.subtractExact(timeNanos, System.nanoTime()));
-	}
-
-	/**
-	 * Returns the time left between the deadline and now. If no time is left, a {@link TimeoutException} will be thrown.
-	 *
-	 * @throws TimeoutException if no time is left
-	 */
-	public Duration timeLeftIfAny() throws TimeoutException {
-		long nanos = Math.subtractExact(timeNanos, System.nanoTime());
-		if (nanos <= 0) {
-			throw new TimeoutException();
-		}
-		return Duration.ofNanos(nanos);
 	}
 
 	/**

@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.runtime.hashtable;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.HeaderlessChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
-import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.util.MathUtils;
 
@@ -72,15 +73,33 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	private static final int MIN_NUM_MEMORY_SEGMENTS = 33;
 	protected final int initPartitionFanOut;
 
+	/**
+	 * The owner to associate with the memory segment.
+	 */
+	private Object owner;
 	private final int avgRecordLen;
 	protected final long buildRowCount;
 
 	/**
 	 * The total reserved number of memory segments available to the hash join.
 	 */
-	protected final int totalNumBuffers;
+	protected final int reservedNumBuffers;
+	/**
+	 * The total max number of memory segments available to the hash join.
+	 */
+	private final int maxNumBuffers;
 
-	protected final LazyMemorySegmentPool internalPool;
+	/**
+	 * record number of the allocated segments from the floating pool.
+	 */
+	protected int allocatedFloatingNum;
+	private final int perRequestNumBuffers;
+	private final MemoryManager memManager;
+
+	/**
+	 * The free memory segments currently available to the hash join.
+	 */
+	public final ArrayList<MemorySegment> availableMemory;
 
 	/**
 	 * The I/O manager used to instantiate writers for the spilled partitions.
@@ -154,6 +173,8 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 			Object owner,
 			MemoryManager memManager,
 			long reservedMemorySize,
+			long preferredMemorySize,
+			long perRequestMemorySize,
 			IOManager ioManager,
 			int avgRecordLen,
 			long buildRowCount,
@@ -167,13 +188,25 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 		this.compressionBlockSize = (int) MemorySize.parse(
 			conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)).getBytes();
 
+		this.owner = owner;
 		this.avgRecordLen = avgRecordLen;
 		this.buildRowCount = buildRowCount;
 		this.tryDistinctBuildRow = tryDistinctBuildRow;
-		this.totalNumBuffers = (int) (reservedMemorySize / memManager.getPageSize());
+		this.reservedNumBuffers = (int) (reservedMemorySize / memManager.getPageSize());
 		// some sanity checks first
-		checkArgument(totalNumBuffers >= MIN_NUM_MEMORY_SEGMENTS);
-		this.internalPool = new LazyMemorySegmentPool(owner, memManager, totalNumBuffers);
+		checkArgument(reservedNumBuffers >= MIN_NUM_MEMORY_SEGMENTS);
+		this.maxNumBuffers = (int) (preferredMemorySize / memManager.getPageSize());
+		this.perRequestNumBuffers = (int) (perRequestMemorySize / memManager.getPageSize());
+		this.availableMemory = new ArrayList<>(this.reservedNumBuffers);
+		try {
+			List<MemorySegment> allocates = memManager.allocatePages(owner, this.reservedNumBuffers);
+			this.availableMemory.addAll(allocates);
+			allocates.clear();
+		} catch (MemoryAllocationException e) {
+			LOG.error("Out of memory", e);
+			throw new RuntimeException(e);
+		}
+		this.memManager = memManager;
 		this.ioManager = ioManager;
 
 		this.segmentSize = memManager.getPageSize();
@@ -194,8 +227,10 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
 		this.closed.set(false);
 
-		LOG.info(String.format("Initialize hash table with %d memory segments, each size [%d], the memory %d MB.",
-				totalNumBuffers, segmentSize, (long) totalNumBuffers * segmentSize / 1024 / 1024));
+		LOG.info(String.format("Initialize hash table with %d memory segments, each size [%d], the reserved memory %d" +
+						" MB, the max memory %d MB, per allocate {} segments from floating memory pool.",
+				reservedNumBuffers, segmentSize, (long) reservedNumBuffers * segmentSize / 1024 / 1024,
+				(long) maxNumBuffers * segmentSize / 1024 / 1024), perRequestNumBuffers);
 	}
 
 	/**
@@ -205,7 +240,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	 * can be used because two Buffers are needed to read the data.
 	 */
 	protected int maxNumPartition() {
-		return (internalPool.freePages() + buildSpillRetBufferNumbers) / 2;
+		return (availableMemory.size() + buildSpillRetBufferNumbers) / 2;
 	}
 
 	/**
@@ -251,10 +286,10 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	 * @return The next buffer to be used by the hash-table, or null, if no buffer remains.
 	 */
 	public MemorySegment getNextBuffer() {
-		// check if the pool directly offers memory
-		MemorySegment segment = this.internalPool.nextSegment();
-		if (segment != null) {
-			return segment;
+		// check if the list directly offers memory
+		int s = this.availableMemory.size();
+		if (s > 0) {
+			return this.availableMemory.remove(s - 1);
 		}
 
 		// check if there are write behind buffers that actually are to be used for the hash table
@@ -271,12 +306,36 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 			// grab as many more buffers as are available directly
 			MemorySegment currBuff;
 			while (this.buildSpillRetBufferNumbers > 0 && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
-				returnPage(currBuff);
+				this.availableMemory.add(currBuff);
 				this.buildSpillRetBufferNumbers--;
 			}
 			return toReturn;
 		} else {
-			return null;
+			if (reservedNumBuffers + allocatedFloatingNum >= maxNumBuffers) {
+				//no more memory.
+				return null;
+			} else {
+				int requestNum = Math.min(perRequestNumBuffers, maxNumBuffers - reservedNumBuffers -
+						allocatedFloatingNum);
+				//apply for much more memory.
+				try {
+					List<MemorySegment> allocates = memManager.allocatePages(owner, requestNum);
+					this.availableMemory.addAll(allocates);
+					allocatedFloatingNum += allocates.size();
+					allocates.clear();
+					LOG.info("{} allocate {} floating segments successfully!", owner, requestNum);
+				} catch (MemoryAllocationException e) {
+					LOG.warn("BinaryHashMap can't allocate {} floating pages, and now used {} pages",
+							requestNum, reservedNumBuffers + allocatedFloatingNum, e);
+					//can't allocate much more memory.
+					return null;
+				}
+				if (this.availableMemory.size() > 0) {
+					return this.availableMemory.remove(this.availableMemory.size() - 1);
+				} else {
+					return null;
+				}
+			}
 		}
 	}
 
@@ -333,11 +392,6 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	}
 
 	@Override
-	public int freePages() {
-		throw new UnsupportedOperationException("Contains spill memories, it is hard to estimate free pages.");
-	}
-
-	@Override
 	public int pageSize() {
 		return segmentSize;
 	}
@@ -346,7 +400,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	public void returnAll(List<MemorySegment> memory) {
 		for (MemorySegment segment : memory) {
 			if (segment != null) {
-				returnPage(segment);
+				availableMemory.add(segment);
 			}
 		}
 	}
@@ -365,13 +419,13 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	 * @param minRequiredAvailable The minimum number of buffers that needs to be reclaimed.
 	 */
 	public void ensureNumBuffersReturned(final int minRequiredAvailable) {
-		if (minRequiredAvailable > internalPool.freePages() + this.buildSpillRetBufferNumbers) {
+		if (minRequiredAvailable > this.availableMemory.size() + this.buildSpillRetBufferNumbers) {
 			throw new IllegalArgumentException("More buffers requested available than totally available.");
 		}
 
 		try {
-			while (internalPool.freePages() < minRequiredAvailable) {
-				returnPage(this.buildSpillReturnBuffers.take());
+			while (this.availableMemory.size() < minRequiredAvailable) {
+				this.availableMemory.add(this.buildSpillReturnBuffers.take());
 				this.buildSpillRetBufferNumbers--;
 			}
 		} catch (InterruptedException iex) {
@@ -406,7 +460,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 		// return the write-behind buffers
 		for (int i = 0; i < this.buildSpillRetBufferNumbers; i++) {
 			try {
-				returnPage(this.buildSpillReturnBuffers.take());
+				this.availableMemory.add(this.buildSpillReturnBuffers.take());
 			} catch (InterruptedException iex) {
 				throw new RuntimeException("Hashtable closing was interrupted");
 			}
@@ -418,7 +472,8 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
 	public void free() {
 		if (this.closed.get()) {
-			freeCurrent();
+			memManager.release(availableMemory);
+			allocatedFloatingNum = 0;
 		} else {
 			throw new IllegalStateException("Cannot release memory until BinaryHashTable is closed!");
 		}
@@ -428,23 +483,27 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	 * Free the memory not used.
 	 */
 	public void freeCurrent() {
-		internalPool.cleanCache();
+		int beforeReleaseNum = availableMemory.size();
+		memManager.release(availableMemory);
+		allocatedFloatingNum -= (beforeReleaseNum - availableMemory.size());
 	}
 
-	LazyMemorySegmentPool getInternalPool() {
-		return this.internalPool;
+	@VisibleForTesting
+	public List<MemorySegment> getFreedMemory() {
+		return this.availableMemory;
 	}
 
-	public void returnPage(MemorySegment segment) {
-		internalPool.returnPage(segment);
+	public void free(MemorySegment segment) {
+		this.availableMemory.add(segment);
 	}
 
 	public int remainBuffers() {
-		return internalPool.freePages() + buildSpillRetBufferNumbers;
+		return availableMemory.size() + buildSpillRetBufferNumbers;
 	}
 
 	public long getUsedMemoryInBytes() {
-		return (totalNumBuffers - internalPool.freePages()) * ((long) internalPool.pageSize());
+		return (reservedNumBuffers + allocatedFloatingNum - availableMemory.size()) *
+				((long) memManager.getPageSize());
 	}
 
 	public long getNumSpillFiles() {
@@ -459,7 +518,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	 * Give up to one-sixth of the memory of the bucket area.
 	 */
 	public int maxInitBufferOfBucketArea(int partitions) {
-		return Math.max(1, ((totalNumBuffers - 2) / 6) / partitions);
+		return Math.max(1, ((reservedNumBuffers - 2) / 6) / partitions);
 	}
 
 	protected List<MemorySegment> readAllBuffers(FileIOChannel.ID id, int blockCount) throws IOException {
@@ -471,7 +530,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 				ioManager, id, retSegments,
 				compressionEnable, compressionCodecFactory, compressionBlockSize, segmentSize);
 		for (int i = 0; i < blockCount; i++) {
-			reader.readBlock(internalPool.nextSegment());
+			reader.readBlock(availableMemory.remove(availableMemory.size() - 1));
 		}
 		reader.closeAndDelete();
 
@@ -500,10 +559,4 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 		return code >= 0 ? code : -(code + 1);
 	}
 
-	/**
-	 * Partition level hash again, for avoid two layer hash conflict.
-	 */
-	static int partitionLevelHash(int hash) {
-		return hash ^ (hash >>> 16);
-	}
 }

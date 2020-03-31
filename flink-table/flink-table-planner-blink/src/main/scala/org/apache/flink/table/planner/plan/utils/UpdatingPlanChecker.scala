@@ -38,14 +38,12 @@ object UpdatingPlanChecker {
   }
 
   /** Extracts the unique keys of the table produced by the plan. */
-  def getUniqueKeyFields(
-      relNode: RelNode,
-      planner: StreamPlanner,
-      sinkFieldNames: Array[String]): Option[Array[Array[String]]] = {
+  def getUniqueKeyFields(relNode: RelNode, planner: StreamPlanner): Option[Array[Array[String]]] = {
+    val rowType = relNode.getRowType
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
     if (uniqueKeys != null && uniqueKeys.size() > 0) {
-      Some(uniqueKeys.filter(_.nonEmpty).map(_.toArray.map(sinkFieldNames)).toArray)
+      Some(uniqueKeys.filter(_.nonEmpty).map(_.toArray.map(rowType.getFieldNames.get)).toArray)
     } else {
       None
     }

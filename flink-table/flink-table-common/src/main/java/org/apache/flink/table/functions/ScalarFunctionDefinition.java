@@ -18,22 +18,18 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * A "marker" function definition of a user-defined scalar function that uses the old type system
- * stack.
+ * The function definition of an user-defined scalar function.
  *
  * <p>This class can be dropped once we introduce a new type inference.
  */
-@Internal
+@PublicEvolving
 public final class ScalarFunctionDefinition implements FunctionDefinition {
 
 	private final String name;
@@ -44,10 +40,6 @@ public final class ScalarFunctionDefinition implements FunctionDefinition {
 		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
 	}
 
-	public String getName() {
-		return name;
-	}
-
 	public ScalarFunction getScalarFunction() {
 		return scalarFunction;
 	}
@@ -55,11 +47,6 @@ public final class ScalarFunctionDefinition implements FunctionDefinition {
 	@Override
 	public FunctionKind getKind() {
 		return FunctionKind.SCALAR;
-	}
-
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory factory) {
-		throw new TableException("Functions implemented for the old type system are not supported.");
 	}
 
 	@Override

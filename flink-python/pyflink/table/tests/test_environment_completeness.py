@@ -43,13 +43,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
             'getCompletionHints',
             'create',
             'loadModule',
-            'unloadModule',
-            'createTemporarySystemFunction',
-            'dropTemporarySystemFunction',
-            'createFunction',
-            'dropFunction',
-            'createTemporaryFunction',
-            'dropTemporaryFunction'}
+            'unloadModule'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

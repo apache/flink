@@ -19,9 +19,6 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
 
 /**
@@ -131,10 +128,5 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
 	@Override
 	public final FunctionKind getKind() {
 		return FunctionKind.TABLE_AGGREGATE;
-	}
-
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Table aggregate functions are not updated to the new type system yet.");
 	}
 }

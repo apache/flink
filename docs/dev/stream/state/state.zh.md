@@ -304,39 +304,13 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 #### 过期数据的清理
 
-默认情况下，过期数据会在读取的时候被删除，例如 `ValueState#value`，同时会有后台线程定期清理（如果 StateBackend 支持的话）。可以通过 `StateTtlConfig` 配置关闭后台清理：
+默认情况下，仅在用户读取过期数据时才会删除过对应的状态，例如调用 `ValueState.value()`。
 
+<span class="label label-danger">注意</span> 默认情况下，如果不显示读取过期数据，则不会进行删除，可能导致状态持续增加。这种行为在未来可能会进行改变。
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-import org.apache.flink.api.common.state.StateTtlConfig;
+##### 全量快照时清理
 
-StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .disableCleanupInBackground()
-    .build();
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-import org.apache.flink.api.common.state.StateTtlConfig
-
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .disableCleanupInBackground
-    .build
-{% endhighlight %}
-</div>
-</div>
-
-可以按照如下所示配置更细粒度的后台清理策略。当前的实现中 `HeapStateBackend` 依赖增量数据清理，`RocksDBStateBackend` 利用压缩过滤器进行后台清理。
-
-#### 全量快照时进行清理
-
-另外，你可以启用全量快照时进行清理的策略，这可以减少整个快照的大小。当前实现中不会清理本地的状态，但从上次快照恢复时，不会恢复那些已经删除的过期数据。
-该策略可以通过 `StateTtlConfig` 配置进行配置：
+此外，你可以在进行全量快照时进行清理，这将减少快照的大小。 当前实现中不会清除本地状态，但是在从先前快照恢复时则会移除过期数据。可以通过 `StateTtlConfig` 配置：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -351,7 +325,7 @@ StateTtlConfig ttlConfig = StateTtlConfig
 {% endhighlight %}
 </div>
 
- <div data-lang="scala" markdown="1">
+<div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.state.StateTtlConfig
 import org.apache.flink.api.common.time.Time
@@ -364,17 +338,46 @@ val ttlConfig = StateTtlConfig
 </div>
 </div>
 
-这种策略在 `RocksDBStateBackend` 的增量 checkpoint 模式下无效。
+这个配置对 RocksDB 增量 checkpoint 无效。
 
 **注意:**
-- 这种清理方式可以在任何时候通过 `StateTtlConfig` 启用或者关闭，比如在从 savepoint 恢复时。
+- 这种清理方式可以在任何时候通过  `StateTtlConfig` 启用或者关闭，比如在从 savepoint 恢复时。
+
+#### Cleanup in background
+
+Besides cleanup in full snapshot, you can also activate the cleanup in background. The following option
+will activate a default background cleanup in StateTtlConfig if it is supported for the used backend:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupInBackground()
+    .build();
+{% endhighlight %}
+</div>
+ <div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupInBackground
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
+Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
 
 ##### 增量数据清理
 
 另外可以选择增量式清理状态数据，在状态访问或/和处理时进行。如果某个状态开启了该清理策略，则会在存储后端保留一个所有状态的惰性全局迭代器。
 每次触发增量清理时，从迭代器中选择已经过期的数进行清理。
 
-该特性可以通过 `StateTtlConfig` 进行配置：
+该特性可以通过 `StateTtlConfig` 进行启用：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -397,8 +400,8 @@ val ttlConfig = StateTtlConfig
 </div>
 </div>
 
-该策略有两个参数。 第一个是每次清理时检查状态的条目数，在每个状态访问时触发。第二个参数表示是否在处理每条记录时触发清理。
-Heap backend 默认会检查 5 条状态，并且关闭在每条记录时触发清理。
+该策略有两个参数。 第一个是每次清理时检查状态的条目数。如果启用，则始终按每个状态访问触发。第二个参数表示是否在处理每条记录时触发清理。
+If you enable the default background cleanup then this strategy will be activated for heap backend with 5 checked entries and without cleanup per record processing.
 
 **注意:**
 - 如果没有 state 访问，也没有处理数据，则不会清理过期数据。
@@ -409,10 +412,11 @@ Heap backend 默认会检查 5 条状态，并且关闭在每条记录时触发�
 
 ##### 在 RocksDB 压缩时清理
 
-如果使用 RocksDB state backend，则会启用 Flink 为 RocksDB 定制的压缩过滤器。RocksDB 会周期性的对数据进行合并压缩从而减少存储空间。
-Flink 提供的 RocksDB 压缩过滤器会在压缩时过滤掉已经过期的状态数据。
+如果使用 RocksDB state backend，还支持 Flink 为 RocksDB 定制的压缩过滤器。RocksDB 会周期性的对数据进行合并压缩从而减少存储空间。
+Flink 压缩过滤器会在压缩时过滤掉已经过期的状态数据。
 
-该特性可以通过 `StateTtlConfig` 进行配置：
+该特性默认是关闭的，可以通过 Flink 的配置项 `state.backend.rocksdb.ttl.compaction.filter.enabled` 或者调用 `RocksDBStateBackend::enableTtlCompactionFilter`
+启用该特性。然后通过如下方式让任何具有 TTL 配置的状态使用过滤器：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -438,10 +442,13 @@ val ttlConfig = StateTtlConfig
 </div>
 </div>
 
-Flink 处理一定条数的状态数据后，会使用当前时间戳来检测 RocksDB 中的状态是否已经过期，
-你可以通过 `StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries)` 方法指定处理状态的条数。
-时间戳更新的越频繁，状态的清理越及时，但由于压缩会有调用 JNI 的开销，因此会影响整体的压缩性能。
-RocksDB backend 的默认后台清理策略会每处理 1000 条数据进行一次。
+RocksDB compaction filter will query current timestamp, used to check expiration, from Flink every time
+after processing certain number of state entries.
+You can change it and pass a custom value to
+`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries)` method.
+Updating the timestamp more often can improve cleanup speed
+but it decreases compaction performance because it uses JNI call from native code.
+If you enable the default background cleanup then this strategy will be activated for RocksDB backend and the current timestamp will be queried each time 1000 entries have been processed.
 
 你还可以通过配置开启 RocksDB 过滤器的 debug 日志：
 `log4j.logger.org.rocksdb.FlinkCompactionFilter=DEBUG`

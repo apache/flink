@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.StreamOperatorWrapper;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
@@ -134,8 +133,10 @@ public class StreamOperatorChainingTest {
 
 			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
-			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
-				operatorWrapper.getStreamOperator().open();
+			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+				if (operator != null) {
+					operator.open();
+				}
 			}
 
 			headOperator.processElement(new StreamRecord<>(1));
@@ -150,7 +151,7 @@ public class StreamOperatorChainingTest {
 	private MockEnvironment createMockEnvironment(String taskName) {
 		return new MockEnvironmentBuilder()
 			.setTaskName(taskName)
-			.setManagedMemorySize(3 * 1024 * 1024)
+			.setMemorySize(3 * 1024 * 1024)
 			.setInputSplitProvider(new MockInputSplitProvider())
 			.setBufferSize(1024)
 			.build();
@@ -253,8 +254,10 @@ public class StreamOperatorChainingTest {
 
 			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
-			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
-				operatorWrapper.getStreamOperator().open();
+			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+				if (operator != null) {
+					operator.open();
+				}
 			}
 
 			headOperator.processElement(new StreamRecord<>(1));

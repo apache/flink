@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -33,7 +34,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -91,7 +91,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
 			rocksDBStateDownloader.transferAllStateDataToDirectory(
 				incrementalKeyedStateHandle,
-				temporaryFolder.newFolder().toPath(),
+				new Path(temporaryFolder.newFolder().toURI()),
 				new CloseableRegistry());
 			fail();
 		} catch (Exception e) {
@@ -133,13 +133,13 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 				privateStates,
 				handles.get(0));
 
-		Path dstPath = temporaryFolder.newFolder().toPath();
+		Path dstPath = new Path(temporaryFolder.newFolder().toURI());
 		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
 			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, dstPath, new CloseableRegistry());
 		}
 
 		for (int i = 0; i < contentNum; ++i) {
-			assertStateContentEqual(contents[i], dstPath.resolve(String.format("sharedState%d", i)));
+			assertStateContentEqual(contents[i], new Path(dstPath, String.format("sharedState%d", i)));
 		}
 	}
 

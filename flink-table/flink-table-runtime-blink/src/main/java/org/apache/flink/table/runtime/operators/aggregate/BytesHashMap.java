@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.aggregate;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
-import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.MutableObjectIterator;
@@ -109,6 +109,8 @@ public class BytesHashMap {
 	 */
 	private final LookupInfo reuseLookInfo;
 
+	private final MemoryManager memoryManager;
+
 	/**
 	 * Used as a reused object when retrieve the map's value by key and iteration.
 	 */
@@ -118,7 +120,7 @@ public class BytesHashMap {
 	 */
 	private BinaryRow reusedKey;
 
-	private final LazyMemorySegmentPool memoryPool;
+	private final List<MemorySegment> freeMemorySegments;
 	private List<MemorySegment> bucketSegments;
 
 	private long numElements = 0;
@@ -157,7 +159,12 @@ public class BytesHashMap {
 			boolean inferBucketMemory) {
 		this.segmentSize = memoryManager.getPageSize();
 		this.reservedNumBuffers = (int) (memorySize / segmentSize);
-		this.memoryPool = new LazyMemorySegmentPool(owner, memoryManager, reservedNumBuffers);
+		this.memoryManager = memoryManager;
+		try {
+			this.freeMemorySegments = memoryManager.allocatePages(owner, reservedNumBuffers);
+		} catch (MemoryAllocationException e) {
+			throw new IllegalArgumentException("BytesHashMap can't allocate " + reservedNumBuffers + " pages", e);
+		}
 		this.numBucketsPerSegment = segmentSize / BUCKET_SIZE;
 		this.numBucketsPerSegmentBits = MathUtils.log2strict(this.numBucketsPerSegment);
 		this.numBucketsPerSegmentMask = (1 << this.numBucketsPerSegmentBits) - 1;
@@ -352,7 +359,7 @@ public class BytesHashMap {
 		}
 		this.bucketSegments = new ArrayList<>(numBucketSegments);
 		for (int i = 0; i < numBucketSegments; i++) {
-			bucketSegments.add(i, memoryPool.nextSegment());
+			bucketSegments.add(i, freeMemorySegments.remove(freeMemorySegments.size() - 1));
 		}
 
 		resetBucketSegments(this.bucketSegments);
@@ -384,13 +391,14 @@ public class BytesHashMap {
 		List<MemorySegment> newBucketSegments = new ArrayList<>(required);
 
 		try {
-			int numAllocatedSegments = required - memoryPool.freePages();
+			int freeNumSegments = freeMemorySegments.size();
+			int numAllocatedSegments = required - freeNumSegments;
 			if (numAllocatedSegments > 0) {
 				throw new MemoryAllocationException();
 			}
 			int needNumFromFreeSegments = required - newBucketSegments.size();
 			for (int end = needNumFromFreeSegments; end > 0; end--) {
-				newBucketSegments.add(memoryPool.nextSegment());
+				newBucketSegments.add(freeMemorySegments.remove(freeMemorySegments.size() - 1));
 			}
 
 			setBucketVariables(newBucketSegments);
@@ -429,7 +437,7 @@ public class BytesHashMap {
 			}
 		}
 		LOG.info("The rehash take {} ms for {} segments", (System.currentTimeMillis() - reHashStartTime), required);
-		this.memoryPool.returnAll(this.bucketSegments);
+		this.freeMemorySegments.addAll(this.bucketSegments);
 		this.bucketSegments = newBucketSegments;
 	}
 
@@ -483,7 +491,7 @@ public class BytesHashMap {
 		this.bucketSegments.clear();
 		recordArea.release();
 		if (!reservedRecordMemory) {
-			memoryPool.close();
+			memoryManager.release(freeMemorySegments);
 		}
 		numElements = 0;
 		destructiveIterator = null;
@@ -499,15 +507,12 @@ public class BytesHashMap {
 		resetBucketSegments(bucketSegments);
 		numElements = 0;
 		destructiveIterator = null;
-		LOG.info(
-				"reset BytesHashMap with record memory segments {}, {} in bytes, init allocating {} for bucket area.",
-				memoryPool.freePages(),
-				memoryPool.freePages() * segmentSize,
-				bucketSegments.size());
+		LOG.info("reset BytesHashMap with record memory segments {}, {} in bytes, init allocating {} for bucket area.",
+				freeMemorySegments.size(), freeMemorySegments.size() * segmentSize, bucketSegments.size());
 	}
 
 	private void returnSegments(List<MemorySegment> segments) {
-		memoryPool.returnAll(segments);
+		freeMemorySegments.addAll(segments);
 	}
 
 	// ----------------------- Record Area -----------------------
@@ -519,7 +524,7 @@ public class BytesHashMap {
 		private final SimpleCollectingOutputView outView;
 
 		RecordArea() {
-			this.outView = new SimpleCollectingOutputView(segments, memoryPool, segmentSize);
+			this.outView = new SimpleCollectingOutputView(segments, new RecordAreaMemorySource(), segmentSize);
 			this.inView = new RandomAccessInputView(segments, segmentSize);
 		}
 
@@ -534,6 +539,20 @@ public class BytesHashMap {
 			// reset segmentNum and positionInSegment
 			outView.reset();
 			inView.setReadPosition(0);
+		}
+
+		// ----------------------- Memory Management -----------------------
+
+		private final class RecordAreaMemorySource implements MemorySegmentSource {
+			@Override
+			public MemorySegment nextSegment() {
+				int s = freeMemorySegments.size();
+				if (s > 0) {
+					return freeMemorySegments.remove(s - 1);
+				} else {
+					return null;
+				}
+			}
 		}
 
 		// ----------------------- Append -----------------------

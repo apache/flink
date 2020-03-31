@@ -52,11 +52,7 @@ public enum RocksDBProperty {
 	EstimatePendingCompactionBytes("estimate-pending-compaction-bytes"),
 	NumRunningCompactions("num-running-compactions"),
 	NumRunningFlushes("num-running-flushes"),
-	ActualDelayedWriteRate("actual-delayed-write-rate"),
-	IsWriteStopped("is-write-stopped"),
-	BlockCacheCapacity("block-cache-capacity"),
-	BlockCacheUsage("block-cache-usage"),
-	BlockCachePinnedUsage("block-cache-pinned-usage");
+	ActualDelayedWriteRate("actual-delayed-write-rate");
 
 	private static final String ROCKS_DB_PROPERTY_FORMAT = "rocksdb.%s";
 

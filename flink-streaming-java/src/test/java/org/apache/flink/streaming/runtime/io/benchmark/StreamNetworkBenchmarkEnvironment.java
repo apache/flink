@@ -50,6 +50,7 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
 
@@ -141,7 +142,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			receiverEnv.start();
 		}
 
-		gateFactory = new SingleInputGateBenchmarkFactory(
+		gateFactory = new SingleInputGateFactory(
 			location,
 			receiverEnv.getConfiguration(),
 			receiverEnv.getConnectionManager(),
@@ -157,12 +158,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		suppressExceptions(receiverEnv::close);
 	}
 
-	/**
-	 * Note: It should be guaranteed that {@link #createResultPartitionWriter(int)} has been
-	 * called before creating the receiver. Otherwise it might cause unexpected behaviors when
-	 * {@link org.apache.flink.runtime.io.network.partition.PartitionNotFoundException} happens
-	 * in {@link SingleInputGateBenchmarkFactory.TestRemoteInputChannel}.
-	 */
 	public SerializingLongReceiver createReceiver() throws Exception {
 		TaskManagerLocation senderLocation = new TaskManagerLocation(
 			ResourceID.generate(),
@@ -221,20 +216,20 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	}
 
 	private InputGate createInputGate(TaskManagerLocation senderLocation) throws Exception {
-		InputGate[] gates = new InputGate[partitionIds.length];
-		for (int gateIndex = 0; gateIndex < gates.length; ++gateIndex) {
+		InputGate[] gates = new InputGate[channels];
+		for (int channel = 0; channel < channels; ++channel) {
 			final InputGateDeploymentDescriptor gateDescriptor = createInputGateDeploymentDescriptor(
 				senderLocation,
-				gateIndex,
+				channel,
 				location);
 
-			final InputGate gate = createInputGateWithMetrics(gateFactory, gateDescriptor, gateIndex);
+			final InputGate gate = createInputGateWithMetrics(gateFactory, gateDescriptor, channel);
 
 			gate.setup();
-			gates[gateIndex] = gate;
+			gates[channel] = gate;
 		}
 
-		if (gates.length > 1) {
+		if (channels > 1) {
 			return new UnionInputGate(gates);
 		} else {
 			return gates[0];
@@ -243,32 +238,28 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 	private InputGateDeploymentDescriptor createInputGateDeploymentDescriptor(
 			TaskManagerLocation senderLocation,
-			int gateIndex,
+			int consumedSubpartitionIndex,
 			ResourceID localLocation) {
 
-		final ShuffleDescriptor[] channelDescriptors = new ShuffleDescriptor[channels];
-		for (int channelIndex = 0; channelIndex < channels; ++channelIndex) {
-			channelDescriptors[channelIndex] = createShuffleDescriptor(
-				localMode, partitionIds[gateIndex], localLocation, senderLocation, channelIndex);
-		}
+		final ShuffleDescriptor[] channelDescriptors = Arrays.stream(partitionIds)
+			.map(partitionId ->
+				createShuffleDescriptor(localMode, partitionId, localLocation, senderLocation, consumedSubpartitionIndex))
+			.toArray(ShuffleDescriptor[]::new);
 
 		return new InputGateDeploymentDescriptor(
 			dataSetID,
 			ResultPartitionType.PIPELINED_BOUNDED,
-			// 0 is used because TestRemoteInputChannel and TestLocalInputChannel will
-			// ignore this and use channelIndex instead when requesting a subpartition
-			0,
+			consumedSubpartitionIndex,
 			channelDescriptors);
 	}
 
 	private InputGate createInputGateWithMetrics(
 		SingleInputGateFactory gateFactory,
 		InputGateDeploymentDescriptor gateDescriptor,
-		int gateIndex) {
+		int channelIndex) {
 
 		final SingleInputGate singleGate = gateFactory.create(
-			"receiving task[" + gateIndex + "]",
-			gateIndex,
+			"receiving task[" + channelIndex + "]",
 			gateDescriptor,
 			SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 			InputChannelTestUtils.newUnregisteredInputChannelMetrics());
@@ -281,11 +272,11 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			ResultPartitionID resultPartitionID,
 			ResourceID location,
 			TaskManagerLocation senderLocation,
-			int connectionIndex) {
+			int channel) {
 		final NettyShuffleDescriptorBuilder builder = NettyShuffleDescriptorBuilder.newBuilder()
 			.setId(resultPartitionID)
 			.setProducerInfoFromTaskManagerLocation(senderLocation)
-			.setConnectionIndex(connectionIndex);
+			.setConnectionIndex(channel);
 		return localMode ? builder.setProducerLocation(location).buildLocal() : builder.buildRemote();
 	}
 }

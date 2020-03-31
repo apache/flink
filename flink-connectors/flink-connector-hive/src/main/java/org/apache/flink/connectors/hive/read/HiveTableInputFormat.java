@@ -18,18 +18,17 @@
 
 package org.apache.flink.connectors.hive.read;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.InputFormat;
@@ -81,10 +80,9 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 
 	private transient long currentReadCount = 0L;
 
-	@VisibleForTesting
-	protected transient SplitReader reader;
+	private transient SplitReader reader;
 
-	private boolean useMapRedReader;
+	private transient Configuration parameters;
 
 	public HiveTableInputFormat(
 			JobConf jobConf,
@@ -92,8 +90,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			List<HiveTablePartition> partitions,
 			int[] projectedFields,
 			long limit,
-			String hiveVersion,
-			boolean useMapRedReader) {
+			String hiveVersion) {
 		super(jobConf.getCredentials());
 		this.partitionKeys = catalogTable.getPartitionKeys();
 		this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
@@ -105,81 +102,23 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		this.jobConf = new JobConf(jobConf);
 		int rowArity = catalogTable.getSchema().getFieldCount();
 		selectedFields = projectedFields != null ? projectedFields : IntStream.range(0, rowArity).toArray();
-		this.useMapRedReader = useMapRedReader;
 	}
 
 	@Override
 	public void configure(org.apache.flink.configuration.Configuration parameters) {
+		this.parameters = parameters;
 	}
 
 	@Override
 	public void open(HiveTableInputSplit split) throws IOException {
-		HiveTablePartition partition = split.getHiveTablePartition();
-		if (!useMapRedReader && useOrcVectorizedRead(partition)) {
+		if (!parameters.getBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER) &&
+				useOrcVectorizedRead(split.getHiveTablePartition())) {
 			this.reader = new HiveVectorizedOrcSplitReader(
-					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
-		} else if (!useMapRedReader && useParquetVectorizedRead(partition)) {
-			this.reader = new HiveVectorizedParquetSplitReader(
-					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
+					jobConf, fieldNames, fieldTypes, selectedFields, split);
 		} else {
-			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split,
-					HiveShimLoader.loadHiveShim(hiveVersion));
+			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split);
 		}
 		currentReadCount = 0L;
-	}
-
-	private boolean isVectorizationUnsupported(LogicalType t) {
-		switch (t.getTypeRoot()) {
-			case CHAR:
-			case VARCHAR:
-			case BOOLEAN:
-			case BINARY:
-			case VARBINARY:
-			case DECIMAL:
-			case TINYINT:
-			case SMALLINT:
-			case INTEGER:
-			case BIGINT:
-			case FLOAT:
-			case DOUBLE:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				return false;
-			case TIMESTAMP_WITH_TIME_ZONE:
-			case INTERVAL_YEAR_MONTH:
-			case INTERVAL_DAY_TIME:
-			case ARRAY:
-			case MULTISET:
-			case MAP:
-			case ROW:
-			case DISTINCT_TYPE:
-			case STRUCTURED_TYPE:
-			case NULL:
-			case RAW:
-			case SYMBOL:
-			default:
-				return true;
-		}
-	}
-
-	private boolean useParquetVectorizedRead(HiveTablePartition partition) {
-		boolean isParquet = partition.getStorageDescriptor().getSerdeInfo().getSerializationLib()
-				.toLowerCase().contains("parquet");
-		if (!isParquet) {
-			return false;
-		}
-
-		for (int i : selectedFields) {
-			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
-				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
-				return false;
-			}
-		}
-
-		LOG.info("Use flink parquet ColumnarRow reader.");
-		return true;
 	}
 
 	private boolean useOrcVectorizedRead(HiveTablePartition partition) {
@@ -189,10 +128,45 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			return false;
 		}
 
+		if (hiveVersion.startsWith("1.")) {
+			LOG.info("Fallback to hadoop mapred reader, unsupported hive version: " + hiveVersion);
+			return false;
+		}
+
 		for (int i : selectedFields) {
-			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
-				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
-				return false;
+			switch (fieldTypes[i].getLogicalType().getTypeRoot()) {
+				case CHAR:
+				case VARCHAR:
+				case BOOLEAN:
+				case BINARY:
+				case VARBINARY:
+				case DECIMAL:
+				case TINYINT:
+				case SMALLINT:
+				case INTEGER:
+				case BIGINT:
+				case FLOAT:
+				case DOUBLE:
+				case DATE:
+				case TIME_WITHOUT_TIME_ZONE:
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+				case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+					break;
+				case TIMESTAMP_WITH_TIME_ZONE:
+				case INTERVAL_YEAR_MONTH:
+				case INTERVAL_DAY_TIME:
+				case ARRAY:
+				case MULTISET:
+				case MAP:
+				case ROW:
+				case DISTINCT_TYPE:
+				case STRUCTURED_TYPE:
+				case NULL:
+				case RAW:
+				case SYMBOL:
+				default:
+					LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
+					return false;
 			}
 		}
 
@@ -274,7 +248,6 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		out.writeObject(selectedFields);
 		out.writeObject(limit);
 		out.writeObject(hiveVersion);
-		out.writeBoolean(useMapRedReader);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -296,6 +269,5 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		selectedFields = (int[]) in.readObject();
 		limit = (long) in.readObject();
 		hiveVersion = (String) in.readObject();
-		useMapRedReader = in.readBoolean();
 	}
 }

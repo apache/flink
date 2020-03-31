@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.types.inference.TypeInference;
-
 import java.util.Set;
 
 /**
@@ -31,11 +28,6 @@ public class TestGenericUDF extends UserDefinedFunction {
 	@Override
 	public FunctionKind getKind() {
 		return FunctionKind.SCALAR;
-	}
-
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new UnsupportedOperationException();
 	}
 
 	@Override

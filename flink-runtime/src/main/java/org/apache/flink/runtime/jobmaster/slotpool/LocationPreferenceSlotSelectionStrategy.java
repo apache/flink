@@ -74,7 +74,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
 		SlotInfoAndResources bestCandidate = null;
 		Locality bestCandidateLocality = Locality.UNKNOWN;
-		double bestCandidateScore = Double.NEGATIVE_INFINITY;
+		double bestCandidateScore = Double.MIN_VALUE;
 
 		for (SlotInfoAndResources candidate : availableSlots) {
 

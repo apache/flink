@@ -123,11 +123,6 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 	}
 
 	@Override
-	public void close() {
-
-	}
-
-	@Override
 	public MiniClusterClient.MiniClusterId getClusterId() {
 		return MiniClusterId.INSTANCE;
 	}

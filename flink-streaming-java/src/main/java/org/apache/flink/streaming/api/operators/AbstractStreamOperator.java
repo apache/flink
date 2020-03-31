@@ -155,7 +155,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- time handler ------------------
 
-	protected transient ProcessingTimeService processingTimeService;
+	private transient ProcessingTimeService processingTimeService;
 	protected transient InternalTimeServiceManager<?> timeServiceManager;
 
 	// ---------------- two-input operator watermarks ------------------
@@ -174,6 +174,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		final Environment environment = containingTask.getEnvironment();
 		this.container = containingTask;
+		this.processingTimeService = containingTask.getProcessingTimeService(config.getChainIndex());
 		this.config = config;
 		try {
 			OperatorMetricGroup operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
@@ -231,15 +232,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
-	}
-
-	/**
-	 * @deprecated The {@link ProcessingTimeService} instance should be passed by the operator
-	 * constructor and this method will be removed along with {@link SetupableStreamOperator}.
-	 */
-	@Deprecated
-	public void setProcessingTimeService(ProcessingTimeService processingTimeService) {
-		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 	}
 
 	@Override
@@ -566,7 +558,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * Returns the {@link ProcessingTimeService} responsible for getting the current
 	 * processing time and registering timers.
 	 */
-	public ProcessingTimeService getProcessingTimeService() {
+	protected ProcessingTimeService getProcessingTimeService() {
 		return processingTimeService;
 	}
 
@@ -680,6 +672,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  Metrics

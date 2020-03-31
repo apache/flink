@@ -97,4 +97,8 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 
 	}
 
+	@Override
+	public void emitDataStream(DataStream<Row> dataStream) {
+		consumeDataStream(dataStream);
+	}
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.expressions;
 
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -74,7 +73,7 @@ public abstract class DeclarativeExpressionResolver extends ExpressionDefaultVis
 			}
 		} else if (expression instanceof UnresolvedCallExpression) {
 			UnresolvedCallExpression unresolvedCall = (UnresolvedCallExpression) expression;
-			return resolver.resolve(ApiExpressionUtils.unresolvedCall(
+			return resolver.resolve(new UnresolvedCallExpression(
 				unresolvedCall.getFunctionDefinition(),
 				unresolvedCall.getChildren().stream()
 					.map(c -> c.accept(DeclarativeExpressionResolver.this))

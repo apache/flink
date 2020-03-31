@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
-
+import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;

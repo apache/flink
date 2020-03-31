@@ -42,7 +42,7 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(data => this.metricsService.getWatermarks(data.job.jid, data.vertex!.id))
+        flatMap(data => this.metricsService.getWatermarks(data.job.jid, data.vertex!.id, data.vertex!.parallelism))
       )
       .subscribe(
         data => {

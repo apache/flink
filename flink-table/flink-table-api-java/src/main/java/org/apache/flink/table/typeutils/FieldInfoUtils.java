@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
@@ -155,7 +154,7 @@ public class FieldInfoUtils {
 	 * used if the input type has a defined field order (tuple, case class, Row) and no of fields
 	 * references a field of the input type.
 	 */
-	private static boolean isReferenceByPosition(CompositeType<?> ct, Expression[] fields) {
+	public static boolean isReferenceByPosition(CompositeType<?> ct, Expression[] fields) {
 		if (!(ct instanceof TupleTypeInfoBase)) {
 			return false;
 		}
@@ -225,10 +224,7 @@ public class FieldInfoUtils {
 	public static <A> TypeInfoSchema getFieldsInfo(TypeInformation<A> inputType, Expression[] expressions) {
 		validateInputTypeInfo(inputType);
 
-		final List<FieldInfo> fieldInfos = extractFieldInformation(
-			inputType,
-			Arrays.stream(expressions).map(ApiExpressionUtils::unwrapFromApi).toArray(Expression[]::new)
-		);
+		final List<FieldInfo> fieldInfos = extractFieldInformation(inputType, expressions);
 
 		validateNoStarReference(fieldInfos);
 		boolean isRowtimeAttribute = checkIfRowtimeAttribute(fieldInfos);
@@ -248,8 +244,8 @@ public class FieldInfoUtils {
 	}
 
 	private static <A> List<FieldInfo> extractFieldInformation(
-			TypeInformation<A> inputType,
-			Expression[] exprs) {
+		TypeInformation<A> inputType,
+		Expression[] exprs) {
 		final List<FieldInfo> fieldInfos;
 		if (inputType instanceof GenericTypeInfo && inputType.getTypeClass() == Row.class) {
 			throw new ValidationException(
@@ -371,7 +367,7 @@ public class FieldInfoUtils {
 		final TypeInformation<?>[] fieldTypes;
 		if (inputType instanceof CompositeType) {
 			int arity = inputType.getArity();
-			CompositeType<?> ct = (CompositeType<?>) inputType;
+			CompositeType ct = (CompositeType<?>) inputType;
 			fieldTypes = IntStream.range(0, arity).mapToObj(ct::getTypeAt).toArray(TypeInformation[]::new);
 		} else {
 			fieldTypes = new TypeInformation[]{inputType};

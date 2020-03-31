@@ -1,0 +1,57 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<div ng-if="checkpointStats">
+  <h3>History</h3>
+</div>
+<!--  h3 History-->
+<!--  table.table.table-body-hover.table-clickable-->
+<!--    thead-->
+<!--      tr-->
+<!--        td #[strong ID]-->
+<!--        td #[strong Status]-->
+<!--        td #[strong Acknowledged]-->
+<!--        td #[strong Trigger Time]-->
+<!--        td #[strong Latest Ack]-->
+<!--        td #[strong Duration]-->
+<!--        td #[strong State Size]-->
+<!--        td-->
+<!--    tbody(ng-if="checkpointStats['checkpoints'] && checkpointStats['checkpoints'].length > 0")-->
+<!--      tr(ng-repeat="checkpoint in checkpointStats['checkpoints']" ng-class="{'bg-warning': checkpoint['status'] == 'FAILED'}")-->
+<!--        td {{ checkpoint['id'] }}-->
+<!--        td(ng-if="checkpoint['status'] == 'IN_PROGRESS'") #[i(aria-hidden="true").fa.fa-circle-o-notch.fa-spin.fa-fw] In Progress-->
+<!--        td(ng-if="checkpoint['status'] == 'COMPLETED'") #[i(aria-hidden="true").fa.fa-check]-->
+<!--        td(ng-if="checkpoint['status'] == 'FAILED'") #[i(aria-hidden="true").fa.fa-remove] Failed-->
+<!--        td {{ checkpoint['subtasks']['acknowledged'] }}/{{ checkpoint['subtasks']['count'] }}-->
+<!--          = ' '-->
+<!--          span(ng-if="checkpoint['status'] == 'IN_PROGRESS'") ({{ checkpoint['subtasks']['acknowledged']/checkpoint['subtasks']['count'] | percentage }})-->
+<!--        td {{ checkpoint['trigger_timestamp'] | amDateFormat:'H:mm:ss' }}-->
+<!--        td {{ checkpoint['latest_ack_timestamp'] | amDateFormat:'H:mm:ss' }}-->
+<!--        td {{ checkpoint['duration'] | humanizeDuration }}-->
+<!--        td {{ checkpoint['size'] | humanizeBytes }}-->
+<!--        td-->
+<!--          //a.btn.btn-default(ng-click="toggleCheckpointDetails(checkpoint['id'])")-->
+<!--          a.btn.btn-default(ui-sref="^.details({checkpointId: checkpoint['id']})")-->
+<!--            i(aria-hidden="true").fa.fa-chevron-right-->
+<!--            = ' '-->
+<!--            | <strong>More details</strong>-->
+<!--    tbody(ng-if="!checkpointStats['checkpoints'] || checkpointStats['checkpoints'].length == 0")-->
+<!--      tr-->
+<!--        td(colspan=5) No checkpoints triggered-->
+<!---->

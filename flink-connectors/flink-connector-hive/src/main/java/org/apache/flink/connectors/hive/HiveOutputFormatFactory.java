@@ -20,7 +20,6 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.filesystem.OutputFormatFactory;
@@ -127,7 +126,7 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 		for (int i = 0; i < numNonPartitionColumns; i++) {
 			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(allTypes[i]);
 			objectInspectors.add(objectInspector);
-			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, allTypes[i].getLogicalType(), hiveShim);
+			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, allTypes[i].getLogicalType());
 		}
 
 		this.rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
@@ -168,7 +167,7 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 					recordSerDe.getSerializedClass(),
 					isCompressed,
 					tableProperties,
-					HadoopFileSystem.toHadoopPath(outPath));
+					new org.apache.hadoop.fs.Path(outPath.getPath()));
 			return new HiveOutputFormat(recordWriter);
 		} catch (Exception e) {
 			throw new FlinkHiveException(e);

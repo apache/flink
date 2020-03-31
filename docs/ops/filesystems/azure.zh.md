@@ -1,6 +1,6 @@
 ---
-title: "Azure Blob 存储"
-nav-title: Azure Blob 存储
+title: "Azure Blob Storage"
+nav-title: Azure Blob Storage
 nav-parent_id: filesystems
 nav-pos: 3
 ---
@@ -23,57 +23,56 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Azure Blob 存储](https://docs.microsoft.com/en-us/azure/storage/) 是一项由 Microsoft 管理的服务，能提供多种应用场景下的云存储。
-Azure Blob 存储可与 Flink 一起使用以**读取**和**写入数据**，以及与[流 State Backend]({{ site.baseurl }}/zh/ops/state/state_backends.html) 结合使用。
+[Azure Blob Storage](https://docs.microsoft.com/en-us/azure/storage/) is a Microsoft-managed service providing cloud storage for a variety of use cases.
+You can use Azure Blob Storage with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl }}/ops/state/state_backends.html)  
 
 * This will be replaced by the TOC
 {:toc}
 
-通过以下格式指定路径，Azure Blob 存储对象可类似于普通文件使用：
+You can use Azure Blob Storage objects like regular files by specifying paths in the following format:
 
 {% highlight plain %}
 wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>
 
-// SSL 加密访问
+// SSL encrypted access
 wasbs://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>
 {% endhighlight %}
 
-参见以下代码了解如何在 Flink 作业中使用 Azure Blob 存储：
+See below for how to use Azure Blob Storage in a Flink job:
 
 {% highlight java %}
-// 读取 Azure Blob 存储
+// Read from Azure Blob storage
 env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
-// 写入 Azure Blob 存储
+// Write to Azure Blob storage
 stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>")
 
-// 将 Azure Blob 存储用作 FsStatebackend
+// Use Azure Blob Storage as FsStatebackend
 env.setStateBackend(new FsStateBackend("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>"));
 {% endhighlight %}
 
-### Shaded Hadoop Azure Blob 存储文件系统
+### Shaded Hadoop Azure Blob Storage file system
 
-为使用 flink-azure-fs-hadoop，在启动 Flink 之前，将对应的 JAR 文件从 opt 目录复制到 Flink 发行版中的 plugin 目录下的一个文件夹中，例如：
+To use `flink-azure-fs-hadoop,` copy the respective JAR file from the `opt` directory to the `plugins` directory of your Flink distribution before starting Flink, e.g.
 
 {% highlight bash %}
 mkdir ./plugins/azure-fs-hadoop
 cp ./opt/flink-azure-fs-hadoop-{{ site.version }}.jar ./plugins/azure-fs-hadoop/
 {% endhighlight %}
 
-`flink-azure-fs-hadoop` 为使用 *wasb://* 和 *wasbs://* (SSL 加密访问) 的 URI 注册了默认的文件系统包装器。
+`flink-azure-fs-hadoop` registers default FileSystem wrappers for URIs with the *wasb://* and *wasbs://* (SSL encrypted access) scheme.
 
-### 凭据配置
-Hadoop 的 Azure 文件系统支持通过 Hadoop 配置来配置凭据，如 [Hadoop Azure Blob Storage 文档](https://hadoop.apache.org/docs/current/hadoop-azure/index.html#Configuring_Credentials) 所述。
-为方便起见，Flink 将所有的 Flink 配置添加 `fs.azure` 键前缀后转发至文件系统的 Hadoop 配置中。因此，可通过以下方法在 `flink-conf.yaml` 中配置 Azure Blob 存储密钥：
+#### Configurations setup
+After setting up the Azure Blob Storage FileSystem wrapper, you need to configure credentials to make sure that Flink is allowed to access Azure Blob Storage.
+
+To allow for easy adoption, you can use the same configuration keys in `flink-conf.yaml` as in Hadoop's `core-site.xml`
+
+You can see the configuration keys in the [Hadoop Azure Blob Storage documentation](https://hadoop.apache.org/docs/current/hadoop-azure/index.html#Configuring_Credentials).
+
+There are some required configurations that must be added to `flink-conf.yaml`:
 
 {% highlight yaml %}
-fs.azure.account.key.<account_name>.blob.core.windows.net: <azure_storage_key>
-{% endhighlight %}
-
-或者通过在 `flink-conf.yaml` 中设置以下配置键，将文件系统配置为从环境变量 `AZURE_STORAGE_KEY` 读取 Azure Blob 存储密钥：
-
-{% highlight yaml %}
-fs.azure.account.keyprovider.<account_name>.blob.core.windows.net: org.apache.flink.fs.azurefs.EnvironmentVariableKeyProvider
+fs.azure.account.key.youraccount.blob.core.windows.net: Azure Blob Storage access key
 {% endhighlight %}
 
 {% top %}

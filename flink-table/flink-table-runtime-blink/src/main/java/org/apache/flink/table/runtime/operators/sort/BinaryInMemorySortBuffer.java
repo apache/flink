@@ -32,6 +32,7 @@ import org.apache.flink.util.MutableObjectIterator;
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -58,14 +59,15 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 			AbstractRowSerializer<BaseRow> inputSerializer,
 			BinaryRowSerializer serializer,
 			RecordComparator comparator,
-			MemorySegmentPool memoryPool) {
-		checkArgument(memoryPool.freePages() >= MIN_REQUIRED_BUFFERS);
-		int totalNumBuffers = memoryPool.freePages();
+			List<MemorySegment> memory) throws IOException {
+		checkArgument(memory.size() >= MIN_REQUIRED_BUFFERS);
+		int totalNumBuffers = memory.size();
+		ListMemorySegmentPool pool = new ListMemorySegmentPool(memory);
 		ArrayList<MemorySegment> recordBufferSegments = new ArrayList<>(16);
 		return new BinaryInMemorySortBuffer(
 				normalizedKeyComputer, inputSerializer, serializer, comparator, recordBufferSegments,
-				new SimpleCollectingOutputView(recordBufferSegments, memoryPool, memoryPool.pageSize()),
-				memoryPool, totalNumBuffers);
+				new SimpleCollectingOutputView(recordBufferSegments, pool, pool.pageSize()),
+				pool, totalNumBuffers);
 	}
 
 	private BinaryInMemorySortBuffer(
@@ -76,7 +78,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 			ArrayList<MemorySegment> recordBufferSegments,
 			SimpleCollectingOutputView recordCollector,
 			MemorySegmentPool pool,
-			int totalNumBuffers) {
+			int totalNumBuffers) throws IOException {
 		super(normalizedKeyComputer, serializer, comparator, recordBufferSegments, pool);
 		this.inputSerializer = inputSerializer;
 		this.recordBufferSegments = recordBufferSegments;

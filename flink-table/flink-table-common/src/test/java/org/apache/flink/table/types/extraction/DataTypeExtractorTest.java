@@ -26,12 +26,13 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeHintMock;
 import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
+import org.apache.flink.table.types.inference.utils.DataTypeLookupMock;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
@@ -39,10 +40,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.types.utils.DataTypeFactoryMock;
-import org.apache.flink.types.Row;
 
-import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -77,15 +75,10 @@ public class DataTypeExtractorTest {
 	@Parameters
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
-			// simple extraction of INT
+			// simple extraction
 			TestSpec
 				.forType(Integer.class)
 				.expectDataType(DataTypes.INT()),
-
-			// simple extraction of BYTES
-			TestSpec
-				.forType(byte[].class)
-				.expectDataType(DataTypes.BYTES()),
 
 			// extraction from hint conversion class
 			TestSpec
@@ -104,20 +97,12 @@ public class DataTypeExtractorTest {
 				.forType(BigDecimal.class)
 				.expectErrorMessage("Values of 'java.math.BigDecimal' need fixed precision and scale."),
 
-			// unsupported Object type exception
+			// unsupported type exception
 			TestSpec
 				.forType(Object.class)
 				.expectErrorMessage(
-					"Cannot extract a data type from a pure 'java.lang.Object' class. " +
-						"Usually, this indicates that class information is missing or got lost. " +
-						"Please specify a more concrete class or treat it as a RAW type."),
-
-			// unsupported Row type exception
-			TestSpec
-				.forType(Row.class)
-				.expectErrorMessage(
-					"Cannot extract a data type from a pure 'org.apache.flink.types.Row' class. " +
-						"Please use annotations to define field names and field types."),
+					"Could not extract a data type from 'class java.lang.Object'. " +
+						"Interpreting it as a structured type was also not successful."),
 
 			// explicit precision/scale through data type
 			TestSpec
@@ -359,22 +344,7 @@ public class DataTypeExtractorTest {
 			TestSpec
 				.forType(ComplexPojoWithManyAnnotations.class)
 				.lookupExpects(Object.class)
-				.expectDataType(getComplexPojoDataType(ComplexPojoWithManyAnnotations.class, SimplePojo.class)),
-
-			// method with varargs
-			TestSpec
-				.forMethodParameter(IntegerVarArg.class, 1)
-				.expectDataType(DataTypes.ARRAY(DataTypes.INT().notNull().bridgedTo(int.class))),
-
-			// method with generic parameter
-			TestSpec
-				.forMethodParameter(IntegerVarArg.class, 0)
-				.expectDataType(DataTypes.INT()),
-
-			// method with generic return type
-			TestSpec
-				.forMethodOutput(IntegerVarArg.class)
-				.expectDataType(DataTypes.INT())
+				.expectDataType(getComplexPojoDataType(ComplexPojoWithManyAnnotations.class, SimplePojo.class))
 		);
 	}
 
@@ -388,9 +358,16 @@ public class DataTypeExtractorTest {
 	public void testExtraction() {
 		if (testSpec.expectedErrorMessage != null) {
 			thrown.expect(ValidationException.class);
-			thrown.expectCause(errorMatcher(testSpec));
+			thrown.expectCause(containsCause(new ValidationException(testSpec.expectedErrorMessage)));
 		}
 		runExtraction(testSpec);
+	}
+
+	static void runExtraction(TestSpec testSpec) {
+		final DataType dataType = testSpec.extractor.apply(testSpec.lookup);
+		if (testSpec.expectedDataType != null) {
+			assertThat(dataType, equalTo(testSpec.expectedDataType));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -402,15 +379,16 @@ public class DataTypeExtractorTest {
 	 */
 	static class TestSpec {
 
-		private final DataTypeFactoryMock typeFactory = new DataTypeFactoryMock();
+		private final Function<DataTypeLookup, DataType> extractor;
 
-		private final Function<DataTypeFactory, DataType> extractor;
+		private DataTypeLookupMock lookup;
 
 		private @Nullable DataType expectedDataType;
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(Function<DataTypeFactory, DataType> extractor) {
+		private TestSpec(Function<DataTypeLookup, DataType> extractor) {
+			this.lookup = new DataTypeLookupMock();
 			this.extractor = extractor;
 		}
 
@@ -429,24 +407,20 @@ public class DataTypeExtractorTest {
 		}
 
 		static TestSpec forMethodParameter(Class<?> clazz, int paramPos) {
-			final Method method = clazz.getMethods()[0];
+			final Method method = clazz.getDeclaredMethods()[0];
 			return new TestSpec((lookup) ->
 				DataTypeExtractor.extractFromMethodParameter(lookup, clazz, method, paramPos));
 		}
 
 		static TestSpec forMethodOutput(Class<?> clazz) {
-			final Method method = clazz.getMethods()[0];
+			final Method method = clazz.getDeclaredMethods()[0];
 			return new TestSpec((lookup) ->
 				DataTypeExtractor.extractFromMethodOutput(lookup, clazz, method));
 		}
 
-		boolean hasErrorMessage() {
-			return expectedErrorMessage != null;
-		}
-
 		TestSpec lookupExpects(Class<?> lookupClass) {
-			typeFactory.dataType = Optional.of(DataTypes.RAW(new GenericTypeInfo<>(lookupClass)));
-			typeFactory.expectedClass = Optional.of(lookupClass);
+			lookup.dataType = Optional.of(DataTypes.RAW(new GenericTypeInfo<>(lookupClass)));
+			lookup.expectedClass = Optional.of(lookupClass);
 			return this;
 		}
 
@@ -459,17 +433,6 @@ public class DataTypeExtractorTest {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
 		}
-	}
-
-	static void runExtraction(TestSpec testSpec) {
-		final DataType dataType = testSpec.extractor.apply(testSpec.typeFactory);
-		if (testSpec.expectedDataType != null) {
-			assertThat(dataType, equalTo(testSpec.expectedDataType));
-		}
-	}
-
-	static Matcher<Throwable> errorMatcher(TestSpec testSpec) {
-		return containsCause(new ValidationException(testSpec.expectedErrorMessage));
 	}
 
 	/**
@@ -848,24 +811,5 @@ public class DataTypeExtractorTest {
 		public @DataTypeHint("MAP<STRING, INT>") Object mapField;
 		public SimplePojo simplePojoField;
 		public Object someObject;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Generic Varargs in parameters.
-	 */
-	public static class VarArgMethod<T> {
-		@SuppressWarnings("unused")
-		public T eval(T i, int... more) {
-			return null;
-		}
-	}
-
-	/**
-	 * Resolvable parameters.
-	 */
-	public static class IntegerVarArg extends VarArgMethod<Integer> {
-		// nothing to do
 	}
 }

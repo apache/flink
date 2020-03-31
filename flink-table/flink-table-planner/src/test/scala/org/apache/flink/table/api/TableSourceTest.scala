@@ -145,7 +145,7 @@ class TableSourceTest extends TableTestBase {
       "DataSetCalc",
       s"BatchTableSourceScan(table=[[default_catalog, default_database, $tableName]], " +
         s"fields=[], " +
-        s"source=[CsvTableSource(read fields: )])",
+        s"source=[CsvTableSource(read fields: first)])",
       term("select", "1 AS _c0")
     )
 

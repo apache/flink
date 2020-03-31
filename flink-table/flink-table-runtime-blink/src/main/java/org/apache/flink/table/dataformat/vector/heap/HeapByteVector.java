@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.vector.writable.WritableByteVector;
-
-import java.util.Arrays;
+import org.apache.flink.table.dataformat.vector.ByteColumnVector;
 
 /**
  * This class represents a nullable byte column vector.
  */
-public class HeapByteVector extends AbstractHeapVector implements WritableByteVector {
+public class HeapByteVector extends AbstractHeapVector implements ByteColumnVector {
 
 	private static final long serialVersionUID = 7216045902943789034L;
 
@@ -48,15 +46,5 @@ public class HeapByteVector extends AbstractHeapVector implements WritableByteVe
 		} else {
 			return (byte) dictionary.decodeToInt(dictionaryIds.vector[i]);
 		}
-	}
-
-	@Override
-	public void setByte(int i, byte value) {
-		vector[i] = value;
-	}
-
-	@Override
-	public void fill(byte value) {
-		Arrays.fill(vector, value);
 	}
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -48,7 +47,7 @@ public class BatchAbstractTestBase {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("100m"));
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "100m");
 		return config;
 	}
 

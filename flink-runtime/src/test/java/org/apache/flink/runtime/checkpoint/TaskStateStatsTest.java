@@ -63,7 +63,6 @@ public class TaskStateStatsTest {
 				rand.nextInt(128),
 				rand.nextInt(128),
 				rand.nextInt(128),
-				rand.nextInt(128),
 				rand.nextInt(128));
 
 			stateSize += subtasks[i].getStateSize();
@@ -79,7 +78,7 @@ public class TaskStateStatsTest {
 			assertEquals(alignmentBuffered, taskStats.getAlignmentBuffered());
 		}
 
-		assertFalse(taskStats.reportSubtaskStats(new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0, 0)));
+		assertFalse(taskStats.reportSubtaskStats(new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0)));
 
 		// Test that all subtasks are taken into the account for the summary.
 		// The correctness of the actual results is checked in the test of the
@@ -106,7 +105,6 @@ public class TaskStateStatsTest {
 		for (int i = 0; i < subtasks.length; i++) {
 			subtasks[i] = new SubtaskStateStats(
 				i,
-				rand.nextInt(128),
 				rand.nextInt(128),
 				rand.nextInt(128),
 				rand.nextInt(128),

@@ -42,7 +42,6 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -85,8 +84,6 @@ public class CepOperator<IN, KEY, OUT>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
 	private static final long serialVersionUID = -4166778210774160757L;
-
-	private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
 
 	private final boolean isProcessingTime;
 
@@ -136,12 +133,6 @@ public class CepOperator<IN, KEY, OUT>
 
 	/** Thin context passed to NFA that gives access to time related characteristics. */
 	private transient TimerService cepTimerService;
-
-	// ------------------------------------------------------------------------
-	// Metrics
-	// ------------------------------------------------------------------------
-
-	private transient Counter numLateRecordsDropped;
 
 	public CepOperator(
 			final TypeSerializer<IN> inputSerializer,
@@ -230,9 +221,6 @@ public class CepOperator<IN, KEY, OUT>
 		context = new ContextFunctionImpl();
 		collector = new TimestampedCollector<>(output);
 		cepTimerService = new TimerServiceImpl();
-
-		// metrics
-		this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
 	}
 
 	@Override
@@ -281,8 +269,6 @@ public class CepOperator<IN, KEY, OUT>
 
 			} else if (lateDataOutputTag != null) {
 				output.collect(lateDataOutputTag, element);
-			} else {
-				numLateRecordsDropped.inc();
 			}
 		}
 	}
@@ -555,10 +541,5 @@ public class CepOperator<IN, KEY, OUT>
 			counter += elements.size();
 		}
 		return counter;
-	}
-
-	@VisibleForTesting
-	long getLateRecordsNumber() {
-		return numLateRecordsDropped.getCount();
 	}
 }

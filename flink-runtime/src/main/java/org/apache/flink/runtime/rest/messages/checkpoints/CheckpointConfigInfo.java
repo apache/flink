@@ -53,8 +53,6 @@ public class CheckpointConfigInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG = "externalization";
 
-	public static final String FIELD_NAME_STATE_BACKEND = "state_backend";
-
 	@JsonProperty(FIELD_NAME_PROCESSING_MODE)
 	private final ProcessingMode processingMode;
 
@@ -73,9 +71,6 @@ public class CheckpointConfigInfo implements ResponseBody {
 	@JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG)
 	private final ExternalizedCheckpointInfo externalizedCheckpointInfo;
 
-	@JsonProperty(FIELD_NAME_STATE_BACKEND)
-	private final String stateBackend;
-
 	@JsonCreator
 	public CheckpointConfigInfo(
 			@JsonProperty(FIELD_NAME_PROCESSING_MODE) ProcessingMode processingMode,
@@ -83,15 +78,13 @@ public class CheckpointConfigInfo implements ResponseBody {
 			@JsonProperty(FIELD_NAME_CHECKPOINT_TIMEOUT) long checkpointTimeout,
 			@JsonProperty(FIELD_NAME_CHECKPOINT_MIN_PAUSE) long minPauseBetweenCheckpoints,
 			@JsonProperty(FIELD_NAME_CHECKPOINT_MAX_CONCURRENT) int maxConcurrentCheckpoints,
-			@JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG) ExternalizedCheckpointInfo externalizedCheckpointInfo,
-			@JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend) {
+			@JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG) ExternalizedCheckpointInfo externalizedCheckpointInfo) {
 		this.processingMode = Preconditions.checkNotNull(processingMode);
 		this.checkpointInterval = checkpointInterval;
 		this.checkpointTimeout = checkpointTimeout;
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 		this.externalizedCheckpointInfo = Preconditions.checkNotNull(externalizedCheckpointInfo);
-		this.stateBackend = Preconditions.checkNotNull(stateBackend);
 	}
 
 	@Override
@@ -108,14 +101,12 @@ public class CheckpointConfigInfo implements ResponseBody {
 			minPauseBetweenCheckpoints == that.minPauseBetweenCheckpoints &&
 			maxConcurrentCheckpoints == that.maxConcurrentCheckpoints &&
 			processingMode == that.processingMode &&
-			Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo) &&
-			Objects.equals(stateBackend, that.stateBackend);
+			Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(processingMode, checkpointInterval, checkpointTimeout, minPauseBetweenCheckpoints,
-			maxConcurrentCheckpoints, externalizedCheckpointInfo, stateBackend);
+		return Objects.hash(processingMode, checkpointInterval, checkpointTimeout, minPauseBetweenCheckpoints, maxConcurrentCheckpoints, externalizedCheckpointInfo);
 	}
 
 	/**

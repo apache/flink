@@ -20,12 +20,13 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
-import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
+import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
@@ -37,12 +38,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
-import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateSchemaAndApplyImplicitCast, validateTableSink}
+import org.apache.flink.table.planner.sinks.{DataStreamTableSink, TableSinkUtils}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sinks.{OverwritableTableSink, TableSink}
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
-import org.apache.flink.table.utils.TableSchemaUtils
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
@@ -78,6 +77,8 @@ abstract class PlannerBase(
 
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
+
+  executor.asInstanceOf[ExecutorBase].setTableConfig(config)
 
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
@@ -140,9 +141,7 @@ abstract class PlannerBase(
       return List.empty[Transformation[_]]
     }
     // prepare the execEnv before translating
-    getExecEnv.configure(
-      getTableConfig.getConfiguration,
-      Thread.currentThread().getContextClassLoader)
+    mergeParameters()
     overrideEnvParallelism()
 
     val relNodes = modifyOperations.map(translateToRel)
@@ -173,33 +172,23 @@ abstract class PlannerBase(
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
-        val sinkSchema = s.getSink.getTableSchema
-        // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, getTypeFactory)
-        LogicalSink.create(
-          query,
-          s.getSink,
-          "UnregisteredSink",
-          ConnectorCatalogTable.sink(s.getSink, !isStreamingMode))
+        LogicalSink.create(input, s.getSink, "UnregisteredSink")
 
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
         val identifier = catalogSink.getTableIdentifier
         getTableSink(identifier).map { case (table, sink) =>
-          // check the logical field type and physical field type are compatible
-          val queryLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
-          // validate logical schema and physical schema are compatible
-          validateLogicalPhysicalTypesCompatible(table, sink, queryLogicalType)
-          // validate TableSink
-          validateTableSink(catalogSink, identifier, sink, table.getPartitionKeys)
-          // validate query schema and sink schema, and apply cast if possible
-          val query = validateSchemaAndApplyImplicitCast(
-            input,
-            TableSchemaUtils.getPhysicalSchema(table.getSchema),
-            getTypeFactory,
-            Some(catalogSink.getTableIdentifier.asSummaryString()))
+          TableSinkUtils.validateSink(catalogSink, identifier, sink, table.getPartitionKeys)
+          sink match {
+            case overwritableTableSink: OverwritableTableSink =>
+              overwritableTableSink.setOverwrite(catalogSink.isOverwrite)
+            case _ =>
+              assert(!catalogSink.isOverwrite, "INSERT OVERWRITE requires " +
+                s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
+                sink.getClass.getName)
+          }
           LogicalSink.create(
-            query,
+            input,
             sink,
             identifier.toString,
             table,
@@ -218,23 +207,9 @@ abstract class PlannerBase(
           case UpdateMode.UPSERT => (false, true)
         }
         val typeInfo = LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(outputConversion.getType)
-        val inputLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
-        val sinkPhysicalSchema = inferSinkPhysicalSchema(
-          outputConversion.getType,
-          inputLogicalType,
-          withChangeFlag)
-        // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkPhysicalSchema, getTypeFactory)
         val tableSink = new DataStreamTableSink(
-          FlinkTypeFactory.toTableSchema(query.getRowType),
-          typeInfo,
-          updatesAsRetraction,
-          withChangeFlag)
-        LogicalSink.create(
-          query,
-          tableSink,
-          "DataStreamTableSink",
-          ConnectorCatalogTable.sink(tableSink, !isStreamingMode))
+          outputConversion.getChild, typeInfo, updatesAsRetraction, withChangeFlag)
+        LogicalSink.create(input, tableSink, "DataStreamTableSink")
 
       case _ =>
         throw new TableException(s"Unsupported ModifyOperation: $modifyOperation")
@@ -294,17 +269,43 @@ abstract class PlannerBase(
       case Some(s) if s.isInstanceOf[CatalogTable] =>
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val table = s.asInstanceOf[CatalogTable]
-        val context = new TableSinkFactoryContextImpl(
-          objectIdentifier, table, getTableConfig.getConfiguration)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
+          val objectPath = objectIdentifier.toObjectPath
+          val sink = TableFactoryUtil.createTableSinkForCatalogTable(
+            catalog.get(),
+            table,
+            objectPath)
           if (sink.isPresent) {
             return Option(table, sink.get())
           }
         }
-        Option(table, TableFactoryUtil.findAndCreateTableSink(context))
+        val sinkProperties = table.toProperties
+        Option(table, TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
+          .createTableSink(sinkProperties))
 
       case _ => None
+    }
+  }
+
+  /**
+    * Merge global job parameters and table config parameters,
+    * and set the merged result to GlobalJobParameters
+    */
+  private def mergeParameters(): Unit = {
+    val execEnv = getExecEnv
+    if (execEnv != null && execEnv.getConfig != null) {
+      val parameters = new Configuration()
+      if (config != null && config.getConfiguration != null) {
+        parameters.addAll(config.getConfiguration)
+      }
+
+      if (execEnv.getConfig.getGlobalJobParameters != null) {
+        execEnv.getConfig.getGlobalJobParameters.toMap.foreach {
+          kv => parameters.setString(kv._1, kv._2)
+        }
+      }
+
+      execEnv.getConfig.setGlobalJobParameters(parameters)
     }
   }
 }

@@ -2,7 +2,7 @@
 title: "Functions"
 nav-id: table_functions
 nav-parent_id: tableapi
-nav-pos: 60
+nav-pos: 40
 nav-show_overview: true
 ---
 <!--

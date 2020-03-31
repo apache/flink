@@ -39,9 +39,4 @@ class OptionsClassLocation {
 	public String getPackage() {
 		return pckg;
 	}
-
-	@Override
-	public String toString() {
-		return module + "#" + pckg;
-	}
 }

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -118,17 +117,23 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	/**
 	 * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is wrong.
 	 */
-	@Test(expected = IllegalConfigurationException.class)
+	@Test
 	public void testMemoryConfigWrong() throws Exception {
 		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
-		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
-		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
-		startTaskManager(
-			cfg,
-			rpcService,
-			highAvailabilityServices);
+		cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "-42m");
+		try {
+
+			startTaskManager(
+				cfg,
+				rpcService,
+				highAvailabilityServices);
+
+			fail("Should fail synchronously with an exception");
+		} catch (IllegalConfigurationException e) {
+			// splendid!
+		}
 	}
 
 	/**
@@ -158,7 +163,10 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	//-----------------------------------------------------------------------------------------------
 
 	private static Configuration createFlinkConfiguration() {
-		return TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration());
+		final Configuration config = new Configuration();
+		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_MEMORY_MB + "m");
+
+		return config;
 	}
 
 	private static RpcService createRpcService() {

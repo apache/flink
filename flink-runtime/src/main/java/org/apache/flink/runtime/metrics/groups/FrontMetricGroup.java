@@ -20,8 +20,6 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.CharacterFilter;
 
-import java.util.Map;
-
 /**
  * Metric group which forwards all registration calls to a variable parent metric group that injects a variable reporter
  * index into calls to {@link org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String)}
@@ -32,33 +30,28 @@ import java.util.Map;
  */
 public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMetricGroup<P> {
 
-	private final ReporterScopedSettings settings;
+	protected int reporterIndex;
 
-	public FrontMetricGroup(ReporterScopedSettings settings, P reference) {
+	public FrontMetricGroup(int reporterIndex, P reference) {
 		super(reference);
-		this.settings = settings;
+		this.reporterIndex = reporterIndex;
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return parentMetricGroup.getMetricIdentifier(metricName, null, this.settings.getReporterIndex(), this.settings.getDelimiter());
+		return parentMetricGroup.getMetricIdentifier(metricName, null, this.reporterIndex);
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.settings.getReporterIndex(), this.settings.getDelimiter());
-	}
-
-	@Override
-	public Map<String, String> getAllVariables() {
-		return parentMetricGroup.getAllVariables(this.settings.getReporterIndex(), this.settings.getExcludedVariables());
+		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.reporterIndex);
 	}
 
 	public String getLogicalScope(CharacterFilter filter) {
-		return parentMetricGroup.getLogicalScope(filter, this.settings.getDelimiter());
+		return parentMetricGroup.getLogicalScope(filter);
 	}
 
 	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return parentMetricGroup.getLogicalScope(filter, delimiter, this.settings.getReporterIndex());
+		return parentMetricGroup.getLogicalScope(filter, delimiter, this.reporterIndex);
 	}
 }

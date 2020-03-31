@@ -108,7 +108,7 @@ public class AsyncIOExample {
 
 
 	/**
-	 * An example of {@link AsyncFunction} using a thread pool and executing working threads
+	 * An sample of {@link AsyncFunction} using a thread pool and executing working threads
 	 * to simulate multiple async operations.
 	 *
 	 * <p>For the real use case in production environment, the thread pool may stay in the
@@ -142,6 +142,7 @@ public class AsyncIOExample {
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
+
 			executorService = Executors.newFixedThreadPool(30);
 		}
 
@@ -257,10 +258,10 @@ public class AsyncIOExample {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		}
 
-		// create input stream of a single integer
+		// create input stream of an single integer
 		DataStream<Integer> inputStream = env.addSource(new SimpleSource(maxCount));
 
-		// create async function, which will "wait" for a while to simulate the process of async i/o
+		// create async function, which will *wait* for a while to simulate the process of async i/o
 		AsyncFunction<Integer, String> function =
 				new SampleAsyncFunction(sleepFactor, failRatio, shutdownWaitTS);
 

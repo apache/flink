@@ -26,16 +26,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.TableConnectorUtils;
-import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -90,12 +88,6 @@ public abstract class KafkaTableSourceBase implements
 	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS}. */
 	private final Map<KafkaTopicPartition, Long> specificStartupOffsets;
 
-	/** The start timestamp to locate partition offsets; only relevant when startup mode is {@link StartupMode#TIMESTAMP}.*/
-	private final long startupTimestampMillis;
-
-	/** The default value when startup timestamp is not used.*/
-	private static final long DEFAULT_STARTUP_TIMESTAMP_MILLIS = 0L;
-
 	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.
 	 *
@@ -110,8 +102,6 @@ public abstract class KafkaTableSourceBase implements
 	 * @param startupMode                 Startup mode for the contained consumer.
 	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
 	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
-	 * @param startupTimestampMillis	  Startup timestamp for offsets; only relevant when startup
-	 *                                    mode is {@link StartupMode#TIMESTAMP}.
 	 */
 	protected KafkaTableSourceBase(
 			TableSchema schema,
@@ -122,9 +112,8 @@ public abstract class KafkaTableSourceBase implements
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
 			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
-		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
+			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+		this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
 		this.proctimeAttribute = validateProctimeAttribute(proctimeAttribute);
 		this.rowtimeAttributeDescriptors = validateRowtimeAttributeDescriptors(rowtimeAttributeDescriptors);
 		this.fieldMapping = fieldMapping;
@@ -135,7 +124,6 @@ public abstract class KafkaTableSourceBase implements
 		this.startupMode = Preconditions.checkNotNull(startupMode, "Startup mode must not be null.");
 		this.specificStartupOffsets = Preconditions.checkNotNull(
 			specificStartupOffsets, "Specific offsets must not be null.");
-		this.startupTimestampMillis = startupTimestampMillis;
 	}
 
 	/**
@@ -159,8 +147,7 @@ public abstract class KafkaTableSourceBase implements
 			topic, properties,
 			deserializationSchema,
 			StartupMode.GROUP_OFFSETS,
-			Collections.emptyMap(),
-			DEFAULT_STARTUP_TIMESTAMP_MILLIS);
+			Collections.emptyMap());
 	}
 
 	/**
@@ -241,8 +228,7 @@ public abstract class KafkaTableSourceBase implements
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(deserializationSchema, that.deserializationSchema) &&
 			startupMode == that.startupMode &&
-			Objects.equals(specificStartupOffsets, that.specificStartupOffsets) &&
-			startupTimestampMillis == that.startupTimestampMillis;
+			Objects.equals(specificStartupOffsets, that.specificStartupOffsets);
 	}
 
 	@Override
@@ -256,8 +242,7 @@ public abstract class KafkaTableSourceBase implements
 			properties,
 			deserializationSchema,
 			startupMode,
-			specificStartupOffsets,
-			startupTimestampMillis);
+			specificStartupOffsets);
 	}
 
 	/**
@@ -287,9 +272,6 @@ public abstract class KafkaTableSourceBase implements
 			case SPECIFIC_OFFSETS:
 				kafkaConsumer.setStartFromSpecificOffsets(specificStartupOffsets);
 				break;
-			case TIMESTAMP:
-				kafkaConsumer.setStartFromTimestamp(startupTimestampMillis);
-				break;
 		}
 		return kafkaConsumer;
 	}
@@ -304,11 +286,11 @@ public abstract class KafkaTableSourceBase implements
 	private Optional<String> validateProctimeAttribute(Optional<String> proctimeAttribute) {
 		return proctimeAttribute.map((attribute) -> {
 			// validate that field exists and is of correct type
-			Optional<DataType> tpe = schema.getFieldDataType(attribute);
+			Optional<TypeInformation<?>> tpe = schema.getFieldType(attribute);
 			if (!tpe.isPresent()) {
 				throw new ValidationException("Processing time attribute '" + attribute + "' is not present in TableSchema.");
-			} else if (tpe.get().getLogicalType().getTypeRoot() != LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-				throw new ValidationException("Processing time attribute '" + attribute + "' is not of type TIMESTAMP.");
+			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
+				throw new ValidationException("Processing time attribute '" + attribute + "' is not of type SQL_TIMESTAMP.");
 			}
 			return attribute;
 		});
@@ -324,11 +306,11 @@ public abstract class KafkaTableSourceBase implements
 		// validate that all declared fields exist and are of correct type
 		for (RowtimeAttributeDescriptor desc : rowtimeAttributeDescriptors) {
 			String rowtimeAttribute = desc.getAttributeName();
-			Optional<DataType> tpe = schema.getFieldDataType(rowtimeAttribute);
+			Optional<TypeInformation<?>> tpe = schema.getFieldType(rowtimeAttribute);
 			if (!tpe.isPresent()) {
 				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not present in TableSchema.");
-			} else if (tpe.get().getLogicalType().getTypeRoot() != LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not of type TIMESTAMP.");
+			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
+				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not of type SQL_TIMESTAMP.");
 			}
 		}
 		return rowtimeAttributeDescriptors;

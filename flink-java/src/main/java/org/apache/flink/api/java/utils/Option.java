@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.utils;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -26,11 +28,8 @@ import java.util.Set;
 
 /**
  * Internal representation of a parameter passed to a user defined function.
- *
- * @deprecated These classes will be dropped in the next version. Use {@link ParameterTool} or a third-party
- *             command line parsing library instead.
  */
-@Deprecated
+@PublicEvolving
 public class Option {
 
 	private String longName;

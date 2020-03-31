@@ -71,10 +71,6 @@ public abstract class LazyBinaryFormat<T> implements BinaryFormat {
 		return javaObject;
 	}
 
-	public BinarySection getBinarySection() {
-		return binarySection;
-	}
-
 	/**
 	 * Must be public as it is used during code generation.
 	 */

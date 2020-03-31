@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.runtime.stream.table
 
+import java.io.File
+import java.lang.{Boolean => JBool}
+
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -36,12 +39,8 @@ import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-
 import org.junit.Assert._
 import org.junit.Test
-
-import java.io.File
-import java.lang.{Boolean => JBool}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -68,7 +67,7 @@ class TableSinkITCase extends AbstractTestBase {
       .where('a < 3 || 'a > 19)
       .select('c, 't, 'b)
       .insertInto("targetTable")
-     tEnv.execute("job name")
+    env.execute()
 
     val expected = Seq(
       "Hi,1970-01-01 00:00:00.001,1",
@@ -108,7 +107,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select(ifThenElse('a < 4, nullOf(Types.INT()), 'a), 'c, 'b)
       .insertInto("csvSink")
 
-     tEnv.execute("job name")
+    env.execute()
 
     val expected = Seq(
       ",Hello world,1970-01-01 00:00:00.002",
@@ -146,7 +145,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("appendSink")
 
-     tEnv.execute("job name")
+    env.execute()
 
     val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
     val expected = List(
@@ -179,7 +178,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('c, 'g)
       .insertInto("appendSink")
 
-     tEnv.execute("job name")
+    env.execute()
 
     val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt").sorted
@@ -208,7 +207,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('len, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("retractSink")
 
-     tEnv.execute("job name")
+    env.execute()
     val results = RowCollector.getAndClearValues
 
     val retracted = RowCollector.retractResults(results).sorted
@@ -246,7 +245,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("retractSink")
 
-     tEnv.execute("job name")
+    env.execute()
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -284,13 +283,12 @@ class TableSinkITCase extends AbstractTestBase {
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
-      // test query field name is different with registered sink field name
-      .select('len, 'id.count as 'count, 'cTrue)
-      .groupBy('count, 'cTrue)
-      .select('count, 'len.count as 'lencnt, 'cTrue)
+      .select('len, 'id.count as 'cnt, 'cTrue)
+      .groupBy('cnt, 'cTrue)
+      .select('cnt, 'len.count as 'lencnt, 'cTrue)
       .insertInto("upsertSink")
 
-     tEnv.execute("job name")
+    env.execute()
     val results = RowCollector.getAndClearValues
 
     assertTrue(
@@ -326,11 +324,10 @@ class TableSinkITCase extends AbstractTestBase {
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
-      // test query field name is different with registered sink field name
-      .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
+      .select('num, 'w.end as 'wend, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
-     tEnv.execute("job name")
+    env.execute()
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -375,7 +372,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
-     tEnv.execute("job name")
+    env.execute()
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -419,7 +416,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 'wend, 'id.count as 'cnt)
       .insertInto("upsertSink")
 
-     tEnv.execute("job name")
+    env.execute()
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -463,7 +460,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('num, 'id.count as 'cnt)
       .insertInto("upsertSink")
 
-     tEnv.execute("job name")
+    env.execute()
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -624,6 +621,10 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
 
+  override def emitDataStream(s: DataStream[Row]): Unit = {
+    consumeDataStream(s)
+  }
+
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
     dataStream.map(
       new MapFunction[Row, JTuple2[JBool, Row]] {
@@ -653,7 +654,7 @@ private[flink] class TestRetractSink extends RetractStreamTableSink[Row] {
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
 
-  override def consumeDataStream(s: DataStream[JTuple2[JBool, Row]]): DataStreamSink[_] = {
+  override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
     s.addSink(new RowSink)
   }
 
@@ -700,7 +701,7 @@ private[flink] class TestUpsertSink(
 
   override def getRecordType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
 
-  override def consumeDataStream(s: DataStream[JTuple2[JBool, Row]]): DataStreamSink[_] = {
+  override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
     s.addSink(new RowSink)
   }
 

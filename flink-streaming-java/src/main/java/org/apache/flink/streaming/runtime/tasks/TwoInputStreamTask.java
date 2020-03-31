@@ -29,6 +29,7 @@ import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
+import java.io.IOException;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -49,7 +50,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
-		TypeSerializer<IN2> inputDeserializer2) {
+		TypeSerializer<IN2> inputDeserializer2) throws IOException {
 
 		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
 			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
@@ -57,21 +58,22 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new InputGate[0]));
 		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new InputGate[0]));
 
-		// create an input instance for each input
+		// create a Input instance for each input
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
 			this,
 			getConfiguration().getCheckpointMode(),
-			getEnvironment().getTaskManagerInfo().getConfiguration(),
-			getEnvironment().getMetricGroup().getIOMetricGroup(),
-			getTaskNameWithSubtaskAndId(),
+			getEnvironment().getIOManager(),
 			unionedInputGate1,
-			unionedInputGate2);
+			unionedInputGate2,
+			getEnvironment().getTaskManagerInfo().getConfiguration(),
+			getTaskNameWithSubtaskAndId());
 		checkState(checkpointedInputGates.length == 2);
 
 		inputProcessor = new StreamTwoInputProcessor<>(
 			checkpointedInputGates,
 			inputDeserializer1,
 			inputDeserializer2,
+			getCheckpointLock(),
 			getEnvironment().getIOManager(),
 			getStreamStatusMaintainer(),
 			headOperator,

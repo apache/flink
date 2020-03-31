@@ -105,17 +105,7 @@ public class BaseRowHarnessAssertor {
 
 		for (Object ex : expected) {
 			if (ex instanceof StreamRecord) {
-				BaseRow row = (BaseRow) ((StreamRecord) ex).getValue();
-				if (row instanceof GenericRow) {
-					expectedRecords.add((GenericRow) row);
-				} else {
-					GenericRow genericRow = BaseRowUtil.toGenericRow(
-						row,
-						Arrays.stream(typeInfos)
-							.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
-							.toArray(LogicalType[]::new));
-					expectedRecords.add(genericRow);
-				}
+				expectedRecords.add((GenericRow) ((StreamRecord) ex).getValue());
 			}
 		}
 

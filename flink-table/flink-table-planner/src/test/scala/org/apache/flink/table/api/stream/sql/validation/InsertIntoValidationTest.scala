@@ -45,8 +45,6 @@ class InsertIntoValidationTest {
 
     // must fail because table sink has too few fields.
     tEnv.sqlUpdate(sql)
-    // trigger translation
-    tEnv.execute("job name")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -66,8 +64,6 @@ class InsertIntoValidationTest {
 
     // must fail because field types of table sink are incompatible.
     tEnv.sqlUpdate(sql)
-    // trigger translation
-    tEnv.execute("job name")
   }
 
   @Test(expected = classOf[ValidationException])

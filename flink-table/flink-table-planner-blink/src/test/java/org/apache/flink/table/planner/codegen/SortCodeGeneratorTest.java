@@ -47,7 +47,6 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.sort.BinaryInMemorySortBuffer;
-import org.apache.flink.table.runtime.operators.sort.ListMemorySegmentPool;
 import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
@@ -456,7 +455,7 @@ public class SortCodeGeneratorTest {
 
 		BinaryInMemorySortBuffer sortBuffer = BinaryInMemorySortBuffer.createBuffer(
 				tuple2.f0, (AbstractRowSerializer) serializer, serializer,
-				tuple2.f1, new ListMemorySegmentPool(segments));
+				tuple2.f1, segments);
 
 		BinaryRow[] dataArray = getTestData();
 

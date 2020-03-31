@@ -40,9 +40,9 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -63,6 +63,8 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -70,11 +72,13 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.io.AvailabilityProvider.AVAILABLE;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -527,9 +531,10 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that collects the added buffers/events in multiple queue.
 	 */
-	static class CollectingPartitionWriter extends MockResultPartitionWriter {
+	static class CollectingPartitionWriter implements ResultPartitionWriter {
 		private final Queue<BufferConsumer>[] queues;
 		private final BufferProvider bufferProvider;
+		private final ResultPartitionID partitionId = new ResultPartitionID();
 
 		/**
 		 * Create the partition writer.
@@ -543,8 +548,22 @@ public class RecordWriterTest {
 		}
 
 		@Override
+		public void setup() {
+		}
+
+		@Override
+		public ResultPartitionID getPartitionId() {
+			return partitionId;
+		}
+
+		@Override
 		public int getNumberOfSubpartitions() {
 			return queues.length;
+		}
+
+		@Override
+		public int getNumTargetKeyGroups() {
+			return 1;
 		}
 
 		@Override
@@ -555,6 +574,33 @@ public class RecordWriterTest {
 		@Override
 		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
 			return queues[targetChannel].add(buffer);
+		}
+
+		@Override
+		public void flushAll() {
+		}
+
+		@Override
+		public void flush(int subpartitionIndex) {
+		}
+
+		@Override
+		public void fail(@Nullable Throwable throwable) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void finish() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CompletableFuture<?> getAvailableFuture() {
+			return AVAILABLE;
+		}
+
+		@Override
+		public void close() {
 		}
 	}
 
@@ -573,16 +619,69 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that recycles all received buffers and does no further processing.
 	 */
-	private static class RecyclingPartitionWriter extends MockResultPartitionWriter {
+	private static class RecyclingPartitionWriter implements ResultPartitionWriter {
 		private final BufferProvider bufferProvider;
+		private final ResultPartitionID partitionId = new ResultPartitionID();
 
 		private RecyclingPartitionWriter(BufferProvider bufferProvider) {
 			this.bufferProvider = bufferProvider;
 		}
 
 		@Override
+		public void setup() {
+		}
+
+		@Override
+		public ResultPartitionID getPartitionId() {
+			return partitionId;
+		}
+
+		@Override
+		public int getNumberOfSubpartitions() {
+			return 1;
+		}
+
+		@Override
+		public int getNumTargetKeyGroups() {
+			return 1;
+		}
+
+		@Override
 		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
 			return bufferProvider.requestBufferBuilderBlocking();
+		}
+
+		@Override
+		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+			bufferConsumer.close();
+			return true;
+		}
+
+		@Override
+		public void flushAll() {
+		}
+
+		@Override
+		public void flush(int subpartitionIndex) {
+		}
+
+		@Override
+		public void fail(@Nullable Throwable throwable) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void finish() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CompletableFuture<?> getAvailableFuture() {
+			return AVAILABLE;
+		}
+
+		@Override
+		public void close() {
 		}
 	}
 

@@ -89,8 +89,9 @@ public class LongHashTableTest {
 	private class MyHashTable extends LongHybridHashTable {
 
 		public MyHashTable(long memorySize) {
-			super(conf, LongHashTableTest.this, buildSideSerializer, probeSideSerializer, memManager,
-					memorySize, LongHashTableTest.this.ioManager, 24, 200000);
+			super(conf, LongHashTableTest.this, buildSideSerializer, probeSideSerializer, memManager, memorySize,
+					memorySize, 0, LongHashTableTest.this.ioManager,
+					24, 200000);
 		}
 
 		@Override

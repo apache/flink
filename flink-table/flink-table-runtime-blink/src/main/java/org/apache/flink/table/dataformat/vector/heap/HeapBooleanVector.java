@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.vector.writable.WritableBooleanVector;
-
-import java.util.Arrays;
+import org.apache.flink.table.dataformat.vector.BooleanColumnVector;
 
 /**
  * This class represents a nullable heap boolean column vector.
  */
-public class HeapBooleanVector extends AbstractHeapVector implements WritableBooleanVector {
+public class HeapBooleanVector extends AbstractHeapVector implements BooleanColumnVector {
 
 	private static final long serialVersionUID = 4131239076731313596L;
 
@@ -49,15 +47,5 @@ public class HeapBooleanVector extends AbstractHeapVector implements WritableBoo
 	@Override
 	public boolean getBoolean(int i) {
 		return vector[i];
-	}
-
-	@Override
-	public void setBoolean(int i, boolean value) {
-		vector[i] = value;
-	}
-
-	@Override
-	public void fill(boolean value) {
-		Arrays.fill(vector, value);
 	}
 }

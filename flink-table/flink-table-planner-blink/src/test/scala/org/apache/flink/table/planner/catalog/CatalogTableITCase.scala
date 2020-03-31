@@ -25,27 +25,20 @@ import org.apache.flink.table.catalog.{CatalogDatabaseImpl, CatalogFunctionImpl,
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
-import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
-import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-import org.apache.flink.util.FileUtils
-
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Rule, Test}
-
-import java.io.File
+import org.junit.{Before, Ignore, Rule, Test}
+import java.sql.Timestamp
 import java.util
-import java.math.{BigDecimal => JBigDecimal}
-import java.net.URI
 
 import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
-class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
+class CatalogTableITCase(isStreamingMode: Boolean) {
   //~ Instance fields --------------------------------------------------------
 
   private val settings = if (isStreamingMode) {
@@ -67,6 +60,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       .getConfiguration
       .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     TestCollectionTableFactory.reset()
+    TestCollectionTableFactory.isStreaming = isStreamingMode
 
     val func = new CatalogFunctionImpl(
       classOf[JavaFunc0].getName)
@@ -100,12 +94,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   private def testUdf(funcPrefix: String): Unit = {
     val sinkDDL =
-      s"""
+      """
         |create table sinkT(
         |  a bigint
         |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = '$isStreamingMode'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     tableEnv.sqlUpdate(sinkDDL)
@@ -142,11 +135,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   @Test
   def testInsertInto(): Unit = {
     val sourceData = List(
-      toRow(1, "1000", 2, new JBigDecimal("10.001")),
-      toRow(2, "1", 3, new JBigDecimal("10.001")),
-      toRow(3, "2000", 4, new JBigDecimal("10.001")),
-      toRow(1, "2", 2, new JBigDecimal("10.001")),
-      toRow(2, "3000", 3, new JBigDecimal("10.001"))
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3)
     )
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
@@ -154,8 +147,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |create table t1(
         |  a int,
         |  b varchar,
-        |  c int,
-        |  d DECIMAL(10, 3)
+        |  c int
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -165,8 +157,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |create table t2(
         |  a int,
         |  b varchar,
-        |  c int,
-        |  d DECIMAL(10, 3)
+        |  c int
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -174,80 +165,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val query =
       """
         |insert into t2
-        |select t1.a, t1.b, (t1.a + 1) as c , d from t1
+        |select t1.a, t1.b, (t1.a + 1) as c from t1
       """.stripMargin
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)
     tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
-  }
-
-  @Test
-  def testReadWriteCsvUsingDDL(): Unit = {
-    val csvRecords = Seq(
-      "2.02,Euro,2019-12-12 00:00:01.001001",
-      "1.11,US Dollar,2019-12-12 00:00:02.002001",
-      "50,Yen,2019-12-12 00:00:04.004001",
-      "3.1,Euro,2019-12-12 00:00:05.005001",
-      "5.33,US Dollar,2019-12-12 00:00:06.006001"
-    )
-    val tempFilePath = createTempFile(
-      "csv-order-test",
-      csvRecords.mkString("#"))
-    val sourceDDL =
-      s"""
-       |CREATE TABLE T1 (
-       |  price DECIMAL(10, 2),
-       |  currency STRING,
-       |  ts6 TIMESTAMP(6),
-       |  ts AS CAST(ts6 AS TIMESTAMP(3)),
-       |  WATERMARK FOR ts AS ts
-       |) WITH (
-       |  'connector.type' = 'filesystem',
-       |  'connector.path' = '$tempFilePath',
-       |  'format.type' = 'csv',
-       |  'format.field-delimiter' = ',',
-       |  'format.line-delimiter' = '#'
-       |)
-     """.stripMargin
-    tableEnv.sqlUpdate(sourceDDL)
-
-    val sinkFilePath = getTempFilePath("csv-order-sink")
-    val sinkDDL =
-      s"""
-        |CREATE TABLE T2 (
-        |  window_end TIMESTAMP(3),
-        |  max_ts TIMESTAMP(6),
-        |  counter BIGINT,
-        |  total_price DECIMAL(10, 2)
-        |) with (
-        |  'connector.type' = 'filesystem',
-        |  'connector.path' = '$sinkFilePath',
-        |  'format.type' = 'csv',
-        |  'format.field-delimiter' = ','
-        |)
-      """.stripMargin
-    tableEnv.sqlUpdate(sinkDDL)
-
-    val query =
-      """
-        |INSERT INTO T2
-        |SELECT
-        |  TUMBLE_END(ts, INTERVAL '5' SECOND),
-        |  MAX(ts6),
-        |  COUNT(*),
-        |  MAX(price)
-        |FROM T1
-        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
-      """.stripMargin
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-
-    val expected =
-      "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
-      "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
-    assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 
   @Test
@@ -359,11 +283,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       toRow(2, "2019-09-10 09:23:44")
     )
     val expected = List(
-      toRow(1, "1990-02-10 12:34:56", localDateTime("1990-02-10 12:34:56")),
-      toRow(2, "2019-09-10 09:23:41", localDateTime("2019-09-10 09:23:41")),
-      toRow(3, "2019-09-10 09:23:42", localDateTime("2019-09-10 09:23:42")),
-      toRow(1, "2019-09-10 09:23:43", localDateTime("2019-09-10 09:23:43")),
-      toRow(2, "2019-09-10 09:23:44", localDateTime("2019-09-10 09:23:44"))
+      toRow(1, "1990-02-10 12:34:56", Timestamp.valueOf("1990-02-10 12:34:56")),
+      toRow(2, "2019-09-10 09:23:41", Timestamp.valueOf("2019-09-10 9:23:41")),
+      toRow(3, "2019-09-10 09:23:42", Timestamp.valueOf("2019-09-10 9:23:42")),
+      toRow(1, "2019-09-10 09:23:43", Timestamp.valueOf("2019-09-10 9:23:43")),
+      toRow(2, "2019-09-10 09:23:44", Timestamp.valueOf("2019-09-10 9:23:44"))
     )
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
@@ -408,11 +332,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       toRow(2, "2019-09-10 9:23:44")
     )
     val expected = List(
-      toRow(1, "1990-02-10 12:34:56", 1, "1990-02-10 12:34:56"),
-      toRow(2, "2019-09-10 9:23:41", 2, "2019-09-10 9:23:41"),
-      toRow(3, "2019-09-10 9:23:42", 3, "2019-09-10 9:23:42"),
-      toRow(1, "2019-09-10 9:23:43", 1, "2019-09-10 9:23:43"),
-      toRow(2, "2019-09-10 9:23:44", 2, "2019-09-10 9:23:44")
+      toRow(1, "1990-02-10 12:34:56", 1),
+      toRow(2, "2019-09-10 9:23:41", 2),
+      toRow(3, "2019-09-10 9:23:42", 3),
+      toRow(1, "2019-09-10 9:23:43", 1),
+      toRow(2, "2019-09-10 9:23:44", 2)
     )
     TestCollectionTableFactory.initData(sourceData)
     tableEnv.registerFunction("my_udf", Func0)
@@ -420,9 +344,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       """
         |create table t1(
         |  a int,
-        |  `time` varchar,
-        |  c as my_udf(a),
-        |  d as `time`
+        |  b varchar,
+        |  c as my_udf(a)
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -431,9 +354,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       """
         |create table t2(
         |  a int,
-        |  `time` varchar,
-        |  c int not null,
-        |  d varchar
+        |  b varchar,
+        |  c int not null
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -441,7 +363,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val query =
       """
         |insert into t2
-        |select t1.a, t1.`time`, t1.c, t1.d from t1
+        |select t1.a, t1.b, t1.c from t1
       """.stripMargin
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)
@@ -539,7 +461,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.sqlUpdate(query)
     expectedEx.expect(classOf[ValidationException])
     expectedEx.expectMessage("Field types of query result and registered TableSink "
-      + "default_catalog.default_database.t2 do not match.")
+      + "`default_catalog`.`default_database`.`t2` do not match.")
     execJob("testJob")
   }
 
@@ -646,6 +568,168 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
+  @Test @Ignore // need to implement
+  def testStreamSourceTableWithProctime(): Unit = {
+    val sourceData = List(
+      toRow(1, 1000),
+      toRow(2, 2000),
+      toRow(3, 3000)
+    )
+    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  b int,
+        |  c as proctime,
+        |  primary key(a)
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  b int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
+  }
+
+  @Test @Ignore("FLINK-14320") // need to implement
+  def testStreamSourceTableWithRowtime(): Unit = {
+    val sourceData = List(
+      toRow(1, 1000),
+      toRow(2, 2000),
+      toRow(3, 3000)
+    )
+    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a timestamp(3),
+        |  b bigint,
+        |  WATERMARK FOR a AS a - interval '1' SECOND
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a timestamp(3),
+        |  b bigint
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
+  }
+
+  @Test @Ignore // need to implement
+  def testBatchSourceTableWithProctime(): Unit = {
+    val sourceData = List(
+      toRow(1, 1000),
+      toRow(2, 2000),
+      toRow(3, 3000)
+    )
+    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  b int,
+        |  c as proctime,
+        |  primary key(a)
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  b int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
+  }
+
+  @Test @Ignore("FLINK-14320") // need to implement
+  def testBatchTableWithRowtime(): Unit = {
+    val sourceData = List(
+      toRow(1, 1000),
+      toRow(2, 2000),
+      toRow(3, 3000)
+    )
+    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a timestamp(3),
+        |  b bigint,
+        |  WATERMARK FOR a AS a - interval '1' SECOND
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a timestamp(3),
+        |  b bigint
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
+  }
+
   @Test
   def testDropTableWithFullPath(): Unit = {
     val ddl1 =
@@ -740,33 +824,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
-  }
-
-  @Test
-  def testAlterTable(): Unit = {
-    val ddl1 =
-      """
-        |create table t1(
-        |  a bigint,
-        |  b bigint,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'k1' = 'v1'
-        |)
-      """.stripMargin
-    tableEnv.sqlUpdate(ddl1)
-    tableEnv.sqlUpdate("alter table t1 rename to t2")
-    assert(tableEnv.listTables().sameElements(Array[String]("t2")))
-    tableEnv.sqlUpdate("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
-    val expectedProperties = new util.HashMap[String, String]()
-    expectedProperties.put("connector", "COLLECTION")
-    expectedProperties.put("k1", "a")
-    expectedProperties.put("k2", "b")
-    val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
-      .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
-      .getProperties
-    assertEquals(expectedProperties, properties)
   }
 
   @Test

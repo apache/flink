@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.expressions.{Expression, _}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -238,7 +237,7 @@ object AggCodeGenHelper {
   }
 
   def newLocalReference(resultTerm: String, resultType: LogicalType): LocalReferenceExpression = {
-    localRef(resultTerm, fromLogicalTypeToDataType(resultType))
+    new LocalReferenceExpression(resultTerm, fromLogicalTypeToDataType(resultType))
   }
 
   /**
@@ -555,7 +554,7 @@ object AggCodeGenHelper {
         val singleIterableClass = classOf[SingleElementIterator[_]].getCanonicalName
 
         val externalAccT = getAccumulatorTypeOfAggregateFunction(agg)
-        val javaField = typeTerm(externalAccT.getConversionClass)
+        val javaField = boxedTypeTermForExternalType(externalAccT)
         val tmpAcc = newName("tmpAcc")
         s"""
            |final $singleIterableClass accIt$aggIndex = new  $singleIterableClass();
@@ -626,10 +625,11 @@ object AggCodeGenHelper {
           agg, externalAccType, inputExprs.map(_.resultType))
         val parameters = inputExprs.zipWithIndex.map {
           case (expr, i) =>
-            genToExternalIfNeeded(ctx, externalUDITypes(i), expr)
+            s"${expr.nullTerm} ? null : " +
+                s"${ genToExternal(ctx, externalUDITypes(i), expr.resultTerm)}"
         }
 
-        val javaTerm = typeTerm(externalAccType.getConversionClass)
+        val javaTerm = boxedTypeTermForExternalType(externalAccType)
         val tmpAcc = newName("tmpAcc")
         val innerCode =
           s"""

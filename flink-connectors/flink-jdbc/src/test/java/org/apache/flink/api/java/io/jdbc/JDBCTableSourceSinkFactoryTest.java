@@ -20,22 +20,18 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -47,14 +43,6 @@ import static org.junit.Assert.fail;
  * by {@link JDBCTableSourceSinkFactory}.
  */
 public class JDBCTableSourceSinkFactoryTest {
-
-	private static final TableSchema schema = TableSchema.builder()
-		.field("aaa", DataTypes.INT())
-		.field("bbb", DataTypes.STRING())
-		.field("ccc", DataTypes.DOUBLE())
-		.field("ddd", DataTypes.DECIMAL(31, 18))
-		.field("eee", DataTypes.TIMESTAMP(3))
-		.build();
 
 	@Test
 	public void testJDBCCommonProperties() {
@@ -73,13 +61,16 @@ public class JDBCTableSourceSinkFactoryTest {
 			.setUsername("user")
 			.setPassword("pass")
 			.build();
+		final TableSchema schema = TableSchema.builder()
+			.field("aaa", DataTypes.INT())
+			.field("bbb", DataTypes.STRING())
+			.field("ccc", DataTypes.DOUBLE())
+			.build();
 		final JDBCTableSource expected = JDBCTableSource.builder()
 			.setOptions(options)
 			.setSchema(schema)
 			.build();
 
-		TableSourceValidation.validateTableSource(expected, schema);
-		TableSourceValidation.validateTableSource(actual, schema);
 		assertEquals(expected, actual);
 	}
 
@@ -105,6 +96,11 @@ public class JDBCTableSourceSinkFactoryTest {
 			.setPartitionUpperBound(100)
 			.setNumPartitions(10)
 			.setFetchSize(20)
+			.build();
+		final TableSchema schema = TableSchema.builder()
+			.field("aaa", DataTypes.INT())
+			.field("bbb", DataTypes.STRING())
+			.field("ccc", DataTypes.DOUBLE())
 			.build();
 		final JDBCTableSource expected = JDBCTableSource.builder()
 			.setOptions(options)
@@ -134,6 +130,11 @@ public class JDBCTableSourceSinkFactoryTest {
 			.setCacheExpireMs(10_000)
 			.setMaxRetryTimes(10)
 			.build();
+		final TableSchema schema = TableSchema.builder()
+			.field("aaa", DataTypes.INT())
+			.field("bbb", DataTypes.STRING())
+			.field("ccc", DataTypes.DOUBLE())
+			.build();
 		final JDBCTableSource expected = JDBCTableSource.builder()
 			.setOptions(options)
 			.setLookupOptions(lookupOptions)
@@ -157,6 +158,11 @@ public class JDBCTableSourceSinkFactoryTest {
 			.setDBUrl("jdbc:derby:memory:mydb")
 			.setTableName("mytable")
 			.build();
+		final TableSchema schema = TableSchema.builder()
+			.field("aaa", DataTypes.INT())
+			.field("bbb", DataTypes.STRING())
+			.field("ccc", DataTypes.DOUBLE())
+			.build();
 		final JDBCUpsertTableSink expected = JDBCUpsertTableSink.builder()
 			.setOptions(options)
 			.setTableSchema(schema)
@@ -169,7 +175,7 @@ public class JDBCTableSourceSinkFactoryTest {
 	}
 
 	@Test
-	public void testJDBCFieldsProjection() {
+	public void testJDBCWithFilter() {
 		Map<String, String> properties = getBasicProperties();
 		properties.put("connector.driver", "org.apache.derby.jdbc.EmbeddedDriver");
 		properties.put("connector.username", "user");
@@ -184,12 +190,6 @@ public class JDBCTableSourceSinkFactoryTest {
 		assertEquals(projectedFields.get("aaa"), DataTypes.INT());
 		assertNull(projectedFields.get("bbb"));
 		assertEquals(projectedFields.get("ccc"), DataTypes.DOUBLE());
-
-		// test jdbc table source description
-		List<String> fieldNames = ((RowType) actual.getProducedDataType().getLogicalType()).getFieldNames();
-		String expectedSourceDescription = actual.getClass().getSimpleName()
-			+ "(" + String.join(", ", fieldNames.stream().toArray(String[]::new)) + ")";
-		assertEquals(expectedSourceDescription, actual.explainSource());
 	}
 
 	@Test
@@ -264,10 +264,13 @@ public class JDBCTableSourceSinkFactoryTest {
 		properties.put("connector.url", "jdbc:derby:memory:mydb");
 		properties.put("connector.table", "mytable");
 
-		DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putProperties(properties);
-		descriptorProperties.putTableSchema("schema", schema);
+		properties.put("schema.0.name", "aaa");
+		properties.put("schema.0.type", "INT");
+		properties.put("schema.1.name", "bbb");
+		properties.put("schema.1.type", "VARCHAR");
+		properties.put("schema.2.name", "ccc");
+		properties.put("schema.2.type", "DOUBLE");
 
-		return new HashMap<>(descriptorProperties.asMap());
+		return properties;
 	}
 }

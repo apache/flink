@@ -21,21 +21,16 @@ package org.apache.flink.yarn.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.PipelineExecutor;
-import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.Executor;
+import org.apache.flink.core.execution.ExecutorFactory;
 
 import javax.annotation.Nonnull;
 
 /**
- * An {@link PipelineExecutorFactory} for executing jobs on an existing (session) cluster.
+ * An {@link ExecutorFactory} for executing jobs on an existing (session) cluster.
  */
 @Internal
-public class YarnSessionClusterExecutorFactory implements PipelineExecutorFactory {
-
-	@Override
-	public String getName() {
-		return YarnSessionClusterExecutor.NAME;
-	}
+public class YarnSessionClusterExecutorFactory implements ExecutorFactory {
 
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
@@ -43,7 +38,7 @@ public class YarnSessionClusterExecutorFactory implements PipelineExecutorFactor
 	}
 
 	@Override
-	public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
+	public Executor getExecutor(@Nonnull final Configuration configuration) {
 		return new YarnSessionClusterExecutor();
 	}
 }

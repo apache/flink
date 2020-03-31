@@ -32,10 +32,7 @@ object CorrelateUtil {
     * function at the end.
     */
   def getTableFunctionScan(calc: FlinkLogicalCalc): Option[FlinkLogicalTableFunctionScan] = {
-    val child = calc.getInput match {
-      case relSubset: RelSubset => relSubset.getOriginal
-      case hepRelVertex: HepRelVertex => hepRelVertex.getCurrentRel
-    }
+    val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
     child match {
       case scan: FlinkLogicalTableFunctionScan => Some(scan)
       case calc: FlinkLogicalCalc => getTableFunctionScan(calc)

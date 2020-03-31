@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rex.RexNode
+
+import java.util
 
 /**
   * Sub-class of [[WatermarkAssigner]] that is a relational operator
@@ -31,28 +32,13 @@ final class LogicalWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
-    rowtimeFieldIndex: Int,
-    watermarkExpr: RexNode)
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkExpr) {
+    rowtimeFieldIndex: Option[Int],
+    watermarkDelay: Option[Long])
+  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkDelay) {
 
-  override def copy(
-      traitSet: RelTraitSet,
-      input: RelNode,
-      rowtime: Int,
-      watermark: RexNode): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traitSet, input, rowtime, watermark)
-  }
-}
-
-object LogicalWatermarkAssigner {
-
-  def create(
-      cluster: RelOptCluster,
-      input: RelNode,
-      rowtimeFieldIndex: Int,
-      watermarkExpr: RexNode): LogicalWatermarkAssigner = {
-    val traits = cluster.traitSetOf(Convention.NONE)
-    new LogicalWatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkExpr)
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+    new LogicalWatermarkAssigner(
+      cluster, traitSet, inputs.get(0), rowtimeFieldIndex, watermarkDelay)
   }
 }
 

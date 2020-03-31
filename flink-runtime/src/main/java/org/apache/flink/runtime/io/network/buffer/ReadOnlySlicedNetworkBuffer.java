@@ -28,8 +28,6 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.SlicedByteBuf;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
  * Minimal best-effort read-only sliced {@link Buffer} implementation wrapping a
  * {@link NetworkBuffer}'s sub-region based on <tt>io.netty.buffer.SlicedByteBuf</tt> and
@@ -41,8 +39,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implements Buffer {
 
 	private final int memorySegmentOffset;
-
-	private boolean isCompressed = false;
 
 	/**
 	 * Creates a buffer which shares the memory segment of the given buffer and exposed the given
@@ -71,12 +67,10 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 * @param index the index to start from
 	 * @param length the length of the slice
 	 * @param memorySegmentOffset <tt>buffer</tt>'s absolute offset in the backing {@link MemorySegment}
-	 * @param isCompressed whether the buffer is compressed or not
 	 */
-	ReadOnlySlicedNetworkBuffer(ByteBuf buffer, int index, int length, int memorySegmentOffset, boolean isCompressed) {
+	private ReadOnlySlicedNetworkBuffer(ByteBuf buffer, int index, int length, int memorySegmentOffset) {
 		super(new SlicedByteBuf(buffer, index, length));
 		this.memorySegmentOffset = memorySegmentOffset + index;
-		this.isCompressed = isCompressed;
 	}
 
 	@Override
@@ -140,8 +134,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
-		checkState(!isCompressed, "Unable to slice a compressed buffer.");
-		return new ReadOnlySlicedNetworkBuffer(super.unwrap(), index, length, memorySegmentOffset, false);
+		return new ReadOnlySlicedNetworkBuffer(super.unwrap(), index, length, memorySegmentOffset);
 	}
 
 	@Override
@@ -211,16 +204,6 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	@Override
 	public ByteBuf asByteBuf() {
 		return this;
-	}
-
-	@Override
-	public boolean isCompressed() {
-		return isCompressed;
-	}
-
-	@Override
-	public void setCompressed(boolean isCompressed) {
-		this.isCompressed = isCompressed;
 	}
 
 	private Buffer getBuffer() {

@@ -26,9 +26,7 @@ import org.apache.flink.types.Row;
 
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -37,17 +35,12 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Types;
 
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.OUTPUT_TABLE;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.ROW_TYPE_INFO;
 import static org.hamcrest.core.StringContains.containsString;
 
 /**
  * Tests using both {@link JDBCInputFormat} and {@link JDBCOutputFormat}.
  */
-public class JDBCFullTest extends JDBCDataTestBase {
-
-	@Rule
-	public ExpectedException exception = ExpectedException.none();
+public class JDBCFullTest extends JDBCTestBase {
 
 	@Test
 	public void testWithoutParallelism() throws Exception {
@@ -65,8 +58,8 @@ public class JDBCFullTest extends JDBCDataTestBase {
 		exception.expectMessage(containsString("field index: 3, field value: 11.11."));
 
 		JDBCOutputFormat jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
-			.setDrivername(getDbMetadata().getDriverClass())
-			.setDBUrl(getDbMetadata().getUrl())
+			.setDrivername(JDBCTestBase.DRIVER_CLASS)
+			.setDBUrl(JDBCTestBase.DB_URL)
 			.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
 			.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
 			.finish();
@@ -80,18 +73,18 @@ public class JDBCFullTest extends JDBCDataTestBase {
 	private void runTest(boolean exploitParallelism) throws Exception {
 		ExecutionEnvironment environment = ExecutionEnvironment.getExecutionEnvironment();
 		JDBCInputFormatBuilder inputBuilder = JDBCInputFormat.buildJDBCInputFormat()
-				.setDrivername(getDbMetadata().getDriverClass())
-				.setDBUrl(getDbMetadata().getUrl())
-				.setQuery(JdbcTestFixture.SELECT_ALL_BOOKS)
+				.setDrivername(JDBCTestBase.DRIVER_CLASS)
+				.setDBUrl(JDBCTestBase.DB_URL)
+				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS)
 				.setRowTypeInfo(ROW_TYPE_INFO);
 
 		if (exploitParallelism) {
 			final int fetchSize = 1;
-			final long min = JdbcTestFixture.TEST_DATA[0].id;
-			final long max = JdbcTestFixture.TEST_DATA[JdbcTestFixture.TEST_DATA.length - fetchSize].id;
+			final long min = JDBCTestBase.TEST_DATA[0].id;
+			final long max = JDBCTestBase.TEST_DATA[JDBCTestBase.TEST_DATA.length - fetchSize].id;
 			//use a "splittable" query to exploit parallelism
 			inputBuilder = inputBuilder
-					.setQuery(JdbcTestFixture.SELECT_ALL_BOOKS_SPLIT_BY_ID)
+					.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
 					.setParametersProvider(new NumericBetweenParametersProvider(min, max).ofBatchSize(fetchSize));
 		}
 		DataSet<Row> source = environment.createInput(inputBuilder.finish());
@@ -100,8 +93,8 @@ public class JDBCFullTest extends JDBCDataTestBase {
 		//some databases don't null values correctly when no column type was specified
 		//in PreparedStatement.setObject (see its javadoc for more details)
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDrivername(getDbMetadata().getDriverClass())
-				.setDBUrl(getDbMetadata().getUrl())
+				.setDrivername(JDBCTestBase.DRIVER_CLASS)
+				.setDBUrl(JDBCTestBase.DB_URL)
 				.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
 				.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
 				.finish());
@@ -109,24 +102,24 @@ public class JDBCFullTest extends JDBCDataTestBase {
 		environment.execute();
 
 		try (
-				Connection dbConn = DriverManager.getConnection(getDbMetadata().getUrl());
-				PreparedStatement statement = dbConn.prepareStatement(JdbcTestFixture.SELECT_ALL_NEWBOOKS);
-				ResultSet resultSet = statement.executeQuery()
+			Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
+			PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS);
+			ResultSet resultSet = statement.executeQuery()
 		) {
 			int count = 0;
 			while (resultSet.next()) {
 				count++;
 			}
-			Assert.assertEquals(JdbcTestFixture.TEST_DATA.length, count);
+			Assert.assertEquals(JDBCTestBase.TEST_DATA.length, count);
 		}
 	}
 
 	@After
 	public void clearOutputTable() throws Exception {
-		Class.forName(getDbMetadata().getDriverClass());
+		Class.forName(DRIVER_CLASS);
 		try (
-				Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
-				Statement stat = conn.createStatement()) {
+			Connection conn = DriverManager.getConnection(DB_URL);
+			Statement stat = conn.createStatement()) {
 			stat.execute("DELETE FROM " + OUTPUT_TABLE);
 
 			stat.close();

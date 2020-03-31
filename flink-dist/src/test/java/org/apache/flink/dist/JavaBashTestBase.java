@@ -21,11 +21,12 @@ package org.apache.flink.dist;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.commons.io.IOUtils;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 /**
  * Abstract test class for executing bash scripts.
@@ -48,6 +49,12 @@ public abstract class JavaBashTestBase extends TestLogger {
 		ProcessBuilder pb = new ProcessBuilder(command);
 		pb.redirectErrorStream(true);
 		Process process = pb.start();
-		return IOUtils.toString(process.getInputStream());
+		BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+		StringBuilder sb = new StringBuilder();
+		String s;
+		while ((s = reader.readLine()) != null) {
+			sb.append(s);
+		}
+		return sb.toString();
 	}
 }

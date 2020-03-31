@@ -54,15 +54,15 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 	@Parameterized.Parameters(name = "FailoverStrategy: {0}")
 	public static Collection<FailoverStrategy> parameters() {
-		return Arrays.asList(FailoverStrategy.RestartAllFailoverStrategy, FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
+		return Arrays.asList(FailoverStrategy.RestartAllStrategy, FailoverStrategy.RestartPipelinedRegionStrategy);
 	}
 
 	/**
 	 * The failover strategy to use.
 	 */
 	public enum FailoverStrategy{
-		RestartAllFailoverStrategy,
-		RestartPipelinedRegionFailoverStrategy
+		RestartAllStrategy,
+		RestartPipelinedRegionStrategy
 	}
 
 	@Parameterized.Parameter
@@ -78,10 +78,10 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	public void setup() throws Exception {
 		Configuration configuration = new Configuration();
 		switch (failoverStrategy) {
-			case RestartPipelinedRegionFailoverStrategy:
+			case RestartPipelinedRegionStrategy:
 				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
 				break;
-			case RestartAllFailoverStrategy:
+			case RestartAllStrategy:
 				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 		}
 

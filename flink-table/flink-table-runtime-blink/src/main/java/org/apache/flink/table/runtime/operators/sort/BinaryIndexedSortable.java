@@ -77,7 +77,7 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
 			BinaryRowSerializer serializer,
 			RecordComparator comparator,
 			ArrayList<MemorySegment> recordBufferSegments,
-			MemorySegmentPool memorySegmentPool) {
+			MemorySegmentPool memorySegmentPool) throws IOException {
 		if (normalizedKeyComputer == null || serializer == null) {
 			throw new NullPointerException();
 		}

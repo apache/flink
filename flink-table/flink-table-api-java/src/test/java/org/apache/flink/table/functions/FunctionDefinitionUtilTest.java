@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.CatalogFunctionImpl;
 
 import org.junit.Test;
 
@@ -32,7 +33,7 @@ public class FunctionDefinitionUtilTest {
 	public void testScalarFunction() {
 		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-				TestScalarFunction.class.getName()
+				new CatalogFunctionImpl(TestScalarFunction.class.getName())
 		);
 
 		assertTrue(((ScalarFunctionDefinition) fd).getScalarFunction() instanceof TestScalarFunction);
@@ -40,56 +41,32 @@ public class FunctionDefinitionUtilTest {
 
 	@Test
 	public void testTableFunction() {
-		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
+		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-			TestTableFunction.class.getName()
+			new CatalogFunctionImpl(TestTableFunction.class.getName())
 		);
 
-		assertTrue(((TableFunctionDefinition) fd1).getTableFunction() instanceof TestTableFunction);
-
-		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
-				"test",
-				TestTableFunctionWithoutResultType.class.getName()
-		);
-
-		assertTrue(((TableFunctionDefinition) fd2).getTableFunction() instanceof TestTableFunctionWithoutResultType);
+		assertTrue(((TableFunctionDefinition) fd).getTableFunction() instanceof TestTableFunction);
 	}
 
 	@Test
 	public void testAggregateFunction() {
-		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
+		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-			TestAggFunction.class.getName()
+			new CatalogFunctionImpl(TestAggFunction.class.getName())
 		);
 
-		assertTrue(((AggregateFunctionDefinition) fd1).getAggregateFunction() instanceof TestAggFunction);
-
-		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
-				"test",
-				TestAggFunctionWithoutResultType.class.getName()
-		);
-
-		assertTrue(((AggregateFunctionDefinition) fd2).getAggregateFunction()
-				instanceof TestAggFunctionWithoutResultType);
-
+		assertTrue(((AggregateFunctionDefinition) fd).getAggregateFunction() instanceof TestAggFunction);
 	}
 
 	@Test
 	public void testTableAggregateFunction() {
-		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
+		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-			TestTableAggFunction.class.getName()
+			new CatalogFunctionImpl(TestTableAggFunction.class.getName())
 		);
 
-		assertTrue(((TableAggregateFunctionDefinition) fd1).getTableAggregateFunction() instanceof TestTableAggFunction);
-
-		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
-				"test",
-				TestTableAggFunctionWithoutResultType.class.getName()
-		);
-
-		assertTrue(((TableAggregateFunctionDefinition) fd2).getTableAggregateFunction()
-				instanceof TestTableAggFunctionWithoutResultType);
+		assertTrue(((TableAggregateFunctionDefinition) fd).getTableAggregateFunction() instanceof TestTableAggFunction);
 	}
 
 	/**
@@ -107,12 +84,6 @@ public class FunctionDefinitionUtilTest {
 		public TypeInformation getResultType() {
 			return TypeInformation.of(Object.class);
 		}
-	}
-
-	/**
-	 * Test function.
-	 */
-	public static class TestTableFunctionWithoutResultType extends TableFunction<String> {
 	}
 
 	/**
@@ -143,21 +114,6 @@ public class FunctionDefinitionUtilTest {
 	/**
 	 * Test function.
 	 */
-	public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, Long> {
-		@Override
-		public Long createAccumulator() {
-			return null;
-		}
-
-		@Override
-		public Long getValue(Long accumulator) {
-			return null;
-		}
-	}
-
-	/**
-	 * Test function.
-	 */
 	public static class TestTableAggFunction extends TableAggregateFunction {
 		@Override
 		public Object createAccumulator() {
@@ -172,16 +128,6 @@ public class FunctionDefinitionUtilTest {
 		@Override
 		public TypeInformation getAccumulatorType() {
 			return TypeInformation.of(Object.class);
-		}
-	}
-
-	/**
-	 * Test function.
-	 */
-	public static class TestTableAggFunctionWithoutResultType extends TableAggregateFunction<Long, Long> {
-		@Override
-		public Long createAccumulator() {
-			return null;
 		}
 	}
 }

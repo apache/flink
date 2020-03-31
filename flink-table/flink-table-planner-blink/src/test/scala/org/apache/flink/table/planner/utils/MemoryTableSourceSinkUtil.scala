@@ -110,6 +110,10 @@ object MemoryTableSourceSinkUtil {
         .setParallelism(dataStream.getParallelism)
         .name(TableConnectorUtil.generateRuntimeName(this.getClass, getFieldNames))
     }
+
+    override def emitDataStream(dataStream: DataStream[Row]): Unit = {
+      consumeDataStream(dataStream)
+    }
   }
 
   final class UnsafeMemoryOutputFormatTableSink extends OutputFormatTableSink[Row] {
@@ -188,5 +192,6 @@ object MemoryTableSourceSinkUtil {
       dataStream.writeUsingOutputFormat(new MemoryCollectionOutputFormat)
     }
 
+    override def emitDataStream(dataStream: DataStream[Row]): Unit = ???
   }
 }

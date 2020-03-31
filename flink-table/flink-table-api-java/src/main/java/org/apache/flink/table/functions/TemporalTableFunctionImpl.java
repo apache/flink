@@ -20,13 +20,8 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.types.inference.InputTypeStrategies;
-import org.apache.flink.table.types.inference.TypeInference;
-import org.apache.flink.table.types.inference.TypeStrategies;
 
 import java.sql.Timestamp;
 
@@ -57,7 +52,7 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 		this.resultType = resultType;
 	}
 
-	public void eval(Timestamp t) {
+	public void eval(Timestamp row) {
 		throw new IllegalStateException("This should never be called");
 	}
 
@@ -67,14 +62,6 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 
 	public Expression getPrimaryKey() {
 		return primaryKey;
-	}
-
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		return TypeInference.newBuilder()
-			.inputTypeStrategy(InputTypeStrategies.explicitSequence(DataTypes.TIMESTAMP(3)))
-			.outputTypeStrategy(TypeStrategies.explicit(underlyingHistoryTable.getTableSchema().toRowDataType()))
-			.build();
 	}
 
 	@Override

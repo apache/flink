@@ -254,7 +254,6 @@ public class RandomSortMergeInnerJoinTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 		testHarness.getStreamConfig().setStreamOperator(operator);
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
 
 		long initialTime = 0L;
 

@@ -28,6 +28,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -69,7 +71,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	CheckpointBarrierAligner(
 			int totalNumberOfInputChannels,
 			String taskName,
-			AbstractInvokable toNotifyOnCheckpoint) {
+			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
 		super(toNotifyOnCheckpoint);
 		this.totalNumberOfInputChannels = totalNumberOfInputChannels;
 		this.taskName = taskName;
@@ -142,8 +144,8 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 				releaseBlocksAndResetBarriers();
 				checkpointAborted = true;
 
-				// begin a new checkpoint
-				beginNewAlignment(barrierId, channelIndex, receivedBarrier.getTimestamp());
+				// begin a the new checkpoint
+				beginNewAlignment(barrierId, channelIndex);
 			}
 			else {
 				// ignore trailing barrier from an earlier checkpoint (obsolete now)
@@ -152,7 +154,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 		}
 		else if (barrierId > currentCheckpointId) {
 			// first barrier of a new checkpoint
-			beginNewAlignment(barrierId, channelIndex, receivedBarrier.getTimestamp());
+			beginNewAlignment(barrierId, channelIndex);
 		}
 		else {
 			// either the current checkpoint was canceled (numBarriers == 0) or
@@ -178,11 +180,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 		return checkpointAborted;
 	}
 
-	protected void beginNewAlignment(
-			long checkpointId,
-			int channelIndex,
-			long checkpointTimestamp) throws IOException {
-		markCheckpointStart(checkpointTimestamp);
+	protected void beginNewAlignment(long checkpointId, int channelIndex) throws IOException {
 		currentCheckpointId = checkpointId;
 		onBarrier(channelIndex);
 

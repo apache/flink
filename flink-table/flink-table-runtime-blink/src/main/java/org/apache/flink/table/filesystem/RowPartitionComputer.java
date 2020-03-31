@@ -35,10 +35,10 @@ public class RowPartitionComputer implements PartitionComputer<Row> {
 
 	private static final long serialVersionUID = 1L;
 
-	protected final String defaultPartValue;
-	protected final String[] partitionColumns;
+	private final String defaultPartValue;
+	private final String[] partitionColumns;
 	private final int[] nonPartitionIndexes;
-	protected final int[] partitionIndexes;
+	private final int[] partitionIndexes;
 
 	public RowPartitionComputer(String defaultPartValue, String[] columnNames, String[] partitionColumns) {
 		this.defaultPartValue = defaultPartValue;

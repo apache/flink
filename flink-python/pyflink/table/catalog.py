@@ -794,8 +794,6 @@ class CatalogFunction(object):
         Whether or not is the function a flink UDF.
 
         :return: Whether is the function a flink UDF.
-
-        .. versionadded:: 1.10.0
         """
         return self._j_catalog_function.isGeneric()
 
@@ -804,8 +802,6 @@ class CatalogFunction(object):
         Get the language used for the function definition.
 
         :return: the language type of the function definition
-
-        .. versionadded:: 1.10.0
         """
         return self._j_catalog_function.getFunctionLanguage()
 

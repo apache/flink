@@ -47,6 +47,16 @@ public class VectorizedColumnBatch implements Serializable {
 		this.columns = vectors;
 	}
 
+	/**
+	 * Resets the batch for writing.
+	 */
+	public void reset() {
+		for (ColumnVector column : columns) {
+			column.reset();
+		}
+		this.numRows = 0;
+	}
+
 	public void setNumRows(int numRows) {
 		this.numRows = numRows;
 	}

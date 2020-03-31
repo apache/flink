@@ -42,6 +42,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumab
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -61,7 +62,6 @@ import org.apache.flink.util.SerializedValue;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.Executor;
 
 import static org.mockito.Mockito.mock;
@@ -82,11 +82,8 @@ public final class TestTaskBuilder {
 	private Configuration taskManagerConfig = new Configuration();
 	private ExecutionConfig executionConfig = new ExecutionConfig();
 	private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
-	private List<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
-	private List<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
-	private JobID jobId = new JobID();
-	private AllocationID allocationID = new AllocationID();
-	private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+	private Collection<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
+	private Collection<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
 
 	public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
 		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
@@ -142,33 +139,20 @@ public final class TestTaskBuilder {
 		return this;
 	}
 
-	public TestTaskBuilder setResultPartitions(List<ResultPartitionDeploymentDescriptor> resultPartitions) {
+	public TestTaskBuilder setResultPartitions(Collection<ResultPartitionDeploymentDescriptor> resultPartitions) {
 		this.resultPartitions = resultPartitions;
 		return this;
 	}
 
-	public TestTaskBuilder setInputGates(List<InputGateDeploymentDescriptor> inputGates) {
+	public TestTaskBuilder setInputGates(Collection<InputGateDeploymentDescriptor> inputGates) {
 		this.inputGates = inputGates;
 		return this;
 	}
 
-	public TestTaskBuilder setJobId(JobID jobId) {
-		this.jobId = jobId;
-		return this;
-	}
-
-	public TestTaskBuilder setAllocationID(AllocationID allocationID) {
-		this.allocationID = allocationID;
-		return this;
-	}
-
-	public TestTaskBuilder setExecutionAttemptId(ExecutionAttemptID executionAttemptId) {
-		this.executionAttemptId = executionAttemptId;
-		return this;
-	}
-
 	public Task build() throws Exception {
+		final JobID jobId = new JobID();
 		final JobVertexID jobVertexId = new JobVertexID();
+		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 
 		final SerializedValue<ExecutionConfig> serializedExecutionConfig = new SerializedValue<>(executionConfig);
 
@@ -198,7 +182,7 @@ public final class TestTaskBuilder {
 			jobInformation,
 			taskInformation,
 			executionAttemptId,
-			allocationID,
+			new AllocationID(),
 			0,
 			0,
 			resultPartitions,
@@ -214,7 +198,6 @@ public final class TestTaskBuilder {
 			taskManagerActions,
 			new MockInputSplitProvider(),
 			new TestCheckpointResponder(),
-			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
 			blobCacheService,
 			libraryCacheManager,

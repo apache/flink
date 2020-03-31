@@ -346,7 +346,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	}
 
 	/**
-	 * Builder for {@link JDBCInputFormat}.
+	 * Builder for a {@link JDBCInputFormat}.
 	 */
 	public static class JDBCInputFormatBuilder {
 		private final JDBCInputFormat format;

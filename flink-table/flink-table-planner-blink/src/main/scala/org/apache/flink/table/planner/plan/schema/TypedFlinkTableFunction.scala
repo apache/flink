@@ -47,7 +47,10 @@ class TypedFlinkTableFunction(
       argTypes: Array[Class[_]]): DataType =
     externalResultType
 
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+  override def getRowType(
+      typeFactory: RelDataTypeFactory,
+      arguments: Array[AnyRef],
+      argTypes: Array[Class[_]]): RelDataType = {
     val fieldTypes = FieldInfoUtils.getFieldTypes(
       fromDataTypeToTypeInfo(externalResultType)).map(fromTypeInfoToLogicalType)
     if (fieldTypes.length < fieldNames.length) {

@@ -30,7 +30,6 @@ import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.MyProjection;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
-import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -181,8 +180,7 @@ public class SortMergeJoinIteratorTest {
 				input1,
 				input2,
 				new ResettableExternalBuffer(
-						ioManager,
-						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
+						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextInnerJoin()) {
@@ -220,8 +218,7 @@ public class SortMergeJoinIteratorTest {
 				input1,
 				input2,
 				new ResettableExternalBuffer(
-						ioManager,
-						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
+						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextOuterJoin()) {
@@ -260,12 +257,10 @@ public class SortMergeJoinIteratorTest {
 				input1,
 				input2,
 				new ResettableExternalBuffer(
-						ioManager,
-						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
+						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
 						serializer, false),
 				new ResettableExternalBuffer(
-						ioManager,
-						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
+						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextOuterJoin()) {

@@ -17,12 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecWatermarkAssigner
+
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
 
 /**
   * Rule that converts [[FlinkLogicalWatermarkAssigner]] to [[StreamExecWatermarkAssigner]].
@@ -40,13 +42,20 @@ class StreamExecWatermarkAssignerRule
       watermarkAssigner.getInput, FlinkConventions.STREAM_PHYSICAL)
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamExecWatermarkAssigner(
+    if (watermarkAssigner.rowtimeFieldIndex.isEmpty) {
+      throw new TableException("rowtimeFieldIndex should not be empty")
+    }
+
+    if (watermarkAssigner.watermarkDelay.isEmpty) {
+      throw new TableException("watermarkDelay should not be empty")
+    }
+
+    StreamExecWatermarkAssigner.createRowTimeWatermarkAssigner(
       watermarkAssigner.getCluster,
       traitSet,
       convertInput,
-      watermarkAssigner.rowtimeFieldIndex,
-      watermarkAssigner.watermarkExpr
-    )
+      watermarkAssigner.rowtimeFieldIndex.get,
+      watermarkAssigner.watermarkDelay.get)
   }
 }
 

@@ -1,0 +1,80 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<table class="table table-body-hover table-clickable table-activable">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="v.id == nodeid || changeNode(v.id)">
+    <tr ng-if="v.type == 'regular'">
+      <td>{{ v.name | humanizeText }}</td>
+      <td>
+        <bs-label status="{{v.status}}">{{v.status}}</bs-label>
+      </td>
+    </tr>
+    <tr ng-if="nodeid &amp;&amp; v.id == nodeid">
+      <td ng-if="v.status != 'RUNNING'" colspan="2">
+        <p>Operator is not running. Cannot sample back pressure.</p>
+      </td>
+      <td ng-if="v.status == 'RUNNING'" colspan="2">
+        <table class="table table-hover table-clickable table-activable table-inner">
+          <thead>
+            <tr>
+              <th>Measurement</th>
+              <th>Back Pressure Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span ng-if="backPressureOperatorStats[v.id]['end-timestamp']">{{ now - backPressureOperatorStats[v.id]['end-timestamp'] | humanizeDuration }} ago</span><span ng-if="backPressureOperatorStats[v.id]['status'] == 'deprecated'">
+                  <bp-label status="in-progress">Sampling in progress...</bp-label></span></td>
+              <td>
+                <bp-label ng-if="backPressureOperatorStats[v.id]['backpressure-level']" status="{{backPressureOperatorStats[v.id]['backpressure-level']}}">{{ backPressureOperatorStats[v.id]['backpressure-level'] | toUpperCase }}</bp-label>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div ng-if="!nodeUnfolded &amp;&amp; backPressureOperatorStats[v.id]['subtasks'] &amp;&amp; backPressureOperatorStats[v.id]['subtasks'].length &gt; 0"><a ng-click="toggleFold()" class="btn btn-default">Show subtasks <i class="fa fa-chevron-down"></i></a><a ng-click="deactivateNode(); $event.stopPropagation()" title="Fold" class="btn btn-default pull-right"><i class="fa fa-chevron-up"></i></a></div>
+        <div ng-if="nodeUnfolded &amp;&amp; backPressureOperatorStats[v.id]['subtasks'] &amp;&amp; backPressureOperatorStats[v.id]['subtasks'].length &gt; 0"><a ng-click="toggleFold()" class="btn btn-default">Hide subtasks <i class="fa fa-chevron-up"></i></a><a ng-click="deactivateNode(); $event.stopPropagation()" title="Fold" class="btn btn-default pull-right"><i class="fa fa-chevron-up"></i></a>
+          <table class="table table-hover table-clickable table-activable table-inner">
+            <thead>
+              <tr>
+                <th>Subtask</th>
+                <th>Ratio</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr ng-repeat="subtask in backPressureOperatorStats[nodeid]['subtasks']">
+                <td>{{ subtask['subtask'] + 1 }}</td>
+                <td>{{ subtask['ratio'] }}</td>
+                <td>
+                  <bp-label status="{{subtask['backpressure-level']}}">{{ subtask['backpressure-level'] | toUpperCase }}</bp-label>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>

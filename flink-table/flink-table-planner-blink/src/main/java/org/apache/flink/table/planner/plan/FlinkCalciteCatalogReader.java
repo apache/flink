@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
@@ -110,8 +109,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) baseTable;
 			if ((connectorTable).getTableSource().isPresent()) {
 				return convertSourceTable(relOptSchema,
+					names,
 					rowType,
-					schemaTable.getTableIdentifier(),
 					connectorTable,
 					schemaTable.getStatistic(),
 					schemaTable.isStreamingMode());
@@ -156,8 +155,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 
 	private static FlinkPreparingTableBase convertSourceTable(
 			RelOptSchema relOptSchema,
+			List<String> names,
 			RelDataType rowType,
-			ObjectIdentifier tableIdentifier,
 			ConnectorCatalogTable<?, ?> table,
 			FlinkStatistic statistic,
 			boolean isStreamingMode) {
@@ -174,7 +173,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 
 		return new TableSourceTable<>(
 			relOptSchema,
-			tableIdentifier,
+			names,
 			rowType,
 			statistic,
 			tableSource,

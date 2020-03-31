@@ -33,8 +33,10 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RANGE_TO;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WITHOUT_COLUMNS;
@@ -63,7 +65,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 	/**
 	 * Expands column functions to it's real parent's input references.
 	 */
-	private static class ColumnFunctionsExpander extends ApiExpressionDefaultVisitor<List<Expression>> {
+	class ColumnFunctionsExpander extends ApiExpressionDefaultVisitor<List<Expression>> {
 
 		private final List<UnresolvedReferenceExpression> inputFieldReferences;
 		private final ColumnsExpressionExpander columnsExpressionExpander;
@@ -84,17 +86,17 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 			} else if (definition == WITHOUT_COLUMNS) {
 				result = resolveArgsOfColumns(unresolvedCall.getChildren(), true);
 			} else {
-				List<Expression> args = unresolvedCall.getChildren()
+				Expression[] args = unresolvedCall.getChildren()
 					.stream()
 					.flatMap(c -> c.accept(this).stream())
-					.collect(Collectors.toList());
-				result = Collections.singletonList(unresolvedCall.replaceArgs(args));
+					.toArray(Expression[]::new);
+				result = Collections.singletonList(unresolvedCall(unresolvedCall.getFunctionDefinition(), args));
 
 				// validate alias
 				if (definition == AS) {
-					for (int i = 1; i < args.size(); ++i) {
-						if (!(args.get(i) instanceof ValueLiteralExpression)) {
-							final String errorMessage = args.stream()
+					for (int i = 1; i < args.length; ++i) {
+						if (!(args[i] instanceof ValueLiteralExpression)) {
+							final String errorMessage = Stream.of(args)
 								.map(Object::toString)
 								.collect(Collectors.joining(", "));
 							throw new ValidationException(String.format("Invalid AS, parameters are: [%s].", errorMessage));
@@ -138,7 +140,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 	/**
 	 * Expands a single column expression to it's real parent's input references.
 	 */
-	private static class ColumnsExpressionExpander extends ApiExpressionDefaultVisitor<List<UnresolvedReferenceExpression>> {
+	class ColumnsExpressionExpander extends ApiExpressionDefaultVisitor<List<UnresolvedReferenceExpression>> {
 
 		private final List<UnresolvedReferenceExpression> inputFieldReferences;
 		public ColumnsExpressionExpander(List<UnresolvedReferenceExpression> inputFieldReferences) {

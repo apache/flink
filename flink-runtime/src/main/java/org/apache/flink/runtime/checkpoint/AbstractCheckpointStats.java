@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
-
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;

@@ -19,13 +19,12 @@
 package org.apache.flink.api.scala
 
 import java.io._
+import java.net.URL
 
-import org.apache.flink.annotation.Internal
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
-import org.apache.flink.client.deployment.executors.RemoteExecutor
-import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader
-import org.apache.flink.client.program.{ClusterClient, MiniClusterClient}
-import org.apache.flink.configuration.{ConfigConstants, Configuration, DeploymentOptions, GlobalConfiguration, JobManagerOptions, RestOptions, TaskManagerOptions}
+import org.apache.flink.client.deployment.{ClusterDescriptor, DefaultClusterClientServiceLoader}
+import org.apache.flink.client.program.ClusterClient
+import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
 
 import scala.collection.mutable.ArrayBuffer
@@ -133,46 +132,81 @@ object FlinkShell {
     }
   }
 
+  def fetchConnectionInfo(
+    configuration: Configuration,
+    config: Config
+  ): (String, Int, Option[Either[MiniCluster , ClusterClient[_]]]) = {
+    config.executionMode match {
+      case ExecutionMode.LOCAL => // Local mode
+        val config = configuration
+        config.setInteger(JobManagerOptions.PORT, 0)
 
-  @Internal def ensureYarnConfig(config: Config) = config.yarnConfig match {
-    case Some(yarnConfig) => yarnConfig
-    case None => YarnConfig()
-  }
+        val miniClusterConfig = new MiniClusterConfiguration.Builder()
+          .setConfiguration(config)
+          .build()
+        val cluster = new MiniCluster(miniClusterConfig)
+        cluster.start()
+        val port = cluster.getRestAddress.get.getPort
 
-  private def getConfigDir(config: Config) = {
-    config.configDir match {
-      case Some(confDir) => confDir
-      case None => CliFrontend.getConfigurationDirectoryFromEnv
+        println(s"\nStarting local Flink cluster (host: localhost, port: $port).\n")
+        ("localhost", port, Some(Left(cluster)))
+
+      case ExecutionMode.REMOTE => // Remote mode
+        if (config.host.isEmpty || config.port.isEmpty) {
+          throw new IllegalArgumentException("<host> or <port> is not specified!")
+        }
+        (config.host.get, config.port.get, None)
+
+      case ExecutionMode.YARN => // YARN mode
+        config.yarnConfig match {
+          case Some(yarnConfig) => // if there is information for new cluster
+            deployNewYarnCluster(
+              configuration,
+              config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv),
+              yarnConfig)
+          case None => // there is no information for new cluster. Then we use yarn properties.
+            fetchDeployedYarnClusterInfo(
+              configuration,
+              config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
+            )
+        }
+
+      case ExecutionMode.UNDEFINED => // Wrong input
+        throw new IllegalArgumentException("please specify execution mode:\n" +
+          "[local | remote <host> <port> | yarn]")
     }
-  }
-
-  private def getGlobalConfig(config: Config) = {
-    val confDirPath = getConfigDir(config)
-    val configDirectory = new File(confDirPath)
-    GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath)
   }
 
   def startShell(config: Config): Unit = {
     println("Starting Flink Shell:")
 
-    val flinkConfig = getGlobalConfig(config)
+    // load global configuration
+    val confDirPath = config.configDir match {
+      case Some(confDir) => confDir
+      case None => CliFrontend.getConfigurationDirectoryFromEnv
+    }
 
-    val (repl, clusterClient) = try {
-      val (effectiveConfig, clusterClient) = fetchConnectionInfo(config, flinkConfig)
+    val configDirectory = new File(confDirPath)
+    val configuration = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath)
 
-      val host = effectiveConfig.getString(JobManagerOptions.ADDRESS)
-      val port = effectiveConfig.getInteger(JobManagerOptions.PORT)
+    val (repl, cluster) = try {
+      val (host, port, cluster) = fetchConnectionInfo(configuration, config)
+      val conf = cluster match {
+        case Some(Left(_)) => configuration
+        case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
+        case None => configuration
+      }
+
       println(s"\nConnecting to Flink cluster (host: $host, port: $port).\n")
-
       val repl = bufferedReader match {
         case Some(reader) =>
           val out = new StringWriter()
-          new FlinkILoop(effectiveConfig, config.externalJars, reader, new JPrintWriter(out))
+          new FlinkILoop(host, port, conf, config.externalJars, reader, new JPrintWriter(out))
         case None =>
-          new FlinkILoop(effectiveConfig, config.externalJars)
+          new FlinkILoop(host, port, conf, config.externalJars)
       }
 
-      (repl, clusterClient)
+      (repl, cluster)
     } catch {
       case e: IllegalArgumentException =>
         println(s"Error: ${e.getMessage}")
@@ -187,10 +221,11 @@ object FlinkShell {
       repl.process(settings)
     } finally {
       repl.closeInterpreter()
-      clusterClient match {
-        case Some(clusterClient) =>
-          clusterClient.shutDownCluster()
-          clusterClient.close()
+      cluster match {
+        case Some(Left(miniCluster)) => miniCluster.close()
+        case Some(Right(yarnCluster)) =>
+          yarnCluster.shutDownCluster()
+          yarnCluster.close()
         case _ =>
       }
     }
@@ -198,51 +233,29 @@ object FlinkShell {
     println(" good bye ..")
   }
 
-  @Internal def fetchConnectionInfo(
-      config: Config,
-      flinkConfig: Configuration): (Configuration, Option[ClusterClient[_]]) = {
+  def deployNewYarnCluster(
+      configuration: Configuration,
+      configurationDirectory: String,
+      yarnConfig: YarnConfig) = {
 
-    config.executionMode match {
-      case ExecutionMode.LOCAL => createLocalClusterAndConfig(flinkConfig)
-      case ExecutionMode.REMOTE => createRemoteConfig(config, flinkConfig)
-      case ExecutionMode.YARN => createYarnClusterIfNeededAndGetConfig(config, flinkConfig)
-      case ExecutionMode.UNDEFINED => // Wrong input
-        throw new IllegalArgumentException("please specify execution mode:\n" +
-          "[local | remote <host> <port> | yarn]")
-    }
-  }
+    val args = ArrayBuffer[String](
+      "-m", "yarn-cluster"
+    )
 
-  private def createYarnClusterIfNeededAndGetConfig(config: Config, flinkConfig: Configuration) = {
-    flinkConfig.setBoolean(DeploymentOptions.ATTACHED, true)
+    // set configuration from user input
+    yarnConfig.jobManagerMemory.foreach((jmMem) => args ++= Seq("-yjm", jmMem.toString))
+    yarnConfig.taskManagerMemory.foreach((tmMem) => args ++= Seq("-ytm", tmMem.toString))
+    yarnConfig.name.foreach((name) => args ++= Seq("-ynm", name.toString))
+    yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
+    yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-    val (clusterConfig, clusterClient) = config.yarnConfig match {
-      case Some(_) => deployNewYarnCluster(config, flinkConfig)
-      case None => (flinkConfig, None)
-    }
-
-    val (effectiveConfig, _) = clusterClient match {
-      case Some(_) => fetchDeployedYarnClusterInfo(config, clusterConfig, "yarn-cluster")
-      case None => fetchDeployedYarnClusterInfo(config, clusterConfig, "default")
-    }
-
-    (effectiveConfig, clusterClient)
-  }
-
-  private def deployNewYarnCluster(config: Config, flinkConfig: Configuration) = {
-    val effectiveConfig = new Configuration(flinkConfig)
-    val args = parseYarnArgList(config, "yarn-cluster")
-
-    val configurationDirectory =
-      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
-
-    val frontend = new CliFrontend(
-      effectiveConfig,
-      CliFrontend.loadCustomCommandLines(effectiveConfig, configurationDirectory))
+    val frontend = new CliFrontend(configuration,
+      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
 
     val commandOptions = CliFrontendParser.getRunCommandOptions
     val commandLineOptions = CliFrontendParser.mergeOptions(commandOptions,
-      frontend.getCustomCommandLineOptions)
-    val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
+      frontend.getCustomCommandLineOptions());
+    val commandLine = CliFrontendParser.parse(commandLineOptions, args.toArray, true)
 
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine)
@@ -252,120 +265,53 @@ object FlinkShell {
     val clusterDescriptor = clientFactory.createClusterDescriptor(executorConfig)
     val clusterSpecification = clientFactory.getClusterSpecification(executorConfig)
 
-    val clusterClient = try {
-      clusterDescriptor
-        .deploySessionCluster(clusterSpecification)
-        .getClusterClient
-    } finally {
-      clusterDescriptor.close()
-    }
+    val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
 
-    (executorConfig, Some(clusterClient))
+    val webMonitorUrl = new URL(cluster.getWebInterfaceURL)
+
+    (webMonitorUrl.getHost, webMonitorUrl.getPort, Some(Right(cluster)))
   }
 
-  private def fetchDeployedYarnClusterInfo(
-      config: Config,
-      flinkConfig: Configuration,
-      mode: String) = {
+  def fetchDeployedYarnClusterInfo(
+      configuration: Configuration,
+      configurationDirectory: String) = {
 
-    val effectiveConfig = new Configuration(flinkConfig)
-    val args = parseYarnArgList(config, mode)
 
-    val configurationDirectory =
-      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
+    val args = ArrayBuffer[String](
+      "-m", "yarn-cluster"
+    )
+
+    val commandLine = CliFrontendParser.parse(
+      CliFrontendParser.getRunCommandOptions,
+      args.toArray,
+      true)
 
     val frontend = new CliFrontend(
-      effectiveConfig,
-      CliFrontend.loadCustomCommandLines(effectiveConfig, configurationDirectory))
-
-    val commandOptions = CliFrontendParser.getRunCommandOptions
-    val commandLineOptions = CliFrontendParser.mergeOptions(commandOptions,
-      frontend.getCustomCommandLineOptions)
-    val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
-
+      configuration,
+      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-    (executorConfig, None)
-  }
+    val serviceLoader = new DefaultClusterClientServiceLoader
+    val clientFactory = serviceLoader.getClusterClientFactory(executorConfig)
+    val clusterDescriptor = clientFactory
+      .createClusterDescriptor(executorConfig)
+      .asInstanceOf[ClusterDescriptor[Any]]
+    val clusterId = clientFactory.getClusterId(executorConfig)
 
-  def parseYarnArgList(config: Config, mode: String): Array[String] = {
-    val args = if (mode == "default") {
-      ArrayBuffer[String]()
-    } else {
-      ArrayBuffer[String]("-m", mode)
+    val cluster = clusterDescriptor.retrieve(clusterId)
+
+    if (cluster == null) {
+      throw new RuntimeException("Yarn Cluster could not be retrieved.")
     }
 
-    config.yarnConfig match {
-      case Some(yarnConfig) =>
-        yarnConfig.jobManagerMemory.foreach((jmMem) => args ++= Seq("-yjm", jmMem.toString))
-        yarnConfig.taskManagerMemory.foreach((tmMem) => args ++= Seq("-ytm", tmMem.toString))
-        yarnConfig.name.foreach((name) => args ++= Seq("-ynm", name.toString))
-        yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
-        yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
-        args.toArray
-      case None => args.toArray
-    }
+    val webMonitorUrl = new URL(cluster.getWebInterfaceURL)
+
+    (webMonitorUrl.getHost, webMonitorUrl.getPort, None)
   }
 
-  private def createRemoteConfig(
-      config: Config,
-      flinkConfig: Configuration): (Configuration, None.type) = {
-
-    if (config.host.isEmpty || config.port.isEmpty) {
-      throw new IllegalArgumentException("<host> or <port> is not specified!")
-    }
-
-    val effectiveConfig = new Configuration(flinkConfig)
-    setJobManagerInfoToConfig(effectiveConfig, config.host.get, config.port.get)
-    effectiveConfig.set(DeploymentOptions.TARGET, RemoteExecutor.NAME)
-    effectiveConfig.setBoolean(DeploymentOptions.ATTACHED, true)
-
-    (effectiveConfig, None)
-  }
-
-  private def createLocalClusterAndConfig(flinkConfig: Configuration) = {
-    val config = new Configuration(flinkConfig)
-    config.setInteger(JobManagerOptions.PORT, 0)
-
-    val cluster = createLocalCluster(config)
-    val port = cluster.getRestAddress.get.getPort
-
-    setJobManagerInfoToConfig(config, "localhost", port)
-    config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME)
-    config.setBoolean(DeploymentOptions.ATTACHED, true)
-
-    println(s"\nStarting local Flink cluster (host: localhost, port: ${port}).\n")
-
-    val clusterClient = new MiniClusterClient(config, cluster)
-    (config, Some(clusterClient))
-  }
-
-  private def createLocalCluster(flinkConfig: Configuration) = {
-
-    val numTaskManagers = flinkConfig.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-      ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
-    val numSlotsPerTaskManager = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS)
-
-    val miniClusterConfig = new MiniClusterConfiguration.Builder()
-      .setConfiguration(flinkConfig)
-      .setNumSlotsPerTaskManager(numSlotsPerTaskManager)
-      .setNumTaskManagers(numTaskManagers)
-      .build()
-
-    val cluster = new MiniCluster(miniClusterConfig)
-    cluster.start()
-    cluster
-  }
-
-  private def setJobManagerInfoToConfig(
-      config: Configuration,
-      host: String, port: Integer): Unit = {
-
-    config.setString(JobManagerOptions.ADDRESS, host)
-    config.setInteger(JobManagerOptions.PORT, port)
-
-    config.setString(RestOptions.ADDRESS, host)
-    config.setInteger(RestOptions.PORT, port)
+  def ensureYarnConfig(config: Config) = config.yarnConfig match {
+    case Some(yarnConfig) => yarnConfig
+    case None => YarnConfig()
   }
 }

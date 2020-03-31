@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.planner.plan.schema.ExpandingPreparingTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.planner.plan.utils.RelOptUtils;
 
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.rel.RelNode;
@@ -54,9 +53,6 @@ public class SqlCatalogViewTable extends ExpandingPreparingTable {
 
 	@Override
 	public RelNode convertToRel(ToRelContext context) {
-		RelNode original = context
-				.expandView(rowType, view.getExpandedQuery(), viewPath, names)
-				.project();
-		return RelOptUtils.createCastRel(original, rowType);
+		return context.expandView(rowType, view.getExpandedQuery(), viewPath, names).project();
 	}
 }

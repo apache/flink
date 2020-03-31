@@ -266,7 +266,6 @@ public class Int2HashJoinOperatorTest implements Serializable {
 			testHarness.getStreamConfig().setStreamOperatorFactory((StreamOperatorFactory<?>) operator);
 		}
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -399,7 +398,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 
 	public Object newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
 		return HashJoinOperator.newHashJoinOperator(
-				type,
+				memorySize, memorySize, 0, type,
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {

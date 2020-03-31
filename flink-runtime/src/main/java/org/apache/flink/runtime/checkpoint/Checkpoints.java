@@ -20,10 +20,10 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
+import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializer;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -57,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Stored checkpoint metadata files have the following format:
  * <pre>[MagicNumber (int) | Format Version (int) | Checkpoint Metadata (variable)]</pre>
  *
- * <p>The actual savepoint serialization is version-specific via the {@link MetadataSerializer}.
+ * <p>The actual savepoint serialization is version-specific via the {@link SavepointSerializer}.
  */
 public class Checkpoints {
 
@@ -70,30 +70,32 @@ public class Checkpoints {
 	//  Writing out checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static void storeCheckpointMetadata(
-			CheckpointMetadata checkpointMetadata,
+	public static <T extends Savepoint> void storeCheckpointMetadata(
+			T checkpointMetadata,
 			OutputStream out) throws IOException {
 
 		DataOutputStream dos = new DataOutputStream(out);
 		storeCheckpointMetadata(checkpointMetadata, dos);
 	}
 
-	public static void storeCheckpointMetadata(
-			CheckpointMetadata checkpointMetadata,
+	public static <T extends Savepoint> void storeCheckpointMetadata(
+			T checkpointMetadata,
 			DataOutputStream out) throws IOException {
 
 		// write generic header
 		out.writeInt(HEADER_MAGIC_NUMBER);
+		out.writeInt(checkpointMetadata.getVersion());
 
-		out.writeInt(MetadataV3Serializer.VERSION);
-		MetadataV3Serializer.serialize(checkpointMetadata, out);
+		// write checkpoint metadata
+		SavepointSerializer<T> serializer = SavepointSerializers.getSerializer(checkpointMetadata);
+		serializer.serialize(checkpointMetadata, out);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Reading and validating checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
+	public static Savepoint loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
 		checkNotNull(in, "input stream");
 		checkNotNull(classLoader, "classLoader");
 
@@ -101,8 +103,14 @@ public class Checkpoints {
 
 		if (magicNumber == HEADER_MAGIC_NUMBER) {
 			final int version = in.readInt();
-			final MetadataSerializer serializer = MetadataSerializers.getSerializer(version);
-			return serializer.deserialize(in, classLoader);
+			final SavepointSerializer<?> serializer = SavepointSerializers.getSerializer(version);
+
+			if (serializer != null) {
+				return serializer.deserialize(in, classLoader);
+			}
+			else {
+				throw new IOException("Unrecognized checkpoint version number: " + version);
+			}
 		}
 		else {
 			throw new IOException("Unexpected magic number. This can have multiple reasons: " +
@@ -112,6 +120,7 @@ public class Checkpoints {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	public static CompletedCheckpoint loadAndValidateCheckpoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
@@ -128,11 +137,15 @@ public class Checkpoints {
 		final String checkpointPointer = location.getExternalPointer();
 
 		// (1) load the savepoint
-		final CheckpointMetadata checkpointMetadata;
+		final Savepoint rawCheckpointMetadata;
 		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
-			checkpointMetadata = loadCheckpointMetadata(dis, classLoader);
+			rawCheckpointMetadata = loadCheckpointMetadata(dis, classLoader);
 		}
+
+		final Savepoint checkpointMetadata = rawCheckpointMetadata.getTaskStates() == null ?
+				rawCheckpointMetadata :
+				SavepointV2.convertToOperatorStateSavepointV2(tasks, rawCheckpointMetadata);
 
 		// generate mapping from operator to task
 		Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();
@@ -230,11 +243,11 @@ public class Checkpoints {
 
 		// load the savepoint object (the metadata) to have all the state handles that we need
 		// to dispose of all state
-		final CheckpointMetadata metadata;
+		final Savepoint savepoint;
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
-			metadata = loadCheckpointMetadata(dis, classLoader);
+			savepoint = loadCheckpointMetadata(dis, classLoader);
 		}
 
 		Exception exception = null;
@@ -250,7 +263,7 @@ public class Checkpoints {
 
 		// now dispose the savepoint data
 		try {
-			metadata.dispose();
+			savepoint.dispose();
 		}
 		catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);

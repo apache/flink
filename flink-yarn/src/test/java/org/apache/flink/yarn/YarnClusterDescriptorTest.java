@@ -66,7 +66,6 @@ import static org.junit.Assert.fail;
  */
 public class YarnClusterDescriptorTest extends TestLogger {
 
-	private static final int YARN_MAX_VCORES = 16;
 	private static YarnConfiguration yarnConfiguration;
 
 	private static YarnClient yarnClient;
@@ -105,6 +104,9 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(1)
+			.setTaskManagerMemoryMB(1)
+			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(Integer.MAX_VALUE)
 			.createClusterSpecification();
 
@@ -135,6 +137,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 		// configure slots
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(1)
+			.setTaskManagerMemoryMB(1)
+			.setNumberTaskManagers(1)
+			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
 
 		try {
@@ -167,8 +173,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		final String logback =
 			"-Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME; // if set
 		final String log4j =
-			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME +
-				" -Dlog4j.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
+			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
 		final String mainClass = clusterDescriptor.getYarnSessionClusterEntrypoint();
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
@@ -537,13 +542,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	private YarnClusterDescriptor createYarnClusterDescriptor(Configuration configuration) {
-		YarnTestUtils.configureLogFile(configuration, temporaryFolder.getRoot().getAbsolutePath());
-
-		return YarnClusterDescriptorBuilder.newBuilder(yarnClient, true)
-			.setFlinkConfiguration(configuration)
-			.setYarnConfiguration(yarnConfiguration)
-			.setYarnClusterInformationRetriever(() -> YARN_MAX_VCORES)
-			.build();
-
+		return YarnTestUtils.createClusterDescriptorWithLogging(
+				temporaryFolder.getRoot().getAbsolutePath(),
+				configuration,
+				yarnConfiguration,
+				yarnClient,
+				true);
 	}
 }

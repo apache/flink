@@ -20,7 +20,6 @@ package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader.ColumnBatchGenerator;
-import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
@@ -34,7 +33,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
 
 import java.io.IOException;
@@ -44,8 +42,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVector;
-import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVectorFromConstant;
+import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createVector;
+import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createVectorFromConstant;
 
 /**
  * Util for generating {@link OrcSplitReader}.
@@ -55,8 +53,7 @@ public class OrcSplitReaderUtil {
 	/**
 	 * Util for generating partitioned {@link OrcColumnarRowSplitReader}.
 	 */
-	public static OrcColumnarRowSplitReader<VectorizedRowBatch> genPartColumnarRowReader(
-			String hiveVersion,
+	public static OrcColumnarRowSplitReader genPartColumnarRowReader(
 			Configuration conf,
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
@@ -68,25 +65,30 @@ public class OrcSplitReaderUtil {
 			long splitStart,
 			long splitLength) throws IOException {
 
-		List<String> nonPartNames = getNonPartNames(fullFieldNames, partitionSpec);
+		List<String> nonPartNames = Arrays.stream(fullFieldNames)
+				.filter(n -> !partitionSpec.containsKey(n))
+				.collect(Collectors.toList());
 
-		int[] selectedOrcFields = getSelectedOrcFields(fullFieldNames, selectedFields, nonPartNames);
+		int[] selectedOrcFields = Arrays.stream(selectedFields)
+				.mapToObj(i -> fullFieldNames[i])
+				.filter(nonPartNames::contains)
+				.mapToInt(nonPartNames::indexOf)
+				.toArray();
 
-		ColumnBatchGenerator<VectorizedRowBatch> gen = (VectorizedRowBatch rowBatch) -> {
+		ColumnBatchGenerator gen = rowBatch -> {
 			// create and initialize the row batch
 			ColumnVector[] vectors = new ColumnVector[selectedFields.length];
 			for (int i = 0; i < vectors.length; i++) {
 				String name = fullFieldNames[selectedFields[i]];
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
-						createFlinkVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)]);
+						createVectorFromConstant(type, partitionSpec.get(name), batchSize) :
+						createVector(rowBatch.cols[nonPartNames.indexOf(name)]);
 			}
 			return new VectorizedColumnBatch(vectors);
 		};
 
-		return new OrcColumnarRowSplitReader<>(
-				OrcShim.createShim(hiveVersion),
+		return new OrcColumnarRowSplitReader(
 				conf,
 				convertToOrcTypeWithPart(fullFieldNames, fullFieldTypes, partitionSpec.keySet()),
 				selectedOrcFields,
@@ -98,23 +100,7 @@ public class OrcSplitReaderUtil {
 				splitLength);
 	}
 
-	public static int[] getSelectedOrcFields(String[] fullFieldNames, int[] selectedFields,
-			List<String> nonPartNames) {
-		return Arrays.stream(selectedFields)
-					.mapToObj(i -> fullFieldNames[i])
-					.filter(nonPartNames::contains)
-					.mapToInt(nonPartNames::indexOf)
-					.toArray();
-	}
-
-	public static List<String> getNonPartNames(String[] fullFieldNames,
-			Map<String, Object> partitionSpec) {
-		return Arrays.stream(fullFieldNames)
-					.filter(n -> !partitionSpec.containsKey(n))
-					.collect(Collectors.toList());
-	}
-
-	public static TypeDescription convertToOrcTypeWithPart(
+	private static TypeDescription convertToOrcTypeWithPart(
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
 			Collection<String> partitionKeys) {
@@ -140,12 +126,7 @@ public class OrcSplitReaderUtil {
 			case CHAR:
 				return TypeDescription.createChar().withMaxLength(((CharType) type).getLength());
 			case VARCHAR:
-				int len = ((VarCharType) type).getLength();
-				if (len == VarCharType.MAX_LENGTH) {
-					return TypeDescription.createString();
-				} else {
-					return TypeDescription.createVarchar().withMaxLength(len);
-				}
+				return TypeDescription.createVarchar().withMaxLength(((VarCharType) type).getLength());
 			case BOOLEAN:
 				return TypeDescription.createBoolean();
 			case VARBINARY:

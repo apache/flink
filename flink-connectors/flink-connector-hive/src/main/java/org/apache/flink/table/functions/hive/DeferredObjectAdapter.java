@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -36,8 +35,8 @@ public class DeferredObjectAdapter implements GenericUDF.DeferredObject {
 	private Object object;
 	private HiveObjectConversion conversion;
 
-	public DeferredObjectAdapter(ObjectInspector inspector, LogicalType logicalType, HiveShim hiveShim) {
-		conversion = HiveInspectors.getConversion(inspector, logicalType, hiveShim);
+	public DeferredObjectAdapter(ObjectInspector inspector, LogicalType logicalType) {
+		conversion = HiveInspectors.getConversion(inspector, logicalType);
 	}
 
 	public void set(Object ob) {

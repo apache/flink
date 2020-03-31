@@ -77,11 +77,7 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 
 	@Override
 	public TypeSerializer<BaseRow> duplicate() {
-		TypeSerializer<?>[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
-		for (int i = 0; i < fieldSerializers.length; i++) {
-			duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
-		}
-		return new BaseRowSerializer(types, duplicateFieldSerializers);
+		return new BaseRowSerializer(types, fieldSerializers);
 	}
 
 	@Override

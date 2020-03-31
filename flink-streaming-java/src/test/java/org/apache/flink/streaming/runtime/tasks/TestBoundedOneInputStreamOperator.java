@@ -44,19 +44,12 @@ public class TestBoundedOneInputStreamOperator extends AbstractStreamOperator<St
 
 	@Override
 	public void endInput() {
-		output("[" + name + "]: End of input");
+		output.collect(new StreamRecord<>("[" + name + "]: EndOfInput"));
 	}
 
 	@Override
 	public void close() throws Exception {
-		ProcessingTimeService timeService = getProcessingTimeService();
-		timeService.registerTimer(timeService.getCurrentProcessingTime(), t -> output("[" + name + "]: Timer registered in close"));
-
-		output("[" + name + "]: Bye");
+		output.collect(new StreamRecord<>("[" + name + "]: Bye"));
 		super.close();
-	}
-
-	private void output(String record) {
-		output.collect(new StreamRecord<>(record));
 	}
 }

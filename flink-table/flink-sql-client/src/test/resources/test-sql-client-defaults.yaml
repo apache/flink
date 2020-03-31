@@ -32,8 +32,6 @@ tables:
         type: INT
       - name: StringField1
         type: VARCHAR
-      - name: TimestampField1
-        type: TIMESTAMP
     connector:
       type: filesystem
       path: "$VAR_SOURCE_PATH1"
@@ -44,8 +42,6 @@ tables:
           type: INT
         - name: StringField1
           type: VARCHAR
-        - name: TimestampField1
-          type: TIMESTAMP
       line-delimiter: "\n"
       comment-prefix: "#"
   - name: TestView1
@@ -60,8 +56,6 @@ tables:
         type: INT
       - name: StringField2
         type: VARCHAR
-      - name: TimestampField2
-        type: TIMESTAMP
     connector:
       type: filesystem
       path: "$VAR_SOURCE_PATH2"
@@ -72,8 +66,6 @@ tables:
           type: INT
         - name: StringField2
           type: VARCHAR
-        - name: TimestampField2
-          type: TIMESTAMP
       line-delimiter: "\n"
       comment-prefix: "#"
   - name: TableSourceSink
@@ -84,8 +76,6 @@ tables:
         type: BOOLEAN
       - name: StringField
         type: VARCHAR
-      - name: TimestampField
-        type: TIMESTAMP
     connector:
       type: filesystem
       path: "$VAR_SOURCE_SINK_PATH"
@@ -96,8 +86,6 @@ tables:
           type: BOOLEAN
         - name: StringField
           type: VARCHAR
-        - name: TimestampField
-          type: TIMESTAMP
   - name: TestView2
     type: view
     query: SELECT * FROM TestView1
@@ -146,7 +134,7 @@ execution:
   result-mode: "$VAR_RESULT_MODE"
   max-table-result-rows: "$VAR_MAX_ROWS"
   restart-strategy:
-    type: "$VAR_RESTART_STRATEGY_TYPE"
+    type: failure-rate
     max-failures-per-interval: 10
     failure-rate-interval: 99000
     delay: 1000

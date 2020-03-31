@@ -460,7 +460,6 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new ExecutionVertex[0],
 				ackVertices,
 				new ExecutionVertex[0],
-				Collections.emptyList(),
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),

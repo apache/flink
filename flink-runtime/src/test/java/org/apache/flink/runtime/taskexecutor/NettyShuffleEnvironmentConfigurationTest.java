@@ -43,7 +43,7 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 	@Test
 	public void testNetworkBufferNumberCalculation() {
 		final Configuration config = new Configuration();
-		config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("1m"));
+		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "1m");
 		final int numNetworkBuffers = NettyShuffleEnvironmentConfiguration.fromConfiguration(
 			config,
 			MEM_SIZE_PARAM,

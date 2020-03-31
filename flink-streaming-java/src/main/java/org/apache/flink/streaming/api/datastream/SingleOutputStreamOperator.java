@@ -176,6 +176,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * @return The operator with set minimum and preferred resources.
 	 */
 	private SingleOutputStreamOperator<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
 		transformation.setResources(minResources, preferredResources);
 
 		return this;
@@ -188,6 +189,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * @return The operator with set minimum and preferred resources.
 	 */
 	private SingleOutputStreamOperator<T> setResources(ResourceSpec resources) {
+		OperatorValidationUtils.validateResources(resources);
 		transformation.setResources(resources, resources);
 
 		return this;

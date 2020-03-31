@@ -27,7 +27,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
@@ -50,8 +49,6 @@ import org.apache.flink.util.FileUtils;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.udf.UDFMonth;
-import org.apache.hadoop.hive.ql.udf.UDFYear;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -65,8 +62,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -155,7 +150,6 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 	}
 
 	private void testUdf(boolean batch) throws Exception {
-		StreamExecutionEnvironment env = null;
 		TableEnvironment tEnv;
 		EnvironmentSettings.Builder envBuilder = EnvironmentSettings.newInstance().useBlinkPlanner();
 		if (batch) {
@@ -166,8 +160,8 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		if (batch) {
 			tEnv = TableEnvironment.create(envBuilder.build());
 		} else {
-			env = StreamExecutionEnvironment.getExecutionEnvironment();
-			tEnv = StreamTableEnvironment.create(env, envBuilder.build());
+			tEnv = StreamTableEnvironment.create(
+					StreamExecutionEnvironment.getExecutionEnvironment(), envBuilder.build());
 		}
 
 		BatchTestBase.configForMiniCluster(tEnv.getConfig());
@@ -238,61 +232,13 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 			streamTEnv.toRetractStream(tEnv.sqlQuery(selectSql), Row.class)
 					.map(new JavaToScala())
 					.addSink((SinkFunction) sink);
-			env.execute("");
+			streamTEnv.execute("");
 			results = JavaScalaConversionUtil.toJava(sink.getRetractResults());
 		}
 
 		results = new ArrayList<>(results);
 		results.sort(String::compareTo);
 		Assert.assertEquals(Arrays.asList("1,1,2,2", "2,2,4,4", "3,3,6,6"), results);
-	}
-
-	@Test
-	public void testTimestampUDF() throws Exception {
-		hiveCatalog.createFunction(new ObjectPath("default", "myyear"),
-				new CatalogFunctionImpl(UDFYear.class.getCanonicalName()),
-				false);
-
-		hiveShell.execute("create table src(ts timestamp)");
-		try {
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
-					.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
-					.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
-					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-			tableEnv.useCatalog(hiveCatalog.getName());
-
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select myyear(ts) as y from src"));
-			Assert.assertEquals(2, results.size());
-			Assert.assertEquals("[2013, 2019]", results.toString());
-		} finally {
-			hiveShell.execute("drop table src");
-		}
-	}
-
-	@Test
-	public void testDateUDF() throws Exception {
-		hiveCatalog.createFunction(new ObjectPath("default", "mymonth"),
-				new CatalogFunctionImpl(UDFMonth.class.getCanonicalName()),
-				false);
-
-		hiveShell.execute("create table src(dt date)");
-		try {
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
-					.addRow(new Object[]{Date.valueOf("2019-01-19")})
-					.addRow(new Object[]{Date.valueOf("2019-03-02")})
-					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-			tableEnv.useCatalog(hiveCatalog.getName());
-
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select mymonth(dt) as m from src order by m"));
-			Assert.assertEquals(2, results.size());
-			Assert.assertEquals("[1, 3]", results.toString());
-		} finally {
-			hiveShell.execute("drop table src");
-		}
 	}
 
 	private static class JavaToScala implements MapFunction<Tuple2<Boolean, Row>, scala.Tuple2<Boolean, Row>> {

@@ -32,24 +32,19 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
-import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -151,23 +146,6 @@ public class ContinuousFileProcessingTest {
 		}
 	}
 
-	@Test(expected = ExpectedTestException.class)
-	public void testExceptionHandling() throws Exception {
-		TextInputFormat format = new TextInputFormat(new Path(hdfsURI + "/" + UUID.randomUUID() + "/")) {
-			@Override
-			public void close() {
-				throw new ExpectedTestException();
-			}
-		};
-
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = createHarness(format);
-		harness.getExecutionConfig().setAutoWatermarkInterval(10);
-		harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = harness) {
-			tester.open();
-		}
-	}
-
 	@Test
 	public void testFileReadingOperatorWithIngestionTime() throws Exception {
 		String testBasePath = hdfsURI + "/" + UUID.randomUUID() + "/";
@@ -183,26 +161,28 @@ public class ContinuousFileProcessingTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
 		final long watermarkInterval = 10;
 
-		final OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = createHarness(format);
-		SteppingMailboxProcessor localMailbox = createLocalMailbox(tester);
+		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
+		final OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
+			new OneInputStreamOperatorTestHarness<>(reader);
 
 		tester.getExecutionConfig().setAutoWatermarkInterval(watermarkInterval);
 		tester.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+		reader.setOutputType(typeInfo, tester.getExecutionConfig());
 
 		tester.open();
+
 		Assert.assertEquals(TimeCharacteristic.IngestionTime, tester.getTimeCharacteristic());
 
-		tester.setProcessingTime(201);
-
 		// test that watermarks are correctly emitted
+
 		ConcurrentLinkedQueue<Object> output = tester.getOutput();
-		while (output.isEmpty()) {
-			localMailbox.runMailboxStep();
-		}
-		Assert.assertTrue(output.toString(), output.peek() instanceof Watermark);
+
+		tester.setProcessingTime(201);
+		Assert.assertTrue(output.peek() instanceof Watermark);
 		Assert.assertEquals(200, ((Watermark) output.poll()).getTimestamp());
 
 		tester.setProcessingTime(301);
@@ -221,7 +201,7 @@ public class ContinuousFileProcessingTest {
 
 		// create the necessary splits for the test
 		FileInputSplit[] splits = format.createInputSplits(
-			tester.getExecutionConfig().getParallelism());
+			reader.getRuntimeContext().getNumberOfParallelSubtasks());
 
 		// and feed them to the operator
 		Map<Integer, List<String>> actualFileContents = new HashMap<>();
@@ -237,17 +217,16 @@ public class ContinuousFileProcessingTest {
 			tester.setProcessingTime(nextTimestamp);
 
 			// send the next split to be read and wait until it is fully read, the +1 is for the watermark.
-			RunnableWithException runnableWithException = () -> tester.processElement(new StreamRecord<>(
-					new TimestampedFileInputSplit(modTimes.get(split.getPath().getName()),
-							split.getSplitNumber(), split.getPath(), split.getStart(),
-							split.getLength(), split.getHostnames())));
-			runnableWithException.run();
+			tester.processElement(new StreamRecord<>(
+				new TimestampedFileInputSplit(modTimes.get(split.getPath().getName()),
+					split.getSplitNumber(), split.getPath(), split.getStart(),
+					split.getLength(), split.getHostnames())));
 
 			// NOTE: the following check works because each file fits in one split.
 			// In other case it would fail and wait forever.
 			// BUT THIS IS JUST FOR THIS TEST
 			while (tester.getOutput().isEmpty() || tester.getOutput().size() != (LINES_PER_FILE + 1)) {
-				localMailbox.runMailboxStep();
+				Thread.sleep(10);
 			}
 
 			// verify that the results are the expected
@@ -327,17 +306,6 @@ public class ContinuousFileProcessingTest {
 		}
 	}
 
-	private <T> OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, T> createHarness(FileInputFormat<T> format) throws Exception {
-		ExecutionConfig config = new ExecutionConfig();
-		return new OneInputStreamOperatorTestHarness<>(
-			new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), config),
-			TypeExtractor.getForClass(TimestampedFileInputSplit.class).createSerializer(config));
-	}
-
-	private SteppingMailboxProcessor createLocalMailbox(OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness) {
-		return new SteppingMailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction, harness.getTaskMailbox(), StreamTaskActionExecutor.IMMEDIATE);
-	}
-
 	@Test
 	public void testFileReadingOperatorWithEventTime() throws Exception {
 		String testBasePath = hdfsURI + "/" + UUID.randomUUID() + "/";
@@ -355,13 +323,17 @@ public class ContinuousFileProcessingTest {
 		TextInputFormat format = new TextInputFormat(new Path(testBasePath));
 		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = createHarness(format);
+		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
+		reader.setOutputType(typeInfo, new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
+			new OneInputStreamOperatorTestHarness<>(reader);
 		tester.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		tester.open();
 
 		// create the necessary splits for the test
 		FileInputSplit[] splits = format.createInputSplits(
-			tester.getExecutionConfig().getParallelism());
+			reader.getRuntimeContext().getNumberOfParallelSubtasks());
 
 		// and feed them to the operator
 		for (FileInputSplit split: splits) {
@@ -450,7 +422,11 @@ public class ContinuousFileProcessingTest {
 		BlockingFileInputFormat format = new BlockingFileInputFormat(latch, new Path(testBasePath));
 		TypeInformation<FileInputSplit> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> initTestInstance = createHarness(format);
+		ContinuousFileReaderOperator<FileInputSplit> initReader = new ContinuousFileReaderOperator<>(format);
+		initReader.setOutputType(typeInfo, new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> initTestInstance =
+			new OneInputStreamOperatorTestHarness<>(initReader);
 		initTestInstance.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		initTestInstance.open();
 
@@ -469,8 +445,12 @@ public class ContinuousFileProcessingTest {
 			snapshot = initTestInstance.snapshot(0L, 0L);
 		}
 
+		ContinuousFileReaderOperator<FileInputSplit> restoredReader = new ContinuousFileReaderOperator<>(
+			new BlockingFileInputFormat(latch, new Path(testBasePath)));
+		restoredReader.setOutputType(typeInfo, new ExecutionConfig());
+
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> restoredTestInstance  =
-			createHarness(new BlockingFileInputFormat(latch, new Path(testBasePath)));
+			new OneInputStreamOperatorTestHarness<>(restoredReader);
 		restoredTestInstance.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		restoredTestInstance.initializeState(snapshot);

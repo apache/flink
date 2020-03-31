@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.junit.{Before, Ignore, Test}
 
 import scala.collection.Seq
 
@@ -362,9 +362,10 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
+  @Ignore
   @Test
   def testGroupByRegexp(): Unit = {
-    val expr = "regexp_extract(f0, '([a-z]+)\\[', 1)"
+    val expr = "regexp_extract(f0, '([a-z]+)\\\\[', 1)"
     checkQuery(
       Seq(("some[thing]", "random-string")),
       s"select $expr, count(*) from TableName group by $expr",
@@ -446,6 +447,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
+  @Ignore
   @Test
   def testGroupingInsideWindowFunction(): Unit = {
     checkQuery(
@@ -790,6 +792,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   // NOTE: select from values -- supported by Spark, but not Blink
   //       "select sum(a) over () from values 1.0, 2.0, 3.0 T(a)"
 
+  @Ignore
   @Test
   def testDecimalSumAvgOverWindow(): Unit = {
     checkQuery(

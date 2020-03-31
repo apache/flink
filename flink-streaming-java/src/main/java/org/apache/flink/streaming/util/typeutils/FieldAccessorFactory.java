@@ -164,7 +164,7 @@ public class FieldAccessorFactory implements Serializable {
 			}
 
 		// In case of tuples
-		} else if (typeInfo.isTupleType() && typeInfo instanceof TupleTypeInfo) {
+		} else if (typeInfo.isTupleType()) {
 			TupleTypeInfo tupleTypeInfo = (TupleTypeInfo) typeInfo;
 			FieldExpression decomp = decomposeFieldExpression(field);
 			int fieldPos = tupleTypeInfo.getFieldIndex(decomp.head);

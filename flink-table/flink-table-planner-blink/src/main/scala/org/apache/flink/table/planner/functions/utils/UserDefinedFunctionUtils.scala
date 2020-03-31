@@ -47,7 +47,7 @@ import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
 import java.lang.reflect.{Method, Modifier}
 import java.lang.{Integer => JInt, Long => JLong}
 import java.sql.{Date, Time, Timestamp}
-import java.time.{Instant, LocalDateTime}
+import java.time.LocalDateTime
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -733,8 +733,6 @@ object UserDefinedFunctionUtils {
         candidate == classOf[Timestamp] && expected == classOf[SqlTimestamp] ||
         candidate == classOf[SqlTimestamp] && expected == classOf[Timestamp] ||
         candidate == classOf[LocalDateTime] && expected == classOf[SqlTimestamp] ||
-        candidate == classOf[SqlTimestamp] && expected == classOf[Instant] ||
-        candidate == classOf[Instant] && expected == classOf[SqlTimestamp] ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[Row] ||
         candidate == classOf[Row] && classOf[BaseRow].isAssignableFrom(expected) ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[BaseRow] ||

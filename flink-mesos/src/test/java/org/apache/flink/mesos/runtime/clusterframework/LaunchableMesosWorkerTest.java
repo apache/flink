@@ -85,8 +85,7 @@ public class LaunchableMesosWorkerTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(MesosOptions.MASTER_URL, "foobar");
 		final MemorySize memorySize = new MemorySize(1337L);
-		configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize);
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
+		configuration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize.toString());
 
 		final LaunchableTask launchableTask = new LaunchableMesosWorker(
 			ignored -> Option.empty(),

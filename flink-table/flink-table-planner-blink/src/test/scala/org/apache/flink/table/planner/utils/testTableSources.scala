@@ -28,10 +28,10 @@ import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema, Types}
-import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
-import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSourceFactory}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
@@ -45,6 +45,7 @@ import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, Preserv
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.types.Row
+
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
 import java.util.{Collections, function, ArrayList => JArrayList, List => JList, Map => JMap}
@@ -149,8 +150,7 @@ class TestTableSourceWithTime[T](
     values: Seq[T],
     rowtime: String = null,
     proctime: String = null,
-    mapping: Map[String, String] = null,
-    existingTs: String = null)
+    mapping: Map[String, String] = null)
   extends StreamTableSource[T]
   with DefinedRowtimeAttributes
   with DefinedProctimeAttribute
@@ -165,14 +165,9 @@ class TestTableSourceWithTime[T](
   override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
     // return a RowtimeAttributeDescriptor if rowtime attribute is defined
     if (rowtime != null) {
-      val existingField = if (existingTs != null) {
-        existingTs
-      } else {
-        rowtime
-      }
       Collections.singletonList(new RowtimeAttributeDescriptor(
         rowtime,
-        new ExistingField(existingField),
+        new ExistingField(rowtime),
         new AscendingTimestamps))
     } else {
       Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]
@@ -376,9 +371,6 @@ class TestProjectableTableSourceFactory extends StreamTableSourceFactory[Row] {
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
   *
-  * <p>NOTE: Currently, only `>, >=, &lt;, <=, =, &lt;>` operators and UPPER and LOWER functions
-  * are allowed to be pushed down into this source.
-  *
   * @param isBounded whether this is a bounded source
   * @param rowTypeInfo The type info for the rows.
   * @param data The data that filtering is applied to in order to get the final dataset.
@@ -442,23 +434,23 @@ class TestFilterableTableSource(
 
   private def shouldPushDown(expr: Expression): Boolean = {
     expr match {
-      case expr: CallExpression if expr.getChildren.size() == 2 =>
-        shouldPushDownUnaryExpression(expr.getChildren.head) &&
-          shouldPushDownUnaryExpression(expr.getChildren.last)
+      case expr: CallExpression if expr.getChildren.size() == 2 => shouldPushDown(expr)
       case _ => false
     }
   }
 
-  private def shouldPushDownUnaryExpression(expr: Expression): Boolean = expr match {
-    case f: FieldReferenceExpression => filterableFields.contains(f.getName)
-    case _: ValueLiteralExpression => true
-    case c: CallExpression if c.getChildren.size() == 1 =>
-      c.getFunctionDefinition match {
-        case BuiltInFunctionDefinitions.UPPER | BuiltInFunctionDefinitions.LOWER =>
-          shouldPushDownUnaryExpression(c.getChildren.head)
-        case _ => false
-      }
-    case _ => false
+  private def shouldPushDown(binExpr: CallExpression): Boolean = {
+    val children = binExpr.getChildren
+    require(children.size() == 2)
+    (children.head, children.last) match {
+      case (f: FieldReferenceExpression, _: ValueLiteralExpression) =>
+        filterableFields.contains(f.getName)
+      case (_: ValueLiteralExpression, f: FieldReferenceExpression) =>
+        filterableFields.contains(f.getName)
+      case (f1: FieldReferenceExpression, f2: FieldReferenceExpression) =>
+        filterableFields.contains(f1.getName) && filterableFields.contains(f2.getName)
+      case (_, _) => false
+    }
   }
 
   private def shouldKeep(row: Row): Boolean = {
@@ -495,30 +487,39 @@ class TestFilterableTableSource(
       row: Row): (Comparable[Any], Comparable[Any]) = {
     val children = binExpr.getChildren
     require(children.size() == 2)
-    (getValue(children.head, row), getValue(children.last, row))
+
+    (children.head, children.last) match {
+      case (l: FieldReferenceExpression, r: ValueLiteralExpression) =>
+        val idx = rowTypeInfo.getFieldIndex(l.getName)
+        val lv = row.getField(idx).asInstanceOf[Comparable[Any]]
+        val rv = getValue(r)
+        (lv, rv)
+      case (l: ValueLiteralExpression, r: FieldReferenceExpression) =>
+        val idx = rowTypeInfo.getFieldIndex(r.getName)
+        val lv = getValue(l)
+        val rv = row.getField(idx).asInstanceOf[Comparable[Any]]
+        (lv, rv)
+      case (l: ValueLiteralExpression, r: ValueLiteralExpression) =>
+        val lv = getValue(l)
+        val rv = getValue(r)
+        (lv, rv)
+      case (l: FieldReferenceExpression, r: FieldReferenceExpression) =>
+        val lidx = rowTypeInfo.getFieldIndex(l.getName)
+        val ridx = rowTypeInfo.getFieldIndex(r.getName)
+        val lv = row.getField(lidx).asInstanceOf[Comparable[Any]]
+        val rv = row.getField(ridx).asInstanceOf[Comparable[Any]]
+        (lv, rv)
+      case _ => throw new RuntimeException(binExpr + " not supported!")
+    }
   }
 
-  private def getValue(expr: Expression, row: Row): Comparable[Any] = expr match {
-    case v: ValueLiteralExpression =>
-      val value = v.getValueAs(v.getOutputDataType.getConversionClass)
-      if (value.isPresent) {
-        value.get().asInstanceOf[Comparable[Any]]
-      } else {
-        null
-      }
-    case f: FieldReferenceExpression =>
-      val idx = rowTypeInfo.getFieldIndex(f.getName)
-      row.getField(idx).asInstanceOf[Comparable[Any]]
-    case c: CallExpression if c.getChildren.size() == 1 =>
-      val child = getValue(c.getChildren.head, row)
-      c.getFunctionDefinition match {
-        case BuiltInFunctionDefinitions.UPPER =>
-          child.toString.toUpperCase.asInstanceOf[Comparable[Any]]
-        case BuiltInFunctionDefinitions.LOWER =>
-          child.toString.toLowerCase().asInstanceOf[Comparable[Any]]
-        case _ => throw new RuntimeException(c + " not supported!")
-      }
-    case _ => throw new RuntimeException(expr + " not supported!")
+  private def getValue(v: ValueLiteralExpression): Comparable[Any] = {
+    val value = v.getValueAs(v.getOutputDataType.getConversionClass)
+    if (value.isPresent) {
+      value.get().asInstanceOf[Comparable[Any]]
+    } else {
+      null
+    }
   }
 
   override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
@@ -551,16 +552,16 @@ object TestFilterableTableSource {
     new TestFilterableTableSource(isBounded, rowTypeInfo, rows, filterableFields)
   }
 
-  val defaultFilterableFields = Set("amount")
+  private lazy val defaultFilterableFields = Set("amount")
 
-  val defaultTypeInfo: RowTypeInfo = {
+  private lazy val defaultTypeInfo: RowTypeInfo = {
     val fieldNames: Array[String] = Array("name", "id", "amount", "price")
     val fieldTypes: Array[TypeInformation[_]] =
       Array(Types.STRING, Types.LONG, Types.INT, Types.DOUBLE)
     new RowTypeInfo(fieldTypes, fieldNames)
   }
 
-  val defaultRows: Seq[Row] = {
+  private lazy val defaultRows: Seq[Row] = {
     for {
       cnt <- 0 until 33
     } yield {
@@ -604,8 +605,7 @@ class TestFilterableTableSourceFactory extends StreamTableSourceFactory[Row] {
   */
 class TestPartitionableTableSource(
     override val isBounded: Boolean,
-    remainingPartitions: JList[JMap[String, String]],
-    isCatalogTable: Boolean)
+    remainingPartitions: JList[JMap[String, String]] = null)
   extends StreamTableSource[Row]
   with PartitionableTableSource {
 
@@ -625,21 +625,16 @@ class TestPartitionableTableSource(
     "part1=C,part2=1" -> Seq(row(7, "He", "C", 1), row(8, "Le", "C", 1))
   )
 
-  override def getPartitions: JList[JMap[String, String]] = {
-    if (isCatalogTable) {
-      throw new RuntimeException("Should not expected.")
-    }
-    List(
-      Map("part1" -> "A", "part2" -> "1").asJava,
-      Map("part1" -> "A", "part2" -> "2").asJava,
-      Map("part1" -> "B", "part2" -> "3").asJava,
-      Map("part1" -> "C", "part2" -> "1").asJava
-    ).asJava
-  }
+  override def getPartitions: JList[JMap[String, String]] = List(
+    Map("part1"->"A", "part2"->"1").asJava,
+    Map("part1"->"A", "part2"->"2").asJava,
+    Map("part1"->"B", "part2"->"3").asJava,
+    Map("part1"->"C", "part2"->"1").asJava
+  ).asJava
 
   override def applyPartitionPruning(
       remainingPartitions: JList[JMap[String, String]]): TableSource[_] = {
-    new TestPartitionableTableSource(isBounded, remainingPartitions, isCatalogTable)
+    new TestPartitionableTableSource(isBounded, remainingPartitions)
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
@@ -787,7 +782,6 @@ class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
     dp.putProperties(properties)
 
     val isBounded = dp.getBoolean("is-bounded")
-    val isCatalogTable = dp.getBoolean("is-catalog-table")
     val remainingPartitions = dp.getOptionalArray("remaining-partition",
       new function.Function[String, util.Map[String, String]] {
       override def apply(t: String): util.Map[String, String] = {
@@ -796,11 +790,10 @@ class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
             .map(a => (a(0), a(1)))
             .toMap[String, String]
       }
-    }).orElse(null)
+    })
     new TestPartitionableTableSource(
       isBounded,
-      remainingPartitions,
-      isCatalogTable)
+      remainingPartitions.orElse(null))
   }
 }
 
@@ -812,16 +805,6 @@ object TestPartitionableSourceFactory {
     .field("part2", DataTypes.INT())
     .build()
 
-  /**
-    * For java invoking.
-    */
-  def registerTableSource(
-      tEnv: TableEnvironment,
-      tableName: String,
-      isBounded: Boolean): Unit = {
-    registerTableSource(tEnv, tableName, isBounded, tableSchema = tableSchema)
-  }
-
   def registerTableSource(
       tEnv: TableEnvironment,
       tableName: String,
@@ -830,8 +813,6 @@ object TestPartitionableSourceFactory {
       remainingPartitions: JList[JMap[String, String]] = null): Unit = {
     val properties = new DescriptorProperties()
     properties.putString("is-bounded", isBounded.toString)
-    val isCatalogTable = true
-    properties.putBoolean("is-catalog-table", isCatalogTable)
     properties.putString(CONNECTOR_TYPE, "TestPartitionableSource")
     if (remainingPartitions != null) {
       remainingPartitions.zipWithIndex.foreach { case (part, i) =>
@@ -850,23 +831,7 @@ object TestPartitionableSourceFactory {
       properties.asMap(),
       ""
     )
-    val catalog = tEnv.getCatalog(tEnv.getCurrentCatalog).get()
-    val path = new ObjectPath(tEnv.getCurrentDatabase, tableName)
-    catalog.createTable(path, table, false)
-
-    if (isCatalogTable) {
-      val partitions = List(
-        Map("part1" -> "A", "part2" -> "1").asJava,
-        Map("part1" -> "A", "part2" -> "2").asJava,
-        Map("part1" -> "B", "part2" -> "3").asJava,
-        Map("part1" -> "C", "part2" -> "1").asJava
-      )
-      partitions.foreach(spec => catalog.createPartition(
-        path,
-        new CatalogPartitionSpec(new java.util.LinkedHashMap(spec)),
-        new CatalogPartitionImpl(Map[String, String](), ""),
-        true))
-    }
-
+    tEnv.getCatalog(tEnv.getCurrentCatalog).get()
+        .createTable(new ObjectPath(tEnv.getCurrentDatabase, tableName), table, false)
   }
 }

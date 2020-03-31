@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 
 /**
@@ -32,7 +31,7 @@ public final class TumbleWithSizeOnTimeWithAlias extends GroupWindow {
 
 	TumbleWithSizeOnTimeWithAlias(Expression alias, Expression timeField, Expression size) {
 		super(alias, timeField);
-		this.size = ApiExpressionUtils.unwrapFromApi(size);
+		this.size = size;
 	}
 
 	public Expression getSize() {

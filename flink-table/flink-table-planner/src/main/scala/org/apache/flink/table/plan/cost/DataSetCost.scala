@@ -109,7 +109,7 @@ class DataSetCost(val rowCount: Double, val cpu: Double, val io: Double) extends
     if (n == 0) {
       return 1.0
     }
-    StrictMath.pow(d, 1 / n)
+    Math.pow(d, 1 / n)
   }
 
   def plus(other: RelOptCost): RelOptCost = {

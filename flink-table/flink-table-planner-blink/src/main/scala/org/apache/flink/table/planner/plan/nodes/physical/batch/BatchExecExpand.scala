@@ -99,11 +99,12 @@ class BatchExecExpand(
       projects,
       opName = "BatchExpand")
 
-    ExecNode.createOneInputTransformation(
+    new OneInputTransformation(
       inputTransform,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
       inputTransform.getParallelism)
   }
+
 }

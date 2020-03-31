@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
@@ -77,8 +78,8 @@ public class ConfigurationParserUtils {
 	 * @return size of memory segment
 	 */
 	public static int getPageSize(Configuration configuration) {
-		final int pageSize = checkedDownCast(
-			configuration.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes());
+		final int pageSize = checkedDownCast(MemorySize.parse(
+			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
 
 		// check page size of for minimum size
 		checkConfigParameter(

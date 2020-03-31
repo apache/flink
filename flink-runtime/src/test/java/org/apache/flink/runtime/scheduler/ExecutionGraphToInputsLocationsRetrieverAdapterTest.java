@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -63,7 +64,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 		consumer.connectNewDataSetAsInput(producer1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		consumer.connectNewDataSetAsInput(producer2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(producer1, producer2, consumer);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), producer1, producer2, consumer);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -92,7 +93,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 	public void testGetEmptyTaskManagerLocationIfVertexNotScheduled() throws Exception {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(jobVertex);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -111,7 +112,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
 		final TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(jobVertex);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -135,7 +136,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 	public void testGetNonExistingExecutionVertexWillThrowException() throws Exception {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(jobVertex);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 

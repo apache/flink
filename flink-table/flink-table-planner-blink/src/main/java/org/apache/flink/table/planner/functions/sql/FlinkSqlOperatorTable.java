@@ -32,7 +32,6 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.SqlPostfixOperator;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
@@ -575,9 +574,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction TO_BASE64 = new SqlFunction(
 		"TO_BASE64",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.family(SqlTypeFamily.STRING),
+		OperandTypes.ANY,
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction FROM_BASE64 = new SqlFunction(
@@ -1001,14 +1000,4 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlAggFunction ROW_NUMBER = SqlStdOperatorTable.ROW_NUMBER;
 	public static final SqlAggFunction LEAD = SqlStdOperatorTable.LEAD;
 	public static final SqlAggFunction LAG = SqlStdOperatorTable.LAG;
-
-	// JSON FUNCTIONS
-	public static final SqlPostfixOperator IS_JSON_VALUE = SqlStdOperatorTable.IS_JSON_VALUE;
-	public static final SqlPostfixOperator IS_JSON_OBJECT = SqlStdOperatorTable.IS_JSON_OBJECT;
-	public static final SqlPostfixOperator IS_JSON_ARRAY = SqlStdOperatorTable.IS_JSON_ARRAY;
-	public static final SqlPostfixOperator IS_JSON_SCALAR = SqlStdOperatorTable.IS_JSON_SCALAR;
-	public static final SqlPostfixOperator IS_NOT_JSON_VALUE = SqlStdOperatorTable.IS_NOT_JSON_VALUE;
-	public static final SqlPostfixOperator IS_NOT_JSON_OBJECT = SqlStdOperatorTable.IS_NOT_JSON_OBJECT;
-	public static final SqlPostfixOperator IS_NOT_JSON_ARRAY = SqlStdOperatorTable.IS_NOT_JSON_ARRAY;
-	public static final SqlPostfixOperator IS_NOT_JSON_SCALAR = SqlStdOperatorTable.IS_NOT_JSON_SCALAR;
 }

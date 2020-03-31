@@ -43,6 +43,8 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import java.util
 
+import org.apache.flink.table.dataformat.SqlTimestamp
+
 import scala.collection.JavaConversions._
 
 /**
@@ -306,9 +308,10 @@ class AggFunctionFactory(
           new TimeMinWithRetractAggFunction
         case DATE =>
           new DateMinWithRetractAggFunction
-        case TIMESTAMP_WITHOUT_TIME_ZONE =>
-          val d = argTypes(0).asInstanceOf[TimestampType]
-          new TimestampMinWithRetractAggFunction(d.getPrecision)
+        case TIMESTAMP_WITHOUT_TIME_ZONE
+            if SqlTimestamp.isCompact(argTypes(0).asInstanceOf[TimestampType].getPrecision) =>
+          // TODO: support TimestampMinWithRetractAggFunction for high precision timestamp
+          new TimestampMinWithRetractAggFunction
         case t =>
           throw new TableException(s"Min with retract aggregate function does not " +
             s"support type: ''$t''.\nPlease re-check the data type.")
@@ -410,9 +413,10 @@ class AggFunctionFactory(
           new TimeMaxWithRetractAggFunction
         case DATE =>
           new DateMaxWithRetractAggFunction
-        case TIMESTAMP_WITHOUT_TIME_ZONE =>
-          val d = argTypes(0).asInstanceOf[TimestampType]
-          new TimestampMaxWithRetractAggFunction(d.getPrecision)
+        case TIMESTAMP_WITHOUT_TIME_ZONE
+            if SqlTimestamp.isCompact(argTypes(0).asInstanceOf[TimestampType].getPrecision) =>
+          // TODO: support TimestampMaxWithRetractAggFunction for high precision timestamp
+          new TimestampMaxWithRetractAggFunction
         case t =>
           throw new TableException(s"Max with retract aggregate function does not " +
             s"support type: ''$t''.\nPlease re-check the data type.")

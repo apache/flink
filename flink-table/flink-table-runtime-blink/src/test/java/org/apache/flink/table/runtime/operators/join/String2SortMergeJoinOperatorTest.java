@@ -147,7 +147,6 @@ public class String2SortMergeJoinOperatorTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 		testHarness.getStreamConfig().setStreamOperator(operator);
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
 
 		long initialTime = 0L;
 
@@ -168,7 +167,7 @@ public class String2SortMergeJoinOperatorTest {
 
 	static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
 		return new SortMergeJoinOperator(
-				0, type, leftIsSmaller,
+				32 * 32 * 1024, 1024 * 1024, type, leftIsSmaller,
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {

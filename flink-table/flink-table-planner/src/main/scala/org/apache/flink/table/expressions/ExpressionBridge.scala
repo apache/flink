@@ -18,12 +18,23 @@
 
 package org.apache.flink.table.expressions
 
+import org.apache.flink.table.catalog.FunctionLookup
+import org.apache.flink.table.expressions.resolver.LookupCallResolver
+
 /**
   * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.
   */
-class ExpressionBridge[E <: Expression](finalVisitor: ExpressionVisitor[E]) {
+class ExpressionBridge[E <: Expression](
+    functionCatalog: FunctionLookup,
+    finalVisitor: ExpressionVisitor[E]) {
+
+  private val callResolver = new LookupCallResolver(functionCatalog)
+
   def bridge(expression: Expression): E = {
+    // resolve calls
+    val resolvedExpressionTree = expression.accept(callResolver)
+
     // convert to final expressions
-    expression.accept(finalVisitor)
+    resolvedExpressionTree.accept(finalVisitor)
   }
 }

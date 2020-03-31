@@ -19,14 +19,11 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Serializable;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A stub implementation of a {@link TtlTimeProvider} which guarantees that
@@ -57,24 +54,14 @@ final class MonotonicTTLTimeProvider implements TtlTimeProvider, Serializable {
 	private static final Object lock = new Object();
 
 	@GuardedBy("lock")
-	static <T, E extends Throwable> T doWithFrozenTime(FunctionWithException<Long, T, E> action) throws E {
+	static long freeze() {
 		synchronized (lock) {
-			final long timestampBeforeUpdate = freeze();
-			T result = action.apply(timestampBeforeUpdate);
-			final long timestampAfterUpdate = unfreezeTime();
-
-			checkState(timestampAfterUpdate == timestampBeforeUpdate,
-				"Timestamps before and after the update do not match.");
-			return result;
-		}
-	}
-
-	private static long freeze() {
-		if (!timeIsFrozen || lastReturnedProcessingTime == Long.MIN_VALUE) {
-			timeIsFrozen = true;
-			return getCurrentTimestamp();
-		} else {
-			return lastReturnedProcessingTime;
+			if (!timeIsFrozen || lastReturnedProcessingTime == Long.MIN_VALUE) {
+				timeIsFrozen = true;
+				return getCurrentTimestamp();
+			} else {
+				return lastReturnedProcessingTime;
+			}
 		}
 	}
 
@@ -100,8 +87,11 @@ final class MonotonicTTLTimeProvider implements TtlTimeProvider, Serializable {
 		return lastReturnedProcessingTime;
 	}
 
-	private static long unfreezeTime() {
-		timeIsFrozen = false;
-		return lastReturnedProcessingTime;
+	@GuardedBy("lock")
+	static long unfreezeTime() {
+		synchronized (lock) {
+			timeIsFrozen = false;
+			return lastReturnedProcessingTime;
+		}
 	}
 }

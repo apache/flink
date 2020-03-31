@@ -191,7 +191,7 @@ object LookupJoinCodeGenerator {
       .map { e =>
         val dataType = fromLogicalTypeToDataType(e.resultType)
         val bType = if (isExternalArgs) {
-          typeTerm(dataType.getConversionClass)
+          boxedTypeTermForExternalType(dataType)
         } else {
           boxedTypeTermForType(e.resultType)
         }

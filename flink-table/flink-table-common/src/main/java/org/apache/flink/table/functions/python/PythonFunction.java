@@ -38,11 +38,4 @@ public interface PythonFunction extends Serializable {
 	 * Returns the Python execution environment.
 	 */
 	PythonEnv getPythonEnv();
-
-	/**
-	 * Returns the kind of the user-defined python function.
-	 */
-	default PythonFunctionKind getPythonFunctionKind() {
-		return PythonFunctionKind.GENERAL;
-	}
 }

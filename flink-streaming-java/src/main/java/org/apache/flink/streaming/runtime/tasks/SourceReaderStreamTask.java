@@ -49,11 +49,13 @@ public class SourceReaderStreamTask<T> extends StreamTask<T, SourceReaderOperato
 		StreamTaskInput<T> input = new StreamTaskSourceInput<>(headOperator);
 		DataOutput<T> output = new StreamTaskSourceOutput<>(
 			operatorChain.getChainEntryPoint(),
-			getStreamStatusMaintainer());
+			getStreamStatusMaintainer(),
+			getCheckpointLock());
 
 		inputProcessor = new StreamOneInputProcessor<>(
 			input,
 			output,
+			getCheckpointLock(),
 			operatorChain);
 	}
 
@@ -67,25 +69,32 @@ public class SourceReaderStreamTask<T> extends StreamTask<T, SourceReaderOperato
 
 		StreamTaskSourceOutput(
 				Output<StreamRecord<T>> output,
-				StreamStatusMaintainer streamStatusMaintainer) {
-			super(streamStatusMaintainer);
+				StreamStatusMaintainer streamStatusMaintainer,
+				Object lock) {
+			super(streamStatusMaintainer, lock);
 
 			this.output = checkNotNull(output);
 		}
 
 		@Override
 		public void emitRecord(StreamRecord<T> streamRecord) {
-			output.collect(streamRecord);
+			synchronized (lock) {
+				output.collect(streamRecord);
+			}
 		}
 
 		@Override
 		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			output.emitLatencyMarker(latencyMarker);
+			synchronized (lock) {
+				output.emitLatencyMarker(latencyMarker);
+			}
 		}
 
 		@Override
 		public void emitWatermark(Watermark watermark) {
-			output.emitWatermark(watermark);
+			synchronized (lock) {
+				output.emitWatermark(watermark);
+			}
 		}
 	}
 }

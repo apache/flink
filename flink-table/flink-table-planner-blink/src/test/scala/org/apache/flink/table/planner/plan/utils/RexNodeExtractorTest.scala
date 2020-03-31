@@ -18,35 +18,37 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import java.math.BigDecimal
-import java.time.ZoneId
-import java.util.{TimeZone, List => JList}
-
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.SqlPostfixOperator
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
-import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
-import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.Types
-import org.apache.flink.table.api.{DataTypes, TableConfig}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
-import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
 import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
-import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
 import org.apache.flink.table.planner.expressions.utils.Func1
-import org.apache.flink.table.planner.expressions._
+import org.apache.flink.table.planner.expressions.{EqualTo, ExpressionBridge, GreaterThan, Literal, PlannerExpression, PlannerExpressionConverter, Sum, UnresolvedFieldReference}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
-import org.apache.flink.table.utils.CatalogManagerMocks
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex.{RexBuilder, RexNode}
+import org.apache.calcite.sql.{SqlIdentifier, SqlPostfixOperator}
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
+import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
+
+import java.math.BigDecimal
+import java.sql.Timestamp
+import java.util.{TimeZone, List => JList}
+import org.apache.flink.table.module.ModuleManager
+
+import org.apache.calcite.sql.parser.SqlParserPos
 
 import scala.collection.JavaConverters._
 
@@ -54,15 +56,16 @@ import scala.collection.JavaConverters._
   * Test for [[RexNodeExtractor]].
   */
 class RexNodeExtractorTest extends RexNodeTestBase {
-  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
+  val defaultCatalog = "default_catalog"
+  val catalogManager = new CatalogManager(
+    defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
   val moduleManager = new ModuleManager
-  private val functionCatalog = new FunctionCatalog(
-    TableConfig.getDefault,
-    catalogManager,
-    moduleManager)
+  private val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](
+      functionCatalog,
+      PlannerExpressionConverter.INSTANCE)
 
   @Test
   def testExtractRefInputFields(): Unit = {
@@ -796,15 +799,15 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   }
 
   @Test
-  def testExtractPartitionPredicatesDate(): Unit = {
+  def testExtractPartitionPredicates_UnsupportedType(): Unit = {
     // amount
-    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 1)
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
     // 100
     val t1 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
     val c1 = rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t0, t1)
     // date
     val t2 = rexBuilder.makeInputRef(
-      typeFactory.createFieldTypeFromLogicalType(DataTypes.DATE().getLogicalType), 0)
+      typeFactory.createFieldTypeFromLogicalType(DataTypes.DATE().getLogicalType), 1)
     // 2019-04-14
     val t3 = rexBuilder.makeDateLiteral(DateString.fromDaysSinceEpoch(18000))
     val c2 = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t3)
@@ -818,9 +821,10 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("date")
       )
-    assertEquals(c2, partitionPredicate1)
-    assertEquals(c1, nonPartitionPredicate1)
+    assertTrue(partitionPredicate1.isAlwaysTrue)
+    assertEquals(c3, nonPartitionPredicate1)
 
+    // date is not supported
     val (partitionPredicate2, nonPartitionPredicate2) =
       RexNodeExtractor.extractPartitionPredicates(
         c3,
@@ -829,8 +833,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("date", "amount")
       )
-    assertEquals(c3, partitionPredicate2)
-    assertTrue(nonPartitionPredicate2.isAlwaysTrue)
+    assertTrue(partitionPredicate2.isAlwaysTrue)
+    assertEquals(c3, nonPartitionPredicate2)
 
     val (partitionPredicate3, nonPartitionPredicate3) =
       RexNodeExtractor.extractPartitionPredicates(
@@ -842,52 +846,6 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       )
     assertEquals(c1, partitionPredicate3)
     assertEquals(c2, nonPartitionPredicate3)
-  }
-
-  @Test
-  def testTimeLiteralWithLocalTimeZoneConversions(): Unit = {
-    // TIMESTAMP(6), TIMESTAMP(6) WITH LOCAL TIME ZONE
-    val fieldNames = List("timestamp_col", "instant_col").asJava
-    val fieldTypes = makeTypes(SqlTypeName.TIMESTAMP, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-
-    val timestampString = new TimestampString("2017-09-10 14:23:01.123456")
-    val rexTimestamp = rexBuilder.makeTimestampLiteral(timestampString, 6)
-    val rexInstant = rexBuilder.makeTimestampWithLocalTimeZoneLiteral(timestampString, 6)
-
-    val allRexNodes = List(rexTimestamp, rexInstant)
-
-    val condition = fieldTypes.asScala.zipWithIndex
-      .map((t: (RelDataType, Int)) => rexBuilder.makeInputRef(t._1, t._2))
-      .zip(allRexNodes)
-      .map(t => rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t._1, t._2))
-      .asJava
-
-    val and = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)
-
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
-
-    val shanghai = ZoneId.of("Asia/Shanghai")
-    val (converted, _) = extractConjunctiveConditions(
-      and,
-      -1,
-      fieldNames,
-      relBuilder,
-      functionCatalog,
-      TimeZone.getTimeZone(shanghai))
-
-    val datetime = DateTimeTestUtil.localDateTime("2017-09-10 14:23:01.123456")
-    val instant = datetime.toInstant(shanghai.getRules.getOffset(datetime))
-
-    {
-      val expected = Array[Expression](
-        // timestamp_col = '2017-09-10 14:23:01.123456'
-        unresolvedCall(EQUALS, unresolvedRef("timestamp_col"), valueLiteral(datetime)),
-        // instant_col = '2017-09-10T06:23:01.123456Z'
-        unresolvedCall(EQUALS, unresolvedRef("instant_col"), valueLiteral(instant))
-      )
-
-      assertExpressionArrayEquals(expected, converted)
-    }
   }
 
   private def testExtractSinglePostfixCondition(
@@ -943,10 +901,9 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       maxCnfNodeCount: Int,
       inputFieldNames: JList[String],
       rexBuilder: RexBuilder,
-      catalog: FunctionCatalog,
-      tz: TimeZone = TimeZone.getDefault): (Array[Expression], Array[RexNode]) = {
+      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
     RexNodeExtractor.extractConjunctiveConditions(expr, maxCnfNodeCount,
-      inputFieldNames, rexBuilder, catalog, catalogManager, tz)
+      inputFieldNames, rexBuilder, catalog, catalogManager, TimeZone.getDefault)
   }
 
 }

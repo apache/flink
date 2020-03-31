@@ -139,15 +139,18 @@ cat >> $SQL_CONF << EOF
     update-mode: upsert
     schema:
       - name: user_id
-        data-type: INT
+        type: INT
       - name: user_name
-        data-type: STRING
+        type: VARCHAR
       - name: user_count
-        data-type: BIGINT
+        type: BIGINT
     connector:
       type: elasticsearch
       version: 6
-      hosts: "http://localhost:9200"
+      hosts:
+        - hostname: "localhost"
+          port: 9200
+          protocol: "http"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
       bulk-flush:
@@ -160,15 +163,18 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: user_id
-        data-type: INT
+        type: INT
       - name: user_name
-        data-type: STRING
+        type: VARCHAR
       - name: user_count
-        data-type: BIGINT
+        type: BIGINT
     connector:
       type: elasticsearch
       version: 6
-      hosts: "http://localhost:9200"
+      hosts:
+        - hostname: "localhost"
+          port: 9200
+          protocol: "http"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
       bulk-flush:

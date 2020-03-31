@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
-import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.plan.schema.TableSinkTable;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
@@ -59,19 +57,16 @@ class DatabaseCalciteSchema implements Schema {
 	private final String catalogName;
 	private final String databaseName;
 	private final CatalogManager catalogManager;
-	private final TableConfig tableConfig;
 
 	public DatabaseCalciteSchema(
 			boolean isStreamingMode,
 			String databaseName,
 			String catalogName,
-			CatalogManager catalogManager,
-			TableConfig tableConfig) {
+			CatalogManager catalogManager) {
 		this.isStreamingMode = isStreamingMode;
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalogManager = catalogManager;
-		this.tableConfig = tableConfig;
 	}
 
 	@Override
@@ -88,20 +83,20 @@ class DatabaseCalciteSchema implements Schema {
 						.flatMap(Catalog::getTableFactory)
 						.orElse(null);
 				}
-				return convertTable(identifier, table, tableFactory);
+				return convertTable(identifier.toObjectPath(), table, tableFactory);
 			})
 			.orElse(null);
 	}
 
-	private Table convertTable(ObjectIdentifier identifier, CatalogBaseTable table, @Nullable TableFactory tableFactory) {
+	private Table convertTable(ObjectPath tablePath, CatalogBaseTable table, @Nullable TableFactory tableFactory) {
 		if (table instanceof QueryOperationCatalogView) {
 			return QueryOperationCatalogViewTable.createCalciteTable(((QueryOperationCatalogView) table));
 		} else if (table instanceof ConnectorCatalogTable) {
 			return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
 		} else if (table instanceof CatalogTable) {
-			return convertCatalogTable(identifier, (CatalogTable) table, tableFactory);
+			return convertCatalogTable(tablePath, (CatalogTable) table, tableFactory);
 		} else if (table instanceof CatalogView) {
-			return convertCatalogView(identifier.getObjectName(), (CatalogView) table);
+			return convertCatalogView(tablePath, (CatalogView) table);
 		} else {
 			throw new TableException("Unsupported table type: " + table);
 		}
@@ -110,7 +105,6 @@ class DatabaseCalciteSchema implements Schema {
 	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
 		Optional<TableSourceTable> tableSourceTable = table.getTableSource()
 			.map(tableSource -> new TableSourceTable<>(
-				table.getSchema(),
 				tableSource,
 				!table.isBatch(),
 				FlinkStatistic.UNKNOWN()));
@@ -130,19 +124,17 @@ class DatabaseCalciteSchema implements Schema {
 		}
 	}
 
-	private Table convertCatalogTable(ObjectIdentifier identifier, CatalogTable table, @Nullable TableFactory tableFactory) {
+	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table, @Nullable TableFactory tableFactory) {
 		final TableSource<?> tableSource;
-		final TableSourceFactory.Context context = new TableSourceFactoryContextImpl(
-				identifier, table, tableConfig.getConfiguration());
 		if (tableFactory != null) {
 			if (tableFactory instanceof TableSourceFactory) {
-				tableSource = ((TableSourceFactory) tableFactory).createTableSource(context);
+				tableSource = ((TableSourceFactory) tableFactory).createTableSource(tablePath, table);
 			} else {
 				throw new TableException(
 					"Cannot query a sink-only table. TableFactory provided by catalog must implement TableSourceFactory");
 			}
 		} else {
-			tableSource = TableFactoryUtil.findAndCreateTableSource(context);
+			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
 		}
 
 		if (!(tableSource instanceof StreamTableSource)) {
@@ -150,7 +142,6 @@ class DatabaseCalciteSchema implements Schema {
 		}
 
 		return new TableSourceTable<>(
-			table.getSchema(),
 			tableSource,
 			// this means the TableSource extends from StreamTableSource, this is needed for the
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource
@@ -160,14 +151,14 @@ class DatabaseCalciteSchema implements Schema {
 		);
 	}
 
-	private Table convertCatalogView(String tableName, CatalogView table) {
+	private Table convertCatalogView(ObjectPath tableName, CatalogView table) {
 		TableSchema schema = table.getSchema();
 		return new ViewTable(
 			null,
 			typeFactory -> ((FlinkTypeFactory) typeFactory).buildLogicalRowType(schema),
 			table.getExpandedQuery(),
 			Arrays.asList(catalogName, databaseName),
-			Arrays.asList(catalogName, databaseName, tableName)
+			Arrays.asList(catalogName, databaseName, tableName.getObjectName())
 		);
 	}
 

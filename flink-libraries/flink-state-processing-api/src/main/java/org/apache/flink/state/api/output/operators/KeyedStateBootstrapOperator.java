@@ -26,6 +26,7 @@ import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.output.SnapshotUtils;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.runtime.VoidTriggerable;
+import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -33,8 +34,6 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
-
-import java.util.function.Supplier;
 
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
@@ -65,12 +64,12 @@ public class KeyedStateBootstrapOperator<K, IN>
 	public void open() throws Exception {
 		super.open();
 
-		Supplier<InternalTimerService<VoidNamespace>> internalTimerService = () -> getInternalTimerService(
+		InternalTimerService<VoidNamespace> internalTimerService = getInternalTimerService(
 			"user-timers",
 			VoidNamespaceSerializer.INSTANCE,
 			VoidTriggerable.instance());
 
-		TimerService timerService = new LazyTimerService(internalTimerService, getProcessingTimeService());
+		TimerService timerService = new SimpleTimerService(internalTimerService);
 
 		context = new KeyedStateBootstrapOperator<K, IN>.ContextImpl(userFunction, timerService);
 	}

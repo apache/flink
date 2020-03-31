@@ -108,11 +108,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   private var currentMethodNameForLocalVariables = "DEFAULT"
 
-  /**
-   * Flag that indicates whether the generated code is split into several methods.
-   */
-  private var isCodeSplit = false
-
   // map of local variable statements. It will be placed in method if method code not excess
   // max code length, otherwise will be placed in member area of the class. The statements
   // are maintained for multiple methods, so that it's a map from method_name to variables.
@@ -148,13 +143,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableLocalVariableStatements(methodName) = mutable.LinkedHashSet[String]()
   }
 
-  /**
-   * Set the flag [[isCodeSplit]] to be true, which indicates the generated code is split into
-   * several methods.
-   */
-  def setCodeSplit(): Unit = {
-    isCodeSplit = true
-  }
 
   /**
     * Adds a reusable local variable statement with the given type term and field name.
@@ -209,15 +197,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         (e.g. member variables and their initialization)
     */
   def reuseMemberCode(): String = {
-    val result = reusableMemberStatements.mkString("\n")
-    if (isCodeSplit) {
-      val localVariableAsMember = reusableLocalVariableStatements.map(
-        statements => statements._2.map("private " + _).mkString("\n")
-      ).mkString("\n")
-      result + "\n" + localVariableAsMember
-    } else {
-      result
-    }
+    reusableMemberStatements.mkString("\n")
   }
 
   /**
@@ -225,9 +205,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         if generated code is split or in local variables of method
     */
   def reuseLocalVariableCode(methodName: String = null): String = {
-    if (isCodeSplit) {
-      GeneratedExpression.NO_CODE
-    } else if (methodName == null) {
+    if (methodName == null) {
       reusableLocalVariableStatements(currentMethodNameForLocalVariables).mkString("\n")
     } else {
       reusableLocalVariableStatements(methodName).mkString("\n")
@@ -430,12 +408,9 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   def addReusableTimestamp(): String = {
     val fieldTerm = s"timestamp"
-
-    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
-
     val field =
       s"""
-         |$fieldTerm =
+         |final $SQL_TIMESTAMP $fieldTerm =
          |  $SQL_TIMESTAMP.fromEpochMillis(java.lang.System.currentTimeMillis());
          |""".stripMargin
     reusablePerRecordStatements.add(field)
@@ -639,7 +614,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
       contextTerm: String = null): String = {
-    val classQualifier = function.getClass.getName
+    val classQualifier = function.getClass.getCanonicalName
     val fieldTerm = CodeGenUtils.udfFieldName(function)
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)

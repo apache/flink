@@ -96,21 +96,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
-	public void testCreateCatalog() {
-		check(
-			"create catalog c1\n" +
-				" WITH (\n" +
-				"  'key1'='value1',\n" +
-				"  'key2'='value2'\n" +
-				" )\n",
-			"CREATE CATALOG `C1` " +
-				"WITH (\n" +
-				"  'key1' = 'value1',\n" +
-				"  'key2' = 'value2'\n" +
-				")");
-	}
-
-	@Test
 	public void testShowDataBases() {
 		check("show databases", "SHOW DATABASES");
 	}
@@ -218,7 +203,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateTable() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +
 				"  h varchar, \n" +
@@ -251,7 +235,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateTableWithComment() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint comment 'test column comment AAA.',\n" +
 				"  h varchar, \n" +
@@ -286,7 +269,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateTableWithPrimaryKeyAndUniqueKey() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint comment 'test column comment AAA.',\n" +
 				"  h varchar, \n" +
@@ -551,7 +533,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateInvalidPartitionedTable() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		String sql = "create table sls_stream1(\n" +
 			"  a bigint,\n" +
 			"  b VARCHAR,\n" +
@@ -562,16 +543,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			") with ( 'x' = 'y', 'asd' = 'dada')";
 		sql(sql).node(new ValidationMatcher()
 			.fails("Partition column [C] not defined in columns, at line 6, column 3"));
-	}
 
-	@Test
-	public void testNotAllowedCreatePartition() {
-		conformance0 = FlinkSqlConformance.DEFAULT;
-		String sql = "create table sls_stream1(\n" +
-				"  a bigint,\n" +
-				"  b VARCHAR\n" +
-				") PARTITIONED BY (a^)^ with ( 'x' = 'y', 'asd' = 'dada')";
-		sql(sql).fails("Creating partitioned table is only allowed for HIVE dialect.");
 	}
 
 	@Test
@@ -626,6 +598,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testInsertPartitionSpecs() {
+		conformance0 = FlinkSqlConformance.HIVE;
 		final String sql1 = "insert into emps(x,y) partition (x='ab', y='bc') select * from emps";
 		final String expected = "INSERT INTO `EMPS` (`X`, `Y`)\n"
 			+ "PARTITION (`X` = 'ab', `Y` = 'bc')\n"
@@ -647,6 +620,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testInsertCaseSensitivePartitionSpecs() {
+		conformance0 = FlinkSqlConformance.HIVE;
 		final String expected = "INSERT INTO `emps` (`x`, `y`)\n"
 			+ "PARTITION (`x` = 'ab', `y` = 'bc')\n"
 			+ "(SELECT *\n"
@@ -658,6 +632,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testInsertExtendedColumnAsStaticPartition1() {
+		conformance0 = FlinkSqlConformance.HIVE;
 		String expected = "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) (`X`, `Y`)\n"
 			+ "PARTITION (`Z` = 'ab')\n"
 			+ "(SELECT *\n"
@@ -668,6 +643,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test(expected = SqlParseException.class)
 	public void testInsertExtendedColumnAsStaticPartition2() {
+		conformance0 = FlinkSqlConformance.HIVE;
 		sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
 			.node(new ValidationMatcher()
 				.fails("Extended columns not allowed under the current SQL conformance level"));
@@ -675,6 +651,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testInsertOverwrite() {
+		conformance0 = FlinkSqlConformance.HIVE;
 		// non-partitioned
 		check("INSERT OVERWRITE myDB.myTbl SELECT * FROM src",
 			"INSERT OVERWRITE `MYDB`.`MYTBL`\n"
@@ -691,6 +668,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testInvalidUpsertOverwrite() {
+		conformance0 = FlinkSqlConformance.HIVE;
 		sql("UPSERT ^OVERWRITE^ myDB.myTbl SELECT * FROM src")
 			.fails("OVERWRITE expression is only used with INSERT statement.");
 	}

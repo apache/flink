@@ -27,7 +27,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 /**
@@ -42,7 +41,7 @@ public class CollectBatchTableSink extends OutputFormatTableSink<Row> implements
 	public CollectBatchTableSink(String accumulatorName, TypeSerializer<Row> serializer, TableSchema tableSchema) {
 		this.accumulatorName = accumulatorName;
 		this.serializer = serializer;
-		this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
+		this.tableSchema = tableSchema;
 	}
 
 	/**

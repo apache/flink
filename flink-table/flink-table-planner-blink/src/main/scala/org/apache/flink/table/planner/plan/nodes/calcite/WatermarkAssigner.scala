@@ -19,12 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -35,8 +33,8 @@ abstract class WatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     inputRel: RelNode,
-    val rowtimeFieldIndex: Int,
-    val watermarkExpr: RexNode)
+    val rowtimeFieldIndex: Option[Int],
+    val watermarkDelay: Option[Long])
   extends SingleRel(cluster, traits, inputRel) {
 
   override def deriveRowType(): RelDataType = {
@@ -44,11 +42,11 @@ abstract class WatermarkAssigner(
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
     val newFieldList = inputRowType.getFieldList.map { f =>
-      if (f.getIndex == rowtimeFieldIndex) {
-        val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType(f.getType.isNullable)
-        new RelDataTypeFieldImpl(f.getName, f.getIndex, rowtimeIndicatorType)
-      } else {
-        f
+      rowtimeFieldIndex match {
+        case Some(index) if f.getIndex == index =>
+          val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType(f.getType.isNullable)
+          new RelDataTypeFieldImpl(f.getName, f.getIndex, rowtimeIndicatorType)
+        case _ => f
       }
     }
 
@@ -58,23 +56,10 @@ abstract class WatermarkAssigner(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val rowtimeFieldName = inputRel.getRowType.getFieldNames.get(rowtimeFieldIndex)
     super.explainTerms(pw)
-      .item("rowtime", rowtimeFieldName)
-      .item("watermark", watermarkExpr.toString)
+      .item("fields", getRowType.getFieldNames.mkString(", "))
+      .itemIf("rowtimeField", getRowType.getFieldNames.get(rowtimeFieldIndex.getOrElse(0)),
+        rowtimeFieldIndex.isDefined)
+      .itemIf("watermarkDelay", watermarkDelay.getOrElse(0L), watermarkDelay.isDefined)
   }
-
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    val rowtimeFieldName = inputRel.getRowType.getFieldNames.get(rowtimeFieldIndex)
-    val newInputRel = inputs.get(0)
-    // the input fields maybe reordered, re-computed the rowtime index
-    val newIndex = newInputRel.getRowType.getFieldNames.indexOf(rowtimeFieldName)
-    copy(traitSet, newInputRel, newIndex, watermarkExpr)
-  }
-
-  /**
-    * Copies a new WatermarkAssigner.
-    */
-  def copy(traitSet: RelTraitSet, input: RelNode, rowtime: Int, watermark: RexNode): RelNode
-
 }

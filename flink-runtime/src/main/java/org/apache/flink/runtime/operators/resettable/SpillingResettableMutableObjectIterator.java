@@ -53,9 +53,9 @@ public class SpillingResettableMutableObjectIterator<T> implements ResettableMut
 	
 	protected final TypeSerializer<T> serializer;
 	
-	private long elementCount;
+	private int elementCount;
 	
-	private long currentElementNum;
+	private int currentElementNum;
 	
 	protected final SpillingBuffer buffer;
 	

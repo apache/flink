@@ -52,14 +52,13 @@ config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CAN
 
 {% highlight yaml %}
 /user-defined-checkpoint-dir
-    /{job-id}
-        |
-        + --shared/
-        + --taskowned/
-        + --chk-1/
-        + --chk-2/
-        + --chk-3/
-        ...
+    |
+    + --shared/
+    + --taskowned/
+    + --chk-00001/
+    + --chk-00002/
+    + --chk-00003/
+    ...
 {% endhighlight %}
 
 其中 **SHARED** 目录保存了可能被多个 checkpoint 引用的文件，**TASKOWNED** 保存了不会被 JobManager 删除的文件，**EXCLUSIVE** 则保存那些仅被单个 checkpoint 引用的文件。

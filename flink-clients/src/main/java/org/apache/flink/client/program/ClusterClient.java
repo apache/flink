@@ -41,7 +41,9 @@ import java.util.concurrent.CompletableFuture;
 public interface ClusterClient<T> extends AutoCloseable {
 
 	@Override
-	void close();
+	default void close() {
+
+	}
 
 	/**
 	 * Returns the cluster id identifying the cluster to which the client is connected.

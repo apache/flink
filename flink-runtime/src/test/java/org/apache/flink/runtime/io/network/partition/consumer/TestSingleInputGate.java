@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -39,7 +41,7 @@ public class TestSingleInputGate {
 		if (initialize) {
 			for (int i = 0; i < numberOfInputChannels; i++) {
 				inputChannels[i] = new TestInputChannel(inputGate, i);
-				inputGate.setInputChannel(inputChannels[i]);
+				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i]);
 			}
 		}
 	}

@@ -32,11 +32,9 @@ import java.util.Map;
  */
 public class HiveModuleDescriptorTest extends DescriptorTestBase {
 
-	private final String hiveVersion = "2.3.4";
-
 	@Override
 	protected List<Descriptor> descriptors() {
-		final Descriptor descriptor = new HiveModuleDescriptor(hiveVersion);
+		final Descriptor descriptor = new HiveModuleDescriptor();
 
 		return Arrays.asList(descriptor);
 	}
@@ -45,7 +43,6 @@ public class HiveModuleDescriptorTest extends DescriptorTestBase {
 	protected List<Map<String, String>> properties() {
 		final Map<String, String> props1 = new HashMap<>();
 		props1.put("type", "hive");
-		props1.put("hive-version", hiveVersion);
 
 		return Arrays.asList(props1);
 	}

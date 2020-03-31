@@ -35,6 +35,7 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFir
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
@@ -44,6 +45,7 @@ import org.apache.flink.optimizer.util.OperatorResolver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.test.util.PlanExposingEnvironment;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -106,7 +108,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 * indicate this to be the smaller one.
 	 */
 	@Test
-	public void testQueryAnyValidPlan() throws Exception {
+	public void testQueryAnyValidPlan() {
 		testQueryGeneric(1024 * 1024 * 1024L, 8 * 1024 * 1024 * 1024L, 0.05f, 0.05f, true, true, true, false, true);
 	}
 
@@ -114,7 +116,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 * Verifies that the plan compiles in the presence of empty size=0 estimates.
 	 */
 	@Test
-	public void testQueryWithSizeZeroInputs() throws Exception {
+	public void testQueryWithSizeZeroInputs() {
 		testQueryGeneric(0, 0, 0.1f, 0.5f, true, true, true, false, true);
 	}
 
@@ -122,7 +124,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 * Statistics that push towards a broadcast join.
 	 */
 	@Test
-	public void testQueryWithStatsForBroadcastHash() throws Exception {
+	public void testQueryWithStatsForBroadcastHash() {
 		testQueryGeneric(1024L * 1024 * 1024 * 1024, 1024L * 1024 * 1024 * 1024, 0.01f, 0.05f, true, false, true, false, false);
 	}
 
@@ -130,7 +132,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 * Statistics that push towards a broadcast join.
 	 */
 	@Test
-	public void testQueryWithStatsForRepartitionAny() throws Exception {
+	public void testQueryWithStatsForRepartitionAny() {
 		testQueryGeneric(100L * 1024 * 1024 * 1024 * 1024, 100L * 1024 * 1024 * 1024 * 1024, 0.1f, 0.5f, false, true, true, true, true);
 	}
 
@@ -139,7 +141,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 * re-exploiting the sorted order is cheaper.
 	 */
 	@Test
-	public void testQueryWithStatsForRepartitionMerge() throws Exception {
+	public void testQueryWithStatsForRepartitionMerge() {
 		Plan p = getTPCH3Plan();
 		p.setExecutionConfig(defaultExecutionConfig);
 		// set compiler hints
@@ -154,7 +156,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	private void testQueryGeneric(long orderSize, long lineItemSize,
 			float ordersFilterFactor, float joinFilterFactor,
 			boolean broadcastOkay, boolean partitionedOkay,
-			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay) throws Exception {
+			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay) {
 		Plan p = getTPCH3Plan();
 		p.setExecutionConfig(defaultExecutionConfig);
 		testQueryGeneric(p, orderSize, lineItemSize, ordersFilterFactor, joinFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
@@ -345,11 +347,22 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		}
 	}
 
-	public static Plan getTPCH3Plan() throws Exception {
-		return tcph3(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE});
+	public static Plan getTPCH3Plan() {
+		// prepare the test environment
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
+		env.setAsContext();
+		try {
+			tcph3(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE});
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
+			// all good.
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("tcph3 failed with an exception");
+		}
+		return env.getPlan();
 	}
 
-	public static Plan tcph3(String[] args) throws Exception {
+	public static void tcph3(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(Integer.parseInt(args[0]));
 
@@ -375,7 +388,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 
 		aggLiO.writeAsCsv(args[3], "\n", "|").name(SINK);
 
-		return env.createProgramPlan();
+		env.execute();
 	}
 
 	@ForwardedFields("f0; f4->f1")

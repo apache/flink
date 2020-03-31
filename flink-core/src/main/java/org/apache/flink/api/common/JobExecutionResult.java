@@ -20,7 +20,6 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.util.OptionalFailure;
 
 import java.util.Collections;
@@ -111,22 +110,6 @@ public class JobExecutionResult extends JobSubmissionResult {
 		return accumulatorResults.entrySet()
 			.stream()
 			.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getUnchecked()));
-	}
-
-	@Override
-	public String toString() {
-		final StringBuilder result = new StringBuilder();
-		result.append("Program execution finished").append("\n");
-		result.append("Job with JobID ").append(getJobID()).append(" has finished.").append("\n");
-		result.append("Job Runtime: ").append(getNetRuntime()).append(" ms").append("\n");
-
-		final Map<String, Object> accumulatorsResult = getAllAccumulatorResults();
-		if (accumulatorsResult.size() > 0) {
-			result.append("Accumulator Results: ").append("\n");
-			result.append(AccumulatorHelper.getResultsFormatted(accumulatorsResult)).append("\n");
-		}
-
-		return result.toString();
 	}
 
 	/**

@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
-import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -87,7 +86,7 @@ public class StreamTaskNetworkInputTest {
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
 				new EmptyBufferStorage(),
-				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
+				new CheckpointBarrierTracker(1)),
 			LongSerializer.INSTANCE,
 			ioManager,
 			new StatusWatermarkValve(1, output),
@@ -117,7 +116,7 @@ public class StreamTaskNetworkInputTest {
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
 				new EmptyBufferStorage(),
-				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
+				new CheckpointBarrierTracker(1)),
 			inSerializer,
 			new StatusWatermarkValve(1, output),
 			0,

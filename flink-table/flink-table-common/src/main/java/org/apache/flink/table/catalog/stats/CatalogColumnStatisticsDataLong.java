@@ -28,41 +28,41 @@ public class CatalogColumnStatisticsDataLong extends CatalogColumnStatisticsData
 	/**
 	 * mim value.
 	 */
-	private final Long min;
+	private final long min;
 
 	/**
 	 * max value.
 	 */
-	private final Long max;
+	private final long max;
 
 	/**
 	 * number of distinct values.
 	 */
-	private final Long ndv;
+	private final long ndv;
 
-	public CatalogColumnStatisticsDataLong(Long min, Long max, Long ndv, Long nullCount) {
+	public CatalogColumnStatisticsDataLong(long min, long max, long ndv, long nullCount) {
 		super(nullCount);
 		this.min = min;
 		this.max = max;
 		this.ndv = ndv;
 	}
 
-	public CatalogColumnStatisticsDataLong(Long min, Long max, Long ndv, Long nullCount, Map<String, String> properties) {
+	public CatalogColumnStatisticsDataLong(long min, long max, long ndv, long nullCount, Map<String, String> properties) {
 		super(nullCount, properties);
 		this.min = min;
 		this.max = max;
 		this.ndv = ndv;
 	}
 
-	public Long getMin() {
+	public long getMin() {
 		return min;
 	}
 
-	public Long getMax() {
+	public long getMax() {
 		return max;
 	}
 
-	public Long getNdv() {
+	public long getNdv() {
 		return ndv;
 	}
 

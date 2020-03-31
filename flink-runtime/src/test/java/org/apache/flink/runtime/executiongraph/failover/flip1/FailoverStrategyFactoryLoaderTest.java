@@ -41,7 +41,7 @@ public class FailoverStrategyFactoryLoaderTest extends TestLogger {
 			FailoverStrategyFactoryLoader.FULL_RESTART_STRATEGY_NAME);
 		assertThat(
 			FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config),
-			instanceOf(RestartAllFailoverStrategy.Factory.class));
+			instanceOf(RestartAllStrategy.Factory.class));
 	}
 
 	@Test
@@ -52,7 +52,7 @@ public class FailoverStrategyFactoryLoaderTest extends TestLogger {
 			FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
 		assertThat(
 			FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config),
-			instanceOf(RestartPipelinedRegionFailoverStrategy.Factory.class));
+			instanceOf(RestartPipelinedRegionStrategy.Factory.class));
 	}
 
 	@Test
@@ -60,7 +60,7 @@ public class FailoverStrategyFactoryLoaderTest extends TestLogger {
 		final Configuration config = new Configuration();
 		assertThat(
 			FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config),
-			instanceOf(RestartPipelinedRegionFailoverStrategy.Factory.class));
+			instanceOf(RestartPipelinedRegionStrategy.Factory.class));
 	}
 
 	@Test(expected = IllegalConfigurationException.class)

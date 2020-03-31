@@ -45,11 +45,6 @@ public class TestMemorySegmentPool implements MemorySegmentPool {
 	}
 
 	@Override
-	public int freePages() {
-		return Integer.MAX_VALUE;
-	}
-
-	@Override
 	public MemorySegment nextSegment() {
 		return MemorySegmentFactory.wrap(new byte[pageSize]);
 	}

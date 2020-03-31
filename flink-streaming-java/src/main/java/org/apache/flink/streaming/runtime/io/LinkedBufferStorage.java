@@ -23,8 +23,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import java.util.Optional;
 
 /**
- * Implementation of {@link BufferStorage} that links the main {@link BufferStorage}
- * with an arbitrary number of other {@link BufferStorage}s together.
+ * Implementation of {@link BufferStorage} that links two {@link BufferStorage} together.
  * Each of the linked {@link BufferStorage} will store buffers independently, but they will be
  * linked together for {@link #rollOver()} - if one is rolled over, other will do that as well.
  *
@@ -34,11 +33,11 @@ public class LinkedBufferStorage implements BufferStorage {
 
 	private final BufferStorage mainStorage;
 
-	private final BufferStorage[] linkedStorage;
+	private final BufferStorage linkedStorage;
 
 	private long maxBufferedBytes;
 
-	public LinkedBufferStorage(BufferStorage mainStorage, long maxBufferedBytes, BufferStorage ...linkedStorage) {
+	public LinkedBufferStorage(BufferStorage mainStorage, BufferStorage linkedStorage, long maxBufferedBytes) {
 		this.mainStorage = mainStorage;
 		this.linkedStorage = linkedStorage;
 		this.maxBufferedBytes = maxBufferedBytes;
@@ -57,27 +56,17 @@ public class LinkedBufferStorage implements BufferStorage {
 	@Override
 	public void rollOver() {
 		mainStorage.rollOver();
-		for (BufferStorage linked : linkedStorage) {
-			linked.rollOver();
-		}
+		linkedStorage.rollOver();
 	}
 
 	@Override
 	public long getPendingBytes() {
-		long pendingBytes = mainStorage.getPendingBytes();
-		for (BufferStorage linked : linkedStorage) {
-			pendingBytes += linked.getPendingBytes();
-		}
-		return pendingBytes;
+		return mainStorage.getPendingBytes() + linkedStorage.getPendingBytes();
 	}
 
 	@Override
 	public long getRolledBytes() {
-		long rolledBytes = mainStorage.getRolledBytes();
-		for (BufferStorage linked : linkedStorage) {
-			rolledBytes += linked.getRolledBytes();
-		}
-		return rolledBytes;
+		return mainStorage.getRolledBytes() + linkedStorage.getRolledBytes();
 	}
 
 	@Override

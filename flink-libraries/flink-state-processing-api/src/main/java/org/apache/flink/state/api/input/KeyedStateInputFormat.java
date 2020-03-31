@@ -180,12 +180,7 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 
 	@Override
 	public void close() throws IOException {
-		try {
-			operator.close();
-			registry.close();
-		} catch (Exception e) {
-			throw new IOException("Failed to close state backend", e);
-		}
+		registry.close();
 	}
 
 	@Override

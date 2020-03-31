@@ -27,24 +27,45 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Options for the JDBC connector.
+ * Common options of {@link JDBCScanOptions} and {@link JDBCLookupOptions} for the JDBC connector.
  */
-public class JDBCOptions extends JdbcConnectionOptions {
+public class JDBCOptions {
 
-	private static final long serialVersionUID = 1L;
-
+	private String dbURL;
 	private String tableName;
+	private String driverName;
+	private String username;
+	private String password;
 	private JDBCDialect dialect;
 
 	private JDBCOptions(String dbURL, String tableName, String driverName, String username,
 			String password, JDBCDialect dialect) {
-		super(dbURL, driverName, username, password);
+		this.dbURL = dbURL;
 		this.tableName = tableName;
+		this.driverName = driverName;
+		this.username = username;
+		this.password = password;
 		this.dialect = dialect;
+	}
+
+	public String getDbURL() {
+		return dbURL;
 	}
 
 	public String getTableName() {
 		return tableName;
+	}
+
+	public String getDriverName() {
+		return driverName;
+	}
+
+	public String getUsername() {
+		return username;
+	}
+
+	public String getPassword() {
+		return password;
 	}
 
 	public JDBCDialect getDialect() {
@@ -59,7 +80,7 @@ public class JDBCOptions extends JdbcConnectionOptions {
 	public boolean equals(Object o) {
 		if (o instanceof JDBCOptions) {
 			JDBCOptions options = (JDBCOptions) o;
-			return Objects.equals(url, options.url) &&
+			return Objects.equals(dbURL, options.dbURL) &&
 				Objects.equals(tableName, options.tableName) &&
 				Objects.equals(driverName, options.driverName) &&
 				Objects.equals(username, options.username) &&

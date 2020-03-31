@@ -37,7 +37,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 import static org.junit.Assert.fail;
 
@@ -86,34 +85,9 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	}
 
 	/**
-	 * Tests that the Elasticsearch sink works properly with json.
+	 * Tests that the Elasticsearch sink works properly.
 	 */
 	public void runElasticsearchSinkTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getJsonSinkFunction);
-	}
-
-	/**
-	 * Tests that the Elasticsearch sink works properly with cbor.
-	 */
-	public void runElasticsearchSinkCborTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getCborSinkFunction);
-	}
-
-	/**
-	 * Tests that the Elasticsearch sink works properly with smile.
-	 */
-	public void runElasticsearchSinkSmileTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getSmileSinkFunction);
-	}
-
-	/**
-	 * Tests that the Elasticsearch sink works properly with yaml.
-	 */
-	public void runElasticsearchSinkYamlTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getYamlSinkFunction);
-	}
-
-	private void runElasticSearchSinkTest(Function<String, ElasticsearchSinkFunction<Tuple2<Integer, String>>> functionFactory) throws Exception {
 		final String index = "elasticsearch-sink-test-index";
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -123,7 +97,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		source.addSink(createElasticsearchSinkForEmbeddedNode(
 				1,
 				CLUSTER_NAME,
-				functionFactory.apply(index)));
+				new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index)));
 
 		env.execute("Elasticsearch Sink Test");
 
@@ -138,12 +112,16 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is {@code null}.
 	 */
 	public void runNullAddressesTest() throws Exception {
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put("cluster.name", CLUSTER_NAME);
+
 		try {
 			createElasticsearchSink(
 					1,
 					CLUSTER_NAME,
 					null,
-					SourceSinkDataTestKit.getJsonSinkFunction("test"));
+					new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
 		} catch (IllegalArgumentException | NullPointerException expectedException) {
 			// test passes
 			return;
@@ -156,12 +134,16 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is empty.
 	 */
 	public void runEmptyAddressesTest() throws Exception {
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put("cluster.name", CLUSTER_NAME);
+
 		try {
 			createElasticsearchSink(
 					1,
 					CLUSTER_NAME,
 					Collections.emptyList(),
-					SourceSinkDataTestKit.getJsonSinkFunction("test"));
+					new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
 		} catch (IllegalArgumentException expectedException) {
 			// test passes
 			return;
@@ -178,16 +160,19 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 
 		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
 
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put("cluster.name", "invalid-cluster-name");
+
 		source.addSink(createElasticsearchSinkForNode(
 				1,
 				"invalid-cluster-name",
-				SourceSinkDataTestKit.getJsonSinkFunction("test"),
+				new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"),
 				"123.123.123.123")); // incorrect ip address
 
 		try {
 			env.execute("Elasticsearch Sink Test");
 		} catch (JobExecutionException expectedException) {
-			// every ES version throws a different exception in case of timeouts, so don't bother asserting on the exception
 			// test passes
 			return;
 		}
@@ -202,7 +187,6 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put("cluster.name", clusterName);
 		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(bulkFlushMaxActions));
-		userConfig.put("transport.tcp.connect_timeout", "5s");
 
 		return userConfig;
 	}

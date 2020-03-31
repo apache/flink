@@ -28,41 +28,41 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
 	/**
 	 * mim value.
 	 */
-	private final Double min;
+	private final double min;
 
 	/**
 	 * max value.
 	 */
-	private final Double max;
+	private final double max;
 
 	/**
 	 * number of distinct values.
 	 */
-	private final Long ndv;
+	private final long ndv;
 
-	public CatalogColumnStatisticsDataDouble(Double min, Double max, Long ndv, Long nullCount) {
+	public CatalogColumnStatisticsDataDouble(double min, double max, long ndv, long nullCount) {
 		super(nullCount);
 		this.min = min;
 		this.max = max;
 		this.ndv = ndv;
 	}
 
-	public CatalogColumnStatisticsDataDouble(Double min, Double max, Long ndv, Long nullCount, Map<String, String> properties) {
+	public CatalogColumnStatisticsDataDouble(double min, double max, long ndv, long nullCount, Map<String, String> properties) {
 		super(nullCount, properties);
 		this.min = min;
 		this.max = max;
 		this.ndv = ndv;
 	}
 
-	public Double getMin() {
+	public double getMin() {
 		return min;
 	}
 
-	public Double getMax() {
+	public double getMax() {
 		return max;
 	}
 
-	public Long getNdv() {
+	public long getNdv() {
 		return ndv;
 	}
 

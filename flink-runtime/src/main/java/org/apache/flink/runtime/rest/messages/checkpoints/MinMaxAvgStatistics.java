@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
-import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -44,13 +42,6 @@ public final class MinMaxAvgStatistics {
 
 	@JsonProperty(FIELD_NAME_AVERAGE)
 	private final long average;
-
-	public static MinMaxAvgStatistics valueOf(MinMaxAvgStats stats) {
-		return new MinMaxAvgStatistics(
-			stats.getMinimum(),
-			stats.getMaximum(),
-			stats.getAverage());
-	}
 
 	@JsonCreator
 	public MinMaxAvgStatistics(

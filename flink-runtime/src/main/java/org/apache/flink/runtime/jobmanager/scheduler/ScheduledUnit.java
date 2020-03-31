@@ -18,84 +18,92 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 /**
- * ScheduledUnit contains the information necessary to allocate a slot for the given task.
+ * ScheduledUnit contains the information necessary to allocate a slot for the given
+ * {@link JobVertexID}.
  */
 public class ScheduledUnit {
 
-	private final ExecutionVertexID executionVertexId;
+	@Nullable
+	private final Execution vertexExecution;
+
+	private final JobVertexID jobVertexId;
 
 	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
 
 	@Nullable
 	private final CoLocationConstraint coLocationConstraint;
-
+	
 	// --------------------------------------------------------------------------------------------
-
-	@VisibleForTesting
+	
 	public ScheduledUnit(Execution task) {
 		this(
-			task,
+			Preconditions.checkNotNull(task),
+			task.getVertex().getJobvertexId(),
+			null,
 			null);
 	}
-
+	
 	public ScheduledUnit(Execution task, @Nullable SlotSharingGroupId slotSharingGroupId) {
 		this(
-			task,
+			Preconditions.checkNotNull(task),
+			task.getVertex().getJobvertexId(),
 			slotSharingGroupId,
 			null);
 	}
-
+	
 	public ScheduledUnit(
 			Execution task,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
 			@Nullable CoLocationConstraint coLocationConstraint) {
 		this(
-			Preconditions.checkNotNull(task).getVertex().getID(),
+			Preconditions.checkNotNull(task),
+			task.getVertex().getJobvertexId(),
 			slotSharingGroupId,
 			coLocationConstraint);
 	}
 
-	@VisibleForTesting
 	public ScheduledUnit(
 			JobVertexID jobVertexId,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
 			@Nullable CoLocationConstraint coLocationConstraint) {
 		this(
-			new ExecutionVertexID(jobVertexId, 0),
+			null,
+			jobVertexId,
 			slotSharingGroupId,
 			coLocationConstraint);
 	}
 
 	public ScheduledUnit(
-			ExecutionVertexID executionVertexId,
-			@Nullable SlotSharingGroupId slotSharingGroupId,
-			@Nullable CoLocationConstraint coLocationConstraint) {
+		@Nullable Execution task,
+		JobVertexID jobVertexId,
+		@Nullable SlotSharingGroupId slotSharingGroupId,
+		@Nullable CoLocationConstraint coLocationConstraint) {
 
-		this.executionVertexId = Preconditions.checkNotNull(executionVertexId);
+		this.vertexExecution = task;
+		this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
 		this.slotSharingGroupId = slotSharingGroupId;
 		this.coLocationConstraint = coLocationConstraint;
 
 	}
 
 	// --------------------------------------------------------------------------------------------
-
+	
 	public JobVertexID getJobVertexId() {
-		return executionVertexId.getJobVertexId();
+		return jobVertexId;
 	}
 
-	public int getSubtaskIndex() {
-		return executionVertexId.getSubtaskIndex();
+	@Nullable
+	public Execution getTaskToExecute() {
+		return vertexExecution;
 	}
 
 	@Nullable
@@ -109,10 +117,10 @@ public class ScheduledUnit {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
+	
 	@Override
 	public String toString() {
-		return "{task=" + executionVertexId + ", sharingUnit=" + slotSharingGroupId +
+		return "{task=" + vertexExecution.getVertexWithAttempt() + ", sharingUnit=" + slotSharingGroupId +
 				", locationConstraint=" + coLocationConstraint + '}';
 	}
 }

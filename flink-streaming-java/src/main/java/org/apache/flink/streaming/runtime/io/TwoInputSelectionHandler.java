@@ -55,7 +55,7 @@ public class TwoInputSelectionHandler {
 	}
 
 	boolean shouldSetAvailableForAnotherInput() {
-		return availableInputsMask < 3 && inputSelection.areAllInputsSelected();
+		return availableInputsMask < 3 && inputSelection.isALLMaskOf2();
 	}
 
 	void setAvailableInput(int inputIndex) {
@@ -67,7 +67,7 @@ public class TwoInputSelectionHandler {
 	}
 
 	boolean areAllInputsSelected() {
-		return inputSelection.areAllInputsSelected();
+		return inputSelection.isALLMaskOf2();
 	}
 
 	boolean isFirstInputSelected() {

@@ -59,16 +59,11 @@ public class ExecutionVertexVersioner {
 	}
 
 	public boolean isModified(final ExecutionVertexVersion executionVertexVersion) {
-		final Long currentVersion = getCurrentVersion(executionVertexVersion.getExecutionVertexId());
-		return currentVersion != executionVertexVersion.getVersion();
-	}
-
-	private Long getCurrentVersion(ExecutionVertexID executionVertexId) {
-		final Long currentVersion = executionVertexToVersion.get(executionVertexId);
+		final Long currentVersion = executionVertexToVersion.get(executionVertexVersion.getExecutionVertexId());
 		Preconditions.checkState(currentVersion != null,
 			"Execution vertex %s does not have a recorded version",
-			executionVertexId);
-		return currentVersion;
+			executionVertexVersion.getExecutionVertexId());
+		return currentVersion != executionVertexVersion.getVersion();
 	}
 
 	public Set<ExecutionVertexID> getUnmodifiedExecutionVertices(final Set<ExecutionVertexVersion> executionVertexVersions) {
@@ -78,10 +73,4 @@ public class ExecutionVertexVersioner {
 			.collect(Collectors.toSet());
 	}
 
-	ExecutionVertexVersion getExecutionVertexVersion(ExecutionVertexID executionVertexId) {
-		final long currentVersion = getCurrentVersion(executionVertexId);
-		return new ExecutionVertexVersion(
-			executionVertexId,
-			currentVersion);
-	}
 }

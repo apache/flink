@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -30,6 +31,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -131,22 +133,26 @@ abstract class BatchExecHashWindowAggregateBase(
 
     val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
 
+    val memText = config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
+    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
+    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+
     val generatedOperator = new HashWindowCodeGenerator(
       ctx, relBuilder, window, inputTimeFieldIndex,
       inputTimeIsDate, namedProperties,
       aggInfos, inputRowType, grouping, auxGrouping, enableAssignPane, isMerge, isFinal).gen(
-      inputType, outputType, groupBufferLimitSize, 0,
+      inputType, outputType, groupBufferLimitSize, managedMemory, 0,
       windowSize, slideSize)
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-
-    val managedMemory = MemorySize.parse(config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
-    ExecNode.createOneInputTransformation(
+    val ret = new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism,
-      managedMemory)
+      input.getParallelism)
+    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
+    ret.setResources(resource, resource)
+    ret
   }
 }

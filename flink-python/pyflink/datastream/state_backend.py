@@ -16,8 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-import warnings
-
 from abc import ABCMeta
 
 from py4j.java_gateway import get_java_class
@@ -564,12 +562,7 @@ class RocksDBStateBackend(StateBackend):
         Gets whether compaction filter to cleanup state with TTL is enabled.
 
         :return: True if enabled, false otherwise.
-
-        .. note:: Deprecated in 1.10. Enabled by default and will be removed in the future.
         """
-        warnings.warn(
-            "Deprecated in 1.10. Enabled by default and will be removed in the future.",
-            DeprecationWarning)
         return self._j_rocks_db_state_backend.isTtlCompactionFilterEnabled()
 
     def enable_ttl_compaction_filter(self):
@@ -579,28 +572,8 @@ class RocksDBStateBackend(StateBackend):
         .. note::
             User can still decide in state TTL configuration in state descriptor
             whether the filter is active for particular state or not.
-
-        .. note:: Deprecated in 1.10. Enabled by default and will be removed in the future.
         """
-        warnings.warn(
-            "Deprecated in 1.10. Enabled by default and will be removed in the future.",
-            DeprecationWarning)
         self._j_rocks_db_state_backend.enableTtlCompactionFilter()
-
-    def disable_ttl_compaction_filter(self):
-        """
-        Disable compaction filter to cleanup state with TTL.
-
-        .. note::
-            This is an advanced option and the method should only be used
-            when experiencing serious performance degradations during compaction in RocksDB.
-
-        .. note:: Deprecated in 1.10. Enabled by default and will be removed in the future.
-        """
-        warnings.warn(
-            "Deprecated in 1.10. Enabled by default and will be removed in the future.",
-            DeprecationWarning)
-        self._j_rocks_db_state_backend.disableTtlCompactionFilter()
 
     def set_predefined_options(self, options):
         """

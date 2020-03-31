@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -128,24 +129,28 @@ abstract class BatchExecHashAggregateBase(
     val aggInfos = transformToBatchAggregateInfoList(
       aggCallToAggFunction.map(_._1), aggInputRowType)
 
-    var managedMemory: Long = 0L
+    var managedMemoryInMB = 0
     val generatedOperator = if (grouping.isEmpty) {
       AggWithoutKeysCodeGenerator.genWithoutKeys(
         ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
-      managedMemory = MemorySize.parse(config.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
+      val memText = config.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
+      managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
+      val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
       new HashAggCodeGenerator(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal
-      ).genWithKeys()
+      ).genWithKeys(managedMemory)
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    ExecNode.createOneInputTransformation(
+    val ret = new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism,
-      managedMemory)
+      input.getParallelism)
+    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
+    ret.setResources(resource, resource)
+    ret
   }
 }

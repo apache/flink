@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 
 import java.util.Collections;
@@ -61,9 +61,9 @@ import java.util.Optional;
 public class CatalogStructureBuilder {
 
 	public static final String BUILTIN_CATALOG_NAME = "builtin";
-	private CatalogManager catalogManager = CatalogManagerMocks.preparedCatalogManager()
-		.defaultCatalog(BUILTIN_CATALOG_NAME, new GenericInMemoryCatalog(BUILTIN_CATALOG_NAME))
-		.build();
+	private CatalogManager catalogManager = new CatalogManager(
+		BUILTIN_CATALOG_NAME,
+		new GenericInMemoryCatalog(BUILTIN_CATALOG_NAME));
 
 	public static CatalogStructureBuilder root() {
 		return new CatalogStructureBuilder();
@@ -83,9 +83,7 @@ public class CatalogStructureBuilder {
 
 	public CatalogStructureBuilder builtin(DatabaseBuilder defaultDb, DatabaseBuilder... databases) throws Exception {
 		GenericInMemoryCatalog catalog = buildCatalog(BUILTIN_CATALOG_NAME, defaultDb, databases);
-		this.catalogManager = CatalogManagerMocks.preparedCatalogManager()
-			.defaultCatalog(BUILTIN_CATALOG_NAME, catalog)
-			.build();
+		this.catalogManager = new CatalogManager(BUILTIN_CATALOG_NAME, catalog);
 
 		return this;
 	}
@@ -178,8 +176,6 @@ public class CatalogStructureBuilder {
 	public interface DatabaseEntryBuilder {
 		String getName();
 
-		DatabaseEntryBuilder withTableSchema(TableSchema tableSchema);
-
 		CatalogBaseTable build(String path);
 	}
 
@@ -188,7 +184,6 @@ public class CatalogStructureBuilder {
 	 */
 	public static class TableBuilder implements DatabaseEntryBuilder {
 		private final String name;
-		private TableSchema tableSchema = TableSchema.builder().build();
 
 		TableBuilder(String name) {
 			this.name = name;
@@ -198,17 +193,8 @@ public class CatalogStructureBuilder {
 			return name;
 		}
 
-		@Override
-		public TableBuilder withTableSchema(TableSchema tableSchema) {
-			this.tableSchema = Objects.requireNonNull(tableSchema);
-			return this;
-		}
-
 		public TestTable build(String path) {
-			return new TestTable(
-				path + "." + name,
-				tableSchema,
-				false);
+			return new TestTable(path + "." + name, false);
 		}
 	}
 
@@ -217,7 +203,6 @@ public class CatalogStructureBuilder {
 	 */
 	public static class ViewBuilder implements DatabaseEntryBuilder {
 		private final String name;
-		private TableSchema tableSchema = TableSchema.builder().build();
 		private String query;
 
 		ViewBuilder(String name) {
@@ -233,17 +218,11 @@ public class CatalogStructureBuilder {
 			return this;
 		}
 
-		@Override
-		public ViewBuilder withTableSchema(TableSchema tableSchema) {
-			this.tableSchema = Objects.requireNonNull(tableSchema);
-			return this;
-		}
-
 		public TestView build(String path) {
 			return new TestView(
 				query,
 				query,
-				tableSchema,
+				TableSchema.builder().build(),
 				Collections.emptyMap(),
 				"",
 				true,
@@ -262,10 +241,7 @@ public class CatalogStructureBuilder {
 			return isTemporary;
 		}
 
-		private TestTable(
-				String fullyQualifiedPath,
-				TableSchema tableSchema,
-				boolean isTemporary) {
+		private TestTable(String fullyQualifiedPath, boolean isTemporary) {
 			super(new StreamTableSource<Row>() {
 				@Override
 				public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
@@ -273,27 +249,23 @@ public class CatalogStructureBuilder {
 				}
 
 				@Override
-				public DataType getProducedDataType() {
-					return tableSchema.toRowDataType();
+				public TypeInformation<Row> getReturnType() {
+					return Types.ROW();
 				}
 
 				@Override
 				public TableSchema getTableSchema() {
-					throw new UnsupportedOperationException("Should not be called");
+					return TableSchema.builder().build();
 				}
 
 				@Override
 				public String explainSource() {
 					return String.format("isTemporary=[%s]", isTemporary);
 				}
-			}, null, tableSchema, false);
+			}, null, TableSchema.builder().build(), false);
 
 			this.fullyQualifiedPath = fullyQualifiedPath;
 			this.isTemporary = isTemporary;
-		}
-
-		private TestTable(String fullyQualifiedPath, boolean isTemporary) {
-			this(fullyQualifiedPath, TableSchema.builder().build(), isTemporary);
 		}
 
 		@Override

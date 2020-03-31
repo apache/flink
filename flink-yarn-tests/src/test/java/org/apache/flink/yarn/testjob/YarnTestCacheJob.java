@@ -43,14 +43,12 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class YarnTestCacheJob {
 	private static final List<String> LIST = ImmutableList.of("test1", "test2");
-	private static final String TEST_DIRECTORY_NAME = "test_directory";
 
-	public static JobGraph getDistributedCacheJobGraph(File testDirectory) {
+	public static JobGraph getDistributedCacheJobGraph() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		final String cacheFilePath = Thread.currentThread().getContextClassLoader()
-			.getResource("cache.properties").getFile();
-		env.registerCachedFile(testDirectory.getAbsolutePath(), TEST_DIRECTORY_NAME);
+		String cacheFilePath = Thread.currentThread().getContextClassLoader().getResource("cache.properties").getFile();
+
 		env.registerCachedFile(cacheFilePath, "cacheFile", false);
 
 		env.addSource(new GenericSourceFunction(LIST, TypeInformation.of(String.class)))
@@ -70,21 +68,16 @@ public class YarnTestCacheJob {
 		@Override
 		public void open(Configuration config) throws IOException {
 			// access cached file via RuntimeContext and DistributedCache
-			final File cacheFile = getRuntimeContext().getDistributedCache().getFile("cacheFile");
-			final FileInputStream inputStream = new FileInputStream(cacheFile);
+			File cacheFile = getRuntimeContext().getDistributedCache().getFile("cacheFile");
+			FileInputStream inputStream = new FileInputStream(cacheFile);
 			properties = new Properties();
 			properties.load(inputStream);
 			checkArgument(properties.size() == 2, "The property file should contains 2 pair of key values");
-
-			final File testDirectory = getRuntimeContext().getDistributedCache().getFile(TEST_DIRECTORY_NAME);
-			if (!testDirectory.isDirectory()) {
-				throw new RuntimeException(String.format("%s is not a directory!", testDirectory.getAbsolutePath()));
-			}
 		}
 
 		@Override
 		public String map(String value) {
-			final String property = (String) properties.getOrDefault(value, "null");
+			String property = (String) properties.getOrDefault(value, "null");
 			checkState(property.equals(value + "_property"));
 			return value;
 		}

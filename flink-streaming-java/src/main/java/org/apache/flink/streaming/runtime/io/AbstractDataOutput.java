@@ -35,12 +35,17 @@ public abstract class AbstractDataOutput<T> implements PushingAsyncDataInput.Dat
 	/** The maintainer toggles the current stream status. */
 	protected final StreamStatusMaintainer streamStatusMaintainer;
 
-	public AbstractDataOutput(StreamStatusMaintainer streamStatusMaintainer) {
+	protected final Object lock;
+
+	public AbstractDataOutput(StreamStatusMaintainer streamStatusMaintainer, Object lock) {
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
+		this.lock = checkNotNull(lock);
 	}
 
 	@Override
 	public void emitStreamStatus(StreamStatus streamStatus) {
-		streamStatusMaintainer.toggleStreamStatus(streamStatus);
+		synchronized (lock) {
+			streamStatusMaintainer.toggleStreamStatus(streamStatus);
+		}
 	}
 }

@@ -46,8 +46,8 @@ public class ParameterProperty<V> {
 	public Optional<V> get() {
 		final String value = System.getProperty(propertyName);
 		return value == null
-			       ? Optional.empty()
-			       : Optional.of(converter.apply(value));
+			? Optional.empty()
+			: Optional.of(converter.apply(value));
 	}
 
 	/**
@@ -58,7 +58,7 @@ public class ParameterProperty<V> {
 	public V get(final V defaultValue) {
 		final String value = System.getProperty(propertyName);
 		return value == null
-			       ? defaultValue
-			       : converter.apply(value);
+			? defaultValue
+			: converter.apply(value);
 	}
 }

@@ -20,8 +20,11 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
@@ -174,7 +177,10 @@ public class CliFrontend {
 		LOG.info("Running 'run' command.");
 
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
-		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
+
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, true);
 
 		final ProgramOptions programOptions = new ProgramOptions(commandLine);
 
@@ -197,14 +203,12 @@ public class CliFrontend {
 			program = buildProgram(programOptions);
 		}
 		catch (FileNotFoundException e) {
-			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
+			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
 		final List<URL> jobJars = program.getJobJarAndDependencies();
 		final Configuration effectiveConfiguration =
 				getEffectiveConfiguration(commandLine, programOptions, jobJars);
-
-		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
 		try {
 			executeProgram(effectiveConfiguration, program);
@@ -265,7 +269,7 @@ public class CliFrontend {
 
 			LOG.info("Creating program plan dump");
 
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism, true);
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism);
 			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 
 			if (jsonPlan != null) {
@@ -301,7 +305,10 @@ public class CliFrontend {
 		LOG.info("Running 'list' command.");
 
 		final Options commandOptions = CliFrontendParser.getListCommandOptions();
-		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
+
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		ListOptions listOptions = new ListOptions(commandLine);
 
@@ -421,7 +428,8 @@ public class CliFrontend {
 		LOG.info("Running 'stop-with-savepoint' command.");
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
-		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		final StopOptions stopOptions = new StopOptions(commandLine);
 		if (stopOptions.isPrintHelp()) {
@@ -467,7 +475,10 @@ public class CliFrontend {
 		LOG.info("Running 'cancel' command.");
 
 		final Options commandOptions = CliFrontendParser.getCancelCommandOptions();
-		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
+
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		CancelOptions cancelOptions = new CancelOptions(commandLine);
 
@@ -538,11 +549,6 @@ public class CliFrontend {
 
 			logAndSysout("Cancelled job " + jobId + '.');
 		}
-	}
-
-	public CommandLine getCommandLine(final Options commandOptions, final String[] args, final boolean stopAtNonOptions) throws CliArgsException {
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-		return CliFrontendParser.parse(commandLineOptions, args, stopAtNonOptions);
 	}
 
 	/**
@@ -655,8 +661,26 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected void executeProgram(final Configuration configuration, final PackagedProgram program) throws ProgramInvocationException {
-		ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program);
+	protected void executeProgram(
+			final Configuration configuration,
+			final PackagedProgram program) throws ProgramMissingJobException, ProgramInvocationException {
+		logAndSysout("Starting execution of program");
+
+		JobSubmissionResult result = ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program);
+
+		if (result.isJobExecutionResult()) {
+			logAndSysout("Program execution finished");
+			JobExecutionResult execResult = result.getJobExecutionResult();
+			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
+			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
+			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
+			if (accumulatorsResult.size() > 0) {
+				System.out.println("Accumulator Results: ");
+				System.out.println(AccumulatorHelper.getResultsFormatted(accumulatorsResult));
+			}
+		} else {
+			logAndSysout("Job has been submitted with JobID " + result.getJobID());
+		}
 	}
 
 	/**
@@ -826,16 +850,33 @@ public class CliFrontend {
 	 */
 	private <ClusterID> void runClusterAction(CustomCommandLine activeCommandLine, CommandLine commandLine, ClusterAction<ClusterID> clusterAction) throws FlinkException {
 		final Configuration executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
+
 		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
-
+		final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig);
 		final ClusterID clusterId = clusterClientFactory.getClusterId(executorConfig);
-		if (clusterId == null) {
-			throw new FlinkException("No cluster id was specified. Please specify a cluster to which you would like to connect.");
-		}
 
-		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig)) {
-			try (final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient()) {
-				clusterAction.runAction(clusterClient);
+		if (clusterId == null) {
+			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
+				"you would like to connect.");
+		} else {
+			try {
+				final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId);
+
+				try {
+					clusterAction.runAction(clusterClient);
+				} finally {
+					try {
+						clusterClient.close();
+					} catch (Exception e) {
+						LOG.info("Could not properly shut down the cluster client.", e);
+					}
+				}
+			} finally {
+				try {
+					clusterDescriptor.close();
+				} catch (Exception e) {
+					LOG.info("Could not properly close the cluster descriptor.", e);
+				}
 			}
 		}
 	}
@@ -1015,11 +1056,12 @@ public class CliFrontend {
 	}
 
 	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
-		List<CustomCommandLine> customCommandLines = new ArrayList<>();
-		customCommandLines.add(new ExecutorCLI(configuration));
+		List<CustomCommandLine> customCommandLines = new ArrayList<>(2);
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
+		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
+		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
 		try {
 			customCommandLines.add(
@@ -1032,8 +1074,6 @@ public class CliFrontend {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
-		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
-		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		customCommandLines.add(new DefaultCLI(configuration));
 
 		return customCommandLines;
@@ -1049,9 +1089,7 @@ public class CliFrontend {
 	 * @return custom command-line which is active (may only be one at a time)
 	 */
 	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
-		LOG.debug("Custom commandlines: {}", customCommandLines);
 		for (CustomCommandLine cli : customCommandLines) {
-			LOG.debug("Checking custom commandline {}, isActive: {}", cli, cli.isActive(commandLine));
 			if (cli.isActive(commandLine)) {
 				return cli;
 			}

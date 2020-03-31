@@ -17,14 +17,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-
-import java.util.Optional;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 
 /**
  * A utility to instantiate new operators with a given factory.
@@ -37,27 +33,18 @@ public class StreamOperatorFactoryUtil {
 	 * @param containingTask the containing task.
 	 * @param configuration the configuration of the operator.
 	 * @param output the output of the operator.
-	 * @return a newly created and configured operator, and the {@link ProcessingTimeService} instance it can access.
+	 * @return a newly created and configured operator.
 	 */
-	public static <OUT, OP extends StreamOperator<OUT>> Tuple2<OP, Optional<ProcessingTimeService>> createOperator(
+	public static <OUT, OP extends StreamOperator<OUT>> OP createOperator(
 			StreamOperatorFactory<OUT> operatorFactory,
 			StreamTask<OUT, ?> containingTask,
 			StreamConfig configuration,
 			Output<StreamRecord<OUT>> output) {
-
-		MailboxExecutor mailboxExecutor = containingTask.getMailboxExecutorFactory().createExecutor(configuration.getChainIndex());
-
+		MailboxExecutorFactory mailboxExecutorFactory = containingTask.getMailboxExecutorFactory();
 		if (operatorFactory instanceof YieldingOperatorFactory) {
+			MailboxExecutor mailboxExecutor = mailboxExecutorFactory.createExecutor(configuration.getChainIndex());
 			((YieldingOperatorFactory) operatorFactory).setMailboxExecutor(mailboxExecutor);
 		}
-
-		ProcessingTimeService processingTimeService = null;
-		if (operatorFactory instanceof ProcessingTimeServiceAware) {
-			processingTimeService = containingTask.getProcessingTimeServiceFactory().createProcessingTimeService(mailboxExecutor);
-			((ProcessingTimeServiceAware) operatorFactory).setProcessingTimeService(processingTimeService);
-		}
-
-		OP op = operatorFactory.createStreamOperator(containingTask, configuration, output);
-		return new Tuple2<>(op, Optional.ofNullable(processingTimeService));
+		return operatorFactory.createStreamOperator(containingTask, configuration, output);
 	}
 }

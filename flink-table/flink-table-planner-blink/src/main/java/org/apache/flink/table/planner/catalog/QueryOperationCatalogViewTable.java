@@ -68,7 +68,7 @@ public class QueryOperationCatalogViewTable extends ExpandingPreparingTable {
 
 	@Override
 	public RelNode convertToRel(RelOptTable.ToRelContext context) {
-		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), this.getRelOptSchema());
+		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), this);
 
 		return relBuilder.queryOperation(catalogView.getQueryOperation()).build();
 	}

@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.java.io.jdbc.JdbcConnectionOptions.JdbcConnectionOptionsBuilder;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
@@ -37,36 +37,25 @@ import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
  * @see Row
  * @see DriverManager
  */
-/**
- * @deprecated use {@link JdbcBatchingOutputFormat}
- */
-@Deprecated
-public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
+public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
-	final JdbcInsertOptions insertOptions;
-	private final JdbcExecutionOptions batchOptions;
+	private final String query;
+	private final int batchInterval;
+	private final int[] typesArray;
 
-	private transient PreparedStatement upload;
-	private transient int batchCount = 0;
+	private PreparedStatement upload;
+	private int batchCount = 0;
 
-	/**
-	 * @deprecated use {@link JDBCOutputFormatBuilder builder} instead.
-	 */
-	@Deprecated
-	public JDBCOutputFormat(String username, String password, String drivername, String dbURL, String query, int batchInterval, int[] typesArray) {
-		this(new SimpleJdbcConnectionProvider(new JdbcConnectionOptionsBuilder().withUrl(dbURL).withDriverName(drivername).withUsername(username).withPassword(password).build()),
-				new JdbcInsertOptions(query, typesArray),
-				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
-	}
-
-	private JDBCOutputFormat(JdbcConnectionProvider connectionProvider, JdbcInsertOptions insertOptions, JdbcExecutionOptions batchOptions) {
-		super(connectionProvider);
-		this.insertOptions = insertOptions;
-		this.batchOptions = batchOptions;
+	public JDBCOutputFormat(String username, String password, String drivername,
+			String dbURL, String query, int batchInterval, int[] typesArray) {
+		super(username, password, drivername, dbURL);
+		this.query = query;
+		this.batchInterval = batchInterval;
+		this.typesArray = typesArray;
 	}
 
 	/**
@@ -78,18 +67,20 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	 */
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
-		super.open(taskNumber, numTasks);
 		try {
-			upload = connection.prepareStatement(insertOptions.getQuery());
+			establishConnection();
+			upload = connection.prepareStatement(query);
 		} catch (SQLException sqe) {
-			throw new IOException("open() failed.", sqe);
+			throw new IllegalArgumentException("open() failed.", sqe);
+		} catch (ClassNotFoundException cnfe) {
+			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
 	}
 
 	@Override
-	public void writeRecord(Row row) {
+	public void writeRecord(Row row) throws IOException {
 		try {
-			setRecordToStatement(upload, insertOptions.getFieldTypes(), row);
+			setRecordToStatement(upload, typesArray, row);
 			upload.addBatch();
 		} catch (SQLException e) {
 			throw new RuntimeException("Preparation of JDBC statement failed.", e);
@@ -97,14 +88,13 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 		batchCount++;
 
-		if (batchCount >= batchOptions.getBatchSize()) {
+		if (batchCount >= batchInterval) {
 			// execute batch
 			flush();
 		}
 	}
 
-	@Override
-	public void flush() {
+	void flush() {
 		try {
 			upload.executeBatch();
 			batchCount = 0;
@@ -114,15 +104,16 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	}
 
 	int[] getTypesArray() {
-		return insertOptions.getFieldTypes();
+		return typesArray;
 	}
 
 	/**
 	 * Executes prepared statement and closes all resources of this instance.
 	 *
+	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
 	@Override
-	public void close() {
+	public void close() throws IOException {
 		if (upload != null) {
 			flush();
 			try {
@@ -134,19 +125,15 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 			}
 		}
 
-		super.close();
+		closeDbConnection();
 	}
 
 	public static JDBCOutputFormatBuilder buildJDBCOutputFormat() {
 		return new JDBCOutputFormatBuilder();
 	}
 
-	public int[] getFieldTypes() {
-		return insertOptions.getFieldTypes();
-	}
-
 	/**
-	 * Builder for {@link JDBCOutputFormat}.
+	 * Builder for a {@link JDBCOutputFormat}.
 	 */
 	public static class JDBCOutputFormatBuilder {
 		private String username;
@@ -200,26 +187,25 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		 * @return Configured JDBCOutputFormat
 		 */
 		public JDBCOutputFormat finish() {
-			return new JDBCOutputFormat(
-				new SimpleJdbcConnectionProvider(buildConnectionOptions()),
-				new JdbcInsertOptions(query, typesArray),
-				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
-		}
-
-		public JdbcConnectionOptions buildConnectionOptions() {
 			if (this.username == null) {
 				LOG.info("Username was not supplied.");
 			}
 			if (this.password == null) {
 				LOG.info("Password was not supplied.");
 			}
+			if (this.dbURL == null) {
+				throw new IllegalArgumentException("No database URL supplied.");
+			}
+			if (this.query == null) {
+				throw new IllegalArgumentException("No query supplied.");
+			}
+			if (this.drivername == null) {
+				throw new IllegalArgumentException("No driver supplied.");
+			}
 
-			return new JdbcConnectionOptionsBuilder()
-				.withUrl(dbURL)
-				.withDriverName(drivername)
-				.withUsername(username)
-				.withPassword(password)
-				.build();
+			return new JDBCOutputFormat(
+					username, password, drivername, dbURL,
+					query, batchInterval, typesArray);
 		}
 	}
 

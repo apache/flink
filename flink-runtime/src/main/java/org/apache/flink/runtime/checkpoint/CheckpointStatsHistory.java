@@ -92,8 +92,8 @@ public class CheckpointStatsHistory implements Serializable {
 			false,
 			maxSize,
 			new AbstractCheckpointStats[0],
-			Collections.emptyList(),
-			Collections.emptyMap(),
+			Collections.<AbstractCheckpointStats>emptyList(),
+			Collections.<Long, AbstractCheckpointStats>emptyMap(),
 			null,
 			null,
 			null);
@@ -116,9 +116,9 @@ public class CheckpointStatsHistory implements Serializable {
 			AbstractCheckpointStats[] checkpointArray,
 			List<AbstractCheckpointStats> checkpointsHistory,
 			Map<Long, AbstractCheckpointStats> checkpointsById,
-			@Nullable CompletedCheckpointStats latestCompletedCheckpoint,
-			@Nullable FailedCheckpointStats latestFailedCheckpoint,
-			@Nullable CompletedCheckpointStats latestSavepoint) {
+			CompletedCheckpointStats latestCompletedCheckpoint,
+			FailedCheckpointStats latestFailedCheckpoint,
+			CompletedCheckpointStats latestSavepoint) {
 
 		this.readOnly = readOnly;
 		checkArgument(maxSize >= 0, "Negative maximum size");

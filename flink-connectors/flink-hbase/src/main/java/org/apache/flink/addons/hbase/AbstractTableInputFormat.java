@@ -126,22 +126,25 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 		if (resultScanner == null) {
 			throw new IOException("No table result scanner provided!");
 		}
-		Result res;
 		try {
-			res = resultScanner.next();
+			Result res = resultScanner.next();
+			if (res != null) {
+				scannedRows++;
+				currentRow = res.getRow();
+				return mapResultToOutType(res);
+			}
 		} catch (Exception e) {
 			resultScanner.close();
 			//workaround for timeout on scan
 			LOG.warn("Error after scan of " + scannedRows + " rows. Retry with a new scanner...", e);
-			scan.withStartRow(currentRow, false);
+			scan.setStartRow(currentRow);
 			resultScanner = table.getScanner(scan);
-			res = resultScanner.next();
-		}
-
-		if (res != null) {
-			scannedRows++;
-			currentRow = res.getRow();
-			return mapResultToOutType(res);
+			Result res = resultScanner.next();
+			if (res != null) {
+				scannedRows++;
+				currentRow = res.getRow();
+				return mapResultToOutType(res);
+			}
 		}
 
 		endReached = true;

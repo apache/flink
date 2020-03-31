@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator._
@@ -29,10 +30,12 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.runtime.types.{ClassLogicalTypeConverter, TypeInfoDataTypeConverter}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -116,26 +119,29 @@ class BatchExecSink[T](
       planner: BatchPlanner): Transformation[T] = {
     val config = planner.getTableConfig
     val resultDataType = sink.getConsumedDataType
+    val resultType = fromDataTypeToTypeInfo(resultDataType)
     validateType(resultDataType)
     val inputNode = getInputNodes.get(0)
     inputNode match {
       // Sink's input must be BatchExecNode[BaseRow] now.
       case node: BatchExecNode[BaseRow] =>
-        val plan = node.translateToPlan(planner).asInstanceOf[Transformation[T]]
+        val plan = node.translateToPlan(planner)
         if (CodeGenUtils.isInternalClass(resultDataType)) {
-          plan
+          plan.asInstanceOf[Transformation[T]]
         } else {
           val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
             CodeGeneratorContext(config),
             config,
-            plan.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType,
-            sink,
+            plan.getOutputType.asInstanceOf[BaseRowTypeInfo],
+            "SinkConversion",
+            None,
             withChangeFlag,
-            "SinkConversion"
+            resultType,
+            sink
           )
-          ExecNode.createOneInputTransformation(
+          new OneInputTransformation(
             plan,
-            s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",
+            s"SinkConversionTo${resultType.getTypeClass.getSimpleName}",
             converterOperator,
             outputTypeInfo,
             plan.getParallelism)
@@ -145,6 +151,7 @@ class BatchExecSink[T](
                                    "This is a bug and should not happen. Please file an issue.")
     }
   }
+
 
   /**
     * Validate if class represented by the typeInfo is static and globally accessible

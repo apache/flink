@@ -79,7 +79,6 @@ public class LegacyScheduler extends SchedulerBase {
 			slotRequestTimeout,
 			shuffleMaster,
 			partitionTracker,
-			new ExecutionVertexVersioner(),
 			true);
 	}
 

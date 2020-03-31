@@ -20,6 +20,10 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
@@ -32,6 +36,7 @@ import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.thrift.TException;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -67,6 +72,17 @@ public class HiveShimV230 extends HiveShimV220 {
 			}
 		} catch (NoSuchMethodException | IllegalAccessException e) {
 			throw new CatalogException(String.format("Failed to get views for %s", databaseName), e);
+		}
+	}
+
+	@Override
+	public boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException {
+		try {
+			Method method = FileUtils.class.getDeclaredMethod("moveToTrash", FileSystem.class, Path.class,
+					Configuration.class, boolean.class);
+			return (boolean) method.invoke(null, fs, path, conf, purge);
+		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+			throw new IOException("Failed to move " + path + " to trash", e);
 		}
 	}
 

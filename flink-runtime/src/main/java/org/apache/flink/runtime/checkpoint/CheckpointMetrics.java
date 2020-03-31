@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import java.io.Serializable;
-import java.util.Objects;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
+
+import java.io.Serializable;
 
 /**
  * A collection of simple metrics, around the triggering of a checkpoint.
@@ -30,18 +29,17 @@ public class CheckpointMetrics implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	/** The number of bytes that were buffered during the checkpoint alignment phase. */
+	/** The number of bytes that were buffered during the checkpoint alignment phase */
 	private long bytesBufferedInAlignment;
 
-	/** The duration (in nanoseconds) that the stream alignment for the checkpoint took. */
+	/** The duration (in nanoseconds) that the stream alignment for the checkpoint took */
 	private long alignmentDurationNanos;
 
-	/** The duration (in milliseconds) of the synchronous part of the operator checkpoint. */
+	/* The duration (in milliseconds) of the synchronous part of the operator checkpoint */
 	private long syncDurationMillis;
 
-	/** The duration (in milliseconds) of the asynchronous part of the operator checkpoint.  */
+	/* The duration (in milliseconds) of the asynchronous part of the operator checkpoint  */
 	private long asyncDurationMillis;
-	private long checkpointStartDelayNanos;
 
 	public CheckpointMetrics() {
 		this(-1L, -1L, -1L, -1L);
@@ -101,15 +99,6 @@ public class CheckpointMetrics implements Serializable {
 		return this;
 	}
 
-	public CheckpointMetrics setCheckpointStartDelayNanos(long checkpointStartDelayNanos) {
-		this.checkpointStartDelayNanos = checkpointStartDelayNanos;
-		return this;
-	}
-
-	public long getCheckpointStartDelayNanos() {
-		return checkpointStartDelayNanos;
-	}
-
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -121,32 +110,29 @@ public class CheckpointMetrics implements Serializable {
 
 		CheckpointMetrics that = (CheckpointMetrics) o;
 
-		return bytesBufferedInAlignment == that.bytesBufferedInAlignment &&
-			alignmentDurationNanos == that.alignmentDurationNanos &&
-			syncDurationMillis == that.syncDurationMillis &&
-			asyncDurationMillis == that.asyncDurationMillis &&
-			checkpointStartDelayNanos == that.checkpointStartDelayNanos;
+		return bytesBufferedInAlignment == that.bytesBufferedInAlignment && 
+				alignmentDurationNanos == that.alignmentDurationNanos && 
+				syncDurationMillis == that.syncDurationMillis && 
+				asyncDurationMillis == that.asyncDurationMillis;
 
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(
-			bytesBufferedInAlignment,
-			alignmentDurationNanos,
-			syncDurationMillis,
-			asyncDurationMillis,
-			checkpointStartDelayNanos);
+		int result = (int) (bytesBufferedInAlignment ^ (bytesBufferedInAlignment >>> 32));
+		result = 31 * result + (int) (alignmentDurationNanos ^ (alignmentDurationNanos >>> 32));
+		result = 31 * result + (int) (syncDurationMillis ^ (syncDurationMillis >>> 32));
+		result = 31 * result + (int) (asyncDurationMillis ^ (asyncDurationMillis >>> 32));
+		return result;
 	}
 
 	@Override
 	public String toString() {
 		return "CheckpointMetrics{" +
-			"bytesBufferedInAlignment=" + bytesBufferedInAlignment +
-			", alignmentDurationNanos=" + alignmentDurationNanos +
-			", syncDurationMillis=" + syncDurationMillis +
-			", asyncDurationMillis=" + asyncDurationMillis +
-			", checkpointStartDelayNanos=" + checkpointStartDelayNanos +
-			'}';
+				"bytesBufferedInAlignment=" + bytesBufferedInAlignment +
+				", alignmentDurationNanos=" + alignmentDurationNanos +
+				", syncDurationMillis=" + syncDurationMillis +
+				", asyncDurationMillis=" + asyncDurationMillis +
+				'}';
 	}
 }

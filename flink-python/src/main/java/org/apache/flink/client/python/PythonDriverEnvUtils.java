@@ -18,31 +18,25 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.python.util.ResourceUtil.extractBasicDependenciesFromResource;
 
 /**
  * The util class help to prepare Python env and run the python process.
@@ -50,27 +44,11 @@ import java.util.UUID;
 public final class PythonDriverEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriverEnvUtils.class);
 
-	private static final String FLINK_OPT_DIR = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
-
-	private static final String FLINK_OPT_DIR_PYTHON = FLINK_OPT_DIR + File.separator + "python";
-
-	@VisibleForTesting
-	public static final String PYFLINK_PY_FILES = "PYFLINK_PY_FILES";
-
-	@VisibleForTesting
-	public static final String PYFLINK_PY_REQUIREMENTS = "PYFLINK_PY_REQUIREMENTS";
-
-	@VisibleForTesting
-	public static final String PYFLINK_PY_EXECUTABLE = "PYFLINK_PY_EXECUTABLE";
-
-	@VisibleForTesting
-	public static final String PYFLINK_PY_ARCHIVES = "PYFLINK_PY_ARCHIVES";
-
 	/**
 	 * Wraps Python exec environment.
 	 */
 	public static class PythonEnvironment {
-		public String tempDirectory;
+		public String workingDirectory;
 
 		public String pythonExec = "python";
 
@@ -102,128 +80,74 @@ public final class PythonDriverEnvUtils {
 		}
 	}
 
+
 	/**
 	 * Prepares PythonEnvironment to start python process.
 	 *
-	 * @param pythonDriverOptions The Python driver options.
-	 * @param tmpDir The temporary directory which files will be copied to.
+	 * @param pythonLibFiles The dependent Python files.
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
 	 */
-	public static PythonEnvironment preparePythonEnvironment(
-			PythonDriverOptions pythonDriverOptions,
-			String tmpDir) throws IOException, InterruptedException {
+	public static PythonEnvironment preparePythonEnvironment(List<Path> pythonLibFiles)
+		throws IOException, InterruptedException {
 		PythonEnvironment env = new PythonEnvironment();
 
-		tmpDir = new File(tmpDir).getAbsolutePath();
-
 		// 1. setup temporary local directory for the user files
+		String tmpDir = System.getProperty("java.io.tmpdir") +
+			File.separator + "pyflink" + File.separator + UUID.randomUUID();
+
 		Path tmpDirPath = new Path(tmpDir);
 		FileSystem fs = tmpDirPath.getFileSystem();
+		if (fs.exists(tmpDirPath)) {
+			fs.delete(tmpDirPath, true);
+		}
 		fs.mkdirs(tmpDirPath);
 
-		env.tempDirectory = tmpDir;
-		List<String> pythonPathList = new ArrayList<>();
+		env.workingDirectory = tmpDirPath.toString();
+
+		StringBuilder pythonPathEnv = new StringBuilder();
+
+		pythonPathEnv.append(env.workingDirectory);
+
+		List<File> internalLibs = extractBasicDependenciesFromResource(
+			tmpDir,
+			UUID.randomUUID().toString(),
+			true);
 
 		// 2. append the internal lib files to PYTHONPATH.
-		List<java.nio.file.Path> pythonLibs = getLibFiles(FLINK_OPT_DIR_PYTHON);
-		for (java.nio.file.Path lib: pythonLibs) {
-			pythonPathList.add(lib.toFile().getAbsolutePath());
+		for (File file: internalLibs) {
+			pythonPathEnv.append(File.pathSeparator);
+			pythonPathEnv.append(file.getAbsolutePath());
+			file.deleteOnExit();
 		}
 
 		// 3. copy relevant python files to tmp dir and set them in PYTHONPATH.
-		for (Path pythonFile : pythonDriverOptions.getPythonLibFiles()) {
+		for (Path pythonFile : pythonLibFiles) {
 			String sourceFileName = pythonFile.getName();
-			// add random UUID parent directory to avoid name conflict.
-			Path targetPath = new Path(
-				tmpDirPath,
-				String.join(File.separator, UUID.randomUUID().toString(), sourceFileName));
-			if (!pythonFile.getFileSystem().isDistributedFS()) {
-				// if the path is local file, try to create symbolic link.
-				new File(targetPath.getParent().toString()).mkdir();
-				createSymbolicLinkForPyflinkLib(
-					Paths.get(new File(pythonFile.getPath()).getAbsolutePath()),
-					Paths.get(targetPath.toString()));
-			} else {
-				FileUtils.copy(pythonFile, targetPath, true);
-			}
-			if (Files.isRegularFile(Paths.get(targetPath.toString()).toRealPath()) && sourceFileName.endsWith(".py")) {
-				// add the parent directory of .py file itself to PYTHONPATH
-				pythonPathList.add(targetPath.getParent().toString());
-			} else {
-				pythonPathList.add(targetPath.toString());
-			}
+			Path targetPath = new Path(tmpDirPath, sourceFileName);
+			FileUtils.copy(pythonFile, targetPath, true);
+			String targetFileNames = Files.walk(Paths.get(targetPath.toString()))
+				.filter(Files::isRegularFile)
+				.filter(f -> !f.toString().endsWith(".py"))
+				.map(java.nio.file.Path::toString)
+				.collect(Collectors.joining(File.pathSeparator));
+			pythonPathEnv.append(File.pathSeparator);
+			pythonPathEnv.append(targetFileNames);
 		}
 
-		env.pythonPath = String.join(File.pathSeparator, pythonPathList);
+		// 4. add the parent directory to PYTHONPATH for files suffixed with .py
+		String pyFileParents = Files.walk(Paths.get(tmpDirPath.toString()))
+			.filter(file -> file.toString().endsWith(".py"))
+			.map(java.nio.file.Path::getParent)
+			.distinct()
+			.map(java.nio.file.Path::toString)
+			.collect(Collectors.joining(File.pathSeparator));
+		if (!StringUtils.isNullOrWhitespaceOnly(pyFileParents)) {
+			pythonPathEnv.append(File.pathSeparator);
+			pythonPathEnv.append(pyFileParents);
+		}
 
-		if (!pythonDriverOptions.getPyFiles().isEmpty()) {
-			env.systemEnv.put(PYFLINK_PY_FILES, String.join("\n", pythonDriverOptions.getPyFiles()));
-		}
-		if (!pythonDriverOptions.getPyArchives().isEmpty()) {
-			env.systemEnv.put(
-				PYFLINK_PY_ARCHIVES,
-				joinTuples(pythonDriverOptions.getPyArchives()));
-		}
-		pythonDriverOptions.getPyRequirements().ifPresent(
-			pyRequirements -> env.systemEnv.put(
-				PYFLINK_PY_REQUIREMENTS,
-				joinTuples(Collections.singleton(pyRequirements))));
-		pythonDriverOptions.getPyExecutable().ifPresent(
-			pyExecutable -> env.systemEnv.put(PYFLINK_PY_EXECUTABLE, pythonDriverOptions.getPyExecutable().get()));
+		env.pythonPath = pythonPathEnv.toString();
 		return env;
-	}
-
-	private static String joinTuples(Collection<Tuple2<String, String>> tuples) {
-		List<String> joinedTuples = new ArrayList<>();
-		for (Tuple2<String, String> tuple : tuples) {
-			String f0 = tuple.f0 == null ? "" : tuple.f0;
-			String f1 = tuple.f1 == null ? "" : tuple.f1;
-
-			joinedTuples.add(String.join("\n", f0, f1));
-		}
-		return String.join("\n", joinedTuples);
-	}
-
-	/**
-	 * Creates symbolLink in working directory for pyflink lib.
-	 *
-	 * @param libPath          the pyflink lib file path.
-	 * @param symbolicLinkPath the symbolic link to pyflink lib.
-	 */
-	public static void createSymbolicLinkForPyflinkLib(java.nio.file.Path libPath, java.nio.file.Path symbolicLinkPath)
-			throws IOException {
-		try {
-			Files.createSymbolicLink(symbolicLinkPath, libPath);
-		} catch (IOException e) {
-			LOG.error("Create symbol link for pyflink lib failed.", e);
-			LOG.info("Try to copy pyflink lib to working directory");
-			Files.copy(libPath, symbolicLinkPath);
-		}
-	}
-
-	/**
-	 * Gets pyflink dependent libs in specified directory.
-	 *
-	 * @param libDir The lib directory
-	 */
-	public static List<java.nio.file.Path> getLibFiles(String libDir) {
-		final List<java.nio.file.Path> libFiles = new ArrayList<>();
-		SimpleFileVisitor<java.nio.file.Path> finder = new SimpleFileVisitor<java.nio.file.Path>() {
-			@Override
-			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
-				// only include zip file
-				if (file.toString().endsWith(".zip")) {
-					libFiles.add(file);
-				}
-				return FileVisitResult.CONTINUE;
-			}
-		};
-		try {
-			Files.walkFileTree(FileSystems.getDefault().getPath(libDir), finder);
-		} catch (IOException e) {
-			LOG.error("Gets pyflink dependent libs failed.", e);
-		}
-		return libFiles;
 	}
 
 	/**
@@ -241,6 +165,8 @@ public final class PythonDriverEnvUtils {
 		pythonEnv.systemEnv.forEach(env::put);
 		commands.add(0, pythonEnv.pythonExec);
 		pythonProcessBuilder.command(commands);
+		// set the working directory.
+		pythonProcessBuilder.directory(new File(pythonEnv.workingDirectory));
 		// redirect the stderr to stdout
 		pythonProcessBuilder.redirectErrorStream(true);
 		// set the child process the output same as the parent process.
@@ -251,7 +177,7 @@ public final class PythonDriverEnvUtils {
 		}
 
 		// Make sure that the python sub process will be killed when JVM exit
-		ShutDownPythonHook hook = new ShutDownPythonHook(process, pythonEnv.tempDirectory);
+		ShutDownPythonHook hook = new ShutDownPythonHook(process, pythonEnv.workingDirectory);
 		Runtime.getRuntime().addShutdownHook(hook);
 
 		return process;

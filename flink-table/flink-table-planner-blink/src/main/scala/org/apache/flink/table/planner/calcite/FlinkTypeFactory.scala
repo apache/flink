@@ -18,8 +18,15 @@
 
 package org.apache.flink.table.planner.calcite
 
-import java.nio.charset.Charset
-import java.util
+import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
+import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
+import org.apache.flink.table.types.logical._
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.types.Nothing
+import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
@@ -30,16 +37,9 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, MapSqlType, SqlTypeName}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
-import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
-import org.apache.flink.table.types.logical._
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.flink.types.Nothing
-import org.apache.flink.util.Preconditions.checkArgument
+
+import java.nio.charset.Charset
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -76,8 +76,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       case LogicalTypeRoot.DATE => createSqlType(DATE)
       case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => createSqlType(TIME)
       case LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val lzTs = t.asInstanceOf[LocalZonedTimestampType]
-        createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE, lzTs.getPrecision)
+        createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 
       // interval types
       case LogicalTypeRoot.INTERVAL_YEAR_MONTH =>
@@ -293,11 +292,6 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       case it: TimeIndicatorRelDataType =>
         new TimeIndicatorRelDataType(it.typeSystem, it.originalType, isNullable, it.isEventTime)
 
-      // for nested rows we keep the nullability property,
-      // top-level rows fall back to Calcite's default handling
-      case rt: RelRecordType if rt.getStructKind == StructKind.PEEK_FIELDS_NO_EXPAND =>
-        new RelRecordType(rt.getStructKind, rt.getFieldList, isNullable);
-
       case _ =>
         super.createTypeWithNullability(relDataType, isNullable)
     }
@@ -444,7 +438,12 @@ object FlinkTypeFactory {
       case TIMESTAMP =>
         new TimestampType(relDataType.getPrecision)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        new LocalZonedTimestampType(relDataType.getPrecision)
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"TIMESTAMP_WITH_LOCAL_TIME_ZONE precision is not supported:" +
+                s" ${relDataType.getPrecision}")
+        }
+        new LocalZonedTimestampType(3)
       case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
@@ -488,17 +487,6 @@ object FlinkTypeFactory {
         throw new TableException(s"Type is not supported: $t")
     }
     logicalType.copy(relDataType.isNullable)
-  }
-
-  def toTableSchema(relDataType: RelDataType): TableSchema = {
-    val fieldNames = relDataType.getFieldNames.toArray(new Array[String](0))
-    val fieldTypes = relDataType.getFieldList
-      .asScala
-      .map(field =>
-        LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
-          FlinkTypeFactory.toLogicalType(field.getType))
-      ).toArray
-    TableSchema.builder.fields(fieldNames, fieldTypes).build
   }
 
   def toLogicalRowType(relType: RelDataType): RowType = {

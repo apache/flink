@@ -34,7 +34,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -49,6 +48,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
+import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -89,7 +89,6 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -148,13 +147,7 @@ public abstract class YarnTestBase extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder tmp = new TemporaryFolder();
 
-	// Temp directory for mini hdfs
-	@ClassRule
-	public static TemporaryFolder tmpHDFS = new TemporaryFolder();
-
 	protected static MiniYARNCluster yarnCluster = null;
-
-	protected static MiniDFSCluster miniDFSCluster = null;
 
 	/**
 	 * Uberjar (fat jar) file of Flink.
@@ -175,7 +168,6 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static File flinkShadedHadoopDir;
 
 	protected static File yarnSiteXML = null;
-	protected static File hdfsSiteXML = null;
 
 	private YarnClient yarnClient = null;
 
@@ -196,7 +188,6 @@ public abstract class YarnTestBase extends TestLogger {
 		YARN_CONFIGURATION.setInt(YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
 		// so we have to change the number of cores for testing.
 		YARN_CONFIGURATION.setInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS, 20000); // 20 seconds expiry (to ensure we properly heartbeat with YARN).
-		YARN_CONFIGURATION.setFloat(YarnConfiguration.NM_MAX_PER_DISK_UTILIZATION_PERCENTAGE, 99.0F);
 	}
 
 	public static void populateYarnSecureConfigurations(Configuration conf, String principal, String keytab) {
@@ -381,14 +372,6 @@ public abstract class YarnTestBase extends TestLogger {
 		yarnSiteXML = new File(targetFolder, "/yarn-site.xml");
 		try (FileWriter writer = new FileWriter(yarnSiteXML)) {
 			yarnConf.writeXml(writer);
-			writer.flush();
-		}
-	}
-
-	private static void writeHDFSSiteConfigXML(Configuration coreSite, File targetFolder) throws IOException {
-		hdfsSiteXML = new File(targetFolder, "/hdfs-site.xml");
-		try (FileWriter writer = new FileWriter(hdfsSiteXML)) {
-			coreSite.writeXml(writer);
 			writer.flush();
 		}
 	}
@@ -609,18 +592,14 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	public static void startYARNSecureMode(YarnConfiguration conf, String principal, String keytab) {
-		start(conf, principal, keytab, false);
+		start(conf, principal, keytab);
 	}
 
 	public static void startYARNWithConfig(YarnConfiguration conf) {
-		startYARNWithConfig(conf,	false);
+		start(conf, null, null);
 	}
 
-	public static void startYARNWithConfig(YarnConfiguration conf, boolean withDFS) {
-		start(conf, null, null, withDFS);
-	}
-
-	private static void start(YarnConfiguration conf, String principal, String keytab, boolean withDFS) {
+	private static void start(YarnConfiguration conf, String principal, String keytab) {
 		// set the home directory to a temp directory. Flink on YARN is using the home dir to distribute the file
 		File homeDir = null;
 		try {
@@ -687,12 +666,6 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File targetTestClassesFolder = new File("target/test-classes");
 			writeYarnSiteConfigXML(conf, targetTestClassesFolder);
-
-			if (withDFS) {
-				LOG.info("Starting up MiniDFSCluster");
-				setMiniDFSCluster(targetTestClassesFolder);
-			}
-
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
 			TestBaseUtils.setEnv(map);
@@ -711,28 +684,12 @@ public abstract class YarnTestBase extends TestLogger {
 
 	}
 
-	private static void setMiniDFSCluster(File targetTestClassesFolder) throws Exception {
-		if (miniDFSCluster == null) {
-			Configuration hdfsConfiguration = new Configuration();
-			hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
-			miniDFSCluster = new MiniDFSCluster
-				.Builder(hdfsConfiguration)
-				.numDataNodes(2)
-				.build();
-			miniDFSCluster.waitClusterUp();
-
-			hdfsConfiguration = miniDFSCluster.getConfiguration(0);
-			writeHDFSSiteConfigXML(hdfsConfiguration, targetTestClassesFolder);
-			YARN_CONFIGURATION.addResource(hdfsConfiguration);
-		}
-	}
-
 	/**
 	 * Default @BeforeClass impl. Overwrite this for passing a different configuration
 	 */
 	@BeforeClass
 	public static void setup() throws Exception {
-		startYARNWithConfig(YARN_CONFIGURATION, false);
+		startYARNWithConfig(YARN_CONFIGURATION);
 	}
 
 	// -------------------------- Runner -------------------------- //
@@ -796,7 +753,7 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) throws IOException {
-		runWithArgs(args, terminateAfterString, failOnStrings, type, returnCode, Collections::emptyList);
+		runWithArgs(args, terminateAfterString, failOnStrings, type, returnCode, false);
 	}
 
 	/**
@@ -806,9 +763,9 @@ public abstract class YarnTestBase extends TestLogger {
 	 * @param failOnPatterns The runner is searching stdout and stderr for the pattern (regexp) specified here. If one appears, the test has failed
 	 * @param type Set the type of the runner
 	 * @param expectedReturnValue Expected return code from the runner.
-	 * @param logMessageSupplier Supplier for log messages
+	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int expectedReturnValue, Supplier<Collection<String>> logMessageSupplier) throws IOException {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int expectedReturnValue, boolean checkLogForTerminateString) throws IOException {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -858,12 +815,14 @@ public abstract class YarnTestBase extends TestLogger {
 					}
 				}
 			}
-
-			for (String logMessage : logMessageSupplier.get()) {
-				if (logMessage.contains(terminateAfterString)) {
+			// check output for the expected terminateAfterString.
+			if (checkLogForTerminateString) {
+				LoggingEvent matchedEvent = UtilsTest.getEventContainingString(terminateAfterString);
+				if (matchedEvent != null) {
 					testPassedFromLog4j = true;
-					LOG.info("Found expected output in logging event {}", logMessage);
+					LOG.info("Found expected output in logging event {}", matchedEvent);
 				}
+
 			}
 
 			if (outContentString.contains(terminateAfterString) || errContentString.contains(terminateAfterString) || testPassedFromLog4j) {
@@ -1003,12 +962,6 @@ public abstract class YarnTestBase extends TestLogger {
 			yarnCluster = null;
 		}
 
-		if (miniDFSCluster != null) {
-			LOG.info("Stopping MiniDFS Cluster");
-			miniDFSCluster.shutdown();
-			miniDFSCluster = null;
-		}
-
 		// Unset FLINK_CONF_DIR, as it might change the behavior of other tests
 		Map<String, String> map = new HashMap<>(System.getenv());
 		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
@@ -1023,10 +976,6 @@ public abstract class YarnTestBase extends TestLogger {
 
 		if (yarnSiteXML != null) {
 			yarnSiteXML.delete();
-		}
-
-		if (hdfsSiteXML != null) {
-			hdfsSiteXML.delete();
 		}
 
 		// When we are on travis, we copy the temp files of JUnit (containing the MiniYARNCluster log files)

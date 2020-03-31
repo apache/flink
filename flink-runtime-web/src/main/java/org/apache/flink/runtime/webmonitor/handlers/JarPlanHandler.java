@@ -97,7 +97,7 @@ public class JarPlanHandler
 		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
 
 		return CompletableFuture.supplyAsync(() -> {
-			final JobGraph jobGraph = context.toJobGraph(configuration, true);
+			final JobGraph jobGraph = context.toJobGraph(configuration);
 			return planGenerator.apply(jobGraph);
 		}, executor);
 	}

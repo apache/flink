@@ -484,7 +484,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		return String.format(
 			"%s %s/%s",
 			this.getClass().getSimpleName(),
-			getRuntimeContext().getIndexOfThisSubtask() + 1,
+			getRuntimeContext().getIndexOfThisSubtask(),
 			getRuntimeContext().getNumberOfParallelSubtasks());
 	}
 

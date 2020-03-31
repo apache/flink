@@ -41,7 +41,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
-import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
@@ -61,12 +60,10 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
@@ -105,9 +102,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -272,16 +269,16 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	/** On each global recovery, this version is incremented. The version breaks conflicts
 	 * between concurrent restart attempts by local failover strategies. */
-	private long globalModVersion;
+	private volatile long globalModVersion;
 
 	/** The exception that caused the job to fail. This is set to the first root exception
 	 * that was not recoverable and triggered job failure. */
-	private Throwable failureCause;
+	private volatile Throwable failureCause;
 
 	/** The extended failure cause information for the job. This exists in addition to 'failureCause',
 	 * to let 'failureCause' be a strong reference to the exception, while this info holds no
 	 * strong reference to any user-defined classes.*/
-	private ErrorInfo failureInfo;
+	private volatile ErrorInfo failureInfo;
 
 	private final JobMasterPartitionTracker partitionTracker;
 
@@ -291,7 +288,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * Future for an ongoing or completed scheduling action.
 	 */
 	@Nullable
-	private CompletableFuture<Void> schedulingFuture;
+	private volatile CompletableFuture<Void> schedulingFuture;
 
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
@@ -308,9 +305,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
-	@Nullable
-	private String stateBackendName;
-
 	private String jsonPlan;
 
 	/** Shuffle master to register partitions for task deployment. */
@@ -359,7 +353,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.verticesInCreationOrder = new ArrayList<>(16);
 		this.currentExecutions = new HashMap<>(16);
 
-		this.jobStatusListeners  = new ArrayList<>();
+		this.jobStatusListeners  = new CopyOnWriteArrayList<>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
@@ -437,11 +431,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return false;
 	}
 
-	@Override
-	public Optional<String> getStateBackendName() {
-		return Optional.ofNullable(stateBackendName);
-	}
-
 	public void enableCheckpointing(
 			CheckpointCoordinatorConfiguration chkConfig,
 			List<ExecutionJobVertex> verticesToTrigger,
@@ -459,8 +448,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		ExecutionVertex[] tasksToTrigger = collectExecutionVertices(verticesToTrigger);
 		ExecutionVertex[] tasksToWaitFor = collectExecutionVertices(verticesToWaitFor);
 		ExecutionVertex[] tasksToCommitTo = collectExecutionVertices(verticesToCommitTo);
-
-		final Collection<OperatorCoordinatorCheckpointContext> operatorCoordinators = buildOpCoordinatorCheckpointContexts();
 
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
@@ -492,7 +479,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			tasksToTrigger,
 			tasksToWaitFor,
 			tasksToCommitTo,
-			operatorCoordinators,
 			checkpointIDCounter,
 			checkpointStore,
 			checkpointStateBackend,
@@ -517,8 +503,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			// job status changes (running -> on, all other states -> off)
 			registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
 		}
-
-		this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
 	}
 
 	@Nullable
@@ -570,21 +554,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 			return all.toArray(new ExecutionVertex[all.size()]);
 		}
-	}
-
-	private Collection<OperatorCoordinatorCheckpointContext> buildOpCoordinatorCheckpointContexts() {
-		final ArrayList<OperatorCoordinatorCheckpointContext> contexts = new ArrayList<>();
-		for (final ExecutionJobVertex vertex : verticesInCreationOrder) {
-			for (final Map.Entry<OperatorID, OperatorCoordinator> coordinator : vertex.getOperatorCoordinatorMap().entrySet()) {
-				contexts.add(new OperatorCoordinatorCheckpointContext(
-						coordinator.getValue(),
-						coordinator.getKey(),
-						vertex.getMaxParallelism(),
-						vertex.getParallelism()));
-			}
-		}
-		contexts.trimToSize();
-		return contexts;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -918,7 +887,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		while (true) {
 			JobStatus current = state;
 
-			if (current == JobStatus.RUNNING || current == JobStatus.CREATED || current == JobStatus.RESTARTING) {
+			if (current == JobStatus.RUNNING || current == JobStatus.CREATED) {
 				if (transitionState(current, JobStatus.CANCELLING)) {
 
 					// make sure no concurrent local actions interfere with the cancellation
@@ -955,6 +924,16 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			// all vertices to be in their final state.
 			else if (current == JobStatus.FAILING) {
 				if (transitionState(current, JobStatus.CANCELLING)) {
+					return;
+				}
+			}
+			// All vertices have been cancelled and it's safe to directly go
+			// into the canceled state.
+			else if (current == JobStatus.RESTARTING) {
+				if (transitionState(current, JobStatus.CANCELED)) {
+					onTerminalState(JobStatus.CANCELED);
+
+					LOG.info("Canceled during restart.");
 					return;
 				}
 			}
@@ -1230,7 +1209,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	//  State Transitions
 	// ------------------------------------------------------------------------
 
-	public boolean transitionState(JobStatus current, JobStatus newState) {
+	private boolean transitionState(JobStatus current, JobStatus newState) {
 		return transitionState(current, newState, null);
 	}
 
@@ -1270,7 +1249,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		numberOfRestartsCounter.inc();
 	}
 
-	public void initFailureCause(Throwable t) {
+	private void initFailureCause(Throwable t) {
 		this.failureCause = t;
 		this.failureInfo = new ErrorInfo(t, System.currentTimeMillis());
 	}

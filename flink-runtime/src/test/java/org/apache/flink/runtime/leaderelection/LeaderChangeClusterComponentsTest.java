@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.jobmaster.utils.JobResultUtils;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -129,7 +128,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 		JobResult jobResult = jobResultFuture2.get();
 
-		JobResultUtils.assertSuccess(jobResult);
+		assertThat(jobResult.isSuccess(), is(true));
 	}
 
 	@Test
@@ -142,14 +141,14 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 		highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
 
-		JobResultUtils.assertIncomplete(jobResultFuture);
+		assertThat(jobResultFuture.isDone(), is(false));
 		BlockingOperator.isBlocking = false;
 
 		highAvailabilityServices.grantJobMasterLeadership(jobId);
 
 		JobResult jobResult = jobResultFuture.get();
 
-		JobResultUtils.assertSuccess(jobResult);
+		assertThat(jobResult.isSuccess(), is(true));
 	}
 
 	@Test

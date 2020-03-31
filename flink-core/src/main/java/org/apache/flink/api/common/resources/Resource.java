@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -66,14 +65,6 @@ public abstract class Resource implements Serializable {
 		checkArgument(value.compareTo(other.value) >= 0, "Try to subtract a larger resource from this one.");
 
 		return create(value.subtract(other.value));
-	}
-
-	public Resource divide(BigDecimal by) {
-		return create(value.divide(by, 16, RoundingMode.DOWN));
-	}
-
-	public Resource divide(int by) {
-		return divide(BigDecimal.valueOf(by));
 	}
 
 	@Override

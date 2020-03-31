@@ -39,8 +39,7 @@ public class CheckpointConfigInfoTest extends RestResponseMarshallingTestBase<Ch
 			2L,
 			3L,
 			4,
-			externalizedCheckpointInfo,
-			"stateBackendName");
+			externalizedCheckpointInfo);
 
 	}
 }

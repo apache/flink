@@ -35,9 +35,10 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -369,7 +370,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		long checkpointId = 1L;
 		long timestamp = 42L;
 
-		MockEnvironment env = MockEnvironment.builder().build();
+		Environment env = new DummyEnvironment("test task", 1, 0);
 
 		final IOException testException = new IOException("Test exception");
 		CheckpointStateOutputStream outputStream = spy(new FailingStream(testException));
@@ -414,7 +415,6 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		} finally {
 			IOUtils.closeQuietly(keyedStateBackend);
 			keyedStateBackend.dispose();
-			IOUtils.closeQuietly(env);
 		}
 	}
 

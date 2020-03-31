@@ -35,12 +35,8 @@ public class TerminalUtils {
 	}
 
 	public static Terminal createDummyTerminal() {
-		return createDummyTerminal(new MockOutputStream());
-	}
-
-	public static Terminal createDummyTerminal(OutputStream out) {
 		try {
-			return new DumbTerminal(new MockInputStream(), out);
+			return new DumbTerminal(new MockInputStream(), new MockOutputStream());
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to create dummy terminal.");
 		}

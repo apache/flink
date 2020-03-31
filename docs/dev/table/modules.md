@@ -2,7 +2,7 @@
 title: "Modules"
 is_beta: true
 nav-parent_id: tableapi
-nav-pos: 70
+nav-pos: 90
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -105,11 +105,12 @@ modules:
      type: core
    - name: myhive
      type: hive
+     hive-version: 1.2.1
 {% endhighlight %}
 </div>
 </div>
 
-### List Available Modules
+### List Available Catalogs
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">

@@ -21,7 +21,6 @@ package org.apache.flink.table.expressions.resolver.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
@@ -33,7 +32,7 @@ import java.util.stream.Collectors;
  * Looks up built-in functions in a catalog for retrieving a fully qualified {@link ObjectIdentifier}.
  */
 @Internal
-final class QualifyBuiltInFunctionsRule implements ResolverRule {
+class QualifyBuiltInFunctionsRule implements ResolverRule {
 
 	@Override
 	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
@@ -42,7 +41,7 @@ final class QualifyBuiltInFunctionsRule implements ResolverRule {
 			.collect(Collectors.toList());
 	}
 
-	private static class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
+	private class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
 
 		QualifyBuiltInFunctionVisitor(ResolutionContext resolutionContext) {
 			super(resolutionContext);
@@ -56,7 +55,7 @@ final class QualifyBuiltInFunctionsRule implements ResolverRule {
 					.functionLookup()
 					.lookupBuiltInFunction(((BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition()));
 
-				return ApiExpressionUtils.unresolvedCall(
+				return new UnresolvedCallExpression(
 					functionLookup.getFunctionIdentifier(),
 					functionLookup.getFunctionDefinition(),
 					unresolvedCall.getChildren().stream()

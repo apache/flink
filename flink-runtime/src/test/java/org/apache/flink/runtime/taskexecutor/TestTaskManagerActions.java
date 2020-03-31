@@ -24,7 +24,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
-import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 
@@ -41,10 +40,10 @@ import java.util.concurrent.CompletableFuture;
 public class TestTaskManagerActions implements TaskManagerActions {
 
 	private final JobMasterGateway jobMasterGateway;
-	private final TaskSlotTable<Task> taskSlotTable;
+	private final TaskSlotTable taskSlotTable;
 	private final TaskManagerActionListeners taskManagerActionListeners = new TaskManagerActionListeners();
 
-	public TestTaskManagerActions(TaskSlotTable<Task> taskSlotTable, JobMasterGateway jobMasterGateway) {
+	public TestTaskManagerActions(TaskSlotTable taskSlotTable, JobMasterGateway jobMasterGateway) {
 		this.taskSlotTable = taskSlotTable;
 		this.jobMasterGateway = jobMasterGateway;
 	}

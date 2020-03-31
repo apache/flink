@@ -61,8 +61,7 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
-		Map<KafkaTopicPartition, Long> specificStartupOffsets,
-		long startupTimestampMillis) {
+		Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
 		super(
 			schema,
@@ -73,8 +72,7 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 			properties,
 			deserializationSchema,
 			startupMode,
-			specificStartupOffsets,
-			startupTimestampMillis);
+			specificStartupOffsets);
 	}
 
 	/**

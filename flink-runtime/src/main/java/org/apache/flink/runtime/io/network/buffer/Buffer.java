@@ -217,14 +217,4 @@ public interface Buffer {
 	 * @return self as ByteBuf implementation.
 	 */
 	ByteBuf asByteBuf();
-
-	/**
-	 * @return whether the buffer is compressed or not.
-	 */
-	boolean isCompressed();
-
-	/**
-	 * Tags the buffer as compressed or uncompressed.
-	 */
-	void setCompressed(boolean isCompressed);
 }

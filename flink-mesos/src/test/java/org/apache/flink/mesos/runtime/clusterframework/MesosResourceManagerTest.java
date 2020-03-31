@@ -41,8 +41,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -62,7 +62,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -276,15 +275,11 @@ public class MesosResourceManagerTest extends TestLogger {
 			ContainerSpecification containerSpecification = new ContainerSpecification();
 
 			MemorySize totalProcessMemory = MemorySize.parse("2g");
-			TaskExecutorProcessSpec spec = TaskExecutorProcessUtils
-				.newProcessSpecBuilder(flinkConfig)
-				.withCpuCores(1.0)
-				.withTotalProcessMemory(totalProcessMemory)
-				.build();
+			TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConfig, totalProcessMemory);
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(spec, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
-				1, 0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
+				1.0, 1, 0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
 				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(), false,
 				Collections.<ConstraintEvaluator>emptyList(), "", Option.<String>empty(),
 				Option.<String>empty(), Collections.<String>emptyList());
@@ -663,15 +658,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			final int dataPort = 1234;
 			final HardwareDescription hardwareDescription = new HardwareDescription(1, 2L, 3L, 4L);
 			// send registration message
-			TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
-				task1Executor.address,
-				task1Executor.resourceID,
-				dataPort,
-				hardwareDescription,
-				ResourceProfile.ZERO,
-				ResourceProfile.ZERO);
 			CompletableFuture<RegistrationResponse> successfulFuture =
-				resourceManager.registerTaskExecutor(taskExecutorRegistration, timeout);
+				resourceManager.registerTaskExecutor(task1Executor.address, task1Executor.resourceID, dataPort, hardwareDescription, timeout);
 			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 			final TaskExecutorRegistrationSuccess registrationResponse = (TaskExecutorRegistrationSuccess) response;

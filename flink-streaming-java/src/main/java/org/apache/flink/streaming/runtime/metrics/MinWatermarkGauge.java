@@ -20,26 +20,21 @@ package org.apache.flink.streaming.runtime.metrics;
 
 import org.apache.flink.metrics.Gauge;
 
-import java.util.Arrays;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
- * A {@link Gauge} for exposing the minimum watermark of chosen {@link WatermarkGauge}s.
+ * A {@link Gauge} for exposing the minimum watermark of a {@link WatermarkGauge} pair.
  */
 public class MinWatermarkGauge implements Gauge<Long> {
-	private final WatermarkGauge[] watermarkGauges;
 
-	public MinWatermarkGauge(WatermarkGauge ...watermarkGauges) {
-		checkArgument(watermarkGauges.length > 0);
-		this.watermarkGauges = watermarkGauges;
+	private WatermarkGauge watermarkGauge1;
+	private WatermarkGauge watermarkGauge2;
+
+	public MinWatermarkGauge(WatermarkGauge watermarkGauge1, WatermarkGauge watermarkGauge2) {
+		this.watermarkGauge1 = watermarkGauge1;
+		this.watermarkGauge2 = watermarkGauge2;
 	}
 
 	@Override
 	public Long getValue() {
-		return Arrays.stream(watermarkGauges)
-			.mapToLong(WatermarkGauge::getValue)
-			.min()
-			.orElse(0);
+		return Math.min(watermarkGauge1.getValue(), watermarkGauge2.getValue());
 	}
 }

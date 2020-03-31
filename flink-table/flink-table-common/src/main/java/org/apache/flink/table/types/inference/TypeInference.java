@@ -24,15 +24,14 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Provides logic for the type inference of function calls. It includes:
  * <ul>
- *     <li>explicit input specification for (possibly named and/or typed) arguments</li>
- *     <li>inference of missing or incomplete input types</li>
+ *     <li>explicit input specification for (possibly named) arguments</li>
+ *     <li>inference of missing input types</li>
  *     <li>validation of input types</li>
  *     <li>inference of an intermediate accumulation type</li>
  *     <li>inference of the final output type</li>
@@ -43,34 +42,34 @@ import java.util.Optional;
 @PublicEvolving
 public final class TypeInference {
 
-	private final @Nullable List<String> namedArguments;
-
-	private final @Nullable List<DataType> typedArguments;
-
-	private final InputTypeStrategy inputTypeStrategy;
+	private final InputTypeValidator inputTypeValidator;
 
 	private final @Nullable TypeStrategy accumulatorTypeStrategy;
 
 	private final TypeStrategy outputTypeStrategy;
 
+	private final @Nullable List<String> argumentNames;
+
+	private final @Nullable List<DataType> argumentTypes;
+
 	private TypeInference(
-			@Nullable List<String> namedArguments,
-			@Nullable List<DataType> typedArguments,
-			InputTypeStrategy inputTypeStrategy,
+			InputTypeValidator inputTypeValidator,
 			@Nullable TypeStrategy accumulatorTypeStrategy,
-			TypeStrategy outputTypeStrategy) {
-		this.namedArguments = namedArguments;
-		this.typedArguments = typedArguments;
-		this.inputTypeStrategy = inputTypeStrategy;
+			TypeStrategy outputTypeStrategy,
+			@Nullable List<String> argumentNames,
+			@Nullable List<DataType> argumentTypes) {
+		this.inputTypeValidator = inputTypeValidator;
 		this.accumulatorTypeStrategy = accumulatorTypeStrategy;
 		this.outputTypeStrategy = outputTypeStrategy;
-		if (namedArguments != null && typedArguments != null && namedArguments.size() != typedArguments.size()) {
+		if (argumentNames != null && argumentTypes != null && argumentNames.size() != argumentTypes.size()) {
 			throw new IllegalArgumentException(
 				String.format(
-					"Mismatch between typed arguments %d and named argument %d.",
-					namedArguments.size(),
-					typedArguments.size()));
+					"Mismatch between argument types %d and argument names %d.",
+					argumentNames.size(),
+					argumentTypes.size()));
 		}
+		this.argumentNames = argumentNames;
+		this.argumentTypes = argumentTypes;
 	}
 
 	/**
@@ -80,16 +79,8 @@ public final class TypeInference {
 		return new TypeInference.Builder();
 	}
 
-	public Optional<List<String>> getNamedArguments() {
-		return Optional.ofNullable(namedArguments);
-	}
-
-	public Optional<List<DataType>> getTypedArguments() {
-		return Optional.ofNullable(typedArguments);
-	}
-
-	public InputTypeStrategy getInputTypeStrategy() {
-		return inputTypeStrategy;
+	public InputTypeValidator getInputTypeValidator() {
+		return inputTypeValidator;
 	}
 
 	public Optional<TypeStrategy> getAccumulatorTypeStrategy() {
@@ -100,6 +91,14 @@ public final class TypeInference {
 		return outputTypeStrategy;
 	}
 
+	public Optional<List<String>> getArgumentNames() {
+		return Optional.ofNullable(argumentNames);
+	}
+
+	public Optional<List<DataType>> getArgumentTypes() {
+		return Optional.ofNullable(argumentTypes);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -107,69 +106,28 @@ public final class TypeInference {
 	 */
 	public static class Builder {
 
-		private @Nullable List<String> namedArguments;
-
-		private @Nullable List<DataType> typedArguments;
-
-		private InputTypeStrategy inputTypeStrategy = InputTypeStrategies.WILDCARD;
+		private InputTypeValidator inputTypeValidator = InputTypeValidators.PASSING;
 
 		private @Nullable TypeStrategy accumulatorTypeStrategy;
 
 		private @Nullable TypeStrategy outputTypeStrategy;
+
+		private @Nullable List<String> argumentNames;
+
+		private @Nullable List<DataType> argumentTypes;
 
 		public Builder() {
 			// default constructor to allow a fluent definition
 		}
 
 		/**
-		 * Sets the list of argument names for specifying a fixed, not overloaded, not vararg input
-		 * signature explicitly.
+		 * Sets the validator for checking the input data types of a function call.
 		 *
-		 * <p>This information is useful for SQL's concept of named arguments using the assignment
-		 * operator (e.g. {@code FUNC(max => 42)}). The names are used for reordering the call's
-		 * arguments to the formal argument order of the function.
+		 * <p>A always passing function is assumed by default (see {@link InputTypeValidators#PASSING}).
 		 */
-		public Builder namedArguments(List<String> argumentNames) {
-			this.namedArguments =
-				Preconditions.checkNotNull(argumentNames, "List of argument names must not be null.");
-			return this;
-		}
-
-		/**
-		 * @see #namedArguments(List)
-		 */
-		public Builder namedArguments(String... argumentNames) {
-			return namedArguments(Arrays.asList(argumentNames));
-		}
-
-		/**
-		 * Sets the list of argument types for specifying a fixed, not overloaded, not vararg input
-		 * signature explicitly.
-		 *
-		 * <p>This information is useful for optional arguments with default value. In particular, the
-		 * number of arguments that need to be filled with a default value and their types is important.
-		 */
-		public Builder typedArguments(List<DataType> argumentTypes) {
-			this.typedArguments =
-				Preconditions.checkNotNull(argumentTypes, "List of argument types must not be null.");
-			return this;
-		}
-
-		/**
-		 * @see #typedArguments(List)
-		 */
-		public Builder typedArguments(DataType... argumentTypes) {
-			return typedArguments(Arrays.asList(argumentTypes));
-		}
-
-		/**
-		 * Sets the strategy for inferring and validating input arguments in a function call.
-		 *
-		 * <p>A {@link InputTypeStrategies#WILDCARD} strategy function is assumed by default.
-		 */
-		public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
-			this.inputTypeStrategy =
-				Preconditions.checkNotNull(inputTypeStrategy, "Input type strategy must not be null.");
+		public Builder inputTypeValidator(InputTypeValidator inputTypeValidator) {
+			this.inputTypeValidator =
+				Preconditions.checkNotNull(inputTypeValidator, "Input type validator must not be null.");
 			return this;
 		}
 
@@ -193,13 +151,36 @@ public final class TypeInference {
 			return this;
 		}
 
+		/**
+		 * Sets the list of argument names for specifying static input explicitly.
+		 *
+		 * <p>This information is useful for SQL's concept of named arguments using the assignment
+		 * operator (e.g. {@code FUNC(max => 42)}).
+		 */
+		public Builder namedArguments(List<String> argumentNames) {
+			this.argumentNames =
+				Preconditions.checkNotNull(argumentNames, "List of argument names must not be null.");
+			return this;
+		}
+
+		/**
+		 * Sets the list of argument types for specifying static input explicitly.
+		 *
+		 * <p>This information is useful for implicit and safe casting.
+		 */
+		public Builder typedArguments(List<DataType> argumentTypes) {
+			this.argumentTypes =
+				Preconditions.checkNotNull(argumentTypes, "List of argument types must not be null.");
+			return this;
+		}
+
 		public TypeInference build() {
 			return new TypeInference(
-				namedArguments,
-				typedArguments,
-				inputTypeStrategy,
+				inputTypeValidator,
 				accumulatorTypeStrategy,
-				Preconditions.checkNotNull(outputTypeStrategy, "Output type strategy must not be null."));
+				Preconditions.checkNotNull(outputTypeStrategy, "Output type strategy must not be null."),
+				argumentNames,
+				argumentTypes);
 		}
 	}
 }

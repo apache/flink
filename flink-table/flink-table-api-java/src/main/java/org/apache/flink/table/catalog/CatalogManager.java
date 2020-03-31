@@ -19,8 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
@@ -32,8 +30,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,11 +46,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A manager for dealing with catalog objects such as tables, views, functions, and types. It encapsulates
- * all available catalogs and stores temporary objects.
+ * A CatalogManager that encapsulates all available catalogs. It also implements the logic of
+ * table path resolution.
  */
 @Internal
-public final class CatalogManager {
+public class CatalogManager {
 	private static final Logger LOG = LoggerFactory.getLogger(CatalogManager.class);
 
 	// A map between names and catalogs.
@@ -72,84 +68,19 @@ public final class CatalogManager {
 	// The name of the built-in catalog
 	private final String builtInCatalogName;
 
-	private final DataTypeFactory typeFactory;
-
-	private CatalogManager(
-			String defaultCatalogName,
-			Catalog defaultCatalog,
-			DataTypeFactory typeFactory) {
+	public CatalogManager(String defaultCatalogName, Catalog defaultCatalog) {
 		checkArgument(
 			!StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
 			"Default catalog name cannot be null or empty");
 		checkNotNull(defaultCatalog, "Default catalog cannot be null");
-
 		catalogs = new LinkedHashMap<>();
 		catalogs.put(defaultCatalogName, defaultCatalog);
-		currentCatalogName = defaultCatalogName;
-		currentDatabaseName = defaultCatalog.getDefaultDatabase();
+		this.currentCatalogName = defaultCatalogName;
+		this.currentDatabaseName = defaultCatalog.getDefaultDatabase();
 
-		temporaryTables = new HashMap<>();
+		this.temporaryTables = new HashMap<>();
 		// right now the default catalog is always the built-in one
-		builtInCatalogName = defaultCatalogName;
-
-		this.typeFactory = typeFactory;
-	}
-
-	public static Builder newBuilder() {
-		return new Builder();
-	}
-
-	/**
-	 * Builder for a fluent definition of a {@link CatalogManager}.
-	 */
-	public static final class Builder {
-
-		private @Nullable ClassLoader classLoader;
-
-		private @Nullable ReadableConfig config;
-
-		private @Nullable String defaultCatalogName;
-
-		private @Nullable Catalog defaultCatalog;
-
-		private @Nullable ExecutionConfig executionConfig;
-
-		public Builder classLoader(ClassLoader classLoader) {
-			this.classLoader = classLoader;
-			return this;
-		}
-
-		public Builder config(ReadableConfig config) {
-			this.config = config;
-			return this;
-		}
-
-		public Builder defaultCatalog(String defaultCatalogName, Catalog defaultCatalog) {
-			this.defaultCatalogName = defaultCatalogName;
-			this.defaultCatalog = defaultCatalog;
-			return this;
-		}
-
-		public Builder executionConfig(ExecutionConfig executionConfig) {
-			this.executionConfig = executionConfig;
-			return this;
-		}
-
-		public CatalogManager build() {
-			checkNotNull(classLoader, "Class loader cannot be null");
-			checkNotNull(config, "Config cannot be null");
-			return new CatalogManager(
-				defaultCatalogName,
-				defaultCatalog,
-				new DataTypeFactoryImpl(classLoader, config, executionConfig));
-		}
-	}
-
-	/**
-	 * Returns a factory for creating fully resolved data types that can be used for planning.
-	 */
-	public DataTypeFactory getDataTypeFactory() {
-		return typeFactory;
+		this.builtInCatalogName = defaultCatalogName;
 	}
 
 	/**

@@ -24,11 +24,19 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendTestBase;
@@ -37,6 +45,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.util.IOUtils;
@@ -55,6 +64,7 @@ import org.mockito.stubbing.Answer;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
+import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
@@ -84,6 +94,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
+import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 /**
@@ -114,16 +125,20 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	// Store it because we need it for the cleanup test.
 	private String dbPath;
 	private RocksDB db = null;
+	private File instanceBasePath = null;
 	private ColumnFamilyHandle defaultCFHandle = null;
-	private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
+	private ColumnFamilyOptions columnOptions = null;
+	private DBOptions dbOptions = null;
 
 	public void prepareRocksDB() throws Exception {
-		String dbPath = new File(tempFolder.newFolder(), DB_INSTANCE_DIR_STRING).getAbsolutePath();
-		ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
-
+		instanceBasePath = tempFolder.newFolder();
+		instanceBasePath.mkdirs();
+		String dbPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
+		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions();
+		dbOptions = PredefinedOptions.DEFAULT.createDBOptions().setCreateIfMissing(true);
 		ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
 		db = RocksDBOperationUtils.openDB(dbPath, Collections.emptyList(),
-			columnFamilyHandles, columnOptions, optionsContainer.getDbOptions());
+			columnFamilyHandles, columnOptions, dbOptions);
 		defaultCFHandle = columnFamilyHandles.remove(0);
 	}
 
@@ -155,13 +170,19 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		}
 		IOUtils.closeQuietly(defaultCFHandle);
 		IOUtils.closeQuietly(db);
-		IOUtils.closeQuietly(optionsContainer);
+		IOUtils.closeQuietly(columnOptions);
+		IOUtils.closeQuietly(dbOptions);
 
 		if (allCreatedCloseables != null) {
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
 				verify(rocksCloseable, times(1)).close();
 			}
 			allCreatedCloseables = null;
+		}
+		try {
+			org.apache.flink.util.FileUtils.deleteDirectory(instanceBasePath);
+		} catch (Exception ex) {
+			// ignored
 		}
 	}
 
@@ -175,13 +196,28 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		testStreamFactory.setAfterNumberInvocations(10);
 
 		prepareRocksDB();
+		Environment env = new DummyEnvironment("TestTask", 1, 0);
 
-		keyedStateBackend = RocksDBTestUtils.builderForTestDB(
-				tempFolder.newFolder(), // this is not used anyways because the DB is injected
-				IntSerializer.INSTANCE,
-				spy(db),
-				defaultCFHandle,
-				optionsContainer.getColumnOptions())
+		keyedStateBackend = new RocksDBKeyedStateBackendBuilder<>(
+			"Test",
+			Thread.currentThread().getContextClassLoader(),
+			instanceBasePath,
+			dbOptions,
+			stateName -> PredefinedOptions.DEFAULT.createColumnOptions(),
+			mock(TaskKvStateRegistry.class),
+			IntSerializer.INSTANCE,
+			2,
+			new KeyGroupRange(0, 1),
+			env.getExecutionConfig(),
+			env.getTaskStateManager().createLocalRecoveryConfig(),
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			spy(db),
+			defaultCFHandle,
+			new CloseableRegistry())
 			.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
 			.build();
 
@@ -239,17 +275,30 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		prepareRocksDB();
 		final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
 		RocksDBKeyedStateBackend<Integer> test = null;
-
-		try {
-			test = RocksDBTestUtils.builderForTestDB(
+		try (DBOptions options = new DBOptions().setCreateIfMissing(true)) {
+			ExecutionConfig executionConfig = new ExecutionConfig();
+			test = new RocksDBKeyedStateBackendBuilder<>(
+				"test",
+				Thread.currentThread().getContextClassLoader(),
 				tempFolder.newFolder(),
+				options,
+				stateName -> columnFamilyOptions,
+				mock(TaskKvStateRegistry.class),
 				IntSerializer.INSTANCE,
+				1,
+				new KeyGroupRange(0, 0),
+				executionConfig,
+				mock(LocalRecoveryConfig.class),
+				RocksDBStateBackend.PriorityQueueStateType.HEAP,
+				TtlTimeProvider.DEFAULT,
+				new UnregisteredMetricsGroup(),
+				Collections.emptyList(),
+				AbstractStateBackend.getCompressionDecorator(executionConfig),
 				db,
 				defaultCFHandle,
-				columnFamilyOptions)
+				new CloseableRegistry())
 				.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
 				.build();
-
 			ValueStateDescriptor<String> stubState1 =
 				new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
 			test.createInternalState(StringSerializer.INSTANCE, stubState1);

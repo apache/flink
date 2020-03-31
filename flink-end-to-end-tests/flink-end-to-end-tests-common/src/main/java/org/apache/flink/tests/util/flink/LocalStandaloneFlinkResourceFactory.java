@@ -23,9 +23,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
-import static org.apache.flink.tests.util.flink.FlinkResourceFactoryUtils.getDistributionDirectory;
-import static org.apache.flink.tests.util.flink.FlinkResourceFactoryUtils.getLogBackupDirectory;
-
 /**
  * A {@link FlinkResourceFactory} for the {@link LocalStandaloneFlinkResource}.
  */
@@ -33,12 +30,8 @@ public final class LocalStandaloneFlinkResourceFactory implements FlinkResourceF
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResourceFactory.class);
 
 	@Override
-	public Optional<FlinkResource> create(FlinkResourceSetup setup) {
+	public Optional<FlinkResource> create() {
 		LOG.info("Created {}.", LocalStandaloneFlinkResource.class.getSimpleName());
-		return getDistributionDirectory(LOG).map(distributionDirectory ->
-			                                         new LocalStandaloneFlinkResource(
-				                                         distributionDirectory,
-				                                         getLogBackupDirectory(LOG),
-				                                         setup));
+		return Optional.of(new LocalStandaloneFlinkResource());
 	}
 }

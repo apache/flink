@@ -225,9 +225,6 @@ public class ClosureCleaner {
 
 	private static String getSuperClassOrInterfaceName(Class<?> cls) {
 		Class<?> superclass = cls.getSuperclass();
-		if (superclass == null) {
-			return null;
-		}
 		if (superclass.getName().startsWith("org.apache.flink")) {
 			return superclass.getSimpleName();
 		} else {

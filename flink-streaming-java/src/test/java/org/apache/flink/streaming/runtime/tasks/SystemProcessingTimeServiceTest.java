@@ -101,7 +101,8 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			assertFalse(scheduledFuture.isDone());
 
 			// this should cancel our future
-			timer.quiesce().get();
+			timer.quiesce();
+			timer.awaitPendingAfterQuiesce();
 
 			// it may be that the cancelled status is not immediately visible after the
 			// termination (not necessary a volatile update), so we need to "get()" the cancellation
@@ -211,7 +212,8 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 			// after the task triggered, shut the timer down cleanly, waiting for the task to finish
 			latch.await();
-			timer.quiesce().get();
+			timer.quiesce();
+			timer.awaitPendingAfterQuiesce();
 
 			// should be able to immediately acquire the lock, since the task must have exited by now
 			assertTrue(scopeLock.tryLock());

@@ -22,5 +22,11 @@ package org.apache.flink.table.dataformat.vector;
  * Nullable column vector. Access data through specific subclasses.
  */
 public interface ColumnVector {
+
 	boolean isNullAt(int i);
+
+	/**
+	 * Resets the column to default state.
+	 */
+	void reset();
 }

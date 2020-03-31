@@ -41,9 +41,6 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -81,7 +78,12 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	/** Reusable object node. */
 	private transient ObjectNode node;
 
-	private JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
+	/**
+	 * @deprecated Use the provided {@link Builder} instead.
+	 */
+	@Deprecated
+	public JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
+		// TODO make this constructor private in the future
 		Preconditions.checkNotNull(typeInfo, "Type information");
 		Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
 		this.typeInfo = (RowTypeInfo) typeInfo;
@@ -94,21 +96,14 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	@PublicEvolving
 	public static class Builder {
 
-		private RowTypeInfo typeInfo;
-
-		private Builder() {
-			// private constructor
-		}
+		private final RowTypeInfo typeInfo;
 
 		/**
 		 * Creates a JSON serialization schema for the given type information.
 		 *
 		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
 		 *                 are used to parse the JSON properties.
-		 *
-		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
 		 */
-		@Deprecated
 		public Builder(TypeInformation<Row> typeInfo) {
 			checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
 			this.typeInfo = (RowTypeInfo) typeInfo;
@@ -120,41 +115,14 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		 * @param jsonSchema JSON schema describing the result type
 		 *
 		 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
-		 *
-		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
 		 */
-		@Deprecated
 		public Builder(String jsonSchema) {
 			this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)));
 		}
 
-		/**
-		 * Sets type information for JSON serialization schema.
-		 *
-		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
-		 *                 are used to parse the JSON properties.
-		 */
-		public Builder withTypeInfo(TypeInformation<Row> typeInfo) {
-			checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
-			this.typeInfo = (RowTypeInfo) typeInfo;
-			return this;
-		}
-
-		/**
-		 * Finalizes the configuration and checks validity.
-		 * @return Configured {@link JsonRowSerializationSchema}
-		 */
 		public JsonRowSerializationSchema build() {
-			checkArgument(typeInfo != null, "typeInfo should be set.");
 			return new JsonRowSerializationSchema(typeInfo);
 		}
-	}
-
-	/**
-	 * Creates a builder for {@link JsonRowSerializationSchema.Builder}.
-	 */
-	public static Builder builder() {
-		return new Builder();
 	}
 
 	@Override
@@ -287,49 +255,40 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		} else if (simpleTypeInfo == Types.BIG_INT) {
 			return Optional.of(createBigIntegerConverter());
 		} else if (simpleTypeInfo == Types.SQL_DATE) {
-			return Optional.of(this::convertDate);
+			return Optional.of(createDateConverter());
 		} else if (simpleTypeInfo == Types.SQL_TIME) {
-			return Optional.of(this::convertTime);
+			return Optional.of(createTimeConverter());
 		} else if (simpleTypeInfo == Types.SQL_TIMESTAMP) {
-			return Optional.of(this::convertTimestamp);
-		} else if (simpleTypeInfo == Types.LOCAL_DATE) {
-			return Optional.of(this::convertLocalDate);
-		} else if (simpleTypeInfo == Types.LOCAL_TIME) {
-			return Optional.of(this::convertLocalTime);
-		} else if (simpleTypeInfo == Types.LOCAL_DATE_TIME) {
-			return Optional.of(this::convertLocalDateTime);
+			return Optional.of(createTimestampConverter());
 		} else {
 			return Optional.empty();
 		}
 	}
 
-	private JsonNode convertLocalDate(ObjectMapper mapper, JsonNode reuse, Object object) {
-		return mapper.getNodeFactory().textNode(ISO_LOCAL_DATE.format((LocalDate) object));
+	private SerializationRuntimeConverter createDateConverter() {
+		return (mapper, reuse, object) -> {
+			Date date = (Date) object;
+
+			return mapper.getNodeFactory().textNode(ISO_LOCAL_DATE.format(date.toLocalDate()));
+		};
 	}
 
-	private JsonNode convertDate(ObjectMapper mapper, JsonNode reuse, Object object) {
-		Date date = (Date) object;
-		return convertLocalDate(mapper, reuse, date.toLocalDate());
+	private SerializationRuntimeConverter createTimestampConverter() {
+		return (mapper, reuse, object) -> {
+			Timestamp timestamp = (Timestamp) object;
+
+			return mapper.getNodeFactory()
+				.textNode(RFC3339_TIMESTAMP_FORMAT.format(timestamp.toLocalDateTime()));
+		};
 	}
 
-	private JsonNode convertLocalDateTime(ObjectMapper mapper, JsonNode reuse, Object object) {
-		return mapper.getNodeFactory()
-			.textNode(RFC3339_TIMESTAMP_FORMAT.format((LocalDateTime) object));
-	}
+	private SerializationRuntimeConverter createTimeConverter() {
+		return (mapper, reuse, object) -> {
+			final Time time = (Time) object;
 
-	private JsonNode convertTimestamp(ObjectMapper mapper, JsonNode reuse, Object object) {
-		Timestamp timestamp = (Timestamp) object;
-		return convertLocalDateTime(mapper, reuse, timestamp.toLocalDateTime());
-	}
-
-	private JsonNode convertLocalTime(ObjectMapper mapper, JsonNode reuse, Object object) {
-		JsonNodeFactory nodeFactory = mapper.getNodeFactory();
-		return nodeFactory.textNode(RFC3339_TIME_FORMAT.format((LocalTime) object));
-	}
-
-	private JsonNode convertTime(ObjectMapper mapper, JsonNode reuse, Object object) {
-		final Time time = (Time) object;
-		return convertLocalTime(mapper, reuse, time.toLocalTime());
+			JsonNodeFactory nodeFactory = mapper.getNodeFactory();
+			return nodeFactory.textNode(RFC3339_TIME_FORMAT.format(time.toLocalTime()));
+		};
 	}
 
 	private SerializationRuntimeConverter createBigDecimalConverter() {
@@ -360,8 +319,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		return (mapper, reuse, object) -> {
 			ObjectNode node;
 
-			// reuse could be a NullNode if last record is null.
-			if (reuse == null || reuse.isNull()) {
+			if (reuse == null) {
 				node = mapper.createObjectNode();
 			} else {
 				node = (ObjectNode) reuse;
@@ -383,8 +341,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		return (mapper, reuse, object) -> {
 			ArrayNode node;
 
-			// reuse could be a NullNode if last record is null.
-			if (reuse == null || reuse.isNull()) {
+			if (reuse == null) {
 				node = mapper.createArrayNode();
 			} else {
 				node = (ArrayNode) reuse;

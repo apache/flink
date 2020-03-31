@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -44,7 +43,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -278,8 +276,6 @@ public class FlinkKinesisProducerTest {
 	 */
 	@Test(timeout = 10000)
 	public void testBackpressure() throws Throwable {
-		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
-
 		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
 		producer.setQueueLimit(1);
 
@@ -298,7 +294,7 @@ public class FlinkKinesisProducerTest {
 			}
 		};
 		msg1.start();
-		msg1.trySync(deadline.timeLeftIfAny().toMillis());
+		msg1.trySync(100);
 		assertFalse("Flush triggered before reaching queue limit", msg1.isAlive());
 
 		// consume msg-1 so that queue is empty again
@@ -311,7 +307,7 @@ public class FlinkKinesisProducerTest {
 			}
 		};
 		msg2.start();
-		msg2.trySync(deadline.timeLeftIfAny().toMillis());
+		msg2.trySync(100);
 		assertFalse("Flush triggered before reaching queue limit", msg2.isAlive());
 
 		CheckedThread moreElementsThread = new CheckedThread() {
@@ -325,23 +321,19 @@ public class FlinkKinesisProducerTest {
 		};
 		moreElementsThread.start();
 
+		moreElementsThread.trySync(100);
 		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
 
 		// consume msg-2 from the queue, leaving msg-3 in the queue and msg-4 blocked
-		while (producer.getPendingRecordFutures().size() < 2) {
-			Thread.sleep(50);
-		}
 		producer.getPendingRecordFutures().get(1).set(result);
 
+		moreElementsThread.trySync(100);
 		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
 
 		// consume msg-3, blocked msg-4 can be inserted into the queue and block is released
-		while (producer.getPendingRecordFutures().size() < 3) {
-			Thread.sleep(50);
-		}
 		producer.getPendingRecordFutures().get(2).set(result);
 
-		moreElementsThread.trySync(deadline.timeLeftIfAny().toMillis());
+		moreElementsThread.trySync(100);
 
 		assertFalse("Prodcuer still blocks although the queue is flushed", moreElementsThread.isAlive());
 

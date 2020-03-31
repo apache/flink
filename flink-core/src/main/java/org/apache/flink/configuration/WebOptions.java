@@ -32,7 +32,6 @@ public class WebOptions {
 	/**
 	 * Config parameter defining the runtime monitor web-frontend server address.
 	 */
-	@Deprecated
 	public static final ConfigOption<String> ADDRESS =
 		key("web.address")
 			.noDefaultValue()
@@ -72,7 +71,6 @@ public class WebOptions {
 	/**
 	 * Config parameter to override SSL support for the JobManager Web UI.
 	 */
-	@Deprecated
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("web.ssl.enabled")
 			.defaultValue(true)

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -46,7 +45,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	private static final long serialVersionUID = -973959257699390327L;
 
 	/** Tracker callback when the pending checkpoint is finalized or aborted. */
-	private final transient CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
+	private transient final CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
 
 	/** The current number of acknowledged subtasks. */
 	private volatile int currentNumAcknowledgedSubtasks;

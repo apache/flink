@@ -120,7 +120,7 @@ public class InputChannelBuilder {
 			maxBackoff,
 			metrics,
 			memorySegmentProvider);
-		inputGate.setInputChannel(channel);
+		inputGate.setInputChannel(partitionId.getPartitionId(), channel);
 		return channel;
 	}
 
@@ -134,7 +134,7 @@ public class InputChannelBuilder {
 			initialBackoff,
 			maxBackoff,
 			metrics);
-		inputGate.setInputChannel(channel);
+		inputGate.setInputChannel(partitionId.getPartitionId(), channel);
 		return channel;
 	}
 
@@ -149,7 +149,7 @@ public class InputChannelBuilder {
 			maxBackoff,
 			metrics,
 			memorySegmentProvider);
-		inputGate.setInputChannel(channel);
+		inputGate.setInputChannel(partitionId.getPartitionId(), channel);
 		return channel;
 	}
 }

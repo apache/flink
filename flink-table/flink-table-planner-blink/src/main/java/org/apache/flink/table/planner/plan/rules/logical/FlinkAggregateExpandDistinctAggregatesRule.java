@@ -417,17 +417,14 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
 			Aggregate aggregate) {
 		final Set<ImmutableBitSet> groupSetTreeSet =
 				new TreeSet<>(ImmutableBitSet.ORDERING);
-		final Map<ImmutableBitSet, Integer> groupSetToDistinctAggCallFilterArg = new HashMap<>();
 		for (AggregateCall aggCall : aggregate.getAggCallList()) {
 			if (!aggCall.isDistinct()) {
 				groupSetTreeSet.add(aggregate.getGroupSet());
 			} else {
-				ImmutableBitSet groupSet =
+				groupSetTreeSet.add(
 						ImmutableBitSet.of(aggCall.getArgList())
 								.setIf(aggCall.filterArg, aggCall.filterArg >= 0)
-								.union(aggregate.getGroupSet());
-				groupSetToDistinctAggCallFilterArg.put(groupSet, aggCall.filterArg);
-				groupSetTreeSet.add(groupSet);
+								.union(aggregate.getGroupSet()));
 			}
 		}
 
@@ -474,21 +471,10 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
 			final RexNode nodeZ = nodes.remove(nodes.size() - 1);
 			for (Map.Entry<ImmutableBitSet, Integer> entry : filters.entrySet()) {
 				final long v = groupValue(fullGroupSet, entry.getKey());
-				// Get and remap the filterArg of the distinct aggregate call.
-				int distinctAggCallFilterArg = remap(fullGroupSet,
-					groupSetToDistinctAggCallFilterArg.getOrDefault(entry.getKey(), -1));
-				RexNode expr;
-				if (distinctAggCallFilterArg < 0) {
-					expr = relBuilder.equals(nodeZ, relBuilder.literal(v));
-				} else {
-					RexBuilder rexBuilder = aggregate.getCluster().getRexBuilder();
-					// merge the filter of the distinct aggregate call itself.
-					expr = relBuilder.and(
-						relBuilder.equals(nodeZ, relBuilder.literal(v)),
-						rexBuilder.makeCall(SqlStdOperatorTable.IS_TRUE,
-							relBuilder.field(distinctAggCallFilterArg)));
-				}
-				nodes.add(relBuilder.alias(expr, "$g_" + v));
+				nodes.add(
+						relBuilder.alias(
+								relBuilder.equals(nodeZ, relBuilder.literal(v)),
+								"$g_" + v));
 			}
 			relBuilder.project(nodes);
 		}

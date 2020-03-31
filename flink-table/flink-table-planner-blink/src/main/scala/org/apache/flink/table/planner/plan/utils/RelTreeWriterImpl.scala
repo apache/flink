@@ -38,8 +38,7 @@ class RelTreeWriterImpl(
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withIdPrefix: Boolean = false,
     withRetractTraits: Boolean = false,
-    withRowType: Boolean = false,
-    withTreeStyle: Boolean = true)
+    withRowType: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   var lastChildren: Seq[Boolean] = Nil
@@ -56,13 +55,11 @@ class RelTreeWriterImpl(
     }
 
     val s = new StringBuilder
-    if (withTreeStyle) {
-      if (depth > 0) {
-        lastChildren.init.foreach { isLast =>
-          s.append(if (isLast) "   " else ":  ")
-        }
-        s.append(if (lastChildren.last) "+- " else ":- ")
+    if (depth > 0) {
+      lastChildren.init.foreach { isLast =>
+        s.append(if (isLast) "   " else ":  ")
       }
+      s.append(if (lastChildren.last) "+- " else ":- ")
     }
 
     if (withIdPrefix) {
@@ -115,30 +112,18 @@ class RelTreeWriterImpl(
     }
     pw.println(s)
     if (inputs.length > 1) inputs.toSeq.init.foreach { rel =>
-      if (withTreeStyle) {
-        depth = depth + 1
-        lastChildren = lastChildren :+ false
-      }
-
+      depth = depth + 1
+      lastChildren = lastChildren :+ false
       rel.explain(this)
-
-      if (withTreeStyle) {
-        depth = depth - 1
-        lastChildren = lastChildren.init
-      }
+      depth = depth - 1
+      lastChildren = lastChildren.init
     }
     if (!inputs.isEmpty) {
-      if (withTreeStyle) {
-        depth = depth + 1
-        lastChildren = lastChildren :+ true
-      }
-
+      depth = depth + 1
+      lastChildren = lastChildren :+ true
       inputs.toSeq.last.explain(this)
-
-      if (withTreeStyle) {
-        depth = depth - 1
-        lastChildren = lastChildren.init
-      }
+      depth = depth - 1
+      lastChildren = lastChildren.init
     }
   }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
@@ -30,8 +29,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
@@ -44,12 +43,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An {@link PipelineExecutor} for executing a {@link Pipeline} locally.
+ * An {@link Executor} for executing a {@link Pipeline} locally.
  */
 @Internal
-public class LocalExecutor implements PipelineExecutor {
-
-	public static final String NAME = "local";
+public class LocalExecutor implements Executor {
 
 	@Override
 	public CompletableFuture<JobClient> execute(Pipeline pipeline, Configuration configuration) throws Exception {
@@ -63,14 +60,15 @@ public class LocalExecutor implements PipelineExecutor {
 		final MiniCluster miniCluster = startMiniCluster(jobGraph, configuration);
 		final MiniClusterClient clusterClient = new MiniClusterClient(configuration, miniCluster);
 
-		CompletableFuture<JobID> jobIdFuture = clusterClient.submitJob(jobGraph);
-
-		jobIdFuture
-				.thenCompose(clusterClient::requestJobResult)
-				.thenAccept((jobResult) -> clusterClient.shutDownCluster());
-
-		return jobIdFuture.thenApply(jobID ->
-				new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID));
+		return clusterClient
+				.submitJob(jobGraph)
+				.thenApply(jobID -> new ClusterClientJobClientAdapter<MiniClusterClient.MiniClusterId>(clusterClient, jobID) {
+					@Override
+					protected void doClose() {
+						clusterClient.close();
+						shutdownMiniCluster(miniCluster);
+					}
+				});
 	}
 
 	private JobGraph getJobGraph(Pipeline pipeline, Configuration configuration) {

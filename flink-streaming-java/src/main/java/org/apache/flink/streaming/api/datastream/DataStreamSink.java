@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
@@ -126,6 +127,8 @@ public class DataStreamSink<T> {
 	 * @return The sink with set minimum and preferred resources.
 	 */
 	private DataStreamSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
+
 		transformation.setResources(minResources, preferredResources);
 
 		return this;
@@ -138,6 +141,8 @@ public class DataStreamSink<T> {
 	 * @return The sink with set minimum and preferred resources.
 	 */
 	private DataStreamSink<T> setResources(ResourceSpec resources) {
+		OperatorValidationUtils.validateResources(resources);
+
 		transformation.setResources(resources, resources);
 
 		return this;

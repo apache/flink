@@ -23,20 +23,20 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -72,10 +72,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.INTERSECT;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.MINUS;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.UNION;
@@ -86,9 +85,7 @@ import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperat
 @Internal
 public final class OperationTreeBuilder {
 
-	private final TableConfig config;
 	private final FunctionLookup functionCatalog;
-	private final DataTypeFactory typeFactory;
 	private final TableReferenceLookup tableReferenceLookup;
 	private final LookupCallResolver lookupResolver;
 
@@ -103,9 +100,7 @@ public final class OperationTreeBuilder {
 	private final JoinOperationFactory joinOperationFactory;
 
 	private OperationTreeBuilder(
-			TableConfig config,
 			FunctionLookup functionLookup,
-			DataTypeFactory typeFactory,
 			TableReferenceLookup tableReferenceLookup,
 			ProjectionOperationFactory projectionOperationFactory,
 			SortOperationFactory sortOperationFactory,
@@ -113,9 +108,7 @@ public final class OperationTreeBuilder {
 			SetOperationFactory setOperationFactory,
 			AggregateOperationFactory aggregateOperationFactory,
 			JoinOperationFactory joinOperationFactory) {
-		this.config = config;
 		this.functionCatalog = functionLookup;
-		this.typeFactory = typeFactory;
 		this.tableReferenceLookup = tableReferenceLookup;
 		this.projectionOperationFactory = projectionOperationFactory;
 		this.sortOperationFactory = sortOperationFactory;
@@ -127,15 +120,11 @@ public final class OperationTreeBuilder {
 	}
 
 	public static OperationTreeBuilder create(
-			TableConfig config,
 			FunctionLookup functionCatalog,
-			DataTypeFactory typeFactory,
 			TableReferenceLookup tableReferenceLookup,
 			boolean isStreamingMode) {
 		return new OperationTreeBuilder(
-			config,
 			functionCatalog,
-			typeFactory,
 			tableReferenceLookup,
 			new ProjectionOperationFactory(),
 			new SortOperationFactory(isStreamingMode),
@@ -179,12 +168,7 @@ public final class OperationTreeBuilder {
 			boolean explicitAlias,
 			List<OverWindow> overWindows) {
 
-		ExpressionResolver resolver = ExpressionResolver.resolverFor(
-				config,
-				tableReferenceLookup,
-				functionCatalog,
-				typeFactory,
-				child)
+		ExpressionResolver resolver = ExpressionResolver.resolverFor(tableReferenceLookup, functionCatalog, child)
 			.withOverWindows(overWindows)
 			.build();
 		List<ResolvedExpression> projections = resolver.resolve(projectList);
@@ -201,7 +185,7 @@ public final class OperationTreeBuilder {
 			newColumns = ColumnOperationUtils.addOrReplaceColumns(Arrays.asList(fieldNames), fieldLists);
 		} else {
 			newColumns = new ArrayList<>(fieldLists);
-			newColumns.add(0, unresolvedRef("*"));
+			newColumns.add(0, new UnresolvedReferenceExpression("*"));
 		}
 		return project(newColumns, child, false);
 	}
@@ -249,13 +233,11 @@ public final class OperationTreeBuilder {
 		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
 
 		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
-				config,
 				tableReferenceLookup,
 				functionCatalog,
-				typeFactory,
 				child)
 			.withLocalReferences(
-				localRef(
+				new LocalReferenceExpression(
 					resolvedWindow.getAlias(),
 					resolvedWindow.getTimeAttribute().getOutputDataType()))
 			.build();
@@ -300,13 +282,11 @@ public final class OperationTreeBuilder {
 		// Step3: resolve expressions, including grouping, aggregates and window properties.
 		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
 		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
-				config,
-				tableReferenceLookup,
-				functionCatalog,
-				typeFactory,
-				child)
+			tableReferenceLookup,
+			functionCatalog,
+			child)
 			.withLocalReferences(
-				localRef(
+				new LocalReferenceExpression(
 					resolvedWindow.getAlias(),
 					resolvedWindow.getTimeAttribute().getOutputDataType()))
 			.build();
@@ -347,13 +327,7 @@ public final class OperationTreeBuilder {
 			JoinType joinType,
 			Optional<Expression> condition,
 			boolean correlated) {
-		ExpressionResolver resolver = ExpressionResolver.resolverFor(
-				config,
-				tableReferenceLookup,
-				functionCatalog,
-				typeFactory,
-				left,
-				right)
+		ExpressionResolver resolver = ExpressionResolver.resolverFor(tableReferenceLookup, functionCatalog, left, right)
 			.build();
 		Optional<ResolvedExpression> resolvedCondition = condition.map(expr -> resolveSingleExpression(expr, resolver));
 
@@ -382,10 +356,8 @@ public final class OperationTreeBuilder {
 
 	public Expression resolveExpression(Expression expression, QueryOperation... tableOperation) {
 		ExpressionResolver resolver = ExpressionResolver.resolverFor(
-			config,
 			tableReferenceLookup,
 			functionCatalog,
-			typeFactory,
 			tableOperation).build();
 
 		return resolveSingleExpression(expression, resolver);
@@ -492,10 +464,10 @@ public final class OperationTreeBuilder {
 			args.toArray(new Expression[0]));
 		QueryOperation joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty());
 		QueryOperation rightNode = dropColumns(
-			childFields.stream().map(ApiExpressionUtils::unresolvedRef).collect(Collectors.toList()),
+			childFields.stream().map(UnresolvedReferenceExpression::new).collect(Collectors.toList()),
 			joinNode);
 		return alias(
-			originFieldNames.stream().map(ApiExpressionUtils::unresolvedRef).collect(Collectors.toList()),
+			originFieldNames.stream().map(UnresolvedReferenceExpression::new).collect(Collectors.toList()),
 			rightNode);
 	}
 
@@ -555,11 +527,11 @@ public final class OperationTreeBuilder {
 	private static class ExtractAliasAndAggregate extends ApiExpressionDefaultVisitor<AggregateWithAlias> {
 
 		// need this flag to validate alias, i.e., the length of alias and function result type should be same.
-		private boolean isRowBasedAggregate;
-		private ExpressionResolver resolver;
+		private boolean isRowbasedAggregate = false;
+		private ExpressionResolver resolver = null;
 
-		public ExtractAliasAndAggregate(boolean isRowBasedAggregate, ExpressionResolver resolver) {
-			this.isRowBasedAggregate = isRowBasedAggregate;
+		public ExtractAliasAndAggregate(boolean isRowbasedAggregate, ExpressionResolver resolver) {
+			this.isRowbasedAggregate = isRowbasedAggregate;
 			this.resolver = resolver;
 		}
 
@@ -606,7 +578,7 @@ public final class OperationTreeBuilder {
 				} else {
 					ResolvedExpression resolvedExpression =
 						resolver.resolve(Collections.singletonList(unresolvedCall)).get(0);
-					validateAlias(aliases, resolvedExpression, isRowBasedAggregate);
+					validateAlias(aliases, resolvedExpression, isRowbasedAggregate);
 					fieldNames = aliases;
 				}
 				return Optional.of(new AggregateWithAlias(unresolvedCall, fieldNames));
@@ -688,13 +660,11 @@ public final class OperationTreeBuilder {
 		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
 
 		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
-			config,
 			tableReferenceLookup,
 			functionCatalog,
-			typeFactory,
 			child)
 			.withLocalReferences(
-				localRef(
+				new LocalReferenceExpression(
 					resolvedWindow.getAlias(),
 					resolvedWindow.getTimeAttribute().getOutputDataType()))
 			.build();
@@ -737,7 +707,7 @@ public final class OperationTreeBuilder {
 			}
 
 			return this.alias(namesAfterAlias.stream()
-				.map(ApiExpressionUtils::unresolvedRef)
+				.map(UnresolvedReferenceExpression::new)
 				.collect(Collectors.toList()), inputOperation);
 		} else {
 			return inputOperation;
@@ -788,13 +758,7 @@ public final class OperationTreeBuilder {
 	}
 
 	private ExpressionResolver getResolver(QueryOperation child) {
-		return ExpressionResolver.resolverFor(
-				config,
-				tableReferenceLookup,
-				functionCatalog,
-				typeFactory,
-				child)
-			.build();
+		return ExpressionResolver.resolverFor(tableReferenceLookup, functionCatalog, child).build();
 	}
 
 	private static class NoWindowPropertyChecker extends ApiExpressionDefaultVisitor<Void> {

@@ -62,7 +62,7 @@ def word_count():
         .with_schema(Schema()
                      .field("word", DataTypes.STRING())
                      .field("count", DataTypes.BIGINT())) \
-        .create_temporary_table("Results")
+        .register_table_sink("Results")
 
     elements = [(word, 1) for word in content.split(" ")]
     t_env.from_elements(elements, ["word", "count"]) \

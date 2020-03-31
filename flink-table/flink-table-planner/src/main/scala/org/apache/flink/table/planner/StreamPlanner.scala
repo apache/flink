@@ -30,7 +30,7 @@ import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{ExpressionBridge, PlannerExpression, PlannerExpressionConverter, PlannerTypeInferenceUtilImpl}
-import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
+import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.plan.StreamOptimizer
@@ -39,7 +39,7 @@ import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.util.{DummyStreamExecutionEnvironment, JavaScalaConversionUtil}
+import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -51,6 +51,7 @@ import _root_.java.util
 import _root_.java.util.Objects
 import _root_.java.util.function.{Supplier => JSupplier}
 
+import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 
 /**
@@ -76,11 +77,11 @@ class StreamPlanner(
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
   private val internalSchema: CalciteSchema =
-    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, config, true))
+    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true))
 
   // temporary bridge between API and planner
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
 
   private val planningConfigurationBuilder: PlanningConfigurationBuilder =
     new PlanningConfigurationBuilder(
@@ -120,8 +121,6 @@ class StreamPlanner(
     operations.asScala.map {
       case queryOperation: QueryOperation =>
         explain(queryOperation, unwrapQueryConfig)
-      case modifyOperation: ModifyOperation =>
-        explain(modifyOperation.getChild, unwrapQueryConfig)
       case operation =>
         throw new TableException(s"${operation.getClass.getCanonicalName} is not supported")
     }.mkString(s"${System.lineSeparator}${System.lineSeparator}")
@@ -243,14 +242,10 @@ class StreamPlanner(
   private def translateToCRow(
     logicalPlan: RelNode,
     queryConfig: StreamQueryConfig): DataStream[CRow] = {
-    val planner = createDummyPlanner()
 
     logicalPlan match {
       case node: DataStreamRel =>
-        getExecutionEnvironment.configure(
-          config.getConfiguration,
-          Thread.currentThread().getContextClassLoader)
-        node.translateToPlan(planner, queryConfig)
+        node.translateToPlan(this, queryConfig)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -357,9 +352,7 @@ class StreamPlanner(
     val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(optimizedPlan)
     sink.setIsAppendOnly(isAppendOnlyTable)
     // extract unique key fields
-    val sinkFieldNames = sink.getTableSchema.getFieldNames
-    val tableKeys: Option[Array[String]] = UpdatingPlanChecker
-      .getUniqueKeyFields(optimizedPlan, sinkFieldNames)
+    val tableKeys: Option[Array[String]] = UpdatingPlanChecker.getUniqueKeyFields(optimizedPlan)
     // check that we have keys if the table has changes (is not append-only)
     tableKeys match {
       case Some(keys) => sink.setKeyFields(keys)
@@ -436,23 +429,20 @@ class StreamPlanner(
       case Some(s) if s.isInstanceOf[CatalogTable] =>
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
-        val context = new TableSinkFactoryContextImpl(
-          objectIdentifier, catalogTable, config.getConfiguration)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
+          val sink = TableFactoryUtil.createTableSinkForCatalogTable(
+            catalog.get(),
+            catalogTable,
+            objectIdentifier.toObjectPath)
           if (sink.isPresent) {
             return Option(sink.get())
           }
         }
-        Option(TableFactoryUtil.findAndCreateTableSink(context))
+        val sinkProperties = catalogTable.toProperties
+        Option(TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
+          .createTableSink(sinkProperties))
 
       case _ => None
     }
-  }
-
-  private def createDummyPlanner(): StreamPlanner = {
-    val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecutionEnvironment)
-    val executor = new StreamExecutor(dummyExecEnv)
-    new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
 }

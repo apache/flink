@@ -298,8 +298,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 				new ArchivedExecutionConfig(new ExecutionConfig()),
 				false,
 				null,
-				null,
-				"stateBackendName");
+				null);
 
 			jobStatus = super.getState();
 		}

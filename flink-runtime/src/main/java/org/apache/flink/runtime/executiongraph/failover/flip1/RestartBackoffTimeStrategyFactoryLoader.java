@@ -59,7 +59,7 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
 	 * @param isCheckpointingEnabled if checkpointing is enabled for the job
 	 * @return new version restart strategy factory
 	 */
-	public static RestartBackoffTimeStrategy.Factory createRestartBackoffTimeStrategyFactory(
+	public static RestartBackoffTimeStrategy.Factory createRestartStrategyFactory(
 			final RestartStrategies.RestartStrategyConfiguration jobRestartStrategyConfiguration,
 			final Configuration clusterConfiguration,
 			final boolean isCheckpointingEnabled) {

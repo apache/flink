@@ -26,7 +26,6 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -62,7 +61,7 @@ public class AccumulatorErrorITCase extends TestLogger {
 
 	public static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
 		return config;
 	}
 

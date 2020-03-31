@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive.read;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
-import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.DataFormatConverters;
@@ -86,15 +85,12 @@ public class HiveMapredSplitReader implements SplitReader {
 
 	private final HiveTablePartition hiveTablePartition;
 
-	private final HiveShim hiveShim;
-
 	public HiveMapredSplitReader(
 			JobConf jobConf,
 			List<String> partitionKeys,
 			DataType[] fieldTypes,
 			int[] selectedFields,
-			HiveTableInputSplit split,
-			HiveShim hiveShim) throws IOException {
+			HiveTableInputSplit split) throws IOException {
 		this.hiveTablePartition = split.getHiveTablePartition();
 		StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
 		jobConf.set(INPUT_DIR, sd.getLocation());
@@ -137,7 +133,6 @@ public class HiveMapredSplitReader implements SplitReader {
 				.mapToObj(i -> fieldTypes[i])
 				.map(DataFormatConverters::getConverterForDataType)
 				.toArray(DataFormatConverters.DataFormatConverter[]::new);
-		this.hiveShim = hiveShim;
 	}
 
 	@Override
@@ -164,7 +159,7 @@ public class HiveMapredSplitReader implements SplitReader {
 				if (selectedFields[i] < structFields.size()) {
 					StructField structField = structFields.get(selectedFields[i]);
 					Object object = HiveInspectors.toFlinkObject(structField.getFieldObjectInspector(),
-							structObjectInspector.getStructFieldData(hiveRowStruct, structField), hiveShim);
+							structObjectInspector.getStructFieldData(hiveRowStruct, structField));
 					row.setField(i, converters[i].toInternal(object));
 				}
 			}

@@ -70,12 +70,10 @@ class FloorCeilCallGen(
               if terms.length + 1 == method.getParameterCount &&
                 method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
               val timeZone = ctx.addReusableTimeZone()
-              val longTerm = s"${terms.head}.getMillisecond()"
               s"""
-                 |$SQL_TIMESTAMP.fromEpochMillis(
-                 |  ${qualifyMethod(temporalMethod.get)}(${terms(1)},
-                 |  $longTerm,
-                 |  $timeZone))
+                 |($internalType) ${qualifyMethod(temporalMethod.get)}(${terms(1)},
+                 |                                                     ${terms.head},
+                 |                                                     $timeZone)
                  |""".stripMargin
 
             // for Unix Date / Unix Time

@@ -20,8 +20,9 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.testutils.logging.TestLoggerResource;
+import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -33,28 +34,24 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.event.Level;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.yarn.UtilsTest.addTestAppender;
+import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 /**
  * This test starts a MiniYARNCluster with a FIFO scheduler.
@@ -62,9 +59,6 @@ import static org.junit.Assert.assertThat;
  */
 public class YARNSessionFIFOITCase extends YarnTestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
-
-	@Rule
-	public final TestLoggerResource yarTestLoggerResource = new TestLoggerResource(YarnClusterDescriptor.class, Level.WARN);
 
 	/*
 	Override init with FIFO scheduler.
@@ -85,15 +79,16 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 	@Test(timeout = 60000)
 	public void testDetachedMode() throws Exception {
-		runTest(() -> runDetachedModeTest(Collections.emptyMap()));
+		runTest(this::runDetachedModeTest);
 	}
 
 	/**
 	 * Test regular operation, including command line parameter parsing.
 	 */
-	void runDetachedModeTest(Map<String, String> securityProperties) throws Exception {
+	void runDetachedModeTest() throws Exception {
 		runTest(() -> {
 			LOG.info("Starting testDetachedMode()");
+			addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
 
 			File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
 			// get temporary file for reading input data for wordcount example
@@ -116,10 +111,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			args.add("-tm");
 			args.add("1024m");
 
-			if (securityProperties != null) {
-				for (Map.Entry<String, String> property : securityProperties.entrySet()) {
-					args.add("-D" + property.getKey() + "=" + property.getValue());
-				}
+			if (SecureTestEnvironment.getTestKeytab() != null) {
+				args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
+			}
+			if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
+				args.add("-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=" + SecureTestEnvironment.getHadoopServicePrincipal());
 			}
 
 			args.add("--name");
@@ -243,6 +239,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void testResourceComputation() throws Exception {
 		runTest(() -> {
+			addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 			LOG.info("Starting testResourceComputation()");
 			runWithArgs(new String[]{
 				"-j", flinkUberjar.getAbsolutePath(),
@@ -251,9 +248,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-jm", "256m",
 				"-tm", "1585m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 			LOG.info("Finished testResourceComputation()");
-			assertThat(
-				yarTestLoggerResource.getMessages(),
-				hasItem(containsString("This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.")));
+			checkForLogString("This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.");
 		});
 	}
 
@@ -276,6 +271,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void testfullAlloc() throws Exception {
 		runTest(() -> {
+			addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 			LOG.info("Starting testfullAlloc()");
 			runWithArgs(new String[]{
 				"-j", flinkUberjar.getAbsolutePath(),
@@ -284,10 +280,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-jm", "256m",
 				"-tm", "3840m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 			LOG.info("Finished testfullAlloc()");
-			assertThat(
-				yarTestLoggerResource.getMessages(),
-				hasItem(containsString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
-					"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]")));
+			checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
+				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
 		});
 	}
 }

@@ -24,6 +24,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -154,16 +156,16 @@ public class TaskManagerServicesConfiguration {
 		return pageSize;
 	}
 
-	public TaskExecutorResourceSpec getTaskExecutorResourceSpec() {
-		return taskExecutorResourceSpec;
+	public MemorySize getShuffleMemorySize() {
+		return taskExecutorResourceSpec.getShuffleMemSize();
 	}
 
-	public MemorySize getNetworkMemorySize() {
-		return taskExecutorResourceSpec.getNetworkMemSize();
+	public MemorySize getOnHeapManagedMemorySize() {
+		return taskExecutorResourceSpec.getOnHeapManagedMemorySize();
 	}
 
-	public MemorySize getManagedMemorySize() {
-		return taskExecutorResourceSpec.getManagedMemorySize();
+	public MemorySize getOffHeapManagedMemorySize() {
+		return taskExecutorResourceSpec.getOffHeapManagedMemorySize();
 	}
 
 	long getTimerServiceShutdownTimeout() {
@@ -198,8 +200,7 @@ public class TaskManagerServicesConfiguration {
 			Configuration configuration,
 			ResourceID resourceID,
 			InetAddress remoteAddress,
-			boolean localCommunicationOnly,
-			TaskExecutorResourceSpec taskExecutorResourceSpec) {
+			boolean localCommunicationOnly) {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 		if (localStateRootDir.length == 0) {
@@ -215,6 +216,7 @@ public class TaskManagerServicesConfiguration {
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
+		final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 		return new TaskManagerServicesConfiguration(
 			configuration,
 			resourceID,

@@ -23,9 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -36,6 +34,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
@@ -63,30 +62,19 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 	private static final int BUFFER_SIZE = 1024 * 1024;
 
-	private static final String COMPRESSION_CODEC = "LZ4";
-
-	private static final BufferDecompressor decompressor = new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
-
 	// ------------------------------------------------------------------------
 	//  parameters
 	// ------------------------------------------------------------------------
 
-	private final BoundedBlockingSubpartitionType type;
-
-	private final boolean compressionEnabled;
-
-	@Parameters(name = "type = {0}, compressionEnabled = {1}")
-	public static Collection<Object[]> parameters() {
+	@Parameters(name = "type = {0}")
+	public static Collection<Object[]> modes() {
 		return Arrays.stream(BoundedBlockingSubpartitionType.values())
-				.map((type) -> new Object[][] { { type, true }, { type, false } })
-				.flatMap(Arrays::stream)
+				.map((type) -> new Object[] { type })
 				.collect(Collectors.toList());
 	}
 
-	public BoundedBlockingSubpartitionWriteReadTest(BoundedBlockingSubpartitionType type, boolean compressionEnabled) {
-		this.type = type;
-		this.compressionEnabled = compressionEnabled;
-	}
+	@Parameter
+	public BoundedBlockingSubpartitionType type;
 
 	// ------------------------------------------------------------------------
 	//  tests
@@ -111,7 +99,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 		// test & check
 		final ResultSubpartitionView reader = subpartition.createReadView(() -> {});
-		readLongs(reader, numLongs, subpartition.getBuffersInBacklog(), compressionEnabled, decompressor);
+		readLongs(reader, numLongs, subpartition.getBuffersInBacklog());
 
 		// cleanup
 		reader.releaseAllResources();
@@ -128,7 +116,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 		// test & check
 		for (int i = 0; i < 10; i++) {
 			final ResultSubpartitionView reader = subpartition.createReadView(() -> {});
-			readLongs(reader, numLongs, subpartition.getBuffersInBacklog(), compressionEnabled, decompressor);
+			readLongs(reader, numLongs, subpartition.getBuffersInBacklog());
 			reader.releaseAllResources();
 		}
 
@@ -145,7 +133,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 		// test
 		final LongReader[] readerThreads = createSubpartitionLongReaders(
-				subpartition, 10, numLongs, subpartition.getBuffersInBacklog(), compressionEnabled);
+				subpartition, 10, numLongs, subpartition.getBuffersInBacklog());
 		for (CheckedThread t : readerThreads) {
 			t.start();
 		}
@@ -163,12 +151,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	//  common test passes
 	// ------------------------------------------------------------------------
 
-	private static void readLongs(
-			ResultSubpartitionView reader,
-			long numLongs,
-			int numBuffers,
-			boolean compressionEnabled,
-			BufferDecompressor decompressor) throws Exception {
+	private static void readLongs(ResultSubpartitionView reader, long numLongs, int numBuffers) throws Exception {
 		BufferAndBacklog next;
 		long expectedNextLong = 0L;
 		int nextExpectedBacklog = numBuffers - 1;
@@ -178,11 +161,6 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 			assertEquals(nextExpectedBacklog, next.buffersInBacklog());
 
 			ByteBuffer buffer = next.buffer().getNioBufferReadable();
-			if (compressionEnabled && next.buffer().isCompressed()) {
-				Buffer uncompressedBuffer = decompressor.decompressToIntermediateBuffer(next.buffer());
-				buffer = uncompressedBuffer.getNioBufferReadable();
-				uncompressedBuffer.recycleBuffer();
-			}
 			while (buffer.hasRemaining()) {
 				assertEquals(expectedNextLong++, buffer.getLong());
 			}
@@ -229,11 +207,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	private BoundedBlockingSubpartition createSubpartition() throws IOException {
 		return type.create(
 				0,
-				PartitionTestUtils.createPartition(
-					ResultPartitionType.BLOCKING,
-					fileChannelManager,
-					compressionEnabled,
-					BUFFER_SIZE),
+				PartitionTestUtils.createPartition(ResultPartitionType.BLOCKING, fileChannelManager),
 				new File(TMP_FOLDER.newFolder(), "partitiondata"),
 				BUFFER_SIZE);
 	}
@@ -242,13 +216,12 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 			BoundedBlockingSubpartition subpartition,
 			int numReaders,
 			int numLongs,
-			int numBuffers,
-			boolean compressionEnabled) throws IOException {
+			int numBuffers) throws IOException {
 
 		final LongReader[] readerThreads = new LongReader[numReaders];
 		for (int i = 0; i < numReaders; i++) {
 			ResultSubpartitionView reader = subpartition.createReadView(() -> {});
-			readerThreads[i] = new LongReader(reader, numLongs, numBuffers, compressionEnabled);
+			readerThreads[i] = new LongReader(reader, numLongs, numBuffers);
 		}
 		return readerThreads;
 	}
@@ -261,21 +234,15 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 		private final int numBuffers;
 
-		private final boolean compressionEnabled;
-
-		private final BufferDecompressor decompressor;
-
-		LongReader(ResultSubpartitionView reader, long numLongs, int numBuffers, boolean compressionEnabled) {
+		LongReader(ResultSubpartitionView reader, long numLongs, int numBuffers) {
 			this.reader = reader;
 			this.numLongs = numLongs;
 			this.numBuffers = numBuffers;
-			this.compressionEnabled = compressionEnabled;
-			this.decompressor = new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
 		}
 
 		@Override
 		public void go() throws Exception {
-			readLongs(reader, numLongs, numBuffers, compressionEnabled, decompressor);
+			readLongs(reader, numLongs, numBuffers);
 		}
 	}
 }

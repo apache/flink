@@ -18,18 +18,16 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.client.program.ProgramAbortException;
+import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import py4j.GatewayServer;
 
-import java.io.File;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * A main class used to launch Python applications. It executes python as a
@@ -67,10 +65,8 @@ public final class PythonDriver {
 		final List<String> commands = constructPythonCommands(pythonDriverOptions);
 		try {
 			// prepare the exec environment of python progress.
-			String tmpDir = System.getProperty("java.io.tmpdir") +
-				File.separator + "pyflink" + File.separator + UUID.randomUUID();
 			PythonDriverEnvUtils.PythonEnvironment pythonEnv = PythonDriverEnvUtils.preparePythonEnvironment(
-				pythonDriverOptions, tmpDir);
+				pythonDriverOptions.getPythonLibFiles());
 			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
 			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
@@ -84,7 +80,7 @@ public final class PythonDriver {
 
 			// throw ProgramAbortException if the caller is interested in the program plan,
 			// there is no harm to throw ProgramAbortException even if it is not the case.
-			throw new ProgramAbortException();
+			throw new OptimizerPlanEnvironment.ProgramAbortException();
 		} finally {
 			gatewayServer.shutdown();
 		}

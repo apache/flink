@@ -23,14 +23,13 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -70,6 +69,10 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -95,7 +98,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
 	private static ZooKeeperTestEnvironment zooKeeper;
 
-	private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5);
+	private static final FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -246,17 +249,15 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zooKeeper.getConnectString(), zookeeperStoragePath.getPath());
 		// Task manager configuration
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 100);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-		config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
-		config.set(TaskManagerOptions.CPU_CORES, 1.0);
+		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "512m");
 
 		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
 
 		try {
-			final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);
+			final Deadline deadline = TestTimeOut.fromNow();
 
 			// Coordination directory
 			coordinateTempDir = temporaryFolder.newFolder();
@@ -392,7 +393,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 		}
 	}
 
-	private void waitForTaskManagers(int numberOfTaskManagers, DispatcherGateway dispatcherGateway, Duration timeLeft) throws ExecutionException, InterruptedException {
+	private void waitForTaskManagers(int numberOfTaskManagers, DispatcherGateway dispatcherGateway, FiniteDuration timeLeft) throws ExecutionException, InterruptedException {
 		FutureUtils.retrySuccessfulWithDelay(
 			() -> dispatcherGateway.requestClusterOverview(Time.milliseconds(timeLeft.toMillis())),
 			Time.milliseconds(50L),

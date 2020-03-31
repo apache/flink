@@ -40,8 +40,6 @@ public class ResultPartitionBuilder {
 
 	private BoundedBlockingSubpartitionType blockingSubpartitionType = BoundedBlockingSubpartitionType.AUTO;
 
-	private int partitionIndex = 0;
-
 	private int numberOfSubpartitions = 1;
 
 	private int numTargetKeyGroups = 1;
@@ -62,15 +60,6 @@ public class ResultPartitionBuilder {
 	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
 	private boolean releasedOnConsumption;
-
-	private boolean blockingShuffleCompressionEnabled = false;
-
-	private String compressionCodec = "LZ4";
-
-	public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
-		this.partitionIndex = partitionIndex;
-		return this;
-	}
 
 	public ResultPartitionBuilder setResultPartitionId(ResultPartitionID partitionId) {
 		this.partitionId = partitionId;
@@ -140,16 +129,6 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
-		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
-		return this;
-	}
-
-	public ResultPartitionBuilder setCompressionCodec(String compressionCodec) {
-		this.compressionCodec = compressionCodec;
-		return this;
-	}
-
 	ResultPartitionBuilder setBoundedBlockingSubpartitionType(
 			@SuppressWarnings("SameParameterValue") BoundedBlockingSubpartitionType blockingSubpartitionType) {
 		this.blockingSubpartitionType = blockingSubpartitionType;
@@ -165,16 +144,13 @@ public class ResultPartitionBuilder {
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			networkBufferSize,
-			releasedOnConsumption,
-			blockingShuffleCompressionEnabled,
-			compressionCodec);
+			releasedOnConsumption);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
 
 		return resultPartitionFactory.create(
 			"Result Partition task",
-			partitionIndex,
 			partitionId,
 			partitionType,
 			numberOfSubpartitions,

@@ -30,7 +30,7 @@ import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
-import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
+import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelConversionException}
 
 import java.lang.{Boolean => JBoolean}
 import java.util
@@ -46,10 +46,10 @@ import scala.collection.JavaConverters._
   * The main difference is that we do not create a new RelOptPlanner in the ready() method.
   */
 class FlinkPlannerImpl(
-    val config: FrameworkConfig,
+    config: FrameworkConfig,
     catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
-    cluster: RelOptCluster) {
+    cluster: RelOptCluster) extends FlinkToRelContext {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
@@ -117,10 +117,7 @@ class FlinkPlannerImpl(
       }
       // no need to validate row type for DDL and insert nodes.
       if (sqlNode.getKind.belongsTo(SqlKind.DDL)
-        || sqlNode.getKind == SqlKind.INSERT
-        || sqlNode.getKind == SqlKind.CREATE_FUNCTION
-        || sqlNode.getKind == SqlKind.DROP_FUNCTION
-        || sqlNode.getKind == SqlKind.OTHER_DDL) {
+        || sqlNode.getKind == SqlKind.INSERT) {
         return sqlNode
       }
       validator.validate(sqlNode)
@@ -139,7 +136,7 @@ class FlinkPlannerImpl(
     try {
       assert(validatedSqlNode != null)
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        createToRelContext(),
+        this,
         sqlValidator,
         sqlValidator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]),
         cluster,
@@ -160,36 +157,48 @@ class FlinkPlannerImpl(
   }
 
   /**
-    * Creates a new instance of [[RelOptTable.ToRelContext]] for [[RelOptTable]].
+    * Creates a new instance of [[SqlExprToRexConverter]] to convert SQL expression
+    * to RexNode.
     */
-  def createToRelContext(): RelOptTable.ToRelContext = new ToRelContextImpl
+  def createSqlExprToRexConverter(tableRowType: RelDataType): SqlExprToRexConverter = {
+    new SqlExprToRexConverterImpl(config, typeFactory, cluster, tableRowType)
+  }
 
-  /**
-    * Implements [[RelOptTable.ToRelContext]] interface for [[RelOptTable]] and
-    * [[org.apache.calcite.tools.Planner]].
-    */
-  class ToRelContextImpl extends RelOptTable.ToRelContext {
+  override def getCluster: RelOptCluster = cluster
 
-    override def expandView(
-        rowType: RelDataType,
-        queryString: String,
-        schemaPath: util.List[String],
-        viewPath: util.List[String])
+  override def expandView(
+      rowType: RelDataType,
+      queryString: String,
+      schemaPath: util.List[String],
+      viewPath: util.List[String])
     : RelRoot = {
-      val parsed = parser.parse(queryString)
-      val originalReader = catalogReaderSupplier.apply(false)
-      val readerWithPathAdjusted = new FlinkCalciteCatalogReader(
-        originalReader.getRootSchema,
-        List(schemaPath, schemaPath.subList(0, 1)).asJava,
-        originalReader.getTypeFactory,
-        originalReader.getConfig
-      )
-      val validator = createSqlValidator(readerWithPathAdjusted)
-      val validated = validate(parsed, validator)
-      rel(validated, validator)
+    val parsed = parser.parse(queryString)
+    val originalReader = catalogReaderSupplier.apply(false)
+    val readerWithPathAdjusted = new FlinkCalciteCatalogReader(
+      originalReader.getRootSchema,
+      List(schemaPath, schemaPath.subList(0, 1)).asJava,
+      originalReader.getTypeFactory,
+      originalReader.getConfig
+    )
+    val validator = createSqlValidator(readerWithPathAdjusted)
+    val validated = validate(parsed, validator)
+    val equivRel = rel(validated, validator)
+    if (!RelOptUtil.areRowTypesEqual(
+      rowType,
+      equivRel.validatedRowType,
+      true
+    )) {
+      throw new TableException(
+        s"""Could not expand view. Types mismatch.
+           | Expected row type: $rowType
+           | Expanded view type: ${equivRel.validatedRowType}
+           |""".stripMargin)
     }
+    equivRel
+  }
 
-    override def getCluster: RelOptCluster = cluster
+  override def createRelBuilder(): RelBuilder = {
+    sqlToRelConverterConfig.getRelBuilderFactory.create(cluster, null)
   }
 }
 

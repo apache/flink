@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
@@ -106,10 +106,10 @@ class BatchExecLimit(
         .asInstanceOf[Transformation[BaseRow]]
     val inputType = input.getOutputType
     val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
-    ExecNode.createOneInputTransformation(
+    new OneInputTransformation(
       input,
       getRelDetailedDescription,
-      SimpleOperatorFactory.of(operator),
+      operator,
       inputType,
       input.getParallelism)
   }

@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.planner.codegen
 
+import org.apache.flink.configuration.MemorySize
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer
-import org.apache.flink.table.runtime.util.{LazyMemorySegmentPool, ResettableExternalBuffer}
+import org.apache.flink.table.runtime.util.ResettableExternalBuffer
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex.RexNode
@@ -55,6 +57,8 @@ class NestedLoopJoinCodeGenerator(
   }
 
   def gen(): CodeGenOperatorFactory[BaseRow] = {
+    val config = ctx.tableConfig
+
     val exprGenerator = new ExprCodeGenerator(ctx, joinType.isOuter)
         .bindInput(leftType).bindSecondInput(rightType)
 
@@ -65,6 +69,9 @@ class NestedLoopJoinCodeGenerator(
     // input row might not be binary row, need a serializer
     val isFirstRow = newName("isFirstRow")
     val isBinaryRow = newName("isBinaryRow")
+
+    val externalBufferMemorySize = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
 
     if (singleRowJoin) {
       ctx.addReusableMember(s"$BASE_ROW $buildRow = null;")
@@ -83,7 +90,7 @@ class NestedLoopJoinCodeGenerator(
       }
       if (leftIsBuild) initSerializer(1) else initSerializer(2)
 
-      addReusableResettableExternalBuffer(buffer, serializer)
+      addReusableResettableExternalBuffer(buffer, externalBufferMemorySize, serializer)
       ctx.addReusableCloseStatement(s"$buffer.close();")
 
       val iterTerm = classOf[ResettableExternalBuffer#BufferIterator].getCanonicalName
@@ -341,19 +348,18 @@ class NestedLoopJoinCodeGenerator(
        |""".stripMargin
   }
 
-  private def addReusableResettableExternalBuffer(
-      fieldTerm: String, serializer: String): Unit = {
+  def addReusableResettableExternalBuffer(
+      fieldTerm: String, memSize: Long, serializer: String): Unit = {
     val memManager = "getContainingTask().getEnvironment().getMemoryManager()"
     val ioManager = "getContainingTask().getEnvironment().getIOManager()"
 
     val open =
       s"""
          |$fieldTerm = new ${className[ResettableExternalBuffer]}(
+         |  $memManager,
          |  $ioManager,
-         |  new ${className[LazyMemorySegmentPool]}(
-         |    getContainingTask(),
-         |    $memManager,
-         |    (int) (computeMemorySize() / $memManager.getPageSize())),
+         |  $memManager.allocatePages(
+         |    getContainingTask(), ((int) $memSize) / $memManager.getPageSize()),
          |  $serializer,
          |  false);
          |""".stripMargin

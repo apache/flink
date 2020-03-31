@@ -23,7 +23,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +66,6 @@ public class HiveModuleFactory implements ModuleFactory {
 
 	@Override
 	public List<String> supportedProperties() {
-		return Arrays.asList(MODULE_HIVE_VERSION);
+		return new ArrayList<>();
 	}
 }

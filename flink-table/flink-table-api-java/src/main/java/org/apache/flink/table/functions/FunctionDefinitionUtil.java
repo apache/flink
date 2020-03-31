@@ -18,19 +18,22 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.table.catalog.CatalogFunction;
+
 /**
  * A util to instantiate {@link FunctionDefinition} in the default way.
  */
 public class FunctionDefinitionUtil {
 
-	public static FunctionDefinition createFunctionDefinition(String name, String className) {
+	public static FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
 		// Currently only handles Java class-based functions
 		Object func;
 		try {
-			func = Thread.currentThread().getContextClassLoader().loadClass(className).newInstance();
+			func = Thread.currentThread().getContextClassLoader().loadClass(catalogFunction.getClassName()).newInstance();
 		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
 			throw new IllegalStateException(
-				String.format("Failed instantiating '%s'", className), e);
+				String.format("Failed instantiating '%s'", catalogFunction.getClassName())
+			);
 		}
 
 		UserDefinedFunction udf = (UserDefinedFunction) func;
@@ -45,7 +48,7 @@ public class FunctionDefinitionUtil {
 			return new TableFunctionDefinition(
 				name,
 				t,
-				UserDefinedFunctionHelper.getReturnTypeOfTableFunction(t)
+				t.getResultType()
 			);
 		} else if (udf instanceof AggregateFunction) {
 			AggregateFunction a = (AggregateFunction) udf;
@@ -53,8 +56,8 @@ public class FunctionDefinitionUtil {
 			return new AggregateFunctionDefinition(
 				name,
 				a,
-				UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(a),
-				UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(a)
+				a.getAccumulatorType(),
+				a.getResultType()
 			);
 		} else if (udf instanceof TableAggregateFunction) {
 			TableAggregateFunction a = (TableAggregateFunction) udf;
@@ -62,12 +65,12 @@ public class FunctionDefinitionUtil {
 			return new TableAggregateFunctionDefinition(
 				name,
 				a,
-				UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(a),
-				UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(a)
+				a.getAccumulatorType(),
+				a.getResultType()
 			);
 		} else {
 			throw new UnsupportedOperationException(
-				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or TableAggregateFunction", className)
+				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or TableAggregateFunction", catalogFunction.getClassName())
 			);
 		}
 	}

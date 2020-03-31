@@ -104,21 +104,7 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT> imple
 	}
 
 	public void close() throws Exception {
-		Exception exception = null;
-
-		try {
-			FunctionUtils.closeFunction(function);
-		} catch (Exception e) {
-			// The state backend must always be closed
-			// to release native resources.
-			exception = e;
-		}
-
-		keyedStateBackend.dispose();
-
-		if (exception != null) {
-			throw exception;
-		}
+		FunctionUtils.closeFunction(function);
 	}
 
 	@Override

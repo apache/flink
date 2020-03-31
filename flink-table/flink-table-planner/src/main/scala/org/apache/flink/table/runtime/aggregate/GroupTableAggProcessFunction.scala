@@ -168,8 +168,6 @@ class GroupTableAggProcessFunction[K](
   }
 
   override def close(): Unit = {
-    if (function != null) {
-      function.close()
-    }
+    function.close()
   }
 }

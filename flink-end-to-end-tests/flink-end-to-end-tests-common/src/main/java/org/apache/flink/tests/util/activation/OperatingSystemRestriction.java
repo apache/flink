@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util.activation;
 
 import org.apache.flink.util.OperatingSystem;
+
 import org.junit.Assume;
 import org.junit.AssumptionViolatedException;
 
@@ -36,12 +37,11 @@ public enum OperatingSystemRestriction {
 	/**
 	 * Restricts the execution to the given set of operating systems.
 	 *
-	 * @param reason           reason for the restriction
+	 * @param reason reason for the restriction
 	 * @param operatingSystems allowed operating systems
 	 * @throws AssumptionViolatedException if this method is called on a forbidden operating system
 	 */
-	public static void restrictTo(final String reason, final OperatingSystem... operatingSystems)
-		throws AssumptionViolatedException {
+	public static void restrictTo(final String reason, final OperatingSystem... operatingSystems) throws AssumptionViolatedException {
 		final EnumSet<OperatingSystem> allowed = EnumSet.copyOf(Arrays.asList(operatingSystems));
 		Assume.assumeTrue(reason, allowed.contains(OperatingSystem.getCurrentOperatingSystem()));
 	}
@@ -49,12 +49,11 @@ public enum OperatingSystemRestriction {
 	/**
 	 * Forbids the execution on the given set of operating systems.
 	 *
-	 * @param reason           reason for the restriction
+	 * @param reason reason for the restriction
 	 * @param forbiddenSystems forbidden operating systems
 	 * @throws AssumptionViolatedException if this method is called on a forbidden operating system
 	 */
-	public static void forbid(final String reason, final OperatingSystem... forbiddenSystems)
-		throws AssumptionViolatedException {
+	public static void forbid(final String reason, final OperatingSystem... forbiddenSystems) throws AssumptionViolatedException {
 		final OperatingSystem os = OperatingSystem.getCurrentOperatingSystem();
 		for (final OperatingSystem forbiddenSystem : forbiddenSystems) {
 			Assume.assumeTrue(reason, os != forbiddenSystem);

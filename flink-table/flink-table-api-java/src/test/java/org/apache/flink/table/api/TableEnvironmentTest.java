@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.utils.ConnectorDescriptorMock;
@@ -48,7 +49,7 @@ public class TableEnvironmentTest {
 				.field("my_field_0", "INT")
 				.field("my_field_1", "BOOLEAN"))
 			.inAppendMode()
-			.createTemporaryTable("my_table");
+			.registerTableSource("my_table");
 
 		CatalogManager.TableLookupResult lookupResult = tableEnv.catalogManager.getTable(ObjectIdentifier.of(
 			EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
@@ -66,5 +67,11 @@ public class TableEnvironmentTest {
 					.field("my_field_0", DataTypes.INT())
 					.field("my_field_1", DataTypes.BOOLEAN())
 					.build()));
+
+		final ConnectorCatalogTable<?, ?> connectorCatalogTable = (ConnectorCatalogTable<?, ?>) table;
+
+		assertThat(
+			connectorCatalogTable.getTableSource().isPresent(),
+			equalTo(true));
 	}
 }

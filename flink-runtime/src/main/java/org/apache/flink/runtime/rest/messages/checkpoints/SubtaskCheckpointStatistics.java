@@ -97,8 +97,6 @@ public class SubtaskCheckpointStatistics {
 
 		public static final String FIELD_NAME_ALIGNMENT = "alignment";
 
-		public static final String FIELD_NAME_START_DELAY = "start_delay";
-
 		@JsonProperty(FIELD_NAME_ACK_TIMESTAMP)
 		private final long ackTimestamp;
 
@@ -114,9 +112,6 @@ public class SubtaskCheckpointStatistics {
 		@JsonProperty(FIELD_NAME_ALIGNMENT)
 		private final CheckpointAlignment alignment;
 
-		@JsonProperty(FIELD_NAME_START_DELAY)
-		private final long startDelay;
-
 		@JsonCreator
 		public CompletedSubtaskCheckpointStatistics(
 				@JsonProperty(FIELD_NAME_INDEX) int index,
@@ -124,15 +119,13 @@ public class SubtaskCheckpointStatistics {
 				@JsonProperty(FIELD_NAME_DURATION) long duration,
 				@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 				@JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment,
-				@JsonProperty(FIELD_NAME_START_DELAY) long startDelay) {
+				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment) {
 			super(index, "completed");
 			this.ackTimestamp = ackTimestamp;
 			this.duration = duration;
 			this.stateSize = stateSize;
 			this.checkpointDuration = checkpointDuration;
 			this.alignment = alignment;
-			this.startDelay = startDelay;
 		}
 
 		public long getAckTimestamp() {
@@ -155,10 +148,6 @@ public class SubtaskCheckpointStatistics {
 			return alignment;
 		}
 
-		public long getStartDelay() {
-			return startDelay;
-		}
-
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
@@ -172,19 +161,12 @@ public class SubtaskCheckpointStatistics {
 				duration == that.duration &&
 				stateSize == that.stateSize &&
 				Objects.equals(checkpointDuration, that.checkpointDuration) &&
-				Objects.equals(alignment, that.alignment) &&
-				startDelay == that.startDelay;
+				Objects.equals(alignment, that.alignment);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(
-				ackTimestamp,
-				duration,
-				stateSize,
-				checkpointDuration,
-				alignment,
-				startDelay);
+			return Objects.hash(ackTimestamp, duration, stateSize, checkpointDuration, alignment);
 		}
 
 		/**

@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -55,11 +54,6 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
 		this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
 		this.properties = checkNotNull(properties, "properties cannot be null");
-
-		checkArgument(
-			properties.entrySet().stream().allMatch(e -> e.getKey() != null && e.getValue() != null),
-			"properties cannot have null keys or values");
-
 		this.comment = comment;
 	}
 

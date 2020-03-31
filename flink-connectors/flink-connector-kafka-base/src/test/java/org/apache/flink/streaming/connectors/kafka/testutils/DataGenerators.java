@@ -104,8 +104,6 @@ public class DataGenerators {
 		if (secureProps != null) {
 			props.putAll(testServer.getSecureProperties());
 		}
-		// Ensure the producer enables idempotence.
-		props.putAll(testServer.getIdempotentProducerConfig());
 
 		stream = stream.rebalance();
 		testServer.produceIntoKafka(stream, topic,

@@ -21,7 +21,8 @@ package org.apache.flink.table.client.gateway.local.result;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -34,38 +35,33 @@ import org.apache.flink.util.AbstractID;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Collects results using accumulators and returns them as table snapshots.
  */
 public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements MaterializedResult<C> {
 
+	private final TypeInformation<Row> outputType;
 	private final String accumulatorName;
 	private final CollectBatchTableSink tableSink;
 	private final Object resultLock;
-	private final ClassLoader classLoader;
+	private final Thread retrievalThread;
 
+	private ProgramDeployer<C> deployer;
 	private int pageSize;
 	private int pageCount;
-	private AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
+	private SqlExecutionException executionException;
 	private List<Row> resultTable;
 
 	private volatile boolean snapshotted = false;
 
-	public MaterializedCollectBatchResult(
-			TableSchema tableSchema,
-			ExecutionConfig config,
-			ClassLoader classLoader) {
+	public MaterializedCollectBatchResult(TableSchema tableSchema, RowTypeInfo outputType, ExecutionConfig config) {
+		this.outputType = outputType;
 
 		accumulatorName = new AbstractID().toString();
-		TypeSerializer<Row> serializer = tableSchema.toRowType().createSerializer(config);
-		tableSink = new CollectBatchTableSink(accumulatorName, serializer, tableSchema);
+		tableSink = new CollectBatchTableSink(accumulatorName, outputType.createSerializer(config), tableSchema);
 		resultLock = new Object();
-		this.classLoader = checkNotNull(classLoader);
+		retrievalThread = new ResultRetrievalThread();
 
 		pageCount = 0;
 	}
@@ -76,19 +72,14 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	}
 
 	@Override
-	public void startRetrieval(ProgramDeployer deployer) {
-		deployer
-				.deploy()
-				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
-				.thenAccept(new ResultRetrievalHandler())
-				.whenComplete((unused, throwable) -> {
-					if (throwable != null) {
-						executionException.compareAndSet(null,
-								new SqlExecutionException(
-										"Error while submitting job.",
-										throwable));
-					}
-				});
+	public TypeInformation<Row> getOutputType() {
+		return outputType;
+	}
+
+	@Override
+	public void startRetrieval(ProgramDeployer<C> deployer) {
+		this.deployer = deployer;
+		retrievalThread.start();
 	}
 
 	@Override
@@ -97,7 +88,9 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	}
 
 	@Override
-	public void close() {}
+	public void close() {
+		retrievalThread.interrupt();
+	}
 
 	@Override
 	public List<Row> retrievePage(int page) {
@@ -112,15 +105,13 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	@Override
 	public TypedResult<Integer> snapshot(int pageSize) {
 		synchronized (resultLock) {
-			// the job finished with an exception
-			SqlExecutionException e = executionException.get();
-			if (e != null) {
-				throw e;
-			}
-
 			// wait for a result
-			if (null == resultTable) {
+			if (retrievalThread.isAlive() && null == resultTable) {
 				return TypedResult.empty();
+			}
+			// the job finished with an exception
+			else if (executionException != null) {
+				throw executionException;
 			}
 			// we return a payload result the first time and EoS for the rest of times as if the results
 			// are retrieved dynamically
@@ -137,12 +128,14 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	// --------------------------------------------------------------------------------------------
 
-	private class ResultRetrievalHandler implements Consumer<JobExecutionResult> {
+	private class ResultRetrievalThread extends Thread {
 
 		@Override
-		public void accept(JobExecutionResult jobExecutionResult) {
+		public void run() {
 			try {
-				final ArrayList<byte[]> accResult = jobExecutionResult.getAccumulatorResult(accumulatorName);
+				deployer.run();
+				final JobExecutionResult result = deployer.fetchExecutionResult();
+				final ArrayList<byte[]> accResult = result.getAccumulatorResult(accumulatorName);
 				if (accResult == null) {
 					throw new SqlExecutionException("The accumulator could not retrieve the result.");
 				}
@@ -152,7 +145,9 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 					MaterializedCollectBatchResult.this.resultTable = resultTable;
 				}
 			} catch (ClassNotFoundException | IOException e) {
-				throw new SqlExecutionException("Serialization error while deserializing collected data.", e);
+				executionException = new SqlExecutionException("Serialization error while deserializing collected data.", e);
+			} catch (SqlExecutionException e) {
+				executionException = e;
 			}
 		}
 	}

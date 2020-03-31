@@ -65,9 +65,9 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -84,9 +84,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
@@ -254,7 +252,7 @@ public class TaskTest extends TestLogger {
 			shuffleDescriptor,
 			1,
 			false);
-		testExecutionFailsInNetworkRegistration(Collections.singletonList(dummyPartition), Collections.emptyList());
+		testExecutionFailsInNetworkRegistration(Collections.singleton(dummyPartition), Collections.emptyList());
 	}
 
 	@Test
@@ -265,12 +263,12 @@ public class TaskTest extends TestLogger {
 			ResultPartitionType.PIPELINED,
 			0,
 			new ShuffleDescriptor[] { dummyChannel });
-		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singletonList(dummyGate));
+		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singleton(dummyGate));
 	}
 
 	private void testExecutionFailsInNetworkRegistration(
-			List<ResultPartitionDeploymentDescriptor> resultPartitions,
-			List<InputGateDeploymentDescriptor> inputGates) throws Exception {
+			Collection<ResultPartitionDeploymentDescriptor> resultPartitions,
+			Collection<InputGateDeploymentDescriptor> inputGates) throws Exception {
 		final String errorMessage = "Network buffer pool has already been destroyed.";
 
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
@@ -824,42 +822,6 @@ public class TaskTest extends TestLogger {
 			triggerLatch.trigger();
 			task.getExecutingThread().interrupt();
 			task.getExecutingThread().join();
-		}
-	}
-
-	/**
-	 * Tests that a fatal error gotten from canceling task is notified.
-	 */
-	@Test
-	public void testFatalErrorOnCanceling() throws Exception {
-		final AwaitFatalErrorTaskManagerActions taskManagerActions =
-			new AwaitFatalErrorTaskManagerActions();
-
-		final Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
-
-		final Task task = spy(createTaskBuilder()
-			.setInvokable(InvokableBlockingWithTrigger.class)
-			.setTaskManagerConfig(config)
-			.setTaskManagerActions(taskManagerActions)
-			.build());
-
-		doThrow(OutOfMemoryError.class).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.CANCELING), eq(null));
-
-		try {
-			task.startTaskThread();
-
-			awaitLatch.await();
-
-			task.cancelExecution();
-
-			// wait for the notification of notifyFatalError
-			taskManagerActions.latch.await();
-		} catch (Throwable t) {
-			fail("No exception is expected to be thrown by fatal error handling");
-		} finally {
-			triggerLatch.trigger();
 		}
 	}
 

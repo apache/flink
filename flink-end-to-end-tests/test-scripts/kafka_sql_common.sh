@@ -50,7 +50,7 @@ function get_kafka_json_source_schema {
     update-mode: append
     schema:
       - name: rowtime
-        data-type: TIMESTAMP(3)
+        type: TIMESTAMP
         rowtime:
           timestamps:
             type: from-field
@@ -59,17 +59,19 @@ function get_kafka_json_source_schema {
             type: periodic-bounded
             delay: 2000
       - name: user
-        data-type: STRING
+        type: VARCHAR
       - name: event
-        data-type: ROW<type STRING, message STRING>
+        type: ROW<type VARCHAR, message VARCHAR>
     connector:
       type: kafka
       version: "$KAFKA_SQL_VERSION"
       topic: $topicName
       startup-mode: earliest-offset
       properties:
-        zookeeper.connect: localhost:2181
-        bootstrap.servers: localhost:9092
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
     format:
       type: json
       json-schema: >

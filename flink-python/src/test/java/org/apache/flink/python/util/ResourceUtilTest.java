@@ -24,9 +24,10 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -35,7 +36,7 @@ import static org.junit.Assert.assertTrue;
 public class ResourceUtilTest {
 
 	@Test
-	public void testExtractUdfRunnerFromResource() throws IOException, InterruptedException {
+	public void testExtractBasicDependenciesFromResource() throws IOException, InterruptedException {
 		File tmpdir = File.createTempFile(UUID.randomUUID().toString(), null);
 		tmpdir.delete();
 		tmpdir.mkdirs();
@@ -48,9 +49,28 @@ public class ResourceUtilTest {
 		});
 		Runtime.getRuntime().addShutdownHook(hook);
 		try {
-			File file = ResourceUtil.extractUdfRunner(tmpdir.getAbsolutePath());
-			assertEquals(file, new File(tmpdir, "pyflink-udf-runner.sh"));
-			assertTrue(file.canExecute());
+			String prefix = "tmp_";
+			List<File> files = ResourceUtil.extractBasicDependenciesFromResource(
+				tmpdir.getAbsolutePath(),
+				prefix,
+				true);
+			files.forEach(file -> assertTrue(file.exists()));
+			assertArrayEquals(new File[] {
+				new File(tmpdir, "tmp_pyflink.zip"),
+				new File(tmpdir, "tmp_py4j-0.10.8.1-src.zip"),
+				new File(tmpdir, "tmp_cloudpickle-1.2.2-src.zip")}, files.toArray());
+			files.forEach(File::delete);
+			files = ResourceUtil.extractBasicDependenciesFromResource(
+				tmpdir.getAbsolutePath(),
+				prefix,
+				false);
+			files.forEach(file -> assertTrue(file.exists()));
+			assertArrayEquals(new File[] {
+				new File(tmpdir, "tmp_pyflink.zip"),
+				new File(tmpdir, "tmp_py4j-0.10.8.1-src.zip"),
+				new File(tmpdir, "tmp_cloudpickle-1.2.2-src.zip"),
+				new File(tmpdir, "tmp_pyflink-udf-runner.sh")}, files.toArray());
+			assertTrue(new File(tmpdir, "tmp_pyflink-udf-runner.sh").canExecute());
 		} finally {
 			hook.run();
 			Runtime.getRuntime().removeShutdownHook(hook);

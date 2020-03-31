@@ -165,9 +165,4 @@ public class DeploymentEntry extends ConfigEntry {
 
 		return new DeploymentEntry(properties);
 	}
-
-	@Override
-	public String toString() {
-		return "DeploymentEntry{" + "properties=" + properties + '}';
-	}
 }

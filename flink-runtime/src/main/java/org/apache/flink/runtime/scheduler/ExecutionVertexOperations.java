@@ -32,6 +32,4 @@ interface ExecutionVertexOperations {
 	void deploy(ExecutionVertex executionVertex) throws JobException;
 
 	CompletableFuture<?> cancel(ExecutionVertex executionVertex);
-
-	void markFailed(ExecutionVertex executionVertex, Throwable cause);
 }

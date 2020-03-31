@@ -36,23 +36,21 @@ public enum FactoryUtils {
 	 * Loads all factories for the given class using the {@link ServiceLoader} and attempts to create an instance.
 	 *
 	 * @param factoryInterface factory interface
-	 * @param factoryInvoker   factory invoker
-	 * @param defaultProvider  default factory provider
-	 * @param <R>              resource type
-	 * @param <F>              factory type
-	 * @return created instance
+	 * @param factoryInvoker factory invoker
+	 * @param defaultProvider default factory provider
+	 * @param <R> resource type
+	 * @param <F> factory type
 	 * @throws RuntimeException if no or multiple resources could be instantiated
+	 * @return created instance
 	 */
-	public static <R, F> R loadAndInvokeFactory(final Class<F> factoryInterface,
-	                                            final Function<F, Optional<R>> factoryInvoker,
-	                                            final Supplier<F> defaultProvider) {
+	public static <R, F> R loadAndInvokeFactory(final Class<F> factoryInterface, final Function<F, Optional<R>> factoryInvoker, final Supplier<F> defaultProvider) {
 		final ServiceLoader<F> factories = ServiceLoader.load(factoryInterface);
 
 		final List<R> resources = StreamSupport.stream(factories.spliterator(), false)
-			                          .map(factoryInvoker)
-			                          .filter(Optional::isPresent)
-			                          .map(Optional::get)
-			                          .collect(Collectors.toList());
+			.map(factoryInvoker)
+			.filter(Optional::isPresent)
+			.map(Optional::get)
+			.collect(Collectors.toList());
 
 		if (resources.size() == 1) {
 			return resources.get(0);
@@ -60,8 +58,7 @@ public enum FactoryUtils {
 
 		if (resources.isEmpty()) {
 			return factoryInvoker.apply(defaultProvider.get())
-				       .orElseThrow(
-					       () -> new RuntimeException("Could not instantiate instance using default factory."));
+				.orElseThrow(() -> new RuntimeException("Could not instantiate instance using default factory."));
 		}
 
 		throw new RuntimeException("Multiple instances were created: " + resources);

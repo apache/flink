@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.util.Collections;
+import java.util.Set;
 
 /**
  * Simple factory for the S3 file system.
@@ -40,12 +41,19 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
 
+	// intentionally obfuscated to prevent relocations by the shade-plugin
+	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.UNSHADE.".replace("UNSHADE", "amazonaws"));
+
+	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("fs.s3a.aws.credentials.provider");
+
+	// keep this in sync with the relocation pattern applied to com.amazon in the shade-plugin configuration
+	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3base.shaded.";
+
 	private static final String[] FLINK_CONFIG_PREFIXES = { "s3.", "s3a.", "fs.s3a." };
 
 	private static final String[][] MIRRORED_CONFIG_KEYS = {
 			{ "fs.s3a.access-key", "fs.s3a.access.key" },
-			{ "fs.s3a.secret-key", "fs.s3a.secret.key" },
-			{ "fs.s3a.path-style-access", "fs.s3a.path.style.access" }
+			{ "fs.s3a.secret-key", "fs.s3a.secret.key" }
 	};
 
 	public S3FileSystemFactory() {
@@ -60,7 +68,7 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 	@VisibleForTesting
 	static HadoopConfigLoader createHadoopConfigLoader() {
 		return new HadoopConfigLoader(FLINK_CONFIG_PREFIXES, MIRRORED_CONFIG_KEYS,
-			"fs.s3a.", Collections.emptySet(), Collections.emptySet(), "");
+			"fs.s3a.", PACKAGE_PREFIXES_TO_SHADE, CONFIG_KEYS_TO_SHADE, FLINK_SHADING_PREFIX);
 	}
 
 	@Override

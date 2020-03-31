@@ -27,7 +27,6 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
-import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
@@ -129,8 +128,8 @@ public class JMXReporterTest extends TestLogger {
 			}
 		};
 
-		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
-		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
+		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
+		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
 
 		MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
@@ -183,9 +182,9 @@ public class JMXReporterTest extends TestLogger {
 			}
 		};
 
-		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
+		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
 
-		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(createReporterScopedSettings(1), mg));
+		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(1, new TaskManagerMetricGroup(reg, "host", "tm")));
 
 		ObjectName objectName1 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep1", JMXReporter.generateJmxTable(mg.getAllVariables()));
 		ObjectName objectName2 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep2", JMXReporter.generateJmxTable(mg.getAllVariables()));
@@ -303,9 +302,5 @@ public class JMXReporterTest extends TestLogger {
 				registry.shutdown().get();
 			}
 		}
-	}
-
-	private static ReporterScopedSettings createReporterScopedSettings(int reporterIndex) {
-		return new ReporterScopedSettings(reporterIndex, ',', Collections.emptySet());
 	}
 }

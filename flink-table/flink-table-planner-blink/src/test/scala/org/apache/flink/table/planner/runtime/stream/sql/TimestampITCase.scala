@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import java.sql.Timestamp
-import java.time.{Instant, LocalDateTime, ZoneId}
+import java.time.LocalDateTime
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
@@ -40,7 +40,7 @@ class TimestampITCase extends StreamingTestBase{
     super.before()
 
     val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d", "e"),
+      Array("a", "b", "c", "d"),
       Array(
         DataTypes.INT(),
         DataTypes.BIGINT(),
@@ -48,8 +48,7 @@ class TimestampITCase extends StreamingTestBase{
         // TODO: support high precision TIMESTAMP as timeAttributes
         //  LegacyTypeInfoDataTypeConverter does not support TIMESTAMP(p) where p > 3
         //  see TableSourceValidation::validateTimestampExtractorArguments
-        DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp]),
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant])
+        DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])
       )
     ).build()
 
@@ -72,22 +71,10 @@ class TimestampITCase extends StreamingTestBase{
       Timestamp.valueOf("1973-01-01 00:00:00")
     )
 
-    val instants = new mutable.MutableList[Instant]
-    for (i <- datetimes.indices) {
-      if (datetimes(i) == null) {
-        instants += null
-      } else {
-        // Assume the time zone of source side is UTC
-        instants +=
-          datetimes(i).toInstant(ZoneId.of("UTC").getRules.getOffset(datetimes(i)))
-      }
-    }
-
-
     val data = new mutable.MutableList[Row]
 
     for (i <- ints.indices) {
-      data += row(ints(i), longs(i), datetimes(i), timestamps(i), instants(i))
+      data += row(ints(i), longs(i), datetimes(i), timestamps(i))
     }
 
     val tableSource = new TestDataTypeTableSourceWithTime(
@@ -98,7 +85,7 @@ class TimestampITCase extends StreamingTestBase{
   }
 
   @Test
-  def testGroupByTimestamp(): Unit = {
+  def testGroupBy(): Unit = {
     val sink = new TestingRetractSink()
     tEnv.sqlQuery("SELECT COUNT(a), c FROM T GROUP BY c")
       .toRetractStream[Row].addSink(sink)
@@ -113,23 +100,7 @@ class TimestampITCase extends StreamingTestBase{
   }
 
   @Test
-  def testGroupByLocalZonedTimestamp(): Unit = {
-    val sink = new TestingRetractSink()
-    tEnv.sqlQuery("SELECT COUNT(a), e FROM T GROUP BY e")
-      .toRetractStream[Row].addSink(sink)
-    env.execute()
-    val expected = Seq(
-      "0,null",
-      "1,1969-01-01T00:00:00.123456789Z",
-      "1,1970-01-01T00:00:00.123Z",
-      "2,1970-01-01T00:00:00.123456Z"
-    )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-
-  @Test
-  def testCountDistinctOnTimestamp(): Unit = {
+  def testCountDistinctOn(): Unit = {
     val sink = new TestingRetractSink()
     tEnv.sqlQuery("SELECT COUNT(DISTINCT c), b FROM T GROUP BY b")
       .toRetractStream[Row].addSink(sink)
@@ -144,22 +115,7 @@ class TimestampITCase extends StreamingTestBase{
   }
 
   @Test
-  def testCountDistinctOnLocalZonedTimestamp(): Unit = {
-    val sink = new TestingRetractSink()
-    tEnv.sqlQuery("SELECT COUNT(DISTINCT e), b FROM T GROUP BY b")
-      .toRetractStream[Row].addSink(sink)
-    env.execute()
-    val expected = Seq(
-      "0,null",
-      "1,1",
-      "1,2",
-      "1,4"
-    )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testMaxMinOnTimestamp(): Unit = {
+  def testMaxMinOn(): Unit = {
     val sink = new TestingRetractSink()
     tEnv.sqlQuery("SELECT MAX(c), MIN(c), b FROM T GROUP BY b")
       .toRetractStream[Row].addSink(sink)
@@ -169,27 +125,6 @@ class TimestampITCase extends StreamingTestBase{
       "null,null,null",
       "1970-01-01T00:00:00.123456,1970-01-01T00:00:00.123456,2",
       "1970-01-01T00:00:00.123,1970-01-01T00:00:00.123,4"
-    )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testMaxMinWithRetractOnTimestamp(): Unit = {
-    val sink = new TestingRetractSink()
-    tEnv.sqlQuery(
-      s"""
-         |SELECT MAX(y), MIN(x)
-         |FROM
-         |  (SELECT b, MAX(c) AS x, MIN(c) AS y FROM T GROUP BY b, c)
-         |GROUP BY b
-       """.stripMargin)
-      .toRetractStream[Row].addSink(sink)
-    env.execute()
-    val expected = Seq(
-      "1969-01-01T00:00:00.123456789,1969-01-01T00:00:00.123456789",
-      "1970-01-01T00:00:00.123,1970-01-01T00:00:00.123",
-      "1970-01-01T00:00:00.123456,1970-01-01T00:00:00.123456",
-      "null,null"
     )
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }

@@ -31,21 +31,21 @@ public class JsonValidator extends FormatDescriptorValidator {
 	public static final String FORMAT_SCHEMA = "format.schema";
 	public static final String FORMAT_JSON_SCHEMA = "format.json-schema";
 	public static final String FORMAT_FAIL_ON_MISSING_FIELD = "format.fail-on-missing-field";
-	public static final String FORMAT_IGNORE_PARSE_ERRORS = "format.ignore-parse-errors";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateBoolean(FORMAT_DERIVE_SCHEMA, true);
-		final boolean deriveSchema = properties.getOptionalBoolean(FORMAT_DERIVE_SCHEMA).orElse(true);
+		final boolean deriveSchema = properties.getOptionalBoolean(FORMAT_DERIVE_SCHEMA).orElse(false);
 		final boolean hasSchema = properties.containsKey(FORMAT_SCHEMA);
 		final boolean hasSchemaString = properties.containsKey(FORMAT_JSON_SCHEMA);
-		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
-		if (!deriveSchema && hasSchema && hasSchemaString) {
+		if (deriveSchema && (hasSchema || hasSchemaString)) {
+			throw new ValidationException(
+				"Format cannot define a schema and derive from the table's schema at the same time.");
+		} else if (!deriveSchema && hasSchema && hasSchemaString) {
 			throw new ValidationException("A definition of both a schema and JSON schema is not allowed.");
 		} else if (!deriveSchema && !hasSchema && !hasSchemaString) {
-			throw new ValidationException("A definition of a schema or JSON schema is required " +
-				"if derivation from table's schema is disabled.");
+			throw new ValidationException("A definition of a schema or JSON schema is required.");
 		} else if (hasSchema) {
 			properties.validateType(FORMAT_SCHEMA, false, true);
 		} else if (hasSchemaString) {
@@ -53,11 +53,5 @@ public class JsonValidator extends FormatDescriptorValidator {
 		}
 
 		properties.validateBoolean(FORMAT_FAIL_ON_MISSING_FIELD, true);
-		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
-		boolean failOnMissingField = properties.getOptionalBoolean(FORMAT_FAIL_ON_MISSING_FIELD).orElse(false);
-		boolean ignoreParseErrors = properties.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).orElse(false);
-		if (ignoreParseErrors && failOnMissingField) {
-			throw new ValidationException(FORMAT_FAIL_ON_MISSING_FIELD + " and " + FORMAT_IGNORE_PARSE_ERRORS + " shouldn't both be true.");
-		}
 	}
 }

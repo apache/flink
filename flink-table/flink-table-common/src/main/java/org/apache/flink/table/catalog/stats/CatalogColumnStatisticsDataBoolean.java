@@ -28,20 +28,20 @@ public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsD
 	/**
 	 * number of "true" values.
 	 */
-	private final Long trueCount;
+	private final long trueCount;
 
 	/**
 	 * number of "false" values.
 	 */
-	private final Long falseCount;
+	private final long falseCount;
 
-	public CatalogColumnStatisticsDataBoolean(Long trueCount, Long falseCount, Long nullCount) {
+	public CatalogColumnStatisticsDataBoolean(long trueCount, long falseCount, long nullCount) {
 		super(nullCount);
 		this.trueCount = trueCount;
 		this.falseCount = falseCount;
 	}
 
-	public CatalogColumnStatisticsDataBoolean(Long trueCount, Long falseCount, Long nullCount, Map<String, String> properties) {
+	public CatalogColumnStatisticsDataBoolean(long trueCount, long falseCount, long nullCount, Map<String, String> properties) {
 		super(nullCount, properties);
 		this.trueCount = trueCount;
 		this.falseCount = falseCount;

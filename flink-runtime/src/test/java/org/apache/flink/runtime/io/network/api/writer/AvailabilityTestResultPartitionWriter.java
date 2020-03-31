@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -26,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
  * A specific result partition writer implementation only used to control the output
  * availability state in tests.
  */
-public class AvailabilityTestResultPartitionWriter extends MockResultPartitionWriter {
+public class AvailabilityTestResultPartitionWriter implements ResultPartitionWriter {
 
 	/** This state is only valid in the first call of {@link #isAvailable()}. */
 	private final boolean isAvailable;
@@ -38,6 +42,55 @@ public class AvailabilityTestResultPartitionWriter extends MockResultPartitionWr
 
 	public AvailabilityTestResultPartitionWriter(boolean isAvailable) {
 		this.isAvailable = isAvailable;
+	}
+
+	@Override
+	public void setup() {
+	}
+
+	@Override
+	public ResultPartitionID getPartitionId() {
+		return new ResultPartitionID();
+	}
+
+	@Override
+	public int getNumberOfSubpartitions() {
+		return 1;
+	}
+
+	@Override
+	public int getNumTargetKeyGroups() {
+		return 1;
+	}
+
+	@Override
+	public BufferBuilder getBufferBuilder() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) {
+		return true;
+	}
+
+	@Override
+	public void flushAll() {
+	}
+
+	@Override
+	public void flush(int subpartitionIndex) {
+	}
+
+	@Override
+	public void close() {
+	}
+
+	@Override
+	public void fail(@Nullable Throwable throwable) {
+	}
+
+	@Override
+	public void finish() {
 	}
 
 	@Override

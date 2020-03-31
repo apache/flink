@@ -55,10 +55,10 @@ object TableSinkUtils {
 
       // format table and table sink schema strings
       val srcSchema = srcFieldNames.zip(srcFieldTypes)
-        .map { case (n, t) => s"$n: $t" }
+        .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
         .mkString("[", ", ", "]")
       val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-        .map { case (n, t) => s"$n: $t" }
+        .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
         .mkString("[", ", ", "]")
 
       throw new ValidationException(

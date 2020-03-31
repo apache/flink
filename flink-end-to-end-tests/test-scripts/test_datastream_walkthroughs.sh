@@ -35,7 +35,6 @@ mvn archetype:generate                                          \
     -DarchetypeGroupId=org.apache.flink                         \
     -DarchetypeArtifactId=flink-walkthrough-datastream-${TEST_TYPE}  \
     -DarchetypeVersion=${FLINK_VERSION}                         \
-    -DarchetypeCatalog=local                                    \
     -DgroupId=org.apache.flink.walkthrough                      \
     -DartifactId=${ARTIFACT_ID}                                 \
     -Dversion=${ARTIFACT_VERSION}                               \

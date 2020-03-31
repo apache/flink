@@ -48,16 +48,7 @@ public class YarnTestUtils {
 			final YarnConfiguration yarnConfiguration,
 			final YarnClient yarnClient,
 			final boolean sharedYarnClient) {
-		final Configuration effectiveConfiguration = configureLogFile(flinkConfiguration, flinkConfDir);
-		return new YarnClusterDescriptor(
-			effectiveConfiguration,
-			yarnConfiguration,
-			yarnClient,
-			YarnClientYarnClusterInformationRetriever.create(yarnClient),
-			sharedYarnClient);
-	}
-
-	public static Configuration configureLogFile(Configuration flinkConfiguration, String flinkConfDir) {
-		return FlinkYarnSessionCli.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
+		final Configuration effectiveConfiguration = FlinkYarnSessionCli.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
+		return new YarnClusterDescriptor(effectiveConfiguration, yarnConfiguration, yarnClient, sharedYarnClient);
 	}
 }

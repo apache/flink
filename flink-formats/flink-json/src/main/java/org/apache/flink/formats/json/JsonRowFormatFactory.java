@@ -67,12 +67,7 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 					schema.failOnMissingField();
 				}
 			});
-		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_IGNORE_PARSE_ERRORS)
-			.ifPresent(flag -> {
-				if (flag) {
-					schema.ignoreParseErrors();
-				}
-			});
+
 		return schema.build();
 	}
 

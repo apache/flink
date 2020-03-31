@@ -40,7 +40,7 @@ bt_env.connect(FileSystem().path(sink_path)) \
                  .field("a", DataTypes.BIGINT())
                  .field("b", DataTypes.STRING())
                  .field("c", DataTypes.STRING())) \
-    .create_temporary_table("batch_sink")
+    .register_table_sink("batch_sink")
 
 t.select("a + 1, b, c").insert_into("batch_sink")
 

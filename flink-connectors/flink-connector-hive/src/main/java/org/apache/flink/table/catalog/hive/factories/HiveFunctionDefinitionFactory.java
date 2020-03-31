@@ -63,7 +63,7 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
 		if (catalogFunction.isGeneric()) {
-			return FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction.getClassName());
+			return FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
 		}
 
 		return createFunctionDefinitionFromHiveFunction(name, catalogFunction.getClassName());

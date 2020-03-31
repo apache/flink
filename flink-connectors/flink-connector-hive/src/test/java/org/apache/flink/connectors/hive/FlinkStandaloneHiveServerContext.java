@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Map;
 
@@ -79,40 +78,26 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 	public final void init() {
 		if (!inited) {
 
-			configureMiscHiveSettings();
+			configureMiscHiveSettings(hiveConf);
 
-			configureMetaStore();
+			configureMetaStore(hiveConf);
 
-			configureMrExecutionEngine();
+			configureMrExecutionEngine(hiveConf);
 
-			configureJavaSecurityRealm();
+			configureJavaSecurityRealm(hiveConf);
 
-			configureSupportConcurrency();
+			configureSupportConcurrency(hiveConf);
 
-			configureFileSystem();
+			configureFileSystem(basedir, hiveConf);
 
-			configureAssertionStatus();
+			configureAssertionStatus(hiveConf);
 
-			overrideHiveConf();
-
-			setHiveSitePath();
+			overrideHiveConf(hiveConf);
 		}
 		inited = true;
 	}
 
-	// Some Hive code may create HiveConf instances relying on the hive-site in classpath. Make sure such code can
-	// read the configurations we set here.
-	private void setHiveSitePath() {
-		File hiveSite = new File(newFolder(basedir, "hive-conf"), "hive-site.xml");
-		try (FileOutputStream outputStream = new FileOutputStream(hiveSite)) {
-			hiveConf.writeXml(outputStream);
-			HiveConf.setHiveSiteLocation(hiveSite.toURI().toURL());
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to write hive-site.xml", e);
-		}
-	}
-
-	private void configureMiscHiveSettings() {
+	private void configureMiscHiveSettings(HiveConf hiveConf) {
 		hiveConf.setBoolVar(HIVESTATSAUTOGATHER, false);
 
 		// Turn off CBO so we don't depend on calcite
@@ -127,23 +112,23 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 		hiveConf.setBoolVar(HiveConf.ConfVars.HIVECHECKFILEFORMAT, false);
 	}
 
-	private void overrideHiveConf() {
+	private void overrideHiveConf(HiveConf hiveConf) {
 		for (Map.Entry<String, String> hiveConfEntry : hiveRunnerConfig.getHiveConfSystemOverride().entrySet()) {
 			hiveConf.set(hiveConfEntry.getKey(), hiveConfEntry.getValue());
 		}
 	}
 
-	private void configureMrExecutionEngine() {
+	private void configureMrExecutionEngine(HiveConf conf) {
 
 		/*
 		 * Switch off all optimizers otherwise we didn't
 		 * manage to contain the map reduction within this JVM.
 		 */
-		hiveConf.setBoolVar(HIVE_INFER_BUCKET_SORT, false);
-		hiveConf.setBoolVar(HIVEMETADATAONLYQUERIES, false);
-		hiveConf.setBoolVar(HIVEOPTINDEXFILTER, false);
-		hiveConf.setBoolVar(HIVECONVERTJOIN, false);
-		hiveConf.setBoolVar(HIVESKEWJOIN, false);
+		conf.setBoolVar(HIVE_INFER_BUCKET_SORT, false);
+		conf.setBoolVar(HIVEMETADATAONLYQUERIES, false);
+		conf.setBoolVar(HIVEOPTINDEXFILTER, false);
+		conf.setBoolVar(HIVECONVERTJOIN, false);
+		conf.setBoolVar(HIVESKEWJOIN, false);
 
 		// Defaults to a 1000 millis sleep in. We can speed up the tests a bit by setting this to 1 millis instead.
 		// org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper.
@@ -152,7 +137,7 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 		hiveConf.setBoolVar(HiveConf.ConfVars.HIVE_RPC_QUERY_PLAN, true);
 	}
 
-	private void configureJavaSecurityRealm() {
+	private void configureJavaSecurityRealm(HiveConf hiveConf) {
 		// These three properties gets rid of: 'Unable to load realm info from SCDynamicStore'
 		// which seems to have a timeout of about 5 secs.
 		System.setProperty("java.security.krb5.realm", "");
@@ -160,17 +145,17 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 		System.setProperty("java.security.krb5.conf", "/dev/null");
 	}
 
-	private void configureAssertionStatus() {
+	private void configureAssertionStatus(HiveConf conf) {
 		ClassLoader.getSystemClassLoader().setPackageAssertionStatus(
 				"org.apache.hadoop.hive.serde2.objectinspector",
 				false);
 	}
 
-	private void configureSupportConcurrency() {
+	private void configureSupportConcurrency(HiveConf conf) {
 		hiveConf.setBoolVar(HIVE_SUPPORT_CONCURRENCY, false);
 	}
 
-	private void configureMetaStore() {
+	private void configureMetaStore(HiveConf conf) {
 
 		String jdbcDriver = org.apache.derby.jdbc.EmbeddedDriver.class.getName();
 		try {
@@ -186,30 +171,27 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 		// No pooling needed. This will save us a lot of threads
 		hiveConf.set("datanucleus.connectionPoolingType", "None");
 
-		hiveConf.setBoolVar(METASTORE_VALIDATE_CONSTRAINTS, true);
-		hiveConf.setBoolVar(METASTORE_VALIDATE_COLUMNS, true);
-		hiveConf.setBoolVar(METASTORE_VALIDATE_TABLES, true);
+		conf.setBoolVar(METASTORE_VALIDATE_CONSTRAINTS, true);
+		conf.setBoolVar(METASTORE_VALIDATE_COLUMNS, true);
+		conf.setBoolVar(METASTORE_VALIDATE_TABLES, true);
 
 		// disable authorization to avoid NPE
-		hiveConf.set(HIVE_AUTHORIZATION_MANAGER.varname,
+		conf.set(HIVE_AUTHORIZATION_MANAGER.varname,
 				"org.apache.hive.hcatalog.storagehandler.DummyHCatAuthProvider");
-
-		// disable notification event poll
-		hiveConf.set("hive.notification.event.poll.interval", "0s");
 	}
 
-	private void configureFileSystem() {
+	private void configureFileSystem(TemporaryFolder basedir, HiveConf conf) {
 
-		createAndSetFolderProperty(METASTOREWAREHOUSE, "warehouse", hiveConf, basedir);
-		createAndSetFolderProperty(SCRATCHDIR, "scratchdir", hiveConf, basedir);
-		createAndSetFolderProperty(LOCALSCRATCHDIR, "localscratchdir", hiveConf, basedir);
-		createAndSetFolderProperty(HIVEHISTORYFILELOC, "tmp", hiveConf, basedir);
+		createAndSetFolderProperty(METASTOREWAREHOUSE, "warehouse", conf, basedir);
+		createAndSetFolderProperty(SCRATCHDIR, "scratchdir", conf, basedir);
+		createAndSetFolderProperty(LOCALSCRATCHDIR, "localscratchdir", conf, basedir);
+		createAndSetFolderProperty(HIVEHISTORYFILELOC, "tmp", conf, basedir);
 
 		// HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS is removed from Hive 3.1.0
-		hiveConf.setBoolean("hive.warehouse.subdir.inherit.perms", true);
+		conf.setBoolean("hive.warehouse.subdir.inherit.perms", true);
 
-		createAndSetFolderProperty("hadoop.tmp.dir", "hadooptmp", hiveConf, basedir);
-		createAndSetFolderProperty("test.log.dir", "logs", hiveConf, basedir);
+		createAndSetFolderProperty("hadoop.tmp.dir", "hadooptmp", conf, basedir);
+		createAndSetFolderProperty("test.log.dir", "logs", conf, basedir);
 	}
 
 	private File newFolder(TemporaryFolder basedir, String folder) {

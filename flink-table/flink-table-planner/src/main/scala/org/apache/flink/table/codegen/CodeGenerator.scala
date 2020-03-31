@@ -657,6 +657,7 @@ abstract class CodeGenerator(
       case FLOAT =>
         val floatValue = value.asInstanceOf[JBigDecimal].floatValue()
         floatValue match {
+          case Float.NaN => generateNonNullLiteral(resultType, "java.lang.Float.NaN")
           case Float.NegativeInfinity =>
             generateNonNullLiteral(resultType, "java.lang.Float.NEGATIVE_INFINITY")
           case Float.PositiveInfinity =>
@@ -667,6 +668,7 @@ abstract class CodeGenerator(
       case DOUBLE =>
         val doubleValue = value.asInstanceOf[JBigDecimal].doubleValue()
         doubleValue match {
+          case Double.NaN => generateNonNullLiteral(resultType, "java.lang.Double.NaN")
           case Double.NegativeInfinity =>
             generateNonNullLiteral(resultType, "java.lang.Double.NEGATIVE_INFINITY")
           case Double.PositiveInfinity =>
@@ -1649,7 +1651,7 @@ abstract class CodeGenerator(
       function: UserDefinedFunction,
       contextTerm: String = null,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext]): String = {
-    val classQualifier = function.getClass.getName
+    val classQualifier = function.getClass.getCanonicalName
     val functionSerializedData = EncodingUtils.encodeObjectToString(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
 

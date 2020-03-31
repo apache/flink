@@ -1062,11 +1062,7 @@ public class DataStream<T> {
 	 *            The path pointing to the location the text file is written to.
 	 *
 	 * @return The closed DataStream.
-	 *
-	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
-	 * {@link #addSink(SinkFunction)} method.
 	 */
-	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path) {
 		return writeUsingOutputFormat(new TextOutputFormat<T>(new Path(path)));
@@ -1085,11 +1081,7 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return The closed DataStream.
-	 *
-	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
-	 * {@link #addSink(SinkFunction)} method.
 	 */
-	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
 		TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(path));
@@ -1108,11 +1100,7 @@ public class DataStream<T> {
 	 *            the path pointing to the location the text file is written to
 	 *
 	 * @return the closed DataStream
-	 *
-	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
-	 * {@link #addSink(SinkFunction)} method.
 	 */
-	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path) {
 		return writeAsCsv(path, null, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1132,11 +1120,7 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return the closed DataStream
-	 *
-	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
-	 * {@link #addSink(SinkFunction)} method.
 	 */
-	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
 		return writeAsCsv(path, writeMode, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1160,12 +1144,8 @@ public class DataStream<T> {
 	 *            the delimiter for two fields
 	 *
 	 * @return the closed DataStream
-	 *
-	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
-	 * {@link #addSink(SinkFunction)} method.
 	 */
 	@SuppressWarnings("unchecked")
-	@Deprecated
 	@PublicEvolving
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(
 			String path,
@@ -1217,11 +1197,7 @@ public class DataStream<T> {
 	 *
 	 * @param format The output format
 	 * @return The closed DataStream
-	 *
-	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
-	 * {@link #addSink(SinkFunction)} method.
 	 */
-	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeUsingOutputFormat(OutputFormat<T> format) {
 		return addSink(new OutputFormatSinkFunction<>(format));

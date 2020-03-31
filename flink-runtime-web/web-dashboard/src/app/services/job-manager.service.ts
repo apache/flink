@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BASE_URL } from 'config';
 
@@ -35,20 +35,14 @@ export class JobManagerService {
    * Load JM logs
    */
   loadLogs() {
-    return this.httpClient.get(`${BASE_URL}/jobmanager/log`, {
-      responseType: 'text',
-      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
-    });
+    return this.httpClient.get(`${BASE_URL}/jobmanager/log`, { responseType: 'text' });
   }
 
   /**
    * Load JM stdout
    */
   loadStdout() {
-    return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, {
-      responseType: 'text',
-      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
-    });
+    return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, { responseType: 'text' });
   }
 
   constructor(private httpClient: HttpClient) {}

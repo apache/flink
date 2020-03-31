@@ -45,9 +45,6 @@ class InsertIntoValidationTest {
     tEnv.scan("sourceTable")
       .select('a, 'b, 'c)
       .insertInto("targetTable")
-
-    // trigger translation
-    tEnv.execute("job name")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -67,8 +64,5 @@ class InsertIntoValidationTest {
     tEnv.scan("sourceTable")
       .select('a, 'b, 'c)
       .insertInto("targetTable")
-
-    // trigger translation
-    tEnv.execute("job name")
   }
 }

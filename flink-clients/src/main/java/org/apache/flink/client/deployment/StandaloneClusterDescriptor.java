@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.deployment;
 
-import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -45,23 +44,21 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
-	public ClusterClientProvider<StandaloneClusterId> retrieve(StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
-		return () -> {
-			try {
-				return new RestClusterClient<>(config, standaloneClusterId);
-			} catch (Exception e) {
-				throw new RuntimeException("Couldn't retrieve standalone cluster", e);
-			}
-		};
+	public RestClusterClient<StandaloneClusterId> retrieve(StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
+		try {
+			return new RestClusterClient<>(config, standaloneClusterId);
+		} catch (Exception e) {
+			throw new ClusterRetrieveException("Couldn't retrieve standalone cluster", e);
+		}
 	}
 
 	@Override
-	public ClusterClientProvider<StandaloneClusterId> deploySessionCluster(ClusterSpecification clusterSpecification) {
+	public RestClusterClient<StandaloneClusterId> deploySessionCluster(ClusterSpecification clusterSpecification) {
 		throw new UnsupportedOperationException("Can't deploy a standalone cluster.");
 	}
 
 	@Override
-	public ClusterClientProvider<StandaloneClusterId> deployJobCluster(
+	public RestClusterClient<StandaloneClusterId> deployJobCluster(
 			ClusterSpecification clusterSpecification,
 			JobGraph jobGraph,
 			boolean detached) {
@@ -74,7 +71,7 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		// nothing to do
 	}
 }

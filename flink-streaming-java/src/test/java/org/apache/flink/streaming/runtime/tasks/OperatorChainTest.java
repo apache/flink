@@ -38,9 +38,6 @@ import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -75,7 +72,7 @@ public class OperatorChainTest {
 	// ------------------------------------------------------------------------
 
 	@SafeVarargs
-	public static <T, OP extends StreamOperator<T>> OperatorChain<T, OP> setupOperatorChain(
+	private static <T, OP extends StreamOperator<T>> OperatorChain<T, OP> setupOperatorChain(
 			OneInputStreamOperator<T, T>... operators) throws Exception {
 
 		checkNotNull(operators);
@@ -87,7 +84,7 @@ public class OperatorChainTest {
 			final StreamStatusProvider statusProvider = mock(StreamStatusProvider.class);
 			final StreamConfig cfg = new StreamConfig(new Configuration());
 
-			final List<StreamOperatorWrapper<?, ?>> operatorWrappers = new ArrayList<>();
+			final StreamOperator<?>[] ops = new StreamOperator<?>[operators.length];
 
 			// initial output goes to nowhere
 			@SuppressWarnings({"unchecked", "rawtypes"})
@@ -95,31 +92,23 @@ public class OperatorChainTest {
 					new Output[0], statusProvider);
 
 			// build the reverse operators array
-			for (int i = 0; i < operators.length; i++) {
-				OneInputStreamOperator<T, T> op = operators[operators.length - i - 1];
+			for (int i = 0; i < ops.length; i++) {
+				OneInputStreamOperator<T, T> op = operators[ops.length - i - 1];
 				if (op instanceof SetupableStreamOperator) {
 					((SetupableStreamOperator) op).setup(containingTask, cfg, lastWriter);
 				}
 				lastWriter = new ChainingOutput<>(op, statusProvider, null);
-
-				ProcessingTimeService processingTimeService = null;
-				if (op instanceof AbstractStreamOperator) {
-					processingTimeService = ((AbstractStreamOperator) op).getProcessingTimeService();
-				}
-				operatorWrappers.add(new StreamOperatorWrapper<>(
-					op,
-					Optional.ofNullable(processingTimeService),
-					containingTask.getMailboxExecutorFactory().createExecutor(i)));
+				ops[i] = op;
 			}
 
 			@SuppressWarnings("unchecked")
-			final StreamOperatorWrapper<T, OP> headOperatorWrapper = (StreamOperatorWrapper<T, OP>) operatorWrappers.get(operatorWrappers.size() - 1);
+			final OP head = (OP) operators[0];
 
 			return new OperatorChain<>(
-				operatorWrappers,
-				new RecordWriterOutput<?>[0],
-				lastWriter,
-				headOperatorWrapper);
+					ops,
+					new RecordWriterOutput<?>[0],
+					lastWriter,
+					head);
 		}
 	}
 

@@ -172,6 +172,31 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			long reservedMemorySize,
 			IOManager ioManager,
 			int avgRecordLen,
+			int buildRowCount,
+			boolean useBloomFilters,
+			HashJoinType type,
+			JoinCondition condFunc,
+			boolean reverseJoin,
+			boolean[] filterNulls,
+			boolean tryDistinctBuildRow) {
+		this(conf, owner, buildSideSerializer, probeSideSerializer, buildSideProjection, probeSideProjection, memManager,
+				reservedMemorySize, reservedMemorySize, 0, ioManager, avgRecordLen, buildRowCount, useBloomFilters, type, condFunc,
+				reverseJoin, filterNulls, tryDistinctBuildRow);
+	}
+
+	public BinaryHashTable(
+			Configuration conf,
+			Object owner,
+			AbstractRowSerializer buildSideSerializer,
+			AbstractRowSerializer probeSideSerializer,
+			Projection<BaseRow, BinaryRow> buildSideProjection,
+			Projection<BaseRow, BinaryRow> probeSideProjection,
+			MemoryManager memManager,
+			long reservedMemorySize,
+			long preferredMemorySize,
+			long perRequestMemorySize,
+			IOManager ioManager,
+			int avgRecordLen,
 			long buildRowCount,
 			boolean useBloomFilters,
 			HashJoinType type,
@@ -179,7 +204,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			boolean reverseJoin,
 			boolean[] filterNulls,
 			boolean tryDistinctBuildRow) {
-		super(conf, owner, memManager, reservedMemorySize,
+		super(conf, owner, memManager, reservedMemorySize, preferredMemorySize, perRequestMemorySize,
 				ioManager, avgRecordLen, buildRowCount, !type.buildLeftSemiOrAnti() && tryDistinctBuildRow);
 		// assign the members
 		this.originBuildSideSerializer = buildSideSerializer;
@@ -364,7 +389,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 	private boolean prepareNextPartition() throws IOException {
 		// finalize and cleanup the partitions of the current table
 		for (final BinaryHashPartition p : this.partitionsBeingBuilt) {
-			p.finalizeProbePhase(this.internalPool, this.partitionsPending, type.needSetProbed());
+			p.finalizeProbePhase(this.availableMemory, this.partitionsPending, type.needSetProbed());
 		}
 
 		this.partitionsBeingBuilt.clear();
@@ -458,11 +483,11 @@ public class BinaryHashTable extends BaseHybridHashTable {
 		//        that single partition.
 		// 2) We can not guarantee that enough memory segments are available and read the partition
 		//    in, distributing its data among newly created partitions.
-		final int totalBuffersAvailable = this.internalPool.freePages() + this.buildSpillRetBufferNumbers;
-		if (totalBuffersAvailable != this.totalNumBuffers) {
+		final int totalBuffersAvailable = this.availableMemory.size() + this.buildSpillRetBufferNumbers;
+		if (totalBuffersAvailable != this.reservedNumBuffers + this.allocatedFloatingNum) {
 			throw new RuntimeException(String.format("Hash Join bug in memory management: Memory buffers leaked." +
-					" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s)",
-					internalPool.freePages(), buildSpillRetBufferNumbers, totalNumBuffers));
+					" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s), allocatedFloatingNum(%s)",
+					availableMemory.size(), buildSpillRetBufferNumbers, reservedNumBuffers, allocatedFloatingNum));
 		}
 
 		long numBuckets = p.getBuildSideRecordCount() / BinaryHashBucketArea.NUM_ENTRIES_PER_BUCKET + 1;
@@ -477,7 +502,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 
 			// first read the partition in
 			final List<MemorySegment> partitionBuffers = readAllBuffers(p.getBuildSideChannel().getChannelID(), p.getBuildSideBlockCount());
-			BinaryHashBucketArea area = new BinaryHashBucketArea(this, (int) p.getBuildSideRecordCount(), maxBucketAreaBuffers, false);
+			BinaryHashBucketArea area = new BinaryHashBucketArea(this, (int) p.getBuildSideRecordCount(), maxBucketAreaBuffers);
 			final BinaryHashPartition newPart = new BinaryHashPartition(area, this.binaryBuildSideSerializer, this.binaryProbeSideSerializer,
 					0, nextRecursionLevel, partitionBuffers, p.getBuildSideRecordCount(), this.segmentSize, p.getLastSegmentLimit());
 			area.setPartition(newPart);
@@ -490,7 +515,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			while (pIter.advanceNext()) {
 				final int hashCode = hash(buildSideProjection.apply(pIter.getRow()).hashCode(), nextRecursionLevel);
 				final int pointer = (int) pIter.getPointer();
-				area.insertToBucket(hashCode, pointer, true);
+				area.insertToBucket(hashCode, pointer, false, true);
 			}
 		} else {
 			// go over the complete input and insert every element into the hash table
@@ -569,7 +594,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 		for (int i = this.partitionsBeingBuilt.size() - 1; i >= 0; --i) {
 			final BinaryHashPartition p = this.partitionsBeingBuilt.get(i);
 			try {
-				p.clearAllMemory(this.internalPool);
+				p.clearAllMemory(this.availableMemory);
 			} catch (Exception e) {
 				LOG.error("Error during partition cleanup.", e);
 			}
@@ -578,7 +603,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 
 		// clear the partitions that are still to be done (that have files on disk)
 		for (final BinaryHashPartition p : this.partitionsPending) {
-			p.clearAllMemory(this.internalPool);
+			p.clearAllMemory(this.availableMemory);
 		}
 	}
 
@@ -614,7 +639,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 		// grab as many buffers as are available directly
 		MemorySegment currBuff;
 		while (this.buildSpillRetBufferNumbers > 0 && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
-			returnPage(currBuff);
+			this.availableMemory.add(currBuff);
 			this.buildSpillRetBufferNumbers--;
 		}
 		numSpillFiles++;
@@ -624,7 +649,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 		return largestPartNum;
 	}
 
-	boolean applyCondition(BinaryRow candidate) {
+	boolean applyCondition(BinaryRow candidate) throws Exception {
 		BinaryRow buildKey = buildSideProjection.apply(candidate);
 		// They come from Projection, so we can make sure it is in byte[].
 		boolean equal = buildKey.getSizeInBytes() == probeKey.getSizeInBytes()

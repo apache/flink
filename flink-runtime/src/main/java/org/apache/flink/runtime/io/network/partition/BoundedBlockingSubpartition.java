@@ -149,15 +149,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		try {
 			final Buffer buffer = bufferConsumer.build();
 			try {
-				if (canBeCompressed(buffer)) {
-					final Buffer compressedBuffer = parent.bufferCompressor.compressToIntermediateBuffer(buffer);
-					data.writeBuffer(compressedBuffer);
-					if (compressedBuffer != buffer) {
-						compressedBuffer.recycleBuffer();
-					}
-				} else {
-					data.writeBuffer(buffer);
-				}
+				data.writeBuffer(buffer);
 
 				numBuffersAndEventsWritten++;
 				if (buffer.isBuffer()) {

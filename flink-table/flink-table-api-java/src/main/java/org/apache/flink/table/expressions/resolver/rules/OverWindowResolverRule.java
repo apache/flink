@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
@@ -55,7 +55,7 @@ final class OverWindowResolverRule implements ResolverRule {
 			.collect(Collectors.toList());
 	}
 
-	private static class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
+	private class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
 
 		ExpressionResolverVisitor(ResolutionContext context) {
 			super(context);
@@ -80,12 +80,13 @@ final class OverWindowResolverRule implements ResolverRule {
 
 				newArgs.addAll(referenceWindow.getPartitionBy());
 
-				return unresolvedCall.replaceArgs(newArgs);
+				return unresolvedCall(unresolvedCall.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
 			} else {
-				return unresolvedCall.replaceArgs(
+				return unresolvedCall(
+					unresolvedCall.getFunctionDefinition(),
 					unresolvedCall.getChildren().stream()
 						.map(expr -> expr.accept(this))
-						.collect(Collectors.toList()));
+						.toArray(Expression[]::new));
 			}
 		}
 

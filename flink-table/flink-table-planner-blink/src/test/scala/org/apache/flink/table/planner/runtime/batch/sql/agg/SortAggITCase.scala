@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
 
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import java.lang
 import java.lang.{Iterable => JIterable}
@@ -71,7 +71,8 @@ class SortAggITCase
       "SELECT simplePrimitiveArrayUdaf(id) FROM RangeT",
       Seq(row(499999500000L)))
   }
-  
+
+  @Ignore
   @Test
   def testMultiSetAggBufferGroupBy(): Unit = {
     checkResult(
@@ -139,7 +140,7 @@ class SortAggITCase
   // NOTE: Spark has agg functions collect_list(), collect_set().
   //       instead, we'll test LISTAGG() here
   @Test
-  def testListAgg(): Unit = {
+  def testConcatAgg(): Unit = {
     checkResult(
       "SELECT LISTAGG(c, '-'), LISTAGG(c) FROM SmallTable3",
       Seq(
@@ -248,6 +249,7 @@ class SortAggITCase
     )
   }
 
+  @Ignore
   @Test
   def testFirstValueOnString(): Unit = {
     checkResult(

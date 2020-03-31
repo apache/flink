@@ -39,7 +39,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 /**
  * An archived execution graph represents a serializable form of the {@link ExecutionGraph}.
@@ -96,9 +95,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	@Nullable
 	private final CheckpointStatsSnapshot checkpointStatsSnapshot;
 
-	@Nullable
-	private final String stateBackendName;
-
 	public ArchivedExecutionGraph(
 			JobID jobID,
 			String jobName,
@@ -113,8 +109,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			ArchivedExecutionConfig executionConfig,
 			boolean isStoppable,
 			@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
-			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
-			@Nullable String stateBackendName) {
+			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot) {
 
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.jobName = Preconditions.checkNotNull(jobName);
@@ -130,7 +125,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		this.isStoppable = isStoppable;
 		this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
 		this.checkpointStatsSnapshot = checkpointStatsSnapshot;
-		this.stateBackendName = stateBackendName;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -256,11 +250,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		return serializedUserAccumulators;
 	}
 
-	@Override
-	public Optional<String> getStateBackendName() {
-		return Optional.ofNullable(stateBackendName);
-	}
-
 	class AllVerticesIterator implements Iterator<ArchivedExecutionVertex> {
 
 		private final Iterator<ArchivedExecutionJobVertex> jobVertices;
@@ -348,7 +337,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			executionGraph.getArchivedExecutionConfig(),
 			executionGraph.isStoppable(),
 			executionGraph.getCheckpointCoordinatorConfiguration(),
-			executionGraph.getCheckpointStatsSnapshot(),
-			executionGraph.getStateBackendName().orElse(null));
+			executionGraph.getCheckpointStatsSnapshot());
 	}
 }
