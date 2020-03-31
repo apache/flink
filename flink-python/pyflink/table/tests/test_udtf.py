@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.testing import source_sink_utils
@@ -80,8 +81,17 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
     pass
 
 
-class MultiEmit(TableFunction):
+class MultiEmit(TableFunction, unittest.TestCase):
+
+    def open(self, function_context):
+        mg = function_context.get_metric_group()
+        self.counter = mg.add_group("key", "value").counter("my_counter")
+        self.counter_sum = 0
+
     def eval(self, x, y):
+        self.counter.inc(y)
+        self.counter_sum += y
+        self.assertEqual(self.counter_sum, self.counter.get_count())
         for i in range(y):
             yield x, i
 
