@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.description.Description;
 
 import java.util.List;
@@ -34,22 +35,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
  * <p>These options are not expected to be ever configured by users explicitly.
  */
 public class YarnConfigOptions {
-
-	/**
-	 * The hostname or address where the application master RPC system is listening.
-	 */
-	public static final ConfigOption<String> APP_MASTER_RPC_ADDRESS =
-			key("yarn.appmaster.rpc.address")
-			.noDefaultValue()
-			.withDescription("The hostname or address where the application master RPC system is listening.");
-
-	/**
-	 * The port where the application master RPC system is listening.
-	 */
-	public static final ConfigOption<Integer> APP_MASTER_RPC_PORT =
-			key("yarn.appmaster.rpc.port")
-			.defaultValue(-1)
-			.withDescription("The port where the application master RPC system is listening.");
 
 	/**
 	 * The vcores used by YARN application master.
@@ -85,18 +70,6 @@ public class YarnConfigOptions {
 					" the %s.",
 				code("org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler"))
 				.build());
-
-	/**
-	 * The maximum number of failed YARN containers before entirely stopping
-	 * the YARN session / job on YARN.
-	 * By default, we take the number of initially requested containers.
-	 *
-	 * <p>Note: This option returns a String since Integer options must have a static default value.
-	 */
-	public static final ConfigOption<String> MAX_FAILED_CONTAINERS =
-		key("yarn.maximum-failed-containers")
-		.noDefaultValue()
-		.withDescription("Maximum number of containers the system is going to reallocate in case of a failure.");
 
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
@@ -200,6 +173,19 @@ public class YarnConfigOptions {
 				" settings required to enable priority scheduling for the targeted YARN version.");
 
 	/**
+	 * Yarn session client uploads flink jar and user libs to file system (hdfs/s3) as local resource for yarn
+	 * application context. The replication number changes the how many replica of each of these files in hdfs/s3.
+	 * It is useful to accelerate this container bootstrap, when a Flink application needs more than one hundred
+	 * of containers. If it is not configured, Flink will use the default replication value in hadoop configuration.
+	 */
+	public static final ConfigOption<Integer> FILE_REPLICATION =
+		key("yarn.file-replication")
+			.intType()
+			.defaultValue(-1)
+			.withDescription("Number of file replication of each local resource file. If it is not configured, Flink will" +
+				" use the default replication value in hadoop configuration.");
+
+	/**
 	 * A comma-separated list of strings to use as YARN application tags.
 	 */
 	public static final ConfigOption<String> APPLICATION_TAGS =
@@ -252,6 +238,27 @@ public class YarnConfigOptions {
 				.stringType()
 				.noDefaultValue()
 				.withDescription("Specify YARN node label for the YARN application.");
+
+	public static final ConfigOption<Boolean> SHIP_LOCAL_KEYTAB =
+			key("yarn.security.kerberos.ship-local-keytab")
+					.booleanType()
+					.defaultValue(true)
+					.withDescription(
+							"When this is true Flink will ship the keytab file configured via " +
+									SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() +
+									" as a localized YARN resource.");
+
+	public static final ConfigOption<String> LOCALIZED_KEYTAB_PATH =
+			key("yarn.security.kerberos.localized-keytab-path")
+					.stringType()
+					.defaultValue("krb5.keytab")
+					.withDescription(
+							"Local (on NodeManager) path where kerberos keytab file will be" +
+									" localized to. If " + SHIP_LOCAL_KEYTAB.key() + " set to " +
+									"true, Flink willl ship the keytab file as a YARN local " +
+									"resource. In this case, the path is relative to the local " +
+									"resource directory. If set to false, Flink" +
+									" will try to directly locate the keytab from the path itself.");
 
 	// ------------------------------------------------------------------------
 

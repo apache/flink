@@ -19,62 +19,74 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.ShutdownHookUtil;
 
-import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Execution Environment for remote execution with the Client.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	private final AtomicReference<JobExecutionResult> jobExecutionResult;
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private boolean alreadyCalled;
-
-	ContextEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+	public ContextEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader,
-			final AtomicReference<JobExecutionResult> jobExecutionResult) {
+			final ClassLoader userCodeClassLoader) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
-		this.jobExecutionResult = checkNotNull(jobExecutionResult);
-
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
-
-		this.alreadyCalled = false;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		verifyExecuteIsCalledOnceWhenInDetachedMode();
+		JobClient jobClient = executeAsync(jobName);
 
-		final JobExecutionResult jobExecutionResult = super.execute(jobName);
-		setJobExecutionResult(jobExecutionResult);
+		JobExecutionResult jobExecutionResult;
+		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+					jobClient.getJobExecutionResult(getUserCodeClassLoader());
+
+			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+						() -> {
+							// wait a smidgen to allow the async request to go through before
+							// the jvm exits
+							jobClient.cancel().get(1, TimeUnit.SECONDS);
+						},
+						ContextEnvironment.class.getSimpleName(),
+						LOG);
+				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
+						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+			}
+
+			jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
+		} else {
+			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+		}
+
 		return jobExecutionResult;
 	}
 
-	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
-		if (alreadyCalled && !getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
-			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
-		}
-		alreadyCalled = true;
-	}
+	@Override
+	public JobClient executeAsync(String jobName) throws Exception {
+		final JobClient jobClient = super.executeAsync(jobName);
 
-	public void setJobExecutionResult(JobExecutionResult jobExecutionResult) {
-		this.jobExecutionResult.set(jobExecutionResult);
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return jobClient;
 	}
 
 	@Override
@@ -84,11 +96,18 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader) {
+		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
+			executorServiceLoader,
+			configuration,
+			userCodeClassLoader);
 		initializeContextEnvironment(factory);
 	}
 
-	public static void unsetContext() {
+	public static void unsetAsContext() {
 		resetContextEnvironment();
 	}
 }

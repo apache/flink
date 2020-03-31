@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -41,9 +42,13 @@ public class SingleInputGateBuilder {
 
 	private int consumedSubpartitionIndex = 0;
 
+	private int gateIndex = 0;
+
 	private int numberOfChannels = 1;
 
 	private PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
+
+	private BufferDecompressor bufferDecompressor = null;
 
 	private SupplierWithException<BufferPool, IOException> bufferPoolFactory = () -> {
 		throw new UnsupportedOperationException();
@@ -63,6 +68,11 @@ public class SingleInputGateBuilder {
 
 	SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
 		this.consumedSubpartitionIndex = consumedSubpartitionIndex;
+		return this;
+	}
+
+	SingleInputGateBuilder setSingleInputGateIndex(int gateIndex) {
+		this.gateIndex = gateIndex;
 		return this;
 	}
 
@@ -87,14 +97,21 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setBufferDecompressor(BufferDecompressor bufferDecompressor) {
+		this.bufferDecompressor = bufferDecompressor;
+		return this;
+	}
+
 	public SingleInputGate build() {
 		return new SingleInputGate(
 			"Single Input Gate",
+			gateIndex,
 			intermediateDataSetID,
 			partitionType,
 			consumedSubpartitionIndex,
 			numberOfChannels,
 			partitionProducerStateProvider,
-			bufferPoolFactory);
+			bufferPoolFactory,
+			bufferDecompressor);
 	}
 }

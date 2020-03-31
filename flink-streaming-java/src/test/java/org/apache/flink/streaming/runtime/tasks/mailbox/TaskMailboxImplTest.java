@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -47,7 +48,6 @@ import static org.junit.Assert.assertEquals;
 public class TaskMailboxImplTest {
 
 	private static final RunnableWithException NO_OP = () -> {};
-	private static final RunnableWithException POISON_MAIL = NO_OP;
 	private static final int DEFAULT_PRIORITY = 0;
 	/**
 	 * Object under test.
@@ -256,11 +256,11 @@ public class TaskMailboxImplTest {
 			writerThread.join();
 		}
 
-		taskMailbox.put(new Mail(POISON_MAIL, DEFAULT_PRIORITY, "POISON_MAIL, DEFAULT_PRIORITY"));
+		AtomicBoolean isRunning = new AtomicBoolean(true);
+		taskMailbox.put(new Mail(() -> isRunning.set(false), DEFAULT_PRIORITY, "POISON_MAIL, DEFAULT_PRIORITY"));
 
-		Mail mail;
-		while ((mail = takeMethod.apply(taskMailbox)).getRunnable() != POISON_MAIL) {
-			mail.run();
+		while (isRunning.get()) {
+			takeMethod.apply(taskMailbox).run();
 		}
 		for (int perThreadResult : results) {
 			assertEquals(numMailsPerThread, perThreadResult);

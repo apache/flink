@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.function.Function;
 
 
@@ -121,7 +120,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	}
 
 	@Override
-	protected void initializeInputs() throws IOException, InterruptedException {
+	protected void initializeInputs() {
 		inputGates = new StreamTestSingleInputGate[numInputGates];
 
 		for (int i = 0; i < numInputGates; i++) {
@@ -133,7 +132,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 		}
 
 		streamConfig.setNumberOfInputs(1);
-		streamConfig.setTypeSerializerIn1(inputSerializer);
+		streamConfig.setTypeSerializersIn(inputSerializer);
 	}
 
 	public <K> void configureForKeyedStream(

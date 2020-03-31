@@ -176,7 +176,7 @@ class CalcStringExpressionTest extends TableTestBase {
     util.tableEnv.registerFunction("func", Func23)
 
     val t1 = t.map("func(a, b, c)")
-    val t2 = t.map(Func23('a, 'b, 'c))
+    val t2 = t.map(call("func", 'a, 'b, 'c))
 
     verifyTableEquals(t1, t2)
   }

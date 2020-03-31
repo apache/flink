@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
+import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.dataformat.util.BaseRowUtil
@@ -333,18 +334,27 @@ class AggsHandlerCodeGenerator(
 
     val functionName = newName(name)
 
+    val RUNTIME_CONTEXT = className[RuntimeContext]
+
     val functionCode =
       j"""
         public final class $functionName implements $AGGS_HANDLER_FUNCTION {
 
           ${ctx.reuseMemberCode()}
 
+          private $STATE_DATA_VIEW_STORE store;
+
           public $functionName(java.lang.Object[] references) throws Exception {
             ${ctx.reuseInitCode()}
           }
 
+          private $RUNTIME_CONTEXT getRuntimeContext() {
+            return store.getRuntimeContext();
+          }
+
           @Override
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
+            this.store = store;
             ${ctx.reuseOpenCode()}
           }
 

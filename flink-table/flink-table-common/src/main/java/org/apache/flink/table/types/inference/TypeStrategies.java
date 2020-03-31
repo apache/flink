@@ -21,8 +21,9 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.MatchingTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
 
 import java.util.Map;
 
@@ -47,11 +48,18 @@ public final class TypeStrategies {
 	}
 
 	/**
-	 * Type strategy that maps an {@link InputTypeValidator} to a {@link TypeStrategy} if the validator
-	 * matches.
+	 * Type strategy that returns the n-th input argument.
 	 */
-	public static TypeStrategy matching(Map<InputTypeValidator, TypeStrategy> matchers) {
-		return new MatchingTypeStrategy(matchers);
+	public static TypeStrategy argument(int pos) {
+		return new UseArgumentTypeStrategy(pos);
+	}
+
+	/**
+	 * Type strategy that maps an {@link InputTypeStrategy} to a {@link TypeStrategy} if the input strategy
+	 * infers identical types.
+	 */
+	public static TypeStrategy mapping(Map<InputTypeStrategy, TypeStrategy> mappings) {
+		return new MappingTypeStrategy(mappings);
 	}
 
 	// --------------------------------------------------------------------------------------------

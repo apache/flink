@@ -52,7 +52,7 @@ env.setStateBackend(new FsStateBackend("oss://<your-bucket>/<object-name>"));
 
 ### Shaded Hadoop OSS file system
 
-To use `flink-oss-fs-hadoop,` copy the respective JAR file from the `opt` directory to a directory in `plugins` directory of your Flink distribution before starting Flink, e.g.
+To use `flink-oss-fs-hadoop`, copy the respective JAR file from the `opt` directory to a directory in `plugins` directory of your Flink distribution before starting Flink, e.g.
 
 {% highlight bash %}
 mkdir ./plugins/oss-fs-hadoop
@@ -82,7 +82,7 @@ An alternative `CredentialsProvider` can also be configured in the `flink-conf.y
 # Read Credentials from OSS_ACCESS_KEY_ID and OSS_ACCESS_KEY_SECRET
 fs.oss.credentials.provider: com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider
 {% endhighlight %}
-Other credential providers can be found under https://github.com/aliyun/aliyun-oss-java-sdk/tree/master/src/main/java/com/aliyun/oss/common/auth. 
+Other credential providers can be found under [here](https://github.com/aliyun/aliyun-oss-java-sdk/tree/master/src/main/java/com/aliyun/oss/common/auth).
 
  
 

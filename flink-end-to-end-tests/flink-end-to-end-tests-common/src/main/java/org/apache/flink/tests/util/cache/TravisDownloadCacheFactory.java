@@ -19,7 +19,6 @@
 package org.apache.flink.tests.util.cache;
 
 import org.apache.flink.tests.util.parameters.ParameterProperty;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,9 +32,12 @@ import java.util.Optional;
 public final class TravisDownloadCacheFactory implements DownloadCacheFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(TravisDownloadCacheFactory.class);
 
-	private static final ParameterProperty<Path> TMP_DIR = new ParameterProperty<>("cache-dir", value -> Paths.get(value));
-	private static final ParameterProperty<Integer> BUILDS_TO_LIVE = new ParameterProperty<>("cache-btl", Integer::parseInt);
-	private static final ParameterProperty<Integer> BUILD_NUMBER = new ParameterProperty<>("TRAVIS_BUILD_NUMBER", Integer::parseInt);
+	private static final ParameterProperty<Path> TMP_DIR = new ParameterProperty<>("cache-dir",
+		value -> Paths.get(value));
+	private static final ParameterProperty<Integer> BUILDS_TO_LIVE = new ParameterProperty<>("cache-btl",
+		Integer::parseInt);
+	private static final ParameterProperty<Integer> BUILD_NUMBER = new ParameterProperty<>("TRAVIS_BUILD_NUMBER",
+		Integer::parseInt);
 
 	@Override
 	public Optional<DownloadCache> create() {
@@ -47,11 +49,13 @@ public final class TravisDownloadCacheFactory implements DownloadCacheFactory {
 			return Optional.empty();
 		}
 		if (!timeToLive.isPresent()) {
-			LOG.debug("Not loading {} because {} was not set.", TravisDownloadCache.class, BUILDS_TO_LIVE.getPropertyName());
+			LOG.debug("Not loading {} because {} was not set.", TravisDownloadCache.class,
+				BUILDS_TO_LIVE.getPropertyName());
 			return Optional.empty();
 		}
 		if (!buildNumber.isPresent()) {
-			LOG.debug("Not loading {} because {} was not set.", TravisDownloadCache.class, BUILD_NUMBER.getPropertyName());
+			LOG.debug("Not loading {} because {} was not set.", TravisDownloadCache.class,
+				BUILD_NUMBER.getPropertyName());
 			return Optional.empty();
 		}
 		LOG.info("Created {}.", TravisDownloadCache.class.getSimpleName());

@@ -33,9 +33,9 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test case for built-in concatWs with retraction aggregate function.
+ * Test case for built-in ListAggWs with retraction aggregate function.
  */
-public class ListAggWsWithRetractAggFunctionTest
+public final class ListAggWsWithRetractAggFunctionTest
 	extends AggFunctionTestBase<BinaryString, ListAggWsWithRetractAccumulator> {
 
 	@Override

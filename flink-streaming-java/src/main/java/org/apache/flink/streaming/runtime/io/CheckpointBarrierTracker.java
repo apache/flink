@@ -28,8 +28,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayDeque;
 
 /**
@@ -71,11 +69,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 	/** The highest checkpoint ID encountered so far. */
 	private long latestPendingCheckpointID = -1;
 
-	public CheckpointBarrierTracker(int totalNumberOfInputChannels) {
-		this(totalNumberOfInputChannels, null);
-	}
-
-	public CheckpointBarrierTracker(int totalNumberOfInputChannels, @Nullable AbstractInvokable toNotifyOnCheckpoint) {
+	public CheckpointBarrierTracker(int totalNumberOfInputChannels, AbstractInvokable toNotifyOnCheckpoint) {
 		super(toNotifyOnCheckpoint);
 		this.totalNumberOfInputChannels = totalNumberOfInputChannels;
 		this.pendingCheckpoints = new ArrayDeque<>();
@@ -144,6 +138,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 			// if it is not newer than the latest checkpoint ID, then there cannot be a
 			// successful checkpoint for that ID anyways
 			if (barrierId > latestPendingCheckpointID) {
+				markCheckpointStart(receivedBarrier.getTimestamp());
 				latestPendingCheckpointID = barrierId;
 				pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
 

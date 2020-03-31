@@ -19,6 +19,8 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -39,9 +41,12 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	private final int priority;
 
-	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority) {
+	private final StreamTaskActionExecutor actionExecutor;
+
+	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority, StreamTaskActionExecutor actionExecutor) {
 		this.mailbox = mailbox;
 		this.priority = priority;
+		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 	}
 
 	@Override
@@ -50,19 +55,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 		final String descriptionFormat,
 		final Object... descriptionArgs) {
 		try {
-			mailbox.put(new Mail(command, priority, descriptionFormat, descriptionArgs));
-		} catch (IllegalStateException mbex) {
-			throw new RejectedExecutionException(mbex);
-		}
-	}
-
-	@Override
-	public void executeFirst(
-		@Nonnull final RunnableWithException command,
-		final String descriptionFormat,
-		final Object... descriptionArgs) {
-		try {
-			mailbox.putFirst(new Mail(command, priority, descriptionFormat, descriptionArgs));
+			mailbox.put(new Mail(command, priority, actionExecutor, descriptionFormat, descriptionArgs));
 		} catch (IllegalStateException mbex) {
 			throw new RejectedExecutionException(mbex);
 		}

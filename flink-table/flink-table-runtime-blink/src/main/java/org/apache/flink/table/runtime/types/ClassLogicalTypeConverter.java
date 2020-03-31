@@ -54,12 +54,12 @@ public class ClassLogicalTypeConverter {
 			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return Integer.class;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return SqlTimestamp.class;
 			case BIGINT:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				return Long.class;
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return SqlTimestamp.class;
 			case FLOAT:
 				return Float.class;
 			case DOUBLE:

@@ -21,10 +21,7 @@ package org.apache.flink.table.planner.runtime.utils
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.api.{EnvironmentSettings, Table, TableException}
-import org.apache.flink.table.planner.operations.PlannerQueryOperation
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
-import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.test.util.AbstractTestBase
 
 import org.junit.rules.{ExpectedException, TemporaryFolder}

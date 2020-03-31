@@ -45,8 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     <li>CPU cores</li>
  *     <li>Task Heap Memory</li>
  *     <li>Task Off-Heap Memory</li>
- *     <li>On-Heap Managed Memory</li>
- *     <li>Off-Heap Managed Memory</li>
+ *     <li>Managed Memory</li>
  *     <li>Extended resources</li>
  * </ol>
  */
@@ -66,6 +65,11 @@ public final class ResourceSpec implements Serializable {
 	 */
 	public static final ResourceSpec DEFAULT = UNKNOWN;
 
+	/**
+	 * A ResourceSpec that indicates zero amount of resources.
+	 */
+	public static final ResourceSpec ZERO = ResourceSpec.newBuilder(0.0, 0).build();
+
 	/** How many cpu cores are needed. Can be null only if it is unknown. */
 	@Nullable
 	private final Resource cpuCores;
@@ -78,13 +82,9 @@ public final class ResourceSpec implements Serializable {
 	@Nullable // can be null only for UNKNOWN
 	private final MemorySize taskOffHeapMemory;
 
-	/** How much on-heap managed memory is needed. */
+	/** How much managed memory is needed. */
 	@Nullable // can be null only for UNKNOWN
-	private final MemorySize onHeapManagedMemory;
-
-	/** How much off-heap managed memory is needed. */
-	@Nullable // can be null only for UNKNOWN
-	private final MemorySize offHeapManagedMemory;
+	private final MemorySize managedMemory;
 
 	private final Map<String, Resource> extendedResources = new HashMap<>(1);
 
@@ -92,8 +92,7 @@ public final class ResourceSpec implements Serializable {
 			final Resource cpuCores,
 			final MemorySize taskHeapMemory,
 			final MemorySize taskOffHeapMemory,
-			final MemorySize onHeapManagedMemory,
-			final MemorySize offHeapManagedMemory,
+			final MemorySize managedMemory,
 			final Resource... extendedResources) {
 
 		checkNotNull(cpuCores);
@@ -102,8 +101,7 @@ public final class ResourceSpec implements Serializable {
 		this.cpuCores = cpuCores;
 		this.taskHeapMemory = checkNotNull(taskHeapMemory);
 		this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
-		this.onHeapManagedMemory = checkNotNull(onHeapManagedMemory);
-		this.offHeapManagedMemory = checkNotNull(offHeapManagedMemory);
+		this.managedMemory = checkNotNull(managedMemory);
 
 		for (Resource resource : extendedResources) {
 			if (resource != null) {
@@ -119,8 +117,7 @@ public final class ResourceSpec implements Serializable {
 		this.cpuCores = null;
 		this.taskHeapMemory = null;
 		this.taskOffHeapMemory = null;
-		this.onHeapManagedMemory = null;
-		this.offHeapManagedMemory = null;
+		this.managedMemory = null;
 	}
 
 	/**
@@ -141,8 +138,7 @@ public final class ResourceSpec implements Serializable {
 			this.cpuCores.merge(other.cpuCores),
 			this.taskHeapMemory.add(other.taskHeapMemory),
 			this.taskOffHeapMemory.add(other.taskOffHeapMemory),
-			this.onHeapManagedMemory.add(other.onHeapManagedMemory),
-			this.offHeapManagedMemory.add(other.offHeapManagedMemory));
+			this.managedMemory.add(other.managedMemory));
 		target.extendedResources.putAll(extendedResources);
 		for (Resource resource : other.extendedResources.values()) {
 			target.extendedResources.merge(resource.getName(), resource, (v1, v2) -> v1.merge(v2));
@@ -169,8 +165,7 @@ public final class ResourceSpec implements Serializable {
 			this.cpuCores.subtract(other.cpuCores),
 			this.taskHeapMemory.subtract(other.taskHeapMemory),
 			this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
-			this.onHeapManagedMemory.subtract(other.onHeapManagedMemory),
-			this.offHeapManagedMemory.subtract(other.offHeapManagedMemory));
+			this.managedMemory.subtract(other.managedMemory));
 
 		target.extendedResources.putAll(extendedResources);
 
@@ -198,14 +193,9 @@ public final class ResourceSpec implements Serializable {
 		return taskOffHeapMemory;
 	}
 
-	public MemorySize getOnHeapManagedMemory() {
+	public MemorySize getManagedMemory() {
 		throwUnsupportedOperationExceptionIfUnknown();
-		return onHeapManagedMemory;
-	}
-
-	public MemorySize getOffHeapManagedMemory() {
-		throwUnsupportedOperationExceptionIfUnknown();
-		return offHeapManagedMemory;
+		return managedMemory;
 	}
 
 	public Resource getGPUResource() {
@@ -243,9 +233,8 @@ public final class ResourceSpec implements Serializable {
 		int cmp1 = this.cpuCores.getValue().compareTo(other.getCpuCores().getValue());
 		int cmp2 = this.taskHeapMemory.compareTo(other.taskHeapMemory);
 		int cmp3 = this.taskOffHeapMemory.compareTo(other.taskOffHeapMemory);
-		int cmp4 = this.onHeapManagedMemory.compareTo(other.onHeapManagedMemory);
-		int cmp5 = this.offHeapManagedMemory.compareTo(other.offHeapManagedMemory);
-		if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0 && cmp5 <= 0) {
+		int cmp4 = this.managedMemory.compareTo(other.managedMemory);
+		if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0) {
 			for (Resource resource : extendedResources.values()) {
 				if (!other.extendedResources.containsKey(resource.getName()) ||
 					other.extendedResources.get(resource.getName()).getValue().compareTo(resource.getValue()) < 0) {
@@ -266,8 +255,7 @@ public final class ResourceSpec implements Serializable {
 			return Objects.equals(this.cpuCores, that.cpuCores) &&
 				Objects.equals(this.taskHeapMemory, that.taskHeapMemory) &&
 				Objects.equals(this.taskOffHeapMemory, that.taskOffHeapMemory) &&
-				Objects.equals(this.onHeapManagedMemory, that.onHeapManagedMemory) &&
-				Objects.equals(this.offHeapManagedMemory, that.offHeapManagedMemory) &&
+				Objects.equals(this.managedMemory, that.managedMemory) &&
 				Objects.equals(extendedResources, that.extendedResources);
 		} else {
 			return false;
@@ -279,8 +267,7 @@ public final class ResourceSpec implements Serializable {
 		int result = Objects.hashCode(cpuCores);
 		result = 31 * result + Objects.hashCode(taskHeapMemory);
 		result = 31 * result + Objects.hashCode(taskOffHeapMemory);
-		result = 31 * result + Objects.hashCode(onHeapManagedMemory);
-		result = 31 * result + Objects.hashCode(offHeapManagedMemory);
+		result = 31 * result + Objects.hashCode(managedMemory);
 		result = 31 * result + extendedResources.hashCode();
 		return result;
 	}
@@ -297,10 +284,9 @@ public final class ResourceSpec implements Serializable {
 		}
 		return "ResourceSpec{" +
 			"cpuCores=" + cpuCores.getValue() +
-			", taskHeapMemory=" + taskHeapMemory +
-			", taskOffHeapMemory=" + taskOffHeapMemory +
-			", onHeapManagedMemory=" + onHeapManagedMemory +
-			", offHeapManagedMemory=" + offHeapManagedMemory + extResources +
+			", taskHeapMemory=" + taskHeapMemory.toHumanReadableString() +
+			", taskOffHeapMemory=" + taskOffHeapMemory.toHumanReadableString() +
+			", managedMemory=" + managedMemory.toHumanReadableString() + extResources +
 			'}';
 	}
 
@@ -318,7 +304,7 @@ public final class ResourceSpec implements Serializable {
 	// ------------------------------------------------------------------------
 
 	public static Builder newBuilder(double cpuCores, int taskHeapMemoryMB) {
-		return new Builder(new CPUResource(cpuCores), MemorySize.parse(taskHeapMemoryMB + "m"));
+		return new Builder(new CPUResource(cpuCores), MemorySize.ofMebiBytes(taskHeapMemoryMB));
 	}
 
 	/**
@@ -329,8 +315,7 @@ public final class ResourceSpec implements Serializable {
 		private Resource cpuCores;
 		private MemorySize taskHeapMemory;
 		private MemorySize taskOffHeapMemory = MemorySize.ZERO;
-		private MemorySize onHeapManagedMemory = MemorySize.ZERO;
-		private MemorySize offHeapManagedMemory = MemorySize.ZERO;
+		private MemorySize managedMemory = MemorySize.ZERO;
 		private GPUResource gpuResource;
 
 		private Builder(CPUResource cpuCores, MemorySize taskHeapMemory) {
@@ -349,7 +334,7 @@ public final class ResourceSpec implements Serializable {
 		}
 
 		public Builder setTaskHeapMemoryMB(int taskHeapMemoryMB) {
-			this.taskHeapMemory = MemorySize.parse(taskHeapMemoryMB + "m");
+			this.taskHeapMemory = MemorySize.ofMebiBytes(taskHeapMemoryMB);
 			return this;
 		}
 
@@ -359,27 +344,17 @@ public final class ResourceSpec implements Serializable {
 		}
 
 		public Builder setOffTaskHeapMemoryMB(int taskOffHeapMemoryMB) {
-			this.taskOffHeapMemory = MemorySize.parse(taskOffHeapMemoryMB + "m");
+			this.taskOffHeapMemory = MemorySize.ofMebiBytes(taskOffHeapMemoryMB);
 			return this;
 		}
 
-		public Builder setOnHeapManagedMemory(MemorySize onHeapManagedMemory) {
-			this.onHeapManagedMemory = onHeapManagedMemory;
+		public Builder setManagedMemory(MemorySize managedMemory) {
+			this.managedMemory = managedMemory;
 			return this;
 		}
 
-		public Builder setOnHeapManagedMemoryMB(int onHeapManagedMemoryMB) {
-			this.onHeapManagedMemory = MemorySize.parse(onHeapManagedMemoryMB + "m");
-			return this;
-		}
-
-		public Builder setOffHeapManagedMemory(MemorySize offHeapManagedMemory) {
-			this.offHeapManagedMemory = offHeapManagedMemory;
-			return this;
-		}
-
-		public Builder setOffHeapManagedMemoryMB(int offHeapManagedMemoryMB) {
-			this.offHeapManagedMemory = MemorySize.parse(offHeapManagedMemoryMB + "m");
+		public Builder setManagedMemoryMB(int managedMemoryMB) {
+			this.managedMemory = MemorySize.ofMebiBytes(managedMemoryMB);
 			return this;
 		}
 
@@ -393,8 +368,7 @@ public final class ResourceSpec implements Serializable {
 				cpuCores,
 				taskHeapMemory,
 				taskOffHeapMemory,
-				onHeapManagedMemory,
-				offHeapManagedMemory,
+				managedMemory,
 				gpuResource);
 		}
 	}

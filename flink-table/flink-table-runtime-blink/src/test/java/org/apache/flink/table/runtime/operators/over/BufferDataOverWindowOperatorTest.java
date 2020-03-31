@@ -177,7 +177,7 @@ public class BufferDataOverWindowOperatorTest {
 	}
 
 	private void test(OverWindowFrame[] frames, GenericRow[] expect) throws Exception {
-		operator = new BufferDataOverWindowOperator(MEMORY_SIZE, frames, comparator, true) {
+		operator = new BufferDataOverWindowOperator(frames, comparator, true) {
 			{
 				output = new NonBufferOverWindowOperatorTest.ConsumerOutput(new Consumer<BaseRow>() {
 					@Override
@@ -198,6 +198,8 @@ public class BufferDataOverWindowOperatorTest {
 				StreamConfig conf = mock(StreamConfig.class);
 				when(conf.<BaseRow>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
+				when(conf.getManagedMemoryFraction())
+						.thenReturn(0.99);
 				return conf;
 			}
 

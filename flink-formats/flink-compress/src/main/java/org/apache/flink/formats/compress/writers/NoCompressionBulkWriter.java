@@ -24,6 +24,8 @@ import org.apache.flink.formats.compress.extractor.Extractor;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link BulkWriter} implementation that does not compress data. This is essentially a no-op
  * writer for use with {@link org.apache.flink.formats.compress.CompressWriterFactory} for the case
@@ -33,12 +35,12 @@ import java.io.IOException;
  */
 public class NoCompressionBulkWriter<T> implements BulkWriter<T> {
 
-	private Extractor<T> extractor;
-	private FSDataOutputStream outputStream;
+	private final Extractor<T> extractor;
+	private final FSDataOutputStream outputStream;
 
 	public NoCompressionBulkWriter(FSDataOutputStream outputStream, Extractor<T> extractor) {
-		this.outputStream = outputStream;
-		this.extractor = extractor;
+		this.outputStream = checkNotNull(outputStream);
+		this.extractor = checkNotNull(extractor);
 	}
 
 	@Override

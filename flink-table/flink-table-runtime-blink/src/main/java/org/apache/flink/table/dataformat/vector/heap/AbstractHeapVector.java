@@ -18,17 +18,25 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.vector.AbstractColumnVector;
-import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.core.memory.MemoryUtils;
+import org.apache.flink.table.dataformat.vector.writable.AbstractWritableVector;
 
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 /**
  * Heap vector that nullable shared structure.
  */
-public abstract class AbstractHeapVector extends AbstractColumnVector {
+public abstract class AbstractHeapVector extends AbstractWritableVector {
+
+	public static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+
+	public static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
+	public static final int BYTE_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+	public static final int INT_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(int[].class);
+	public static final int LONG_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(long[].class);
+	public static final int FLOAT_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(float[].class);
+	public static final int DOUBLE_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(double[].class);
 
 	/*
 	 * If hasNulls is true, then this array contains true if the value
@@ -59,9 +67,26 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 		noNulls = true;
 	}
 
+	@Override
 	public void setNullAt(int i) {
 		isNull[i] = true;
 		noNulls = false;
+	}
+
+	@Override
+	public void setNulls(int i, int count) {
+		for (int j = 0; j < count; j++) {
+			isNull[i + j] = true;
+		}
+		if (count > 0) {
+			noNulls = false;
+		}
+	}
+
+	@Override
+	public void fillWithNulls() {
+		this.noNulls = false;
+		Arrays.fill(isNull, true);
 	}
 
 	@Override
@@ -74,7 +99,15 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 		if (dictionaryIds == null) {
 			dictionaryIds = new HeapIntVector(capacity);
 		} else {
-			dictionaryIds.reset();
+			if (capacity > dictionaryIds.vector.length) {
+				int current = dictionaryIds.vector.length;
+				while (current < capacity) {
+					current <<= 1;
+				}
+				dictionaryIds = new HeapIntVector(current);
+			} else {
+				dictionaryIds.reset();
+			}
 		}
 		return dictionaryIds;
 	}
@@ -82,54 +115,8 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 	/**
 	 * Returns the underlying integer column for ids of dictionary.
 	 */
+	@Override
 	public HeapIntVector getDictionaryIds() {
 		return dictionaryIds;
-	}
-
-	public static AbstractHeapVector[] allocateHeapVectors(LogicalType[] fieldTypes, int maxRows) {
-		AbstractHeapVector[] columns = new AbstractHeapVector[fieldTypes.length];
-		for (int i = 0; i < fieldTypes.length; i++) {
-			columns[i] = createHeapColumn(fieldTypes[i], maxRows);
-		}
-		return columns;
-	}
-
-	public static AbstractHeapVector createHeapColumn(LogicalType fieldType, int maxRows) {
-		switch (fieldType.getTypeRoot()) {
-			case BOOLEAN:
-				return new HeapBooleanVector(maxRows);
-			case TINYINT:
-				return new HeapByteVector(maxRows);
-			case DOUBLE:
-				return new HeapDoubleVector(maxRows);
-			case FLOAT:
-				return new HeapFloatVector(maxRows);
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-				return new HeapIntVector(maxRows);
-			case BIGINT:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				return new HeapLongVector(maxRows);
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) fieldType;
-				if (Decimal.is32BitDecimal(decimalType.getPrecision())) {
-					return new HeapIntVector(maxRows);
-				} else if (Decimal.is64BitDecimal(decimalType.getPrecision())) {
-					return new HeapLongVector(maxRows);
-				} else {
-					return new HeapBytesVector(maxRows);
-				}
-			case SMALLINT:
-				return new HeapShortVector(maxRows);
-			case CHAR:
-			case VARCHAR:
-			case BINARY:
-			case VARBINARY:
-				return new HeapBytesVector(maxRows);
-			default:
-				throw new UnsupportedOperationException(fieldType  + " is not supported now.");
-		}
 	}
 }

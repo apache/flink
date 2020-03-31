@@ -36,9 +36,6 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 * **Docker Playgrounds**: Set up a sandboxed Flink environment in just a few minutes to explore and play with Flink.
   * [Run and manage Flink streaming applications](./getting-started/docker-playgrounds/flink-operations-playground.html)
 
-* **Tutorials**: Install Flink on your local machine.
-  * [Setup a local Flink cluster](./getting-started/tutorials/local_setup.html)
-
 * **Concepts**: Learn about Flink's basic concepts to better understand the documentation.
   * [Dataflow Programming Model](concepts/programming-model.html)
   * [Distributed Runtime](concepts/runtime.html)
@@ -61,6 +58,7 @@ Before putting your Flink job into production, read the [Production Readiness Ch
 
 Release notes cover important changes between Flink versions. Please carefully read these notes if you plan to upgrade your Flink setup to a later version. 
 
+* [Release notes for Flink 1.10](release-notes/flink-1.10.html).
 * [Release notes for Flink 1.9](release-notes/flink-1.9.html).
 * [Release notes for Flink 1.8](release-notes/flink-1.8.html).
 * [Release notes for Flink 1.7](release-notes/flink-1.7.html).

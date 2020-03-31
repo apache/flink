@@ -18,11 +18,12 @@
 
 package org.apache.flink.tests.util.cache;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.TestUtils;
-
-import org.apache.commons.io.FileUtils;
+import org.apache.flink.tests.util.parameters.ParameterProperty;
+import org.apache.flink.util.TimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,14 +44,32 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
+	private static final ParameterProperty<Duration> DOWNLOAD_ATTEMPT_TIMEOUT = new ParameterProperty<>(
+		"cache-download-attempt-timeout", TimeUtils::parseDuration);
+	private static final ParameterProperty<Duration> DOWNLOAD_GLOBAL_TIMEOUT = new ParameterProperty<>(
+		"cache-download-global-timeout", TimeUtils::parseDuration);
+	private static final ParameterProperty<Integer> DOWNLOAD_MAX_RETRIES = new ParameterProperty<>(
+		"cache-download-max-retries", Integer::parseInt);
+
 	private final Path tmpDir;
 	private final Path downloadsDir;
 	private final Path cacheFilesDir;
+
+	private final Duration downloadAttemptTimeout;
+	private final Duration downloadGlobalTimeout;
+	private final int downloadMaxRetries;
 
 	AbstractDownloadCache(final Path tmpDir) {
 		this.tmpDir = tmpDir;
 		this.downloadsDir = tmpDir.resolve("downloads");
 		this.cacheFilesDir = tmpDir.resolve("cachefiles");
+
+		this.downloadAttemptTimeout = DOWNLOAD_ATTEMPT_TIMEOUT.get(Duration.ofMinutes(2));
+		this.downloadGlobalTimeout = DOWNLOAD_GLOBAL_TIMEOUT.get(Duration.ofMinutes(2));
+		this.downloadMaxRetries = DOWNLOAD_MAX_RETRIES.get(1);
+
+		log.info("Download configuration: maxAttempts={}, attemptTimeout={}, globalTimeout={}", downloadMaxRetries,
+			downloadAttemptTimeout, downloadGlobalTimeout);
 	}
 
 	@Override
@@ -108,7 +127,7 @@ abstract class AbstractDownloadCache implements DownloadCache {
 					CommandLineWrapper.wget(url)
 						.targetDir(scopedDownloadDir)
 						.build())
-				.runBlocking(Duration.ofMinutes(2));
+				.runBlockingWithRetry(downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
 
 			final Path download;
 			try (Stream<Path> files = Files.list(scopedDownloadDir)) {
@@ -141,12 +160,12 @@ abstract class AbstractDownloadCache implements DownloadCache {
 	private Optional<Path> getCachedFile(final String url) throws IOException {
 		try (Stream<Path> cacheFiles = Files.list(cacheFilesDir)) {
 			return cacheFiles
-				.filter(cacheFile -> {
-					final String cacheFileName = cacheFile.getFileName().toString();
-					final Matcher matcher = createCacheFileMatcher(cacheFileName);
-					return matcher.matches() && matchesCachedFile(matcher, url);
-				})
-				.findAny();
+				       .filter(cacheFile -> {
+					       final String cacheFileName = cacheFile.getFileName().toString();
+					       final Matcher matcher = createCacheFileMatcher(cacheFileName);
+					       return matcher.matches() && matchesCachedFile(matcher, url);
+				       })
+				       .findAny();
 		}
 	}
 }

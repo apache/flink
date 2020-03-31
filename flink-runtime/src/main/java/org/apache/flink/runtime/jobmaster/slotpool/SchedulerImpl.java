@@ -135,7 +135,7 @@ public class SchedulerImpl implements Scheduler {
 		ScheduledUnit scheduledUnit,
 		SlotProfile slotProfile,
 		@Nullable Time allocationTimeout) {
-		log.debug("Received slot request [{}] for task: {}", slotRequestId, scheduledUnit.getTaskToExecute());
+		log.debug("Received slot request [{}] for task: {}", slotRequestId, scheduledUnit.getJobVertexId());
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 

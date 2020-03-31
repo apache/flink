@@ -223,7 +223,7 @@ public class KeyedBudgetManager<K> {
 		}
 	}
 
-	long availableBudgetForKey(K key) {
+	public long availableBudgetForKey(K key) {
 		Preconditions.checkNotNull(key);
 		synchronized (lock) {
 			return availableBudgetByKey.getOrDefault(key, 0L);

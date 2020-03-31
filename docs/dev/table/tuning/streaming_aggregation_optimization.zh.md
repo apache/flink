@@ -28,7 +28,7 @@ In this page, we will introduce some useful optimization options and the interna
 
 <span class="label label-danger">Attention</span> Currently, the optimization options mentioned in this page are only supported in the Blink planner.
 
-<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({{ site.baseurl }}/dev/table/sql.html#aggregations). Optimizations for [window aggregations]({{ site.baseurl }}/dev/table/sql.html#group-windows) will be supported in the future.
+<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({{ site.baseurl }}/dev/table/sql/queries.html#aggregations). Optimizations for [window aggregations]({{ site.baseurl }}/dev/table/sql/queries.html#group-windows) will be supported in the future.
 
 * This will be replaced by the TOC
 {:toc}

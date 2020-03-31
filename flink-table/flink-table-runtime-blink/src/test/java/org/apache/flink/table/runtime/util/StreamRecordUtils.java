@@ -99,6 +99,10 @@ public class StreamRecordUtils {
 			Object value = fields[j];
 			if (value == null) {
 				writer.setNullAt(j);
+			} else if (value instanceof Byte) {
+				writer.writeByte(j, (Byte) value);
+			} else if (value instanceof Short) {
+				writer.writeShort(j, (Short) value);
 			} else if (value instanceof Integer) {
 				writer.writeInt(j, (Integer) value);
 			} else if (value instanceof String) {
@@ -118,6 +122,15 @@ public class StreamRecordUtils {
 
 		writer.complete();
 		return row;
+	}
+
+	/**
+	 * Generate a retraction BinaryRow based on the given object fields.
+	 */
+	public static BinaryRow retractBinaryRow(Object... fields) {
+		BinaryRow br = binaryrow(fields);
+		BaseRowUtil.setRetract(br);
+		return br;
 	}
 
 	private StreamRecordUtils() {

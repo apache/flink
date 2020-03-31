@@ -50,7 +50,7 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	 * @param clientConfig The configuration to use when constructing the client.
 	 * @return The created client.
 	 */
-	C createClient(Map<String, String> clientConfig) throws IOException;
+	C createClient(Map<String, String> clientConfig);
 
 	/**
 	 * Creates a {@link BulkProcessor.Builder} for creating the bulk processor.
@@ -79,6 +79,16 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	void configureBulkProcessorBackoff(
 		BulkProcessor.Builder builder,
 		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy);
+
+	/**
+	 * Verify the client connection by making a test request/ping to the Elasticsearch cluster.
+	 *
+	 * <p>Called by {@link ElasticsearchSinkBase#open(org.apache.flink.configuration.Configuration)} after creating the client. This makes sure the underlying
+	 * client is closed if the connection is not successful and preventing thread leak.
+	 *
+	 * @param client the Elasticsearch client.
+	 */
+	void verifyClientConnection(C client) throws IOException;
 
 	/**
 	 * Creates a {@link RequestIndexer} that is able to work with {@link BulkProcessor} binary compatible.

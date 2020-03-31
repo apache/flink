@@ -111,7 +111,7 @@ public class JobSubmission {
 		 * Convenience method for providing key-value program arguments. Invoking this method is equivalent to invoking
 		 * {@link #addArgument(String)} twice.
 		 *
-		 * @param key argument key
+		 * @param key   argument key
 		 * @param value argument value
 		 * @return the modified builder
 		 */

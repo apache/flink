@@ -37,22 +37,22 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	/** Environment variables to add to the Java process. */
 	private final HashMap<String, String> taskManagerEnv;
 
-	private final TaskExecutorResourceSpec taskExecutorResourceSpec;
+	private final TaskExecutorProcessSpec taskExecutorProcessSpec;
 
 	public ContaineredTaskManagerParameters(
-			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			TaskExecutorProcessSpec taskExecutorProcessSpec,
 			int numSlots,
 			HashMap<String, String> taskManagerEnv) {
 
-		this.taskExecutorResourceSpec = taskExecutorResourceSpec;
+		this.taskExecutorProcessSpec = taskExecutorProcessSpec;
 		this.numSlots = numSlots;
 		this.taskManagerEnv = taskManagerEnv;
 	}
 
 	// ------------------------------------------------------------------------
 
-	public TaskExecutorResourceSpec getTaskExecutorResourceSpec() {
-		return taskExecutorResourceSpec;
+	public TaskExecutorProcessSpec getTaskExecutorProcessSpec() {
+		return taskExecutorProcessSpec;
 	}
 
 	public int numSlots() {
@@ -69,7 +69,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	@Override
 	public String toString() {
 		return "TaskManagerParameters {" +
-			"taskExecutorResourceSpec=" + taskExecutorResourceSpec +
+			"taskExecutorProcessSpec=" + taskExecutorProcessSpec +
 			", numSlots=" + numSlots +
 			", taskManagerEnv=" + taskManagerEnv +
 			'}';
@@ -83,13 +83,13 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	 * Computes the parameters to be used to start a TaskManager Java process.
 	 *
 	 * @param config The Flink configuration.
-	 * @param taskExecutorResourceSpec The resource specifics of the task executor.
+	 * @param taskExecutorProcessSpec The resource specifics of the task executor.
 	 * @param numSlots Number of slots of the task executor.
 	 * @return The parameters to start the TaskManager processes with.
 	 */
 	public static ContaineredTaskManagerParameters create(
 			Configuration config,
-			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			TaskExecutorProcessSpec taskExecutorProcessSpec,
 			int numSlots) {
 
 		// obtain the additional environment variables from the configuration
@@ -106,6 +106,6 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 		// done
 		return new ContaineredTaskManagerParameters(
-			taskExecutorResourceSpec, numSlots, envVars);
+			taskExecutorProcessSpec, numSlots, envVars);
 	}
 }

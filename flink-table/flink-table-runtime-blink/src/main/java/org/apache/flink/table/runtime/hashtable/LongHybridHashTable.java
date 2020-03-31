@@ -20,13 +20,13 @@ package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
@@ -68,13 +68,10 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 			BinaryRowSerializer probeSideSerializer,
 			MemoryManager memManager,
 			long reservedMemorySize,
-			long preferredMemorySize,
-			long perRequestMemorySize,
 			IOManager ioManager,
 			int avgRecordLen,
 			long buildRowCount) {
-		super(conf, owner, memManager, reservedMemorySize, preferredMemorySize, perRequestMemorySize,
-				ioManager, avgRecordLen, buildRowCount, false);
+		super(conf, owner, memManager, reservedMemorySize, ioManager, avgRecordLen, buildRowCount, false);
 		this.buildSideSerializer = buildSideSerializer;
 		this.probeSideSerializer = probeSideSerializer;
 
@@ -234,7 +231,9 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 			LOG.info("LongHybridHashTable: Use dense mode!");
 			this.minKey = minKey;
 			this.maxKey = maxKey;
-			buildSpillReturnBuffers.drainTo(availableMemory);
+			List<MemorySegment> segments = new ArrayList<>();
+			buildSpillReturnBuffers.drainTo(segments);
+			returnAll(segments);
 
 			ArrayList<MemorySegment> dataBuffers = new ArrayList<>();
 
@@ -250,7 +249,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
 			this.denseBuckets = denseBuckets;
 			this.densePartition = new LongHashPartition(this, buildSideSerializer,
-					dataBuffers.toArray(new MemorySegment[dataBuffers.size()]));
+					dataBuffers.toArray(new MemorySegment[0]));
 			freeCurrent();
 		}
 	}
@@ -402,11 +401,11 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		//        that single partition.
 		// 2) We can not guarantee that enough memory segments are available and read the partition
 		//    in, distributing its data among newly created partitions.
-		final int totalBuffersAvailable = this.availableMemory.size() + this.buildSpillRetBufferNumbers;
-		if (totalBuffersAvailable != this.reservedNumBuffers + this.allocatedFloatingNum) {
+		final int totalBuffersAvailable = this.internalPool.freePages() + this.buildSpillRetBufferNumbers;
+		if (totalBuffersAvailable != this.totalNumBuffers) {
 			throw new RuntimeException(String.format("Hash Join bug in memory management: Memory buffers leaked." +
-							" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s), allocatedFloatingNum(%s)",
-					availableMemory.size(), buildSpillRetBufferNumbers, reservedNumBuffers, allocatedFloatingNum));
+							" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s)",
+					this.internalPool.freePages(), buildSpillRetBufferNumbers, totalNumBuffers));
 		}
 
 		int maxBucketAreaBuffers = MathUtils.roundUpToPowerOfTwo(
@@ -503,7 +502,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		// grab as many buffers as are available directly
 		MemorySegment currBuff;
 		while (this.buildSpillRetBufferNumbers > 0 && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
-			this.availableMemory.add(currBuff);
+			returnPage(currBuff);
 			this.buildSpillRetBufferNumbers--;
 		}
 		numSpillFiles++;
@@ -518,7 +517,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		for (int i = this.partitionsBeingBuilt.size() - 1; i >= 0; --i) {
 			final LongHashPartition p = this.partitionsBeingBuilt.get(i);
 			try {
-				p.clearAllMemory(this.availableMemory);
+				p.clearAllMemory(this.internalPool);
 			} catch (Exception e) {
 				LOG.error("Error during partition cleanup.", e);
 			}
@@ -527,7 +526,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
 		// clear the partitions that are still to be done (that have files on disk)
 		for (final LongHashPartition p : this.partitionsPending) {
-			p.clearAllMemory(this.availableMemory);
+			p.clearAllMemory(this.internalPool);
 		}
 	}
 

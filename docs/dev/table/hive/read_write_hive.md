@@ -22,8 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine. Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.  
-
+Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine.
+Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.
+And please also note that Hive connector only works with blink planner.
 
 * This will be replaced by the TOC
 {:toc}
@@ -91,7 +92,7 @@ root
  |-- name: value
  |-- type: DOUBLE
 
-
+# ------ Select from hive table or hive view ------ 
 Flink SQL> SELECT * FROM mytable;
 
    name      value
@@ -110,22 +111,86 @@ __________ __________
 
 {% endhighlight %}
 
+### Querying Hive views
+
+If you need to query Hive views, please note:
+
+1. You have to use the Hive catalog as your current catalog before you can query views in that catalog. It can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
+2. Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals. Make sure the view's query is compatible with Flink grammar.
+
 ## Writing To Hive
 
-Similarly, data can be written into hive using an `INSERT INTO` clause. 
+Similarly, data can be written into hive using an `INSERT` clause.
+
+Consider there is an example table named "mytable" with two columns: name and age, in string and int type.
 
 {% highlight bash %}
-Flink SQL> INSERT INTO mytable (name, value) VALUES ('Tom', 4.72);
+# ------ INSERT INTO will append to the table or partition, keeping the existing data intact ------ 
+Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
+
+# ------ INSERT OVERWRITE will overwrite any existing data in the table or partition ------ 
+Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 {% endhighlight %}
 
-### Limitations
+We support partitioned table too, Consider there is a partitioned table named myparttable with four columns: name, age, my_type and my_date, in types ...... my_type and my_date are the partition keys.
 
-The following is a list of major limitations of the Hive connector. And we're actively working to close these gaps.
+{% highlight bash %}
+# ------ Insert with static partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1', my_date='2019-08-08') SELECT 'Tom', 25;
 
-1. INSERT OVERWRITE is not supported.
-2. Inserting into partitioned tables is not supported.
-3. ACID tables are not supported.
-4. Bucketed tables are not supported.
-5. Some data types are not supported. See the [limitations]({{ site.baseurl }}/dev/table/hive/#limitations) for details.
-6. Only a limited number of table storage formats have been tested, namely text, SequenceFile, ORC, and Parquet.
-7. Views are not supported.
+# ------ Insert with dynamic partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08';
+
+# ------ Insert with static(my_type) and dynamic(my_date) partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
+{% endhighlight %}
+
+
+## Formats
+
+We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
+
+
+## Optimizations
+
+### Partition Pruning
+
+Flink uses partition pruning as a performance optimization to limits the number of files and partitions
+that Flink reads when querying Hive tables. When your data is partitioned, Flink only reads a subset of the partitions in 
+a Hive table when a query matches certain filter criteria.
+
+### Projection Pushdown
+
+Flink leverages projection pushdown to minimize data transfer between Flink and Hive tables by omitting 
+unnecessary fields from table scans.
+
+It is especially beneficial when a table contains many columns.
+
+### Limit Pushdown
+
+For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
+amount of data transferred across network.
+
+### Vectorized Optimization upon Read
+
+Optimization is used automatically when the following conditions are met:
+
+- Format: ORC or Parquet.
+- Columns without complex data type, like hive types: List, Map, Struct, Union.
+
+This feature is turned on by default. If there is a problem, you can use this config option to close Vectorized Optimization:
+
+{% highlight bash %}
+table.exec.hive.fallback-mapred-reader=true
+{% endhighlight %}
+
+
+## Roadmap
+
+We are planning and actively working on supporting features like
+
+- ACID tables
+- bucketed tables
+- more formats
+
+Please reach out to the community for more feature request https://flink.apache.org/community.html#mailing-lists

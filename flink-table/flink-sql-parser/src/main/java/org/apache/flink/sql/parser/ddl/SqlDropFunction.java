@@ -92,6 +92,14 @@ public class SqlDropFunction extends SqlDrop implements ExtendedSqlNode {
 		return functionIdentifier.names.toArray(new String[0]);
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
+	public boolean isSystemFunction() {
+		return isSystemFunction;
+	}
+
 	public boolean getIfExists() {
 		return this.ifExists;
 	}

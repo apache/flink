@@ -23,6 +23,7 @@ import org.apache.flink.types.Row;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -39,5 +40,29 @@ public class CliUtilsTest {
 		row.setField(2, new Object[]{new int[]{5, 6}, new int[]{7, 8}});
 		row.setField(3, new Integer[][]{new Integer[]{9, 10}, new Integer[]{11, 12}});
 		assertEquals("[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]]]", Arrays.toString(CliUtils.rowToString(row)));
+	}
+
+	@Test
+	public void testCharFullWidth() {
+		char[] chars = new char[] {'A', 'a', ',', '中', '，', 'こ'};
+		boolean[] expected = new boolean[] {false, false, false, true, true, true};
+
+		for (int i = 0; i < chars.length; i++) {
+			assertEquals(expected[i], CliUtils.isFullWidth(Character.codePointAt(chars, i)));
+		}
+	}
+
+	@Test
+	public void testStringDisplayWidth() {
+		List<String> data = Arrays.asList(
+			"abcdefg,12345,ABC",
+			"to be or not to be that's a question.",
+			"这是一段中文",
+			"これは日本語をテストするための文です");
+		int[] expected = new int[] {17, 37, 12, 36};
+
+		for (int i = 0; i < data.size(); i++) {
+			assertEquals(expected[i], CliUtils.getStringDisplayWidth(data.get(i)));
+		}
 	}
 }

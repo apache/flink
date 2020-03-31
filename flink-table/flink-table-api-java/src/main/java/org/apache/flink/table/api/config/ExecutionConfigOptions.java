@@ -100,29 +100,45 @@ public class ExecutionConfigOptions {
 					"default parallelism is set, then it will fallback to use the parallelism " +
 					"of StreamExecutionEnvironment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
 		key("table.exec.resource.external-buffer-memory")
 			.defaultValue("10 mb")
-			.withDescription("Sets the external buffer memory size that is used in sort merge join and nested join and over window.");
+			.withDescription("Sets the external buffer memory size that is used in sort merge join" +
+					" and nested join and over window. Note: memory size is only a weight hint," +
+					" it will affect the weight of memory that can be applied by a single operator" +
+					" in the task, the actual memory used depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY =
 		key("table.exec.resource.hash-agg.memory")
 			.defaultValue("128 mb")
-			.withDescription("Sets the managed memory size of hash aggregate operator.");
+			.withDescription("Sets the managed memory size of hash aggregate operator." +
+					" Note: memory size is only a weight hint, it will affect the weight of memory" +
+					" that can be applied by a single operator in the task, the actual memory used" +
+					" depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
 		key("table.exec.resource.hash-join.memory")
 			.defaultValue("128 mb")
-			.withDescription("Sets the managed memory for hash join operator. It defines the lower limit.");
+			.withDescription("Sets the managed memory for hash join operator. It defines the lower" +
+					" limit. Note: memory size is only a weight hint, it will affect the weight of" +
+					" memory that can be applied by a single operator in the task, the actual" +
+					" memory used depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_SORT_MEMORY =
 		key("table.exec.resource.sort.memory")
 			.defaultValue("128 mb")
-			.withDescription("Sets the managed buffer memory size for sort operator.");
+			.withDescription("Sets the managed buffer memory size for sort operator. Note: memory" +
+					" size is only a weight hint, it will affect the weight of memory that can be" +
+					" applied by a single operator in the task, the actual memory used depends on" +
+					" the running environment.");
 
 	// ------------------------------------------------------------------------
 	//  Agg Options
@@ -201,8 +217,8 @@ public class ExecutionConfigOptions {
 	public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
 		key("table.exec.shuffle-mode")
 			.defaultValue("batch")
-			.withDescription("Sets exec shuffle mode. Only batch or pipeline can be set.\n" +
+			.withDescription("Sets exec shuffle mode. Only batch or pipelined can be set.\n" +
 				"batch: the job will run stage by stage. \n" +
-				"pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
+				"pipelined: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
 				"the sender holds resource to wait to send data to the receiver.");
 }

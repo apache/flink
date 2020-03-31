@@ -28,8 +28,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A stream operator that extracts timestamps from stream elements and
@@ -66,12 +69,19 @@ public class WatermarkAssignerOperator
 	 * @param watermarkGenerator	the watermark generator
 	 * @param idleTimeout   (idleness checking timeout)
 	 */
-	public WatermarkAssignerOperator(int rowtimeFieldIndex, WatermarkGenerator watermarkGenerator, long idleTimeout) {
+	public WatermarkAssignerOperator(
+		int rowtimeFieldIndex,
+		WatermarkGenerator watermarkGenerator,
+		long idleTimeout,
+		ProcessingTimeService processingTimeService) {
+
 		this.rowtimeFieldIndex = rowtimeFieldIndex;
 		this.watermarkGenerator = watermarkGenerator;
 
 		this.idleTimeout = idleTimeout;
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
+
+		this.processingTimeService = checkNotNull(processingTimeService);
 	}
 
 	@Override
@@ -164,10 +174,8 @@ public class WatermarkAssignerOperator
 
 	@Override
 	public void close() throws Exception {
-		super.close();
-
-		// emit a final watermark
-		advanceWatermark();
+		// all records have been processed, emit a final watermark
+		processWatermark(Watermark.MAX_WATERMARK);
 
 		functionsClosed = true;
 		FunctionUtils.closeFunction(watermarkGenerator);

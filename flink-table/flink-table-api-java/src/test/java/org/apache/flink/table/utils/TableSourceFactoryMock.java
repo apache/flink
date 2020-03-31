@@ -35,6 +35,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
+
 /**
  * Mocking {@link TableSourceFactory} for tests.
  */
@@ -46,13 +52,14 @@ public class TableSourceFactoryMock implements TableSourceFactory<Row> {
 	public TableSource<Row> createTableSource(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = new DescriptorProperties();
 		descriptorProperties.putProperties(properties);
-		final TableSchema schema = descriptorProperties.getTableSchema(Schema.SCHEMA);
-		return new TableSourceMock(schema.toRowDataType(), schema);
+		final TableSchema schema = TableSchemaUtils.getPhysicalSchema(
+			descriptorProperties.getTableSchema(Schema.SCHEMA));
+		return new TableSourceMock(schema);
 	}
 
 	@Override
 	public TableSource<Row> createTableSource(ObjectPath tablePath, CatalogTable table) {
-		return new TableSourceMock(table.getSchema().toRowDataType(), table.getSchema());
+		return new TableSourceMock(TableSchemaUtils.getPhysicalSchema(table.getSchema()));
 	}
 
 	@Override
@@ -69,7 +76,14 @@ public class TableSourceFactoryMock implements TableSourceFactory<Row> {
 		supportedProperties.add(ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION);
 		supportedProperties.add(FormatDescriptorValidator.FORMAT + ".*");
 		supportedProperties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_NAME);
+		supportedProperties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_DATA_TYPE);
 		supportedProperties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_TYPE);
+		// computed column
+		supportedProperties.add(Schema.SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+		// watermark
+		supportedProperties.add(Schema.SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		supportedProperties.add(Schema.SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		supportedProperties.add(Schema.SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 		return supportedProperties;
 	}
 }

@@ -38,6 +38,7 @@ import org.apache.flink.table.runtime.typeutils.SqlTimestampSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
@@ -63,13 +64,15 @@ public class InternalSerializers {
 			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return IntSerializer.INSTANCE;
+			case BIGINT:
+			case INTERVAL_DAY_TIME:
+				return LongSerializer.INSTANCE;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				TimestampType timestampType = (TimestampType) type;
 				return new SqlTimestampSerializer(timestampType.getPrecision());
-			case BIGINT:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-			case INTERVAL_DAY_TIME:
-				return LongSerializer.INSTANCE;
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
+				return new SqlTimestampSerializer(lzTs.getPrecision());
 			case FLOAT:
 				return FloatSerializer.INSTANCE;
 			case DOUBLE:

@@ -31,12 +31,12 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.filesystem.FileSystemOutputFormat;
-import org.apache.flink.table.filesystem.RowPartitionComputer;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -79,7 +79,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
 		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-		tableSchema = table.getSchema();
+		tableSchema = TableSchemaUtils.getPhysicalSchema(table.getSchema());
 	}
 
 	@Override
@@ -93,11 +93,13 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 			StorageDescriptor sd = table.getSd();
 
 			FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
-			builder.setPartitionComputer(new RowPartitionComputer(
+			builder.setPartitionComputer(new HivePartitionComputer(
+					hiveShim,
 					jobConf.get(
 							HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 							HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal),
 					tableSchema.getFieldNames(),
+					tableSchema.getFieldDataTypes(),
 					partitionColumns));
 			builder.setDynamicGrouped(dynamicGrouping);
 			builder.setPartitionColumns(partitionColumns);

@@ -21,26 +21,37 @@ package org.apache.flink.table.client.gateway.local;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
+import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
 import org.junit.Test;
 
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -83,12 +94,14 @@ public class ExecutionContextTest {
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		Set<String> allModules = new HashSet<>(Arrays.asList(tableEnv.listModules()));
-		assertEquals(2, allModules.size());
+		assertEquals(4, allModules.size());
 		assertEquals(
 			new HashSet<>(
 				Arrays.asList(
 					"core",
-					"mymodule")
+					"mymodule",
+					"myhive",
+					"myhive2")
 			),
 			allModules
 		);
@@ -205,6 +218,12 @@ public class ExecutionContextTest {
 		assertArrayEquals(
 			new String[]{"integerField", "stringField", "rowtimeField", "integerField0", "stringField0", "rowtimeField0"},
 			tableEnv.scan("TemporalTableUsage").getSchema().getFieldNames());
+
+		// Please delete this test after removing registerTableSource in SQL-CLI.
+		TableSchema tableSchema = tableEnv.from("EnrichmentSource").getSchema();
+		LogicalType timestampType = tableSchema.getFieldDataTypes()[2].getLogicalType();
+		assertTrue(timestampType instanceof TimestampType);
+		assertEquals(TimestampKind.ROWTIME, ((TimestampType) timestampType).getKind());
 	}
 
 	@Test
@@ -243,27 +262,56 @@ public class ExecutionContextTest {
 				OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD));
 	}
 
+	@Test
+	public void testInitCatalogs() throws Exception{
+		final Map<String, String> replaceVars = createDefaultReplaceVars();
+		Environment env = EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
+
+		Map<String, Object> catalogProps = new HashMap<>();
+		catalogProps.put("name", "test");
+		catalogProps.put("type", "test_cl_catalog");
+		env.getCatalogs().clear();
+		env.getCatalogs().put("test", CatalogEntry.create(catalogProps));
+		Configuration flinkConfig = new Configuration();
+		ExecutionContext.builder(env,
+				new SessionContext("test-session", new Environment()),
+				Collections.emptyList(),
+				flinkConfig,
+				new DefaultClusterClientServiceLoader(),
+				new Options(),
+				Collections.singletonList(new DefaultCLI(flinkConfig))).build();
+	}
+
+	@SuppressWarnings("unchecked")
 	private <T> ExecutionContext<T> createExecutionContext(String file, Map<String, String> replaceVars) throws Exception {
 		final Environment env = EnvironmentFileUtil.parseModified(
 			file,
 			replaceVars);
 		final Configuration flinkConfig = new Configuration();
-		return new ExecutionContext<>(
-			env,
-			new SessionContext("test-session", new Environment()),
-			Collections.emptyList(),
-			flinkConfig,
-			new Options(),
-			Collections.singletonList(new DefaultCLI(flinkConfig)));
+		return (ExecutionContext<T>) ExecutionContext.builder(
+				env,
+				new SessionContext("test-session", new Environment()),
+				Collections.emptyList(),
+				flinkConfig,
+				new DefaultClusterClientServiceLoader(),
+				new Options(),
+				Collections.singletonList(new DefaultCLI(flinkConfig)))
+				.build();
 	}
 
-	private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
-		final Map<String, String> replaceVars = new HashMap<>();
+	private Map<String, String> createDefaultReplaceVars() {
+		Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_PLANNER", "old");
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
+		return replaceVars;
+	}
+
+	private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
+		final Map<String, String> replaceVars = createDefaultReplaceVars();
 		return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
 	}
 
@@ -297,5 +345,53 @@ public class ExecutionContextTest {
 
 	private <T> ExecutionContext<T> createConfigurationExecutionContext() throws Exception {
 		return createExecutionContext(CONFIGURATION_ENVIRONMENT_FILE, new HashMap<>());
+	}
+
+	// a catalog that requires the thread context class loader to be a user code classloader during construction and opening
+	private static class TestClassLoaderCatalog extends GenericInMemoryCatalog {
+
+		private static final Class parentFirstCL = FlinkUserCodeClassLoaders.parentFirst(
+				new URL[0], TestClassLoaderCatalog.class.getClassLoader()).getClass();
+		private static final Class childFirstCL = FlinkUserCodeClassLoaders.childFirst(
+				new URL[0], TestClassLoaderCatalog.class.getClassLoader(), new String[0]).getClass();
+
+		TestClassLoaderCatalog(String name) {
+			super(name);
+			verifyUserClassLoader();
+		}
+
+		@Override
+		public void open() {
+			verifyUserClassLoader();
+			super.open();
+		}
+
+		private void verifyUserClassLoader() {
+			ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+			assertTrue(parentFirstCL.isInstance(contextLoader) || childFirstCL.isInstance(contextLoader));
+		}
+	}
+
+	/**
+	 * Factory to create TestClassLoaderCatalog.
+	 */
+	public static class TestClassLoaderCatalogFactory implements CatalogFactory {
+
+		@Override
+		public Catalog createCatalog(String name, Map<String, String> properties) {
+			return new TestClassLoaderCatalog("test_cl");
+		}
+
+		@Override
+		public Map<String, String> requiredContext() {
+			Map<String, String> context = new HashMap<>();
+			context.put("type", "test_cl_catalog");
+			return context;
+		}
+
+		@Override
+		public List<String> supportedProperties() {
+			return Collections.emptyList();
+		}
 	}
 }

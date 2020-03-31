@@ -69,7 +69,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 
 		final SchedulingStrategyFactory schedulingStrategyFactory = createSchedulingStrategyFactory(jobGraph.getScheduleMode());
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy = RestartBackoffTimeStrategyFactoryLoader
-			.createRestartStrategyFactory(
+			.createRestartBackoffTimeStrategyFactory(
 				jobGraph
 					.getSerializedExecutionConfig()
 					.deserializeValue(userCodeLoader)
@@ -77,6 +77,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 				jobMasterConfiguration,
 				jobGraph.isCheckpointingEnabled())
 			.create();
+		log.info("Using restart back off time strategy {} for {} ({}).", restartBackoffTimeStrategy, jobGraph.getName(), jobGraph.getJobID());
 
 		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
 			jobGraph.getScheduleMode(),
@@ -89,7 +90,6 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			backPressureStatsTracker,
 			ioExecutor,
 			jobMasterConfiguration,
-			slotProvider,
 			futureExecutor,
 			new ScheduledExecutorServiceAdapter(futureExecutor),
 			userCodeLoader,
@@ -97,7 +97,6 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			rpcTimeout,
 			blobWriter,
 			jobManagerJobMetricGroup,
-			slotRequestTimeout,
 			shuffleMaster,
 			partitionTracker,
 			schedulingStrategyFactory,
@@ -108,7 +107,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
 	}
 
-	private SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
+	static SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
 		switch (scheduleMode) {
 			case EAGER:
 				return new EagerSchedulingStrategy.Factory();

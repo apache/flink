@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -53,4 +54,16 @@ public interface ProcessingTimeService {
 	 * @return Scheduled future representing the task to be executed repeatedly
 	 */
 	ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period);
+
+	/**
+	 * This method puts the service into a state where it does not register new timers, but
+	 * returns for each call to {@link #registerTimer} or {@link #scheduleAtFixedRate} a "mock"
+	 * future and the "mock" future will be never completed. Furthermore, the timers registered
+	 * before are prevented from firing, but the timers in running are allowed to finish.
+	 *
+	 * <p>If no timer is running, the quiesce-completed future is immediately completed and
+	 * returned. Otherwise, the future returned will be completed when all running timers have
+	 * finished.
+	 */
+	CompletableFuture<Void> quiesce();
 }

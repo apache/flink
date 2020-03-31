@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
@@ -67,17 +68,20 @@ import static org.mockito.Mockito.verify;
 public class CliClientTest extends TestLogger {
 
 	private static final String INSERT_INTO_STATEMENT = "INSERT INTO MyTable SELECT * FROM MyOtherTable";
+	private static final String INSERT_OVERWRITE_STATEMENT = "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
 	private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
 
 	@Test
 	public void testUpdateSubmission() {
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, false, false);
+		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, false, false);
 	}
 
 	@Test
 	public void testFailedUpdateSubmission() {
 		// fail at executor
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
+		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, true, true);
 
 		// fail early in client
 		verifyUpdateSubmission(SELECT_STATEMENT, false, true);
@@ -272,6 +276,16 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
+		public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
 		public List<String> listTables(String sessionId) throws SqlExecutionException {
 			return null;
 		}
@@ -351,7 +365,8 @@ public class CliClientTest extends TestLogger {
 			if (failExecution) {
 				throw new SqlExecutionException("Fail execution.");
 			}
-			return new ProgramTargetDescriptor("testClusterId", "testJobId", "http://testcluster:1234");
+			JobID jobID = JobID.generate();
+			return new ProgramTargetDescriptor(jobID);
 		}
 	}
 }

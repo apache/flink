@@ -56,4 +56,43 @@ public class PythonOptionsTest {
 		final long actualBundleSize = configuration.getLong(PythonOptions.MAX_BUNDLE_TIME_MILLS);
 		assertThat(actualBundleSize, is(equalTo(expectedBundleTime)));
 	}
+
+	@Test
+	public void testPythonFrameworkMemorySize() {
+		final Configuration configuration = new Configuration();
+		final String defaultPythonFrameworkMemorySize = configuration.getString(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE);
+		assertThat(defaultPythonFrameworkMemorySize, is(equalTo(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.defaultValue())));
+
+		final String expectedPythonFrameworkMemorySize = "100mb";
+		configuration.setString(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE, expectedPythonFrameworkMemorySize);
+
+		final String actualPythonFrameworkMemorySize = configuration.getString(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE);
+		assertThat(actualPythonFrameworkMemorySize, is(equalTo(expectedPythonFrameworkMemorySize)));
+	}
+
+	@Test
+	public void testPythonBufferMemorySize() {
+		final Configuration configuration = new Configuration();
+		final String defaultPythonBufferMemorySize = configuration.getString(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE);
+		assertThat(defaultPythonBufferMemorySize, is(equalTo(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.defaultValue())));
+
+		final String expectedPythonBufferMemorySize = "100mb";
+		configuration.setString(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE, expectedPythonBufferMemorySize);
+
+		final String actualPythonBufferMemorySize = configuration.getString(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE);
+		assertThat(actualPythonBufferMemorySize, is(equalTo(expectedPythonBufferMemorySize)));
+	}
+
+	@Test
+	public void testArrowBatchSize() {
+		final Configuration configuration = new Configuration();
+		final int defaultArrowBatchSize = configuration.getInteger(PythonOptions.MAX_ARROW_BATCH_SIZE);
+		assertThat(defaultArrowBatchSize, is(equalTo(PythonOptions.MAX_ARROW_BATCH_SIZE.defaultValue())));
+
+		final int expectedArrowBatchSize = 100;
+		configuration.setInteger(PythonOptions.MAX_ARROW_BATCH_SIZE, expectedArrowBatchSize);
+
+		final int actualArrowBatchSize = configuration.getInteger(PythonOptions.MAX_ARROW_BATCH_SIZE);
+		assertThat(actualArrowBatchSize, is(equalTo(expectedArrowBatchSize)));
+	}
 }

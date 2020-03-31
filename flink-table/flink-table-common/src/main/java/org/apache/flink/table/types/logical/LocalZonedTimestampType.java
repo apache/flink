@@ -64,7 +64,8 @@ public final class LocalZonedTimestampType extends LogicalType {
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
 		java.time.Instant.class.getName(),
 		Integer.class.getName(),
-		Long.class.getName());
+		Long.class.getName(),
+		"org.apache.flink.table.dataformat.SqlTimestamp");
 
 	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.time.Instant.class.getName(),

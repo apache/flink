@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
@@ -102,7 +101,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	}
 
 	@Override
-	protected void initializeInputs() throws IOException, InterruptedException {
+	protected void initializeInputs() {
 
 		inputGates = new StreamTestSingleInputGate[numInputGates];
 		List<StreamEdge> inPhysicalEdges = new LinkedList<>();
@@ -158,8 +157,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 
 		streamConfig.setInPhysicalEdges(inPhysicalEdges);
 		streamConfig.setNumberOfInputs(numInputGates);
-		streamConfig.setTypeSerializerIn1(inputSerializer1);
-		streamConfig.setTypeSerializerIn2(inputSerializer2);
+		streamConfig.setTypeSerializersIn(inputSerializer1, inputSerializer2);
 	}
 
 	@Override

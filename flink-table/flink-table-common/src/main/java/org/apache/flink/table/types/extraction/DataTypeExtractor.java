@@ -21,7 +21,7 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
+import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
@@ -68,12 +69,12 @@ import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.vali
 @Internal
 public final class DataTypeExtractor {
 
-	private final DataTypeLookup lookup;
+	private final DataTypeFactory typeFactory;
 
 	private final String contextExplanation;
 
-	private DataTypeExtractor(DataTypeLookup lookup, String contextExplanation) {
-		this.lookup = lookup;
+	private DataTypeExtractor(DataTypeFactory typeFactory, String contextExplanation) {
+		this.typeFactory = typeFactory;
 		this.contextExplanation = contextExplanation;
 	}
 
@@ -81,10 +82,10 @@ public final class DataTypeExtractor {
 	 * Extracts a data type from a type without considering surrounding classes or templates.
 	 */
 	public static DataType extractFromType(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Type type) {
 		return extractDataTypeWithClassContext(
-			lookup,
+			typeFactory,
 			DataTypeTemplate.fromDefaults(),
 			null,
 			type,
@@ -95,11 +96,11 @@ public final class DataTypeExtractor {
 	 * Extracts a data type from a type without considering surrounding classes but templates.
 	 */
 	public static DataType extractFromType(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			DataTypeTemplate template,
 			Type type) {
 		return extractDataTypeWithClassContext(
-			lookup,
+			typeFactory,
 			template,
 			null,
 			type,
@@ -111,13 +112,13 @@ public final class DataTypeExtractor {
 	 * the information of the most specific type {@code contextType}.
 	 */
 	public static DataType extractFromGeneric(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<?> baseClass,
 			int genericPos,
 			Type contextType) {
 		final TypeVariable<?> variable = baseClass.getTypeParameters()[genericPos];
 		return extractDataTypeWithClassContext(
-			lookup,
+			typeFactory,
 			DataTypeTemplate.fromDefaults(),
 			contextType,
 			variable,
@@ -132,7 +133,7 @@ public final class DataTypeExtractor {
 	 * annotation.
 	 */
 	public static DataType extractFromMethodParameter(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<?> baseClass,
 			Method method,
 			int paramPos) {
@@ -140,12 +141,12 @@ public final class DataTypeExtractor {
 		final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
 		final DataTypeTemplate template;
 		if (hint != null) {
-			template = DataTypeTemplate.fromAnnotation(lookup, hint);
+			template = DataTypeTemplate.fromAnnotation(typeFactory, hint);
 		} else {
 			template = DataTypeTemplate.fromDefaults();
 		}
 		return extractDataTypeWithClassContext(
-			lookup,
+			typeFactory,
 			template,
 			baseClass,
 			parameter.getParameterizedType(),
@@ -161,18 +162,18 @@ public final class DataTypeExtractor {
 	 * annotation.
 	 */
 	public static DataType extractFromMethodOutput(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<?> baseClass,
 			Method method) {
 		final DataTypeHint hint = method.getAnnotation(DataTypeHint.class);
 		final DataTypeTemplate template;
 		if (hint != null) {
-			template = DataTypeTemplate.fromAnnotation(lookup, hint);
+			template = DataTypeTemplate.fromAnnotation(typeFactory, hint);
 		} else {
 			template = DataTypeTemplate.fromDefaults();
 		}
 		return extractDataTypeWithClassContext(
-			lookup,
+			typeFactory,
 			template,
 			baseClass,
 			method.getGenericReturnType(),
@@ -183,12 +184,12 @@ public final class DataTypeExtractor {
 	}
 
 	private static DataType extractDataTypeWithClassContext(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			DataTypeTemplate outerTemplate,
 			@Nullable Type contextType,
 			Type type,
 			String contextExplanation) {
-		final DataTypeExtractor extractor = new DataTypeExtractor(lookup, contextExplanation);
+		final DataTypeExtractor extractor = new DataTypeExtractor(typeFactory, contextExplanation);
 		final List<Type> typeHierarchy;
 		if (contextType != null) {
 			typeHierarchy = collectTypeHierarchy(contextType);
@@ -207,7 +208,7 @@ public final class DataTypeExtractor {
 		// best effort resolution of type variables, the resolved type can still be a variable
 		final Type resolvedType;
 		if (type instanceof TypeVariable) {
-			resolvedType = resolveVariable(typeHierarchy, (TypeVariable) type);
+			resolvedType = resolveVariable(typeHierarchy, (TypeVariable<?>) type);
 		} else {
 			resolvedType = type;
 		}
@@ -217,7 +218,7 @@ public final class DataTypeExtractor {
 		if (clazz != null) {
 			final DataTypeHint hint = clazz.getAnnotation(DataTypeHint.class);
 			if (hint != null) {
-				template = outerTemplate.mergeWithInnerAnnotation(lookup, hint);
+				template = outerTemplate.mergeWithInnerAnnotation(typeFactory, hint);
 			}
 		}
 		// main work
@@ -240,7 +241,7 @@ public final class DataTypeExtractor {
 			// ignore the exception and just treat it as RAW type
 			final Class<?> clazz = toClass(type);
 			if (template.isAllowRawGlobally() || template.isAllowAnyPattern(clazz)) {
-				return createRawType(lookup, template.rawSerializer, clazz);
+				return createRawType(typeFactory, template.rawSerializer, clazz);
 			}
 			// forward the root cause otherwise
 			throw extractionError(
@@ -273,6 +274,9 @@ public final class DataTypeExtractor {
 			return resultDataType;
 		}
 
+		// early and helpful exception for common mistakes
+		checkForCommonErrors(type);
+
 		// PREDEFINED
 		resultDataType = extractPredefinedType(template, type);
 		if (resultDataType != null) {
@@ -301,8 +305,12 @@ public final class DataTypeExtractor {
 			DataTypeTemplate template,
 			List<Type> typeHierarchy,
 			Type type) {
+		// prefer BYTES over ARRAY<TINYINT> for byte[]
+		if (type == byte[].class) {
+			return DataTypes.BYTES();
+		}
 		// for T[]
-		if (type instanceof GenericArrayType) {
+		else if (type instanceof GenericArrayType) {
 			final GenericArrayType genericArray = (GenericArrayType) type;
 			return DataTypes.ARRAY(
 				extractDataTypeOrRaw(template, typeHierarchy, genericArray.getGenericComponentType()));
@@ -321,9 +329,37 @@ public final class DataTypeExtractor {
 	private @Nullable DataType extractEnforcedRawType(DataTypeTemplate template, Type type) {
 		final Class<?> clazz = toClass(type);
 		if (template.isForceAnyPattern(clazz)) {
-			return createRawType(lookup, template.rawSerializer, clazz);
+			return createRawType(typeFactory, template.rawSerializer, clazz);
 		}
 		return null;
+	}
+
+	private void checkForCommonErrors(Type type) {
+		final Class<?> clazz = toClass(type);
+		if (clazz == null) {
+			return;
+		}
+
+		if (clazz == Row.class) {
+			throw extractionError(
+				"Cannot extract a data type from a pure '%s' class. " +
+					"Please use annotations to define field names and field types.",
+				Row.class.getName());
+		} else if (clazz == Object.class) {
+			throw extractionError(
+				"Cannot extract a data type from a pure '%s' class. " +
+					"Usually, this indicates that class information is missing or got lost. " +
+					"Please specify a more concrete class or treat it as a RAW type.",
+				Object.class.getName());
+		} else if (clazz.getName().startsWith("scala.Tuple")) {
+			throw extractionError(
+				"Scala tuples are not supported. Use case classes or '%s' instead.",
+				Row.class.getName());
+		} else if (clazz.getName().startsWith("scala.collection")) {
+			throw extractionError(
+				"Scala collections are not supported. " +
+					"See the documentation for supported classes or treat them as RAW types.");
+		}
 	}
 
 	private @Nullable DataType extractPredefinedType(DataTypeTemplate template, Type type) {
@@ -471,7 +507,7 @@ public final class DataTypeExtractor {
 				fieldTypeHierarchy.addAll(typeHierarchy);
 				// hierarchy of structured type
 				fieldTypeHierarchy.addAll(structuredTypeHierarchy);
-				final DataTypeTemplate fieldTemplate = mergeFieldTemplate(lookup, field, template);
+				final DataTypeTemplate fieldTemplate = mergeFieldTemplate(typeFactory, field, template);
 				final DataType fieldDataType = extractDataTypeOrRaw(fieldTemplate, fieldTypeHierarchy, fieldType);
 				fieldDataTypes.put(field.getName(), fieldDataType);
 			} catch (Throwable t) {
@@ -507,19 +543,22 @@ public final class DataTypeExtractor {
 	/**
 	 * Merges the template of a structured type with a possibly more specific field annotation.
 	 */
-	private DataTypeTemplate mergeFieldTemplate(DataTypeLookup lookup, Field field, DataTypeTemplate structuredTemplate) {
+	private DataTypeTemplate mergeFieldTemplate(
+			DataTypeFactory typeFactory,
+			Field field,
+			DataTypeTemplate structuredTemplate) {
 		final DataTypeHint hint = field.getAnnotation(DataTypeHint.class);
 		if (hint == null) {
 			return structuredTemplate.copyWithoutDataType();
 		}
-		return structuredTemplate.mergeWithInnerAnnotation(lookup, hint);
+		return structuredTemplate.mergeWithInnerAnnotation(typeFactory, hint);
 	}
 
 	/**
 	 * Use closest class for data type if possible. Even though a hint might have provided some data
 	 * type, in many cases, the conversion class can be enriched with the extraction type itself.
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	private DataType closestBridging(DataType dataType, @Nullable Class<?> clazz) {
 		// no context class or conversion class is already more specific than context class
 		if (clazz == null || clazz.isAssignableFrom(dataType.getConversionClass())) {

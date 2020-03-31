@@ -33,6 +33,7 @@ scale_factor=$2
 data_dir=$3
 
 dsdgen_linux_url=https://raw.githubusercontent.com/ververica/tpc-ds-generators/f5d6c11681637908ce15d697ae683676a5383641/generators/dsdgen_linux
+dsdgen_linux_url_aarch64=https://raw.githubusercontent.com/ververica/tpc-ds-generators/master/generators/dsdgen_linux_aarch64
 dsdgen_macos_url=https://raw.githubusercontent.com/ververica/tpc-ds-generators/f5d6c11681637908ce15d697ae683676a5383641/generators/dsdgen_macos
 tpcds_idx_url=https://raw.githubusercontent.com/ververica/tpc-ds-generators/f5d6c11681637908ce15d697ae683676a5383641/generators/tpcds.idx
 
@@ -66,7 +67,11 @@ if [[ "$OS_TYPE" == "mac" ]]; then
 elif  [[ "$OS_TYPE" == "linux" ]]; then
     echo "[INFO] `date +%H:%M:%S` Current OS: GNU/Linux OS"
     echo "[INFO] `date +%H:%M:%S` Download data generator from github..."
-    curl -o $generator_dir/dsdgen_linux $dsdgen_linux_url
+    if [[ `uname -i` == 'aarch64' ]]; then
+      curl -o $generator_dir/dsdgen_linux $dsdgen_linux_url_aarch64
+    else
+      curl -o $generator_dir/dsdgen_linux $dsdgen_linux_url
+    fi
     curl -o $generator_dir/tpcds.idx $tpcds_idx_url
     if [[ -e $generator_dir/dsdgen_linux ]] && [[ -e $generator_dir/tpcds.idx ]]; then
         echo "[INFO] Download data generator success."

@@ -34,7 +34,8 @@ public final class TravisDownloadCache extends AbstractDownloadCache {
 
 	private static final String CACHE_FILE_NAME_DELIMITER = "__";
 	private static final Pattern CACHE_FILE_NAME_PATTERN =
-		Pattern.compile("(?<hash>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<build>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<name>.*)");
+		Pattern.compile(
+			"(?<hash>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<build>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<name>.*)");
 
 	private final int ttl;
 	private final int buildNumber;

@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testAddColumns">
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[org$apache$flink$table$planner$plan$stream$table$TestFunc$$a9ddde602e11f7aba3a1a53e83fca306($0, $1)])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[TestFunc($0, $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -153,12 +153,12 @@ Join(joinType=[InnerJoin], where=[=(int1, int2)], select=[int1, long1, string1, 
       <![CDATA[
 LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
 :- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]])
-+- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER age)], elementType=[class [Ljava.lang.Object;])
++- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe13c1b76114d2c7b3a5240fa($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER age)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], correlate=[table(TableFunc0(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
+Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe13c1b76114d2c7b3a5240fa($2)], correlate=[table(TableFunc0(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
 +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]], fields=[int, long, string])
 ]]>
     </Resource>
@@ -166,7 +166,7 @@ Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444
   <TestCase name="testOver">
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], mycount=[AS(org$apache$flink$table$planner$utils$CountAggFunction$73efb0ea0c8658abded1110c8b3ad719($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$ad50b92aae273d3d6ca7ddf9ffd4ab85($0, $1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$CountDistinct$deee7f776638e01c7669cc58e8cfc3c2($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
+LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, $1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -196,7 +196,7 @@ Calc(select=[a AS d, b])
   <TestCase name="testStar">
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(_c0=[org$apache$flink$table$planner$plan$stream$table$TestFunc$$a9ddde602e11f7aba3a1a53e83fca306($0, $1)])
+LogicalProject(_c0=[TestFunc($0, $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]])
 ]]>
     </Resource>

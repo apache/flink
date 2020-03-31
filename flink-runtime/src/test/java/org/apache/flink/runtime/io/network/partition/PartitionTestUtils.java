@@ -59,6 +59,19 @@ public enum PartitionTestUtils {
 	}
 
 	public static ResultPartition createPartition(
+			ResultPartitionType type,
+			FileChannelManager channelManager,
+			boolean compressionEnabled,
+			int networkBufferSize) {
+		return new ResultPartitionBuilder()
+			.setResultPartitionType(type)
+			.setFileChannelManager(channelManager)
+			.setBlockingShuffleCompressionEnabled(compressionEnabled)
+			.setNetworkBufferSize(networkBufferSize)
+			.build();
+	}
+
+	public static ResultPartition createPartition(
 			NettyShuffleEnvironment environment,
 			ResultPartitionType partitionType,
 			int numChannels) {

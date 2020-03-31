@@ -114,6 +114,16 @@ public interface Executor {
 	List<String> listDatabases(String sessionId) throws SqlExecutionException;
 
 	/**
+	 * Create a table with a DDL statement.
+	 */
+	void createTable(String sessionId, String ddl) throws SqlExecutionException;
+
+	/**
+	 * Drop a table with a DDL statement.
+	 */
+	void dropTable(String sessionId, String ddl) throws SqlExecutionException;
+
+	/**
 	 * Lists all tables in the current database of the current catalog.
 	 */
 	List<String> listTables(String sessionId) throws SqlExecutionException;

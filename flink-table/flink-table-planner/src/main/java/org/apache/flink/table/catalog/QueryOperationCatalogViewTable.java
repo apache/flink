@@ -60,7 +60,7 @@ public class QueryOperationCatalogViewTable extends AbstractTable implements Tra
 
 	@Override
 	public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
-		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable);
+		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable.getRelOptSchema());
 
 		RelNode relNode = relBuilder.tableOperation(catalogView.getQueryOperation()).build();
 		return RelOptUtil.createCastRel(relNode, rowType.apply(relBuilder.getTypeFactory()), false);

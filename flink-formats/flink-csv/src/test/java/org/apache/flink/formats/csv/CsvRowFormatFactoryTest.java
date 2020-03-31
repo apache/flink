@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.Csv;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
@@ -31,7 +32,9 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +45,8 @@ import static org.junit.Assert.assertEquals;
  * Tests for {@link CsvRowFormatFactory}.
  */
 public class CsvRowFormatFactoryTest extends TestLogger {
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	private static final TypeInformation<Row> SCHEMA = Types.ROW(
 		new String[]{"a", "b", "c"},
@@ -101,7 +106,7 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 	public void testSchemaDerivation() {
 		final Map<String, String> properties = new HashMap<>();
 		properties.putAll(new Schema().schema(TableSchema.fromTypeInfo(SCHEMA)).toProperties());
-		properties.putAll(new Csv().deriveSchema().toProperties());
+		properties.putAll(new Csv().toProperties());
 
 		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA).build();
 		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA).build();
@@ -117,5 +122,57 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 			.createDeserializationSchema(properties);
 
 		assertEquals(expectedDeser, actualDeser);
+	}
+
+	@Test
+	public void testDisableQuoteCharacter() {
+		final Map<String, String> properties = new Csv()
+			.schema(SCHEMA)
+			.fieldDelimiter(';')
+			.lineDelimiter("\r\n")
+			.allowComments()
+			.ignoreParseErrors()
+			.arrayElementDelimiter("|")
+			.escapeCharacter('\\')
+			.nullLiteral("n/a")
+			.disableQuoteCharacter()
+			.toProperties();
+
+		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA)
+			.setFieldDelimiter(';')
+			.setLineDelimiter("\r\n")
+			.setArrayElementDelimiter("|")
+			.setEscapeCharacter('\\')
+			.setNullLiteral("n/a")
+			.disableQuoteCharacter()
+			.build();
+
+		final SerializationSchema<?> actualSer = TableFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+
+		assertEquals(expectedSer, actualSer);
+	}
+
+	@Test
+	public void testDisableQuoteCharacterException() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Format cannot define a quote character and disabled quote character at the same time.");
+		final Map<String, String> properties = new Csv()
+			.schema(SCHEMA)
+			.fieldDelimiter(';')
+			.lineDelimiter("\r\n")
+			.allowComments()
+			.ignoreParseErrors()
+			.arrayElementDelimiter("|")
+			.escapeCharacter('\\')
+			.nullLiteral("n/a")
+			.quoteCharacter('#')
+			.disableQuoteCharacter()
+			.toProperties();
+
+		TableFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
 	}
 }

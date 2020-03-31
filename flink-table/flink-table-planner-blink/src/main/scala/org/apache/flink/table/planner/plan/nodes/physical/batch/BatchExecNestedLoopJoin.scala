@@ -20,16 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -152,24 +149,18 @@ class BatchExecNestedLoopJoin(
       condition
     ).gen()
 
-    val externalBufferMemoryInMb: Int = if (singleRowJoin) {
-      0
-    } else {
-      val mem = planner.getTableConfig.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-      MemorySize.parse(mem).getMebiBytes
-    }
-    val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)
-
     val parallelism = if (leftIsBuild) rInput.getParallelism else lInput.getParallelism
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val manageMem = if (singleRowJoin) 0 else {
+      MemorySize.parse(planner.getTableConfig.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
+    }
+    ExecNode.createTwoInputTransformation(
       lInput,
       rInput,
       getRelDetailedDescription,
       op,
       BaseRowTypeInfo.of(outputType),
-      parallelism)
-    ret.setResources(resourceSpec, resourceSpec)
-    ret
+      parallelism,
+      manageMem)
   }
 }

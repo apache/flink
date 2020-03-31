@@ -24,14 +24,9 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ExtractionVersion;
 import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.annotation.InputGroup;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
-import org.apache.flink.table.types.inference.ArgumentTypeValidator;
-import org.apache.flink.table.types.inference.InputTypeValidator;
-import org.apache.flink.table.types.inference.InputTypeValidators;
-import org.apache.flink.table.types.inference.TypeStrategies;
-import org.apache.flink.table.types.inference.TypeStrategy;
 
 import javax.annotation.Nullable;
 
@@ -40,11 +35,9 @@ import java.util.Objects;
 import java.util.function.Function;
 
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createRawType;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
 
 /**
- * Internal representation of a {@link DataTypeHint} and template for creating a single {@link DataType}
- * or a {@link InputTypeValidator} for groups of {@link DataType}s.
+ * Internal representation of a {@link DataTypeHint}.
  *
  * <p>All parameters of a template are optional. An empty annotation results in a template where all
  * members are {@code null}.
@@ -107,14 +100,14 @@ public final class DataTypeTemplate {
 	 * Creates an instance from the given {@link DataTypeHint}. Resolves an explicitly defined data type
 	 * if {@link DataTypeHint#value()} and/or {@link DataTypeHint#bridgedTo()} are defined.
 	 */
-	public static DataTypeTemplate fromAnnotation(DataTypeLookup lookup, DataTypeHint hint) {
+	public static DataTypeTemplate fromAnnotation(DataTypeFactory typeFactory, DataTypeHint hint) {
 		final String typeName = defaultAsNull(hint, DataTypeHint::value);
 		final Class<?> conversionClass = defaultAsNull(hint, DataTypeHint::bridgedTo);
 		if (typeName != null || conversionClass != null) {
 			// chicken and egg problem
 			// a template can contain a data type but in order to extract a data type we might need a template
 			final DataTypeTemplate extractionTemplate = fromAnnotation(hint, null);
-			return fromAnnotation(hint, extractDataType(lookup, typeName, conversionClass, extractionTemplate));
+			return fromAnnotation(hint, extractDataType(typeFactory, typeName, conversionClass, extractionTemplate));
 		}
 		return fromAnnotation(hint, null);
 	}
@@ -180,8 +173,8 @@ public final class DataTypeTemplate {
 	 * Merges this template with an inner annotation. The inner annotation has highest precedence
 	 * and definitely determines the explicit data type (if available).
 	 */
-	public DataTypeTemplate mergeWithInnerAnnotation(DataTypeLookup lookup, DataTypeHint hint) {
-		final DataTypeTemplate otherTemplate = fromAnnotation(lookup, hint);
+	public DataTypeTemplate mergeWithInnerAnnotation(DataTypeFactory typeFactory, DataTypeHint hint) {
+		final DataTypeTemplate otherTemplate = fromAnnotation(typeFactory, hint);
 		return new DataTypeTemplate(
 			otherTemplate.dataType,
 			rightValueIfNotNull(rawSerializer, otherTemplate.rawSerializer),
@@ -195,49 +188,6 @@ public final class DataTypeTemplate {
 			rightValueIfNotNull(defaultYearPrecision, otherTemplate.defaultYearPrecision),
 			rightValueIfNotNull(defaultSecondPrecision, otherTemplate.defaultSecondPrecision)
 		);
-	}
-
-	/**
-	 * Whether this template defines an explicit data type.
-	 */
-	public boolean hasDataTypeDefinition() {
-		return dataType != null;
-	}
-
-	/**
-	 * Whether this template defines a group of data types for an input argument.
-	 */
-	public boolean hasInputGroupDefinition() {
-		return inputGroup != null && inputGroup != InputGroup.UNKNOWN;
-	}
-
-	/**
-	 * Converts this template into an {@link ArgumentTypeValidator}.
-	 */
-	public ArgumentTypeValidator toArgumentTypeValidator() {
-		// data type
-		if (hasDataTypeDefinition()) {
-			return InputTypeValidators.explicit(dataType);
-		}
-		// input group
-		else if (hasInputGroupDefinition()) {
-			if (inputGroup == InputGroup.ANY) {
-				return InputTypeValidators.ANY;
-			}
-		}
-		throw ExtractionUtils.extractionError(
-			"Data type hint does neither specify an explicit data type nor an input group.");
-	}
-
-	/**
-	 * Converts this template into a {@link TypeStrategy}.
-	 */
-	public TypeStrategy toTypeStrategy() {
-		if (hasDataTypeDefinition()) {
-			return TypeStrategies.explicit(dataType);
-		}
-		throw ExtractionUtils.extractionError(
-			"Data type hint does not specify an explicit data type.");
 	}
 
 	/**
@@ -353,7 +303,7 @@ public final class DataTypeTemplate {
 	}
 
 	private static DataType extractDataType(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			@Nullable String typeName,
 			@Nullable Class<?> conversionClass,
 			DataTypeTemplate template) {
@@ -361,21 +311,18 @@ public final class DataTypeTemplate {
 		if (typeName != null) {
 			// RAW type
 			if (typeName.equals(RAW_TYPE_NAME)) {
-				return createRawType(lookup, template.rawSerializer, conversionClass);
+				return createRawType(typeFactory, template.rawSerializer, conversionClass);
 			}
 			// regular type that must be resolvable
-			return lookup.lookupDataType(typeName)
-				.map(dataType -> {
-					if (conversionClass != null) {
-						return dataType.bridgedTo(conversionClass);
-					}
-					return dataType;
-				})
-				.orElseThrow(() -> extractionError("Could not resolve type with name '%s'.", typeName));
+			final DataType resolvedDataType = typeFactory.createDataType(typeName);
+			if (conversionClass != null) {
+				return resolvedDataType.bridgedTo(conversionClass);
+			}
+			return resolvedDataType;
 		}
 		// extracted data type
 		else if (conversionClass != null) {
-			return DataTypeExtractor.extractFromType(lookup, template, conversionClass);
+			return DataTypeExtractor.extractFromType(typeFactory, template, conversionClass);
 		}
 		throw ExtractionUtils.extractionError(
 			"Data type hint does neither specify an explicit data type or conversion class " +

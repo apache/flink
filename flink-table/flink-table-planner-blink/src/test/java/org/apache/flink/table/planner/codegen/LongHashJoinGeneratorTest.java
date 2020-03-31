@@ -47,7 +47,7 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 				RowType.of(new IntType(), new IntType()),
 				new int[]{0},
 				new int[]{0},
-				memorySize, memorySize, 0, 20, 10000,
+				20, 10000,
 				reverseJoinFunction,
 				new GeneratedJoinCondition(MyJoinCondition.class.getCanonicalName(), "", new Object[0])
 		);

@@ -26,7 +26,6 @@ import {
   ViewChild
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LONG_MIN_VALUE } from 'config';
 import { forkJoin, Observable, of, Subject } from 'rxjs';
 import { catchError, filter, map, takeUntil } from 'rxjs/operators';
 import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
@@ -66,29 +65,9 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   mergeWithWatermarks(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
     return forkJoin(
       nodes.map(node => {
-        const listOfMetricId = [];
-        let lowWatermark = NaN;
-        for (let i = 0; i < node.parallelism; i++) {
-          listOfMetricId.push(`${i}.currentInputWatermark`);
-        }
-        return this.metricService.getMetrics(this.jobId, node.id, listOfMetricId).pipe(
-          map(metrics => {
-            let minValue = NaN;
-            const watermarks: { [index: string]: number } = {};
-            for (const key in metrics.values) {
-              const value = metrics.values[key];
-              const subtaskIndex = key.replace('.currentInputWatermark', '');
-              watermarks[subtaskIndex] = value;
-              if (isNaN(minValue) || value < minValue) {
-                minValue = value;
-              }
-            }
-            if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
-              lowWatermark = minValue;
-            } else {
-              lowWatermark = NaN;
-            }
-            return { ...node, lowWatermark };
+        return this.metricService.getWatermarks(this.jobId, node.id).pipe(
+          map(result => {
+            return { ...node, lowWatermark: result.lowWatermark };
           })
         );
       })

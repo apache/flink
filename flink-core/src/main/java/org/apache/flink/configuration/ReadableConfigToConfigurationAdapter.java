@@ -223,7 +223,7 @@ public class ReadableConfigToConfigurationAdapter extends Configuration {
 	}
 
 	@Override
-	public <T> WritableConfig set(ConfigOption<T> option, T value) {
+	public <T> Configuration set(ConfigOption<T> option, T value) {
 		throw new UnsupportedOperationException("The configuration is read only");
 	}
 

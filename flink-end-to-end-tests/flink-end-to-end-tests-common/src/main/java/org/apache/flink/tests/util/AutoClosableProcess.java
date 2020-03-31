@@ -18,17 +18,12 @@
 
 package org.apache.flink.tests.util;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -45,7 +40,7 @@ public class AutoClosableProcess implements AutoCloseable {
 
 	private final Process process;
 
-	public AutoClosableProcess(final Process process) {
+	private AutoClosableProcess(final Process process) {
 		Preconditions.checkNotNull(process);
 		this.process = process;
 	}
@@ -115,12 +110,33 @@ public class AutoClosableProcess implements AutoCloseable {
 			}
 		}
 
+		public void runBlockingWithRetry(final int maxRetries, final Duration attemptTimeout,
+		                                 final Duration globalTimeout) throws IOException {
+			int retries = 0;
+			final Deadline globalDeadline = Deadline.fromNow(globalTimeout);
+
+			while (true) {
+				try {
+					runBlocking(attemptTimeout);
+					break;
+				} catch (Exception e) {
+					if (++retries > maxRetries || !globalDeadline.hasTimeLeft()) {
+						String errMsg = String.format(
+							"Process (%s) exceeded timeout (%s) or number of retries (%s).",
+							Arrays.toString(commands), maxRetries, globalTimeout.toMillis());
+						throw new IOException(errMsg, e);
+					}
+				}
+			}
+		}
+
 		public AutoClosableProcess runNonBlocking() throws IOException {
 			return new AutoClosableProcess(createProcess(commands, stdoutProcessor, stderrProcessor));
 		}
 	}
 
-	private static Process createProcess(final String[] commands, Consumer<String> stdoutProcessor, Consumer<String> stderrProcessor) throws IOException {
+	private static Process createProcess(final String[] commands, Consumer<String> stdoutProcessor,
+	                                     Consumer<String> stderrProcessor) throws IOException {
 		final ProcessBuilder processBuilder = new ProcessBuilder();
 		LOG.debug("Creating process: {}", Arrays.toString(commands));
 		processBuilder.command(commands);
@@ -135,7 +151,8 @@ public class AutoClosableProcess implements AutoCloseable {
 
 	private static void processStream(final InputStream stream, final Consumer<String> streamConsumer) {
 		new Thread(() -> {
-			try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+			try (BufferedReader bufferedReader = new BufferedReader(
+				new InputStreamReader(stream, StandardCharsets.UTF_8))) {
 				String line;
 				while ((line = bufferedReader.readLine()) != null) {
 					streamConsumer.accept(line);

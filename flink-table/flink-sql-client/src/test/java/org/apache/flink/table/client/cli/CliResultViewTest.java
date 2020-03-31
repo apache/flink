@@ -84,9 +84,10 @@ public class CliResultViewTest {
 		final MockExecutor executor = new MockExecutor(typedResult, cancellationCounterLatch);
 		String sessionId = executor.openSession(session);
 		final ResultDescriptor descriptor = new ResultDescriptor(
-			"result-id",
-			TableSchema.builder().field("Null Field", Types.STRING()).build(),
-			false);
+				"result-id",
+				TableSchema.builder().field("Null Field", Types.STRING()).build(),
+				false,
+				false);
 
 		Thread resultViewRunner = null;
 		CliClient cli = null;
@@ -171,6 +172,16 @@ public class CliResultViewTest {
 		@Override
 		public List<String> listDatabases(String sessionId) throws SqlExecutionException {
 			return null;
+		}
+
+		@Override
+		public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
+
 		}
 
 		@Override

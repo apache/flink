@@ -32,5 +32,5 @@ public interface FlinkResourceFactory {
 	 *
 	 * @return FlinkResource instance, or an empty Optional if the instance could not be instantiated
 	 */
-	Optional<FlinkResource> create();
+	Optional<FlinkResource> create(FlinkResourceSetup setup);
 }

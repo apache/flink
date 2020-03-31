@@ -32,10 +32,11 @@ import java.nio.file.Path;
 public interface DownloadCache extends ExternalResource {
 
 	/**
-	 * Returns either a cached or newly downloaded version of the given file. The returned file path is guaranteed to be
+	 * Returns either a cached or newly downloaded version of the given file. The returned file path is guaranteed
+	 * to be
 	 * located in the given target directory.
 	 *
-	 * @param url File/directory to download
+	 * @param url       File/directory to download
 	 * @param targetDir directory to place file in
 	 * @return downloaded or cached file
 	 * @throws IOException if any IO operation fails
