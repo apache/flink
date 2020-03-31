@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
+import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexInputRef, RexNode}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
@@ -67,7 +67,10 @@ trait CommonPythonCorrelate extends CommonPythonBase {
     val pythonTableFunctionInfo = createPythonFunctionInfo(pythonRexCall, inputNodes)
     val udtfInputOffsets = inputNodes.toArray
       .map(_._1)
-      .collect { case inputRef: RexInputRef => inputRef.getIndex }
+      .collect {
+        case inputRef: RexInputRef => inputRef.getIndex
+        case fac: RexFieldAccess => fac.getField.getIndex
+      }
     (udtfInputOffsets, pythonTableFunctionInfo)
   }
 
