@@ -48,7 +48,7 @@ class TimestampDiffCallGen extends CallGenerator {
                 val leftTerm = s"${terms(1)}.getMillisecond()"
                 val rightTerm = s"${terms(2)}.getMillisecond()"
                 s"""
-                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}(
                    |  $leftTerm, $rightTerm) / ${unit.multiplier.intValue()}
                  """.stripMargin
             }
@@ -57,7 +57,7 @@ class TimestampDiffCallGen extends CallGenerator {
               terms =>
                 val leftTerm = s"${terms(1)}.getMillisecond()"
                 s"""
-                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($leftTerm,
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm,
                    |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()}
                    |""".stripMargin
             }
@@ -67,7 +67,7 @@ class TimestampDiffCallGen extends CallGenerator {
               terms =>
                 val rightTerm = s"${terms(2)}.getMillisecond()"
                 s"""
-                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}(
                    |${terms(1)} * ${MILLIS_PER_DAY}L, $rightTerm) / ${unit.multiplier.intValue()}
                    |""".stripMargin
             }
@@ -76,7 +76,7 @@ class TimestampDiffCallGen extends CallGenerator {
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
-                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}(${terms(1)},
                    |  ${terms(2)}) / ${unit.multiplier.intValue()}
                    |""".stripMargin
             }

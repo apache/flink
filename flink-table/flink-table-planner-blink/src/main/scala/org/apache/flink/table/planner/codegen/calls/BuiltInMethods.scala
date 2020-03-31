@@ -463,4 +463,12 @@ object BuiltInMethods {
 
   val TRUNCATE_SQL_TIMESTAMP = Types.lookupMethod(classOf[SqlDateTimeUtils], "truncate",
     classOf[SqlTimestamp], classOf[Int])
+
+  // TODO: remove ADD_MONTHS and SUBTRACT_MONTHS if CALCITE-3881 fixed
+  //  https://issues.apache.org/jira/browse/CALCITE-3881
+  val ADD_MONTHS = Types.lookupMethod(classOf[SqlFunctionUtils], "addMonths",
+    classOf[Long], classOf[Int])
+
+  val SUBTRACT_MONTHS = Types.lookupMethod(classOf[SqlFunctionUtils], "subtractMonths",
+    classOf[Long], classOf[Long])
 }
