@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContex
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -81,13 +82,20 @@ class BatchExecSink[T](
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[Any] = {
     val resultTransformation = sink match {
-      case _: RetractStreamTableSink[T] | _: UpsertStreamTableSink[T] =>
-        throw new TableException("RetractStreamTableSink and UpsertStreamTableSink is not" +
-          " supported in Batch environment.")
-
       case streamTableSink: StreamTableSink[T] =>
-        // we can insert the bounded DataStream into a StreamTableSink
-        val transformation = translateToTransformation(withChangeFlag = false, planner)
+        val transformation = streamTableSink match {
+          case _: RetractStreamTableSink[T] =>
+            translateToTransformation(withChangeFlag = true, planner)
+
+          case upsertSink: UpsertStreamTableSink[T] =>
+            upsertSink.setIsAppendOnly(true)
+            upsertSink.setKeyFields(
+              UpdatingPlanChecker.getUniqueKeyForUpsertSink(this, planner, upsertSink).orNull)
+            translateToTransformation(withChangeFlag = true, planner)
+
+          case _ =>
+            translateToTransformation(withChangeFlag = false, planner)
+        }
         val boundedStream = new DataStream(planner.getExecEnv, transformation)
         val dsSink = streamTableSink.consumeDataStream(boundedStream)
         if (dsSink == null) {
@@ -96,7 +104,6 @@ class BatchExecSink[T](
             s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
         }
         dsSink.getTransformation
-
       case dsTableSink: DataStreamTableSink[T] =>
         // In case of table to bounded stream through Batchplannerironment#toBoundedStream, we
         // insert a DataStreamTableSink then wrap it as a LogicalSink, there is no real batch table

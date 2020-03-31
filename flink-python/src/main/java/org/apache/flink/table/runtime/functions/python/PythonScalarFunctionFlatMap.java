@@ -34,6 +34,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -294,7 +295,8 @@ public final class PythonScalarFunctionFlatMap
 			createPythonEnvironmentManager(),
 			udfInputType,
 			udfOutputType,
-			jobOptions);
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 
 	private PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
@@ -356,5 +358,10 @@ public final class PythonScalarFunctionFlatMap
 		} finally {
 			super.close();
 		}
+	}
+
+	private FlinkMetricContainer getFlinkMetricContainer() {
+		return this.config.isMetricEnabled() ?
+			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
 	}
 }

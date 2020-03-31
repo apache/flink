@@ -504,6 +504,14 @@ trait ImplicitExpressionConversions {
    */
   def call(path: String, params: Expression*): Expression = Expressions.call(path, params: _*)
 
+  /**
+   * A call to an unregistered, inline function. For functions that have been registered before and
+   * are identified by a name, use [[call(String, Object...)]].
+   */
+  def call(function: UserDefinedFunction, params: Expression*): Expression = Expressions.call(
+    function,
+    params: _*)
+
   // ----------------------------------------------------------------------------------------------
   // Implicit expressions in prefix notation
   // ----------------------------------------------------------------------------------------------

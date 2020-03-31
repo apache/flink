@@ -19,8 +19,7 @@
 package org.apache.flink.table.plan.rules.common
 
 import java.util
-
-import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.plan.{Contexts, RelOptRule}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
 import org.apache.calcite.rel.logical.LogicalAggregate
@@ -35,9 +34,14 @@ import scala.collection.JavaConversions._
   * Rule to convert complex aggregation functions into simpler ones.
   * Have a look at [[AggregateReduceFunctionsRule]] for details.
   */
-class WindowAggregateReduceFunctionsRule extends AggregateReduceFunctionsRule(
-    RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.any()),
-    RelFactories.LOGICAL_BUILDER) {
+class WindowAggregateReduceFunctionsRule
+    extends AggregateReduceFunctionsRule(
+      RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.any()),
+      RelBuilder.proto(
+        Contexts.of(
+          RelFactories.DEFAULT_STRUCT,
+          RelBuilder.Config.DEFAULT
+            .withPruneInputOfAggregate(false)))) {
 
   override def newAggregateRel(
       relBuilder: RelBuilder,

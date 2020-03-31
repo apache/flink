@@ -143,13 +143,13 @@ env.addSource(pubsubSource)
 </div>
 </div>
 
-### Atleast once guarantee
+### At least once guarantee
 
 #### SourceFunction
 
 There are several reasons why a message might be send multiple times, such as failure scenarios on Google PubSub's side.
 
-Another reason is when the acknowledgement deadline has passed. This is the time between receiving the message and between acknowledging the message. The PubSubSource will only acknowledge a message on successful checkpoints to guarantee Atleast-Once. This does mean if the time between successful checkpoints is larger than the acknowledgment deadline of your subscription messages will most likely be processed multiple times.
+Another reason is when the acknowledgement deadline has passed. This is the time between receiving the message and acknowledging the message. The PubSubSource will only acknowledge a message on successful checkpoints to guarantee at-least-once. This does mean if the time between successful checkpoints is larger than the acknowledgment deadline of your subscription messages will most likely be processed multiple times.
 
 For this reason it's recommended to have a (much) lower checkpoint interval than acknowledgement deadline.
 

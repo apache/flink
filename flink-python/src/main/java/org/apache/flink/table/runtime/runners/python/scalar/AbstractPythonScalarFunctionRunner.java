@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonStatelessFunctionRunner;
@@ -52,8 +53,9 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		Map<String, String> jobOptions) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN, jobOptions);
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN, jobOptions, flinkMetricContainer);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 	}
 
@@ -63,9 +65,11 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 	@VisibleForTesting
 	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
+		// add udf proto
 		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
 			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
 		}
+		builder.setMetricEnabled(flinkMetricContainer != null);
 		return builder.build();
 	}
 }

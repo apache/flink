@@ -22,12 +22,12 @@ import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +104,7 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 		commonLabels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
 		commonLabels.put(Constants.LABEL_APP_KEY, getClusterId());
 
-		return commonLabels;
+		return Collections.unmodifiableMap(commonLabels);
 	}
 
 	@Override
@@ -161,14 +161,5 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 		}
 
 		return Optional.empty();
-	}
-
-	/**
-	 * Extract container customized environment variable properties with a given name prefix.
-	 * @param envPrefix the given property name prefix
-	 * @return a Map storing with customized environment variable key/value pairs.
-	 */
-	protected Map<String, String> getPrefixedEnvironments(String envPrefix) {
-		return BootstrapTools.getEnvironmentVariables(envPrefix, flinkConfig);
 	}
 }

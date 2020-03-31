@@ -94,14 +94,14 @@ import static org.mockito.Mockito.when;
 public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
-	private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
+	private ManuallyTriggeredScheduledExecutor mainThreadExecutor;
 
 	@Rule
 	public TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	@Before
 	public void setUp() throws Exception {
-		manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+		mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
 
 	/**
@@ -147,12 +147,12 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.setJobId(jid)
 				.setTasks(arrayExecutionVertices)
 				.setCompletedCheckpointStore(store)
-				.setTimer(manuallyTriggeredScheduledExecutor)
+				.setMainThreadExecutor(mainThreadExecutor)
 				.build();
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
-		manuallyTriggeredScheduledExecutor.triggerAll();
+		mainThreadExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
@@ -184,6 +184,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				subtaskState);
 
 			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
+			mainThreadExecutor.triggerAll();
 		}
 
 		List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
@@ -272,13 +274,13 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 					.setCheckpointIDCounter(checkpointIDCounter)
 					.setCompletedCheckpointStore(store)
 					.setTasks(new ExecutionVertex[] { stateful1, stateless1 })
-					.setTimer(manuallyTriggeredScheduledExecutor)
+					.setMainThreadExecutor(mainThreadExecutor)
 					.build();
 
 			//trigger a checkpoint and wait to become a completed checkpoint
 			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
 				coord.triggerCheckpoint(timestamp, false);
-			manuallyTriggeredScheduledExecutor.triggerAll();
+			mainThreadExecutor.triggerAll();
 			assertFalse(checkpointFuture.isCompletedExceptionally());
 
 			long checkpointId = checkpointIDCounter.getLast();
@@ -299,6 +301,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStatesForCheckpoint), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
+			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
+			mainThreadExecutor.triggerAll();
 
 			CompletedCheckpoint success = coord.getSuccessfulCheckpoints().get(0);
 			assertEquals(jid, success.getJobId());
@@ -322,10 +326,12 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 					StateObjectCollection.singleton(serializedKeyGroupStatesForSavepoint),
 					StateObjectCollection.empty()));
 
-			manuallyTriggeredScheduledExecutor.triggerAll();
+			mainThreadExecutor.triggerAll();
 			checkpointId = checkpointIDCounter.getLast();
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStatesForSavepoint), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
+			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
+			mainThreadExecutor.triggerAll();
 
 			assertNotNull(savepointFuture.get());
 
@@ -410,12 +416,12 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			new CheckpointCoordinatorBuilder()
 				.setJobId(jid)
 				.setTasks(arrayExecutionVertices)
-				.setTimer(manuallyTriggeredScheduledExecutor)
+				.setMainThreadExecutor(mainThreadExecutor)
 				.build();
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
-		manuallyTriggeredScheduledExecutor.triggerAll();
+		mainThreadExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
@@ -467,6 +473,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				taskOperatorSubtaskStates);
 
 			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
+			mainThreadExecutor.triggerAll();
 		}
 
 		List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
@@ -573,12 +581,12 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			new CheckpointCoordinatorBuilder()
 				.setJobId(jid)
 				.setTasks(arrayExecutionVertices)
-				.setTimer(manuallyTriggeredScheduledExecutor)
+				.setMainThreadExecutor(mainThreadExecutor)
 				.build();
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
-		manuallyTriggeredScheduledExecutor.triggerAll();
+		mainThreadExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
@@ -614,6 +622,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				taskOperatorSubtaskStates);
 
 			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
+			mainThreadExecutor.triggerAll();
 		}
 
 		List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
@@ -813,7 +823,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			new CheckpointCoordinatorBuilder()
 				.setTasks(newJobVertex1.getTaskVertices())
 				.setCompletedCheckpointStore(standaloneCompletedCheckpointStore)
-				.setTimer(manuallyTriggeredScheduledExecutor)
+				.setMainThreadExecutor(mainThreadExecutor)
 				.build();
 
 		coord.restoreLatestCheckpointedState(tasks, false, true);

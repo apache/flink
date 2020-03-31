@@ -22,6 +22,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.KubernetesTestBase;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -52,6 +53,13 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		}
 	};
 
+	protected final Map<String, String> userLabels = new HashMap<String, String>() {
+		{
+			put("label1", "value1");
+			put("label2", "value2");
+		}
+	};
+
 	protected TaskExecutorProcessSpec taskExecutorProcessSpec;
 
 	protected ContaineredTaskManagerParameters containeredTaskManagerParameters;
@@ -69,6 +77,7 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TOTAL_PROCESS_MEMORY + "m"));
 		customizedEnvs.forEach((k, v) ->
 				flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k, v));
+		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
 
 		taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);
 		containeredTaskManagerParameters = ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec,

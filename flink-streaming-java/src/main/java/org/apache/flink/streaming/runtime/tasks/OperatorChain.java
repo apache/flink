@@ -47,6 +47,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -282,15 +283,14 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	/**
-	 * Executes {@link StreamOperator#initializeState()} followed by {@link StreamOperator#open()}
-	 * of each operator in the chain of this {@link StreamTask}. State initialization and opening
-	 * happens from <b>tail to head</b> operator in the chain, contrary to {@link StreamOperator#close()}
-	 * which happens <b>head to tail</b>(see {@link #closeOperators(StreamTaskActionExecutor)}).
+	 * Initialize state and open all operators in the chain from <b>tail to head</b>,
+	 * contrary to {@link StreamOperator#close()} which happens <b>head to tail</b>
+	 * (see {@link #closeOperators(StreamTaskActionExecutor)}).
 	 */
-	protected void initializeStateAndOpenOperators() throws Exception {
+	protected void initializeStateAndOpenOperators(StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
 		for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
 			StreamOperator<?> operator = operatorWrapper.getStreamOperator();
-			operator.initializeState();
+			operator.initializeState(streamTaskStateInitializer);
 			operator.open();
 		}
 	}
@@ -298,7 +298,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	/**
 	 * Closes all operators in a chain effect way. Closing happens from <b>head to tail</b> operator
 	 * in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to head</b>
-	 * (see {@link #initializeStateAndOpenOperators()}).
+	 * (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
 	 */
 	protected void closeOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
 		if (headOperatorWrapper != null) {

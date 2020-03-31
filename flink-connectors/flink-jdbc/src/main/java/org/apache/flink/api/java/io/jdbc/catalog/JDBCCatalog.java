@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.io.jdbc.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -40,7 +40,7 @@ public class JDBCCatalog extends AbstractJDBCCatalog {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCCatalog.class);
 
-	private final Catalog internal;
+	private final AbstractJDBCCatalog internal;
 
 	public JDBCCatalog(String catalogName, String defaultDatabase, String username, String pwd, String baseUrl) {
 		super(catalogName, defaultDatabase, username, pwd, baseUrl);
@@ -80,5 +80,12 @@ public class JDBCCatalog extends AbstractJDBCCatalog {
 		} catch (DatabaseNotExistException e) {
 			return false;
 		}
+	}
+
+	// ------ getters ------
+
+	@VisibleForTesting
+	public AbstractJDBCCatalog getInternal() {
+		return internal;
 	}
 }

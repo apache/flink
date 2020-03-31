@@ -64,16 +64,16 @@ class SetOperatorsTest extends TableTestBase {
             unaryNode(
               "DataSetCalc",
               batchTableNode(table1),
-              term("select", "b_long AS b_long3", "true AS $f0"),
+              term("select", "b_long", "true AS $f0"),
               term("where", "IS NOT NULL(b_long)")
             ),
-            term("groupBy", "b_long3"),
-            term("select", "b_long3", "MIN($f0) AS $f1")
+            term("groupBy", "b_long"),
+            term("select", "b_long", "MIN($f0) AS $f1")
           ),
-          term("select", "b_long3")
+          term("select", "b_long")
         ),
-        term("where", "=(a_long, b_long3)"),
-        term("join", "a_long", "a_int", "a_string", "b_long3"),
+        term("where", "=(a_long, b_long)"),
+        term("join", "a_long", "a_int", "a_string", "b_long"),
         term("joinType", "InnerJoin")
       ),
       term("select", "a_int", "a_string")

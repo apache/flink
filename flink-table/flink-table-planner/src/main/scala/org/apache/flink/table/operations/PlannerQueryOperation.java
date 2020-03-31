@@ -19,9 +19,10 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
@@ -43,11 +44,22 @@ public class PlannerQueryOperation implements QueryOperation {
 
 		RelDataType rowType = calciteTree.getRowType();
 		String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
-		TypeInformation[] fieldTypes = rowType.getFieldList()
+		DataType[] fieldTypes = rowType.getFieldList()
 			.stream()
-			.map(field -> FlinkTypeFactory.toTypeInfo(field.getType())).toArray(TypeInformation[]::new);
+			.map(field -> {
+				final DataType fieldType = TypeConversions
+					.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(field.getType()));
+				final boolean nullable = field.getType().isNullable();
+				if (nullable != fieldType.getLogicalType().isNullable()
+					&& !FlinkTypeFactory.isTimeIndicatorType(field.getType())) {
+					return nullable ? fieldType.nullable() : fieldType.notNull();
+				} else {
+					return fieldType;
+				}
+			})
+			.toArray(DataType[]::new);
 
-		this.tableSchema = new TableSchema(fieldNames, fieldTypes);
+		this.tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
 	}
 
 	public RelNode getCalciteTree() {

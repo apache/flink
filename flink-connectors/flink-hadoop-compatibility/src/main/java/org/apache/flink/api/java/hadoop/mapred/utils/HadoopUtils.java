@@ -28,7 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Utility class to work with Apache Hadoop MapRed classes.
@@ -86,36 +88,43 @@ public final class HadoopUtils {
 		}
 
 		// 2. Approach environment variables
-		String[] possibleHadoopConfPaths = new String[4];
-		possibleHadoopConfPaths[0] = flinkConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
-		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
+		for (String possibleHadoopConfPath : possibleHadoopConfPaths(flinkConfiguration)) {
+			if (new File(possibleHadoopConfPath).exists()) {
+				if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
+					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
 
-		if (System.getenv("HADOOP_HOME") != null) {
-			possibleHadoopConfPaths[2] = System.getenv("HADOOP_HOME") + "/conf";
-			possibleHadoopConfPaths[3] = System.getenv("HADOOP_HOME") + "/etc/hadoop"; // hadoop 2.2
-		}
-
-		for (String possibleHadoopConfPath : possibleHadoopConfPaths) {
-			if (possibleHadoopConfPath != null) {
-				if (new File(possibleHadoopConfPath).exists()) {
-					if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
-						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
-
-						if (LOG.isDebugEnabled()) {
-							LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
-						}
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
 					}
-					if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
-						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
+				}
+				if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
+					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
 
-						if (LOG.isDebugEnabled()) {
-							LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
-						}
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
 					}
 				}
 			}
 		}
 		return retConf;
+	}
+
+	/**
+	 * Get possible Hadoop conf dir paths, based on environment variables and flink configuration.
+	 *
+	 * @param flinkConfiguration The flink configuration that may contain the path to Hadoop conf dir.
+	 * @return an array of possible paths
+	 */
+	public static String[] possibleHadoopConfPaths(org.apache.flink.configuration.Configuration flinkConfiguration) {
+		String[] possiblePaths = new String[4];
+		possiblePaths[0] = flinkConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		possiblePaths[1] = System.getenv("HADOOP_CONF_DIR");
+
+		if (System.getenv("HADOOP_HOME") != null) {
+			possiblePaths[2] = System.getenv("HADOOP_HOME") + "/conf";
+			possiblePaths[3] = System.getenv("HADOOP_HOME") + "/etc/hadoop"; // hadoop 2.2
+		}
+		return Arrays.stream(possiblePaths).filter(Objects::nonNull).toArray(String[]::new);
 	}
 
 	/**

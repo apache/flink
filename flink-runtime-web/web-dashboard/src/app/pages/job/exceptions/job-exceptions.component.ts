@@ -19,7 +19,7 @@
 import { formatDate } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { JobExceptionItemInterface } from 'interfaces';
-import { distinctUntilChanged, flatMap } from 'rxjs/operators';
+import { distinctUntilChanged, flatMap, tap } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
@@ -31,18 +31,24 @@ import { JobService } from 'services';
 export class JobExceptionsComponent implements OnInit {
   rootException = '';
   listOfException: JobExceptionItemInterface[] = [];
+  truncated = false;
+  isLoading = false;
+  maxExceptions = 0;
 
   trackExceptionBy(_: number, node: JobExceptionItemInterface) {
     return node.timestamp;
   }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit() {
+  loadMore() {
+    this.isLoading = true;
+    this.maxExceptions += 10;
     this.jobService.jobDetail$
       .pipe(
         distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        flatMap(job => this.jobService.loadExceptions(job.jid))
+        flatMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions)),
+        tap(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        })
       )
       .subscribe(data => {
         // @ts-ignore
@@ -51,8 +57,14 @@ export class JobExceptionsComponent implements OnInit {
         } else {
           this.rootException = 'No Root Exception';
         }
+        this.truncated = data.truncated;
         this.listOfException = data['all-exceptions'];
-        this.cdr.markForCheck();
       });
+  }
+
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+
+  ngOnInit() {
+    this.loadMore();
   }
 }

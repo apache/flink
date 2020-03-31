@@ -28,6 +28,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -211,7 +212,8 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			environmentManager,
 			inputType,
 			outputType,
-			Collections.emptyMap());
+			Collections.emptyMap(),
+			PythonTestUtils.createMockFlinkMetricContainer());
 	}
 
 	private AbstractGeneralPythonScalarFunctionRunner<Row> createUDFRunner(
@@ -238,7 +240,8 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			rowType,
 			rowType,
 			Collections.emptyMap(),
-			jobBundleFactory) {
+			jobBundleFactory,
+			PythonTestUtils.createMockFlinkMetricContainer()) {
 			@Override
 			public TypeSerializer<Row> getInputTypeSerializer() {
 				return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());

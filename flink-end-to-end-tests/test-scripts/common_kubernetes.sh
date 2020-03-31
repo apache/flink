@@ -18,6 +18,7 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_docker.sh
 
 DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
 KUBERNETES_MODULE_DIR=${END_TO_END_DIR}/../flink-container/kubernetes
@@ -38,7 +39,7 @@ function setup_kubernetes_for_linux {
     # Download minikube.
     if ! [ -x "$(command -v minikube)" ]; then
         echo "Installing minikube ..."
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && \
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/v1.8.2/minikube-linux-amd64 && \
             chmod +x minikube && sudo mv minikube /usr/local/bin/
     fi
 }

@@ -143,7 +143,7 @@ jobs:
   #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
   # We are running this in a separate pool
   pool: ${{parameters.e2e_pool_definition}}
-  timeoutInMinutes: 200
+  timeoutInMinutes: 240
   cancelTimeoutInMinutes: 1
   workspace:
     clean: all
@@ -160,14 +160,16 @@ jobs:
         echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
       displayName: "Set to jdk11"
       condition: eq('${{parameters.jdk}}', 'jdk11')
-    - script: ./tools/travis/setup_maven.sh
+    - script: |
+        source ./tools/ci/maven-utils.sh
+        setup_maven
       displayName: Setup Maven 3.2.5
     - script: ./tools/azure-pipelines/setup_docker.sh
       displayName: Setup Docker
     - script: ./tools/azure-pipelines/free_disk_space.sh
       displayName: Free up disk space
     - script: sudo apt-get install -y bc
-    - script: M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
+    - script: ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
       displayName: Build Flink
     # TODO remove pre-commit tests script by adding the tests to the nightly script
 #    - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
@@ -180,7 +182,7 @@ jobs:
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
-      condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+      condition: and(succeededOrFailed(), not(eq(variables['ARTIFACT_DIR'], '')))
       displayName: Upload Logs
       inputs:
         path: $(ARTIFACT_DIR)

@@ -30,6 +30,7 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -84,6 +85,11 @@ public class KubernetesTestBase extends TestLogger {
 
 		kubeClient = server.getClient().inNamespace(NAMESPACE);
 		flinkKubeClient = new Fabric8FlinkKubeClient(flinkConfig, kubeClient);
+	}
+
+	@After
+	public void tearDown() throws Exception {
+		flinkKubeClient.close();
 	}
 
 	protected void writeFlinkConfiguration() throws IOException {

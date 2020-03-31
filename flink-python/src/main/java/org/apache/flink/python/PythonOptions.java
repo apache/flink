@@ -81,4 +81,13 @@ public class PythonOptions {
 			"buffer of a Python worker. The memory will be accounted as managed memory if the " +
 			"actual memory allocated to an operator is no less than the total memory of a Python " +
 			"worker. Otherwise, this configuration takes no effect.");
+
+	/**
+	 * The configuration to enable or disable metric for Python execution.
+	 */
+	public static final ConfigOption<Boolean> PYTHON_METRIC_ENABLED = ConfigOptions
+		.key("python.metric.enabled")
+		.defaultValue(true)
+		.withDescription("When it is false, metric for Python will be disabled. You can " +
+			"disable the metric to achieve better performance at some circumstance.");
 }

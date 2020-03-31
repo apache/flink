@@ -77,7 +77,7 @@ public class LocalStateForwardingTest extends TestLogger {
 	 * async checkpointing thread to the {@link org.apache.flink.runtime.state.TaskStateManager}.
 	 */
 	@Test
-	public void testReportingFromSnapshotToTaskStateManager() {
+	public void testReportingFromSnapshotToTaskStateManager() throws Exception {
 
 		TestTaskStateManager taskStateManager = new TestTaskStateManager();
 

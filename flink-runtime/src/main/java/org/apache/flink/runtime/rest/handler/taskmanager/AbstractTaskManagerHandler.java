@@ -37,7 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -65,13 +64,18 @@ abstract class AbstractTaskManagerHandler<T extends RestfulGateway, R extends Re
 
 	@Override
 	protected CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException {
-		Optional<ResourceManagerGateway> resourceManagerGatewayOptional = resourceManagerGatewayRetriever.getNow();
-
-		ResourceManagerGateway resourceManagerGateway = resourceManagerGatewayOptional.orElseThrow(
-			() -> new RestHandlerException("Cannot connect to ResourceManager right now. Please try to refresh.", HttpResponseStatus.NOT_FOUND));
+		ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway(resourceManagerGatewayRetriever);
 
 		return handleRequest(request, resourceManagerGateway);
 	}
 
 	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull ResourceManagerGateway gateway) throws RestHandlerException;
+
+	protected ResourceManagerGateway getResourceManagerGateway(GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) throws RestHandlerException {
+		return resourceManagerGatewayRetriever
+			.getNow()
+			.orElseThrow(() -> new RestHandlerException(
+				"Cannot connect to ResourceManager right now. Please try to refresh.",
+				HttpResponseStatus.NOT_FOUND));
+	}
 }

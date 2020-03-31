@@ -21,6 +21,7 @@ import functools
 import inspect
 
 from pyflink.java_gateway import get_gateway
+from pyflink.metrics import MetricGroup
 from pyflink.table.types import DataType, _to_java_type
 from pyflink.util import utils
 
@@ -33,7 +34,15 @@ class FunctionContext(object):
     user-defined function is executed. The information includes the metric group,
     and global job parameters, etc.
     """
-    pass
+
+    def __init__(self, base_metric_group):
+        self._base_metric_group = base_metric_group
+
+    def get_metric_group(self) -> MetricGroup:
+        if self._base_metric_group is None:
+            raise RuntimeError("Metric has not been enabled. You can enable "
+                               "metric with the 'python.metric.enabled' configuration.")
+        return self._base_metric_group
 
 
 class UserDefinedFunction(abc.ABC):

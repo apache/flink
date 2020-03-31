@@ -94,7 +94,7 @@ public class TaskManagerOptions {
 				" or if it has been quarantined by another actor system.");
 
 	/**
-	 * The config parameter defining the task manager's hostname.
+	 * The external address of the network interface where the TaskManager is exposed.
 	 * Overrides {@link #HOST_BIND_POLICY} automatic address binding.
 	 */
 	@Documentation.Section({Documentation.Sections.COMMON_HOST_PORT, Documentation.Sections.ALL_TASK_MANAGER})
@@ -102,10 +102,19 @@ public class TaskManagerOptions {
 		key("taskmanager.host")
 			.stringType()
 			.noDefaultValue()
-			.withDescription("The address of the network interface that the TaskManager binds to." +
-				" This option can be used to define explicitly a binding address. Because" +
-				" different TaskManagers need different values for this option, usually it is specified in an" +
+			.withDescription("The external address of the network interface where the TaskManager is exposed." +
+				" Because different TaskManagers need different values for this option, usually it is specified in an" +
 				" additional non-shared TaskManager-specific config file.");
+
+	/**
+	 * The local address of the network interface that the task manager binds to.
+	 */
+	public static final ConfigOption<String> BIND_HOST =
+		key("taskmanager.bind-host")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The local address of the network interface that the task manager binds to. If not" +
+				" configured, '0.0.0.0' will be used.");
 
 	/**
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
@@ -116,9 +125,20 @@ public class TaskManagerOptions {
 		key("taskmanager.rpc.port")
 			.stringType()
 			.defaultValue("0")
-			.withDescription("The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
-				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
-				" collisions when multiple TaskManagers are running on the same machine.");
+			.withDescription("The external RPC port where the TaskManager is exposed. Accepts a list of ports" +
+				" (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a" +
+				" range of ports to avoid collisions when multiple TaskManagers are running on the same machine.");
+
+
+	/**
+	 * The local port that the task manager binds to.
+	 */
+	public static final ConfigOption<Integer> RPC_BIND_PORT =
+		key("taskmanager.rpc.bind-port")
+			.intType()
+			.noDefaultValue()
+			.withDescription("The local RPC port that the TaskManager binds to. If not configured, the external port" +
+				" (configured by '" + RPC_PORT.key() + "') will be used.");
 
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff

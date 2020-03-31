@@ -63,7 +63,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Pe2e-hadoop"
           run_end_to_end: false
           container: flink-build-container
           jdk: jdk8
@@ -80,7 +80,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.4.1 -Pskip-hive-tests"
+          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.4.1 -Pskip-hive-tests -Pe2e-hadoop"
           run_end_to_end: true
           container: flink-build-container
           jdk: jdk8
@@ -91,7 +91,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1 -Pe2e-hadoop"
           run_end_to_end: true
           container: flink-build-container
           jdk: jdk8
@@ -102,7 +102,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11 -Pe2e-hadoop"
           run_end_to_end: true
           container: flink-build-container
           jdk: jdk11

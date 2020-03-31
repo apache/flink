@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.expressions.{ApiExpressionVisitor, CallExpression, Expression, FieldReferenceExpression, LocalReferenceExpression, LookupCallExpression, TableReferenceExpression, TableSymbol, TimeIntervalUnit, TimePointUnit, TypeLiteralExpression, UnresolvedCallExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.expressions.{E => PlannerE, UUID => PlannerUUID}
@@ -37,16 +37,30 @@ import _root_.scala.collection.JavaConverters._
 class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
 
   override def visit(call: CallExpression): PlannerExpression = {
-    translateCall(call.getFunctionDefinition, call.getChildren.asScala)
+    val definition = call.getFunctionDefinition
+    translateCall(
+      definition, call.getChildren.asScala,
+      () =>
+        if (definition.getKind == FunctionKind.AGGREGATE ||
+            definition.getKind == FunctionKind.TABLE_AGGREGATE) {
+          ApiResolvedAggregateCallExpression(call)
+        } else {
+          ApiResolvedCallExpression(call)
+        })
   }
 
   override def visit(unresolvedCall: UnresolvedCallExpression): PlannerExpression = {
-    translateCall(unresolvedCall.getFunctionDefinition, unresolvedCall.getChildren.asScala)
+    val definition = unresolvedCall.getFunctionDefinition
+    translateCall(
+      definition,
+      unresolvedCall.getChildren.asScala,
+      () => throw new TableException(s"Unsupported function definition: $definition"))
   }
 
   private def translateCall(
       func: FunctionDefinition,
-      children: Seq[Expression])
+      children: Seq[Expression],
+      unknownFunctionHandler: () => PlannerExpression)
     : PlannerExpression = {
 
     // special case: requires individual handling of child expressions
@@ -709,7 +723,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             StreamRecordTimestamp()
 
           case _ =>
-            throw new TableException(s"Unsupported function definition: $fd")
+            unknownFunctionHandler()
         }
     }
   }

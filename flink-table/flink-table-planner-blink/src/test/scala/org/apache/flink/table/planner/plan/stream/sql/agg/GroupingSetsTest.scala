@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -354,6 +355,8 @@ class GroupingSetsTest extends TableTestBase {
 
   @Test
   def testCALCITE1824(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage("GROUPING SETS are currently not supported")
     val sqlQuery =
       """
         |SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c

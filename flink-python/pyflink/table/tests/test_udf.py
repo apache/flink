@@ -18,6 +18,7 @@
 import datetime
 
 import pytz
+import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
@@ -30,6 +31,8 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
 class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
+        # test metric disabled.
+        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'false')
         # test lambda function
         self.t_env.register_function(
             "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
@@ -238,6 +241,7 @@ class UserDefinedFunctionTests(object):
         self.assert_equals(actual, ["2", "6", "3"])
 
     def test_open(self):
+        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
         self.t_env.register_function(
             "subtract", udf(Subtract(), DataTypes.BIGINT(), DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
@@ -613,15 +617,19 @@ class SubtractOne(ScalarFunction):
         return i - 1
 
 
-class Subtract(ScalarFunction):
-
-    def __init__(self):
-        self.subtracted_value = 0
+class Subtract(ScalarFunction, unittest.TestCase):
 
     def open(self, function_context):
         self.subtracted_value = 1
+        mg = function_context.get_metric_group()
+        self.counter = mg.add_group("key", "value").counter("my_counter")
+        self.counter_sum = 0
 
     def eval(self, i):
+        # counter
+        self.counter.inc(i)
+        self.counter_sum += i
+        self.assertEqual(self.counter_sum, self.counter.get_count())
         return i - self.subtracted_value
 
 

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -222,8 +223,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(releasePartitionsForJobFuture::complete);
 				return releasePartitionsForJobFuture;
 			},
-			(jobId, partitionId, taskExecutor, taskExecutorGateway, releasePartitionsForJobFuture) -> {
-
+			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway, releasePartitionsForJobFuture) -> {
 				taskExecutorGateway.disconnectJobManager(jobId, new Exception("test"));
 
 				assertThat(releasePartitionsForJobFuture.get(), equalTo(jobId));
@@ -239,10 +239,12 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				partitionTracker.setStopTrackingAndReleasePartitionsConsumer(releasePartitionsFuture::complete);
 				return releasePartitionsFuture;
 			},
-			(jobId, partitionId, taskExecutor, taskExecutorGateway, releasePartitionsFuture) -> {
-				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(partitionId), Collections.emptySet());
+			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway, releasePartitionsFuture) -> {
+				final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
 
-				assertThat(releasePartitionsFuture.get(), hasItems(partitionId));
+				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(resultPartitionId), Collections.emptySet());
+
+				assertThat(releasePartitionsFuture.get(), hasItems(resultPartitionId));
 			}
 		);
 	}
@@ -251,14 +253,34 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	public void testPartitionPromotion() throws Exception {
 		testPartitionRelease(
 			partitionTracker -> {
-				final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture = new CompletableFuture<>();
-				partitionTracker.setPromotePartitionsConsumer(releasePartitionsFuture::complete);
+				final CompletableFuture<Collection<ResultPartitionID>> promotePartitionsFuture = new CompletableFuture<>();
+				partitionTracker.setPromotePartitionsConsumer(promotePartitionsFuture::complete);
+				return promotePartitionsFuture;
+			},
+			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway, promotePartitionsFuture) -> {
+				final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
+
+				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.emptySet(), Collections.singleton(resultPartitionId));
+
+				assertThat(promotePartitionsFuture.get(), hasItems(resultPartitionId));
+			}
+		);
+	}
+
+	@Test
+	public void testClusterPartitionRelease() throws Exception {
+		testPartitionRelease(
+			partitionTracker -> {
+				final CompletableFuture<Collection<IntermediateDataSetID>> releasePartitionsFuture = new CompletableFuture<>();
+				partitionTracker.setReleaseClusterPartitionsConsumer(releasePartitionsFuture::complete);
 				return releasePartitionsFuture;
 			},
-			(jobId, partitionId, taskExecutor, taskExecutorGateway, releasePartitionsFuture) -> {
-				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.emptySet(), Collections.singleton(partitionId));
+			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway, releasePartitionsFuture) -> {
+				final IntermediateDataSetID dataSetId = resultPartitionDeploymentDescriptor.getResultId();
 
-				assertThat(releasePartitionsFuture.get(), hasItems(partitionId));
+				taskExecutorGateway.releaseClusterPartitions(Collections.singleton(dataSetId), timeout);
+
+				assertThat(releasePartitionsFuture.get(), hasItems(dataSetId));
 			}
 		);
 	}
@@ -402,7 +424,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 			testAction.accept(
 				jobId,
-				taskResultPartitionDescriptor.getShuffleDescriptor().getResultPartitionID(),
+				taskResultPartitionDescriptor,
 				taskExecutor,
 				taskExecutorGateway,
 				partitionTrackerSetupResult);
@@ -464,6 +486,6 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	@FunctionalInterface
 	private interface TestAction<C> {
-		void accept(JobID jobId, ResultPartitionID resultPartitionId, TaskExecutor taskExecutor, TaskExecutorGateway taskExecutorGateway, C partitionTrackerSetupResult) throws Exception;
+		void accept(JobID jobId, ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor, TaskExecutor taskExecutor, TaskExecutorGateway taskExecutorGateway, C partitionTrackerSetupResult) throws Exception;
 	}
 }

@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class SourceReaderStreamTask<T> extends StreamTask<T, SourceReaderOperator<T>> {
 
-	public SourceReaderStreamTask(Environment env) {
+	public SourceReaderStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 

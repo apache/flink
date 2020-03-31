@@ -67,7 +67,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		BiConsumer<String, Throwable> handleAsyncException,
 		TaskMailbox taskMailbox,
 		StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor,
-		StreamInputProcessor inputProcessor) {
+		StreamInputProcessor inputProcessor) throws Exception {
 
 		super(environment, timerService, FatalExitExceptionHandler.INSTANCE, taskActionExecutor, taskMailbox);
 		this.name = name;

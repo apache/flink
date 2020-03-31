@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -32,7 +33,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBa
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.runtime.utils.{GenericAggregateFunction, StreamingWithAggTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{GenericAggregateFunction, StreamingWithAggTestBase, TestData, TestingRetractSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
@@ -1222,5 +1223,34 @@ class AggregateITCase(
     val sink = new TestingRetractSink
     results.addSink(sink).setParallelism(1)
     env.execute()
+  }
+
+  @Test
+  def testConstantGroupKeyWithUpsertSink(): Unit = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val tableSink = new TestingUpsertTableSink(Array(0)).configure(
+      Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
+    tEnv.registerTableSink("testSink", tableSink)
+
+    tEnv.sqlUpdate(
+      """
+        |insert into testSink
+        |select c, max(b) from
+        | (select b, c, true as f from MyTable) t
+        |group by c, f
+      """.stripMargin)
+    tEnv.execute("test")
+
+    val expected = List("A,1", "B,2", "C,3")
+    assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)
   }
 }

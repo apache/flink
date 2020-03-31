@@ -20,20 +20,18 @@ package org.apache.flink.streaming.runtime.operators;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -105,12 +103,10 @@ public class MailboxOperatorTest extends TestLogger {
 
 		@Override
 		public <Operator extends StreamOperator<Integer>> Operator createStreamOperator(
-				StreamTask<?, ?> containingTask,
-				StreamConfig config,
-				Output<StreamRecord<Integer>> output) {
+				StreamOperatorParameters<Integer> parameters) {
 			ReplicatingMailOperator operator = new ReplicatingMailOperator(maxProcessingElements, mailboxExecutor);
 			operator.setProcessingTimeService(processingTimeService);
-			operator.setup(containingTask, config, output);
+			operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 			return (Operator) operator;
 		}
 

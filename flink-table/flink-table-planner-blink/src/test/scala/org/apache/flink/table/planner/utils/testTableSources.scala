@@ -605,7 +605,7 @@ class TestFilterableTableSourceFactory extends StreamTableSourceFactory[Row] {
 class TestPartitionableTableSource(
     override val isBounded: Boolean,
     remainingPartitions: JList[JMap[String, String]],
-    isCatalogTable: Boolean)
+    sourceFetchPartitions: Boolean)
   extends StreamTableSource[Row]
   with PartitionableTableSource {
 
@@ -626,8 +626,8 @@ class TestPartitionableTableSource(
   )
 
   override def getPartitions: JList[JMap[String, String]] = {
-    if (isCatalogTable) {
-      throw new RuntimeException("Should not expected.")
+    if (!sourceFetchPartitions) {
+      throw new UnsupportedOperationException()
     }
     List(
       Map("part1" -> "A", "part2" -> "1").asJava,
@@ -639,7 +639,7 @@ class TestPartitionableTableSource(
 
   override def applyPartitionPruning(
       remainingPartitions: JList[JMap[String, String]]): TableSource[_] = {
-    new TestPartitionableTableSource(isBounded, remainingPartitions, isCatalogTable)
+    new TestPartitionableTableSource(isBounded, remainingPartitions, sourceFetchPartitions)
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
@@ -787,7 +787,7 @@ class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
     dp.putProperties(properties)
 
     val isBounded = dp.getBoolean("is-bounded")
-    val isCatalogTable = dp.getBoolean("is-catalog-table")
+    val sourceFetchPartitions = dp.getBoolean("source-fetch-partitions")
     val remainingPartitions = dp.getOptionalArray("remaining-partition",
       new function.Function[String, util.Map[String, String]] {
       override def apply(t: String): util.Map[String, String] = {
@@ -800,7 +800,7 @@ class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
     new TestPartitionableTableSource(
       isBounded,
       remainingPartitions,
-      isCatalogTable)
+      sourceFetchPartitions)
   }
 }
 
@@ -827,11 +827,11 @@ object TestPartitionableSourceFactory {
       tableName: String,
       isBounded: Boolean,
       tableSchema: TableSchema = tableSchema,
-      remainingPartitions: JList[JMap[String, String]] = null): Unit = {
+      remainingPartitions: JList[JMap[String, String]] = null,
+      sourceFetchPartitions: Boolean = false): Unit = {
     val properties = new DescriptorProperties()
     properties.putString("is-bounded", isBounded.toString)
-    val isCatalogTable = true
-    properties.putBoolean("is-catalog-table", isCatalogTable)
+    properties.putBoolean("source-fetch-partitions", sourceFetchPartitions)
     properties.putString(CONNECTOR_TYPE, "TestPartitionableSource")
     if (remainingPartitions != null) {
       remainingPartitions.zipWithIndex.foreach { case (part, i) =>
@@ -854,19 +854,17 @@ object TestPartitionableSourceFactory {
     val path = new ObjectPath(tEnv.getCurrentDatabase, tableName)
     catalog.createTable(path, table, false)
 
-    if (isCatalogTable) {
-      val partitions = List(
-        Map("part1" -> "A", "part2" -> "1").asJava,
-        Map("part1" -> "A", "part2" -> "2").asJava,
-        Map("part1" -> "B", "part2" -> "3").asJava,
-        Map("part1" -> "C", "part2" -> "1").asJava
-      )
-      partitions.foreach(spec => catalog.createPartition(
-        path,
-        new CatalogPartitionSpec(new java.util.LinkedHashMap(spec)),
-        new CatalogPartitionImpl(Map[String, String](), ""),
-        true))
-    }
+    val partitions = List(
+      Map("part1" -> "A", "part2" -> "1").asJava,
+      Map("part1" -> "A", "part2" -> "2").asJava,
+      Map("part1" -> "B", "part2" -> "3").asJava,
+      Map("part1" -> "C", "part2" -> "1").asJava
+    )
+    partitions.foreach(spec => catalog.createPartition(
+      path,
+      new CatalogPartitionSpec(new java.util.LinkedHashMap(spec)),
+      new CatalogPartitionImpl(Map[String, String](), ""),
+      true))
 
   }
 }

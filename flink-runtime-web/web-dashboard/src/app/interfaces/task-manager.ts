@@ -31,6 +31,10 @@ export interface TaskManagerDetailInterface {
   metrics: Metrics;
 }
 
+export interface TaskManagerLogInterface {
+  logs: { name: string; size: number }[];
+}
+
 export interface TaskmanagersItemInterface {
   id: string;
   path: string;

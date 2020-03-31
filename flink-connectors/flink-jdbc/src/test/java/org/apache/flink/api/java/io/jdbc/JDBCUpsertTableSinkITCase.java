@@ -23,7 +23,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
@@ -51,6 +53,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 	public static final String DB_URL = "jdbc:derby:memory:upsert";
 	public static final String OUTPUT_TABLE1 = "upsertSink";
 	public static final String OUTPUT_TABLE2 = "appendSink";
+	public static final String OUTPUT_TABLE3 = "batchSink";
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
@@ -72,6 +75,10 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 					"num BIGINT NOT NULL DEFAULT 0," +
 					"ts TIMESTAMP)");
 
+			stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE3 + " (" +
+				"NAME VARCHAR(20) NOT NULL," +
+				"SCORE BIGINT NOT NULL DEFAULT 0)");
+
 			stat.executeUpdate("CREATE TABLE REAL_TABLE (real_data REAL)");
 		}
 	}
@@ -84,6 +91,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			Statement stat = conn.createStatement()) {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE1);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
+			stat.execute("DROP TABLE " + OUTPUT_TABLE3);
 			stat.execute("DROP TABLE REAL_TABLE");
 		}
 	}
@@ -209,5 +217,37 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
 				Row.of(20, 6, Timestamp.valueOf("1970-01-01 00:00:00.02"))
 		}, DB_URL, OUTPUT_TABLE2, new String[]{"id", "num", "ts"});
+	}
+
+	@Test
+	public void testBatchSink() throws Exception {
+		EnvironmentSettings bsSettings = EnvironmentSettings.newInstance()
+				.useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tEnv = TableEnvironment.create(bsSettings);
+
+		tEnv.sqlUpdate(
+			"CREATE TABLE USER_RESULT(" +
+				"NAME VARCHAR," +
+				"SCORE BIGINT" +
+				") WITH ( " +
+				"'connector.type' = 'jdbc'," +
+				"'connector.url'='" + DB_URL + "'," +
+				"'connector.table' = '" + OUTPUT_TABLE3 + "'" +
+				")");
+
+		tEnv.sqlUpdate("INSERT INTO USER_RESULT\n" +
+				"SELECT user_name, score " +
+				"FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), " +
+				"(42, 'Kim'), (1, 'Bob')) " +
+				"AS UserCountTable(score, user_name)");
+		tEnv.execute("test");
+
+		check(new Row[] {
+				Row.of("Bob", 1),
+				Row.of("Tom", 22),
+				Row.of("Kim", 42),
+				Row.of("Kim", 42),
+				Row.of("Bob", 1)
+		}, DB_URL, OUTPUT_TABLE3, new String[]{"NAME", "SCORE"});
 	}
 }

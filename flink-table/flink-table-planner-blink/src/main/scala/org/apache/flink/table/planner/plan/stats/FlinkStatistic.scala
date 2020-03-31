@@ -21,11 +21,11 @@ package org.apache.flink.table.planner.plan.stats
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.{RelCollation, RelDistribution, RelReferentialConstraint}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.util.ImmutableBitSet
 
-import java.lang.Double
 import java.util
 
 import scala.collection.JavaConversions._
@@ -80,7 +80,7 @@ class FlinkStatistic(
     *
     * @return The number of rows of the table.
     */
-  override def getRowCount: Double = {
+  override def getRowCount: java.lang.Double = {
     if (tableStats != TableStats.UNKNOWN) {
       val rowCount = tableStats.getRowCount.toDouble
       // rowCount requires non-negative number
@@ -136,6 +136,8 @@ class FlinkStatistic(
     }
     builder.toString()
   }
+
+  override def getKeys: util.List[ImmutableBitSet] = ImmutableList.of()
 }
 
 /**

@@ -22,13 +22,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A test harness for testing a {@link OneInputStreamOperator}.
@@ -39,6 +47,9 @@ import java.util.Collection;
  */
 public class OneInputStreamOperatorTestHarness<IN, OUT>
 		extends AbstractStreamOperatorTestHarness<OUT> {
+
+	/** Empty if the {@link #operator} is not {@link MultipleInputStreamOperator}. */
+	private final List<Input> inputs = new ArrayList<>();
 
 	private long currentWatermark;
 
@@ -51,14 +62,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	}
 
 	public OneInputStreamOperatorTestHarness(
-		OneInputStreamOperator<IN, OUT> operator,
-		int maxParallelism,
-		int parallelism,
-		int subtaskIndex,
-		TypeSerializer<IN> typeSerializerIn,
-		OperatorID operatorID) throws Exception {
-		this(operator, maxParallelism, parallelism, subtaskIndex, operatorID);
-
+			OneInputStreamOperator<IN, OUT> operator,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex,
+			TypeSerializer<IN> typeSerializerIn,
+			OperatorID operatorID) throws Exception {
+		this(SimpleOperatorFactory.of(operator), maxParallelism, parallelism, subtaskIndex, operatorID);
 		config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
@@ -84,16 +94,24 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex) throws Exception {
-		this(operator, maxParallelism, parallelism, subtaskIndex, new OperatorID());
+		this(SimpleOperatorFactory.of(operator), maxParallelism, parallelism, subtaskIndex);
 	}
 
 	public OneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
+			StreamOperatorFactory<OUT> operatorFactory,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex) throws Exception {
+		this(operatorFactory, maxParallelism, parallelism, subtaskIndex, new OperatorID());
+	}
+
+	public OneInputStreamOperatorTestHarness(
+			StreamOperatorFactory<OUT> operatorFactory,
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex,
 			OperatorID operatorID) throws Exception {
-		super(operator, maxParallelism, parallelism, subtaskIndex, operatorID);
+		super(operatorFactory, maxParallelism, parallelism, subtaskIndex, operatorID);
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -142,6 +160,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		super(factory, maxParallelism, parallelism, subtaskIndex, operatorID);
 	}
 
+	@Override
+	public void setup(TypeSerializer<OUT> outputSerializer) {
+		super.setup(outputSerializer);
+		if (operator instanceof MultipleInputStreamOperator) {
+			checkState(inputs.isEmpty());
+			inputs.addAll(((MultipleInputStreamOperator) operator).getInputs());
+		}
+	}
+
 	public OneInputStreamOperator<IN, OUT> getOneInputOperator() {
 		return (OneInputStreamOperator<IN, OUT>) this.operator;
 	}
@@ -151,14 +178,21 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		operator.setKeyContextElement1(element);
-		getOneInputOperator().processElement(element);
+		if (inputs.isEmpty()) {
+			operator.setKeyContextElement1(element);
+			getOneInputOperator().processElement(element);
+		}
+		else {
+			checkState(inputs.size() == 1);
+			Input input = inputs.get(0);
+			input.setKeyContextElement(element);
+			input.processElement(element);
+		}
 	}
 
 	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
 		for (StreamRecord<IN> element: elements) {
-			operator.setKeyContextElement1(element);
-			getOneInputOperator().processElement(element);
+			processElement(element);
 		}
 	}
 
@@ -168,7 +202,14 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 
 	public void processWatermark(Watermark mark) throws Exception {
 		currentWatermark = mark.getTimestamp();
-		getOneInputOperator().processWatermark(mark);
+		if (inputs.isEmpty()) {
+			getOneInputOperator().processWatermark(mark);
+		}
+		else {
+			checkState(inputs.size() == 1);
+			Input input = inputs.get(0);
+			input.processWatermark(mark);
+		}
 	}
 
 	public void endInput() throws Exception {

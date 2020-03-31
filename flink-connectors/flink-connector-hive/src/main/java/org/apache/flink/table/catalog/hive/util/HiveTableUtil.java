@@ -33,13 +33,9 @@ import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
-import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.util.ArrayList;
@@ -47,10 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
-
-import static org.apache.flink.table.catalog.hive.HiveCatalogConfig.DEFAULT_LIST_COLUMN_TYPES_SEPARATOR;
 
 /**
  * Utils to for Hive-backed table.
@@ -112,34 +105,6 @@ public class HiveTableUtil {
 	// --------------------------------------------------------------------------------------------
 	//  Helper methods
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Create properties info to initialize a SerDe.
-	 * @param storageDescriptor
-	 * @return
-	 */
-	public static Properties createPropertiesFromStorageDescriptor(StorageDescriptor storageDescriptor) {
-		SerDeInfo serDeInfo = storageDescriptor.getSerdeInfo();
-		Map<String, String> parameters = serDeInfo.getParameters();
-		Properties properties = new Properties();
-		properties.setProperty(
-				serdeConstants.SERIALIZATION_FORMAT,
-				parameters.get(serdeConstants.SERIALIZATION_FORMAT));
-		List<String> colTypes = new ArrayList<>();
-		List<String> colNames = new ArrayList<>();
-		List<FieldSchema> cols = storageDescriptor.getCols();
-		for (FieldSchema col: cols){
-			colTypes.add(col.getType());
-			colNames.add(col.getName());
-		}
-		properties.setProperty(serdeConstants.LIST_COLUMNS, StringUtils.join(colNames, String.valueOf(SerDeUtils.COMMA)));
-		// Note: serdeConstants.COLUMN_NAME_DELIMITER is not defined in previous Hive. We use a literal to save on shim
-		properties.setProperty("column.name.delimite", String.valueOf(SerDeUtils.COMMA));
-		properties.setProperty(serdeConstants.LIST_COLUMN_TYPES, StringUtils.join(colTypes, DEFAULT_LIST_COLUMN_TYPES_SEPARATOR));
-		properties.setProperty(serdeConstants.SERIALIZATION_NULL_FORMAT, "NULL");
-		properties.putAll(parameters);
-		return properties;
-	}
 
 	/**
 	 * Creates a Hive partition instance.

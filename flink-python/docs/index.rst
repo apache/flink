@@ -29,6 +29,7 @@ Welcome to Flink Python API Docs!
    pyflink.dataset
    pyflink.datastream
    pyflink.ml
+   pyflink.metrics
 
 
 Core Classes:

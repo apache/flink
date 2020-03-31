@@ -102,6 +102,21 @@ public abstract class AbstractJDBCCatalog extends AbstractCatalog {
 		LOG.info("Catalog {} closing", getName());
 	}
 
+	// ----- getters ------
+
+	public String getUsername() {
+		return username;
+	}
+
+	public String getPassword() {
+		return pwd;
+	}
+
+	public String getBaseUrl() {
+		return baseUrl;
+	}
+
+
 	// ------ table factory ------
 
 	public Optional<TableFactory> getTableFactory() {

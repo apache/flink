@@ -1179,6 +1179,12 @@ class RowType(DataType):
         """
         return list(self.names)
 
+    def field_types(self):
+        """
+        Returns all field types in a list.
+        """
+        return list([f.data_type for f in self.fields])
+
     def need_conversion(self):
         # We need convert Row()/namedtuple into tuple()
         return True
@@ -2280,6 +2286,55 @@ def _create_type_verifier(data_type, name=None):
             verify_value(obj)
 
     return verify
+
+
+def to_arrow_type(data_type):
+    """
+    Converts the specified Flink data type to pyarrow data type.
+    """
+    import pyarrow as pa
+    if type(data_type) == TinyIntType:
+        return pa.int8()
+    elif type(data_type) == SmallIntType:
+        return pa.int16()
+    elif type(data_type) == IntType:
+        return pa.int32()
+    elif type(data_type) == BigIntType:
+        return pa.int64()
+    elif type(data_type) == BooleanType:
+        return pa.bool_()
+    elif type(data_type) == FloatType:
+        return pa.float32()
+    elif type(data_type) == DoubleType:
+        return pa.float64()
+    elif type(data_type) == VarCharType:
+        return pa.utf8()
+    elif type(data_type) == VarBinaryType:
+        return pa.binary()
+    elif type(data_type) == DecimalType:
+        return pa.decimal128(data_type.precision, data_type.scale)
+    elif type(data_type) == DateType:
+        return pa.date32()
+    elif type(data_type) == TimeType:
+        if data_type.precision == 0:
+            return pa.time32('s')
+        elif 1 <= data_type.precision <= 3:
+            return pa.time32('ms')
+        elif 4 <= data_type.precision <= 6:
+            return pa.time64('us')
+        else:
+            return pa.time64('ns')
+    elif type(data_type) in [LocalZonedTimestampType, TimestampType]:
+        if data_type.precision == 0:
+            return pa.timestamp('s')
+        elif 1 <= data_type.precision <= 3:
+            return pa.timestamp('ms')
+        elif 4 <= data_type.precision <= 6:
+            return pa.timestamp('us')
+        else:
+            return pa.timestamp('ns')
+    else:
+        raise ValueError("field_type %s is not supported." % data_type)
 
 
 class DataTypes(object):
