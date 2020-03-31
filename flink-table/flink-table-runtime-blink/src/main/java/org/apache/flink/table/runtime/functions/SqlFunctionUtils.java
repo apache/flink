@@ -1167,7 +1167,7 @@ public class SqlFunctionUtils {
 		// Start with an estimate.
 		// Since no month has more than 31 days, the estimate is <= the true value.
 		int m = (date0 - date1) / 31;
-		for (;;) {
+		while (true) {
 			int date2 = addMonths(date1, m);
 			if (date2 >= date0) {
 				return m;
