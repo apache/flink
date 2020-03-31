@@ -36,7 +36,7 @@ function setup_kubernetes_for_linux {
     fi
     # Download minikube.
     if ! [ -x "$(command -v minikube)" ]; then
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && \
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/v1.8.2/minikube-linux-amd64 && \
             chmod +x minikube && sudo mv minikube /usr/local/bin/
     fi
 }
