@@ -27,7 +27,6 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
 import java.math.MathContext;
 import java.time.ZoneId;
 import java.util.HashMap;
@@ -61,7 +60,7 @@ import java.util.Map;
  * @see OptimizerConfigOptions
  */
 @PublicEvolving
-public class TableConfig implements Serializable {
+public class TableConfig {
 
 	/**
 	 * Defines the zone id for timestamp with local time zone.
