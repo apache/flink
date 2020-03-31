@@ -54,20 +54,19 @@ public class PartitionWriterTest {
 
 		@Override
 		public void open(int taskNumber, int numTasks) {
+			records.put(getKey(), new ArrayList<>());
+		}
+
+		private String getKey() {
+			Path parent = path.getParent();
+			return parent.getName().startsWith("task-") ?
+					parent.getParent().getName() :
+					parent.getParent().getParent().getName() + Path.SEPARATOR + parent.getName();
 		}
 
 		@Override
 		public void writeRecord(Row record) {
-			Path parent = path.getParent();
-			String key = parent.getName().startsWith("task-") ?
-					parent.getParent().getName() :
-					parent.getParent().getParent().getName() + Path.SEPARATOR + parent.getName();
-
-			records.compute(key, (path1, rows) -> {
-				rows = rows == null ? new ArrayList<>() : rows;
-				rows.add(record);
-				return rows;
-			});
+			records.get(getKey()).add(record);
 		}
 
 		@Override
@@ -105,7 +104,15 @@ public class PartitionWriterTest {
 	}
 
 	@Test
-	public void testNonPartitionWriter() throws Exception {
+	public void testEmptySingleDirectoryWriter() throws Exception {
+		SingleDirectoryWriter<Row> writer = new SingleDirectoryWriter<>(
+				context, manager, computer, new LinkedHashMap<>());
+		writer.close();
+		Assert.assertTrue(records.isEmpty());
+	}
+
+	@Test
+	public void testSingleDirectoryWriter() throws Exception {
 		SingleDirectoryWriter<Row> writer = new SingleDirectoryWriter<>(
 				context, manager, computer, new LinkedHashMap<>());
 
