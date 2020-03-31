@@ -19,13 +19,17 @@
 package org.apache.flink.dist;
 
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.util.BashJavaUtils;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Map;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for BashJavaUtils.
@@ -39,8 +43,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 	/**
 	 * Executes the given shell script wrapper and returns the last line.
 	 */
-	private String executeScriptAndFetchLastLine(final String command) throws IOException {
-		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, command};
+	private String executeScriptAndFetchLastLine(final String... commands) throws IOException {
 		String[] lines = executeScript(commands).split(System.lineSeparator());
 		if (lines.length == 0) {
 			return "";
@@ -51,7 +54,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	@Test
 	public void testGetTmResourceDynamicConfigs() throws Exception {
-		String result = executeScriptAndFetchLastLine(BashJavaUtils.Command.GET_TM_RESOURCE_DYNAMIC_CONFIGS.toString());
+		String result = executeScriptAndFetchLastLine(RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_DYNAMIC_CONFIGS.toString());
 
 		assertNotNull(result);
 		ConfigurationUtils.parseTmResourceDynamicConfigs(result);
@@ -59,9 +62,19 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	@Test
 	public void testGetTmResourceJvmParams() throws Exception {
-		String result = executeScriptAndFetchLastLine(BashJavaUtils.Command.GET_TM_RESOURCE_JVM_PARAMS.toString());
+		String result = executeScriptAndFetchLastLine(RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_JVM_PARAMS.toString());
 
 		assertNotNull(result);
 		ConfigurationUtils.parseTmResourceJvmParams(result);
+	}
+
+	@Test
+	public void testConfigOverwrittenByDynamicOpts() throws Exception {
+		double cpuCores = 39.0;
+		String result = executeScriptAndFetchLastLine(RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_DYNAMIC_CONFIGS.toString(), " -D" + TaskManagerOptions.CPU_CORES.key() + "=" + cpuCores);
+
+		assertNotNull(result);
+		Map<String, String> configs = ConfigurationUtils.parseTmResourceDynamicConfigs(result);
+		assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())), is(cpuCores));
 	}
 }
