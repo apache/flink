@@ -1,5 +1,5 @@
 ---
-title: "Hive functions"
+title: "Hive 函数"
 nav-parent_id: hive_tableapi
 nav-pos: 3
 ---
@@ -22,11 +22,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Use Hive Built-in Functions via HiveModule
+## 通过 HiveModule 使用 Hive 内置函数
 
-The `HiveModule` provides Hive built-in functions as Flink system (built-in) functions to Flink SQL and Table API users.
+`HiveModule` 为 Flink SQL 和 Table API 用户提供了 Hive 内置函数，作为 Flink 系统（内置）函数。
 
-For detailed information, please refer to [HiveModule]({{ site.baseurl }}/dev/table/modules.html#hivemodule).
+有关详细信息，请参阅 [HiveModule]({{ site.baseurl }}/zh/dev/table/modules.html#hivemodule).
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -58,14 +58,13 @@ modules:
 </div>
 </div>
 
-* NOTE that some Hive built-in functions in older versions have [thread safety issues](https://issues.apache.org/jira/browse/HIVE-16183).
-We recommend users patch their own Hive to fix them.
+* 注意，旧版本中的某些 Hive 内置函数具有[线程安全问题](https://issues.apache.org/jira/browse/HIVE-16183)。我们建议用户对自己的 Hive 来打补丁修复它们。
 
-## Hive User Defined Functions
+## Hive 用户定义函数（User Defined Functions）
 
-Users can use their existing Hive User Defined Functions in Flink.
+用户可以在 Flink 中使用其现有的 Hive 用户定义函数。
 
-Supported UDF types include:
+支持的UDF类型包括：
 
 - UDF
 - GenericUDF
@@ -73,20 +72,17 @@ Supported UDF types include:
 - UDAF
 - GenericUDAFResolver2
 
-Upon query planning and execution, Hive's UDF and GenericUDF are automatically translated into Flink's ScalarFunction,
-Hive's GenericUDTF is automatically translated into Flink's TableFunction,
-and Hive's UDAF and GenericUDAFResolver2 are translated into Flink's AggregateFunction.
+在查询计划和执行时，Hive 的 UDF 和 GenericUDF 会自动转换为 Flink 的 ScalarFunction，Hive 的 GenericUDTF 会自动转换为 Flink 的 TableFunction，Hive 的 UDAF 和 GenericUDAFResolver2 会转换为 Flink 的 AggregateFunction。
 
-To use a Hive User Defined Function, user have to
+要使用 Hive 用户定义函数，用户必须
 
-- set a HiveCatalog backed by Hive Metastore that contains that function as current catalog of the session
-- include a jar that contains that function in Flink's classpath
-- use Blink planner.
+- 设置由 Hive Metastore 支持的 HiveCatalog，其中包含该函数，且作为会话（session）的当前 catalog
+- 在 Flink 的 classpath 中设置一个包含该函数的 jar 文件
+- 使用 Blink planner
 
-## Using Hive User Defined Functions
+## 使用 Hive 用户定义函数
 
-Assuming we have the following Hive functions registered in Hive Metastore:
-
+假设我们在 Hive Metastore 中注册了以下 Hive 函数：
 
 {% highlight java %}
 /**
@@ -172,7 +168,7 @@ public class TestHiveUDTF extends GenericUDTF {
 
 {% endhighlight %}
 
-From Hive CLI, we can see they are registered:
+在 Hive CLI 中，我们可以看到它们已注册：
 
 {% highlight bash %}
 hive> show functions;
@@ -184,9 +180,7 @@ myudtf
 
 {% endhighlight %}
 
-
-Then, users can use them in SQL as:
-
+然后，用户可以在 SQL 中以如下方式使用它们：
 
 {% highlight bash %}
 
