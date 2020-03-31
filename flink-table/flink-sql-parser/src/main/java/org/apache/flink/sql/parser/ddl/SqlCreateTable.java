@@ -86,7 +86,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "tableName should not be null");
 		this.columnList = requireNonNull(columnList, "columnList should not be null");
-		this.primaryKeyList = requireNonNull(primaryKeyList, "primayKeyList should not be null");
+		this.primaryKeyList = requireNonNull(primaryKeyList, "primaryKeyList should not be null");
 		this.uniqueKeysList = requireNonNull(uniqueKeysList, "uniqueKeysList should not be null");
 		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
 		this.partitionKeyList = requireNonNull(partitionKeyList, "partitionKeyList should not be null");
