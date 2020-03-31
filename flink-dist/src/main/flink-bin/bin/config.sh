@@ -645,3 +645,20 @@ extractExecutionParams() {
 
     echo ${execution_config} | sed "s/$EXECUTION_PREFIX//"
 }
+
+findLog4jConfiguration() {
+    local PATH=$1
+    local LOG4J_CONFIG_FILES=($PATH/log4j-console.*)
+    if [[ ${#LOG4J_CONFIG_FILES[@]} -gt 1 ]]; then
+        echo "[ERROR] Found more than one log4j configuration file: [${LOG4J_CONFIG_FILES[@]}]" 1>&2
+        exit 1
+    fi
+
+    LOG4J_CONFIG=${LOG4J_CONFIG_FILES[0]}
+    if [[ "${LOG4J_CONFIG: -1}" = "*" ]]; then
+        echo "[ERROR] Could not find a valid configuration" 1>&2
+        exit 1
+    fi
+
+    echo "$LOG4J_CONFIG"
+}
