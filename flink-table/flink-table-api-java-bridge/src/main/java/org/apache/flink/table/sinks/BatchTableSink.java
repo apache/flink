@@ -35,7 +35,7 @@ public interface BatchTableSink<T> extends TableSink<T> {
 
 	/**
 	 * Consumes the DataSet and return the {@link DataSink}.
-	 * The returned {@link DataSink} will be used to generate {@link Plan} for the sink operator.
+	 * The returned {@link DataSink} will be used to generate {@link Plan}.
 	 */
 	DataSink<?> consumeDataSet(DataSet<T> dataSet);
 }
