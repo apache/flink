@@ -391,7 +391,7 @@ public class ResultPartitionTest {
 	 * Tests {@link ResultPartition#getAvailableFuture()} with configured max backlogs.
 	 */
 	@Test
-	public void testMaxBacklogsAndAvailability() throws IOException, InterruptedException {
+	public void testMaxBuffersPerChannelAndAvailability() throws IOException, InterruptedException {
 		final int numAllBuffers = 10;
 		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
 				.setNumNetworkBuffers(numAllBuffers).build();
@@ -400,7 +400,7 @@ public class ResultPartitionTest {
 				.setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
 				.setResultPartitionType(ResultPartitionType.PIPELINED)
 				.setNumberOfSubpartitions(2)
-				.setMaxBacklogsPerSubpartition(1)
+				.setMaxBuffersPerChannel(1)
 				.build();
 
 		try {
@@ -423,25 +423,25 @@ public class ResultPartitionTest {
 			bufferBuilder0.finish();
 			bufferBuilder1.finish();
 			assertTrue(resultPartition.getAvailableFuture().isDone());
-			assertEquals(0, resultPartition.getUnavailableSubpartitionsCnt());
+			assertEquals(0, resultPartition.getUnavailableSubpartitionsCount());
 
 			// send one record to subpartition-0
 			final BufferBuilder bufferBuilder2 = resultPartition.getBufferBuilder();
 			resultPartition.addBufferConsumer(bufferBuilder2.createBufferConsumer(), 0);
 			bufferBuilder2.finish();
-			assertEquals(1, resultPartition.getUnavailableSubpartitionsCnt());
+			assertEquals(1, resultPartition.getUnavailableSubpartitionsCount());
 
 			CompletableFuture<?> isAvailable = resultPartition.getAvailableFuture();
 			assertFalse(isAvailable.isDone());
 
 			// release one buffer in subpartition-1
 			view1.getNextBuffer();
-			assertEquals(1, resultPartition.getUnavailableSubpartitionsCnt());
+			assertEquals(1, resultPartition.getUnavailableSubpartitionsCount());
 			assertFalse(isAvailable.isDone());
 
 			// release one buffer in subpartition-0
 			view0.getNextBuffer();
-			assertEquals(0, resultPartition.getUnavailableSubpartitionsCnt());
+			assertEquals(0, resultPartition.getUnavailableSubpartitionsCount());
 			assertTrue(isAvailable.isDone());
 		} finally {
 			resultPartition.release();

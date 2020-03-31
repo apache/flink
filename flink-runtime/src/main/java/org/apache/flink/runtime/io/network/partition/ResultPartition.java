@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -112,9 +111,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
-	private final int maxBacklogInSubpartition;
+	private final int maxBuffersPerChannel;
 
-	private int unavailableSubpartitionsCnt;
+	private int unavailableSubpartitionsCount;
 
 	public ResultPartition(
 		String owningTaskName,
@@ -126,7 +125,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		ResultPartitionManager partitionManager,
 		@Nullable BufferCompressor bufferCompressor,
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory,
-		int maxBacklogInSubpartition) {
+		int maxBuffersPerChannel) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		Preconditions.checkArgument(0 <= partitionIndex, "The partition index must be positive.");
@@ -138,8 +137,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.partitionManager = checkNotNull(partitionManager);
 		this.bufferCompressor = bufferCompressor;
 		this.bufferPoolFactory = bufferPoolFactory;
-		this.maxBacklogInSubpartition = maxBacklogInSubpartition;
-		this.unavailableSubpartitionsCnt = 0;
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
+		this.unavailableSubpartitionsCount = 0;
 	}
 
 	/**
@@ -344,8 +343,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@VisibleForTesting
-	public int getUnavailableSubpartitionsCnt() {
-		return unavailableSubpartitionsCnt;
+	public int getUnavailableSubpartitionsCount() {
+		return unavailableSubpartitionsCount;
 	}
 
 	/**
@@ -386,7 +385,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
 		CompletableFuture<?> poolAvailabeFuture = bufferPool.getAvailableFuture();
-		return unavailableSubpartitionsCnt == 0 ? poolAvailabeFuture : CompletableFuture.allOf(
+		return unavailableSubpartitionsCount == 0 ? poolAvailabeFuture : CompletableFuture.allOf(
 				poolAvailabeFuture, availabilityHelper.getAvailableFuture());
 	}
 
@@ -425,13 +424,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * Check whether all subpartitions' backlogs are less than the limitation of max backlogs, and make this partition
 	 * available again if yes.
 	 */
-	@GuardedBy("buffers")
 	public void notifyDecreaseBacklog(int buffersInBacklog) {
-		if (buffersInBacklog == maxBacklogInSubpartition) {
-			unavailableSubpartitionsCnt--;
-			if (unavailableSubpartitionsCnt == 0) {
+		if (buffersInBacklog == maxBuffersPerChannel) {
+			unavailableSubpartitionsCount--;
+			if (unavailableSubpartitionsCount == 0) {
 				CompletableFuture<?> toNotify = availabilityHelper.getUnavailableToResetAvailable();
 				toNotify.complete(null);
+				int[] a = new int[1024];
 			}
 		}
 	}
@@ -440,11 +439,10 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * Check whether any subpartition's backlog exceeds the limitation of max backlogs, and make this partition
 	 * unavailabe if yes.
 	 */
-	@GuardedBy("buffers")
 	public void notifyIncreaseBacklog(int buffersInBacklog) {
-		if (buffersInBacklog == maxBacklogInSubpartition + 1) {
-			unavailableSubpartitionsCnt++;
-			if (unavailableSubpartitionsCnt == 1) {
+		if (buffersInBacklog == maxBuffersPerChannel + 1) {
+			unavailableSubpartitionsCount++;
+			if (unavailableSubpartitionsCount == 1) {
 				availabilityHelper.resetUnavailable();
 			}
 		}

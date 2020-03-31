@@ -74,7 +74,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final String compressionCodec;
 
-	private final int maxBacklogsPerSubpartition;
+	private final int maxBuffersPerChannel;
 
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
@@ -91,7 +91,7 @@ public class NettyShuffleEnvironmentConfiguration {
 			boolean forcePartitionReleaseOnConsumption,
 			boolean blockingShuffleCompressionEnabled,
 			String compressionCodec,
-			int maxBacklogsPerSubpartition) {
+			int maxBuffersPerChannel) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -107,7 +107,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
-		this.maxBacklogsPerSubpartition = maxBacklogsPerSubpartition;
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 	}
 
 	// ------------------------------------------------------------------------
@@ -168,8 +168,8 @@ public class NettyShuffleEnvironmentConfiguration {
 		return compressionCodec;
 	}
 
-	public int getMaxBacklogsPerSubpartition() {
-		return maxBacklogsPerSubpartition;
+	public int getMaxBuffersPerChannel() {
+		return maxBuffersPerChannel;
 	}
 
 	// ------------------------------------------------------------------------
@@ -207,7 +207,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		int buffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
 		int extraBuffersPerGate = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
-		int maxBacklogsPerSubpartition = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_MAX_BACKLOGS_PER_SUBPARTITION);
+		int maxBuffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
 
 		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
@@ -240,7 +240,7 @@ public class NettyShuffleEnvironmentConfiguration {
 			forcePartitionReleaseOnConsumption,
 			blockingShuffleCompressionEnabled,
 			compressionCodec,
-			maxBacklogsPerSubpartition);
+			maxBuffersPerChannel);
 	}
 
 	/**

@@ -49,7 +49,7 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private int floatingNetworkBuffersPerGate = 8;
 
-	private int maxBacklogsPerSubpartition = Integer.MAX_VALUE;
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
@@ -91,8 +91,8 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setMaxBacklogsPerSubpartition(int maxBacklogsPerSubpartition) {
-		this.maxBacklogsPerSubpartition = maxBacklogsPerSubpartition;
+	public NettyShuffleEnvironmentBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 		return this;
 	}
 
@@ -133,7 +133,7 @@ public class NettyShuffleEnvironmentBuilder {
 				false,
 				blockingShuffleCompressionEnabled,
 				compressionCodec,
-				maxBacklogsPerSubpartition),
+				maxBuffersPerChannel),
 			taskManagerLocation,
 			new TaskEventDispatcher(),
 			metricGroup);

@@ -56,7 +56,7 @@ public class ResultPartitionBuilder {
 
 	private int floatingNetworkBuffersPerGate = 1;
 
-	private int maxBacklogsPerSubpartition = Integer.MAX_VALUE;
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
 	private int networkBufferSize = 1;
 
@@ -126,8 +126,8 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setMaxBacklogsPerSubpartition(int maxBacklogsPerSubpartition) {
-		this.maxBacklogsPerSubpartition = maxBacklogsPerSubpartition;
+	public ResultPartitionBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 		return this;
 	}
 
@@ -175,7 +175,7 @@ public class ResultPartitionBuilder {
 			releasedOnConsumption,
 			blockingShuffleCompressionEnabled,
 			compressionCodec,
-			maxBacklogsPerSubpartition);
+			maxBuffersPerChannel);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
