@@ -19,12 +19,14 @@
 package org.apache.flink.dist;
 
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.util.BashJavaUtils;
 
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
@@ -46,5 +48,16 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 		assertThat(lines.size(), is(2));
 		ConfigurationUtils.parseJvmArgString(lines.get(0));
 		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
+	}
+
+	@Test
+	public void testConfigOverwrittenByDynamicOpts() throws Exception {
+		double cpuCores = 39.0;
+		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString(), "-D" + TaskManagerOptions.CPU_CORES.key() + "=" + cpuCores};
+		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(lines.size(), is(2));
+		Map<String, String> configs = ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
+		assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())), is(cpuCores));
 	}
 }

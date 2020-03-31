@@ -18,9 +18,11 @@
 ################################################################################
 
 # Wrapper script to compare the TM heap size calculation of config.sh with Java
-USAGE="Usage: runBashJavaUtilsCmd.sh <command>"
+USAGE="Usage: runBashJavaUtilsCmd.sh <command> [dynamic args...]"
 
 COMMAND=$1
+shift
+DYNAMIC_OPTS=$@
 
 if [[ -z "${COMMAND}" ]]; then
   echo "$USAGE"
@@ -36,6 +38,6 @@ FLINK_DIST_JAR=`find $FLINK_TARGET_DIR -name 'flink-dist*.jar'`
 
 . ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
 
-output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_PARAMS ${FLINK_CONF_DIR} "$FLINK_TARGET_DIR/bash-java-utils.jar:$FLINK_DIST_JAR}" | tail -n 2)
+output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_PARAMS ${FLINK_CONF_DIR} "$FLINK_TARGET_DIR/bash-java-utils.jar:$FLINK_DIST_JAR}" $DYNAMIC_OPTS | tail -n 2)
 extractExecutionParams "$(echo "$output" | head -n 1)"
 extractExecutionParams "$(echo "$output" | tail -n 1)"
