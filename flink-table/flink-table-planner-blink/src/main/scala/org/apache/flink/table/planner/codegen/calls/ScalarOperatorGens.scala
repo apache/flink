@@ -181,7 +181,7 @@ object ScalarOperatorGens {
 
       case (DATE, INTERVAL_YEAR_MONTH) =>
         generateOperatorIfNotNull(ctx, new DateType(), left, right) {
-          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+          (l, r) => s"${qualifyMethod(BuiltInMethods.ADD_MONTHS)}($l, $op($r))"
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
@@ -211,7 +211,7 @@ object ScalarOperatorGens {
             val nanoTerm = s"$l.getNanoOfMillisecond()"
             s"""
                |$SQL_TIMESTAMP.fromEpochMillis(
-               |  ${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($r)),
+               |  ${qualifyMethod(BuiltInMethods.ADD_MONTHS)}($leftTerm, $op($r)),
                |  $nanoTerm)
              """.stripMargin
           }
@@ -226,24 +226,24 @@ object ScalarOperatorGens {
               (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
                   val leftTerm = s"$ll.getMillisecond()"
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}" +
                     s"($leftTerm, $rr * ${MILLIS_PER_DAY}L)"
                 case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                   val rightTerm = s"$rr.getMillisecond()"
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}" +
                     s"($ll * ${MILLIS_PER_DAY}L, $rightTerm)"
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                   val leftTerm = s"$ll.getMillisecond()"
                   val rightTerm = s"$rr.getMillisecond()"
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($leftTerm, $rightTerm)"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rightTerm)"
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, _) =>
                   val leftTerm = s"$ll.getMillisecond()"
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($leftTerm, $rr)"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rr)"
                 case (_, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                   val rightTerm = s"$rr.getMillisecond()"
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rightTerm)"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rightTerm)"
                 case _ =>
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rr)"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rr)"
               }
             }
 

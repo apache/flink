@@ -1232,6 +1232,22 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   }
 
+  @Test
+  def testTimestampDiff(): Unit = {
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2020-03-01 00:00:00')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2016-08-01 00:00:00')",
+      "-37")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2020-03-01')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2016-08-01')",
+      "-37")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
