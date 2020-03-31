@@ -48,7 +48,7 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # Startup parameters
 
-    java_utils_output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_PARAMS ${FLINK_CONF_DIR})
+    java_utils_output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_PARAMS ${FLINK_CONF_DIR} $FLINK_BIN_DIR/bash-java-utils.jar:$(findFlinkDistJar) "${ARGS[@]}")
 
     num_lines=$(echo "${java_utils_output}" | wc -l)
     logging_output=$(echo "${java_utils_output}" | head -n $((${num_lines} - 2)))
