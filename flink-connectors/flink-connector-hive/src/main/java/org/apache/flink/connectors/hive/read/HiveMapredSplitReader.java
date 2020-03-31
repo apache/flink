@@ -22,7 +22,6 @@ import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.DataFormatConverters;
 import org.apache.flink.table.dataformat.GenericRow;
@@ -48,7 +47,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 
 import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
 
@@ -122,9 +120,7 @@ public class HiveMapredSplitReader implements SplitReader {
 		try {
 			deserializer = (Deserializer) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
 			Configuration conf = new Configuration();
-			//properties are used to initialize hive Deserializer properly.
-			Properties properties = HiveTableUtil.createPropertiesFromStorageDescriptor(sd);
-			SerDeUtils.initializeSerDe(deserializer, conf, properties, null);
+			SerDeUtils.initializeSerDe(deserializer, conf, hiveTablePartition.getTableProps(), null);
 			structObjectInspector = (StructObjectInspector) deserializer.getObjectInspector();
 			structFields = structObjectInspector.getAllStructFieldRefs();
 		} catch (Exception e) {
