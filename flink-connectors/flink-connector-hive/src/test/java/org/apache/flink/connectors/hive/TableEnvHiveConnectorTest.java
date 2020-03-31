@@ -565,6 +565,24 @@ public class TableEnvHiveConnectorTest {
 		}
 	}
 
+	@Test
+	public void testRegexSerDe() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x int,y string) " +
+					"row format serde 'org.apache.hadoop.hive.serde2.RegexSerDe' " +
+					"with serdeproperties ('input.regex'='([\\\\d]+)\\u0001([\\\\S]+)')");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{1, "a"})
+					.addRow(new Object[]{2, "ab"})
+					.commit();
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			assertEquals("[1,a, 2,ab]", TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src order by x")).toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
