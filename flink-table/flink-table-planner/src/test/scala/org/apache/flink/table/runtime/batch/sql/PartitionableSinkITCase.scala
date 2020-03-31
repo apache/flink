@@ -156,7 +156,7 @@ class PartitionableSinkITCase extends AbstractTestBase {
       staticPartitions
     }
 
-    override def emitDataSet(dataSet: DataSet[Row]): DataSink[_] = {
+    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
       dataSet.map(new MapFunction[Row, String] {
         override def map(value: Row): String = value.toString
       }).output(new CollectionOutputFormat)

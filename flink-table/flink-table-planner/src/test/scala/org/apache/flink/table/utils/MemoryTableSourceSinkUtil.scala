@@ -111,7 +111,7 @@ object MemoryTableSourceSinkUtil {
       new UnsafeMemoryAppendTableSink
     }
 
-    override def emitDataSet(dataSet: DataSet[Row]): DataSink[_] = {
+    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
       dataSet
         .output(new MemoryCollectionOutputFormat)
         .name(TableConnectorUtils.generateRuntimeName(this.getClass, getTableSchema.getFieldNames))

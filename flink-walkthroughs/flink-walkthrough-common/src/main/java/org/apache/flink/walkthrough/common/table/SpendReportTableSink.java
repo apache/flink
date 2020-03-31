@@ -52,7 +52,7 @@ public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTa
 	}
 
 	@Override
-	public DataSink<?> emitDataSet(DataSet<Row> dataSet) {
+	public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
 		return dataSet
 			.map(SpendReportTableSink::format)
 			.output(new LoggerOutputFormat());

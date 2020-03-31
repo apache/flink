@@ -177,7 +177,7 @@ object TestCollectionTableFactory {
   class CollectionTableSink(val outputType: RowTypeInfo)
       extends BatchTableSink[Row]
       with AppendStreamTableSink[Row] {
-    override def emitDataSet(dataSet: DataSet[Row]): DataSink[_] = {
+    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
       dataSet.output(new LocalCollectionOutputFormat[Row](RESULT)).setParallelism(1)
     }
 
