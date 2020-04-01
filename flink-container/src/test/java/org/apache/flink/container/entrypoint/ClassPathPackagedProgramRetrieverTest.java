@@ -19,9 +19,17 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramUtils;
+import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.container.entrypoint.ClassPathJobGraphRetriever.JarsOnClassPath;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.container.entrypoint.ClassPathPackagedProgramRetriever.JarsOnClassPath;
 import org.apache.flink.container.entrypoint.testjar.TestJobInfo;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -47,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -60,9 +69,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the {@link ClassPathJobGraphRetriever}.
+ * Tests for the {@link ClassPathPackagedProgramRetriever}.
  */
-public class ClassPathJobGraphRetrieverTest extends TestLogger {
+public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -120,66 +129,72 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 	}
 
 	@Test
-	public void testJobGraphRetrieval() throws FlinkException, IOException {
+	public void testJobGraphRetrieval() throws IOException, FlinkException, ProgramInvocationException {
 		final int parallelism = 42;
-		final Configuration configuration = new Configuration();
-		configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
 		final JobID jobId = new JobID();
 
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(jobId, SavepointRestoreSettings.none(), PROGRAM_ARGUMENTS)
+		final Configuration configuration = new Configuration();
+		configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+		configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 				.setJobClassName(TestJob.class.getCanonicalName())
 				.build();
 
-		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, configuration);
 
 		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
+		assertThat(jobGraph.getSavepointRestoreSettings(), is(equalTo(SavepointRestoreSettings.none())));
 		assertThat(jobGraph.getMaximumParallelism(), is(parallelism));
 		assertEquals(jobGraph.getJobID(), jobId);
 	}
 
 	@Test
-	public void testJobGraphRetrievalFromJar() throws FlinkException, IOException {
+	public void testJobGraphRetrievalFromJar() throws IOException, FlinkException, ProgramInvocationException {
 		final File testJar = TestJob.getTestJobJar();
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(new JobID(), SavepointRestoreSettings.none(), PROGRAM_ARGUMENTS)
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 				.setJarsOnClassPath(() -> Collections.singleton(testJar))
 				.build();
 
-		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
 		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
 	}
 
 	@Test
-	public void testJobGraphRetrievalJobClassNameHasPrecedenceOverClassPath() throws FlinkException, IOException {
+	public void testJobGraphRetrievalJobClassNameHasPrecedenceOverClassPath() throws IOException, FlinkException, ProgramInvocationException {
 		final File testJar = new File("non-existing");
 
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(new JobID(), SavepointRestoreSettings.none(), PROGRAM_ARGUMENTS)
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 				// Both a class name is specified and a JAR "is" on the class path
 				// The class name should have precedence.
 			.setJobClassName(TestJob.class.getCanonicalName())
 			.setJarsOnClassPath(() -> Collections.singleton(testJar))
 			.build();
 
-		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
 		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
 	}
 
 	@Test
-	public void testSavepointRestoreSettings() throws FlinkException, IOException {
+	public void testSavepointRestoreSettings() throws FlinkException, IOException, ProgramInvocationException {
 		final Configuration configuration = new Configuration();
 		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath("foobar", true);
 		final JobID jobId = new JobID();
 
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(jobId, savepointRestoreSettings, PROGRAM_ARGUMENTS)
+		configuration.setString(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+		SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, configuration);
+
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 			.setJobClassName(TestJob.class.getCanonicalName())
 			.build();
 
-		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, configuration);
 
 		assertThat(jobGraph.getSavepointRestoreSettings(), is(equalTo(savepointRestoreSettings)));
 		assertEquals(jobGraph.getJobID(), jobId);
@@ -219,15 +234,15 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 	}
 
 	@Test
-	public void testJobGraphRetrievalFailIfJobDirDoesNotHaveEntryClass() throws IOException {
+	public void testJobGraphRetrievalFailIfJobDirDoesNotHaveEntryClass() throws IOException, ProgramInvocationException {
 		final File testJar = TestJob.getTestJobJar();
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(new JobID(), SavepointRestoreSettings.none(), PROGRAM_ARGUMENTS)
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 				.setJarsOnClassPath(() -> Collections.singleton(testJar))
 				.setUserLibDirectory(userDirHasNotEntryClass)
 				.build();
 		try {
-			classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+			retrieveJobGraph(retrieverUnderTest, new Configuration());
 			Assert.fail("This case should throw exception !");
 		} catch (FlinkException e) {
 			assertTrue(ExceptionUtils
@@ -237,15 +252,15 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 	}
 
 	@Test
-	public void testJobGraphRetrievalFailIfDoesNotFindTheEntryClassInTheJobDir() throws IOException {
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(new JobID(), SavepointRestoreSettings.none(), PROGRAM_ARGUMENTS)
+	public void testJobGraphRetrievalFailIfDoesNotFindTheEntryClassInTheJobDir() throws IOException, ProgramInvocationException {
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 				.setJobClassName(TestJobInfo.JOB_CLASS)
 				.setJarsOnClassPath(Collections::emptyList)
 				.setUserLibDirectory(userDirHasNotEntryClass)
 				.build();
 		try {
-			classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+			retrieveJobGraph(retrieverUnderTest, new Configuration());
 			Assert.fail("This case should throw class not found exception!!");
 		} catch (FlinkException e) {
 			assertTrue(ExceptionUtils
@@ -256,28 +271,44 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 	}
 
 	@Test
-	public void testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass() throws IOException, FlinkException {
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(new JobID(), SavepointRestoreSettings.none(), PROGRAM_ARGUMENTS)
+	public void testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass() throws IOException, FlinkException, ProgramInvocationException {
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 				.setJarsOnClassPath(Collections::emptyList)
 				.setUserLibDirectory(userDirHasEntryClass)
 				.build();
-		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
-		assertThat(jobGraph.getClasspaths(), containsInAnyOrder(expectedURLs.toArray()));
+		assertThat(
+				jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList()),
+				containsInAnyOrder(expectedURLs.stream().map(URL::toString).toArray()));
 	}
 
 	@Test
-	public void testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass() throws IOException, FlinkException {
-		final ClassPathJobGraphRetriever classPathJobGraphRetriever =
-			ClassPathJobGraphRetriever.newBuilder(new JobID(), SavepointRestoreSettings.none(), PROGRAM_ARGUMENTS)
+	public void testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass() throws IOException, FlinkException, ProgramInvocationException {
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
 				.setJobClassName(TestJobInfo.JOB_CLASS)
 				.setJarsOnClassPath(Collections::emptyList)
 				.setUserLibDirectory(userDirHasEntryClass)
 				.build();
-		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
-		assertThat(jobGraph.getClasspaths(), containsInAnyOrder(expectedURLs.toArray()));
+		assertThat(
+				jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList()),
+				containsInAnyOrder(expectedURLs.stream().map(URL::toString).toArray()));
+	}
+
+	private JobGraph retrieveJobGraph(ClassPathPackagedProgramRetriever retrieverUnderTest, Configuration configuration) throws FlinkException, ProgramInvocationException {
+		final PackagedProgram packagedProgram = retrieverUnderTest.getPackagedProgram();
+
+		final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, packagedProgram.getJobJarAndDependencies(), URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, packagedProgram.getClasspaths(), URL::toString);
+
+		final Pipeline pipeline = PackagedProgramUtils
+				.getPipelineFromProgram(packagedProgram, configuration, defaultParallelism, false);
+		return PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 	}
 
 	private static String javaClassPath(String... entries) {
