@@ -246,8 +246,8 @@ public class SqlToOperationConverterTest {
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.HIVE);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
 		Operation operation = parse(sql, planner, parser);
 		assert operation instanceof CreateTableOperation;
 		CreateTableOperation op = (CreateTableOperation) operation;
@@ -265,8 +265,8 @@ public class SqlToOperationConverterTest {
 
 	@Test(expected = SqlConversionException.class)
 	public void testCreateTableWithPkUniqueKeys() {
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.HIVE);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
 		final String sql = "CREATE TABLE tbl1 (\n" +
 			"  a bigint,\n" +
 			"  b varchar, \n" +
