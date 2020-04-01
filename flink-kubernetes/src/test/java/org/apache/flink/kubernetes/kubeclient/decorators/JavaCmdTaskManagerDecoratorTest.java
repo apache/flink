@@ -71,13 +71,18 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 
 	private JavaCmdTaskManagerDecorator javaCmdTaskManagerDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
 
 		flinkConfig.setString(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH, KUBERNETES_ENTRY_PATH);
 		flinkConfig.set(KubernetesConfigOptions.FLINK_CONF_DIR, FLINK_CONF_DIR_IN_POD);
 		flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, FLINK_LOG_DIR_IN_POD);
+	}
+
+	@Before
+	public void setup() throws Exception {
+		super.setup();
 
 		this.mainClassArgs = String.format(
 				"%s--configDir %s",

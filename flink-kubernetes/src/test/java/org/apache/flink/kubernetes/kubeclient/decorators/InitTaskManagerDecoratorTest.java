@@ -69,12 +69,18 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	private Pod resultPod;
 	private Container resultMainContainer;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
 		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS, ANNOTATIONS);
 		this.flinkConfig.setString(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+	}
+
+	@Before
+	public void setup() throws Exception {
+		super.setup();
 
 		final InitTaskManagerDecorator initTaskManagerDecorator =
 			new InitTaskManagerDecorator(kubernetesTaskManagerParameters);
