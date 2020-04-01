@@ -38,7 +38,7 @@ import java.util.Set;
 @PublicEvolving
 public final class ArrayType extends LogicalType {
 
-	private static final String FORMAT = "ARRAY<%s>";
+	public static final String FORMAT = "ARRAY<%s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		"org.apache.flink.table.dataformat.BinaryArray");

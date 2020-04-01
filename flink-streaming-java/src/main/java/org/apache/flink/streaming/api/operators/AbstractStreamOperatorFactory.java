@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 
@@ -25,6 +26,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
  * {@link ProcessingTimeServiceAware} interface which enables stream operators to access
  * {@link ProcessingTimeService}.
  */
+@Experimental
 public abstract class AbstractStreamOperatorFactory<OUT> implements StreamOperatorFactory<OUT>, ProcessingTimeServiceAware {
 
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;

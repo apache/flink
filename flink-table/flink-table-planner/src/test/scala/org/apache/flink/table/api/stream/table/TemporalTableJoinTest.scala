@@ -111,15 +111,11 @@ class TemporalTableJoinTest extends TableTestBase {
         "DataStreamCalc",
         binaryNode(
           "DataStreamTemporalTableJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(orders),
-            term("select", "o_rowtime, o_amount, o_currency, o_secondary_key")
-          ),
+          streamTableNode(orders),
           unaryNode(
             "DataStreamCalc",
             streamTableNode(ratesHistory),
-            term("select", "rowtime, currency, rate, secondary_key"),
+            term("select", "rowtime, comment, currency, rate, secondary_key"),
             term("where", ">(rate, 110:BIGINT)")
           ),
           term(
@@ -130,10 +126,12 @@ class TemporalTableJoinTest extends TableTestBase {
           term(
             "join",
             "o_rowtime",
+            "o_comment",
             "o_amount",
             "o_currency",
             "o_secondary_key",
             "rowtime",
+            "comment",
             "currency",
             "rate",
             "secondary_key"),
@@ -240,15 +238,12 @@ class TemporalTableJoinTest extends TableTestBase {
       binaryNode(
         "DataStreamTemporalTableJoin",
         streamTableNode(proctimeOrders),
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(proctimeRatesHistory),
-          term("select", "currency, rate")),
+        streamTableNode(proctimeRatesHistory),
         term("where",
           "AND(" +
             s"${TEMPORAL_JOIN_CONDITION.getName}(o_proctime, currency), " +
             "=(currency, o_currency))"),
-        term("join", "o_amount", "o_currency", "o_proctime", "currency", "rate"),
+        term("join", "o_amount", "o_currency", "o_proctime", "currency", "rate", "proctime"),
         term("joinType", "InnerJoin")
       ),
       term("select", "*(o_amount, rate) AS rate")

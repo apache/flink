@@ -151,6 +151,27 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 		assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
 	}
 
+	@Test
+	public void stopTrackingAndReleaseClusterPartitions() throws Exception {
+		final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+		final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture = new CompletableFuture<>();
+		testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
+
+		final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
+		final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
+
+		final IntermediateDataSetID dataSetId1 = new IntermediateDataSetID();
+		final IntermediateDataSetID dataSetId2 = new IntermediateDataSetID();
+
+		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId1, dataSetId1, 1));
+		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId2, dataSetId2, 1));
+		partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
+
+		partitionTracker.stopTrackingAndReleaseClusterPartitions(Collections.singleton(dataSetId1));
+		assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+	}
+
 	private static class TestingShuffleEnvironment implements ShuffleEnvironment<ResultPartition, SingleInputGate> {
 
 		private final ShuffleEnvironment<ResultPartition, SingleInputGate> backingShuffleEnvironment =

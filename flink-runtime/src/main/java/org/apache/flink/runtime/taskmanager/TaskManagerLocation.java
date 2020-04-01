@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.NetUtils;
 
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -73,6 +75,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	 * @param dataPort
 	 *        the port instance's task manager expects to receive transfer envelopes on
 	 */
+	@VisibleForTesting
 	public TaskManagerLocation(ResourceID resourceID, InetAddress inetAddress, int dataPort) {
 		// -1 indicates a local instance connection info
 		checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
@@ -88,6 +91,14 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
 		this.stringRepresentation = String.format(
 				"%s @ %s (dataPort=%d)", resourceID, fqdnHostName, dataPort);
+	}
+
+	public static TaskManagerLocation fromUnresolvedLocation(final UnresolvedTaskManagerLocation unresolvedLocation)
+		throws UnknownHostException {
+		return new TaskManagerLocation(
+			unresolvedLocation.getResourceID(),
+			InetAddress.getByName(unresolvedLocation.getExternalAddress()),
+			unresolvedLocation.getDataPort());
 	}
 
 	// ------------------------------------------------------------------------

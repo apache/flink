@@ -24,15 +24,19 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#NONE}.
  */
+@ThreadSafe
 public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StandaloneCompletedCheckpointStore.class);
@@ -42,6 +46,8 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
 	/** The completed checkpoints. */
 	private final ArrayDeque<CompletedCheckpoint> checkpoints;
+
+	private boolean shutdown = false;
 
 	/**
 	 * Creates {@link StandaloneCompletedCheckpointStore}.
@@ -64,26 +70,34 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 
-		checkpoints.addLast(checkpoint);
+		synchronized (checkpoints) {
+			checkState(!shutdown, "StandaloneCompletedCheckpointStore has been shut down");
 
-		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
-			try {
-				CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-				checkpointToSubsume.discardOnSubsume();
-			} catch (Exception e) {
-				LOG.warn("Fail to subsume the old checkpoint.", e);
+			checkpoints.addLast(checkpoint);
+
+			if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
+				try {
+					CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
+					checkpointToSubsume.discardOnSubsume();
+				} catch (Exception e) {
+					LOG.warn("Fail to subsume the old checkpoint.", e);
+				}
 			}
 		}
 	}
 
 	@Override
 	public List<CompletedCheckpoint> getAllCheckpoints() {
-		return new ArrayList<>(checkpoints);
+		synchronized (checkpoints) {
+			return new ArrayList<>(checkpoints);
+		}
 	}
 
 	@Override
 	public int getNumberOfRetainedCheckpoints() {
-		return checkpoints.size();
+		synchronized (checkpoints) {
+			return checkpoints.size();
+		}
 	}
 
 	@Override
@@ -93,14 +107,19 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
 	@Override
 	public void shutdown(JobStatus jobStatus) throws Exception {
-		try {
-			LOG.info("Shutting down");
+		synchronized (checkpoints) {
+			if (!shutdown) {
+				shutdown = true;
+				try {
+					LOG.info("Shutting down");
 
-			for (CompletedCheckpoint checkpoint : checkpoints) {
-				checkpoint.discardOnShutdown(jobStatus);
+					for (CompletedCheckpoint checkpoint : checkpoints) {
+						checkpoint.discardOnShutdown(jobStatus);
+					}
+				} finally {
+					checkpoints.clear();
+				}
 			}
-		} finally {
-			checkpoints.clear();
 		}
 	}
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.scalar.arrow.AbstractArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
@@ -29,6 +30,7 @@ import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.utils.PythonTestUtils.createMockJobBundleFactory;
 
@@ -49,8 +51,10 @@ public abstract class PassThroughArrowPythonScalarFunctionRunner<IN> extends Abs
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		int maxArrowBatchSize) {
-		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxArrowBatchSize, createMockJobBundleFactory());
+		int maxArrowBatchSize,
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxArrowBatchSize, jobOptions, createMockJobBundleFactory(), flinkMetricContainer);
 	}
 
 	public PassThroughArrowPythonScalarFunctionRunner(
@@ -61,8 +65,10 @@ public abstract class PassThroughArrowPythonScalarFunctionRunner<IN> extends Abs
 		RowType inputType,
 		RowType outputType,
 		int maxArrowBatchSize,
-		JobBundleFactory jobBundleFactory) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxArrowBatchSize);
+		Map<String, String> jobOptions,
+		JobBundleFactory jobBundleFactory,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxArrowBatchSize, jobOptions, flinkMetricContainer);
 		this.jobBundleFactory = jobBundleFactory;
 		this.bufferedInputs = new ArrayList<>();
 	}

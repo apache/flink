@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -111,6 +112,20 @@ public class KubernetesConfigOptions {
 	// The following config options could be overridden by KubernetesCliOptions.
 	// ---------------------------------------------------------------------------------
 
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_LABELS =
+		key("kubernetes.jobmanager.labels")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The labels to be set for JobManager pod. Specified as key:value pairs separated by commas. " +
+			"For example, version:alphav1,deploy:test.");
+
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_LABELS =
+		key("kubernetes.taskmanager.labels")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The labels to be set for TaskManager pods. Specified as key:value pairs separated by commas. " +
+			"For example, version:alphav1,deploy:test.");
+
 	public static final ConfigOption<String> CLUSTER_ID =
 		key("kubernetes.cluster-id")
 		.stringType()
@@ -146,6 +161,27 @@ public class KubernetesConfigOptions {
 		.stringType()
 		.defaultValue("/opt/flink/log")
 		.withDescription("The directory that logs of jobmanager and taskmanager be saved in the pod.");
+
+	public static final ConfigOption<String> HADOOP_CONF_CONFIG_MAP =
+		key("kubernetes.hadoop.conf.config-map.name")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Specify the name of an existing ConfigMap that contains custom Hadoop configuration " +
+			"to be mounted on the JobManager(s) and TaskManagers.");
+
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_ANNOTATIONS =
+		key("kubernetes.jobmanager.annotations")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The user-specified annotations that are set to the JobManager pod. The value could be " +
+			"in the form of a1:v1,a2:v2");
+
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_ANNOTATIONS =
+		key("kubernetes.taskmanager.annotations")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The user-specified annotations that are set to the TaskManager pod. The value could be " +
+			"in the form of a1:v1,a2:v2");
 
 	/**
 	 * The flink rest service exposed type.

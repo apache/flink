@@ -101,7 +101,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	public void testNoManualRestart() throws Exception {
 		ExecutionGraph eg = TestingExecutionGraphBuilder
 			.newBuilder()
-			.setSlotProvider(new SimpleSlotProvider(TEST_JOB_ID, NUM_TASKS))
+			.setSlotProvider(new SimpleSlotProvider(NUM_TASKS))
 			.setJobGraph(createJobGraph())
 			.build();
 
@@ -558,7 +558,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final int parallelism = 10;
 		final JobVertex vertex = createNoOpVertex(parallelism);
 		final NotCancelAckingTaskGateway taskManagerGateway = new NotCancelAckingTaskGateway();
-		final SlotProvider slots = new SimpleSlotProvider(TEST_JOB_ID, parallelism, taskManagerGateway);
+		final SlotProvider slots = new SimpleSlotProvider(parallelism, taskManagerGateway);
 		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
 
 		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", vertex);

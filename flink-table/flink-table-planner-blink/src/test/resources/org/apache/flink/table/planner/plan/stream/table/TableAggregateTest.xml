@@ -53,8 +53,8 @@ Calc(select=[f0 AS a, f1 AS b])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(bb=[AS($0, _UTF-16LE'bb')], _c1=[+(AS($1, _UTF-16LE'x'), 1)], y=[AS($2, _UTF-16LE'y')])
-+- LogicalTableAggregate(group=[{5}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], bb=[MOD($1, 5)])
++- LogicalTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
+   +- LogicalProject(a=[$0], b=[$1], bb=[MOD($1, 5)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
@@ -63,7 +63,7 @@ LogicalProject(bb=[AS($0, _UTF-16LE'bb')], _c1=[+(AS($1, _UTF-16LE'x'), 1)], y=[
 Calc(select=[bb, +(f0, 1) AS _c1, f1 AS y])
 +- GroupTableAggregate(groupBy=[bb], select=[bb, EmptyTableAggFunc(a, b) AS (f0, f1)])
    +- Exchange(distribution=[hash[bb]])
-      +- Calc(select=[a, b, c, d, e, MOD(b, 5) AS bb])
+      +- Calc(select=[a, b, MOD(b, 5) AS bb])
          +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>

@@ -395,13 +395,16 @@ class GroupingSetsITCase extends BatchTestBase {
 
   @Test
   def testCALCITE1824(): Unit = {
-    // TODO:
-    // When "[CALCITE-1824] GROUP_ID returns wrong result" is fixed,
-    // there will be an extra row (null, 1, 14).
     checkResult(
       "select deptno, group_id() as g, count(*) as c " +
         "from scott_emp group by grouping sets (deptno, (), ())",
-      Seq(row(10, 0, 3), row(20, 0, 5), row(30, 0, 6), row(null, 0, 14))
+      Seq(row(10, 0, 3),
+        row(10, 1, 3),
+        row(20, 0, 5),
+        row(20, 1, 5),
+        row(30, 0, 6),
+        row(30, 1, 6),
+        row(null, 0, 14))
     )
   }
 

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
-import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 
 import static java.util.Objects.requireNonNull;
 
@@ -41,7 +41,7 @@ public class MultipleConnectedStreams {
 		return environment;
 	}
 
-	public <OUT> SingleOutputStreamOperator<OUT> transform(MultipleInputTransformation<OUT> transform) {
+	public <OUT> SingleOutputStreamOperator<OUT> transform(AbstractMultipleInputTransformation<OUT> transform) {
 		return new SingleOutputStreamOperator<>(environment, transform);
 	}
 }

@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputStreamOperator<OUT>> {
-	public MultipleInputStreamTask(Environment env) {
+	public MultipleInputStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 
@@ -63,7 +63,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		for (int i = 0; i < inputDeserializers.length; i++) {
 			inputLists[i] = new ArrayList<>();
 			watermarkGauges[i] = new WatermarkGauge();
-			headOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i), watermarkGauges[i]);
+			headOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
 		}
 
 		MinWatermarkGauge minInputWatermarkGauge = new MinWatermarkGauge(watermarkGauges);
@@ -88,11 +88,8 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			Collection<InputGate>[] inputGates,
 			TypeSerializer<?>[] inputDeserializers,
 			WatermarkGauge[] inputWatermarkGauges) {
-		if (headOperator instanceof InputSelectable) {
-			throw new UnsupportedOperationException();
-		}
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
-			null,
+			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
 			inputGates.length);
 
 		InputGate[] unionedInputGates = new InputGate[inputGates.length];

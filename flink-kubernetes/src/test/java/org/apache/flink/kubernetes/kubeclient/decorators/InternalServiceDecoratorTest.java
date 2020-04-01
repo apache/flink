@@ -86,6 +86,7 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 		assertEquals(expectedServicePorts, internalService.getSpec().getPorts());
 
 		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+		expectedLabels.putAll(userLabels);
 		assertEquals(expectedLabels, internalService.getSpec().getSelector());
 	}
 }

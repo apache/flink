@@ -18,6 +18,7 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_docker.sh
 
 DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
 DOCKER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
@@ -52,7 +53,7 @@ esac
 export FLINK_JOB_ARGUMENTS="${INPUT_ARGS} --output ${OUTPUT_PATH}/docker_wc_out"
 
 build_image() {
-    ./build.sh --from-local-dist --job-artifacts ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_DOCKER_IMAGE_NAME}
+    build_image_with_jar ${FLINK_DIR}/examples/batch/WordCount.jar ${FLINK_DOCKER_IMAGE_NAME}
 }
 
 # user inside the container must be able to create files, this is a workaround in-container permissions

@@ -34,6 +34,7 @@ import org.apache.flink.types.Row;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * The Python {@link ScalarFunction} operator for the legacy planner.
@@ -81,13 +82,16 @@ public class PythonScalarFunctionOperator extends AbstractRowPythonScalarFunctio
 	@Override
 	public PythonFunctionRunner<Row> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 		return new PythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType);
+			userDefinedFunctionOutputType,
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 }

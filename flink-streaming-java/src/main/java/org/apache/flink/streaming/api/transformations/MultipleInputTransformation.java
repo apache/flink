@@ -21,70 +21,23 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
- * This Transformation represents the application of a
- * {@link org.apache.flink.streaming.api.operators.MultipleInputStreamOperator}
- * to input {@code Transformations}. The result is again only one stream.
- *
- * @param <OUT> The type of the elements that result from this {@code MultipleInputTransformation}
+ * {@link AbstractMultipleInputTransformation} implementation for non-keyed streams.
  */
 @Internal
-public class MultipleInputTransformation<OUT> extends PhysicalTransformation<OUT> {
-
-	private final List<Transformation<?>> inputs = new ArrayList<>();
-
-	private final StreamOperatorFactory<OUT> operatorFactory;
-
+public class MultipleInputTransformation<OUT> extends AbstractMultipleInputTransformation<OUT> {
 	public MultipleInputTransformation(
 			String name,
 			StreamOperatorFactory<OUT> operatorFactory,
 			TypeInformation<OUT> outputType,
 			int parallelism) {
-		super(name, outputType, parallelism);
-		this.operatorFactory = operatorFactory;
+		super(name, operatorFactory, outputType, parallelism);
 	}
 
-	public List<Transformation<?>> getInputs() {
-		return inputs;
-	}
-
-	/**
-	 * Returns the {@code TypeInformation} for the elements from the inputs.
-	 */
-	public List<TypeInformation<?>> getInputTypes() {
-		return inputs.stream()
-			.map(Transformation::getOutputType)
-			.collect(Collectors.toList());
-	}
-
-	/**
-	 * Returns the {@code StreamOperatorFactory} of this Transformation.
-	 */
-	public StreamOperatorFactory<OUT> getOperatorFactory() {
-		return operatorFactory;
-	}
-
-	public void addInput(Transformation<?> input) {
+	public MultipleInputTransformation<OUT> addInput(Transformation<?> input) {
 		inputs.add(input);
-	}
-
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		return inputs.stream()
-			.flatMap(input -> input.getTransitivePredecessors().stream())
-			.collect(Collectors.toList());
-	}
-
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operatorFactory.setChainingStrategy(strategy);
+		return this;
 	}
 }

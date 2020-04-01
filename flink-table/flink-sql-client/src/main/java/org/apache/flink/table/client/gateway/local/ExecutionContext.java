@@ -96,8 +96,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -118,13 +121,13 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * @param <ClusterID> cluster id
  */
-public class ExecutionContext<ClusterID> {
+public class ExecutionContext<ClusterID> implements Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionContext.class);
 
 	private final Environment environment;
 	private final SessionContext originalSessionContext;
-	private final ClassLoader classLoader;
+	private final URLClassLoader classLoader;
 
 	private final Configuration flinkConfig;
 	private final ClusterClientFactory<ClusterID> clusterClientFactory;
@@ -271,12 +274,14 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	public Pipeline createPipeline(String name) {
-		if (streamExecEnv != null) {
-			StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
-			return streamTableEnv.getPipeline(name);
-		} else {
-			return execEnv.createProgramPlan(name);
-		}
+		return wrapClassLoader(() -> {
+			if (streamExecEnv != null) {
+				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
+				return streamTableEnv.getPipeline(name);
+			} else {
+				return execEnv.createProgramPlan(name);
+			}
+		});
 	}
 
 	/** Returns a builder for this {@link ExecutionContext}. */
@@ -699,6 +704,11 @@ public class ExecutionContext<ClusterID> {
 				"Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
 					temporalTableEntry.getHistoryTable() + ".\nCause: " + e.getMessage());
 		}
+	}
+
+	@Override
+	public void close() throws IOException {
+		this.classLoader.close();
 	}
 
 	//~ Inner Class -------------------------------------------------------------------------------

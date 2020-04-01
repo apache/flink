@@ -51,6 +51,13 @@ public class KubernetesJobManagerTestBase extends KubernetesTestBase {
 		}
 	};
 
+	protected final Map<String, String> userLabels = new HashMap<String, String>() {
+		{
+			put("label1", "value1");
+			put("label2", "value2");
+		}
+	};
+
 	protected KubernetesJobManagerParameters kubernetesJobManagerParameters;
 
 	protected FlinkPod baseFlinkPod;
@@ -65,6 +72,7 @@ public class KubernetesJobManagerTestBase extends KubernetesTestBase {
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
 		this.customizedEnvs.forEach((k, v) ->
 				this.flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX + k, v));
+		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_LABELS, userLabels);
 
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(JOB_MANAGER_MEMORY)

@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.runners.python.scalar.arrow;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -29,6 +30,8 @@ import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+
+import java.util.Map;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Arrow Python {@link ScalarFunction}s.
@@ -44,12 +47,14 @@ public class BaseRowArrowPythonScalarFunctionRunner extends AbstractArrowPythonS
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		int maxBatchSize) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxBatchSize);
+		int maxBatchSize,
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxBatchSize, jobOptions, flinkMetricContainer);
 	}
 
 	@Override
 	public ArrowWriter<BaseRow> createArrowWriter() {
-		return ArrowUtils.createBaseRowArrowWriter(root);
+		return ArrowUtils.createBaseRowArrowWriter(root, getInputType());
 	}
 }

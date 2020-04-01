@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 
@@ -129,7 +130,7 @@ public class NFACompiler {
 		private final Map<String, State<T>> stopStates = new HashMap<>();
 		private final List<State<T>> states = new ArrayList<>();
 
-		private long windowTime = 0;
+		private Optional<Long> windowTime;
 		private GroupPattern<T, ?> currentGroupPattern;
 		private Map<GroupPattern<T, ?>, Boolean> firstOfLoopMap = new HashMap<>();
 		private Pattern<T, ?> currentPattern;
@@ -140,6 +141,7 @@ public class NFACompiler {
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
 			afterMatchSkipStrategy = pattern.getAfterMatchSkipStrategy();
+			windowTime = Optional.empty();
 		}
 
 		/**
@@ -172,7 +174,7 @@ public class NFACompiler {
 		}
 
 		long getWindowTime() {
-			return windowTime;
+			return windowTime.orElse(0L);
 		}
 
 		/**
@@ -265,7 +267,7 @@ public class NFACompiler {
 		 */
 		private State<T> createEndingState() {
 			State<T> endState = createState(ENDING_STATE_NAME, State.StateType.Final);
-			windowTime = currentPattern.getWindowTime() != null ? currentPattern.getWindowTime().toMilliseconds() : 0L;
+			windowTime = Optional.ofNullable(currentPattern.getWindowTime()).map(Time::toMilliseconds);
 			return endState;
 		}
 
@@ -303,9 +305,9 @@ public class NFACompiler {
 				currentPattern = currentPattern.getPrevious();
 
 				final Time currentWindowTime = currentPattern.getWindowTime();
-				if (currentWindowTime != null && currentWindowTime.toMilliseconds() < windowTime) {
+				if (currentWindowTime != null && currentWindowTime.toMilliseconds() < windowTime.orElse(Long.MAX_VALUE)) {
 					// the window time is the global minimum of all window times of each state
-					windowTime = currentWindowTime.toMilliseconds();
+					windowTime = Optional.of(currentWindowTime.toMilliseconds());
 				}
 			}
 			return lastSink;

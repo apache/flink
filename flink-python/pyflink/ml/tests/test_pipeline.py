@@ -21,6 +21,7 @@ from pyflink.ml.api import JavaTransformer, Transformer, Estimator, Model, \
     Pipeline, JavaEstimator, JavaModel
 from pyflink.ml.api.param.base import WithParams, ParamInfo, TypeConverters
 from pyflink import keyword
+from pyflink.testing.test_case_utils import MLTestCase
 
 
 class PipelineTest(unittest.TestCase):
@@ -70,6 +71,27 @@ class PipelineTest(unittest.TestCase):
 
         pipeline_model = pipeline_new.fit(None, None)
         self.assertEqual("a_ja_mb_mjb_mc_d", PipelineTest.describe_pipeline(pipeline_model))
+
+
+class ValidationPipelineTest(MLTestCase):
+
+    def test_pipeline_from_invalid_json(self):
+        invalid_json = '[a:aa]'
+
+        # load json
+        p = Pipeline()
+        with self.assertRaises(RuntimeError) as context:
+            p.load_json(invalid_json)
+        exception_str = str(context.exception)
+
+        # NOTE: only check the general error message since the detailed error message
+        # would be different in different environment.
+        self.assertTrue(
+            'Cannot load the JSON as either a Java Pipeline or a Python Pipeline.'
+            in exception_str)
+        self.assertTrue('Python Pipeline load failed due to:' in exception_str)
+        self.assertTrue('Java Pipeline load failed due to:' in exception_str)
+        self.assertTrue('JsonParseException' in exception_str)
 
 
 class SelfDescribe(WithParams):

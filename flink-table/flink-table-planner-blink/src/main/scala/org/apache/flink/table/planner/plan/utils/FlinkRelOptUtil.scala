@@ -65,7 +65,7 @@ object FlinkRelOptUtil {
     */
   def toString(
       rel: RelNode,
-      detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withIdPrefix: Boolean = false,
       withRetractTraits: Boolean = false,
       withRowType: Boolean = false): String = {

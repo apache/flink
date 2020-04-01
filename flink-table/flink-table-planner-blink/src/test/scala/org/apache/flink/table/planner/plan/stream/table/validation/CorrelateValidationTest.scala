@@ -68,10 +68,6 @@ class CorrelateValidationTest extends TableTestBase {
     //========= throw exception when the called function is a scalar function ====
     util.addFunction("func0", Func0)
 
-    // Java Table API call
-    expectExceptionThrown(
-      t.joinLateral("func0(a)"),
-      "only accepts a string expression which defines a table function call")
     // SQL API call
     // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
     expectExceptionThrown(

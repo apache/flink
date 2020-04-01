@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate,
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -40,6 +41,7 @@ import org.apache.calcite.util.{ImmutableBitSet, Util}
 import java.lang.Iterable
 import java.util
 import java.util.List
+import java.util.function.UnaryOperator
 
 import scala.collection.JavaConversions._
 
@@ -132,7 +134,23 @@ class FlinkRelBuilder(
       namedProperties: List[PlannerNamedWindowProperty],
       aggCalls: Iterable[AggCall]): RelBuilder = {
     // build logical aggregate
-    val aggregate = super.aggregate(groupKey, aggCalls).build().asInstanceOf[LogicalAggregate]
+
+    // Because of:
+    // [CALCITE-3763] RelBuilder.aggregate should prune unused fields from the input,
+    // if the input is a Project.
+    //
+    // the field can not be pruned if it is referenced by other expressions
+    // of the window aggregation(i.e. the TUMBLE_START/END).
+    // To solve this, we config the RelBuilder to forbidden this feature.
+    val aggregate = transform(
+      new UnaryOperator[RelBuilder.Config] {
+        override def apply(t: RelBuilder.Config)
+          : RelBuilder.Config = t.withPruneInputOfAggregate(false)
+      })
+      .push(build())
+      .aggregate(groupKey, aggCalls)
+      .build()
+      .asInstanceOf[LogicalAggregate]
 
     // build logical window aggregate from it
     aggregate match {
@@ -185,6 +203,15 @@ object FlinkRelBuilder {
     val clusterContext = cluster.getPlanner.getContext
     new FlinkRelBuilder(
       clusterContext,
+      cluster,
+      relOptSchema)
+  }
+
+  def of(contextVar: Object, cluster: RelOptCluster, relOptSchema: RelOptSchema)
+    : FlinkRelBuilder = {
+    val mergedContext = Contexts.of(contextVar, cluster.getPlanner.getContext)
+    new FlinkRelBuilder(
+      mergedContext,
       cluster,
       relOptSchema)
   }

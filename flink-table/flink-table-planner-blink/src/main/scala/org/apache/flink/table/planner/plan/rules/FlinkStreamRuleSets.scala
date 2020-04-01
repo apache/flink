@@ -56,8 +56,7 @@ object FlinkStreamRuleSets {
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
     LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER,
     LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER,
-    LogicalCorrelateToJoinFromTemporalTableFunctionRule.INSTANCE,
-    TableScanRule.INSTANCE)
+    LogicalCorrelateToJoinFromTemporalTableFunctionRule.INSTANCE)
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(
     EnumerableToLogicalTableScan.INSTANCE)
@@ -66,7 +65,6 @@ object FlinkStreamRuleSets {
     * Convert table references before query decorrelation.
     */
   val TABLE_REF_RULES: RuleSet = RuleSets.ofList(
-    TableScanRule.INSTANCE,
     EnumerableToLogicalTableScan.INSTANCE
   )
 
@@ -109,6 +107,8 @@ object FlinkStreamRuleSets {
       REWRITE_COALESCE_RULES.asScala ++
       REDUCE_EXPRESSION_RULES.asScala ++
       List(
+        //removes constant keys from an Agg
+        AggregateProjectPullUpConstantsRule.INSTANCE,
         StreamLogicalWindowAggregateRule.INSTANCE,
         // slices a project into sections which contain window agg functions
         // and sections which do not.

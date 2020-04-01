@@ -23,6 +23,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 
 import java.util.Arrays;
 
@@ -55,7 +56,7 @@ public class BashJavaUtils {
 	private static void getTmResourceParams(String[] args) throws Exception {
 		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
 		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
+		System.out.println(EXECUTION_PREFIX + ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec));
 		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
 	}
 

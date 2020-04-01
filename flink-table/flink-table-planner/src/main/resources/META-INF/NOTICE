@@ -12,9 +12,9 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
 - com.jayway.jsonpath:json-path:2.4.0
 - joda-time:joda-time:2.5
-- org.apache.calcite:calcite-core:1.21.0
-- org.apache.calcite:calcite-linq4j:1.21.0
-- org.apache.calcite.avatica:avatica-core:1.15.0
+- org.apache.calcite:calcite-core:1.22.0
+- org.apache.calcite:calcite-linq4j:1.22.0
+- org.apache.calcite.avatica:avatica-core:1.16.0
 - commons-codec:commons-codec:1.10
 
 This project bundles the following dependencies under the BSD license.

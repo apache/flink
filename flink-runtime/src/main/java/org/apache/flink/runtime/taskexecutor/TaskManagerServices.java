@@ -34,7 +34,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -59,7 +59,7 @@ public class TaskManagerServices {
 	public static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState";
 
 	/** TaskManager services. */
-	private final TaskManagerLocation taskManagerLocation;
+	private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 	private final long managedMemorySize;
 	private final IOManager ioManager;
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
@@ -72,7 +72,7 @@ public class TaskManagerServices {
 	private final TaskEventDispatcher taskEventDispatcher;
 
 	TaskManagerServices(
-		TaskManagerLocation taskManagerLocation,
+		UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
 		long managedMemorySize,
 		IOManager ioManager,
 		ShuffleEnvironment<?, ?> shuffleEnvironment,
@@ -84,7 +84,7 @@ public class TaskManagerServices {
 		TaskExecutorLocalStateStoresManager taskManagerStateStore,
 		TaskEventDispatcher taskEventDispatcher) {
 
-		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
+		this.unresolvedTaskManagerLocation = Preconditions.checkNotNull(unresolvedTaskManagerLocation);
 		this.managedMemorySize = managedMemorySize;
 		this.ioManager = Preconditions.checkNotNull(ioManager);
 		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
@@ -117,8 +117,8 @@ public class TaskManagerServices {
 		return kvStateService;
 	}
 
-	public TaskManagerLocation getTaskManagerLocation() {
-		return taskManagerLocation;
+	public UnresolvedTaskManagerLocation getUnresolvedTaskManagerLocation() {
+		return unresolvedTaskManagerLocation;
 	}
 
 	public BroadcastVariableManager getBroadcastVariableManager() {
@@ -229,15 +229,19 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration,
 			taskEventDispatcher,
 			taskManagerMetricGroup);
-		final int dataPort = shuffleEnvironment.start();
+		final int listeningDataPort = shuffleEnvironment.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
 		kvStateService.start();
 
-		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(
+		final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation = new UnresolvedTaskManagerLocation(
 			taskManagerServicesConfiguration.getResourceID(),
-			taskManagerServicesConfiguration.getTaskManagerAddress(),
-			dataPort);
+			taskManagerServicesConfiguration.getExternalAddress(),
+			// we expose the task manager location with the listening port
+			// iff the external data port is not explicitly defined
+			taskManagerServicesConfiguration.getExternalDataPort() > 0 ?
+				taskManagerServicesConfiguration.getExternalDataPort() :
+				listeningDataPort);
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
@@ -249,7 +253,7 @@ public class TaskManagerServices {
 
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
-		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
+		final JobLeaderService jobLeaderService = new JobLeaderService(unresolvedTaskManagerLocation, taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
 		final String[] stateRootDirectoryStrings = taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
 
@@ -265,7 +269,7 @@ public class TaskManagerServices {
 			taskIOExecutor);
 
 		return new TaskManagerServices(
-			taskManagerLocation,
+			unresolvedTaskManagerLocation,
 			taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
 			ioManager,
 			shuffleEnvironment,
@@ -304,7 +308,7 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getResourceID(),
 			taskManagerServicesConfiguration.getNetworkMemorySize(),
 			taskManagerServicesConfiguration.isLocalCommunicationOnly(),
-			taskManagerServicesConfiguration.getTaskManagerAddress(),
+			taskManagerServicesConfiguration.getBindAddress(),
 			taskEventDispatcher,
 			taskManagerMetricGroup);
 

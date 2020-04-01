@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.contexts;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityContextInitializeException;
 
 /**
  * Default security context factory for {@link NoOpSecurityContext}.
@@ -31,7 +32,7 @@ public class NoOpSecurityContextFactory implements SecurityContextFactory {
 	}
 
 	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) {
+	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
 		return new NoOpSecurityContext();
 	}
 }

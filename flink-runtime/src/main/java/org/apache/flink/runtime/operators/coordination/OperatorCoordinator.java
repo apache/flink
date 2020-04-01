@@ -98,6 +98,8 @@ public interface OperatorCoordinator extends AutoCloseable {
 		void failTask(int subtask, Throwable cause);
 
 		void failJob(Throwable cause);
+
+		int currentParallelism();
 	}
 
 	// ------------------------------------------------------------------------

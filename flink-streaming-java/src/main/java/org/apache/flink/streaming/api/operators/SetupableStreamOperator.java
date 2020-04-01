@@ -38,4 +38,8 @@ public interface SetupableStreamOperator<OUT> {
 	 * Initializes the operator. Sets access to the context and the output.
 	 */
 	void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
+
+	ChainingStrategy getChainingStrategy();
+
+	void setChainingStrategy(ChainingStrategy strategy);
 }

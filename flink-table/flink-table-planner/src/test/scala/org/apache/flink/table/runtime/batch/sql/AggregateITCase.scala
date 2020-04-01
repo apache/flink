@@ -29,6 +29,7 @@ import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMod
 import org.apache.flink.table.utils.NonMergableCount
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -232,7 +233,6 @@ class AggregateITCase(
 
   @Test
   def testGroupingSetAggregate(): Unit = {
-
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
@@ -245,14 +245,27 @@ class AggregateITCase(
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
 
     val expected =
-      "6,null,18,1\n5,null,13,1\n4,null,8,1\n3,null,5,1\n2,null,2,1\n1,null,1,1\n" +
-        "null,Luke Skywalker,6,2\nnull,I am fine.,5,2\nnull,Hi,1,2\n" +
-        "null,Hello world, how are you?,4,2\nnull,Hello world,3,2\nnull,Hello,2,2\n" +
-        "null,Comment#9,15,2\nnull,Comment#8,14,2\nnull,Comment#7,13,2\n" +
-        "null,Comment#6,12,2\nnull,Comment#5,11,2\nnull,Comment#4,10,2\n" +
-        "null,Comment#3,9,2\nnull,Comment#2,8,2\nnull,Comment#15,21,2\n" +
-        "null,Comment#14,20,2\nnull,Comment#13,19,2\nnull,Comment#12,18,2\n" +
-        "null,Comment#11,17,2\nnull,Comment#10,16,2\nnull,Comment#1,7,2"
+      "1,Hi,1,0\n" +
+        "2,Hello world,3,0\n" +
+        "2,Hello,2,0\n" +
+        "3,Hello world, how are you?,4,0\n" +
+        "3,I am fine.,5,0\n" +
+        "3,Luke Skywalker,6,0\n" +
+        "4,Comment#1,7,0\n" +
+        "4,Comment#2,8,0\n" +
+        "4,Comment#3,9,0\n" +
+        "4,Comment#4,10,0\n" +
+        "5,Comment#5,11,0\n" +
+        "5,Comment#6,12,0\n" +
+        "5,Comment#7,13,0\n" +
+        "5,Comment#8,14,0\n" +
+        "5,Comment#9,15,0\n" +
+        "6,Comment#10,16,0\n" +
+        "6,Comment#11,17,0\n" +
+        "6,Comment#12,18,0\n" +
+        "6,Comment#13,19,0\n" +
+        "6,Comment#14,20,0\n" +
+        "6,Comment#15,21,0"
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }

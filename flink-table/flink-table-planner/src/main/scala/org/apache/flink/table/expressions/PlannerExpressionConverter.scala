@@ -110,6 +110,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           tafd.getAccumulatorTypeInfo,
           args)
 
+      case _ : UserDefinedFunction =>
+        throw new ValidationException(
+          "The new type inference for functions is only supported in the Blink planner.")
+
       case fd: FunctionDefinition =>
         fd match {
 

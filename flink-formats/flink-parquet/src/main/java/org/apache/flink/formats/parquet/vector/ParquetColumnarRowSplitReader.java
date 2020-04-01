@@ -117,7 +117,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		this.selectedTypes = selectedTypes;
 		this.batchSize = batchSize;
 		// then we need to apply the predicate push down filter
-		ParquetMetadata footer = readFooter(conf, path, range(splitStart, splitLength));
+		ParquetMetadata footer = readFooter(conf, path, range(splitStart, splitStart + splitLength));
 		MessageType fileSchema = footer.getFileMetaData().getSchema();
 		FilterCompat.Filter filter = getFilter(conf);
 		List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);

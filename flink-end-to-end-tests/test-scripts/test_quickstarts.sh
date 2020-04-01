@@ -43,7 +43,7 @@ cd "${TEST_DATA_DIR}"
 ARTIFACT_ID=flink-quickstart-${TEST_TYPE}
 ARTIFACT_VERSION=0.1
 
-mvn archetype:generate                                   \
+run_mvn archetype:generate                                   \
     -DarchetypeGroupId=org.apache.flink                  \
     -DarchetypeArtifactId=flink-quickstart-${TEST_TYPE}  \
     -DarchetypeVersion=${FLINK_VERSION}                  \
@@ -68,7 +68,7 @@ sed -i -e ''$(($position + 1))'i\
 
 sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
 
-mvn clean package -nsu
+run_mvn clean package
 
 cd target
 jar tvf flink-quickstart-${TEST_TYPE}-0.1.jar > contentsInJar.txt

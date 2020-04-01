@@ -567,7 +567,9 @@ the following redistribution schemes are defined:
     while `element2` will go to operator instance 1.
 
   - **Union redistribution:** Each operator returns a List of state elements. The whole state is logically a concatenation of
-    all lists. On restore/redistribution, each operator gets the complete list of state elements.
+    all lists. On restore/redistribution, each operator gets the complete list of state elements. Do not use this feature if
+    your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC
+    framesize or out-of-memory errors.
 
 Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction`
 to buffer elements before sending them to the outside world. It demonstrates

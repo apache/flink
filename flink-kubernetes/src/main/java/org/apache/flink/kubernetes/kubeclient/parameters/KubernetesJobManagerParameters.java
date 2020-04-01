@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.parameters;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -29,6 +30,8 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -52,15 +55,21 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
 	@Override
 	public Map<String, String> getLabels() {
-		Map<String, String> labels = getCommonLabels();
+		final Map<String, String> labels = new HashMap<>();
+		labels.putAll(flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_LABELS).orElse(Collections.emptyMap()));
+		labels.putAll(getCommonLabels());
 		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-
-		return labels;
+		return Collections.unmodifiableMap(labels);
 	}
 
 	@Override
 	public Map<String, String> getEnvironments() {
-		return getPrefixedEnvironments(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX);
+		return ConfigurationUtils.getPrefixedKeyValuePairs(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfig);
+	}
+
+	@Override
+	public Map<String, String> getAnnotations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
 	}
 
 	public String getJobManagerMainContainerName() {
