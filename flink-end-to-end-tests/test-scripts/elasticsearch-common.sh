@@ -26,7 +26,7 @@ function setup_elasticsearch {
     mkdir -p $TEST_DATA_DIR
 
     local downloadUrl=$1
-    local elasticsearch_version=${2-0}
+    local elasticsearch_version=$2
 
     # start downloading Elasticsearch
     echo "Downloading Elasticsearch from $downloadUrl ..."
