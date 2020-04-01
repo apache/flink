@@ -238,6 +238,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		return FutureUtils.runAfterwards(
 			allJobManagerRunnersTerminationFuture,
 			() -> {
+				dispatcherBootstrap.stop();
+
 				stopDispatcherServices();
 
 				log.info("Stopped dispatcher {}.", getAddress());
