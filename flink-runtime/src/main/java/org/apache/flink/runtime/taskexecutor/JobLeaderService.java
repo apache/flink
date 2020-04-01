@@ -271,9 +271,7 @@ public class JobLeaderService {
 				if (!stopped) {
 					stopped = true;
 
-					if (rpcConnection != null) {
-						rpcConnection.close();
-					}
+					closeRpcConnection();
 				}
 			}
 		}
@@ -310,43 +308,48 @@ public class JobLeaderService {
 
 					if (leaderAddress == null || leaderAddress.isEmpty()) {
 						// the leader lost leadership but there is no other leader yet.
-						if (rpcConnection != null) {
-							rpcConnection.close();
-							rpcConnection = null;
-						}
-
 						jobManagerLostLeadership = Optional.ofNullable(currentJobMasterId);
-						currentJobMasterId = jobMasterId;
+						closeRpcConnection();
 					} else {
-						currentJobMasterId = jobMasterId;
-
-						if (rpcConnection != null) {
-							// check if we are already trying to connect to this leader
-							if (!Objects.equals(jobMasterId, rpcConnection.getTargetLeaderId())) {
-								rpcConnection.close();
-
-								rpcConnection = new JobManagerRegisteredRpcConnection(
-									LOG,
-									leaderAddress,
-									jobMasterId,
-									rpcService.getExecutor());
-							}
+						// check whether we are already connecting to this leader
+						if (Objects.equals(jobMasterId, currentJobMasterId)) {
+							LOG.debug("Ongoing attempt to connect to leader of job {}. Ignoring duplicate leader information.", jobId);
 						} else {
-							rpcConnection = new JobManagerRegisteredRpcConnection(
-								LOG,
-								leaderAddress,
-								jobMasterId,
-								rpcService.getExecutor());
+							closeRpcConnection();
+							openRpcConnectionTo(leaderAddress, jobMasterId);
 						}
-
-						LOG.info("Try to register at job manager {} with leader id {}.", leaderAddress, leaderId);
-						rpcConnection.start();
 					}
 				}
 			}
 
 			// send callbacks outside of the lock scope
 			jobManagerLostLeadership.ifPresent(oldJobMasterId -> jobLeaderListener.jobManagerLostLeadership(jobId, oldJobMasterId));
+		}
+
+		@GuardedBy("lock")
+		private void openRpcConnectionTo(String leaderAddress, JobMasterId jobMasterId) {
+			Preconditions.checkState(
+				currentJobMasterId == null && rpcConnection == null,
+				"Cannot open a new rpc connection if the previous connection has not been closed.");
+
+			currentJobMasterId = jobMasterId;
+			rpcConnection = new JobManagerRegisteredRpcConnection(
+				LOG,
+				leaderAddress,
+				jobMasterId,
+				rpcService.getExecutor());
+
+			LOG.info("Try to register at job manager {} with leader id {}.", leaderAddress, jobMasterId.toUUID());
+			rpcConnection.start();
+		}
+
+		@GuardedBy("lock")
+		private void closeRpcConnection() {
+			if (rpcConnection != null) {
+				rpcConnection.close();
+				rpcConnection = null;
+				currentJobMasterId = null;
+			}
 		}
 
 		@Override
