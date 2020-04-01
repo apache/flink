@@ -301,7 +301,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
 
 			// we expect this to fail with a "ClassNotFoundException"
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, 666, true);
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, c, 666, true);
 			FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 			fail("Should have failed with a ClassNotFoundException");
 		}
