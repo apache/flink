@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
@@ -47,14 +48,18 @@ public class EmbeddedJobClient implements JobClient {
 
 	private final DispatcherGateway dispatcherGateway;
 
+	private final ScheduledExecutor retryExecutor;
+
 	private final Time timeout;
 
 	public EmbeddedJobClient(
 			final JobID jobId,
 			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor retryExecutor,
 			final Time rpcTimeout) {
 		this.jobId = checkNotNull(jobId);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
+		this.retryExecutor = checkNotNull(retryExecutor);
 		this.timeout = checkNotNull(rpcTimeout);
 	}
 
@@ -104,14 +109,13 @@ public class EmbeddedJobClient implements JobClient {
 	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
 		checkNotNull(userClassloader);
 
-		return dispatcherGateway
-				.requestJobResult(jobId, timeout)
+		final Time retryPeriod = Time.milliseconds(100L);
+		return JobStatusPollingUtils.getJobResult(dispatcherGateway, jobId, retryExecutor, timeout, retryPeriod)
 				.thenApply((jobResult) -> {
 					try {
 						return jobResult.toJobExecutionResult(userClassloader);
 					} catch (Throwable t) {
-						throw new CompletionException(
-								new Exception("Job " + jobId + " failed", t));
+						throw new CompletionException(new Exception("Job " + jobId + " failed", t));
 					}
 				});
 	}

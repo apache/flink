@@ -43,6 +43,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
+	private final boolean suppressSysout;
+
 	private final boolean enforceSingleJobExecution;
 
 	private int jobCounter;
@@ -51,8 +53,10 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution) {
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.suppressSysout = suppressSysout;
 		this.enforceSingleJobExecution = enforceSingleJobExecution;
 
 		this.jobCounter = 0;
@@ -92,10 +96,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobClient executeAsync(String jobName) throws Exception {
 		validateAllowedExecution();
-
 		final JobClient jobClient = super.executeAsync(jobName);
 
-		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		if (!suppressSysout) {
+			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		}
 
 		return jobClient;
 	}
@@ -118,12 +123,14 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution) {
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
 		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
 			executorServiceLoader,
 			configuration,
 			userCodeClassLoader,
-			enforceSingleJobExecution);
+			enforceSingleJobExecution,
+			suppressSysout);
 		initializeContextEnvironment(factory);
 	}
 
