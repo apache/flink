@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
@@ -41,6 +42,10 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link JobLeaderService}.
@@ -106,34 +111,25 @@ public class JobLeaderServiceTest extends TestLogger {
 	 */
 	@Test
 	public void doesNotReconnectAfterTargetLostLeadership() throws Exception {
-		final JobLeaderService jobLeaderService = new JobLeaderService(
-			new LocalUnresolvedTaskManagerLocation(),
-			RetryingRegistrationConfiguration.defaultConfiguration());
-
 		final JobID jobId = new JobID();
 
 		final SettableLeaderRetrievalService leaderRetrievalService = new SettableLeaderRetrievalService();
 		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServicesBuilder()
 			.setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
 			.build();
+		final TestingJobMasterGateway jobMasterGateway = registerJobMaster();
 
-		final String jmAddress = "foobar";
-		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
-		rpcServiceResource.getTestingRpcService().registerGateway(jmAddress, jobMasterGateway);
+		final OneShotLatch jobManagerGainedLeadership = new OneShotLatch();
+		final TestingJobLeaderListener testingJobLeaderListener = new TestingJobLeaderListener(ignored -> jobManagerGainedLeadership.trigger());
 
-		final TestingJobLeaderListener testingJobLeaderListener = new TestingJobLeaderListener();
-		jobLeaderService.start(
-			"foobar",
-			rpcServiceResource.getTestingRpcService(),
-			haServices,
-			testingJobLeaderListener);
+		final JobLeaderService jobLeaderService = createAndStartJobLeaderService(haServices, testingJobLeaderListener);
 
 		try {
-			jobLeaderService.addJob(jobId, jmAddress);
+			jobLeaderService.addJob(jobId, jobMasterGateway.getAddress());
 
-			leaderRetrievalService.notifyListener(jmAddress, UUID.randomUUID());
+			leaderRetrievalService.notifyListener(jobMasterGateway.getAddress(), UUID.randomUUID());
 
-			testingJobLeaderListener.waitUntilJobManagerGainedLeadership();
+			jobManagerGainedLeadership.await();
 
 			// revoke the leadership
 			leaderRetrievalService.notifyListener(null, null);
@@ -145,14 +141,86 @@ public class JobLeaderServiceTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that the JobLeaderService can reconnect to an old leader which seemed
+	 * to have lost the leadership in between. See FLINK-14316.
+	 */
+	@Test
+	public void canReconnectToOldLeaderWithSameLeaderAddress() throws Exception {
+		final JobID jobId = new JobID();
+
+		final SettableLeaderRetrievalService leaderRetrievalService = new SettableLeaderRetrievalService();
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServicesBuilder()
+			.setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
+			.build();
+
+		final TestingJobMasterGateway jobMasterGateway = registerJobMaster();
+
+		final BlockingQueue<JobID> leadershipQueue = new ArrayBlockingQueue<>(1);
+		final TestingJobLeaderListener testingJobLeaderListener = new TestingJobLeaderListener(leadershipQueue::offer);
+
+		final JobLeaderService jobLeaderService = createAndStartJobLeaderService(haServices, testingJobLeaderListener);
+
+		try {
+			jobLeaderService.addJob(jobId, jobMasterGateway.getAddress());
+
+			final UUID leaderSessionId = UUID.randomUUID();
+			leaderRetrievalService.notifyListener(jobMasterGateway.getAddress(), leaderSessionId);
+
+			// wait for the first leadership
+			assertThat(leadershipQueue.take(), is(jobId));
+
+			// revoke the leadership
+			leaderRetrievalService.notifyListener(null, null);
+
+			testingJobLeaderListener.waitUntilJobManagerLostLeadership();
+
+			leaderRetrievalService.notifyListener(jobMasterGateway.getAddress(), leaderSessionId);
+
+			// check that we obtain the leadership a second time
+			assertThat(leadershipQueue.take(), is(jobId));
+		} finally {
+			jobLeaderService.stop();
+		}
+	}
+
+	private JobLeaderService createAndStartJobLeaderService(HighAvailabilityServices haServices, JobLeaderListener testingJobLeaderListener) {
+		final JobLeaderService jobLeaderService = new JobLeaderService(
+			new LocalUnresolvedTaskManagerLocation(),
+			RetryingRegistrationConfiguration.defaultConfiguration());
+
+		jobLeaderService.start(
+			"foobar",
+			rpcServiceResource.getTestingRpcService(),
+			haServices,
+			testingJobLeaderListener);
+		return jobLeaderService;
+	}
+
+	private TestingJobMasterGateway registerJobMaster() {
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
+		rpcServiceResource.getTestingRpcService().registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+		return jobMasterGateway;
+	}
+
 	private static final class TestingJobLeaderListener implements JobLeaderListener {
 
-		private final CountDownLatch jobManagerGainedLeadership = new CountDownLatch(1);
 		private final CountDownLatch jobManagerLostLeadership = new CountDownLatch(1);
+
+		private final Consumer<JobID> jobManagerGainedLeadership;
+
+		private TestingJobLeaderListener() {
+			this(ignored -> {});
+		}
+
+		private TestingJobLeaderListener(Consumer<JobID> jobManagerGainedLeadership) {
+			this.jobManagerGainedLeadership = jobManagerGainedLeadership;
+		}
 
 		@Override
 		public void jobManagerGainedLeadership(JobID jobId, JobMasterGateway jobManagerGateway, JMTMRegistrationSuccess registrationMessage) {
-			jobManagerGainedLeadership.countDown();
+			jobManagerGainedLeadership.accept(jobId);
 		}
 
 		@Override
@@ -163,10 +231,6 @@ public class JobLeaderServiceTest extends TestLogger {
 		@Override
 		public void handleError(Throwable throwable) {
 			// ignored
-		}
-
-		private void waitUntilJobManagerGainedLeadership() throws InterruptedException {
-			jobManagerGainedLeadership.await();
 		}
 
 		private void waitUntilJobManagerLostLeadership() throws InterruptedException {
