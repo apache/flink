@@ -233,7 +233,7 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the info action.
 	 */
-	protected void info(String[] args) throws CliArgsException, FileNotFoundException, ProgramInvocationException {
+	protected void info(String[] args) throws Exception {
 		LOG.info("Running 'info' command.");
 
 		final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
@@ -265,7 +265,10 @@ public class CliFrontend {
 
 			LOG.info("Creating program plan dump");
 
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism, true);
+			final Configuration effectiveConfiguration =
+					getEffectiveConfiguration(commandLine, programOptions, program.getJobJarAndDependencies());
+
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, effectiveConfiguration, parallelism, true);
 			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 
 			if (jsonPlan != null) {
