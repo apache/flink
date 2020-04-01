@@ -155,11 +155,4 @@ public enum FlinkSqlConformance implements SqlConformance {
 	public boolean allowQualifyingCommonColumn() {
 		return true;
 	}
-
-	/**
-	 * Whether to allow "create table T(i int, j int) partitioned by (i)" grammar.
-	 */
-	public boolean allowCreatePartitionedTable() {
-		return this == FlinkSqlConformance.HIVE;
-	}
 }

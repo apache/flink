@@ -21,19 +21,14 @@ package org.apache.flink.sql.parser;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
-import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
-import org.apache.calcite.avatica.util.Casing;
-import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
-import org.apache.calcite.sql.validate.SqlConformance;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Reader;
@@ -45,7 +40,6 @@ import static org.junit.Assert.fail;
 
 /** FlinkSqlParserImpl tests. **/
 public class FlinkSqlParserImplTest extends SqlParserTest {
-	private SqlConformance conformance0;
 
 	@Override
 	protected SqlParserImplFactory parserImplFactory() {
@@ -54,25 +48,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	protected SqlParser getSqlParser(Reader source,
 			UnaryOperator<SqlParser.ConfigBuilder> transform) {
-		if (conformance0 == null) {
-			return super.getSqlParser(source, transform);
-		} else {
-			// overwrite the default sql conformance.
-			return SqlParser.create(source,
-				SqlParser.configBuilder()
-					.setParserFactory(parserImplFactory())
-					.setQuoting(Quoting.DOUBLE_QUOTE)
-					.setUnquotedCasing(Casing.TO_UPPER)
-					.setQuotedCasing(Casing.UNCHANGED)
-					.setConformance(conformance0)
-					.build());
-		}
-	}
-
-	@Before
-	public void before() {
-		// clear the custom sql conformance.
-		conformance0 = null;
+		return super.getSqlParser(source, transform);
 	}
 
 	@Test
@@ -224,7 +200,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateTable() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		final String sql = "CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +
 				"  h varchar, \n" +
@@ -258,7 +233,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateTableWithComment() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		final String sql = "CREATE TABLE tbl1 (\n" +
 				"  a bigint comment 'test column comment AAA.',\n" +
 				"  h varchar, \n" +
@@ -294,7 +268,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateTableWithPrimaryKeyAndUniqueKey() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		final String sql = "CREATE TABLE tbl1 (\n" +
 				"  a bigint comment 'test column comment AAA.',\n" +
 				"  h varchar, \n" +
@@ -565,7 +538,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateInvalidPartitionedTable() {
-		conformance0 = FlinkSqlConformance.HIVE;
 		final String sql = "create table sls_stream1(\n" +
 			"  a bigint,\n" +
 			"  b VARCHAR,\n" +
@@ -576,16 +548,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			") with ( 'x' = 'y', 'asd' = 'dada')";
 		sql(sql).node(new ValidationMatcher()
 			.fails("Partition column [C] not defined in columns, at line 6, column 3"));
-	}
-
-	@Test
-	public void testNotAllowedCreatePartition() {
-		conformance0 = FlinkSqlConformance.DEFAULT;
-		final String sql = "create table sls_stream1(\n" +
-				"  a bigint,\n" +
-				"  b VARCHAR\n" +
-				") PARTITIONED BY (a^)^ with ( 'x' = 'y', 'asd' = 'dada')";
-		sql(sql).fails("Creating partitioned table is only allowed for HIVE dialect.");
 	}
 
 	@Test
