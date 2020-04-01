@@ -83,7 +83,7 @@ class MetricTests(unittest.TestCase):
                         MetricName(
                             '[]', 'my_distribution')).get_cumulative())
                 counter.inc(-2)
-                meter.make_event(3)
+                meter.mark_event(3)
                 distribution.update(10)
                 distribution.update(2)
                 self.assertEqual(-2, counter.get_count())
