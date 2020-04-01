@@ -62,7 +62,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
@@ -169,8 +168,7 @@ public class LocalInputChannelTest {
 				results.add(CompletableFuture.supplyAsync(CheckedSupplier.unchecked(consumer::call), executor));
 			}
 
-			FutureUtils.waitForAll(results)
-				.get(60_000L, TimeUnit.MILLISECONDS);
+			FutureUtils.waitForAll(results).get();
 		}
 		finally {
 			networkBuffers.destroyAllBufferPools();
