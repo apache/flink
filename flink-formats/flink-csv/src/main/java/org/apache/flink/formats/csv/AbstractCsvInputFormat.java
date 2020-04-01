@@ -76,7 +76,7 @@ public abstract class AbstractCsvInputFormat<T> extends FileInputFormat<T> {
 	/**
 	 * Find next legal line separator to return next offset (first byte offset of next line).
 	 *
-	 * NOTE: Because of the particularity of UTF-8 encoding, we can determine the number of bytes
+	 * <p>NOTE: Because of the particularity of UTF-8 encoding, we can determine the number of bytes
 	 * of this character only by comparing the first byte, so we do not need to traverse M*N in comparison.
 	 */
 	private long findNextLineStartOffset() throws IOException {
