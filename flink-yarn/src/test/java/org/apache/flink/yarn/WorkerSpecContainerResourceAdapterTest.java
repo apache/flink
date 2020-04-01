@@ -28,6 +28,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.contains;
@@ -55,7 +56,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(1.0)
@@ -115,7 +117,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)
@@ -177,7 +180,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				maxMemMB,
-				maxVcore);
+				maxVcore,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)
@@ -211,7 +215,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec = new WorkerResourceSpec.Builder()
 			.setCpuCores(1.0)
