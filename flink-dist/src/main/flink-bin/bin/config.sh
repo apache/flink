@@ -119,9 +119,6 @@ DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Direc
 # CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
 ########################################################################################################################
 
-KEY_JOBM_MEM_SIZE="jobmanager.heap.size"
-KEY_JOBM_MEM_MB="jobmanager.heap.mb"
-
 KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
 
 KEY_ENV_PID_DIR="env.pid.dir"
@@ -138,143 +135,6 @@ KEY_ENV_JAVA_OPTS_CLI="env.java.opts.client"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
-
-########################################################################################################################
-# MEMORY SIZE UNIT
-########################################################################################################################
-
-BYTES_UNITS=("b" "bytes")
-KILO_BYTES_UNITS=("k" "kb" "kibibytes")
-MEGA_BYTES_UNITS=("m" "mb" "mebibytes")
-GIGA_BYTES_UNITS=("g" "gb" "gibibytes")
-TERA_BYTES_UNITS=("t" "tb" "tebibytes")
-
-hasUnit() {
-    text=$1
-
-    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
-
-    if [ -z "$trimmed" -o "$trimmed" == " " ]; then
-        echo "$trimmed is an empty- or whitespace-only string"
-	exit 1
-    fi
-
-    len=${#trimmed}
-    pos=0
-
-    while [ $pos -lt $len ]; do
-	current=${trimmed:pos:1}
-	if [[ ! $current < '0' ]] && [[ ! $current > '9' ]]; then
-	    let pos+=1
-	else
-	    break
-	fi
-    done
-
-    number=${trimmed:0:pos}
-
-    unit=${trimmed:$pos}
-    unit=$(echo -e "${unit}" | tr -d '[:space:]')
-    unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
-
-    [[ ! -z "$unit" ]]
-}
-
-parseBytes() {
-    text=$1
-
-    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
-
-    if [ -z "$trimmed" -o "$trimmed" == " " ]; then
-        echo "$trimmed is an empty- or whitespace-only string"
-	exit 1
-    fi
-
-    len=${#trimmed}
-    pos=0
-
-    while [ $pos -lt $len ]; do
-	current=${trimmed:pos:1}
-	if [[ ! $current < '0' ]] && [[ ! $current > '9' ]]; then
-	    let pos+=1
-	else
-	    break
-	fi
-    done
-
-    number=${trimmed:0:pos}
-
-    unit=${trimmed:$pos}
-    unit=$(echo -e "${unit}" | tr -d '[:space:]')
-    unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
-
-    if [ -z "$number" ]; then
-        echo "text does not start with a number"
-        exit 1
-    fi
-
-    local multiplier
-    if [ -z "$unit" ]; then
-        multiplier=1
-    else
-        if matchesAny $unit "${BYTES_UNITS[*]}"; then
-            multiplier=1
-        elif matchesAny $unit "${KILO_BYTES_UNITS[*]}"; then
-                multiplier=1024
-        elif matchesAny $unit "${MEGA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024`
-        elif matchesAny $unit "${GIGA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024 \* 1024`
-        elif matchesAny $unit "${TERA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024 \* 1024 \* 1024`
-        else
-            echo "[ERROR] Memory size unit $unit does not match any of the recognized units"
-            exit 1
-        fi
-    fi
-
-    ((result=$number * $multiplier))
-
-    if [ $[result / multiplier] != "$number" ]; then
-        echo "[ERROR] The value $text cannot be re represented as 64bit number of bytes (numeric overflow)."
-        exit 1
-    fi
-
-    echo "$result"
-}
-
-matchesAny() {
-    str=$1
-    variants=$2
-
-    for s in ${variants[*]}; do
-        if [ $str == $s ]; then
-            return 0
-        fi
-    done
-
-    return 1
-}
-
-getKibiBytes() {
-    bytes=$1
-    echo "$(($bytes >>10))"
-}
-
-getMebiBytes() {
-    bytes=$1
-    echo "$(($bytes >> 20))"
-}
-
-getGibiBytes() {
-    bytes=$1
-    echo "$(($bytes >> 30))"
-}
-
-getTebiBytes() {
-    bytes=$1
-    echo "$(($bytes >> 40))"
-}
 
 ########################################################################################################################
 # PATHS AND CONFIG
@@ -366,16 +226,6 @@ fi
 
 IS_NUMBER="^[0-9]+$"
 
-# Define FLINK_JM_HEAP if it is not already set
-if [ -z "${FLINK_JM_HEAP}" ]; then
-    FLINK_JM_HEAP=$(readFromConfig ${KEY_JOBM_MEM_SIZE} 0 "${YAML_CONF}")
-fi
-
-# Try read old config key, if new key not exists
-if [ "${FLINK_JM_HEAP}" == 0 ]; then
-    FLINK_JM_HEAP_MB=$(readFromConfig ${KEY_JOBM_MEM_MB} 0 "${YAML_CONF}")
-fi
-
 # Verify that NUMA tooling is available
 command -v numactl >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
@@ -466,7 +316,7 @@ fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
-# KEY_JOBM_MEM_SIZE and TaskManagerOptions#TOTAL_PROCESS_MEMORY for that!
+# JobManagerOptions#TOTAL_PROCESS_MEMORY and TaskManagerOptions#TOTAL_PROCESS_MEMORY for that!
 if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""
 fi
