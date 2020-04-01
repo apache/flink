@@ -135,7 +135,8 @@ trait StreamTableEnvironment extends TableEnvironment {
     *      stream,
     *      $"a", // rename the first field to 'a'
     *      $"b" // rename the second field to 'b'
-    *      $"rowtime".rowtime // extract the internally attached timestamp into an event-time attribute named 'rowtime'
+    *      $"rowtime".rowtime // extract the internally attached timestamp
+    *                         // into an event-time attribute named 'rowtime'
     *   )
     * }}}
     *
