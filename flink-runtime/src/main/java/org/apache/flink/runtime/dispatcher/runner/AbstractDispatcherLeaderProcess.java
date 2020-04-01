@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -43,7 +44,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProcess {
+/**
+ * A base {@link DispatcherLeaderProcess}.
+ */
+@Internal
+public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProcess {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -227,6 +232,9 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		return null;
 	}
 
+	/**
+	 * The state of the {@link DispatcherLeaderProcess}.
+	 */
 	protected enum State {
 		CREATED,
 		RUNNING,
@@ -237,14 +245,20 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	// Internal classes
 	// ------------------------------------------------------------
 
-	interface DispatcherGatewayServiceFactory {
+	/**
+	 * Factory for {@link DispatcherGatewayService}.
+	 */
+	public interface DispatcherGatewayServiceFactory {
 		DispatcherGatewayService create(
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter);
 	}
 
-	interface DispatcherGatewayService extends AutoCloseableAsync {
+	/**
+	 * An accessor of the {@link DispatcherGateway}.
+	 */
+	public interface DispatcherGatewayService extends AutoCloseableAsync {
 		DispatcherGateway getGateway();
 
 		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
