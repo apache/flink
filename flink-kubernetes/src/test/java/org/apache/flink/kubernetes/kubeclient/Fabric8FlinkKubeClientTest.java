@@ -70,12 +70,9 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 
 	private KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
-
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
 
 		flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
 		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
@@ -84,6 +81,14 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 		flinkConfig.set(BlobServerOptions.PORT, Integer.toString(BLOB_SERVER_PORT));
 		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
 		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
+	}
+
+	@Before
+	public void setup() throws Exception {
+		super.setup();
+
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
 
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(JOB_MANAGER_MEMORY)

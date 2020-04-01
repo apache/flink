@@ -70,14 +70,19 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	private JavaCmdJobManagerDecorator javaCmdJobManagerDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
 
 		flinkConfig.set(KubernetesConfigOptions.FLINK_CONF_DIR, FLINK_CONF_DIR_IN_POD);
 		flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, FLINK_LOG_DIR_IN_POD);
 		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
 		flinkConfig.set(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH, KUBERNETES_ENTRY_PATH);
+	}
+
+	@Before
+	public void setup() throws Exception {
+		super.setup();
 
 		this.javaCmdJobManagerDecorator = new JavaCmdJobManagerDecorator(kubernetesJobManagerParameters);
 	}

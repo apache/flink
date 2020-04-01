@@ -114,12 +114,17 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 	@Rule
 	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
 
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1024m"));
 		flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
+	}
+
+	@Before
+	public void setup() throws Exception {
+		super.setup();
 
 		final Deployment mockDeployment = new DeploymentBuilder()
 			.editOrNewMetadata()

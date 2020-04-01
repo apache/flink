@@ -71,13 +71,19 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 	private Pod resultPod;
 	private Container resultMainContainer;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, ANNOTATIONS);
 		this.flinkConfig.setString(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+	}
+
+	@Before
+	public void setup() throws Exception {
+		super.setup();
 
 		final InitJobManagerDecorator initJobManagerDecorator =
 			new InitJobManagerDecorator(this.kubernetesJobManagerParameters);

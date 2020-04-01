@@ -61,15 +61,21 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
 	private KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
 		flinkConfig.set(TaskManagerOptions.CPU_CORES, TASK_MANAGER_CPU);
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TASK_MANAGER_MEMORY + "m"));
 		flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
 
 		customizedEnvs.forEach((k, v) ->
 			flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k, v));
+	}
+
+	@Before
+	public void setup() throws Exception {
+		super.setup();
 
 		final TaskExecutorProcessSpec taskExecutorProcessSpec =
 			TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);

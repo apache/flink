@@ -66,15 +66,20 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 	protected KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
+		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
+	}
+
 	@Before
 	public void setup() throws Exception {
 		super.setup();
 
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-
-		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
-		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
 
 		this.kubernetesJobManagerSpecification =
 			KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);

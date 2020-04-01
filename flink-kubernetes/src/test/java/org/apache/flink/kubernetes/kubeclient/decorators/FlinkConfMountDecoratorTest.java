@@ -56,11 +56,16 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
 	private FlinkConfMountDecorator flinkConfMountDecorator;
 
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
+		this.flinkConfig.set(KubernetesConfigOptions.FLINK_CONF_DIR, FLINK_CONF_DIR_IN_POD);
+	}
+
 	@Before
 	public void setup() throws Exception {
 		super.setup();
-
-		this.flinkConfig.set(KubernetesConfigOptions.FLINK_CONF_DIR, FLINK_CONF_DIR_IN_POD);
 
 		this.flinkConfMountDecorator = new FlinkConfMountDecorator(kubernetesJobManagerParameters);
 	}
