@@ -173,40 +173,28 @@ public class OrcTableSourceTest {
 	public void testApplyPredicate() throws Exception {
 
 		OrcTableSource orc = OrcTableSource.builder()
-			.path(getPath(TEST_FILE_NESTED))
-			.forOrcSchema(TEST_SCHEMA_NESTED)
-			.build();
+				.path(getPath(TEST_FILE_NESTED))
+				.forOrcSchema(TEST_SCHEMA_NESTED)
+				.build();
 
 		// expressions for supported predicates
 		Expression pred1 = new GreaterThan(
-			new PlannerResolvedFieldReference("int1", Types.INT),
-			new Literal(100, Types.INT));
+				new PlannerResolvedFieldReference("int1", Types.INT),
+				new Literal(100, Types.INT));
 		Expression pred2 = new EqualTo(
-			new PlannerResolvedFieldReference("string1", Types.STRING),
-			new Literal("hello", Types.STRING));
-		// unsupported predicate
-		Expression unsupportedPred = new EqualTo(
-			new GetCompositeField(
-				new ItemAt(
-					new PlannerResolvedFieldReference(
-						"list",
-						ObjectArrayTypeInfo.getInfoFor(
-							Types.ROW_NAMED(new String[] {"int1", "string1"}, Types.INT, Types.STRING))),
-					new Literal(1, Types.INT)),
-				"int1"),
-			new Literal(1, Types.INT)
-			);
+				new PlannerResolvedFieldReference("string1", Types.STRING),
+				new Literal("hello", Types.STRING));
 		// invalid predicate
 		Expression invalidPred = new EqualTo(
-			new PlannerResolvedFieldReference("long1", Types.LONG),
-			// some invalid, non-serializable literal (here an object of this test class)
-			new Literal(new OrcTableSourceTest(), Types.LONG)
+				new PlannerResolvedFieldReference("long1", Types.LONG),
+				// some invalid, non-serializable literal (here an object of this test class)
+				new Literal(new OrcTableSourceTest(), Types.LONG)
 		);
 
 		ArrayList<Expression> preds = new ArrayList<>();
 		preds.add(pred1);
 		preds.add(pred2);
-		preds.add(unsupportedPred);
+		preds.add(unsupportedPred());
 		preds.add(invalidPred);
 
 		// apply predicates on TableSource
@@ -220,8 +208,8 @@ public class OrcTableSourceTest {
 
 		// ensure return type is identical
 		assertEquals(
-			Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes()),
-			projected.getReturnType());
+				Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes()),
+				projected.getReturnType());
 
 		// ensure IF is configured with valid/supported predicates
 		OrcTableSource spyTS = spy(projected);
@@ -231,17 +219,45 @@ public class OrcTableSourceTest {
 		when(environment.createInput(any(InputFormat.class))).thenReturn(mock(DataSource.class));
 		spyTS.getDataSet(environment);
 
-		ArgumentCaptor<OrcRowInputFormat.Predicate> arguments = ArgumentCaptor.forClass(OrcRowInputFormat.Predicate.class);
+		ArgumentCaptor<OrcSplitReader.Predicate> arguments = ArgumentCaptor.forClass(OrcSplitReader.Predicate.class);
 		verify(mockIF, times(2)).addPredicate(arguments.capture());
 		List<String> values = arguments.getAllValues().stream().map(Object::toString).collect(Collectors.toList());
 		assertTrue(values.contains(
-			new OrcRowInputFormat.Not(new OrcRowInputFormat.LessThanEquals("int1", PredicateLeaf.Type.LONG, 100)).toString()));
+				new OrcSplitReader.Not(new OrcSplitReader.LessThanEquals("int1", PredicateLeaf.Type.LONG, 100)).toString()));
 		assertTrue(values.contains(
-			new OrcRowInputFormat.Equals("string1", PredicateLeaf.Type.STRING, "hello").toString()));
+				new OrcSplitReader.Equals("string1", PredicateLeaf.Type.STRING, "hello").toString()));
 
 		// ensure filter pushdown is correct
 		assertTrue(spyTS.isFilterPushedDown());
 		assertFalse(orc.isFilterPushedDown());
+	}
+
+	private Expression unsupportedPred() {
+		return new EqualTo(
+			new GetCompositeField(
+				new ItemAt(
+					new PlannerResolvedFieldReference(
+						"list",
+						ObjectArrayTypeInfo.getInfoFor(
+							Types.ROW_NAMED(new String[] {"int1", "string1"}, Types.INT, Types.STRING))),
+					new Literal(1, Types.INT)),
+				"int1"),
+			new Literal(1, Types.INT)
+		);
+	}
+
+	@Test
+	public void testUnsupportedPredOnly() {
+		OrcTableSource orc = OrcTableSource.builder()
+				.path(getPath(TEST_FILE_NESTED))
+				.forOrcSchema(TEST_SCHEMA_NESTED)
+				.build();
+
+		// apply predicates on TableSource
+		OrcTableSource projected = (OrcTableSource) orc.applyPredicate(
+				Collections.singletonList(unsupportedPred()));
+
+		assertNotEquals(orc.explainSource(), projected.explainSource());
 	}
 
 	@Test
