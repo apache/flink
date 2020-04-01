@@ -234,7 +234,7 @@ public class ClientTest extends TestLogger {
 			.build();
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, 1, true);
+		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, new Configuration(), 1, true);
 		OptimizedPlan op = optimizer.compile(plan);
 		assertNotNull(op);
 
