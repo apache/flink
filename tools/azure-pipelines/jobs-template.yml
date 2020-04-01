@@ -50,6 +50,8 @@ jobs:
       restoreKeys: $(CACHE_FALLBACK_KEY)
       path: $(MAVEN_CACHE_FOLDER)
     continueOnError: true # continue the build even if the cache fails.
+    # do not use cache on the "Default" queue
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache Maven local repo
   - script: |
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
@@ -111,6 +113,7 @@ jobs:
       restoreKeys: $(CACHE_FALLBACK_KEY)
       path: $(MAVEN_CACHE_FOLDER)
     continueOnError: true # continue the build even if the cache fails.
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache Maven local repo
   - script: |
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
