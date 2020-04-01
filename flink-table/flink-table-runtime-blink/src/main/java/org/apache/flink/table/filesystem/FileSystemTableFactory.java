@@ -35,10 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
-import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
+import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
@@ -55,6 +52,9 @@ public class FileSystemTableFactory implements
 		TableSourceFactory<BaseRow>,
 		TableSinkFactory<BaseRow> {
 
+	public static final String CONNECTOR_VALUE = "filesystem";
+	public static final String PATH = "path";
+
 	public static final ConfigOption<String> PARTITION_DEFAULT_NAME = key("partition.default-name")
 			.stringType()
 			.defaultValue("__DEFAULT_PARTITION__")
@@ -64,8 +64,7 @@ public class FileSystemTableFactory implements
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE);
-		context.put(CONNECTOR_PROPERTY_VERSION, "1");
+		context.put(CONNECTOR, CONNECTOR_VALUE);
 		return context;
 	}
 
@@ -74,7 +73,7 @@ public class FileSystemTableFactory implements
 		List<String> properties = new ArrayList<>();
 
 		// path
-		properties.add(CONNECTOR_PATH);
+		properties.add(PATH);
 
 		// schema
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
@@ -82,7 +81,8 @@ public class FileSystemTableFactory implements
 
 		properties.add(PARTITION_DEFAULT_NAME.key());
 
-		// format wildcard
+		// format
+		properties.add(FORMAT);
 		properties.add(FORMAT + ".*");
 
 		return properties;
@@ -95,7 +95,7 @@ public class FileSystemTableFactory implements
 
 		return new FileSystemTableSource(
 				context.getTable().getSchema(),
-				new Path(properties.getString(CONNECTOR_PATH)),
+				new Path(properties.getString(PATH)),
 				context.getTable().getPartitionKeys(),
 				getPartitionDefaultName(properties),
 				getFormatFactory(context.getTable().getProperties()));
@@ -108,7 +108,7 @@ public class FileSystemTableFactory implements
 
 		return new FileSystemTableSink(
 				context.getTable().getSchema(),
-				new Path(properties.getString(CONNECTOR_PATH)),
+				new Path(properties.getString(PATH)),
 				context.getTable().getPartitionKeys(),
 				getPartitionDefaultName(properties),
 				getFormatFactory(context.getTable().getProperties()));

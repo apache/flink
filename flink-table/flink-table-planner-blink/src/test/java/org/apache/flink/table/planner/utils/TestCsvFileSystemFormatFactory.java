@@ -23,7 +23,6 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.factories.TableFormatFactoryBase;
 import org.apache.flink.table.filesystem.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -33,18 +32,36 @@ import org.apache.flink.types.Row;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 
 /**
  * Test csv {@link FileSystemFormatFactory}.
  */
-public class TestCsvFileSystemFormatFactory extends TableFormatFactoryBase<BaseRow> implements FileSystemFormatFactory {
+public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	public TestCsvFileSystemFormatFactory() {
-		super("testcsv", 1, true);
+	@Override
+	public boolean supportsSchemaDerivation() {
+		return true;
+	}
+
+	@Override
+	public Map<String, String> requiredContext() {
+		Map<String, String> context = new HashMap<>();
+		context.put(FORMAT, "testcsv");
+		return context;
+	}
+
+	@Override
+	public List<String> supportedProperties() {
+		return Collections.emptyList();
 	}
 
 	@Override

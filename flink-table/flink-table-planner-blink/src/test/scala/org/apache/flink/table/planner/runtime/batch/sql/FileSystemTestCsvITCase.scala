@@ -24,6 +24,6 @@ package org.apache.flink.table.planner.runtime.batch.sql
 class FileSystemTestCsvITCase extends BatchFileSystemITCaseBase {
 
   override def formatProperties(): Seq[String] = {
-    super.formatProperties() ++ Seq("'format.type' = 'testcsv'")
+    super.formatProperties() ++ Seq("'format' = 'testcsv'")
   }
 }

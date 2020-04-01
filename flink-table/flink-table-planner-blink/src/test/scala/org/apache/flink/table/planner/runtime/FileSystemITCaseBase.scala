@@ -65,8 +65,8 @@ trait FileSystemITCaseBase {
          |  a int,
          |  b bigint
          |) partitioned by (a, b) with (
-         |  'connector.type' = 'filesystem',
-         |  'connector.path' = '$resultPath',
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
          |  ${formatProperties().mkString("\n")}
          |)
        """.stripMargin
@@ -79,8 +79,8 @@ trait FileSystemITCaseBase {
          |  a int,
          |  b bigint
          |) with (
-         |  'connector.type' = 'filesystem',
-         |  'connector.path' = '$resultPath',
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
          |  ${formatProperties().mkString("\n")}
          |)
        """.stripMargin
