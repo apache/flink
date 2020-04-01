@@ -38,6 +38,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -108,10 +109,12 @@ public class JobManagerLogListHandlerTest {
 		try {
 			for (LogInfo logInfo : logsList) {
 				File file = temporaryFolder.newFile(logInfo.getName());
-				config.setString(WebOptions.LOG_PATH, file.getAbsolutePath());
+				if ("jobmanager.log".equals(logInfo.getName())){
+					config.setString(WebOptions.LOG_PATH, file.getAbsolutePath());
+				}
 			}
-		} catch (Exception e) {
-			throw new AssertionError("Could not setup test.", e);
+		} catch (IOException e) {
+			throw new RuntimeException("Could not setup test.", e);
 		}
 		return WebMonitorUtils.LogFileLocation.find(config);
 	}
