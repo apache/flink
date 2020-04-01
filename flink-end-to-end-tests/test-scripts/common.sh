@@ -717,7 +717,8 @@ function wait_for_restart_to_complete {
     local expected_num_restarts=$((current_num_restarts + 1))
 
     echo "Waiting for restart to happen"
-    while ! [[ ${current_num_restarts} -eq ${expected_num_restarts} ]]; do
+    while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
+        echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
         current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
         if [[ -z ${current_num_restarts} ]]; then
