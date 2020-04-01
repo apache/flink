@@ -22,31 +22,25 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.util.Collection;
-import java.util.HashSet;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link DispatcherBootstrap} which submits the provided {@link JobGraph job graphs}
- * for execution upon dispatcher initialization.
+ * A base class for a {@link DispatcherBootstrap}.
+ *
+ * <p>NOTE TO IMPLEMENTERS: This is meant as a bridge between the package-private
+ * {@link Dispatcher#runRecoveredJob(JobGraph)} method, and dispatcher bootstrap
+ * implementations in other packages.
  */
 @Internal
-public class DefaultDispatcherBootstrap extends AbstractDispatcherBootstrap {
+public abstract class AbstractDispatcherBootstrap implements DispatcherBootstrap {
 
-	private final Collection<JobGraph> recoveredJobs;
+	protected void launchRecoveredJobGraphs(final Dispatcher dispatcher, final Collection<JobGraph> recoveredJobGraphs) {
+		checkNotNull(dispatcher);
+		checkNotNull(recoveredJobGraphs);
 
-	public DefaultDispatcherBootstrap(final Collection<JobGraph> recoveredJobsGraphs) {
-		this.recoveredJobs = new HashSet<>(checkNotNull(recoveredJobsGraphs));
-	}
-
-	@Override
-	public void initialize(final Dispatcher dispatcher) {
-		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
-		recoveredJobs.clear();
-	}
-
-	@Override
-	public void stop() throws Exception {
-		// do nothing
+		for (JobGraph recoveredJob : recoveredJobGraphs) {
+			dispatcher.runRecoveredJob(recoveredJob);
+		}
 	}
 }

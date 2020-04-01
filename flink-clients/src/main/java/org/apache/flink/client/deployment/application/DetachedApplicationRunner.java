@@ -75,7 +75,7 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 				new WebSubmissionExecutorServiceLoader(applicationJobIds, dispatcherGateway);
 
 		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution);
+			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution, true);
 		} catch (ProgramInvocationException e) {
 			LOG.warn("Could not execute application: ", e);
 			throw new FlinkRuntimeException("Could not execute application.", e);

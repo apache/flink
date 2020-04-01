@@ -135,7 +135,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -147,7 +147,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -159,7 +159,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -171,7 +171,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -211,7 +211,8 @@ public class ClientTest extends TestLogger {
 					new TestExecutorServiceLoader(clusterClient, plan),
 					configuration,
 					program,
-					enforceSingleJobExecution);
+					enforceSingleJobExecution,
+					false);
 		}
 	}
 
@@ -255,7 +256,7 @@ public class ClientTest extends TestLogger {
 		try {
 			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 			final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock, false);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock, false, false);
 			fail("Creating the local execution environment should not be possible");
 		}
 		catch (InvalidProgramException e) {
