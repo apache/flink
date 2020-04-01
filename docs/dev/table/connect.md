@@ -1164,12 +1164,12 @@ CREATE TABLE MyUserTable (
   'connector.write.buffer-flush.max-size' = '10mb',
 
   -- optional: writing option, determines how many rows to insert per round trip.
-  -- This can help performance on writing to JDBC database. No default value,
+  -- This can help performance on writing to JDBC database. Default value is "-1",
   -- i.e. the default flushing is not depends on the number of buffered rows.
   'connector.write.buffer-flush.max-rows' = '1000',
 
   -- optional: writing option, sets a flush interval flushing buffered requesting
-  -- if the interval passes, in milliseconds. Default value is "0s", which means
+  -- if the interval passes, in milliseconds. Default value is "-1ms", which means
   -- no asynchronous flush thread will be scheduled.
   'connector.write.buffer-flush.interval' = '2s'
 )
