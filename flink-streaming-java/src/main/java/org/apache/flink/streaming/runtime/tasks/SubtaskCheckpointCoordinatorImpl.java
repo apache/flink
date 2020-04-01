@@ -114,14 +114,14 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 	@Override
 	public void checkpointState(
-			CheckpointMetaData checkpointMetaData,
-			CheckpointOptions checkpointOptions,
-			CheckpointMetrics checkpointMetrics,
+			CheckpointMetaData metadata,
+			CheckpointOptions options,
+			CheckpointMetrics metrics,
 			OperatorChain<?, ?> operatorChain,
 			Supplier<Boolean> isCanceled) throws Exception {
-		checkNotNull(checkpointOptions);
-		checkNotNull(checkpointMetrics);
-		final long checkpointId = checkpointMetaData.getCheckpointId();
+
+		checkNotNull(options);
+		checkNotNull(metrics);
 
 		// All of the following steps happen as an atomic step from the perspective of barriers and
 		// records/watermarks/timers/callbacks.
@@ -130,23 +130,87 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 		// Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
 		//           The pre-barrier work should be nothing or minimal in the common case.
-		operatorChain.prepareSnapshotPreBarrier(checkpointId);
+		operatorChain.prepareSnapshotPreBarrier(metadata.getCheckpointId());
 
 		// Step (2): Send the checkpoint barrier downstream
-		operatorChain.broadcastCheckpointBarrier(
-			checkpointId,
-			checkpointMetaData.getTimestamp(),
-			checkpointOptions);
+		operatorChain.broadcastCheckpointBarrier(metadata.getCheckpointId(), metadata.getTimestamp(), options);
 
-		// Step (3): Take the state snapshot. This should be largely asynchronous, to not
-		//           impact progress of the streaming topology
+		// Step (3): Take the state snapshot. This should be largely asynchronous, to not impact progress of the streaming topology
 
-		long startSyncPartNano = System.nanoTime();
+		Map<OperatorID, OperatorSnapshotFutures> snapshotFutures = new HashMap<>(operatorChain.getNumberOfOperators());
+		try {
+			takeSnapshotSync(snapshotFutures, metadata, metrics, options, operatorChain, isCanceled);
+			finishAndReportAsync(snapshotFutures, metadata, metrics);
+		} catch (Exception ex) {
+			cleanup(snapshotFutures, metadata, metrics, options, ex);
+		}
+	}
 
-		HashMap<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress = new HashMap<>(operatorChain.getNumberOfOperators());
-		ChannelStateWriteResult channelStateWriteResult =
-			checkpointOptions.getCheckpointType() == CHECKPOINT ? channelStateWriter.getWriteResult(checkpointMetaData.getCheckpointId()) :
-				ChannelStateWriteResult.EMPTY;
+	private void cleanup(
+			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
+			CheckpointMetaData metadata,
+			CheckpointMetrics metrics, CheckpointOptions options,
+			Exception ex) throws Exception {
+
+		for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
+			if (operatorSnapshotResult != null) {
+				try {
+					operatorSnapshotResult.cancel();
+				} catch (Exception e) {
+					LOG.warn("Could not properly cancel an operator snapshot result.", e);
+				}
+			}
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(
+				"{} - did NOT finish synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
+				taskName, metadata.getCheckpointId(),
+				metrics.getAlignmentDurationNanos() / 1_000_000,
+				metrics.getSyncDurationMillis());
+		}
+
+		if (options.getCheckpointType().isSynchronous()) {
+			// in the case of a synchronous checkpoint, we always rethrow the exception,
+			// so that the task fails.
+			// this is because the intention is always to stop the job after this checkpointing
+			// operation, and without the failure, the task would go back to normal execution.
+			throw ex;
+		} else {
+			env.declineCheckpoint(metadata.getCheckpointId(), ex);
+		}
+	}
+
+	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics) {
+		// we are transferring ownership over snapshotInProgressList for cleanup to the thread, active on submit
+		executorService.execute(new AsyncCheckpointRunnable(
+			snapshotFutures,
+			metadata,
+			metrics,
+			System.nanoTime(),
+			taskName,
+			closeableRegistry,
+			env,
+			asyncExceptionHandler));
+	}
+
+	private void takeSnapshotSync(
+			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
+			CheckpointMetaData checkpointMetaData,
+			CheckpointMetrics checkpointMetrics,
+			CheckpointOptions checkpointOptions,
+			OperatorChain<?, ?> operatorChain,
+			Supplier<Boolean> isCanceled) throws Exception {
+
+		long checkpointId = checkpointMetaData.getCheckpointId();
+		long started = System.nanoTime();
+
+		ChannelStateWriteResult channelStateWriteResult = checkpointOptions.getCheckpointType() == CHECKPOINT ?
+								channelStateWriter.getWriteResult(checkpointId) :
+								ChannelStateWriteResult.EMPTY;
+
+		CheckpointStreamFactory storage = checkpointStorage.resolveCheckpointStorageLocation(checkpointId, checkpointOptions.getTargetLocation());
+
 		try {
 			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
 				operatorSnapshotsInProgress.put(
@@ -157,69 +221,21 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 						operatorChain,
 						operatorWrapper.getStreamOperator(),
 						isCanceled,
-						channelStateWriteResult)
-				);
-			}
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Finished synchronous checkpoints for checkpoint {} on task {}",
-					checkpointMetaData.getCheckpointId(), taskName);
-			}
-
-			long startAsyncPartNano = System.nanoTime();
-
-			checkpointMetrics.setSyncDurationMillis((startAsyncPartNano - startSyncPartNano) / 1_000_000);
-
-			// we are transferring ownership over snapshotInProgressList for cleanup to the thread, active on submit
-			executorService.execute(new AsyncCheckpointRunnable(
-				operatorSnapshotsInProgress,
-				checkpointMetaData,
-				checkpointMetrics,
-				startAsyncPartNano,
-				taskName,
-				closeableRegistry,
-				env,
-				asyncExceptionHandler));
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(
-					"{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
-					taskName, checkpointMetaData.getCheckpointId(),
-					checkpointMetrics.getAlignmentDurationNanos() / 1_000_000,
-					checkpointMetrics.getSyncDurationMillis());
-			}
-		} catch (Exception ex) {
-			// Cleanup to release resources
-			for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
-				if (null != operatorSnapshotResult) {
-					try {
-						operatorSnapshotResult.cancel();
-					} catch (Exception e) {
-						LOG.warn("Could not properly cancel an operator snapshot result.", e);
-					}
-				}
-			}
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(
-					"{} - did NOT finish synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
-					taskName, checkpointMetaData.getCheckpointId(),
-					checkpointMetrics.getAlignmentDurationNanos() / 1_000_000,
-					checkpointMetrics.getSyncDurationMillis());
-			}
-
-			if (checkpointOptions.getCheckpointType().isSynchronous()) {
-				// in the case of a synchronous checkpoint, we always rethrow the exception,
-				// so that the task fails.
-				// this is because the intention is always to stop the job after this checkpointing
-				// operation, and without the failure, the task would go back to normal execution.
-				throw ex;
-			} else {
-				env.declineCheckpoint(checkpointMetaData.getCheckpointId(), ex);
+						channelStateWriteResult,
+						storage));
 			}
 		} finally {
-			checkpointStorage.clearCacheFor(checkpointMetaData.getCheckpointId());
+			checkpointStorage.clearCacheFor(checkpointId);
 		}
+
+		LOG.debug(
+			"{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
+			taskName,
+			checkpointId,
+			checkpointMetrics.getAlignmentDurationNanos() / 1_000_000,
+			checkpointMetrics.getSyncDurationMillis());
+
+		checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);
 	}
 
 	private OperatorSnapshotFutures buildOperatorSnapshotFutures(
@@ -228,10 +244,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			OperatorChain<?, ?> operatorChain,
 			StreamOperator<?> op,
 			Supplier<Boolean> isCanceled,
-			ChannelStateWriteResult channelStateWriteResult) throws Exception {
-		CheckpointStreamFactory storage = checkpointStorage.resolveCheckpointStorageLocation(
-			checkpointMetaData.getCheckpointId(),
-			checkpointOptions.getTargetLocation());
+			ChannelStateWriteResult channelStateWriteResult,
+			CheckpointStreamFactory storage) throws Exception {
 		OperatorSnapshotFutures snapshotInProgress = checkpointStreamOperator(
 			op,
 			checkpointMetaData,
