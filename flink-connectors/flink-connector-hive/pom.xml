@@ -38,6 +38,7 @@ under the License.
 	<properties>
 		<hiverunner.version>4.0.0</hiverunner.version>
 		<reflections.version>0.9.8</reflections.version>
+		<derby.version>10.10.2.0</derby.version>
 	</properties>
 
 	<dependencies>
@@ -284,6 +285,10 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.derby</groupId>
+					<artifactId>derby</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -740,6 +745,14 @@ under the License.
 			<scope>test</scope>
         </dependency>
 
+		<!-- The derby we use suffers some security vulnerabilities. Explicitly set it to test scope here. -->
+		<dependency>
+			<groupId>org.apache.derby</groupId>
+			<artifactId>derby</artifactId>
+			<version>${derby.version}</version>
+			<scope>test</scope>
+		</dependency>
+
     </dependencies>
 
 	<build>
@@ -824,6 +837,7 @@ under the License.
 				<hive.version>1.0.1</hive.version>
 				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
+				<derby.version>10.10.1.1</derby.version>
 			</properties>
 			<dependencies>
 				<dependency>
@@ -851,6 +865,7 @@ under the License.
 				<hive.version>1.1.0</hive.version>
 				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
+				<derby.version>10.11.1.1</derby.version>
 			</properties>
 			<dependencies>
 				<dependency>
@@ -932,6 +947,7 @@ under the License.
 			<id>hive-3.1.1</id>
 			<properties>
 				<hive.version>3.1.1</hive.version>
+				<derby.version>10.14.1.0</derby.version>
 			</properties>
 
 		</profile>
