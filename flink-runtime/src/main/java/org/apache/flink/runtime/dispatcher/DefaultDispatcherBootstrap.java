@@ -45,6 +45,11 @@ public class DefaultDispatcherBootstrap implements DispatcherBootstrap {
 		recoveredJobs.clear();
 	}
 
+	@Override
+	public void stop() throws Exception {
+		// do nothing
+	}
+
 	private void runRecoveredJobGraphs(final Dispatcher dispatcher, final Collection<JobGraph> recoveredJobGraphs) {
 		checkNotNull(dispatcher);
 		for (JobGraph recoveredJob : recoveredJobGraphs) {
