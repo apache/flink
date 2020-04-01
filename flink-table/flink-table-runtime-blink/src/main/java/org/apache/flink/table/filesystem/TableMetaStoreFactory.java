@@ -60,22 +60,12 @@ public interface TableMetaStoreFactory extends Serializable {
 		Optional<Path> getPartition(LinkedHashMap<String, String> partitionSpec) throws Exception;
 
 		/**
-		 * Create partition to meta store.
-		 * See {@link Catalog#createPartition}.
-		 *
-		 * @param partitionSpec partition spec should be a full spec, must be in the same order as
-		 *                      the partition keys of the table.
-		 * @param partitionPath partition location path.
-		 */
-		void createPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception;
-
-		/**
-		 * When inserting to an existing partition, the existing partition may need to be updated.
+		 * After data has been inserted into the partition path, the partition may need to be
+		 * created (if doesn't exists) or updated.
 		 *
 		 * @param partitionSpec the full spec of the target partition
 		 * @param partitionPath partition location path
 		 */
-		default void alterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
-		}
+		void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception;
 	}
 }
