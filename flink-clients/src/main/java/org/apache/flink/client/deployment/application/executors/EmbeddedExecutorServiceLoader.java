@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.Collection;
@@ -41,6 +42,7 @@ public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoa
 
 	private final DispatcherGateway dispatcherGateway;
 
+	private final ScheduledExecutor retryExecutor;
 
 	/**
 	 * Creates an {@link EmbeddedExecutorServiceLoader}.
@@ -51,14 +53,16 @@ public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoa
 	 */
 	public EmbeddedExecutorServiceLoader(
 			final Collection<JobID> submittedJobIds,
-			final DispatcherGateway dispatcherGateway) {
+			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor retryExecutor) {
 		this.submittedJobIds = checkNotNull(submittedJobIds);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
+		this.retryExecutor = checkNotNull(retryExecutor);
 	}
 
 	@Override
 	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
-		return new EmbeddedExecutorFactory(submittedJobIds, dispatcherGateway);
+		return new EmbeddedExecutorFactory(submittedJobIds, dispatcherGateway, retryExecutor);
 	}
 
 	@Override

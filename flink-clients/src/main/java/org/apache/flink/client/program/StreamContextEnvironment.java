@@ -47,6 +47,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
+	private final boolean suppressSysout;
+
 	private final boolean enforceSingleJobExecution;
 
 	private int jobCounter;
@@ -55,8 +57,10 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution) {
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.suppressSysout = suppressSysout;
 		this.enforceSingleJobExecution = enforceSingleJobExecution;
 
 		this.jobCounter = 0;
@@ -97,10 +101,11 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	@Override
 	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
 		validateAllowedExecution();
-
 		final JobClient jobClient = super.executeAsync(streamGraph);
 
-		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		if (!suppressSysout) {
+			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		}
 
 		return jobClient;
 	}
@@ -118,12 +123,14 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution) {
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
 		StreamExecutionEnvironmentFactory factory = () -> new StreamContextEnvironment(
 			executorServiceLoader,
 			configuration,
 			userCodeClassLoader,
-			enforceSingleJobExecution);
+			enforceSingleJobExecution,
+			suppressSysout);
 		initializeContextEnvironment(factory);
 	}
 

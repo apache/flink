@@ -20,6 +20,7 @@ package org.apache.flink.client.deployment.application.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.deployment.application.WebSubmissionJobClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
@@ -30,7 +31,8 @@ import java.util.Collection;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link PipelineExecutorFactory} for the {@link WebSubmissionExecutor}.
+ * A {@link PipelineExecutorFactory} for an {@link EmbeddedExecutor}
+ * that returns a {@link WebSubmissionJobClient}.
  */
 @Internal
 public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
@@ -69,6 +71,10 @@ public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
 	@Override
 	public PipelineExecutor getExecutor(final Configuration configuration) {
 		checkNotNull(configuration);
-		return new WebSubmissionExecutor(submittedJobIds, dispatcherGateway);
+
+		return new EmbeddedExecutor(
+				submittedJobIds,
+				dispatcherGateway,
+				WebSubmissionJobClient::new);
 	}
 }

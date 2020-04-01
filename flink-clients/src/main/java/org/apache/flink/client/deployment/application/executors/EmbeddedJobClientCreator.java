@@ -16,37 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.client.deployment.application.executors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-
-import java.util.Collection;
-import java.util.HashSet;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.execution.JobClient;
 
 /**
- * A {@link DispatcherBootstrap} which submits the provided {@link JobGraph job graphs}
- * for execution upon dispatcher initialization.
+ * An interface to be implemented by {@link JobClient} suppliers.
  */
 @Internal
-public class DefaultDispatcherBootstrap extends AbstractDispatcherBootstrap {
+public interface EmbeddedJobClientCreator {
 
-	private final Collection<JobGraph> recoveredJobs;
-
-	public DefaultDispatcherBootstrap(final Collection<JobGraph> recoveredJobsGraphs) {
-		this.recoveredJobs = new HashSet<>(checkNotNull(recoveredJobsGraphs));
-	}
-
-	@Override
-	public void initialize(final Dispatcher dispatcher) {
-		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
-		recoveredJobs.clear();
-	}
-
-	@Override
-	public void stop() throws Exception {
-		// do nothing
-	}
+	/**
+	 * Creates a {@link JobClient} that is adequate for the context in which the job is executed.
+	 * @param jobId the job id of the job associated with the returned client.
+	 * @return the job client.
+	 */
+	JobClient getJobClient(final JobID jobId);
 }
