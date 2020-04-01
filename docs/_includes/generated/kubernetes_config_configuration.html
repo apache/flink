@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>external-resource.&lt;resource_name&gt;.kubernetes.config-key</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>If configured, Flink will add "resources.limits.&lt;config-key&gt;" and "resources.requests.&lt;config-key&gt;" to the main container of TaskExecutor and set the value to the value of external-resource.&lt;resource_name&gt;.amount.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.cluster-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

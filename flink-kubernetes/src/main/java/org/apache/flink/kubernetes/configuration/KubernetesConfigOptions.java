@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ExternalResourceOptions;
 
 import java.util.List;
 import java.util.Map;
@@ -210,6 +211,23 @@ public class KubernetesConfigOptions {
 			.noDefaultValue()
 			.withDescription("The user-specified annotations that are set to the rest Service. The value should be " +
 				"in the form of a1:v1,a2:v2");
+
+	/** Defines the configuration key of that external resource in Kubernetes. This is used as a suffix in an actual config. */
+	public static final String EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX = "kubernetes.config-key";
+
+	/**
+	 * If configured, Flink will add "resources.limits.&gt;config-key&lt;" and "resources.requests.&gt;config-key&lt;" to the main
+	 * container of TaskExecutor and set the value to {@link ExternalResourceOptions#EXTERNAL_RESOURCE_AMOUNT}.
+	 *
+	 * <p>It is intentionally included into user docs while unused.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY =
+		key(ExternalResourceOptions.genericKeyWithSuffix(EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX))
+			.stringType()
+			.noDefaultValue()
+			.withDescription("If configured, Flink will add \"resources.limits.<config-key>\" and \"resources.requests.<config-key>\" " +
+				"to the main container of TaskExecutor and set the value to the value of " + ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT.key() + ".");
 
 	/**
 	 * The flink rest service exposed type.
