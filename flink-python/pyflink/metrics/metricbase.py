@@ -27,13 +27,10 @@ class MetricGroup(abc.ABC):
         """
         Creates a new MetricGroup and adds it to this groups sub-groups.
 
-        If extra is not None, creates a new key-value MetricGroup pair. The key group
-        is added to this groups sub-groups, while the value group is added to the key
-        group's sub-groups. This method returns the value group.
-
-        The only difference between calling this method and
-        `group.add_group(key).add_group(value)` is that get_all_variables()
-        of the value group return an additional `"<key>"="value"` pair.
+        If extra is not None, creates a new key-value MetricGroup pair.
+        The key group is added to this group's sub-groups, while the value
+        group is added to the key group's sub-groups. In this case,
+        the value group will be returned and a user variable will be defined.
         """
         pass
 
@@ -186,7 +183,7 @@ class Meter(Metric):
     def __init__(self, inner_counter):
         self._inner_counter = inner_counter
 
-    def make_event(self, value=1):
+    def mark_event(self, value=1):
         self._inner_counter.inc(value)
 
     def get_count(self):
