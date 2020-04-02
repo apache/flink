@@ -127,6 +127,7 @@ public class SlotPoolImpl implements SlotPool {
 	private JobMasterId jobMasterId;
 
 	/** The gateway to communicate with resource manager. */
+	@Nullable
 	private ResourceManagerGateway resourceManagerGateway;
 
 	private String jobManagerAddress;
@@ -227,13 +228,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		log.info("Suspending SlotPool.");
 
-		// cancel all pending allocations --> we can request these slots
-		// again after we regained the leadership
-		Set<AllocationID> allocationIds = pendingRequests.keySetB();
-
-		for (AllocationID allocationId : allocationIds) {
-			resourceManagerGateway.cancelSlotRequest(allocationId);
-		}
+		cancelPendingSlotRequests();
 
 		// do not accept any requests
 		jobMasterId = null;
@@ -244,15 +239,23 @@ public class SlotPoolImpl implements SlotPool {
 		clear();
 	}
 
+	private void cancelPendingSlotRequests() {
+		if (resourceManagerGateway != null) {
+			// cancel all pending allocations --> we can request these slots
+			// again after we regained the leadership
+			Set<AllocationID> allocationIds = pendingRequests.keySetB();
+
+			for (AllocationID allocationId : allocationIds) {
+				resourceManagerGateway.cancelSlotRequest(allocationId);
+			}
+		}
+	}
+
 	@Override
 	public void close() {
 		log.info("Stopping SlotPool.");
-		// cancel all pending allocations
-		Set<AllocationID> allocationIds = pendingRequests.keySetB();
 
-		for (AllocationID allocationId : allocationIds) {
-			resourceManagerGateway.cancelSlotRequest(allocationId);
-		}
+		cancelPendingSlotRequests();
 
 		// release all registered slots by releasing the corresponding TaskExecutors
 		for (ResourceID taskManagerResourceId : registeredTaskManagers) {
