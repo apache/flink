@@ -67,7 +67,7 @@ trait FileSystemITCaseBase {
          |) partitioned by (a, b) with (
          |  'connector' = 'filesystem',
          |  'path' = '$resultPath',
-         |  ${formatProperties().mkString("\n")}
+         |  ${formatProperties().mkString(",\n")}
          |)
        """.stripMargin
     )
@@ -81,7 +81,7 @@ trait FileSystemITCaseBase {
          |) with (
          |  'connector' = 'filesystem',
          |  'path' = '$resultPath',
-         |  ${formatProperties().mkString("\n")}
+         |  ${formatProperties().mkString(",\n")}
          |)
        """.stripMargin
     )
