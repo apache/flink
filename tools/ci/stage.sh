@@ -42,7 +42,9 @@ flink-scala,\
 flink-streaming-java,\
 flink-streaming-scala,\
 flink-metrics,\
-flink-metrics/flink-metrics-core"
+flink-metrics/flink-metrics-core,\
+flink-external-resources,\
+flink-external-resources/flink-external-resource-gpu"
 
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\

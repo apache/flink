@@ -241,6 +241,14 @@ under the License.
 			they are not included into the 'flink-dist' uber jar.
 		-->
 
+		<!-- start optional Flink external resource drivers -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-external-resource-gpu</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- start optional Flink metrics reporters -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
