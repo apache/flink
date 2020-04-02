@@ -57,13 +57,18 @@ kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --s
 mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
-"$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
+OUTPUT=`"$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
     -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
     -Djobmanager.heap.size=512m \
     -Dcontainerized.heap-cutoff-min=100 \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
-    -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"
+    -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"`
+
+echo "$OUTPUT"
+
+JOBMANAGER_URL=$(echo "$OUTPUT" | grep 'JobManager Web Interface: ' | awk -F'JobManager Web Interface: ' '{print $2}')
+wait_rest_endpoint_up "${JOBMANAGER_URL}/taskmanagers" "Dispatcher" "\{\"taskmanagers\":\[.*\]\}"
 
 "$FLINK_DIR"/bin/flink run -e kubernetes-session \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
