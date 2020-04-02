@@ -205,7 +205,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		}
 
 		// cleanup the resources of the checkpointed input gate
-		checkpointedInputGate.cleanup();
+		checkpointedInputGate.close();
 	}
 
 	private void releaseDeserializer(int channelIndex) {

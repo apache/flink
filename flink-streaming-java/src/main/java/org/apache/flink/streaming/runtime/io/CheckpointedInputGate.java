@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -41,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link CheckpointBarrier} from the {@link InputGate}.
  */
 @Internal
-public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent> {
+public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent>, Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointedInputGate.class);
 
@@ -210,7 +211,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 *
 	 * @throws IOException Thrown if the cleanup of I/O resources failed.
 	 */
-	public void cleanup() throws IOException {
+	public void close() throws IOException {
 		bufferStorage.close();
 	}
 

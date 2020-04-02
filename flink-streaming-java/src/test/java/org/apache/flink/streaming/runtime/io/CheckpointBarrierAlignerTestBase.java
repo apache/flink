@@ -104,7 +104,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		assertTrue(inputGate.isFinished());
 		assertTrue(inputGate.isEmpty());
 
-		inputGate.cleanup();
+		inputGate.close();
 	}
 
 	// ------------------------------------------------------------------------
