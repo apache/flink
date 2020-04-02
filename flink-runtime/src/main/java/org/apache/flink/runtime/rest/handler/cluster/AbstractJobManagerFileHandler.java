@@ -21,9 +21,9 @@ package org.apache.flink.runtime.rest.handler.cluster;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -37,6 +37,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -56,28 +57,29 @@ public abstract class AbstractJobManagerFileHandler<M extends MessageParameters>
 			WebMonitorUtils.LogFileLocation logFileLocation) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		Preconditions.checkNotNull(logFileLocation);
-		this.logFileLocation = logFileLocation;
+		this.logFileLocation = Preconditions.checkNotNull(logFileLocation);
 	}
 
 	@Override
 	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) {
 		File file = getFile(handlerRequest);
 		if (file != null && file.exists()) {
-			return CompletableFuture.completedFuture(file).thenAcceptAsync(logFile -> {
-				try {
-					HandlerUtils.transferFile(
-						ctx,
-						logFile,
-						httpRequest);
-				} catch (FlinkException e) {
-					throw new CompletionException(new FlinkException("Could not transfer file to client.", e));
-				}
-			});
+			try {
+				HandlerUtils.transferFile(
+					ctx,
+					file,
+					httpRequest);
+			} catch (FlinkException e) {
+				throw new CompletionException(new FlinkException("Could not transfer file to client.", e));
+			}
+			return CompletableFuture.completedFuture(null);
 		} else {
-			throw new CompletionException(new RestHandlerException(
-				"This file is not exist in JobManager log dir.",
-				HttpResponseStatus.NOT_FOUND));
+			return HandlerUtils.sendErrorResponse(
+				ctx,
+				httpRequest,
+				new ErrorResponseBody("This file is not exist in JobManager log dir."),
+				HttpResponseStatus.NOT_FOUND,
+				Collections.emptyMap());
 		}
 	}
 

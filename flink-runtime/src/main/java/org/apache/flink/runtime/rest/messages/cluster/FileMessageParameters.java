@@ -24,7 +24,6 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -37,9 +36,7 @@ public class FileMessageParameters extends MessageParameters {
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			logFileNamePathParameter
-		));
+		return Collections.singleton(logFileNamePathParameter);
 	}
 
 	@Override

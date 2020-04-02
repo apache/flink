@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.cluster;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -36,6 +37,7 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -66,7 +68,11 @@ public class JobManagerLogListHandler extends AbstractRestHandler<RestfulGateway
 		if (logFileLocation.logFile == null || StringUtils.isNullOrWhitespaceOnly(logFileLocation.logFile.getParent())) {
 			return CompletableFuture.completedFuture(new LogListInfo(Collections.emptyList()));
 		}
-		final File[] logFiles = new File(logFileLocation.logFile.getParent()).listFiles();
+		final String logDir = logFileLocation.logFile.getParent();
+		final File[] logFiles = new File(logDir).listFiles();
+		if (logFiles == null) {
+			return FutureUtils.completedExceptionally(new IOException("Could not list files in " + logDir));
+		}
 		final List<LogInfo> logsWithLength = Arrays.stream(logFiles)
 			.filter(File::isFile)
 			.map(logFile -> new LogInfo(logFile.getName(), logFile.length()))

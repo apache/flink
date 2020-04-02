@@ -54,7 +54,7 @@ public class JobManagerLogListHeaders implements MessageHeaders<EmptyRequestBody
 
 	@Override
 	public String getDescription() {
-		return "Returns the list of log files on JobManager.";
+		return "Returns the list of log files on the JobManager.";
 	}
 
 	@Override
