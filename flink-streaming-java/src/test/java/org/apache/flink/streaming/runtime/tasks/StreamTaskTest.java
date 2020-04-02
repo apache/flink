@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -1249,11 +1250,11 @@ public class StreamTaskTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public AbstractStateBackend createFromConfig(Configuration config, ClassLoader classLoader) {
+		public AbstractStateBackend createFromConfig(ReadableConfig config, ClassLoader classLoader) {
 			return new TestSpyWrapperStateBackend(createInnerBackend(config));
 		}
 
-		protected AbstractStateBackend createInnerBackend(Configuration config) {
+		protected AbstractStateBackend createInnerBackend(ReadableConfig config) {
 			return new MemoryStateBackend();
 		}
 	}
