@@ -162,7 +162,7 @@ john,21
 
 #### 第四步：启动 SQL Client, 通过 Flink SQL DDL 创建 Kafka 表
 
-启动 Flink SQL Client，通过 DDL 创建一个简单的 Kafka 2.3.0 的表，然后验证表的 schema
+启动 Flink SQL Client，通过 DDL 创建一个简单的 Kafka 2.3.0 的表，然后验证表的 schema。
 
 {% highlight bash %}
 
@@ -184,7 +184,7 @@ root
 
 {% endhighlight %}
 
-通过 Hive Cli 验证该表对 Hive 也是可见的，注意该表具有 `is_generic=true` 的属性：
+通过 Hive Cli 验证该表对 Hive 也是可见的，值得注意的是该表具有 `is_generic=true` 的属性：
 
 {% highlight bash %}
 hive> show tables;
@@ -237,7 +237,7 @@ Time taken: 0.158 seconds, Fetched: 36 row(s)
 
 #### 第五步：运行 Flink SQL 查询 Kafka 表
 
-从 Flink 群集中的 Flink SQL Client 运行一个简单的选择查询，集群可以是 standalone 模式也可以是 yarn-session 模式。
+使用 Flink 集群中的 Flink SQL Client 运行一个简单的选择查询，集群可以是 standalone 模式也可以是 yarn-session 模式。
 
 {% highlight bash %}
 Flink SQL> select * from mykafka;
@@ -360,7 +360,7 @@ kaiky,18
 有关类型映射的注意事项：
 * Hive 的 `CHAR(p)` 最大长度为255
 * Hive 的 `VARCHAR(p)` 最大长度为65535
-* Hive 的 `MAP` 仅支持原始键类型，而 Flink 的 `MAP` 可以是任何数据类型
+* Hive 的 `MAP` 仅支持 primitive 类型的 key，而 Flink 的 `MAP` 可以是任何数据类型
 * Hive 的 `UNION` 类型不受支持
 * Hive 的 `TIMESTAMP` 精度始终是 9，不支持其他精度。而 Hive UDF 可以处理精度 <= 9 的 `TIMESTAMP` 值。
 * Hive 不支持 Flink 的 `TIMESTAMP_WITH_TIME_ZONE`、`TIMESTAMP_WITH_LOCAL_TIME_ZONE` 和 `MULTISET`
