@@ -49,3 +49,7 @@ kubectl wait --for=condition=complete job/flink-job-cluster --timeout=1h
 kubectl cp `kubectl get pods | awk '/task-manager/ {print $1}'`:/cache/${OUTPUT_FILE} ${OUTPUT_VOLUME}/${OUTPUT_FILE}
 
 check_result_hash "WordCount" ${OUTPUT_VOLUME}/${OUTPUT_FILE} "${RESULT_HASH}"
+
+if [ $? != 0 ];then
+  debug_copy_and_show_logs
+fi
