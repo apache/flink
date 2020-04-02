@@ -108,7 +108,7 @@ public class FileSystemTableFactory implements
 				new Path(properties.getString(PATH)),
 				context.getTable().getPartitionKeys(),
 				getPartitionDefaultName(properties),
-				getFormatFactory(context.getTable().getProperties()));
+				getFormatProperties(context.getTable().getProperties()));
 	}
 
 	@Override
@@ -121,19 +121,23 @@ public class FileSystemTableFactory implements
 				new Path(properties.getString(PATH)),
 				context.getTable().getPartitionKeys(),
 				getPartitionDefaultName(properties),
-				getFormatFactory(context.getTable().getProperties()));
+				getFormatProperties(context.getTable().getProperties()));
 	}
 
-	private String getPartitionDefaultName(DescriptorProperties properties) {
+	private static Map<String, String> getFormatProperties(Map<String, String> tableProperties) {
+		return tableProperties;
+	}
+
+	private static String getPartitionDefaultName(DescriptorProperties properties) {
 		return properties
 				.getOptionalString(PARTITION_DEFAULT_NAME.key())
 				.orElse(PARTITION_DEFAULT_NAME.defaultValue());
 	}
 
-	private FileSystemFormatFactory getFormatFactory(Map<String, String> properties) {
+	public static FileSystemFormatFactory createFormatFactory(Map<String, String> properties) {
 		return TableFactoryService.find(
 				FileSystemFormatFactory.class,
 				properties,
-				this.getClass().getClassLoader());
+				FileSystemTableFactory.class.getClassLoader());
 	}
 }

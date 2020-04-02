@@ -42,6 +42,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
+
 /**
  * File system table source.
  */
@@ -55,7 +57,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 	private final Path path;
 	private final List<String> partitionKeys;
 	private final String defaultPartName;
-	private final FileSystemFormatFactory formatFactory;
+	private final Map<String, String> formatProperties;
 
 	private final int[] selectFields;
 	private final Long limit;
@@ -71,15 +73,15 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 	 * @param partitionKeys partition keys of the table.
 	 * @param defaultPartName The default partition name in case the dynamic partition column value
 	 *                        is null/empty string.
-	 * @param formatFactory format factory to create reader.
+	 * @param formatProperties format properties.
 	 */
 	public FileSystemTableSource(
 			TableSchema schema,
 			Path path,
 			List<String> partitionKeys,
 			String defaultPartName,
-			FileSystemFormatFactory formatFactory) {
-		this(schema, path, partitionKeys, defaultPartName, formatFactory, null, null, null, null);
+			Map<String, String> formatProperties) {
+		this(schema, path, partitionKeys, defaultPartName, formatProperties, null, null, null, null);
 	}
 
 	private FileSystemTableSource(
@@ -87,7 +89,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 			Path path,
 			List<String> partitionKeys,
 			String defaultPartName,
-			FileSystemFormatFactory formatFactory,
+			Map<String, String> formatProperties,
 			List<Map<String, String>> readPartitions,
 			int[] selectFields,
 			Long limit,
@@ -96,7 +98,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 		this.path = path;
 		this.partitionKeys = partitionKeys;
 		this.defaultPartName = defaultPartName;
-		this.formatFactory = formatFactory;
+		this.formatProperties = formatProperties;
 		this.readPartitions = readPartitions;
 		this.selectFields = selectFields;
 		this.limit = limit;
@@ -110,11 +112,17 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 			return new CollectionInputFormat<>(new ArrayList<>(), null);
 		}
 
-		return formatFactory.createReader(new FileSystemFormatFactory.ReaderContext() {
+		return createFormatFactory(formatProperties).createReader(
+				new FileSystemFormatFactory.ReaderContext() {
 
 			@Override
 			public TableSchema getSchema() {
 				return schema;
+			}
+
+			@Override
+			public Map<String, String> getFormatProperties() {
+				return formatProperties;
 			}
 
 			@Override
@@ -202,7 +210,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatFactory,
+				formatProperties,
 				remainingPartitions,
 				selectFields,
 				limit,
@@ -216,7 +224,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatFactory,
+				formatProperties,
 				readPartitions,
 				fields,
 				limit,
@@ -230,7 +238,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatFactory,
+				formatProperties,
 				readPartitions,
 				selectFields,
 				limit,
@@ -249,7 +257,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatFactory,
+				formatProperties,
 				readPartitions,
 				selectFields,
 				limit,

@@ -30,6 +30,7 @@ import org.apache.flink.table.factories.TableFormatFactory;
 import org.apache.flink.table.types.DataType;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -62,6 +63,11 @@ public interface FileSystemFormatFactory extends TableFormatFactory<BaseRow> {
 		 * Full schema of the table.
 		 */
 		TableSchema getSchema();
+
+		/**
+		 * Properties of this format.
+		 */
+		Map<String, String> getFormatProperties();
 
 		/**
 		 * Partition keys of the table.
@@ -102,6 +108,11 @@ public interface FileSystemFormatFactory extends TableFormatFactory<BaseRow> {
 	 * Context of {@link #createEncoder} and {@link #createBulkWriterFactory}.
 	 */
 	interface WriterContext {
+
+		/**
+		 * Properties of this format.
+		 */
+		Map<String, String> getFormatProperties();
 
 		/**
 		 * Field types without partition fields.

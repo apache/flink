@@ -45,6 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
+
 /**
  * File system {@link TableSink}.
  */
@@ -57,7 +59,7 @@ public class FileSystemTableSink implements
 	private final List<String> partitionKeys;
 	private final Path path;
 	private final String defaultPartName;
-	private final FileSystemFormatFactory formatFactory;
+	private final Map<String, String> formatProperties;
 
 	private boolean overwrite = false;
 	private boolean dynamicGrouping = false;
@@ -71,18 +73,18 @@ public class FileSystemTableSink implements
 	 * @param partitionKeys partition keys of the table.
 	 * @param defaultPartName The default partition name in case the dynamic partition column value
 	 *                        is null/empty string.
-	 * @param formatFactory format factory to create reader.
+	 * @param formatProperties format properties.
 	 */
 	public FileSystemTableSink(
 			TableSchema schema,
 			Path path,
 			List<String> partitionKeys,
 			String defaultPartName,
-			FileSystemFormatFactory formatFactory) {
+			Map<String, String> formatProperties) {
 		this.schema = schema;
 		this.path = path;
 		this.defaultPartName = defaultPartName;
-		this.formatFactory = formatFactory;
+		this.formatProperties = formatProperties;
 		this.partitionKeys = partitionKeys;
 	}
 
@@ -98,8 +100,7 @@ public class FileSystemTableSink implements
 		builder.setPartitionComputer(computer);
 		builder.setDynamicGrouped(dynamicGrouping);
 		builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
-		builder.setFormatFactory(createOutputFormatFactory(
-				formatFactory, this::getNonPartitionTypes));
+		builder.setFormatFactory(createOutputFormatFactory());
 		builder.setMetaStoreFactory(createTableMetaStoreFactory(path));
 		builder.setOverwrite(overwrite);
 		builder.setStaticPartitions(staticPartitions);
@@ -128,9 +129,21 @@ public class FileSystemTableSink implements
 		}
 	}
 
-	private static OutputFormatFactory<BaseRow> createOutputFormatFactory(
-			FileSystemFormatFactory formatFactory,
-			FileSystemFormatFactory.WriterContext context) {
+	private OutputFormatFactory<BaseRow> createOutputFormatFactory() {
+		FileSystemFormatFactory formatFactory = createFormatFactory(formatProperties);
+		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
+
+			@Override
+			public Map<String, String> getFormatProperties() {
+				return formatProperties;
+			}
+
+			@Override
+			public DataType[] getFieldTypes() {
+				return getNonPartitionTypes();
+			}
+		};
+
 		Optional<Encoder<BaseRow>> encoder = formatFactory.createEncoder(context);
 		Optional<BulkWriter.Factory<BaseRow>> bulk = formatFactory.createBulkWriterFactory(context);
 
