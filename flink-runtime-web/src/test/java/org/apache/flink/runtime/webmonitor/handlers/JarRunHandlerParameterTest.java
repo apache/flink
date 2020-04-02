@@ -78,6 +78,10 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 
 	private static class ConfigurationVerifyingDetachedApplicationRunner extends DetachedApplicationRunner {
 
+		public ConfigurationVerifyingDetachedApplicationRunner() {
+			super(true);
+		}
+
 		@Override
 		public List<JobID> run(DispatcherGateway dispatcherGateway, PackagedProgram program, Configuration configuration) {
 			assertFalse(configuration.get(DeploymentOptions.ATTACHED));

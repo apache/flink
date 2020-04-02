@@ -119,7 +119,8 @@ public enum ClientUtils {
 	public static void executeProgram(
 			PipelineExecutorServiceLoader executorServiceLoader,
 			Configuration configuration,
-			PackagedProgram program) throws ProgramInvocationException {
+			PackagedProgram program,
+			boolean enforceSingleJobExecution) throws ProgramInvocationException {
 		checkNotNull(executorServiceLoader);
 		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -131,12 +132,14 @@ public enum ClientUtils {
 			ContextEnvironment.setAsContext(
 				executorServiceLoader,
 				configuration,
-				userCodeClassLoader);
+				userCodeClassLoader,
+				enforceSingleJobExecution);
 
 			StreamContextEnvironment.setAsContext(
 				executorServiceLoader,
 				configuration,
-				userCodeClassLoader);
+				userCodeClassLoader,
+				enforceSingleJobExecution);
 
 			try {
 				program.invokeInteractiveModeForExecution();
