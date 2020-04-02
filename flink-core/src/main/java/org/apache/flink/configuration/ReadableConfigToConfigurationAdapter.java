@@ -23,6 +23,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -101,6 +103,73 @@ public class ReadableConfigToConfigurationAdapter extends Configuration {
 	@Override
 	public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
 		return backingConfig.getOptional(configOption).orElse(overrideDefault);
+	}
+
+	@Override
+	public <T extends Enum<T>> T getEnum(
+		Class<T> enumClass,
+		ConfigOption<String> configOption) {
+
+		List<String> deprecatedKeys = new ArrayList<>();
+		List<String> fallbackKeys = new ArrayList<>();
+		for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
+			if (fallbackKey.isDeprecated()) {
+				deprecatedKeys.add(fallbackKey.getKey());
+			} else {
+				fallbackKeys.add(fallbackKey.getKey());
+			}
+		}
+
+		ConfigOption<T> key = ConfigOptions.key(configOption.key())
+			.enumType(enumClass)
+			.noDefaultValue()
+			.withFallbackKeys(fallbackKeys.toArray(new String[0]))
+			.withDeprecatedKeys(deprecatedKeys.toArray(new String[0]));
+
+		return get(key);
+	}
+
+	@Override
+	public String getString(String key, String defaultValue) {
+		return get(ConfigOptions.key(key).stringType().defaultValue(defaultValue));
+	}
+
+	@Override
+	public int getInteger(String key, int defaultValue) {
+		return get(ConfigOptions.key(key).intType().defaultValue(defaultValue));
+	}
+
+	@Override
+	public long getLong(String key, long defaultValue) {
+		return get(ConfigOptions.key(key).longType().defaultValue(defaultValue));
+	}
+
+	@Override
+	public boolean getBoolean(String key, boolean defaultValue) {
+		return get(ConfigOptions.key(key).booleanType().defaultValue(defaultValue));
+	}
+
+	@Override
+	public float getFloat(String key, float defaultValue) {
+		return get(ConfigOptions.key(key).floatType().defaultValue(defaultValue));
+	}
+
+	@Override
+	public double getDouble(String key, double defaultValue) {
+		return get(ConfigOptions.key(key).doubleType().defaultValue(defaultValue));
+	}
+
+	@Override
+	public <T> Class<T> getClass(
+			String key,
+			Class<? extends T> defaultValue,
+			ClassLoader classLoader) throws ClassNotFoundException {
+		Optional<String> option = getOptional(ConfigOptions.key(key).stringType().noDefaultValue());
+		if (option.isPresent()) {
+			return (Class<T>) Class.forName(option.get(), true, classLoader);
+		} else {
+			return (Class<T>) defaultValue;
+		}
 	}
 
 	@Override
@@ -252,57 +321,12 @@ public class ReadableConfigToConfigurationAdapter extends Configuration {
 	}
 
 	@Override
-	public <T extends Enum<T>> T getEnum(
-		Class<T> enumClass,
-		ConfigOption<String> configOption) {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
 	public Configuration clone() {
 		throw new UnsupportedOperationException("The adapter does not support this method");
 	}
 
 	@Override
 	public boolean containsKey(String key) {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
-	public double getDouble(String key, double defaultValue) {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
-	public <T> Class<T> getClass(
-		String key,
-		Class<? extends T> defaultValue,
-		ClassLoader classLoader) throws ClassNotFoundException {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
-	public String getString(String key, String defaultValue) {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
-	public int getInteger(String key, int defaultValue) {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
-	public long getLong(String key, long defaultValue) {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
-	public boolean getBoolean(String key, boolean defaultValue) {
-		throw new UnsupportedOperationException("The adapter does not support this method");
-	}
-
-	@Override
-	public float getFloat(String key, float defaultValue) {
 		throw new UnsupportedOperationException("The adapter does not support this method");
 	}
 
