@@ -957,6 +957,12 @@ CREATE TABLE MyUserTable (
                                          -- to queue capacity saturation),
                                          -- or "custom" for failure handling with a
                                          -- ActionRequestFailureHandler subclass
+  
+  -- optional: configure ElasticSearch Auth 
+  'connector.enable-auth' = 'true',   -- optional: enable ElasticSearch Auth (see notes below!)
+                                                -- ("false" by default)
+  'connector.username' = 'elastic',   -- optional: ElasticSearch username
+  'connector.password' = '123456',   -- optional: ElasticSearch password
 
   -- optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
   'connector.flush-on-checkpoint' = 'true',   -- optional: disables flushing on checkpoint (see notes below!)

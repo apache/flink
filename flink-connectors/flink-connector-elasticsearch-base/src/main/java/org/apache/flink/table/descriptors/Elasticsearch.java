@@ -39,6 +39,7 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CONNECTION_PATH_PREFIX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_DOCUMENT_TYPE;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_ENABLE_AUTH;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER_CLASS;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FLUSH_ON_CHECKPOINT;
@@ -46,7 +47,9 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_INDEX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_DELIMITER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_NULL_LITERAL;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_PASSWORD;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_TYPE_VALUE_ELASTICSEARCH;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_USERNAME;
 
 /**
  * Connector descriptor for the Elasticsearch search engine.
@@ -90,6 +93,34 @@ public class Elasticsearch extends ConnectorDescriptor {
 				port,
 				Preconditions.checkNotNull(protocol));
 		hosts.add(host);
+		return this;
+	}
+
+	/**
+	 * Enable the Elasticsearch Cluster Auth.
+	 */
+	public Elasticsearch enableAuth() {
+		internalProperties.putBoolean(CONNECTOR_ENABLE_AUTH, true);
+		return this;
+	}
+
+	/**
+	 * The Elasticsearch Cluster userName.
+	 *
+	 * @param userName Elasticsearch userName
+	 */
+	public Elasticsearch userName(String userName) {
+		internalProperties.putString(CONNECTOR_USERNAME, userName);
+		return this;
+	}
+
+	/**
+	 * The Elasticsearch Cluster password.
+	 *
+	 * @param password Elasticsearch password
+	 */
+	public Elasticsearch password(String password) {
+		internalProperties.putString(CONNECTOR_PASSWORD, password);
 		return this;
 	}
 

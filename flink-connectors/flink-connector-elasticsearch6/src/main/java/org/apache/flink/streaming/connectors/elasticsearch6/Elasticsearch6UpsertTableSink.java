@@ -30,7 +30,11 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.HttpHost;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -52,6 +56,9 @@ import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchU
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_INTERVAL;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_MAX_ACTIONS;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_MAX_SIZE;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_ENABLE_AUTH;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_USERNAME;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_PASSWORD;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.DISABLE_FLUSH_ON_CHECKPOINT;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.REST_MAX_RETRY_TIMEOUT;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.REST_PATH_PREFIX;
@@ -159,12 +166,24 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_DELAY))
 			.ifPresent(v -> builder.setBulkFlushBackoffDelay(Long.valueOf(v)));
 
-		builder.setRestClientFactory(
-			new DefaultRestClientFactory(
+		Boolean enableAuth = Optional.ofNullable(sinkOptions.get(CONNECTOR_ENABLE_AUTH)).map(Boolean::valueOf).orElse(false);
+		if (enableAuth) {
+			builder.setRestClientFactory(new AuthRestClientFactory(
+				sinkOptions.get(CONNECTOR_USERNAME),
+				sinkOptions.get(CONNECTOR_PASSWORD),
 				Optional.ofNullable(sinkOptions.get(REST_MAX_RETRY_TIMEOUT))
 					.map(Integer::valueOf)
 					.orElse(null),
-				sinkOptions.get(REST_PATH_PREFIX)));
+				sinkOptions.get(REST_PATH_PREFIX)
+			));
+		} else {
+			builder.setRestClientFactory(
+				new DefaultRestClientFactory(
+					Optional.ofNullable(sinkOptions.get(REST_MAX_RETRY_TIMEOUT))
+						.map(Integer::valueOf)
+						.orElse(null),
+					sinkOptions.get(REST_PATH_PREFIX)));
+		}
 
 		final ElasticsearchSink<Tuple2<Boolean, Row>> sink = builder.build();
 
@@ -188,6 +207,67 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 	// --------------------------------------------------------------------------------------------
 	// Helper classes
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * This class implements {@link RestClientFactory}, used for es with authentication.
+	 */
+	static class AuthRestClientFactory implements RestClientFactory {
+
+		private String userName;
+
+		private String password;
+
+		private Integer maxRetryTimeout;
+
+		private String pathPrefix;
+
+		private transient CredentialsProvider credentialsProvider;
+
+		public AuthRestClientFactory(@Nullable String userName, @Nullable String password,
+									 @Nullable Integer maxRetryTimeout, @Nullable String pathPrefix) {
+			this.userName = userName;
+			this.password = password;
+			this.maxRetryTimeout = maxRetryTimeout;
+			this.pathPrefix = pathPrefix;
+		}
+
+		@Override
+		public void configureRestClientBuilder(RestClientBuilder restClientBuilder) {
+			if (credentialsProvider == null) {
+				credentialsProvider = new BasicCredentialsProvider();
+				credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(userName, password));
+			}
+			restClientBuilder.setHttpClientConfigCallback(httpAsyncClientBuilder ->
+				httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
+
+			if (maxRetryTimeout != null) {
+				restClientBuilder.setMaxRetryTimeoutMillis(maxRetryTimeout);
+			}
+			if (pathPrefix != null) {
+				restClientBuilder.setPathPrefix(pathPrefix);
+			}
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			AuthRestClientFactory that = (AuthRestClientFactory) o;
+			return Objects.equals(userName, that.userName) &&
+				Objects.equals(password, that.password) &&
+				Objects.equals(maxRetryTimeout, that.maxRetryTimeout) &&
+				Objects.equals(pathPrefix, that.pathPrefix);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(userName, password, maxRetryTimeout, pathPrefix);
+		}
+	}
 
 	/**
 	 * Serializable {@link RestClientFactory} used by the sink.

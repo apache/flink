@@ -137,6 +137,9 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 
 	protected Map<SinkOption, String> createTestSinkOptions() {
 		final Map<SinkOption, String> sinkOptions = new HashMap<>();
+		sinkOptions.put(SinkOption.CONNECTOR_ENABLE_AUTH, "true");
+		sinkOptions.put(SinkOption.CONNECTOR_USERNAME, "elastic");
+		sinkOptions.put(SinkOption.CONNECTOR_PASSWORD, "123456");
 		sinkOptions.put(SinkOption.BULK_FLUSH_BACKOFF_ENABLED, "true");
 		sinkOptions.put(SinkOption.BULK_FLUSH_BACKOFF_TYPE, "EXPONENTIAL");
 		sinkOptions.put(SinkOption.BULK_FLUSH_BACKOFF_DELAY, "123");
@@ -154,6 +157,9 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			new Elasticsearch()
 				.version(getElasticsearchVersion())
 				.host(HOSTNAME, PORT, SCHEMA)
+				.enableAuth()
+				.userName("elastic")
+				.password("123456")
 				.index(INDEX)
 				.documentType(DOC_TYPE)
 				.keyDelimiter(KEY_DELIMITER)
