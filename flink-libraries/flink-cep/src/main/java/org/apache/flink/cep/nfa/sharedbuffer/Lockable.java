@@ -100,7 +100,7 @@ public final class Lockable<T> {
 		private static final long serialVersionUID = 3298801058463337340L;
 		private final TypeSerializer<E> elementSerializer;
 
-		LockableTypeSerializer(TypeSerializer<E> elementSerializer) {
+		public LockableTypeSerializer(TypeSerializer<E> elementSerializer) {
 			this.elementSerializer = elementSerializer;
 		}
 
