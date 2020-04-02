@@ -149,6 +149,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -196,6 +197,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;
+
+	private final Executor ioExecutor;
 
 	// --------- job manager connections -----------
 
@@ -277,6 +280,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
 		this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
 		this.kvStateService = taskExecutorServices.getKvStateService();
+		this.ioExecutor = taskExecutorServices.getIOExecutor();
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
 		this.jobManagerConnections = new HashMap<>(4);
@@ -330,7 +334,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						.collect(Collectors.toList());
 			}
 			return Collections.emptyList();
-		}, taskExecutorServices.getIOExecutor());
+		}, ioExecutor);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1682,7 +1686,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
 					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
 				}
-			}, taskExecutorServices.getIOExecutor());
+			}, ioExecutor);
 		} else {
 			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));

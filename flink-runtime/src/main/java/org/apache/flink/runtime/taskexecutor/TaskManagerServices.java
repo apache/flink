@@ -151,7 +151,7 @@ public class TaskManagerServices {
 		return taskEventDispatcher;
 	}
 
-	public ExecutorService getIOExecutor() {
+	public Executor getIOExecutor() {
 		return ioExecutor;
 	}
 
