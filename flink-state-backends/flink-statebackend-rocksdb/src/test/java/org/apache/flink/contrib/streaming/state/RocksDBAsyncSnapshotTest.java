@@ -257,7 +257,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		File dbDir = temporaryFolder.newFolder();
 
-		final RocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType = RocksDBStateBackend.PriorityQueueStateType.valueOf(RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
+		final RocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType = RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
 
 		final int skipStreams;
 
