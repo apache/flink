@@ -170,7 +170,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		assertFalse(buffer.pollNext().isPresent());
 		assertTrue(buffer.isFinished());
 
-		buffer.cleanup();
+		buffer.close();
 		checkNoTempFilesRemain();
 	}
 
@@ -277,7 +277,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		assertFalse(buffer.pollNext().isPresent());
 		assertTrue(buffer.isFinished());
 
-		buffer.cleanup();
+		buffer.close();
 		checkNoTempFilesRemain();
 	}
 
