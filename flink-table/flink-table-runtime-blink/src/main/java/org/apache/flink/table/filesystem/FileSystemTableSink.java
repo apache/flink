@@ -148,7 +148,9 @@ public class FileSystemTableSink implements
 			Path path) {
 		return new OutputFormat<BaseRow>() {
 
-			private BulkWriter<BaseRow> writer;
+			private static final long serialVersionUID = 1L;
+
+			private transient BulkWriter<BaseRow> writer;
 
 			@Override
 			public void configure(Configuration parameters) {
@@ -178,7 +180,9 @@ public class FileSystemTableSink implements
 			Path path) {
 		return new OutputFormat<BaseRow>() {
 
-			private FSDataOutputStream output;
+			private static final long serialVersionUID = 1L;
+
+			private transient FSDataOutputStream output;
 
 			@Override
 			public void configure(Configuration parameters) {

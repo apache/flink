@@ -148,7 +148,7 @@ public class TestRowDataCsvInputFormat extends RichInputFormat<BaseRow, FileInpu
 		} else if (type.equals(Types.STRING)) {
 			return BinaryString.fromString(value);
 		} else {
-			throw new UnsupportedOperationException("Unsupported type: " + type);
+			throw new UnsupportedOperationException("Unsupported partition type: " + type);
 		}
 	}
 
