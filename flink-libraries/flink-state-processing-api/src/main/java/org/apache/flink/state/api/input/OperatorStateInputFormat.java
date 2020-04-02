@@ -29,6 +29,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
@@ -50,8 +51,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The base input format for reading operator state from a {@link
- * org.apache.flink.runtime.checkpoint.savepoint.Savepoint}.
+ * The base input format for reading operator state from a {@link CheckpointMetadata}.
  *
  * @param <OT> The type of the input.
  */

@@ -361,9 +361,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 			if (operator == null) {
 				this.operator = StreamOperatorFactoryUtil.createOperator(factory, mockTask, config,
-						new MockOutput(outputSerializer));
-			} else if (operator instanceof SetupableStreamOperator) {
-				((SetupableStreamOperator) operator).setup(mockTask, config, new MockOutput(outputSerializer));
+						new MockOutput(outputSerializer)).f0;
+			} else {
+				if (operator instanceof AbstractStreamOperator) {
+					((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
+				}
+				if (operator instanceof SetupableStreamOperator) {
+					((SetupableStreamOperator) operator).setup(mockTask, config, new MockOutput(outputSerializer));
+				}
 			}
 			setupCalled = true;
 			this.mockTask.init();
@@ -490,7 +495,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			}
 		}
 
-		operator.initializeState();
+		operator.initializeState(mockTask.createStreamTaskStateInitializer());
 		initializeCalled = true;
 	}
 
@@ -615,6 +620,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			internalEnvironment.get().close();
 		}
 		mockTask.cleanup();
+	}
+
+	public AbstractStreamOperator<OUT> getOperator() {
+		return (AbstractStreamOperator<OUT>) operator;
+	}
+
+	public StreamOperatorFactory<OUT> getOperatorFactory() {
+		return factory;
 	}
 
 	public void setProcessingTime(long time) throws Exception {

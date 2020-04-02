@@ -285,6 +285,7 @@ public class CliClient {
 			case USE:
 				callUseDatabase(cmdCall);
 				break;
+			case DESC:
 			case DESCRIBE:
 				callDescribe(cmdCall);
 				break;
@@ -367,7 +368,7 @@ public class CliClient {
 		}
 		// set a property
 		else {
-			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1]);
+			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1].trim());
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SET).toAnsi());
 		}
 		terminal.flush();
@@ -512,21 +513,35 @@ public class CliClient {
 			printExecutionException(e);
 			return;
 		}
-		final CliResultView view;
-		if (resultDesc.isMaterialized()) {
-			view = new CliTableResultView(this, resultDesc);
+
+		if (resultDesc.isTableauMode()) {
+			try (CliTableauResultView tableauResultView = new CliTableauResultView(
+					terminal, executor, sessionId, resultDesc)) {
+				if (resultDesc.isMaterialized()) {
+					tableauResultView.displayBatchResults();
+				} else {
+					tableauResultView.displayStreamResults();
+				}
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+			}
 		} else {
-			view = new CliChangelogResultView(this, resultDesc);
-		}
+			final CliResultView view;
+			if (resultDesc.isMaterialized()) {
+				view = new CliTableResultView(this, resultDesc);
+			} else {
+				view = new CliChangelogResultView(this, resultDesc);
+			}
 
-		// enter view
-		try {
-			view.open();
+			// enter view
+			try {
+				view.open();
 
-			// view left
-			printInfo(CliStrings.MESSAGE_RESULT_QUIT);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
+				// view left
+				printInfo(CliStrings.MESSAGE_RESULT_QUIT);
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+			}
 		}
 	}
 

@@ -633,10 +633,9 @@ runBashJavaUtilsCmd() {
 }
 
 extractExecutionParams() {
-    local output=$1
+    local execution_config=$1
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
-    local execution_config=`echo "$output" | tail -n 1`
     if ! [[ $execution_config =~ ^${EXECUTION_PREFIX}.* ]]; then
         echo "[ERROR] Unexpected result: $execution_config" 1>&2
         echo "[ERROR] The last line of the BashJavaUtils outputs is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2

@@ -263,7 +263,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 
 		final JobGraph jg = new JobGraph(TEST_JOB_ID, "testjob", v1, v2);
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(TEST_JOB_ID, DEFAULT_PARALLELISM);
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(DEFAULT_PARALLELISM);
 
 		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			jg.getJobID(),

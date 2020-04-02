@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -74,6 +75,27 @@ public class ResultPartitionTest {
 	@AfterClass
 	public static void shutdown() throws Exception {
 		fileChannelManager.close();
+	}
+
+	@Test
+	public void testResultSubpartitionInfo() {
+		final int numPartitions = 2;
+		final int numSubpartitions = 3;
+
+		for (int i = 0; i < numPartitions; i++) {
+			final ResultPartition partition = new ResultPartitionBuilder()
+				.setResultPartitionIndex(i)
+				.setNumberOfSubpartitions(numSubpartitions)
+				.build();
+
+			ResultSubpartition[] subpartitions = partition.getAllPartitions();
+			for (int j = 0; j < subpartitions.length; j++) {
+				ResultSubpartitionInfo subpartitionInfo = subpartitions[j].getSubpartitionInfo();
+
+				assertEquals(i, subpartitionInfo.getPartitionIdx());
+				assertEquals(j, subpartitionInfo.getSubPartitionIdx());
+			}
+		}
 	}
 
 	/**

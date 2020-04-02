@@ -95,19 +95,8 @@ class StreamExecSink[T](
             val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(this)
             upsertSink.setIsAppendOnly(isAppendOnlyTable)
 
-            // extract unique key fields
-            // Now we pick shortest one to sink
-            // TODO UpsertStreamTableSink setKeyFields interface should be Array[Array[String]]
-            val tableKeys = {
-              val sinkFieldNames = upsertSink.getTableSchema.getFieldNames
-              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner, sinkFieldNames) match {
-                case Some(keys) => keys.sortBy(_.length).headOption
-                case None => None
-              }
-            }
-
             // check that we have keys if the table has changes (is not append-only)
-            tableKeys match {
+            UpdatingPlanChecker.getUniqueKeyForUpsertSink(this, planner, upsertSink) match {
               case Some(keys) => upsertSink.setKeyFields(keys)
               case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
               case None if !isAppendOnlyTable => throw new TableException(

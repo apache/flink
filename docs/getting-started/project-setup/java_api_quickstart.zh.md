@@ -53,30 +53,49 @@ Flink项目可以使用不同的构建工具进行构建。
 </ul>
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+{% highlight bash %}
+$ mvn archetype:generate                               \
+  -DarchetypeGroupId=org.apache.flink              \
+  -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+  -DarchetypeVersion={{site.version}}
+{% endhighlight %}
         这种方式允许你<strong>为新项目命名</strong>。它将以交互式的方式询问你项目的 groupId、artifactId 和 package 名称。
     </div>
     <div class="tab-pane" id="quickstart-script">
-    {% highlight bash %}
+{% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
-    {% endhighlight %}
+{% endhighlight %}
 
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>注意</b>：Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。
+        <b>注意</b>：Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
         如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。有关这个改动的详细信息，
-        请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+        请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>	        请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+        如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
+{% highlight bash %}
+<settings>
+  <activeProfiles>
+    <activeProfile>apache</activeProfile>
+  </activeProfiles>
+  <profiles>
+    <profile>
+      <id>apache</id>
+      <repositories>
+        <repository>
+          <id>apache-snapshots</id>
+          <url>https://repository.apache.org/content/repositories/snapshots/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+</settings>
+{% endhighlight %}
     </p>
     {% endunless %}
 </div>
@@ -99,7 +118,7 @@ quickstart/
         │               ├── BatchJob.java
         │               └── StreamingJob.java
         └── resources
-            └── log4j.properties
+            └── log4j2.properties
 {% endhighlight %}
 
 示例项目是一个 __Maven project__，它包含了两个类：_StreamingJob_ 和 _BatchJob_ 分别是 *DataStream* and *DataSet* 程序的基础骨架程序。
@@ -147,7 +166,7 @@ Flink 可以从 JAR 文件运行应用程序，而无需另外指定主类。
         <div class="tab-content">
 <!-- NOTE: Any change to the build scripts here should also be reflected in flink-web/q/gradle-quickstart.sh !! -->
             <div class="tab-pane active" id="gradle-build">
-                {% highlight gradle %}
+{% highlight gradle %}
 buildscript {
     repositories {
         jcenter() // this applies only to the Gradle 'Shadow' plugin
@@ -175,8 +194,8 @@ ext {
     javaVersion = '1.8'
     flinkVersion = '{{ site.version }}'
     scalaBinaryVersion = '{{ site.scala_version }}'
-    slf4jVersion = '1.7.7'
-    log4jVersion = '1.2.17'
+    slf4jVersion = '1.7.15'
+    log4jVersion = '2.12.1'
 }
 
 
@@ -186,7 +205,7 @@ tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 }
 
-applicationDefaultJvmArgs = ["-Dlog4j.configuration=log4j.properties"]
+applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
 
 task wrapper(type: Wrapper) {
     gradleVersion = '3.1'
@@ -208,7 +227,7 @@ configurations {
     flinkShadowJar.exclude group: 'org.apache.flink', module: 'force-shading'
     flinkShadowJar.exclude group: 'com.google.code.findbugs', module: 'jsr305'
     flinkShadowJar.exclude group: 'org.slf4j'
-    flinkShadowJar.exclude group: 'log4j'
+    flinkShadowJar.exclude group: 'org.apache.logging.log4j'
 }
 
 // declare the dependencies for your production and test code
@@ -226,7 +245,9 @@ dependencies {
     // --------------------------------------------------------------
     //flinkShadowJar "org.apache.flink:flink-connector-kafka-0.11_${scalaBinaryVersion}:${flinkVersion}"
 
-    compile "log4j:log4j:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-api:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-core:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
     compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
 
     // Add test dependencies here.
@@ -256,20 +277,20 @@ jar {
 shadowJar {
     configurations = [project.configurations.flinkShadowJar]
 }
-                {% endhighlight %}
+{% endhighlight %}
             </div>
             <div class="tab-pane" id="gradle-settings">
-                {% highlight gradle %}
+{% highlight gradle %}
 rootProject.name = 'quickstart'
-                {% endhighlight %}
+{% endhighlight %}
             </div>
         </div>
     </div>
 
     <div class="tab-pane" id="gradle-script">
-    {% highlight bash %}
-    bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
-    {% endhighlight %}
+{% highlight bash %}
+bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
+{% endhighlight %}
     这种方式允许你<strong>为新项目命名</strong>。它将以交互式的方式询问你的项目名称、组织机构（也用于包名）、项目版本、Scala 和 Flink 版本。
     </div>
 </div>
@@ -293,7 +314,7 @@ quickstart/
         │               ├── BatchJob.java
         │               └── StreamingJob.java
         └── resources
-            └── log4j.properties
+            └── log4j2.properties
 {% endhighlight %}
 
 示例项目是一个 __Gradle 项目__，它包含了两个类：_StreamingJob_ 和 _BatchJob_ 是 *DataStream* 和 *DataSet* 程序的基础骨架程序。

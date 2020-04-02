@@ -29,3 +29,4 @@ include README.md
 include pyflink/LICENSE
 include pyflink/NOTICE
 include pyflink/README.txt
+recursive-exclude deps/opt/python *

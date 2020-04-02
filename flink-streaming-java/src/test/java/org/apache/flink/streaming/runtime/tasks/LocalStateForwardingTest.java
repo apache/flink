@@ -77,7 +77,7 @@ public class LocalStateForwardingTest extends TestLogger {
 	 * async checkpointing thread to the {@link org.apache.flink.runtime.state.TaskStateManager}.
 	 */
 	@Test
-	public void testReportingFromSnapshotToTaskStateManager() {
+	public void testReportingFromSnapshotToTaskStateManager() throws Exception {
 
 		TestTaskStateManager taskStateManager = new TestTaskStateManager();
 
@@ -105,13 +105,15 @@ public class LocalStateForwardingTest extends TestLogger {
 		OperatorID operatorID = new OperatorID();
 		snapshots.put(operatorID, osFuture);
 
-		StreamTask.AsyncCheckpointRunnable checkpointRunnable =
-			new StreamTask.AsyncCheckpointRunnable(
-				testStreamTask,
-				snapshots,
-				checkpointMetaData,
-				checkpointMetrics,
-				0L);
+		AsyncCheckpointRunnable checkpointRunnable = new AsyncCheckpointRunnable(
+			snapshots,
+			checkpointMetaData,
+			checkpointMetrics,
+			0L,
+			testStreamTask.getName(),
+			testStreamTask.getCancelables(),
+			testStreamTask.getEnvironment(),
+			testStreamTask);
 
 		checkpointRunnable.run();
 

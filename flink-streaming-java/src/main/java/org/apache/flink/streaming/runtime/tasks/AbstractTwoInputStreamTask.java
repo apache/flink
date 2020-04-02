@@ -47,7 +47,7 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 	 *
 	 * @param env The task environment for this task.
 	 */
-	public AbstractTwoInputStreamTask(Environment env) {
+	public AbstractTwoInputStreamTask(Environment env) throws Exception {
 		super(env);
 
 		input1WatermarkGauge = new WatermarkGauge();

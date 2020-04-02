@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -26,10 +25,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -37,38 +32,23 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
-import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.TaskInformation;
-import org.apache.flink.runtime.filecache.FileCache;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -89,30 +69,28 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
-import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.taskexecutor.KvStateService;
-import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
-import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
-import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
-import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -122,11 +100,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.MockStreamConfig;
+import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
@@ -154,7 +132,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
@@ -232,23 +209,29 @@ public class StreamTaskTest extends TestLogger {
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		final TaskManagerActions taskManagerActions = spy(new NoOpTaskManagerActions());
-		final Task task = createTask(SourceStreamTask.class, cfg, new Configuration(), taskManagerActions);
+		try (NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
+			final Task task =  new TestTaskBuilder(shuffleEnvironment)
+				.setInvokable(SourceStreamTask.class)
+				.setTaskConfig(cfg.getConfiguration())
+				.setTaskManagerActions(taskManagerActions)
+				.build();
 
-		final TaskExecutionState state = new TaskExecutionState(
-			task.getJobID(), task.getExecutionId(), ExecutionState.RUNNING);
+			final TaskExecutionState state = new TaskExecutionState(
+				task.getJobID(), task.getExecutionId(), ExecutionState.RUNNING);
 
-		task.startTaskThread();
+			task.startTaskThread();
 
-		verify(taskManagerActions, timeout(2000L)).updateTaskExecutionState(eq(state));
+			verify(taskManagerActions, timeout(2000L)).updateTaskExecutionState(eq(state));
 
-		// send a cancel. because the operator takes a long time to deserialize, this should
-		// hit the task before the operator is deserialized
-		task.cancelExecution();
+			// send a cancel. because the operator takes a long time to deserialize, this should
+			// hit the task before the operator is deserialized
+			task.cancelExecution();
 
-		task.getExecutingThread().join();
+			task.getExecutingThread().join();
 
-		assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
-		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+			assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+		}
 	}
 
 	@Test
@@ -263,24 +246,26 @@ public class StreamTaskTest extends TestLogger {
 		cfg.setStreamOperator(streamSource);
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		Task task = createTask(StateBackendTestSource.class, cfg, taskManagerConfig);
+		try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
+			Task task = createTask(StateBackendTestSource.class, shuffleEnvironment, cfg, taskManagerConfig);
 
-		StateBackendTestSource.fail = false;
-		task.startTaskThread();
+			StateBackendTestSource.fail = false;
+			task.startTaskThread();
 
-		// wait for clean termination
-		task.getExecutingThread().join();
+			// wait for clean termination
+			task.getExecutingThread().join();
 
-		// ensure that the state backends and stream iterables are closed ...
-		verify(TestStreamSource.operatorStateBackend).close();
-		verify(TestStreamSource.keyedStateBackend).close();
-		verify(TestStreamSource.rawOperatorStateInputs).close();
-		verify(TestStreamSource.rawKeyedStateInputs).close();
-		// ... and disposed
-		verify(TestStreamSource.operatorStateBackend).dispose();
-		verify(TestStreamSource.keyedStateBackend).dispose();
+			// ensure that the state backends and stream iterables are closed ...
+			verify(TestStreamSource.operatorStateBackend).close();
+			verify(TestStreamSource.keyedStateBackend).close();
+			verify(TestStreamSource.rawOperatorStateInputs).close();
+			verify(TestStreamSource.rawKeyedStateInputs).close();
+			// ... and disposed
+			verify(TestStreamSource.operatorStateBackend).dispose();
+			verify(TestStreamSource.keyedStateBackend).dispose();
 
-		assertEquals(ExecutionState.FINISHED, task.getExecutionState());
+			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
+		}
 	}
 
 	@Test
@@ -295,24 +280,26 @@ public class StreamTaskTest extends TestLogger {
 		cfg.setStreamOperator(streamSource);
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		Task task = createTask(StateBackendTestSource.class, cfg, taskManagerConfig);
+		try (NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
+			Task task = createTask(StateBackendTestSource.class, shuffleEnvironment, cfg, taskManagerConfig);
 
-		StateBackendTestSource.fail = true;
-		task.startTaskThread();
+			StateBackendTestSource.fail = true;
+			task.startTaskThread();
 
-		// wait for clean termination
-		task.getExecutingThread().join();
+			// wait for clean termination
+			task.getExecutingThread().join();
 
-		// ensure that the state backends and stream iterables are closed ...
-		verify(TestStreamSource.operatorStateBackend).close();
-		verify(TestStreamSource.keyedStateBackend).close();
-		verify(TestStreamSource.rawOperatorStateInputs).close();
-		verify(TestStreamSource.rawKeyedStateInputs).close();
-		// ... and disposed
-		verify(TestStreamSource.operatorStateBackend).dispose();
-		verify(TestStreamSource.keyedStateBackend).dispose();
+			// ensure that the state backends and stream iterables are closed ...
+			verify(TestStreamSource.operatorStateBackend).close();
+			verify(TestStreamSource.keyedStateBackend).close();
+			verify(TestStreamSource.rawOperatorStateInputs).close();
+			verify(TestStreamSource.rawKeyedStateInputs).close();
+			// ... and disposed
+			verify(TestStreamSource.operatorStateBackend).dispose();
+			verify(TestStreamSource.keyedStateBackend).dispose();
 
-		assertEquals(ExecutionState.FAILED, task.getExecutionState());
+			assertEquals(ExecutionState.FAILED, task.getExecutionState());
+		}
 	}
 
 	@Test
@@ -320,19 +307,22 @@ public class StreamTaskTest extends TestLogger {
 		syncLatch = new OneShotLatch();
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		Task task = createTask(CancelFailingTask.class, cfg, new Configuration());
+		try (NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
 
-		// start the task and wait until it runs
-		// execution state RUNNING is not enough, we need to wait until the stream task's run() method
-		// is entered
-		task.startTaskThread();
-		syncLatch.await();
+			Task task = createTask(CancelFailingTask.class, shuffleEnvironment, cfg, new Configuration());
 
-		// cancel the execution - this should lead to smooth shutdown
-		task.cancelExecution();
-		task.getExecutingThread().join();
+			// start the task and wait until it runs
+			// execution state RUNNING is not enough, we need to wait until the stream task's run() method
+			// is entered
+			task.startTaskThread();
+			syncLatch.await();
 
-		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+			// cancel the execution - this should lead to smooth shutdown
+			task.cancelExecution();
+			task.getExecutingThread().join();
+
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+		}
 	}
 
 	/**
@@ -341,7 +331,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	public static class CancelFailingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
-		public CancelFailingTask(Environment env) {
+		public CancelFailingTask(Environment env) throws Exception {
 			super(env);
 		}
 
@@ -437,12 +427,15 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testCancelTaskExceptionHandling() throws Exception {
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		Task task = createTask(CancelThrowingTask.class, cfg, new Configuration());
 
-		task.startTaskThread();
-		task.getExecutingThread().join();
+		try (NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
+			Task task = createTask(CancelThrowingTask.class, shuffleEnvironment, cfg, new Configuration());
 
-		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+			task.startTaskThread();
+			task.getExecutingThread().join();
+
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+		}
 	}
 
 	/**
@@ -450,7 +443,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	public static class CancelThrowingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
-		public CancelThrowingTask(Environment env) {
+		public CancelThrowingTask(Environment env) throws Exception {
 			super(env);
 		}
 
@@ -476,9 +469,10 @@ public class StreamTaskTest extends TestLogger {
 		RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 			declineDummyEnvironment,
 			operatorChain(
+				streamOperatorWithSnapshotException(testException),
 				streamOperatorWithSnapshot(operatorSnapshotResult1),
-				streamOperatorWithSnapshot(operatorSnapshotResult2),
-				streamOperatorWithSnapshotException(testException))));
+				streamOperatorWithSnapshot(operatorSnapshotResult2)
+				)));
 		MockStreamTask streamTask = task.streamTask;
 
 		waitTaskIsRunning(streamTask, task.invocationFuture);
@@ -736,7 +730,7 @@ public class StreamTaskTest extends TestLogger {
 			DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
 			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)));
 
-		final StreamOperator<?> streamOperator = streamOperatorWithSnapshot(operatorSnapshotResult);
+		final OneInputStreamOperator<String, String> streamOperator = streamOperatorWithSnapshot(operatorSnapshotResult);
 
 		final AcknowledgeDummyEnvironment mockEnvironment = new AcknowledgeDummyEnvironment();
 
@@ -813,7 +807,7 @@ public class StreamTaskTest extends TestLogger {
 			checkpointResponder);
 
 		// mock the operator with empty snapshot result (all state handles are null)
-		StreamOperator<?> statelessOperator = streamOperatorWithSnapshot(new OperatorSnapshotFutures());
+		OneInputStreamOperator<String, String> statelessOperator = streamOperatorWithSnapshot(new OperatorSnapshotFutures());
 
 		try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder()
 			.setTaskStateManager(taskStateManager)
@@ -906,7 +900,15 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testThreadInvariants() throws Throwable {
-		try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build()) {
+		Configuration taskConfiguration = new Configuration();
+		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+		streamConfig.setStreamOperator(new StreamMap<>(value -> value));
+		streamConfig.setOperatorID(new OperatorID());
+		try (MockEnvironment mockEnvironment =
+				new MockEnvironmentBuilder()
+					.setTaskConfiguration(taskConfiguration)
+					.build()) {
+
 			ClassLoader taskClassLoader = new TestUserCodeClassLoader();
 
 			RunningTask<ThreadInspectingTask> runningTask = runTask(() -> {
@@ -930,7 +932,7 @@ public class StreamTaskTest extends TestLogger {
 		streamConfig.setStreamOperatorFactory(new UnusedOperatorFactory());
 
 		// Make sure that there is some output edge in the config so that some RecordWriter is created
-		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), streamConfig);
+		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), streamConfig, this);
 		cfg.chain(
 			new OperatorID(44, 44),
 			new UnusedOperatorFactory(),
@@ -972,7 +974,9 @@ public class StreamTaskTest extends TestLogger {
 		try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, true})) {
 			final int numberOfProcessCalls = 10;
 			final AvailabilityTestInputProcessor inputProcessor = new AvailabilityTestInputProcessor(numberOfProcessCalls);
-			final AvailabilityTestStreamTask task = new AvailabilityTestStreamTask<>(environment, inputProcessor);
+			final StreamTask task = new MockStreamTaskBuilder(environment)
+				.setStreamInputProcessor(inputProcessor)
+				.build();
 
 			task.invoke();
 			assertEquals(numberOfProcessCalls, inputProcessor.currentNumProcessCalls);
@@ -984,7 +988,9 @@ public class StreamTaskTest extends TestLogger {
 		try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, false})) {
 			final int numberOfProcessCalls = 10;
 			final AvailabilityTestInputProcessor inputProcessor = new AvailabilityTestInputProcessor(numberOfProcessCalls);
-			final AvailabilityTestStreamTask task = new AvailabilityTestStreamTask<>(environment, inputProcessor);
+			final StreamTask task = new MockStreamTaskBuilder(environment)
+				.setStreamInputProcessor(inputProcessor)
+				.build();
 			final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
 
 			final RunnableWithException completeFutureTask = () -> {
@@ -1022,8 +1028,9 @@ public class StreamTaskTest extends TestLogger {
 	//  Test Utilities
 	// ------------------------------------------------------------------------
 
-	private static StreamOperator<?> streamOperatorWithSnapshot(OperatorSnapshotFutures operatorSnapshotResult) throws Exception {
-		StreamOperator<?> operator = mock(StreamOperator.class);
+	private static <T> OneInputStreamOperator<T, T> streamOperatorWithSnapshot(OperatorSnapshotFutures operatorSnapshotResult) throws Exception {
+		@SuppressWarnings("unchecked")
+		OneInputStreamOperator<T, T> operator = mock(OneInputStreamOperator.class);
 		when(operator.getOperatorID()).thenReturn(new OperatorID());
 
 		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class), any(CheckpointStreamFactory.class)))
@@ -1032,8 +1039,9 @@ public class StreamTaskTest extends TestLogger {
 		return operator;
 	}
 
-	private static StreamOperator<?> streamOperatorWithSnapshotException(Exception exception) throws Exception {
-		StreamOperator<?> operator = mock(StreamOperator.class);
+	private static <T> OneInputStreamOperator<T, T> streamOperatorWithSnapshotException(Exception exception) throws Exception {
+		@SuppressWarnings("unchecked")
+		OneInputStreamOperator<T, T> operator = mock(OneInputStreamOperator.class);
 		when(operator.getOperatorID()).thenReturn(new OperatorID());
 
 		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class), any(CheckpointStreamFactory.class)))
@@ -1042,10 +1050,8 @@ public class StreamTaskTest extends TestLogger {
 		return operator;
 	}
 
-	private static <T> OperatorChain<T, AbstractStreamOperator<T>> operatorChain(StreamOperator<?>... streamOperators) {
-		OperatorChain<T, AbstractStreamOperator<T>> operatorChain = mock(OperatorChain.class);
-		when(operatorChain.getAllOperators()).thenReturn(streamOperators);
-		return operatorChain;
+	private static <T> OperatorChain<T, AbstractStreamOperator<T>> operatorChain(OneInputStreamOperator<T, T>... streamOperators) throws Exception {
+		return OperatorChainTest.setupOperatorChain(streamOperators);
 	}
 
 	private static class RunningTask<T extends StreamTask<?, ?>> {
@@ -1104,7 +1110,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	public static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
-		public NoOpStreamTask(Environment environment) {
+		public NoOpStreamTask(Environment environment) throws Exception {
 			super(environment);
 		}
 
@@ -1115,22 +1121,6 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		protected void cleanup() throws Exception {}
-	}
-
-	/**
-	 * A stream task implementation used to construct a specific {@link StreamInputProcessor} for tests.
-	 */
-	private static class AvailabilityTestStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
-
-		AvailabilityTestStreamTask(Environment environment, StreamInputProcessor inputProcessor) {
-			super(environment);
-
-			this.inputProcessor = inputProcessor;
-		}
-
-		@Override
-		protected void init() {
-		}
 	}
 
 	/**
@@ -1186,85 +1176,16 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	public static Task createTask(
-		Class<? extends AbstractInvokable> invokable,
-		StreamConfig taskConfig,
-		Configuration taskManagerConfig) throws Exception {
-		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager(), mock(TaskManagerActions.class));
-	}
-
-	public static Task createTask(
-		Class<? extends AbstractInvokable> invokable,
-		StreamConfig taskConfig,
-		Configuration taskManagerConfig,
-		TaskManagerActions taskManagerActions) throws Exception {
-		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager(), taskManagerActions);
-	}
-
-	public static Task createTask(
 			Class<? extends AbstractInvokable> invokable,
+			ShuffleEnvironment shuffleEnvironment,
 			StreamConfig taskConfig,
-			Configuration taskManagerConfig,
-			TestTaskStateManager taskStateManager,
-			TaskManagerActions taskManagerActions) throws Exception {
+			Configuration taskManagerConfig) throws Exception {
 
-		BlobCacheService blobService =
-			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
-
-		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		when(libCache.getClassLoader(any(JobID.class))).thenReturn(StreamTaskTest.class.getClassLoader());
-
-		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
-		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
-		Executor executor = mock(Executor.class);
-
-		ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
-
-		JobInformation jobInformation = new JobInformation(
-			new JobID(),
-			"Job Name",
-			new SerializedValue<>(new ExecutionConfig()),
-			new Configuration(),
-			Collections.emptyList(),
-			Collections.emptyList());
-
-		TaskInformation taskInformation = new TaskInformation(
-			new JobVertexID(),
-			"Test Task",
-			1,
-			1,
-			invokable.getName(),
-			taskConfig.getConfiguration());
-
-		return new Task(
-			jobInformation,
-			taskInformation,
-			new ExecutionAttemptID(),
-			new AllocationID(),
-			0,
-			0,
-			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-			Collections.<InputGateDeploymentDescriptor>emptyList(),
-			0,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			shuffleEnvironment,
-			new KvStateService(new KvStateRegistry(), null, null),
-			mock(BroadcastVariableManager.class),
-			new TaskEventDispatcher(),
-			taskStateManager,
-			taskManagerActions,
-			mock(InputSplitProvider.class),
-			mock(CheckpointResponder.class),
-			new NoOpTaskOperatorEventGateway(),
-			new TestGlobalAggregateManager(),
-			blobService,
-			libCache,
-			mock(FileCache.class),
-			new TestingTaskManagerRuntimeInfo(taskManagerConfig, new String[] {System.getProperty("java.io.tmpdir")}),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			consumableNotifier,
-			partitionProducerStateChecker,
-			executor);
+		return new TestTaskBuilder(shuffleEnvironment)
+			.setTaskManagerConfig(taskManagerConfig)
+			.setInvokable(invokable)
+			.setTaskConfig(taskConfig.getConfiguration())
+			.build();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1344,7 +1265,10 @@ public class StreamTaskTest extends TestLogger {
 
 		private final OperatorChain<String, AbstractStreamOperator<String>> overrideOperatorChain;
 
-		MockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+		MockStreamTask(
+				Environment env,
+				OperatorChain<String, AbstractStreamOperator<String>> operatorChain,
+				Thread.UncaughtExceptionHandler uncaughtExceptionHandler) throws Exception {
 			super(env, null, uncaughtExceptionHandler);
 			this.overrideOperatorChain = operatorChain;
 		}
@@ -1395,7 +1319,9 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	private static MockStreamTask createMockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain) {
+	private static MockStreamTask createMockStreamTask(
+			Environment env,
+			OperatorChain<String, AbstractStreamOperator<String>> operatorChain) throws Exception {
 		return new MockStreamTask(env, operatorChain, FatalExitExceptionHandler.INSTANCE);
 	}
 
@@ -1408,7 +1334,7 @@ public class StreamTaskTest extends TestLogger {
 
 		private static volatile boolean fail;
 
-		public StateBackendTestSource(Environment env) {
+		public StateBackendTestSource(Environment env) throws Exception {
 			super(env);
 		}
 
@@ -1498,7 +1424,7 @@ public class StreamTaskTest extends TestLogger {
 		/** Flag to wait until time trigger has been called. */
 		private transient boolean hasTimerTriggered;
 
-		ThreadInspectingTask(Environment env) {
+		ThreadInspectingTask(Environment env) throws Exception {
 			super(env);
 			Thread currentThread = Thread.currentThread();
 			taskThreadId = currentThread.getId();
@@ -1515,7 +1441,7 @@ public class StreamTaskTest extends TestLogger {
 			checkTaskThreadInfo();
 
 			// Create a time trigger to validate that it would also be invoked in the task's thread.
-			getProcessingTimeService(0).registerTimer(0, new ProcessingTimeCallback() {
+			getHeadOperator().getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
 					checkTaskThreadInfo();
@@ -1781,22 +1707,14 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	private static class UnusedOperatorFactory implements StreamOperatorFactory<String> {
+	private static class UnusedOperatorFactory extends AbstractStreamOperatorFactory<String> {
 		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(
-				StreamTask<?, ?> containingTask,
-				StreamConfig config,
-				Output<StreamRecord<String>> output) {
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
 			throw new UnsupportedOperationException("This shouldn't be called");
 		}
 
 		@Override
 		public void setChainingStrategy(ChainingStrategy strategy) {
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return ChainingStrategy.ALWAYS;
 		}
 
 		@Override

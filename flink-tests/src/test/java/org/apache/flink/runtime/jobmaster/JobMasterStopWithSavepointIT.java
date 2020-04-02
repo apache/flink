@@ -182,8 +182,10 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		// wait until we restart at least 2 times and until we see at least 10 checkpoints.
-		numberOfRestarts.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-		checkpointsToWaitFor.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+		assertTrue(numberOfRestarts.await(deadline.timeLeft().toMillis(),
+			TimeUnit.MILLISECONDS));
+		assertTrue(checkpointsToWaitFor.await(deadline.timeLeft().toMillis(),
+			TimeUnit.MILLISECONDS));
 
 		// verifying that we actually received a synchronous checkpoint
 		assertTrue(syncSavepointId.get() > 0);
@@ -287,7 +289,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 				null));
 
 		ClientUtils.submitJob(clusterClient, jobGraph);
-		invokeLatch.await(60, TimeUnit.SECONDS);
+		assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
 		waitForJob();
 	}
 
@@ -314,7 +316,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 		private long synchronousSavepointId = Long.MIN_VALUE;
 
-		public ExceptionOnCallbackStreamTask(final Environment environment) {
+		public ExceptionOnCallbackStreamTask(final Environment environment) throws Exception {
 			super(environment);
 		}
 
@@ -358,7 +360,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 		private final transient OneShotLatch finishLatch;
 
-		public NoOpBlockingStreamTask(final Environment environment) {
+		public NoOpBlockingStreamTask(final Environment environment) throws Exception {
 			super(environment);
 			this.finishLatch = new OneShotLatch();
 		}
@@ -385,7 +387,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 		private final transient OneShotLatch finishLatch;
 
-		public CheckpointCountingTask(final Environment environment) {
+		public CheckpointCountingTask(final Environment environment) throws Exception {
 			super(environment);
 			this.finishLatch = new OneShotLatch();
 		}

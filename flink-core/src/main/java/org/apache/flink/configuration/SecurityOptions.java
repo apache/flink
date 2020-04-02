@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LineBreakElement.linebreak;
 import static org.apache.flink.configuration.description.LinkElement.link;
@@ -31,6 +33,35 @@ import static org.apache.flink.configuration.description.TextElement.text;
  * The set of configuration options relating to security.
  */
 public class SecurityOptions {
+
+	// ------------------------------------------------------------------------
+	//  Custom Security Service Loader
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<List<String>> SECURITY_CONTEXT_FACTORY_CLASSES =
+		key("security.context.factory.classes")
+			.stringType()
+			.asList()
+			.defaultValues(
+					"org.apache.flink.runtime.security.contexts.HadoopSecurityContextFactory",
+					"org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory")
+				.withDescription(
+						"List of factories that should be used to instantiate a security context. " +
+								"If multiple are configured, Flink will use the first compatible " +
+								"factory. You should have a NoOpSecurityContextFactory in this list " +
+								"as a fallback.");
+
+	public static final ConfigOption<List<String>> SECURITY_MODULE_FACTORY_CLASSES =
+		key("security.module.factory.classes")
+			.stringType()
+			.asList()
+			.defaultValues(
+				"org.apache.flink.runtime.security.modules.HadoopModuleFactory",
+				"org.apache.flink.runtime.security.modules.JaasModuleFactory",
+				"org.apache.flink.runtime.security.modules.ZookeeperModuleFactory")
+			.withDescription("List of factories that should be used to instantiate security " +
+					"modules. All listed modules will be installed. Keep in mind that the " +
+					"configured security context might rely on some modules being present.");
 
 	// ------------------------------------------------------------------------
 	//  Kerberos Options

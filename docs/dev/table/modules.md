@@ -105,12 +105,11 @@ modules:
      type: core
    - name: myhive
      type: hive
-     hive-version: 1.2.1
 {% endhighlight %}
 </div>
 </div>
 
-### List Available Catalogs
+### List Available Modules
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">

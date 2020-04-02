@@ -165,9 +165,9 @@ public class StreamingFileSink<IN>
 	 * @return The builder where the remaining of the configuration parameters for the sink can be configured.
 	 * In order to instantiate the sink, call {@link RowFormatBuilder#build()} after specifying the desired parameters.
 	 */
-	public static <IN> StreamingFileSink.RowFormatBuilder<IN, String, ? extends RowFormatBuilder<IN, String, ?>> forRowFormat(
+	public static <IN> StreamingFileSink.DefaultRowFormatBuilder<IN> forRowFormat(
 			final Path basePath, final Encoder<IN> encoder) {
-		return new StreamingFileSink.RowFormatBuilder<>(basePath, encoder, new DateTimeBucketAssigner<>());
+		return new DefaultRowFormatBuilder<>(basePath, encoder, new DateTimeBucketAssigner<>());
 	}
 
 	/**
@@ -178,9 +178,9 @@ public class StreamingFileSink<IN>
 	 * @return The builder where the remaining of the configuration parameters for the sink can be configured.
 	 * In order to instantiate the sink, call {@link RowFormatBuilder#build()} after specifying the desired parameters.
 	 */
-	public static <IN> StreamingFileSink.BulkFormatBuilder<IN, String, ? extends BulkFormatBuilder<IN, String, ?>> forBulkFormat(
+	public static <IN> StreamingFileSink.DefaultBulkFormatBuilder<IN> forBulkFormat(
 			final Path basePath, final BulkWriter.Factory<IN> writerFactory) {
-		return new StreamingFileSink.BulkFormatBuilder<>(basePath, writerFactory, new DateTimeBucketAssigner<>());
+		return new StreamingFileSink.DefaultBulkFormatBuilder<>(basePath, writerFactory, new DateTimeBucketAssigner<>());
 	}
 
 	/**
@@ -297,6 +297,18 @@ public class StreamingFileSink<IN>
 	}
 
 	/**
+	 * Builder for the vanilla {@link StreamingFileSink} using a row format.
+	 * @param <IN> record type
+	 */
+	public static final class DefaultRowFormatBuilder<IN> extends RowFormatBuilder<IN, String, DefaultRowFormatBuilder<IN>> {
+		private static final long serialVersionUID = -8503344257202146718L;
+
+		private DefaultRowFormatBuilder(Path basePath, Encoder<IN> encoder, BucketAssigner<IN, String> bucketAssigner) {
+			super(basePath, encoder, bucketAssigner);
+		}
+	}
+
+	/**
 	 * A builder for configuring the sink for bulk-encoding formats, e.g. Parquet/ORC.
 	 */
 	@PublicEvolving
@@ -391,6 +403,19 @@ public class StreamingFileSink<IN>
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
+		}
+	}
+
+	/**
+	 * Builder for the vanilla {@link StreamingFileSink} using a bulk format.
+	 * @param <IN> record type
+	 */
+	public static final class DefaultBulkFormatBuilder<IN> extends BulkFormatBuilder<IN, String, DefaultBulkFormatBuilder<IN>> {
+
+		private static final long serialVersionUID = 7493169281036370228L;
+
+		private DefaultBulkFormatBuilder(Path basePath, BulkWriter.Factory<IN> writerFactory, BucketAssigner<IN, String> assigner) {
+			super(basePath, writerFactory, assigner);
 		}
 	}
 

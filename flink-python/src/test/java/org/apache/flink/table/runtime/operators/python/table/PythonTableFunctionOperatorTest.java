@@ -24,9 +24,9 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.operators.python.scalar.PassThroughPythonTableFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -77,7 +78,8 @@ public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperator
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 			return new PassThroughPythonTableFunctionRunner<Row>(resultReceiver) {
 				@Override
 				public Row copy(Row element) {

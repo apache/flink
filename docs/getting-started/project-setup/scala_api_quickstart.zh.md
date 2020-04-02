@@ -50,16 +50,16 @@ under the License.
 
 <div class="tab-content">
     <div class="tab-pane active" id="sbt_template">
-    {% highlight bash %}
-    $ sbt new tillrohrmann/flink-project.g8
-    {% endhighlight %}
+{% highlight bash %}
+$ sbt new tillrohrmann/flink-project.g8
+{% endhighlight %}
     这里将提示你输入几个参数 (项目名称，Flink版本...) 然后从 <a href="https://github.com/tillrohrmann/flink-project.g8">Flink项目模版</a>创建一个Flink项目。
     你的sbt版本需要不小于0.13.13才能执行这个命令。如有必要，你可以参考这个<a href="http://www.scala-sbt.org/download.html">安装指南</a>获取合适版本的sbt。
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">
-    {% highlight bash %}
-    $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
-    {% endhighlight %}
+{% highlight bash %}
+$ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
+{% endhighlight %}
     这将在<strong>指定的</strong>目录创建一个Flink项目。
     </div>
 </div>
@@ -126,27 +126,47 @@ addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
 
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+{% highlight bash %}
+$ mvn archetype:generate                               \
+  -DarchetypeGroupId=org.apache.flink              \
+  -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+  -DarchetypeVersion={{site.version}}
+{% endhighlight %}
     这将允许你 <strong>为新项目命名</strong>。同时以交互式的方式询问你项目的 groupId，artifactId 和 package 名称.
     </div>
     <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
 {% endhighlight %}
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>注意</b>: 对于 Maven 3.0 及更高版本, 不再能够通过命令行指定仓库 (-DarchetypeCatalog). 如果你想使用快照仓库，需要在 settings.xml 文件中添加仓库条目。有关该设置的详细信息，请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+        <b>注意</b>：Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+        请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+        如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
+{% highlight bash %}
+<settings>
+  <activeProfiles>
+    <activeProfile>apache</activeProfile>
+  </activeProfiles>
+  <profiles>
+    <profile>
+      <id>apache</id>
+      <repositories>
+        <repository>
+          <id>apache-snapshots</id>
+          <url>https://repository.apache.org/content/repositories/snapshots/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+</settings>
+{% endhighlight %}
     </p>
     {% endunless %}
 </div>
@@ -163,7 +183,7 @@ quickstart/
 └── src
     └── main
         ├── resources
-        │   └── log4j.properties
+        │   └── log4j2.properties
         └── scala
             └── org
                 └── myorg

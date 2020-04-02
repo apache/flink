@@ -117,7 +117,7 @@ FROM rowTimeT WHERE val > 100
       <![CDATA[
 LogicalProject(name=[$0], EXPR$1=[TUMBLE_END($1)], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[AVG($2)])
-   +- LogicalProject(name=[$3], $f1=[TUMBLE($1, 600000:INTERVAL MINUTE)], val=[$2])
+   +- LogicalProject(name=[$3], $f1=[$TUMBLE($1, 600000:INTERVAL MINUTE)], val=[$2])
       +- LogicalFilter(condition=[>($2, 100)])
          +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>

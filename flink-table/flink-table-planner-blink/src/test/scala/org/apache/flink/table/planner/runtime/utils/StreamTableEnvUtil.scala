@@ -36,7 +36,7 @@ object StreamTableEnvUtil {
     * @param dataStream The [[DataStream]] to register as table in the catalog.
     * @tparam T the type of the [[DataStream]].
     */
-  def registerDataStreamInternal[T](
+  def createTemporaryViewInternal[T](
       tEnv: StreamTableEnvironment,
       name: String,
       dataStream: DataStream[T],
@@ -47,7 +47,7 @@ object StreamTableEnvUtil {
       case Some(names) => Some(names.map(ExpressionParser.parseExpression))
       case _ => None
     }
-    TableTestUtil.registerDataStream(tEnv, name, dataStream, fields, fieldNullables, statistic)
+    TableTestUtil.createTemporaryView(tEnv, name, dataStream, fields, fieldNullables, statistic)
   }
 
 }

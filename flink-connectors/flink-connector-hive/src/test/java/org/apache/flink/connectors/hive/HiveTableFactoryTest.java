@@ -18,16 +18,20 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableSinkFactoryContextImpl;
+import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -78,9 +82,11 @@ public class HiveTableFactoryTest {
 		Optional<TableFactory> opt = catalog.getTableFactory();
 		assertTrue(opt.isPresent());
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-		TableSource tableSource = tableFactory.createTableSource(path, table);
+		TableSource tableSource = tableFactory.createTableSource(new TableSourceFactoryContextImpl(
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
 		assertTrue(tableSource instanceof StreamTableSource);
-		TableSink tableSink = tableFactory.createTableSink(path, table);
+		TableSink tableSink = tableFactory.createTableSink(new TableSinkFactoryContextImpl(
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
 		assertTrue(tableSink instanceof StreamTableSink);
 	}
 
@@ -100,9 +106,11 @@ public class HiveTableFactoryTest {
 		Optional<TableFactory> opt = catalog.getTableFactory();
 		assertTrue(opt.isPresent());
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-		TableSink tableSink = tableFactory.createTableSink(path, table);
+		TableSink tableSink = tableFactory.createTableSink(new TableSinkFactoryContextImpl(
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
 		assertTrue(tableSink instanceof HiveTableSink);
-		TableSource tableSource = tableFactory.createTableSource(path, table);
+		TableSource tableSource = tableFactory.createTableSource(new TableSourceFactoryContextImpl(
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
 		assertTrue(tableSource instanceof HiveTableSource);
 	}
 

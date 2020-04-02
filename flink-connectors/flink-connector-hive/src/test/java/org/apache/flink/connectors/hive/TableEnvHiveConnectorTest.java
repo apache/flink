@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.ArrayUtils;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -56,6 +57,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -147,6 +149,7 @@ public class TableEnvHiveConnectorTest {
 			suffix = "stored as " + format;
 		}
 		String tableSchema;
+		// use 2018-08-20 00:00:00.1 to avoid multi-version print difference.
 		List<Object> row1 = new ArrayList<>(Arrays.asList(1, "a", "2018-08-20 00:00:00.1"));
 		List<Object> row2 = new ArrayList<>(Arrays.asList(2, "b", "2019-08-26 00:00:00.1"));
 		// some data types are not supported for parquet tables in early versions -- https://issues.apache.org/jira/browse/HIVE-6384
@@ -157,23 +160,37 @@ public class TableEnvHiveConnectorTest {
 		} else {
 			tableSchema = "(i int,s string,ts timestamp)";
 		}
-		hiveShell.execute(String.format("create table db1.src %s %s", tableSchema, suffix));
-		hiveShell.execute(String.format("create table db1.dest %s %s", tableSchema, suffix));
+
+		hiveShell.execute(String.format(
+				"create table db1.src %s partitioned by (p1 string, p2 timestamp) %s", tableSchema, suffix));
+		hiveShell.execute(String.format(
+				"create table db1.dest %s partitioned by (p1 string, p2 timestamp) %s", tableSchema, suffix));
 
 		// prepare source data with Hive
 		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
-		hiveShell.execute(String.format("insert into table db1.src values (%s),(%s)",
-				toRowValue(row1), toRowValue(row2)));
+		hiveShell.execute(String.format(
+				"insert into table db1.src partition(p1='first',p2='2018-08-20 00:00:00.1') values (%s)",
+				toRowValue(row1)));
+		hiveShell.execute(String.format(
+				"insert into table db1.src partition(p1='second',p2='2018-08-26 00:00:00.1') values (%s)",
+				toRowValue(row2)));
+
+		List<String> expected = Arrays.asList(
+				String.join("\t", ArrayUtils.concat(
+						row1.stream().map(Object::toString).toArray(String[]::new),
+						new String[]{"first", "2018-08-20 00:00:00.1"})),
+				String.join("\t", ArrayUtils.concat(
+						row2.stream().map(Object::toString).toArray(String[]::new),
+						new String[]{"second", "2018-08-26 00:00:00.1"})));
+
+		verifyFlinkQueryResult(tableEnv.sqlQuery("select * from db1.src"), expected);
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
 		tableEnv.execute("test_" + format);
 
 		// verify data on hive side
-		verifyHiveQueryResult("select * from db1.dest",
-				Arrays.asList(
-						row1.stream().map(Object::toString).collect(Collectors.joining("\t")),
-						row2.stream().map(Object::toString).collect(Collectors.joining("\t"))));
+		verifyHiveQueryResult("select * from db1.dest", expected);
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -511,6 +528,61 @@ public class TableEnvHiveConnectorTest {
 		}
 	}
 
+	@Test
+	public void testWhitespacePartValue() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.dest (x int) partitioned by (p string)");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert into db1.dest select 1,'  '");
+			tableEnv.sqlUpdate("insert into db1.dest select 2,'a \t'");
+			tableEnv.execute("insert");
+			assertEquals("[p=  , p=a %09]", hiveShell.executeQuery("show partitions db1.dest").toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testCompressTextTable() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x string,y string)");
+			hiveShell.execute("create table db1.dest like db1.src");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{"a", "b"})
+					.addRow(new Object[]{"c", "d"})
+					.commit();
+			hiveCatalog.getHiveConf().setBoolVar(HiveConf.ConfVars.COMPRESSRESULT, true);
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert overwrite db1.dest select * from db1.src");
+			tableEnv.execute("insert dest");
+			List<String> expected = Arrays.asList("a\tb", "c\td");
+			verifyHiveQueryResult("select * from db1.dest", expected);
+			verifyFlinkQueryResult(tableEnv.sqlQuery("select * from db1.dest"), expected);
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testRegexSerDe() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x int,y string) " +
+					"row format serde 'org.apache.hadoop.hive.serde2.RegexSerDe' " +
+					"with serdeproperties ('input.regex'='([\\\\d]+)\\u0001([\\\\S]+)')");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{1, "a"})
+					.addRow(new Object[]{2, "ab"})
+					.commit();
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			assertEquals("[1,a, 2,ab]", TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src order by x")).toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -520,6 +592,19 @@ public class TableEnvHiveConnectorTest {
 
 	private void verifyHiveQueryResult(String query, List<String> expected) {
 		List<String> results = hiveShell.executeQuery(query);
+		assertEquals(expected.size(), results.size());
+		assertEquals(new HashSet<>(expected), new HashSet<>(results));
+	}
+
+	private void verifyFlinkQueryResult(org.apache.flink.table.api.Table table, List<String> expected) throws Exception {
+		List<Row> rows = TableUtils.collectToList(table);
+		List<String> results = rows.stream().map(row ->
+				IntStream.range(0, row.getArity())
+						.mapToObj(row::getField)
+						.map(o -> o instanceof LocalDateTime ?
+								Timestamp.valueOf((LocalDateTime) o) : o)
+						.map(Object::toString)
+						.collect(Collectors.joining("\t"))).collect(Collectors.toList());
 		assertEquals(expected.size(), results.size());
 		assertEquals(new HashSet<>(expected), new HashSet<>(results));
 	}

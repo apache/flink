@@ -21,6 +21,7 @@ package org.apache.flink.table.api.java.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -65,6 +66,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -212,9 +214,14 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
 		List<Expression> expressions = ExpressionParser.parseExpressionList(fields);
+		return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
+	}
+
+	@Override
+	public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
 		JavaDataStreamQueryOperation<T> queryOperation = asQueryOperation(
 			dataStream,
-			Optional.of(expressions));
+			Optional.of(Arrays.asList(fields)));
 
 		return createTable(queryOperation);
 	}
@@ -236,6 +243,14 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
+		createTemporaryView(path, fromDataStream(dataStream, fields));
+	}
+
+	@Override
+	public <T> void createTemporaryView(
+			String path,
+			DataStream<T> dataStream,
+			Expression... fields) {
 		createTemporaryView(path, fromDataStream(dataStream, fields));
 	}
 
@@ -357,6 +372,13 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		return executionEnvironment;
 	}
 
+	/**
+	 * This method is used for sql client to submit job.
+	 */
+	public Pipeline getPipeline(String jobName) {
+		return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
+	}
+
 	private <T> DataStream<T> toDataStream(Table table, OutputConversionModifyOperation modifyOperation) {
 		List<Transformation<?>> transformations = planner.translate(Collections.singletonList(modifyOperation));
 
@@ -370,17 +392,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	protected void validateTableSource(TableSource<?> tableSource) {
 		super.validateTableSource(tableSource);
 		validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
-	}
-
-	@Override
-	protected boolean isEagerOperationTranslation() {
-		return true;
-	}
-
-	@Override
-	public String explain(boolean extended) {
-		// throw exception directly, because the operations to explain are always empty
-		throw new TableException("'explain' method without any tables is unsupported in StreamTableEnvironment.");
 	}
 
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {

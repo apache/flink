@@ -23,7 +23,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
@@ -41,8 +43,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTestBase.DRIVER_CLASS;
-import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormatTest.check;
+import static org.apache.flink.api.java.io.jdbc.JdbcTableOutputFormatTest.check;
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * IT case for {@link JDBCUpsertTableSink}.
@@ -52,12 +54,13 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 	public static final String DB_URL = "jdbc:derby:memory:upsert";
 	public static final String OUTPUT_TABLE1 = "upsertSink";
 	public static final String OUTPUT_TABLE2 = "appendSink";
+	public static final String OUTPUT_TABLE3 = "batchSink";
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
-		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
+		System.setProperty("derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
 
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
 			Statement stat = conn.createStatement()) {
@@ -73,18 +76,23 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 					"num BIGINT NOT NULL DEFAULT 0," +
 					"ts TIMESTAMP)");
 
+			stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE3 + " (" +
+				"NAME VARCHAR(20) NOT NULL," +
+				"SCORE BIGINT NOT NULL DEFAULT 0)");
+
 			stat.executeUpdate("CREATE TABLE REAL_TABLE (real_data REAL)");
 		}
 	}
 
 	@After
 	public void clearOutputTable() throws Exception {
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL);
 			Statement stat = conn.createStatement()) {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE1);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
+			stat.execute("DROP TABLE " + OUTPUT_TABLE3);
 			stat.execute("DROP TABLE REAL_TABLE");
 		}
 	}
@@ -134,7 +142,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 						")");
 
 		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
-		env.execute();
+		tEnv.execute("job name");
 		check(new Row[] {Row.of(1.0f)}, DB_URL, "REAL_TABLE", new String[]{"real_data"});
 	}
 
@@ -146,11 +154,12 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 		Table t = tEnv.fromDataStream(get4TupleDataStream(env).assignTimestampsAndWatermarks(
-				new AscendingTimestampExtractor<Tuple4<Integer, Long, String, Timestamp>>() {
-					@Override
-					public long extractAscendingTimestamp(Tuple4<Integer, Long, String, Timestamp> element) {
-						return element.f0;
-					}}), "id, num, text, ts");
+			new AscendingTimestampExtractor<Tuple4<Integer, Long, String, Timestamp>>() {
+				@Override
+				public long extractAscendingTimestamp(Tuple4<Integer, Long, String, Timestamp> element) {
+					return element.f0;
+				}
+			}), $("id"), $("num"), $("text"), $("ts"));
 
 		tEnv.createTemporaryView("T", t);
 		tEnv.sqlUpdate(
@@ -173,7 +182,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			"  GROUP BY len, cTag\n" +
 			")\n" +
 			"GROUP BY cnt, cTag");
-		env.execute();
+		tEnv.execute("job name");
 		check(new Row[] {
 				Row.of(1, 5, 1, Timestamp.valueOf("1970-01-01 00:00:00.006")),
 				Row.of(7, 1, 1, Timestamp.valueOf("1970-01-01 00:00:00.021")),
@@ -188,7 +197,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 		env.getConfig().setParallelism(1);
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-		Table t = tEnv.fromDataStream(get4TupleDataStream(env), "id, num, text, ts");
+		Table t = tEnv.fromDataStream(get4TupleDataStream(env), $("id"), $("num"), $("text"), $("ts"));
 
 		tEnv.registerTable("T", t);
 
@@ -204,11 +213,43 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				")");
 
 		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)");
-		env.execute();
+		tEnv.execute("job name");
 		check(new Row[] {
 				Row.of(2, 2, Timestamp.valueOf("1970-01-01 00:00:00.002")),
 				Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
 				Row.of(20, 6, Timestamp.valueOf("1970-01-01 00:00:00.02"))
 		}, DB_URL, OUTPUT_TABLE2, new String[]{"id", "num", "ts"});
+	}
+
+	@Test
+	public void testBatchSink() throws Exception {
+		EnvironmentSettings bsSettings = EnvironmentSettings.newInstance()
+				.useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tEnv = TableEnvironment.create(bsSettings);
+
+		tEnv.sqlUpdate(
+			"CREATE TABLE USER_RESULT(" +
+				"NAME VARCHAR," +
+				"SCORE BIGINT" +
+				") WITH ( " +
+				"'connector.type' = 'jdbc'," +
+				"'connector.url'='" + DB_URL + "'," +
+				"'connector.table' = '" + OUTPUT_TABLE3 + "'" +
+				")");
+
+		tEnv.sqlUpdate("INSERT INTO USER_RESULT\n" +
+				"SELECT user_name, score " +
+				"FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), " +
+				"(42, 'Kim'), (1, 'Bob')) " +
+				"AS UserCountTable(score, user_name)");
+		tEnv.execute("test");
+
+		check(new Row[] {
+				Row.of("Bob", 1),
+				Row.of("Tom", 22),
+				Row.of("Kim", 42),
+				Row.of("Kim", 42),
+				Row.of("Bob", 1)
+		}, DB_URL, OUTPUT_TABLE3, new String[]{"NAME", "SCORE"});
 	}
 }

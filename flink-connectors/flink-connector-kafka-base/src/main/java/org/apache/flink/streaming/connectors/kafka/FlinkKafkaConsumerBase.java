@@ -282,7 +282,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * the streams from the partitions are unioned in a "first come first serve" fashion. Per-partition
 	 * characteristics are usually lost that way. For example, if the timestamps are strictly ascending
 	 * per Kafka partition, they will not be strictly ascending in the resulting Flink DataStream, if the
-	 * parallel source subtask reads more that one partition.
+	 * parallel source subtask reads more than one partition.
 	 *
 	 * <p>Running timestamp extractors / watermark generators directly inside the Kafka source, per Kafka
 	 * partition, allows users to let them exploit the per-partition characteristics.

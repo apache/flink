@@ -286,7 +286,7 @@ public class LocalInputChannelTest {
 		final LocalInputChannel localChannel = createLocalInputChannel(
 			inputGate, new ResultPartitionManager(), 1, 1);
 
-		inputGate.setInputChannel(localChannel.getPartitionId().getPartitionId(), localChannel);
+		inputGate.setInputChannel(localChannel);
 		localChannel.requestSubpartition(0);
 
 		// The timer should be initialized at the first time of retriggering partition request.

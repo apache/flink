@@ -62,9 +62,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     moduleManager)
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](
-      functionCatalog,
-      PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   @Test
   def testExtractRefInputFields(): Unit = {

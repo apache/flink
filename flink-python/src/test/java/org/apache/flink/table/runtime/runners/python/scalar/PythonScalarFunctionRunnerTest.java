@@ -26,6 +26,9 @@ import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -34,11 +37,7 @@ import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -48,7 +47,6 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.spy;
@@ -68,39 +66,33 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 
 	@Test
 	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
-		final AbstractGeneralPythonScalarFunctionRunner<Row> runner = createSingleUDFRunner();
+		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createSingleUDFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertTrue(inputTypeSerializer instanceof RowSerializer);
-
 		assertEquals(1, ((RowSerializer) inputTypeSerializer).getArity());
 	}
 
 	@Test
 	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
-		final AbstractGeneralPythonScalarFunctionRunner<Row> runner = createMultipleUDFRunner();
+		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createMultipleUDFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertTrue(inputTypeSerializer instanceof RowSerializer);
-
 		assertEquals(3, ((RowSerializer) inputTypeSerializer).getArity());
 	}
 
 	@Test
 	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
-		final AbstractGeneralPythonScalarFunctionRunner<Row> runner = createChainedUDFRunner();
+		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createChainedUDFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertTrue(inputTypeSerializer instanceof RowSerializer);
-
 		assertEquals(5, ((RowSerializer) inputTypeSerializer).getArity());
 	}
 
 	@Test
-	public void testUDFnProtoConstructedProperlyForSingleUDF() throws Exception {
+	public void testUDFProtoConstructedProperlyForSingleUDF() throws Exception {
 		final AbstractPythonScalarFunctionRunner<Row> runner = createSingleUDFRunner();
 
 		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
@@ -131,7 +123,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 
 	@Test
 	public void testUDFProtoConstructedProperlyForChainedUDFs() throws Exception {
-		final AbstractPythonScalarFunctionRunner<Row> runner = createChainedUDFRunner();
+		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createChainedUDFRunner();
 
 		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
 		assertEquals(3, udfs.getUdfsCount());
@@ -184,21 +176,18 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 		runner.startBundle();
 		verify(stageBundleFactorySpy, times(1)).getBundle(any(), any(), any());
 
-		// verify input element is hand over to input receiver
 		runner.processElement(Row.of(1L));
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		runner.getInputTypeSerializer().serialize(Row.of(1L), new DataOutputViewStreamWrapper(baos));
-		verify(windowedValueReceiverSpy, times(1)).accept(argThat(
-			windowedValue ->
-				windowedValue.getWindows().equals(Collections.singletonList(GlobalWindow.INSTANCE)) &&
-				windowedValue.getPane() == PaneInfo.NO_FIRING &&
-				windowedValue.getTimestamp() == BoundedWindow.TIMESTAMP_MIN_VALUE &&
-				Objects.deepEquals(windowedValue.getValue(), baos.toByteArray())));
 
 		// verify remoteBundle.close() is called during finishBundle
 		verify(remoteBundleSpy, times(0)).close();
 		runner.finishBundle();
 		verify(remoteBundleSpy, times(1)).close();
+
+		// verify the input element is processed and the result is hand over to the result receiver.
+		verify(resultReceiverSpy, times(1)).accept(argThat(
+			value -> Objects.deepEquals(value, baos.toByteArray())));
 	}
 
 	@Override
@@ -222,7 +211,9 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			pythonFunctionInfos,
 			environmentManager,
 			inputType,
-			outputType);
+			outputType,
+			Collections.emptyMap(),
+			PythonTestUtils.createMockFlinkMetricContainer());
 	}
 
 	private AbstractGeneralPythonScalarFunctionRunner<Row> createUDFRunner(
@@ -241,34 +232,20 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 				new String[] {System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
-		return new PythonScalarFunctionRunnerTestHarness(
+		return new PassThroughPythonScalarFunctionRunner<Row>(
 			"testPythonRunner",
 			receiver,
 			pythonFunctionInfos,
 			environmentManager,
 			rowType,
 			rowType,
-			jobBundleFactory);
-	}
-
-	private static class PythonScalarFunctionRunnerTestHarness extends PythonScalarFunctionRunner {
-
-		private final JobBundleFactory jobBundleFactory;
-
-		PythonScalarFunctionRunnerTestHarness(
-			String taskName,
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonFunctionInfo[] scalarFunctions,
-			PythonEnvironmentManager environmentManager,
-			RowType inputType, RowType outputType,
-			JobBundleFactory jobBundleFactory) {
-			super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
-			this.jobBundleFactory = jobBundleFactory;
-		}
-
-		@Override
-		public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
-			return jobBundleFactory;
-		}
+			Collections.emptyMap(),
+			jobBundleFactory,
+			PythonTestUtils.createMockFlinkMetricContainer()) {
+			@Override
+			public TypeSerializer<Row> getInputTypeSerializer() {
+				return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
+			}
+		};
 	}
 }

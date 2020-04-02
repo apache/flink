@@ -20,21 +20,20 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /**
  * {@link ContinuousFileReaderOperator} factory.
  */
-public class ContinuousFileReaderOperatorFactory<OUT> implements YieldingOperatorFactory<OUT>, OneInputStreamOperatorFactory<TimestampedFileInputSplit, OUT> {
+public class ContinuousFileReaderOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OUT>
+	implements YieldingOperatorFactory<OUT>, OneInputStreamOperatorFactory<TimestampedFileInputSplit, OUT> {
 
-	private ChainingStrategy strategy = ChainingStrategy.HEAD;
 	private final FileInputFormat<OUT> inputFormat;
 	private TypeInformation<OUT> type;
 	private ExecutionConfig executionConfig;
@@ -48,6 +47,7 @@ public class ContinuousFileReaderOperatorFactory<OUT> implements YieldingOperato
 		this.inputFormat = inputFormat;
 		this.type = type;
 		this.executionConfig = executionConfig;
+		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
 	@Override
@@ -56,27 +56,17 @@ public class ContinuousFileReaderOperatorFactory<OUT> implements YieldingOperato
 	}
 
 	@Override
-	public StreamOperator createStreamOperator(StreamTask containingTask, StreamConfig config, Output output) {
-		ContinuousFileReaderOperator<OUT> operator = new ContinuousFileReaderOperator<>(inputFormat, mailboxExecutor);
-		operator.setup(containingTask, config, output);
+	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
+		ContinuousFileReaderOperator<OUT> operator = new ContinuousFileReaderOperator<>(inputFormat, processingTimeService, mailboxExecutor);
+		operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		operator.setOutputType(type, executionConfig);
-		return operator;
+		return (T) operator;
 	}
 
 	@Override
 	public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
 		this.type = type;
 		this.executionConfig = executionConfig;
-	}
-
-	@Override
-	public void setChainingStrategy(ChainingStrategy strategy) {
-		this.strategy = strategy;
-	}
-
-	@Override
-	public ChainingStrategy getChainingStrategy() {
-		return strategy;
 	}
 
 	@Override

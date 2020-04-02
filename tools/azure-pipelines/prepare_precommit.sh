@@ -31,9 +31,17 @@ find . -type f -name '*.timestamp' | xargs touch
 
 export M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ 
 export PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH
-mvn -version
-mvn install --settings ./tools/azure-pipelines/google-mirror-settings.xml -DskipTests -Drat.skip
+run_mvn -version
+MVN_CALL="run_mvn install -DskipTests -Drat.skip"
+$MVN_CALL
+EXIT_CODE=$?
 
+if [ $EXIT_CODE != 0 ]; then
+	echo "=============================================================================="
+	echo "Build error. Exit code: $EXIT_CODE. Failing build"
+	echo "=============================================================================="
+	exit $EXIT_CODE
+fi
 
 chmod -R +x build-target
 chmod -R +x flink-end-to-end-tests

@@ -57,14 +57,14 @@ then
     echo "$OUTPUT"
 else
     echo "Running the job failed."
-    copy_and_show_logs
+    debug_copy_and_show_logs
     exit 1
 fi
 
 for expected_result in ${EXPECTED_RESULT_LOG_CONTAINS[@]}; do
     if [[ ! "$OUTPUT" =~ $expected_result ]]; then
         echo "Output does not contain '$expected_result' as required"
-        copy_and_show_logs
+        debug_copy_and_show_logs
         exit 1
     fi
 done

@@ -67,7 +67,7 @@ public class ResultStore {
 			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
 			final int gatewayPort = getGatewayPort(env.getDeployment());
 
-			if (env.getExecution().isChangelogMode()) {
+			if (env.getExecution().isChangelogMode() || env.getExecution().isTableauMode()) {
 				return new ChangelogCollectStreamResult<>(
 						schema,
 						config,
@@ -86,10 +86,12 @@ public class ResultStore {
 
 		} else {
 			// Batch Execution
-			if (!env.getExecution().isTableMode()) {
-				throw new SqlExecutionException("Results of batch queries can only be served in table mode.");
+			if (env.getExecution().isTableMode() || env.getExecution().isTableauMode()) {
+				return new MaterializedCollectBatchResult<>(schema, config, classLoader);
+			} else {
+				throw new SqlExecutionException(
+						"Results of batch queries can only be served in table or tableau mode.");
 			}
-			return new MaterializedCollectBatchResult<>(schema, config, classLoader);
 		}
 	}
 

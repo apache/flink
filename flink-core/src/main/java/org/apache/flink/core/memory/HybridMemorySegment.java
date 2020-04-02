@@ -26,11 +26,12 @@ import javax.annotation.Nullable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
+
+import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
 
 /**
  * This class represents a piece of memory managed by Flink.
@@ -74,7 +75,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	  * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
 	  */
 	HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner, @Nullable Runnable cleaner) {
-		super(checkBufferAndGetAddress(buffer), buffer.capacity(), owner);
+		super(getByteBufferAddress(buffer), buffer.capacity(), owner);
 		this.offHeapBuffer = buffer;
 		this.cleaner = cleaner;
 	}
@@ -310,7 +311,7 @@ public final class HybridMemorySegment extends MemorySegment {
 
 		if (target.isDirect()) {
 			// copy to the target memory directly
-			final long targetPointer = getAddress(target) + targetOffset;
+			final long targetPointer = getByteBufferAddress(target) + targetOffset;
 			final long sourcePointer = address + offset;
 
 			if (sourcePointer <= addressLimit - numBytes) {
@@ -354,7 +355,7 @@ public final class HybridMemorySegment extends MemorySegment {
 
 		if (source.isDirect()) {
 			// copy to the target memory directly
-			final long sourcePointer = getAddress(source) + sourceOffset;
+			final long sourcePointer = getByteBufferAddress(source) + sourceOffset;
 			final long targetPointer = address + offset;
 
 			if (targetPointer <= addressLimit - numBytes) {
@@ -382,47 +383,5 @@ public final class HybridMemorySegment extends MemorySegment {
 				put(offset++, source.get());
 			}
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Utilities for native memory accesses and checks
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * The reflection fields with which we access the off-heap pointer from direct ByteBuffers.
-	 */
-	private static final Field ADDRESS_FIELD;
-
-	static {
-		try {
-			ADDRESS_FIELD = java.nio.Buffer.class.getDeclaredField("address");
-			ADDRESS_FIELD.setAccessible(true);
-		}
-		catch (Throwable t) {
-			throw new RuntimeException(
-					"Cannot initialize HybridMemorySegment: off-heap memory is incompatible with this JVM.", t);
-		}
-	}
-
-	private static long getAddress(ByteBuffer buffer) {
-		if (buffer == null) {
-			throw new NullPointerException("buffer is null");
-		}
-		try {
-			return (Long) ADDRESS_FIELD.get(buffer);
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("Could not access direct byte buffer address.", t);
-		}
-	}
-
-	private static long checkBufferAndGetAddress(ByteBuffer buffer) {
-		if (buffer == null) {
-			throw new NullPointerException("buffer is null");
-		}
-		if (!buffer.isDirect()) {
-			throw new IllegalArgumentException("Can't initialize from non-direct ByteBuffer.");
-		}
-		return getAddress(buffer);
 	}
 }

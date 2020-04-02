@@ -31,8 +31,9 @@ import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.functions.{AggregateFunction, AggregateFunctionDefinition}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
-import org.apache.flink.table.utils.{CatalogManagerMocks, StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.utils.{CatalogManagerMocks, PlannerMock, StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 import org.mockito.Mockito
@@ -77,7 +78,7 @@ class AggregateTest extends TableTestBase {
       functionCatalog,
       config,
       Mockito.mock(classOf[StreamExecutionEnvironment]),
-      Mockito.mock(classOf[Planner]),
+      new PlannerMock,
       Mockito.mock(classOf[Executor]),
       true
     )

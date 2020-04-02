@@ -23,14 +23,10 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.plan.nodes.CommonPythonCalc
-import org.apache.flink.table.plan.nodes.datastream.DataStreamPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -88,7 +84,7 @@ class DataStreamPythonCalc(
     val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
     val pythonOperator = getPythonScalarFunctionOperator(
-      planner.getConfig.getConfiguration,
+      getConfig(planner.getConfig),
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       calcProgram)
@@ -101,34 +97,4 @@ class DataStreamPythonCalc(
       // keep parallelism to ensure order of accumulate and retract messages
       .setParallelism(inputParallelism)
   }
-
-  private[flink] def getPythonScalarFunctionOperator(
-      config: Configuration,
-      inputRowType: RowType,
-      outputRowType: RowType,
-      calcProgram: RexProgram) = {
-    val clazz = loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
-    val ctor = clazz.getConstructor(
-      classOf[Configuration],
-      classOf[Array[PythonFunctionInfo]],
-      classOf[RowType],
-      classOf[RowType],
-      classOf[Array[Int]],
-      classOf[Array[Int]])
-    val (udfInputOffsets, pythonFunctionInfos) =
-      extractPythonScalarFunctionInfos(getPythonRexCalls(calcProgram))
-    ctor.newInstance(
-      config,
-      pythonFunctionInfos,
-      inputRowType,
-      outputRowType,
-      udfInputOffsets,
-      getForwardedFields(calcProgram))
-      .asInstanceOf[OneInputStreamOperator[CRow, CRow]]
-  }
-}
-
-object DataStreamPythonCalc {
-  val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
-    "org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperator"
 }

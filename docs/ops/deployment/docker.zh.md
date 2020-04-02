@@ -68,6 +68,37 @@ Therefore, one needs to build a dedicated container image for every job.
 The `flink-container` module contains a `build.sh` script which can be used to create such an image.
 Please see the [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) for more details. 
 
+## Using plugins
+As described in the [plugins]({{ site.baseurl }}/zh/ops/plugins.html) documentation page: in order to use plugins they must be
+copied to the correct location in the Flink installation for them to work.
+
+When running Flink from one of the provided Docker images by default no plugins have been activated.
+The simplest way to enable plugins is to modify the provided official Flink docker images by adding
+an additional layer. This does however assume you have a docker registry available where you can push images to and
+that is accessible by your cluster.
+
+As an example assume you want to enable the [S3]({{ site.baseurl }}/zh/ops/filesystems/s3.html) plugins in your installation.
+
+Create a Dockerfile with a content something like this: {% highlight dockerfile %}
+# On which specific version of Flink is this based?
+# Check https://hub.docker.com/_/flink?tab=tags for current options
+FROM flink:{{ site.version }}-scala_2.12
+
+# Install Flink S3 FS Presto plugin
+RUN mkdir /opt/flink/plugins/s3-fs-presto && cp /opt/flink/opt/flink-s3-fs-presto* /opt/flink/plugins/s3-fs-presto
+
+# Install Flink S3 FS Hadoop plugin
+RUN mkdir /opt/flink/plugins/s3-fs-hadoop && cp /opt/flink/opt/flink-s3-fs-hadoop* /opt/flink/plugins/s3-fs-hadoop
+{% endhighlight %}
+
+Then build and push that image to your registry
+{% highlight bash %}
+docker build -t docker.example.nl/flink:{{ site.version }}-scala_2.12-s3 .
+docker push     docker.example.nl/flink:{{ site.version }}-scala_2.12-s3
+{% endhighlight %}
+
+Now you can reference this image in your cluster deployment and then these plugins are available for use.
+
 ## Flink with Docker Compose
 
 [Docker Compose](https://docs.docker.com/compose/) is a convenient way to run a

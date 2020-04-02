@@ -25,12 +25,16 @@ import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, Te
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule
 import org.apache.calcite.tools.RuleSets
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
 /**
   * Test for [[PushPartitionIntoTableSourceScanRule]].
   */
-class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
+@RunWith(classOf[Parameterized])
+class PushPartitionIntoTableSourceScanRuleTest(
+    sourceFetchPartitions: Boolean) extends TableTestBase {
   private val util = batchTestUtil()
 
   @Before
@@ -63,9 +67,9 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
       .build()
 
     TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "MyTable",
-      tableSchema = tableSchema, isBounded = true)
+      tableSchema = tableSchema, isBounded = true, sourceFetchPartitions = sourceFetchPartitions)
     TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "VirtualTable",
-      tableSchema = tableSchema2, isBounded = true)
+      tableSchema = tableSchema2, isBounded = true, sourceFetchPartitions = sourceFetchPartitions)
   }
 
   @Test
@@ -160,4 +164,11 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
     util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
+}
+
+object PushPartitionIntoTableSourceScanRuleTest {
+  @Parameterized.Parameters(name = "{0}")
+  def parameters(): java.util.Collection[Boolean] = {
+    java.util.Arrays.asList(true, false)
+  }
 }

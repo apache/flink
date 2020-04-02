@@ -42,6 +42,8 @@ public class PythonConfigTest {
 			is(equalTo(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.defaultValue())));
 		assertThat(pythonConfig.getPythonDataBufferMemorySize(),
 			is(equalTo(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.defaultValue())));
+		assertThat(pythonConfig.getMaxArrowBatchSize(),
+			is(equalTo(PythonOptions.MAX_ARROW_BATCH_SIZE.defaultValue())));
 		assertThat(pythonConfig.getPythonFilesInfo().isPresent(), is(false));
 		assertThat(pythonConfig.getPythonRequirementsFileInfo().isPresent(), is(false));
 		assertThat(pythonConfig.getPythonRequirementsCacheDirInfo().isPresent(), is(false));
@@ -79,6 +81,14 @@ public class PythonConfigTest {
 		config.set(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE, "100mb");
 		PythonConfig pythonConfig = new PythonConfig(config);
 		assertThat(pythonConfig.getPythonDataBufferMemorySize(), is(equalTo("100mb")));
+	}
+
+	@Test
+	public void testMaxArrowBatchSize() {
+		Configuration config = new Configuration();
+		config.set(PythonOptions.MAX_ARROW_BATCH_SIZE, 10);
+		PythonConfig pythonConfig = new PythonConfig(config);
+		assertThat(pythonConfig.getMaxArrowBatchSize(), is(equalTo(10)));
 	}
 
 	@Test

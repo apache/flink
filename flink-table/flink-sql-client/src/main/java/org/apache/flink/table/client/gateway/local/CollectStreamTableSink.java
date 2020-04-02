@@ -77,11 +77,6 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> stream) {
-		consumeDataStream(stream);
-	}
-
-	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> stream) {
 		// add sink
 		return stream

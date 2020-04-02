@@ -23,7 +23,8 @@ import org.apache.flink.tests.util.categories.Hadoop;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
-import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceSetup;
+import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.FileUtils;
@@ -55,6 +56,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.junit.Assert.assertThat;
+
 /**
  * End-to-end test for the kafka SQL connectors.
  */
@@ -76,7 +80,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 	}
 
 	@Rule
-	public final FlinkResource flink = new LocalStandaloneFlinkResource();
+	public final FlinkResource flink = new LocalStandaloneFlinkResourceFactory()
+		.create(FlinkResourceSetup.builder().build());
 
 	@Rule
 	public final KafkaResource kafka;
@@ -216,15 +221,18 @@ public class SQLClientKafkaITCase extends TestLogger {
 		for (int i = 0; i < maxRetries; i++) {
 			if (Files.exists(result)) {
 				byte[] bytes = Files.readAllBytes(result);
-				String lines = new String(bytes, Charsets.UTF_8);
-				if (lines.split("\n").length == 4) {
+				String[] lines = new String(bytes, Charsets.UTF_8).split("\n");
+				if (lines.length == 4) {
 					success = true;
-					String expected =
-						"2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.\n" +
-						"2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.\n" +
-						"2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.\n" +
-						"2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding.\n";
-					Assert.assertEquals(expected, lines);
+					assertThat(
+						lines,
+						arrayContainingInAnyOrder(
+							"2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.",
+							"2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.",
+							"2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.",
+							"2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding."
+						)
+					);
 					break;
 				}
 			} else {

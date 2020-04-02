@@ -106,6 +106,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-parquet_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-fs</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -275,6 +281,10 @@ under the License.
 					<groupId>org.apache.parquet</groupId>
 					<artifactId>parquet-hadoop-bundle</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -371,6 +381,18 @@ under the License.
 				<exclusion>
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>apache-log4j-extras</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -514,6 +536,10 @@ under the License.
 					<artifactId>jms</artifactId>
 					<groupId>javax.jms</groupId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
 
@@ -606,6 +632,14 @@ under the License.
 					<artifactId>hbase-hadoop-compat</artifactId>
 					<groupId>org.apache.hbase</groupId>
 				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -647,6 +681,18 @@ under the License.
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-yarn-server-resourcemanager</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>apache-log4j-extras</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
 
@@ -655,6 +701,28 @@ under the License.
 			<artifactId>hive-webhcat-java-client</artifactId>
 			<version>${hive.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
+				</exclusion>
+				<exclusion>
+					<artifactId>jms</artifactId>
+					<groupId>javax.jms</groupId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->
@@ -707,6 +775,10 @@ under the License.
 				<executions>
 					<execution>
 						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
@@ -715,12 +787,26 @@ under the License.
 									<include>org.apache.flink:flink-orc_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-orc-nohive_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-parquet_${scala.binary.version}</include>
+									<include>org.apache.parquet:parquet-hadoop</include>
+									<include>org.apache.parquet:parquet-format</include>
+									<include>org.apache.parquet:parquet-column</include>
+									<include>org.apache.parquet:parquet-common</include>
+									<include>org.apache.parquet:parquet-encoding</include>
 								</includes>
 							</artifactSet>
 							<relocations>
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
 									<shadedPattern>org.apache.flink.connectors.hive.fs.hdfs</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.parquet</pattern>
+									<shadedPattern>org.apache.flink.shaded.org.apache.parquet</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>shaded.parquet</pattern>
+									<shadedPattern>org.apache.flink.reshaded.parquet</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

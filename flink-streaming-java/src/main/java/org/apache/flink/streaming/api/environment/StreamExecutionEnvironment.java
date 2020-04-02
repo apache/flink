@@ -34,7 +34,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,8 +42,6 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -87,6 +84,8 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
@@ -222,6 +221,10 @@ public class StreamExecutionEnvironment {
 		return this.configuration;
 	}
 
+	protected ClassLoader getUserClassloader() {
+		return userClassloader;
+	}
+
 	/**
 	 * Gets the config object.
 	 */
@@ -234,6 +237,14 @@ public class StreamExecutionEnvironment {
 	*/
 	public List<Tuple2<String, DistributedCache.DistributedCacheEntry>> getCachedFiles() {
 		return cacheFile;
+	}
+
+	/**
+	 * Gets the config JobListeners.
+	 */
+	@PublicEvolving
+	public List<JobListener> getJobListeners() {
+		return jobListeners;
 	}
 
 	/**
@@ -753,6 +764,8 @@ public class StreamExecutionEnvironment {
 			.ifPresent(c -> this.isChainingEnabled = c);
 		configuration.getOptional(ExecutionOptions.BUFFER_TIMEOUT)
 			.ifPresent(t -> this.setBufferTimeout(t.toMillis()));
+		configuration.getOptional(DeploymentOptions.JOB_LISTENERS)
+			.ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
 		configuration.getOptional(PipelineOptions.CACHED_FILES)
 			.ifPresent(f -> {
 				this.cacheFile.clear();
@@ -760,6 +773,18 @@ public class StreamExecutionEnvironment {
 			});
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
+	}
+
+	private void registerCustomListeners(final ClassLoader classLoader, final List<String> listeners) {
+		for (String listener : listeners) {
+			try {
+				final JobListener jobListener = InstantiationUtil.instantiate(
+						listener, JobListener.class, classLoader);
+				jobListeners.add(jobListener);
+			} catch (FlinkException e) {
+				throw new WrappingRuntimeException("Could not load JobListener : " + listener, e);
+			}
+		}
 	}
 
 	private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
@@ -1855,22 +1880,7 @@ public class StreamExecutionEnvironment {
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
 		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
 			.map(StreamExecutionEnvironmentFactory::createExecutionEnvironment)
-			.orElseGet(StreamExecutionEnvironment::createStreamExecutionEnvironment);
-	}
-
-	private static StreamExecutionEnvironment createStreamExecutionEnvironment() {
-		// because the streaming project depends on "flink-clients" (and not the other way around)
-		// we currently need to intercept the data set environment and create a dependent stream env.
-		// this should be fixed once we rework the project dependencies
-
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		if (env instanceof ContextEnvironment) {
-			return new StreamContextEnvironment((ContextEnvironment) env);
-		} else if (env instanceof OptimizerPlanEnvironment) {
-			return new StreamPlanEnvironment(env);
-		} else {
-			return createLocalEnvironment();
-		}
+			.orElseGet(StreamExecutionEnvironment::createLocalEnvironment);
 	}
 
 	/**

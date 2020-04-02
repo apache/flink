@@ -204,6 +204,15 @@ under the License.
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<artifact>com.amazonaws:aws-java-sdk-s3</artifact>
+									<!-- Make sure we are using the overridden XmlResponsesSaxParser of flink-s3-fs-base.
+										Filter must be removed as soon as XmlResponsesSaxParser of this module is
+										dropped, for example when discontinuing support for Java 8. -->
+									<excludes>
+										<exclude>com/amazonaws/services/s3/model/transform/XmlResponsesSaxParser**</exclude>
+									</excludes>
+								</filter>
 							</filters>
 						</configuration>
 					</execution>

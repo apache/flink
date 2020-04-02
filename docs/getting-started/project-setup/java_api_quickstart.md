@@ -53,28 +53,47 @@ Use one of the following commands to __create a project__:
 </ul>
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+{% highlight bash %}
+$ mvn archetype:generate                               \
+  -DarchetypeGroupId=org.apache.flink              \
+  -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+  -DarchetypeVersion={{site.version}}
+{% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
     <div class="tab-pane" id="quickstart-script">
-    {% highlight bash %}
+{% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
-    {% endhighlight %}
+{% endhighlight %}
 
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+        If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For example:
+{% highlight bash %}
+<settings>
+  <activeProfiles>
+    <activeProfile>apache</activeProfile>
+  </activeProfiles>
+  <profiles>
+    <profile>
+      <id>apache</id>
+      <repositories>
+        <repository>
+          <id>apache-snapshots</id>
+          <url>https://repository.apache.org/content/repositories/snapshots/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+</settings>
+{% endhighlight %}
     </p>
     {% endunless %}
 </div>
@@ -98,7 +117,7 @@ quickstart/
         │               ├── BatchJob.java
         │               └── StreamingJob.java
         └── resources
-            └── log4j.properties
+            └── log4j2.properties
 {% endhighlight %}
 
 The sample project is a __Maven project__, which contains two classes: _StreamingJob_ and _BatchJob_ are the basic skeleton programs for a *DataStream* and *DataSet* program.
@@ -151,7 +170,7 @@ Use one of the following commands to __create a project__:
         <div class="tab-content">
 <!-- NOTE: Any change to the build scripts here should also be reflected in flink-web/q/gradle-quickstart.sh !! -->
             <div class="tab-pane active" id="gradle-build">
-                {% highlight gradle %}
+{% highlight gradle %}
 buildscript {
     repositories {
         jcenter() // this applies only to the Gradle 'Shadow' plugin
@@ -179,8 +198,8 @@ ext {
     javaVersion = '1.8'
     flinkVersion = '{{ site.version }}'
     scalaBinaryVersion = '{{ site.scala_version }}'
-    slf4jVersion = '1.7.7'
-    log4jVersion = '1.2.17'
+    slf4jVersion = '1.7.15'
+    log4jVersion = '2.12.1'
 }
 
 
@@ -190,7 +209,7 @@ tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 }
 
-applicationDefaultJvmArgs = ["-Dlog4j.configuration=log4j.properties"]
+applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
 
 task wrapper(type: Wrapper) {
     gradleVersion = '3.1'
@@ -213,7 +232,7 @@ configurations {
     flinkShadowJar.exclude group: 'org.apache.flink', module: 'force-shading'
     flinkShadowJar.exclude group: 'com.google.code.findbugs', module: 'jsr305'
     flinkShadowJar.exclude group: 'org.slf4j'
-    flinkShadowJar.exclude group: 'log4j'
+    flinkShadowJar.exclude group: 'org.apache.logging.log4j'
 }
 
 // declare the dependencies for your production and test code
@@ -231,7 +250,9 @@ dependencies {
     // --------------------------------------------------------------
     //flinkShadowJar "org.apache.flink:flink-connector-kafka-0.11_${scalaBinaryVersion}:${flinkVersion}"
 
-    compile "log4j:log4j:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-api:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-core:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
     compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
 
     // Add test dependencies here.
@@ -261,20 +282,20 @@ jar {
 shadowJar {
     configurations = [project.configurations.flinkShadowJar]
 }
-                {% endhighlight %}
+{% endhighlight %}
             </div>
             <div class="tab-pane" id="gradle-settings">
-                {% highlight gradle %}
+{% highlight gradle %}
 rootProject.name = 'quickstart'
-                {% endhighlight %}
+{% endhighlight %}
             </div>
         </div>
     </div>
 
     <div class="tab-pane" id="gradle-script">
-    {% highlight bash %}
-    bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
-    {% endhighlight %}
+{% highlight bash %}
+bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
+{% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask
     you for the project name, organization (also used for the package name), project version,
     Scala and Flink version.
@@ -301,7 +322,7 @@ quickstart/
         │               ├── BatchJob.java
         │               └── StreamingJob.java
         └── resources
-            └── log4j.properties
+            └── log4j2.properties
 {% endhighlight %}
 
 The sample project is a __Gradle project__, which contains two classes: _StreamingJob_ and _BatchJob_ are the basic skeleton programs for a *DataStream* and *DataSet* program.

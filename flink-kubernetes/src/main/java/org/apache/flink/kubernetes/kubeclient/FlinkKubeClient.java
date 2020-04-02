@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 
@@ -26,7 +25,6 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * The client to talk with kubernetes.
@@ -34,40 +32,15 @@ import java.util.concurrent.CompletableFuture;
 public interface FlinkKubeClient extends AutoCloseable {
 
 	/**
-	 * Create kubernetes config map, include flink-conf.yaml, log4j.properties.
-	 */
-	void createConfigMap() throws Exception;
-
-	/**
-	 * Create kubernetes service for internal use. This will be set to jobmanager rpc address.
-	 * It is the owner of all resources. After deletion, all other resource will be deleted by gc.
+	 * Create the Master components, this can include the Deployment, the ConfigMap(s), and the Service(s).
 	 *
-	 * @param clusterId cluster id
-	 * @return A CompletableFuture is returned and could be used to wait for service ready.
 	 */
-	CompletableFuture<KubernetesService> createInternalService(String clusterId) throws Exception;
-
-	/**
-	 * Create kubernetes service for rest port. This will be used by client to interact with flink cluster.
-	 *
-	 * @param clusterId cluster id
-	 * @return A CompletableFuture is returned and could be used to wait for service ready.
-	 */
-	CompletableFuture<KubernetesService> createRestService(String clusterId) throws Exception;
-
-	/**
-	 * Create flink master deployment with replication of 1.
-	 *
-	 * @param clusterSpec {@link ClusterSpecification} to create the flink master deployment.
-	 */
-	void createFlinkMasterDeployment(ClusterSpecification clusterSpec);
+	void createJobManagerComponent(KubernetesJobManagerSpecification kubernetesJMSpec);
 
 	/**
 	 * Create task manager pod.
-	 *
-	 * @param parameter {@link TaskManagerPodParameter} to create a taskmanager pod.
 	 */
-	void createTaskManagerPod(TaskManagerPodParameter parameter);
+	void createTaskManagerPod(KubernetesPod kubernetesPod);
 
 	/**
 	 * Stop a specified pod by name.

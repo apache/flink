@@ -187,6 +187,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		try {
 			env.execute("Elasticsearch Sink Test");
 		} catch (JobExecutionException expectedException) {
+			// every ES version throws a different exception in case of timeouts, so don't bother asserting on the exception
 			// test passes
 			return;
 		}
@@ -201,6 +202,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put("cluster.name", clusterName);
 		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(bulkFlushMaxActions));
+		userConfig.put("transport.tcp.connect_timeout", "5s");
 
 		return userConfig;
 	}

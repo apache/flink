@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -29,6 +30,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+
+import java.util.Map;
 
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
@@ -38,21 +41,23 @@ import org.apache.beam.sdk.util.WindowedValue;
 @Internal
 public abstract class AbstractGeneralPythonScalarFunctionRunner<IN> extends AbstractPythonScalarFunctionRunner<IN> {
 
-	private static final String SCHEMA_CODER_URN = "flink:coder:schema:v1";
+	private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1";
 
 	/**
 	 * The TypeSerializer for input elements.
 	 */
 	private transient TypeSerializer<IN> inputTypeSerializer;
 
-	AbstractGeneralPythonScalarFunctionRunner(
+	public AbstractGeneralPythonScalarFunctionRunner(
 		String taskName,
 		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
+		RowType outputType,
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
 	}
 
 	@Override
@@ -89,7 +94,7 @@ public abstract class AbstractGeneralPythonScalarFunctionRunner<IN> extends Abst
 
 	@Override
 	public String getInputOutputCoderUrn() {
-		return SCHEMA_CODER_URN;
+		return SCALAR_FUNCTION_SCHEMA_CODER_URN;
 	}
 
 	/**

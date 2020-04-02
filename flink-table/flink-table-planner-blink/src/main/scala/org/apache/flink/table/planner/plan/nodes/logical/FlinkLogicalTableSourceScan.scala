@@ -28,11 +28,13 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
 
 import java.util
+import java.util.Collections
 import java.util.function.Supplier
 
 /**
@@ -43,7 +45,7 @@ class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     relOptTable: TableSourceTable[_])
-  extends TableScan(cluster, traitSet, relOptTable)
+  extends TableScan(cluster, traitSet, Collections.emptyList[RelHint](), relOptTable)
   with FlinkLogicalRel {
 
   lazy val tableSource: TableSource[_] = tableSourceTable.tableSource

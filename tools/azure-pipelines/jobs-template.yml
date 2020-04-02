@@ -18,12 +18,15 @@ parameters:
   e2e_pool_definion: # defines the hardware pool for end-to-end test execution
   stage_name: # defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)
   environment: # defines environment variables for downstream scripts
+  run_end_to_end: # if set to 'true', the end to end tests will be executed
+  container: # the container name for the build
+  jdk: # the jdk version to use
 
 jobs:
 - job: compile_${{parameters.stage_name}}
   condition: not(eq(variables['MODE'], 'e2e'))
   pool: ${{parameters.test_pool_definition}}
-  container: flink-build-container
+  container: ${{parameters.container}}
   timeoutInMinutes: 240
   cancelTimeoutInMinutes: 1
   workspace:
@@ -48,7 +51,11 @@ jobs:
       path: $(MAVEN_CACHE_FOLDER)
     continueOnError: true # continue the build even if the cache fails.
     displayName: Cache Maven local repo
-
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
+    displayName: "Set to jdk11"
+    condition: eq('${{parameters.jdk}}', 'jdk11')
   # Compile
   - script: STAGE=compile ${{parameters.environment}} ./tools/azure_controller.sh compile
     displayName: Build
@@ -61,9 +68,9 @@ jobs:
 
 - job: test_${{parameters.stage_name}}
   dependsOn: compile_${{parameters.stage_name}}
-  condition: not(eq(variables['MODE'], 'e2e'))
+  condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
   pool: ${{parameters.test_pool_definition}}
-  container: flink-build-container
+  container: ${{parameters.container}}
   timeoutInMinutes: 240
   cancelTimeoutInMinutes: 1
   workspace:
@@ -98,48 +105,41 @@ jobs:
       path: $(CACHE_FLINK_DIR)
       artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
 
-  # recreate "build-target" symlink for python tests
+  - task: Cache@2
+    inputs:
+      key: $(CACHE_KEY)
+      restoreKeys: $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    displayName: Cache Maven local repo
   - script: |
-      ln -snf $(CACHE_FLINK_DIR)/flink-dist/target/flink-*-SNAPSHOT-bin/flink-*-SNAPSHOT $(CACHE_FLINK_DIR)/build-target
-    displayName: Recreate 'build-target' symlink
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
+    displayName: "Set to jdk11"
+    condition: eq('${{parameters.jdk}}', 'jdk11')  
   # Test
   - script: STAGE=test ${{parameters.environment}} ./tools/azure_controller.sh $(module)
     displayName: Test - $(module)
+    env:
+      IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
+      IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
+      IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
 
   - task: PublishTestResults@2
     inputs:
       testResultsFormat: 'JUnit'
-
-- job: precommit_${{parameters.stage_name}}
-  dependsOn: compile_${{parameters.stage_name}}
-  # We are not running this job on a container, but in a VM.
-  pool: ${{parameters.e2e_pool_definition}}
-  timeoutInMinutes: 240
-  cancelTimeoutInMinutes: 1
-  workspace:
-    clean: all
-  steps:
-    - task: Cache@2
-      inputs:
-        key: $(CACHE_KEY)
-        restoreKeys: $(CACHE_FALLBACK_KEY)
-        path: $(MAVEN_CACHE_FOLDER)
-      displayName: Cache Maven local repo
-    
-    # download artifacts
-    - task: DownloadPipelineArtifact@2
-      inputs:
-        path: $(CACHE_FLINK_DIR)
-        artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
-    - script: ./tools/travis/setup_maven.sh
-    - script: ./tools/azure-pipelines/prepare_precommit.sh
-      displayName: prepare and build Flink
-    - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
-      displayName: Test - precommit 
+  # upload debug artifacts
+  - task: PublishPipelineArtifact@1
+    condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))
+    displayName: Upload Logs
+    inputs:
+      path: $(ARTIFACT_DIR)
+      artifact: logs-${{parameters.stage_name}}-$(ARTIFACT_NAME)
 
 - job: e2e_${{parameters.stage_name}}
-  condition: eq(variables['MODE'], 'e2e')
-  # We are not running this job on a container, but in a VM.
+  # uncomment below condition to run the e2e tests only on request.
+  #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
+  # We are running this in a separate pool
   pool: ${{parameters.e2e_pool_definition}}
   timeoutInMinutes: 240
   cancelTimeoutInMinutes: 1
@@ -152,10 +152,38 @@ jobs:
         restoreKeys: $(CACHE_FALLBACK_KEY)
         path: $(MAVEN_CACHE_FOLDER)
       displayName: Cache Maven local repo
-    - script: ./tools/travis/setup_maven.sh
-    - script: ./tools/azure-pipelines/setup_kubernetes.sh
-    - script: M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -Dmaven.wagon.http.pool=false" STAGE=compile ./tools/azure_controller.sh compile
-      displayName: Build
-    - script: FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
-      displayName: Run nightly e2e tests
+      continueOnError: true
+    - script: |
+        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
+      displayName: "Set to jdk11"
+      condition: eq('${{parameters.jdk}}', 'jdk11')
+    - script: |
+        source ./tools/ci/maven-utils.sh
+        setup_maven
+      displayName: Setup Maven 3.2.5
+    - script: ./tools/azure-pipelines/setup_docker.sh
+      displayName: Setup Docker
+    - script: ./tools/azure-pipelines/free_disk_space.sh
+      displayName: Free up disk space
+    - script: sudo apt-get install -y bc
+    - script: ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
+      displayName: Build Flink
+    # TODO remove pre-commit tests script by adding the tests to the nightly script
+#    - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
+#      displayName: Test - precommit 
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
+      displayName: Run e2e tests
+      env:
+        IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
+        IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
+        IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
+      # upload debug artifacts
+    - task: PublishPipelineArtifact@1
+      condition: and(succeededOrFailed(), not(eq(variables['ARTIFACT_DIR'], '')))
+      displayName: Upload Logs
+      inputs:
+        path: $(ARTIFACT_DIR)
+        artifact: logs-${{parameters.stage_name}}-e2e
+        
 

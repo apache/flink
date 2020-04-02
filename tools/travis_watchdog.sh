@@ -26,6 +26,7 @@ if [ -z "$HERE" ] ; then
 fi
 
 source "${HERE}/travis/stage.sh"
+source "${HERE}/ci/maven-utils.sh"
 
 ARTIFACTS_DIR="${HERE}/artifacts"
 
@@ -44,11 +45,11 @@ MAX_NO_OUTPUT=${1:-300}
 SLEEP_TIME=20
 
 # Maximum times to retry uploading artifacts file to transfer.sh
-TRANSFER_UPLOAD_MAX_RETRIES=10
+TRANSFER_UPLOAD_MAX_RETRIES=2
 
 # The delay between two retries to upload artifacts file to transfer.sh. The default exponential
 # backoff algorithm should be too long for the last several retries.
-TRANSFER_UPLOAD_RETRY_DELAY=15
+TRANSFER_UPLOAD_RETRY_DELAY=5
 
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
@@ -63,21 +64,17 @@ MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
 # Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
 # on the Travis VMs. Set forkCountTestPackage to 1 for container-based environment (4 GiB memory)
 # and 2 for sudo-enabled environment (7.5 GiB memory).
-#
-# -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
-# Flink, which however should all be built locally. see FLINK-7230
-#
-MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Dmaven.wagon.http.pool=false -B -Pskip-webui-build $MVN_LOGGING_OPTIONS"
+MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
+MVN_COMMON_OPTIONS="-Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
 
 e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
 
-MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
-MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
+MVN_COMPILE="run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
+MVN_TEST="run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
 # don't move the e2e-pre-commit profile activation into the misc entry in .travis.yml, since it breaks caching
-MVN_E2E="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE -Pe2e-pre-commit -pl ${e2e_modules},flink-dist verify"
+MVN_E2E="run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS -Pe2e-pre-commit -pl ${e2e_modules},flink-dist verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -142,6 +139,16 @@ upload_artifacts_s3() {
 		# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
 		# re-creates the whole directory structure from root.
 		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
+	fi
+
+	# On Azure, publish ARTIFACTS_FILE as a build artifact
+	if [ ! -z "$TF_BUILD" ] ; then
+		ARTIFACT_DIR="$(pwd)/artifact-dir"
+		mkdir $ARTIFACT_DIR
+		cp $ARTIFACTS_FILE $ARTIFACT_DIR/
+		
+		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$ARTIFACT_DIR"
+		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')"
 	fi
 
 	# upload to https://transfer.sh
@@ -294,17 +301,17 @@ case $TEST in
                 echo "Previous build failure detected, skipping bash end-to-end tests.\n"
                 echo "==============================================================================\n"
             fi
-        fi
-        if [ $EXIT_CODE == 0 ]; then
-            echo "\n\n==============================================================================\n"
-            echo "Running java end-to-end tests\n"
-            echo "==============================================================================\n"
+	        if [ $EXIT_CODE == 0 ]; then
+	            echo "\n\n==============================================================================\n"
+	            echo "Running java end-to-end tests\n"
+	            echo "==============================================================================\n"
 
-            run_with_watchdog "$MVN_E2E -DdistDir=$(readlink -e build-target)"
-        else
-            echo "\n==============================================================================\n"
-            echo "Previous build failure detected, skipping java end-to-end tests.\n"
-        fi
+	            run_with_watchdog "$MVN_E2E -DdistDir=$(readlink -e build-target)"
+	        else
+	            echo "\n==============================================================================\n"
+	            echo "Previous build failure detected, skipping java end-to-end tests.\n"
+	        fi
+	    fi
     ;;
 esac
 

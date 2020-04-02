@@ -97,4 +97,46 @@ class TableScanTest extends TableTestBase {
        """.stripMargin)
     util.verifyPlan("SELECT * FROM t1")
   }
+
+  @Test
+  def testDDLWithComputedColumnReferRowtime(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  my_ts AS ts - INTERVAL '0.001' SECOND,
+        |  proc AS PROCTIME(),
+        |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testKeywordsWithWatermarkComputedColumn(): Unit = {
+    // Create table with field as atom expression.
+    util.tableEnv.registerFunction("my_udf", Func0)
+    util.addTable(
+      s"""
+         |create table t1(
+         |  a int,
+         |  b varchar,
+         |  `time` time,
+         |  mytime as `time`,
+         |  `current_time` as current_time,
+         |  json_row ROW<`timestamp` TIMESTAMP(3)>,
+         |  `timestamp` AS json_row.`timestamp`,
+         |  WATERMARK FOR `timestamp` AS `timestamp`
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = 'false'
+         |)
+       """.stripMargin)
+    util.verifyPlan("SELECT * FROM t1")
+  }
 }

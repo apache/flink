@@ -34,7 +34,7 @@ import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Rule, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.io.File
 import java.util
@@ -408,11 +408,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       toRow(2, "2019-09-10 9:23:44")
     )
     val expected = List(
-      toRow(1, "1990-02-10 12:34:56", 1),
-      toRow(2, "2019-09-10 9:23:41", 2),
-      toRow(3, "2019-09-10 9:23:42", 3),
-      toRow(1, "2019-09-10 9:23:43", 1),
-      toRow(2, "2019-09-10 9:23:44", 2)
+      toRow(1, "1990-02-10 12:34:56", 1, "1990-02-10 12:34:56"),
+      toRow(2, "2019-09-10 9:23:41", 2, "2019-09-10 9:23:41"),
+      toRow(3, "2019-09-10 9:23:42", 3, "2019-09-10 9:23:42"),
+      toRow(1, "2019-09-10 9:23:43", 1, "2019-09-10 9:23:43"),
+      toRow(2, "2019-09-10 9:23:44", 2, "2019-09-10 9:23:44")
     )
     TestCollectionTableFactory.initData(sourceData)
     tableEnv.registerFunction("my_udf", Func0)
@@ -421,7 +421,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |create table t1(
         |  a int,
         |  `time` varchar,
-        |  c as my_udf(a)
+        |  c as my_udf(a),
+        |  d as `time`
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -431,7 +432,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |create table t2(
         |  a int,
         |  `time` varchar,
-        |  c int not null
+        |  c int not null,
+        |  d varchar
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -439,7 +441,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val query =
       """
         |insert into t2
-        |select t1.a, t1.`time`, t1.c from t1
+        |select t1.a, t1.`time`, t1.c, t1.d from t1
       """.stripMargin
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)
@@ -642,86 +644,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
-  }
-
-  @Test @Ignore("FLINK-14320") // need to implement
-  def testStreamSourceTableWithRowtime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a timestamp(3),
-        |  b bigint,
-        |  WATERMARK FOR a AS a - interval '1' SECOND
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a timestamp(3),
-        |  b bigint
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
-  @Test @Ignore("FLINK-14320") // need to implement
-  def testBatchTableWithRowtime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a timestamp(3),
-        |  b bigint,
-        |  WATERMARK FOR a AS a - interval '1' SECOND
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a timestamp(3),
-        |  b bigint
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
   @Test

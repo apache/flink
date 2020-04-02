@@ -63,7 +63,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class HiveStatsUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveStatsUtil.class);
 
-	public static final String DEFAULT_UNKNOWN_STATS_CONST = "-1";
+	private static final int DEFAULT_UNKNOWN_STATS_VALUE = -1;
 
 	private HiveStatsUtil() {}
 
@@ -291,5 +291,25 @@ public class HiveStatsUtil {
 		}
 		throw new CatalogException(String.format("Flink does not support converting ColumnStats '%s' for Hive column " +
 												"type '%s' yet", colStat, colType));
+	}
+
+	public static int parsePositiveIntStat(Map<String, String> parameters, String key) {
+		String value = parameters.get(key);
+		if (value == null) {
+			return DEFAULT_UNKNOWN_STATS_VALUE;
+		} else {
+			int v = Integer.parseInt(value);
+			return v > 0 ? v : DEFAULT_UNKNOWN_STATS_VALUE;
+		}
+	}
+
+	public static long parsePositiveLongStat(Map<String, String> parameters, String key) {
+		String value = parameters.get(key);
+		if (value == null) {
+			return DEFAULT_UNKNOWN_STATS_VALUE;
+		} else {
+			long v = Long.parseLong(value);
+			return v > 0 ? v : DEFAULT_UNKNOWN_STATS_VALUE;
+		}
 	}
 }

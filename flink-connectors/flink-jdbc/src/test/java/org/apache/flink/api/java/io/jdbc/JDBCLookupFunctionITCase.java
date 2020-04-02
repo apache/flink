@@ -45,7 +45,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTestBase.DRIVER_CLASS;
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * IT case for {@link JDBCLookupFunction}.
@@ -69,9 +69,9 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
-		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
+		System.setProperty("derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
 
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
 			Statement stat = conn.createStatement()) {
@@ -123,7 +123,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 
 	@After
 	public void clearOutputTable() throws Exception {
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 				Connection conn = DriverManager.getConnection(DB_URL);
 				Statement stat = conn.createStatement()) {
@@ -144,7 +144,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 					new Tuple2<>(2, 5),
 					new Tuple2<>(3, 5),
 					new Tuple2<>(3, 8)
-				)), "id1, id2");
+				)), $("id1"), $("id2"));
 
 		tEnv.registerTable("T", t);
 

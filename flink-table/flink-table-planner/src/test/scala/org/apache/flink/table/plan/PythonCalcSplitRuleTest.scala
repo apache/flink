@@ -20,8 +20,8 @@ package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPythonScalarFunction, PythonScalarFunction}
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPandasScalarFunction, BooleanPythonScalarFunction, PandasScalarFunction, PythonScalarFunction}
+import org.apache.flink.table.utils.TableTestUtil.{term, _}
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
@@ -262,6 +262,224 @@ class PythonCalcSplitRuleTest extends TableTestBase {
         term("select", "a", "b", "pyFunc1(a, c) AS f0")
       ),
       term("select", "a", "f0 AS _c1", "b")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPandasFunctionAsInputOfJavaFunction(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+
+    val resultTable = table.select("pandasFunc1(a, b) + 1")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "pandasFunc1(a, b) AS f0")
+      ),
+      term("select", "+(f0, 1) AS _c0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPandasFunctionMixedWithJavaFunction(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+
+    val resultTable = table.select("pandasFunc1(a, b), c + 1")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "c", "pandasFunc1(a, b) AS f0")
+      ),
+      term("select", "f0 AS _c0", "+(c, 1) AS _c1")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPandasFunctionMixedWithJavaFunctionInWhereClause(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+    util.tableEnv.registerFunction("pandasFunc2", new PandasScalarFunction("pandasFunc2"))
+
+    val resultTable = table.where("pandasFunc2(a, c) > 0").select("pandasFunc1(a, b), c + 1")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamPythonCalc",
+            streamTableNode(table),
+            term("select", "a", "b", "c", "pandasFunc2(a, c) AS f0")
+          ),
+          term("select", "c", "a", "b"),
+          term("where", ">(f0, 0)")
+        ),
+        term("select", "c", "pandasFunc1(a, b) AS f0")
+      ),
+      term("select", "f0 AS _c0", "+(c, 1) AS _c1")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPandasFunctionInWhereClause(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+    util.tableEnv.registerFunction("pandasFunc2", new BooleanPandasScalarFunction("pandasFunc2"))
+
+    val resultTable = table.where("pandasFunc2(a, c)").select("pandasFunc1(a, b)")
+
+    val expected = unaryNode(
+      "DataStreamPythonCalc",
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamPythonCalc",
+          streamTableNode(table),
+          term("select", "a", "b", "pandasFunc2(a, c) AS f0")
+        ),
+        term("select", "a", "b"),
+        term("where", "f0")
+      ),
+      term("select", "pandasFunc1(a, b) AS _c0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testChainingPandasFunction(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+    util.tableEnv.registerFunction("pandasFunc2", new PandasScalarFunction("pandasFunc2"))
+    util.tableEnv.registerFunction("pandasFunc3", new PandasScalarFunction("pandasFunc3"))
+
+    val resultTable = table.select("pandasFunc3(pandasFunc2(a + pandasFunc1(a, c), b), c)")
+
+    val expected = unaryNode(
+      "DataStreamPythonCalc",
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamPythonCalc",
+          streamTableNode(table),
+          term("select", "b", "c", "a", "pandasFunc1(a, c) AS f0")
+        ),
+        term("select", "b", "c", "+(a, f0) AS f0")
+      ),
+      term("select", "pandasFunc3(pandasFunc2(f0, b), c) AS _c0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testOnlyOnePandasFunction(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+
+    val resultTable = table.select("pandasFunc1(a, b)")
+
+    val expected = unaryNode(
+      "DataStreamPythonCalc",
+      streamTableNode(table),
+      term("select", "pandasFunc1(a, b) AS _c0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testOnlyOnePandasFunctionInWhereClause(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new BooleanPandasScalarFunction("pandasFunc1"))
+
+    val resultTable = table.where("pandasFunc1(a, c)").select("a, b")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "pandasFunc1(a, c) AS f0")
+      ),
+      term("select", "a", "b"),
+      term("where", "f0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPandasFunctionMixedWithGeneralPythonFunction(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+
+    val resultTable = table.select("pandasFunc1(a, b), pyFunc1(a, c) + 1")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        unaryNode(
+          "DataStreamPythonCalc",
+          streamTableNode(table),
+          term("select", "a", "c", "pandasFunc1(a, b) AS f0")
+        ),
+        term("select", "f0", "pyFunc1(a, c) AS f1")
+      ),
+      term("select",  "f0 AS _c0", "+(f1, 1) AS _c1")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPandasFunctionNotChainingWithGeneralPythonFunction(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+
+    val resultTable = table.select("pyFunc1(a, pandasFunc1(a, b)) + 1")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        unaryNode(
+          "DataStreamPythonCalc",
+          streamTableNode(table),
+          term("select", "a", "pandasFunc1(a, b) AS f0")
+        ),
+        term("select", "pyFunc1(a, f0) AS f0")
+      ),
+      term("select",  "+(f0, 1) AS _c0")
     )
 
     util.verifyTable(resultTable, expected)

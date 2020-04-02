@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
 import org.junit.Test;
@@ -51,9 +52,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 	@Test
 	public void testWatermarkAssignerWithIdleSource() throws Exception {
 		// with timeout 1000 ms
-		final WatermarkAssignerOperator operator = new WatermarkAssignerOperator(0, WATERMARK_GENERATOR, 1000);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(0, WATERMARK_GENERATOR, 1000);
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
 		testHarness.open();
 
@@ -91,10 +90,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
 	@Test
 	public void testWatermarkAssignerOperator() throws Exception {
-		final WatermarkAssignerOperator operator = new WatermarkAssignerOperator(0, WATERMARK_GENERATOR, -1);
-
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(0, WATERMARK_GENERATOR, -1);
 
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
 
@@ -175,10 +171,8 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 		MyWatermarkGenerator.openCalled = false;
 		MyWatermarkGenerator.closeCalled = false;
 		WatermarkGenerator generator = new MyWatermarkGenerator(1);
-		WatermarkAssignerOperator operator = new WatermarkAssignerOperator(0, generator, -1);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(0, generator, -1);
 
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(5);
 
@@ -223,6 +217,27 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 		assertEquals(expected, results);
 		assertTrue(MyWatermarkGenerator.openCalled);
 		assertTrue(MyWatermarkGenerator.closeCalled);
+	}
+
+	private static OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+		int rowtimeFieldIndex,
+		WatermarkGenerator watermarkGenerator,
+		long idleTimeout) throws Exception {
+
+		return new OneInputStreamOperatorTestHarness<>(
+			new WatermarkAssignerOperatorFactory(
+				rowtimeFieldIndex,
+				idleTimeout,
+				new GeneratedWatermarkGenerator(watermarkGenerator.getClass().getName(), "", new Object[]{}) {
+					@Override
+					public WatermarkGenerator newInstance(ClassLoader classLoader) {
+						return watermarkGenerator;
+					}
+
+					public WatermarkGenerator newInstance(ClassLoader classLoader, Object... args) {
+						return watermarkGenerator;
+					}
+				}));
 	}
 
 	/**

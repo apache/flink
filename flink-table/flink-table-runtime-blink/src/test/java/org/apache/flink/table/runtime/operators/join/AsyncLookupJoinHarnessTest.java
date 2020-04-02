@@ -107,6 +107,7 @@ public class AsyncLookupJoinHarnessTest {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -137,6 +138,7 @@ public class AsyncLookupJoinHarnessTest {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -166,6 +168,7 @@ public class AsyncLookupJoinHarnessTest {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -198,6 +201,7 @@ public class AsyncLookupJoinHarnessTest {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -264,7 +268,6 @@ public class AsyncLookupJoinHarnessTest {
 	}
 
 	// ---------------------------------------------------------------------------------
-
 
 	/**
 	 * The {@link TestingFetcherFunction} only accepts a single integer lookup key and

@@ -21,7 +21,6 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.Registration;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.util.Preconditions;
@@ -29,7 +28,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -80,25 +78,7 @@ public abstract class ConnectTableDescriptor
 					" use registerTableSource/registerTableSink/registerTableSourceAndSink.");
 		}
 
-		Map<String, String> schemaProperties = schemaDescriptor.toProperties();
-		TableSchema tableSchema = getTableSchema(schemaProperties);
-
-		Map<String, String> properties = new HashMap<>(toProperties());
-		schemaProperties.keySet().forEach(properties::remove);
-
-		CatalogTableImpl catalogTable = new CatalogTableImpl(
-			tableSchema,
-			properties,
-			""
-		);
-
-		registration.createTemporaryTable(path, catalogTable);
-	}
-
-	private TableSchema getTableSchema(Map<String, String> schemaProperties) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(schemaProperties);
-		return properties.getTableSchema(Schema.SCHEMA);
+		registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));
 	}
 
 	@Override

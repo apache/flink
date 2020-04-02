@@ -211,7 +211,6 @@ catalogs:
      property-version: 1
      default-database: mydb2
      hive-conf-dir: ...
-     hive-version: 1.2.1
 
 # Properties that change the fundamental execution behavior of a table program.
 
@@ -448,7 +447,6 @@ catalogs:
      type: hive
      property-version: 1
      default-database: mydb2
-     hive-version: 1.2.1
      hive-conf-dir: <path of Hive conf directory>
    - name: catalog_2
      type: hive

@@ -20,13 +20,17 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, TableException}
+import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.plan.nodes.CommonPythonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.utils.TypeConversions
 
 /**
   * Flink RelNode which matches along with join a Python user defined table function.
@@ -50,7 +54,12 @@ class DataStreamPythonCorrelate(
     scan,
     condition,
     schema,
-    joinType) {
+    joinType)
+  with CommonPythonCorrelate {
+
+  if (condition.isDefined) {
+    throw new TableException("Currently Python correlate does not support conditions in left join.")
+  }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamPythonCorrelate(
@@ -69,6 +78,41 @@ class DataStreamPythonCorrelate(
   override def translateToPlan(
       planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
-    throw new TableException("The implementation will be next commit.")
+    val inputDataStream =
+      getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+
+    val pythonTableFuncRexCall = scan.getCall.asInstanceOf[RexCall]
+
+    val (pythonUdtfInputOffsets, pythonFunctionInfo) =
+      extractPythonTableFunctionInfo(pythonTableFuncRexCall)
+
+    val pythonOperatorInputRowType = TypeConversions.fromLegacyInfoToDataType(
+      inputSchema.typeInfo).getLogicalType.asInstanceOf[RowType]
+
+    val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
+      schema.typeInfo).getLogicalType.asInstanceOf[RowType]
+
+    val sqlFunction = pythonTableFuncRexCall.getOperator.asInstanceOf[TableSqlFunction]
+
+    val pythonOperator = getPythonTableFunctionOperator(
+      getConfig(planner.getConfig),
+      pythonOperatorInputRowType,
+      pythonOperatorOutputRowType,
+      pythonFunctionInfo,
+      pythonUdtfInputOffsets,
+      joinType)
+
+    inputDataStream
+      .transform(
+        correlateOpName(
+          inputSchema.relDataType,
+          pythonTableFuncRexCall,
+          sqlFunction,
+          schema.relDataType,
+          getExpressionString),
+        CRowTypeInfo(schema.typeInfo),
+        pythonOperator)
+      // keep parallelism to ensure order of accumulate and retract messages
+      .setParallelism(inputDataStream.getParallelism)
   }
 }

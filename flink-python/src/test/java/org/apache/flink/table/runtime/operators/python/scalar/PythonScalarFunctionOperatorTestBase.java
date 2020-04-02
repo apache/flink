@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
@@ -45,6 +46,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * Base class for Python scalar function operator test. These test that:
@@ -200,7 +203,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 		StreamTableEnvironment tEnv = createTableEnvironment(env);
 		tEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"));
 		DataStream<Tuple2<Integer, Integer>> ds = env.fromElements(new Tuple2<>(1, 2));
-		Table t = tEnv.fromDataStream(ds, "a, b").select("pyFunc(a, b)");
+		Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select("pyFunc(a, b)");
 		// force generating the physical plan for the given table
 		tEnv.toAppendStream(t, BasicTypeInfo.INT_TYPE_INFO);
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -229,6 +232,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
 		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
+		testHarness.setup(getOutputTypeSerializer(dataType));
 		return testHarness;
 	}
 
@@ -245,4 +249,6 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 	public abstract void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual);
 
 	public abstract StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env);
+
+	public abstract TypeSerializer<OUT> getOutputTypeSerializer(RowType dataType);
 }

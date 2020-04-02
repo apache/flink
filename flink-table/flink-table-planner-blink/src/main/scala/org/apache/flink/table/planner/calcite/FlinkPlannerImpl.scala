@@ -22,10 +22,12 @@ import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
@@ -46,7 +48,7 @@ import scala.collection.JavaConverters._
   * The main difference is that we do not create a new RelOptPlanner in the ready() method.
   */
 class FlinkPlannerImpl(
-    config: FrameworkConfig,
+    val config: FrameworkConfig,
     catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
     cluster: RelOptCluster) {
@@ -190,6 +192,8 @@ class FlinkPlannerImpl(
     }
 
     override def getCluster: RelOptCluster = cluster
+
+    override def getTableHints: util.List[RelHint] = ImmutableList.of()
   }
 }
 

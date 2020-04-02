@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
@@ -117,16 +118,12 @@ public class TestProcessingTimeService implements TimerService {
 	}
 
 	@Override
-	public void quiesce() {
+	public CompletableFuture<Void> quiesce() {
 		if (!isTerminated) {
 			isQuiesced = true;
 			priorityQueue.clear();
 		}
-	}
-
-	@Override
-	public void awaitPendingAfterQuiesce() throws InterruptedException {
-		// do nothing.
+		return CompletableFuture.completedFuture(null);
 	}
 
 	@Override

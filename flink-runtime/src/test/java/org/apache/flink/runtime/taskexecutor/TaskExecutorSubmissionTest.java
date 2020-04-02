@@ -82,6 +82,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -753,8 +754,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		ExecutionAttemptID eid,
 		Class<? extends AbstractInvokable> abstractInvokable,
 		int maxNumberOfSubtasks,
-		Collection<ResultPartitionDeploymentDescriptor> producedPartitions,
-		Collection<InputGateDeploymentDescriptor> inputGates
+		List<ResultPartitionDeploymentDescriptor> producedPartitions,
+		List<InputGateDeploymentDescriptor> inputGates
 	) throws IOException {
 		Preconditions.checkNotNull(producedPartitions);
 		Preconditions.checkNotNull(inputGates);
@@ -782,8 +783,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
 			String invokableClassName,
-			Collection<ResultPartitionDeploymentDescriptor> producedPartitions,
-			Collection<InputGateDeploymentDescriptor> inputGates,
+			List<ResultPartitionDeploymentDescriptor> producedPartitions,
+			List<InputGateDeploymentDescriptor> inputGates,
 			Collection<PermanentBlobKey> requiredJarFiles,
 			Collection<URL> requiredClasspaths,
 			int targetSlotNumber) throws IOException {

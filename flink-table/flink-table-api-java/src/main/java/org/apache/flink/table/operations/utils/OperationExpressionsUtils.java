@@ -180,11 +180,11 @@ public class OperationExpressionsUtils {
 				return unresolvedRef(properties.get(unresolvedCall));
 			}
 
-			final Expression[] args = unresolvedCall.getChildren()
+			final List<Expression> args = unresolvedCall.getChildren()
 				.stream()
 				.map(c -> c.accept(this))
-				.toArray(Expression[]::new);
-			return unresolvedCall(unresolvedCall.getFunctionDefinition(), args);
+				.collect(Collectors.toList());
+			return unresolvedCall.replaceArgs(args);
 		}
 
 		@Override

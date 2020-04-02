@@ -59,7 +59,8 @@ before_script:
 
 # Install maven 3.2.5 since xenial uses 3.3.9 for which shading is broken
 before_install:
-   - source ./tools/travis/setup_maven.sh
+   - source ./tools/ci/maven-utils.sh
+   - setup_maven
 
 notifications:
   slack:
@@ -308,31 +309,31 @@ jobs:
       name: e2e - tpcds - hadoop 2.8
       # E2E profiles - Scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis1,e2e-hadoop""
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis1,e2e-hadoop"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis2,e2e-hadoop""
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis2,e2e-hadoop"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis3,e2e-hadoop""
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis3,e2e-hadoop"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis4,e2e-hadoop""
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis4,e2e-hadoop"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis5,e2e-hadoop""
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis5,e2e-hadoop"
       script: ./tools/travis/nightly.sh split_container.sh
       name: e2e - container - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis6,e2e-hadoop""
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis6,e2e-hadoop"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis6,e2e-hadoop""
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Pe2e-travis6,e2e-hadoop"
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds - scala 2.12
       # E2E profiles - Hadoop-free

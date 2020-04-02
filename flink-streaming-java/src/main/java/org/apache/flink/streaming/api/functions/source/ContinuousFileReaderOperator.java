@@ -35,8 +35,8 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -215,8 +215,13 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		}
 	};
 
-	ContinuousFileReaderOperator(FileInputFormat<OUT> format, MailboxExecutor mailboxExecutor) {
+	ContinuousFileReaderOperator(
+		FileInputFormat<OUT> format,
+		ProcessingTimeService processingTimeService,
+		MailboxExecutor mailboxExecutor) {
+
 		this.format = checkNotNull(format);
+		this.processingTimeService = checkNotNull(processingTimeService);
 		this.executor = checkNotNull(mailboxExecutor);
 	}
 
@@ -376,7 +381,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 			try {
 				cleanUp();
 			} catch (Exception ex) {
-				e = ExceptionUtils.firstOrSuppressed(ex, e);
+				e = ex;
 			}
 		}
 		{
@@ -428,7 +433,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		cleanUp();
 	}
 
-	private void cleanUp() {
+	private void cleanUp() throws Exception {
 		LOG.debug("cleanup, state={}", state);
 
 		RunnableWithException[] runClose = {
@@ -442,12 +447,12 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 			try {
 				r.run();
 			} catch (Exception e) {
-				firstException = ExceptionUtils.firstOrSuppressed(firstException, e);
+				firstException = ExceptionUtils.firstOrSuppressed(e, firstException);
 			}
 		}
 		currentSplit = null;
 		if (firstException != null) {
-			throw new FlinkRuntimeException("Unable to properly cleanup ContinuousFileReaderOperator", firstException);
+			throw firstException;
 		}
 	}
 

@@ -47,6 +47,7 @@ if [ -z "$FLINK_DIR" ] ; then
 fi
 
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
+source "${END_TO_END_DIR}/../tools/ci/maven-utils.sh"
 
 cleanup_tmp_files
 

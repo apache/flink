@@ -23,8 +23,8 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
-import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,6 +88,13 @@ public class InputTypeStrategiesTest {
 				.calledWithArgumentTypes(DataTypes.INT(), DataTypes.BOOLEAN())
 				.expectSignature("f(INT, BOOLEAN)")
 				.expectArgumentTypes(DataTypes.INT().bridgedTo(int.class), DataTypes.BOOLEAN()),
+
+			// explicit sequence with ROW ignoring field names
+			TestSpec
+				.forStrategy(explicitSequence(DataTypes.ROW(DataTypes.FIELD("expected", DataTypes.INT()))))
+				.calledWithArgumentTypes(DataTypes.ROW(DataTypes.FIELD("actual", DataTypes.INT())))
+				.expectSignature("f(ROW<`expected` INT>)")
+				.expectArgumentTypes(DataTypes.ROW(DataTypes.FIELD("expected", DataTypes.INT()))),
 
 			// invalid named sequence
 			TestSpec

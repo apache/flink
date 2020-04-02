@@ -27,11 +27,10 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.util.function.FunctionWithException;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Function;
 
 
 /**
@@ -68,7 +67,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * it should be assigned to the first (1), or second (2) input of the task.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			FunctionWithException<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>, Exception> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			int[] inputGateAssignment,
@@ -93,7 +92,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * second task input.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			FunctionWithException<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>, Exception> taskFactory,
 			TypeInformation<IN1> inputType1,
 			TypeInformation<IN2> inputType2,
 			TypeInformation<OUT> outputType) {
@@ -102,7 +101,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	}
 
 	@Override
-	protected void initializeInputs() throws IOException, InterruptedException {
+	protected void initializeInputs() {
 
 		inputGates = new StreamTestSingleInputGate[numInputGates];
 		List<StreamEdge> inPhysicalEdges = new LinkedList<>();
@@ -158,8 +157,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 
 		streamConfig.setInPhysicalEdges(inPhysicalEdges);
 		streamConfig.setNumberOfInputs(numInputGates);
-		streamConfig.setTypeSerializerIn1(inputSerializer1);
-		streamConfig.setTypeSerializerIn2(inputSerializer2);
+		streamConfig.setTypeSerializersIn(inputSerializer1, inputSerializer2);
 	}
 
 	@Override

@@ -67,7 +67,18 @@ public interface OperatorCoordinator extends AutoCloseable {
 
 	CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception;
 
-	void checkpointComplete(long checkpointId) throws Exception;
+	/**
+	 * Notifies the coordinator that the checkpoint with the given checkpointId completes and
+	 * was committed.
+	 *
+	 * <p><b>Important:</b> This method is not supposed to throw an exception, because by the
+	 * time we notify that the checkpoint is complete, the checkpoint is committed and cannot be
+	 * aborted any more. If the coordinator gets into an inconsistent state internally, it should
+	 * fail the job ({@link Context#failJob(Throwable)}) instead. Any exception propagating from
+	 * this method may be treated as a fatal error for the JobManager, crashing the JobManager,
+	 * and leading to an expensive "master failover" procedure.
+	 */
+	void checkpointComplete(long checkpointId);
 
 	void resetToCheckpoint(byte[] checkpointData) throws Exception;
 
@@ -87,6 +98,8 @@ public interface OperatorCoordinator extends AutoCloseable {
 		void failTask(int subtask, Throwable cause);
 
 		void failJob(Throwable cause);
+
+		int currentParallelism();
 	}
 
 	// ------------------------------------------------------------------------

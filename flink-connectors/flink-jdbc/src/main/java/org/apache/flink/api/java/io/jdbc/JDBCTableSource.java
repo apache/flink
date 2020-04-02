@@ -37,7 +37,7 @@ import org.apache.flink.types.Row;
 import java.util.Arrays;
 import java.util.Objects;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.normalizeTableSchema;
+import static org.apache.flink.api.java.io.jdbc.JdbcTypeUtil.normalizeTableSchema;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -155,9 +155,9 @@ public class JDBCTableSource implements
 		JDBCInputFormat.JDBCInputFormatBuilder builder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(options.getDriverName())
 				.setDBUrl(options.getDbURL())
-				.setUsername(options.getUsername())
-				.setPassword(options.getPassword())
 				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
+		options.getUsername().ifPresent(builder::setUsername);
+		options.getPassword().ifPresent(builder::setPassword);
 
 		if (readOptions.getFetchSize() != 0) {
 			builder.setFetchSize(readOptions.getFetchSize());

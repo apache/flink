@@ -31,7 +31,6 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
-import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -60,6 +59,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -173,14 +173,19 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		 * Temporary method until all calls define a type inference.
 		 */
 		private Optional<TypeInference> getOptionalTypeInference(FunctionDefinition definition) {
-			if (definition instanceof BuiltInFunctionDefinition) {
-				final BuiltInFunctionDefinition builtInDefinition = (BuiltInFunctionDefinition) definition;
-				final TypeInference inference = builtInDefinition.getTypeInference(resolutionContext.typeFactory());
-				if (inference.getOutputTypeStrategy() != TypeStrategies.MISSING) {
-					return Optional.of(inference);
-				}
+			if (definition instanceof ScalarFunctionDefinition ||
+					definition instanceof TableFunctionDefinition ||
+					definition instanceof AggregateFunctionDefinition ||
+					definition instanceof TableAggregateFunctionDefinition) {
+				return Optional.empty();
 			}
-			return Optional.empty();
+
+			final TypeInference inference = definition.getTypeInference(resolutionContext.typeFactory());
+			if (inference.getOutputTypeStrategy() != TypeStrategies.MISSING) {
+				return Optional.of(inference);
+			} else {
+				return Optional.empty();
+			}
 		}
 
 		private ResolvedExpression runTypeInference(
@@ -231,7 +236,8 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					final ResolvedExpression argument = resolvedArgs.get(pos);
 					final DataType argumentType = argument.getOutputDataType();
 					final DataType expectedType = inferenceResult.getExpectedArgumentTypes().get(pos);
-					if (!argumentType.equals(expectedType)) {
+
+					if (!supportsAvoidingCast(argumentType.getLogicalType(), expectedType.getLogicalType())) {
 						return resolutionContext
 							.postResolutionFactory()
 							.cast(argument, expectedType);

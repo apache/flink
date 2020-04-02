@@ -95,9 +95,8 @@ public class SqlToOperationConverterTest {
 	private final PlanningConfigurationBuilder planningConfigurationBuilder =
 		new PlanningConfigurationBuilder(tableConfig,
 			functionCatalog,
-			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
-			new ExpressionBridge<>(functionCatalog,
-				PlannerExpressionConverter.INSTANCE()));
+			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, tableConfig, false)),
+			new ExpressionBridge<>(PlannerExpressionConverter.INSTANCE()));
 
 	@Rule
 	public ExpectedException expectedEx = ExpectedException.none();
@@ -246,8 +245,8 @@ public class SqlToOperationConverterTest {
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		SqlNode node = getParserBySqlDialect(SqlDialect.HIVE).parse(sql);
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
 		assert node instanceof SqlCreateTable;
 		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
 		assert operation instanceof CreateTableOperation;
@@ -307,8 +306,8 @@ public class SqlToOperationConverterTest {
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		SqlNode node = getParserBySqlDialect(SqlDialect.HIVE).parse(sql);
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
 		assert node instanceof SqlCreateTable;
 		SqlToOperationConverter.convert(planner, catalogManager, node);
 	}

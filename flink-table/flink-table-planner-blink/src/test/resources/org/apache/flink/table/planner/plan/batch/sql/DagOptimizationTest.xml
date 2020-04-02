@@ -570,13 +570,13 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, sum_c, time, window_start, window_end])
 +- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)], window_start=[TUMBLE_START($0)], window_end=[TUMBLE_END($0)])
    +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-      +- LogicalProject($f0=[TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
+      +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, ts)]]])
 
 LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, sum_c, time])
 +- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)])
    +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-      +- LogicalProject($f0=[TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
+      +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, ts)]]])
 ]]>
     </Resource>

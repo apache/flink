@@ -50,14 +50,15 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.util.TestBoundedTwoInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -208,7 +210,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
 		testHarness.processElement(new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
 		testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
-		                                                     // watermark (initial + 6) should be forwarded
+
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime + 5));
 		// We don't expect to see Watermark(6) here because the idle status of one
@@ -579,7 +581,7 @@ public class TwoInputStreamTaskTest {
 	}
 
 	@Test
-	public void testHandlingEndOfInput() throws Exception {
+	public void testClosingAllOperatorsOnChainProperly() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
 			TwoInputStreamTask::new,
 			BasicTypeInfo.STRING_TYPE_INFO,
@@ -596,8 +598,6 @@ public class TwoInputStreamTaskTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 			.finish();
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
@@ -611,17 +611,18 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.waitForTaskCompletion();
 
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: EndOfInput"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: EndOfInput"));
-		expectedOutput.add(new StreamRecord<>("[Operator0]: Bye"));
-		expectedOutput.add(new StreamRecord<>("[Operator1]: EndOfInput"));
-		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
+		ArrayList<StreamRecord<String>> expected = new ArrayList<>();
+		Collections.addAll(expected,
+			new StreamRecord<>("[Operator0-1]: Hello-1"),
+			new StreamRecord<>("[Operator0-1]: End of input"),
+			new StreamRecord<>("[Operator0-2]: Hello-2"),
+			new StreamRecord<>("[Operator0-2]: End of input"),
+			new StreamRecord<>("[Operator0]: Bye"),
+			new StreamRecord<>("[Operator1]: End of input"),
+			new StreamRecord<>("[Operator1]: Bye"));
 
-		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-			expectedOutput,
-			testHarness.getOutput());
+		final Object[] output = testHarness.getOutput().toArray();
+		assertArrayEquals("Output was not correct.", expected.toArray(), output);
 	}
 
 	/**

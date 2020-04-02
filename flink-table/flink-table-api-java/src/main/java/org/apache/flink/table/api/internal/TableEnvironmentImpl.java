@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlParserException;
@@ -40,6 +41,7 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -83,6 +85,7 @@ import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
@@ -162,7 +165,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.parser = planner.getParser();
 		this.operationTreeBuilder = OperationTreeBuilder.create(
 			tableConfig,
-			functionCatalog,
+			functionCatalog.asLookup(parser::parseIdentifier),
 			catalogManager.getDataTypeFactory(),
 			path -> {
 				try {
@@ -425,11 +428,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				objectIdentifier,
 				table.getQueryOperation()));
 
-		if (isEagerOperationTranslation()) {
-			translate(modifyOperations);
-		} else {
-			buffer(modifyOperations);
-		}
+		buffer(modifyOperations);
 	}
 
 	private Optional<CatalogQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
@@ -564,12 +563,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		Operation operation = operations.get(0);
 
 		if (operation instanceof ModifyOperation) {
-			List<ModifyOperation> modifyOperations = Collections.singletonList((ModifyOperation) operation);
-			if (isEagerOperationTranslation()) {
-				translate(modifyOperations);
-			} else {
-				buffer(modifyOperations);
-			}
+			buffer(Collections.singletonList((ModifyOperation) operation));
 		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
 			catalogManager.createTable(
@@ -663,6 +657,15 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			DropTempSystemFunctionOperation dropTempSystemFunctionOperation =
 				(DropTempSystemFunctionOperation) operation;
 			dropSystemFunction(dropTempSystemFunctionOperation);
+		} else if (operation instanceof CreateCatalogOperation) {
+			CreateCatalogOperation createCatalogOperation = (CreateCatalogOperation) operation;
+			String exMsg = getDDLOpExecuteErrorMsg(createCatalogOperation.asSummaryString());
+			try {
+				catalogManager.registerCatalog(
+					createCatalogOperation.getCatalogName(), createCatalogOperation.getCatalog());
+			} catch (CatalogException e) {
+				throw new ValidationException(exMsg, e);
+			}
 		} else if (operation instanceof UseCatalogOperation) {
 			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
 			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
@@ -712,9 +715,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		translate(bufferedModifyOperations);
-		bufferedModifyOperations.clear();
-		return execEnv.execute(jobName);
+		Pipeline pipeline = execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
+		return execEnv.execute(pipeline);
 	}
 
 	/**
@@ -728,22 +730,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	/**
-	 * Defines the behavior of this {@link TableEnvironment}. If true the queries will
-	 * be translated immediately. If false the {@link ModifyOperation}s will be buffered
-	 * and translated only when {@link #execute(String)} is called.
-	 *
-	 * <p>If the {@link TableEnvironment} works in a lazy manner it is undefined what
-	 * configurations values will be used. It depends on the characteristic of the particular
-	 * parameter. Some might used values current to the time of query construction (e.g. the currentCatalog)
-	 * and some use values from the time when {@link #execute(String)} is called (e.g. timeZone).
-	 *
-	 * @return true if the queries should be translated immediately.
-	 */
-	protected boolean isEagerOperationTranslation() {
-		return false;
-	}
-
-	/**
 	 * Subclasses can override this method to add additional checks.
 	 *
 	 * @param tableSource tableSource to validate
@@ -752,10 +738,25 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema());
 	}
 
-	private void translate(List<ModifyOperation> modifyOperations) {
-		List<Transformation<?>> transformations = planner.translate(modifyOperations);
+	/**
+	 * Translate the buffered operations to Transformations, and clear the buffer.
+	 *
+	 * <p>The buffer will be clear even if the `translate` fails. In most cases,
+	 * the failure is not retryable (e.g. type mismatch, can't generate physical plan).
+	 * If the buffer is not clear after failure, the following `translate` will also fail.
+	 */
+	protected List<Transformation<?>> translateAndClearBuffer() {
+		List<Transformation<?>> transformations;
+		try {
+			transformations = translate(bufferedModifyOperations);
+		} finally {
+			bufferedModifyOperations.clear();
+		}
+		return transformations;
+	}
 
-		execEnv.apply(transformations);
+	private List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+		return planner.translate(modifyOperations);
 	}
 
 	private void buffer(List<ModifyOperation> modifyOperations) {
@@ -1012,6 +1013,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			this,
 			tableOperation,
 			operationTreeBuilder,
-			functionCatalog);
+			functionCatalog.asLookup(parser::parseIdentifier));
 	}
 }

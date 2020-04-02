@@ -50,6 +50,16 @@ public class PythonOptions {
 			"buffered before being processed. Lower timeouts lead to lower tail latencies, but may affect throughput.");
 
 	/**
+	 * The maximum number of elements to include in an arrow batch.
+	 */
+	public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE = ConfigOptions
+		.key("python.fn-execution.arrow.batch.size")
+		.defaultValue(1000)
+		.withDescription("The maximum number of elements to include in an arrow batch for Python " +
+			"user-defined function execution. The arrow batch size should not exceed the " +
+			"bundle size. Otherwise, the bundle size will be used as the arrow batch size.");
+
+	/**
 	 * The amount of memory to be allocated by the Python framework.
 	 */
 	public static final ConfigOption<String> PYTHON_FRAMEWORK_MEMORY_SIZE = ConfigOptions
@@ -71,4 +81,13 @@ public class PythonOptions {
 			"buffer of a Python worker. The memory will be accounted as managed memory if the " +
 			"actual memory allocated to an operator is no less than the total memory of a Python " +
 			"worker. Otherwise, this configuration takes no effect.");
+
+	/**
+	 * The configuration to enable or disable metric for Python execution.
+	 */
+	public static final ConfigOption<Boolean> PYTHON_METRIC_ENABLED = ConfigOptions
+		.key("python.metric.enabled")
+		.defaultValue(true)
+		.withDescription("When it is false, metric for Python will be disabled. You can " +
+			"disable the metric to achieve better performance at some circumstance.");
 }

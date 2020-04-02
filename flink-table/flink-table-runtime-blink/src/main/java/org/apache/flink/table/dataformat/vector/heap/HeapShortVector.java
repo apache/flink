@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.vector.ShortColumnVector;
+import org.apache.flink.table.dataformat.vector.writable.WritableShortVector;
+
+import java.util.Arrays;
 
 /**
  * This class represents a nullable short column vector.
  */
-public class HeapShortVector extends AbstractHeapVector implements ShortColumnVector {
+public class HeapShortVector extends AbstractHeapVector implements WritableShortVector {
 
 	private static final long serialVersionUID = -8278486456144676292L;
 
@@ -46,5 +48,15 @@ public class HeapShortVector extends AbstractHeapVector implements ShortColumnVe
 		} else {
 			return (short) dictionary.decodeToInt(dictionaryIds.vector[i]);
 		}
+	}
+
+	@Override
+	public void setShort(int i, short value) {
+		vector[i] = value;
+	}
+
+	@Override
+	public void fill(short value) {
+		Arrays.fill(vector, value);
 	}
 }

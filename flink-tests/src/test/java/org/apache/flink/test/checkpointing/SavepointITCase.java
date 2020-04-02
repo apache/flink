@@ -436,7 +436,7 @@ public class SavepointITCase extends TestLogger {
 			JobID jobID = submissionResult.getJobID();
 
 			// wait for the Tasks to be ready
-			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			savepointPath = client.triggerSavepoint(jobID, null).get();
 			LOG.info("Retrieved savepoint: " + savepointPath + ".");
@@ -484,10 +484,10 @@ public class SavepointITCase extends TestLogger {
 			// Submit the job
 			ClientUtils.submitJob(client, modifiedJobGraph);
 			// Await state is restored
-			StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			// Await some progress after restore
-			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 		} finally {
 			cluster.after();
 		}

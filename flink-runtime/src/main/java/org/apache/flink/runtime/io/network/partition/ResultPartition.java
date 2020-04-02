@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
@@ -76,6 +77,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private final String owningTaskName;
 
+	private final int partitionIndex;
+
 	protected final ResultPartitionID partitionId;
 
 	/** Type of this partition. Defines the concrete subpartition implementation to use. */
@@ -106,6 +109,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	public ResultPartition(
 		String owningTaskName,
+		int partitionIndex,
 		ResultPartitionID partitionId,
 		ResultPartitionType partitionType,
 		ResultSubpartition[] subpartitions,
@@ -115,6 +119,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
+		Preconditions.checkArgument(0 <= partitionIndex, "The partition index must be positive.");
+		this.partitionIndex = partitionIndex;
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
 		this.subpartitions = checkNotNull(subpartitions);
@@ -150,6 +156,10 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	public ResultPartitionID getPartitionId() {
 		return partitionId;
+	}
+
+	int getPartitionIndex() {
+		return partitionIndex;
 	}
 
 	@Override

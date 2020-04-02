@@ -22,6 +22,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -56,13 +57,9 @@ public final class NeverFireProcessingTimeService implements TimerService {
 	}
 
 	@Override
-	public void quiesce() throws InterruptedException {
+	public CompletableFuture<Void> quiesce() {
 		shutdown.set(true);
-	}
-
-	@Override
-	public void awaitPendingAfterQuiesce() throws InterruptedException {
-		shutdown.set(true);
+		return CompletableFuture.completedFuture(null);
 	}
 
 	@Override

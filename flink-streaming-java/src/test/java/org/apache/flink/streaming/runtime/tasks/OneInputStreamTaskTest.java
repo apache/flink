@@ -84,6 +84,7 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -602,7 +603,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testHandlingEndOfInput() throws Exception {
+	public void testClosingAllOperatorsOnChainProperly() throws Exception {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
 			OneInputStreamTask::new,
 			BasicTypeInfo.STRING_TYPE_INFO,
@@ -616,8 +617,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 			.finish();
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
@@ -626,15 +625,16 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		testHarness.waitForTaskCompletion();
 
-		expectedOutput.add(new StreamRecord<>("Hello"));
-		expectedOutput.add(new StreamRecord<>("[Operator0]: EndOfInput"));
-		expectedOutput.add(new StreamRecord<>("[Operator0]: Bye"));
-		expectedOutput.add(new StreamRecord<>("[Operator1]: EndOfInput"));
-		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
+		ArrayList<StreamRecord<String>> expected = new ArrayList<>();
+		Collections.addAll(expected,
+			new StreamRecord<>("Hello"),
+			new StreamRecord<>("[Operator0]: End of input"),
+			new StreamRecord<>("[Operator0]: Bye"),
+			new StreamRecord<>("[Operator1]: End of input"),
+			new StreamRecord<>("[Operator1]: Bye"));
 
-		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-			expectedOutput,
-			testHarness.getOutput());
+		final Object[] output = testHarness.getOutput().toArray();
+		assertArrayEquals("Output was not correct.", expected.toArray(), output);
 	}
 
 	private static class TestOperator

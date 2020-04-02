@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	public TwoInputStreamTask(Environment env) {
+	public TwoInputStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 
@@ -61,11 +61,11 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
 			this,
 			getConfiguration().getCheckpointMode(),
-			unionedInputGate1,
-			unionedInputGate2,
 			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
-			getTaskNameWithSubtaskAndId());
+			getTaskNameWithSubtaskAndId(),
+			unionedInputGate1,
+			unionedInputGate2);
 		checkState(checkpointedInputGates.length == 2);
 
 		inputProcessor = new StreamTwoInputProcessor<>(

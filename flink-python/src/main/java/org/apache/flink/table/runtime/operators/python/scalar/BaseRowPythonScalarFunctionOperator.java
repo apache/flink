@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.scalar.BaseRowPythonScalarFunctionRunner;
@@ -34,6 +33,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * The Python {@link ScalarFunction} operator for the blink planner.
@@ -42,11 +42,6 @@ import java.io.IOException;
 public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonScalarFunctionOperator {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * The JoinedRow reused holding the execution result.
-	 */
-	private transient JoinedRow reuseJoinedRow;
 
 	/**
 	 * The TypeSerializer for udf execution results.
@@ -67,7 +62,6 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonSc
 	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
-		reuseJoinedRow = new JoinedRow();
 		udfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
@@ -87,13 +81,16 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonSc
 	@Override
 	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 		return new BaseRowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType);
+			userDefinedFunctionOutputType,
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 }

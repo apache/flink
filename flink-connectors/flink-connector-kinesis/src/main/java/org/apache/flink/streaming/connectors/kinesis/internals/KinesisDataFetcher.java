@@ -490,29 +490,31 @@ public class KinesisDataFetcher<T> {
 						getConsumerConfiguration().getProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS,
 							Long.toString(0)));
 					recordEmitter.setMaxLookaheadMillis(Math.max(lookaheadMillis, watermarkSyncMillis * 3));
+
+					// record emitter depends on periodic watermark
+					// it runs in a separate thread since main thread is used for discovery
+					Runnable recordEmitterRunnable = new Runnable() {
+						@Override
+						public void run() {
+							try {
+								recordEmitter.run();
+							} catch (Throwable error) {
+								// report the error that terminated the emitter loop to source thread
+								stopWithError(error);
+							}
+						}
+					};
+
+					Thread thread = new Thread(recordEmitterRunnable);
+					thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
+					thread.setDaemon(true);
+					thread.start();
 				}
 			}
 			this.shardIdleIntervalMillis = Long.parseLong(
 				getConsumerConfiguration().getProperty(ConsumerConfigConstants.SHARD_IDLE_INTERVAL_MILLIS,
 					Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_IDLE_INTERVAL_MILLIS)));
 
-			// run record emitter in separate thread since main thread is used for discovery
-			Runnable recordEmitterRunnable = new Runnable() {
-				@Override
-				public void run() {
-					try {
-						recordEmitter.run();
-					} catch (Throwable error) {
-						// report the error that terminated the emitter loop to source thread
-						stopWithError(error);
-					}
-				}
-			};
-
-			Thread thread = new Thread(recordEmitterRunnable);
-			thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
-			thread.setDaemon(true);
-			thread.start();
 		}
 
 		// ------------------------------------------------------------------------

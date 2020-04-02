@@ -766,7 +766,7 @@ class SchemaDescriptorTests(PyFlinkTestCase):
             .field("int_field", DataTypes.INT())\
             .field("long_field", DataTypes.BIGINT())\
             .field("string_field", DataTypes.STRING())\
-            .field("timestamp_field", DataTypes.TIMESTAMP())\
+            .field("timestamp_field", DataTypes.TIMESTAMP(3))\
             .field("time_field", DataTypes.TIME())\
             .field("date_field", DataTypes.DATE())\
             .field("double_field", DataTypes.DOUBLE())\

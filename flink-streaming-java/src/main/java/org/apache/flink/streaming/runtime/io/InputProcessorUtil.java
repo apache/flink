@@ -28,7 +28,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import java.util.Arrays;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
@@ -63,40 +63,53 @@ public class InputProcessorUtil {
 	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
 			AbstractInvokable toNotifyOnCheckpoint,
 			CheckpointingMode checkpointMode,
-			InputGate inputGate1,
-			InputGate inputGate2,
 			Configuration taskManagerConfig,
 			TaskIOMetricGroup taskIOMetricGroup,
-			String taskName) {
+			String taskName,
+			InputGate ...inputGates) {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
 
-		BufferStorage mainBufferStorage1 = createBufferStorage(
-			checkpointMode, pageSize, taskManagerConfig, taskName);
-		BufferStorage mainBufferStorage2 = createBufferStorage(
-			checkpointMode, pageSize, taskManagerConfig, taskName);
-		checkState(mainBufferStorage1.getMaxBufferedBytes() == mainBufferStorage2.getMaxBufferedBytes());
+		BufferStorage[] mainBufferStorages = new BufferStorage[inputGates.length];
+		for (int i = 0; i < inputGates.length; i++) {
+			mainBufferStorages[i] = createBufferStorage(
+				checkpointMode, pageSize, taskManagerConfig, taskName);
+		}
 
-		BufferStorage linkedBufferStorage1 = new LinkedBufferStorage(
-			mainBufferStorage1,
-			mainBufferStorage2,
-			mainBufferStorage1.getMaxBufferedBytes());
-		BufferStorage linkedBufferStorage2 = new LinkedBufferStorage(
-			mainBufferStorage2,
-			mainBufferStorage1,
-			mainBufferStorage1.getMaxBufferedBytes());
+		BufferStorage[] linkedBufferStorages = new BufferStorage[inputGates.length];
+
+		for (int i = 0; i < inputGates.length; i++) {
+			linkedBufferStorages[i] = new LinkedBufferStorage(
+				mainBufferStorages[i],
+				mainBufferStorages[i].getMaxBufferedBytes(),
+				copyBufferStoragesExceptOf(i, mainBufferStorages));
+		}
 
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			checkpointMode,
-			inputGate1.getNumberOfInputChannels() + inputGate2.getNumberOfInputChannels(),
+			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum(),
 			taskName,
 			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
 
-		return new CheckpointedInputGate[] {
-			new CheckpointedInputGate(inputGate1, linkedBufferStorage1, barrierHandler),
-			new CheckpointedInputGate(inputGate2, linkedBufferStorage2, barrierHandler, inputGate1.getNumberOfInputChannels())
-		};
+		CheckpointedInputGate[] checkpointedInputGates = new CheckpointedInputGate[inputGates.length];
+
+		int channelIndexOffset = 0;
+		for (int i = 0; i < inputGates.length; i++) {
+			checkpointedInputGates[i] = new CheckpointedInputGate(inputGates[i], linkedBufferStorages[i], barrierHandler, channelIndexOffset);
+			channelIndexOffset += inputGates[i].getNumberOfInputChannels();
+		}
+
+		return checkpointedInputGates;
+	}
+
+	private static BufferStorage[] copyBufferStoragesExceptOf(
+			int skipStorage,
+			BufferStorage[] bufferStorages) {
+		BufferStorage[] copy = new BufferStorage[bufferStorages.length - 1];
+		System.arraycopy(bufferStorages, 0, copy, 0, skipStorage);
+		System.arraycopy(bufferStorages, skipStorage + 1, copy, skipStorage, bufferStorages.length - skipStorage - 1);
+		return copy;
 	}
 
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(

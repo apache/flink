@@ -113,7 +113,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, 2:BIGINT AS rk])
+FlinkLogicalCalc(select=[a, b, 2:BIGINT AS $2])
 +- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], select=[a, b, c])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

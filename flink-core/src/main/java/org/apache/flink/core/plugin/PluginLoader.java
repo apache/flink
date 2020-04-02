@@ -20,7 +20,6 @@ package org.apache.flink.core.plugin;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.ArrayUtils;
-import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -35,7 +34,7 @@ import java.util.ServiceLoader;
 
 /**
  * A {@link PluginLoader} is used by the {@link PluginManager} to load a single plugin. It is essentially a combination
- * of a {@link ChildFirstClassLoader} and {@link ServiceLoader}. This class can locate and load service implementations
+ * of a {@link PluginClassLoader} and {@link ServiceLoader}. This class can locate and load service implementations
  * from the plugin for a given SPI. The {@link PluginDescriptor}, which among other information contains the resource
  * URLs, is provided at construction.
  */
@@ -69,7 +68,7 @@ public class PluginLoader {
 	 * @param <P> Type of the requested plugin service.
 	 * @return An iterator of all implementations of the given service interface that could be loaded from the plugin.
 	 */
-	public <P extends Plugin> Iterator<P> load(Class<P> service) {
+	public <P> Iterator<P> load(Class<P> service) {
 		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(pluginClassLoader)) {
 			return new ContextClassLoaderSettingIterator<>(
 				ServiceLoader.load(service, pluginClassLoader).iterator(),
@@ -83,7 +82,7 @@ public class PluginLoader {
 	 *
 	 * @param <P> type of the iterated plugin element.
 	 */
-	static class ContextClassLoaderSettingIterator<P extends Plugin> implements Iterator<P> {
+	static class ContextClassLoaderSettingIterator<P> implements Iterator<P> {
 
 		private final Iterator<P> delegate;
 		private final ClassLoader pluginClassLoader;

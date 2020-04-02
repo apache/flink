@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
@@ -28,12 +29,15 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -68,6 +72,12 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		return StreamTableEnvironment.create(env);
 	}
 
+	@Override
+	public TypeSerializer<CRow> getOutputTypeSerializer(RowType dataType) {
+		// If set to null, PojoSerializer is used by default which works well here.
+		return null;
+	}
+
 	private static class PassThroughPythonScalarFunctionOperator extends PythonScalarFunctionOperator {
 
 		PassThroughPythonScalarFunctionOperator(
@@ -83,17 +93,20 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonFunctionRunner<Row>(resultReceiver) {
+				PythonEnvironmentManager pythonEnvironmentManager,
+				Map<String, String> jobOptions) {
+			return new PassThroughPythonScalarFunctionRunner<Row>(
+				getRuntimeContext().getTaskName(),
+				resultReceiver,
+				scalarFunctions,
+				pythonEnvironmentManager,
+				userDefinedFunctionInputType,
+				userDefinedFunctionOutputType,
+				jobOptions,
+				PythonTestUtils.createMockFlinkMetricContainer()) {
 				@Override
-				public Row copy(Row element) {
-					return Row.copy(element);
-				}
-
-				@Override
-				@SuppressWarnings("unchecked")
 				public TypeSerializer<Row> getInputTypeSerializer() {
-					return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+					return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
 				}
 			};
 		}

@@ -72,7 +72,7 @@ public final class Utils {
 	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
 	/** Keytab file name populated in YARN container. */
-	public static final String KEYTAB_FILE_NAME = "krb5.keytab";
+	public static final String DEFAULT_KEYTAB_FILE = "krb5.keytab";
 
 	/** KRB5 file name populated in YARN container for secure IT run. */
 	public static final String KRB5_FILE_NAME = "krb5.conf";
@@ -360,6 +360,37 @@ public final class Utils {
 	}
 
 	/**
+	 * Resolve keytab path either as absolute path or relative to working directory.
+	 *
+	 * @param workingDir current working directory
+	 * @param keytabPath configured keytab path.
+	 * @return resolved keytab path, or null if not found.
+	 */
+	public static String resolveKeytabPath(String workingDir, String keytabPath) {
+		String keytab = null;
+		if (keytabPath != null) {
+			File f;
+			f = new File(keytabPath);
+			if (f.exists()) {
+				keytab = f.getAbsolutePath();
+				LOG.info("Resolved keytab path: {}", keytab);
+			} else {
+				// try using relative paths, this is the case when the keytab was shipped
+				// as a local resource
+				f = new File(workingDir, keytabPath);
+				if (f.exists()) {
+					keytab = f.getAbsolutePath();
+					LOG.info("Resolved keytab path: {}", keytab);
+				} else {
+					LOG.warn("Could not resolve keytab path with: {}", keytabPath);
+					keytab = null;
+				}
+			}
+		}
+		return keytab;
+	}
+
+	/**
 	 * Private constructor to prevent instantiation.
 	 */
 	private Utils() {
@@ -424,14 +455,16 @@ public final class Utils {
 		String yarnClientUsername = env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
 		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
-		final String remoteKeytabPath = env.get(YarnConfigKeys.KEYTAB_PATH);
-		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
+		final String remoteKeytabPath = env.get(YarnConfigKeys.REMOTE_KEYTAB_PATH);
+		final String localKeytabPath = env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
+		final String keytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
 		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
 
 		if (log.isDebugEnabled()) {
 			log.debug("TM:remote keytab path obtained {}", remoteKeytabPath);
-			log.debug("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
+			log.debug("TM:local keytab path obtained {}", localKeytabPath);
+			log.debug("TM:keytab principal obtained {}", keytabPrincipal);
 			log.debug("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
 			log.debug("TM:remote krb5 path obtained {}", remoteKrb5Path);
 		}
@@ -489,7 +522,7 @@ public final class Utils {
 			taskManagerLocalResources.put(KRB5_FILE_NAME, krb5ConfResource);
 		}
 		if (keytabResource != null) {
-			taskManagerLocalResources.put(KEYTAB_FILE_NAME, keytabResource);
+			taskManagerLocalResources.put(localKeytabPath, keytabResource);
 		}
 
 		// prepare additional files to be shipped
@@ -533,9 +566,13 @@ public final class Utils {
 
 		containerEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());
 
-		if (remoteKeytabPath != null && remoteKeytabPrincipal != null) {
-			containerEnv.put(YarnConfigKeys.KEYTAB_PATH, remoteKeytabPath);
-			containerEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, remoteKeytabPrincipal);
+		if (remoteKeytabPath != null && localKeytabPath != null && keytabPrincipal != null) {
+			containerEnv.put(YarnConfigKeys.REMOTE_KEYTAB_PATH, remoteKeytabPath);
+			containerEnv.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, localKeytabPath);
+			containerEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, keytabPrincipal);
+		} else if (localKeytabPath != null && keytabPrincipal != null) {
+			containerEnv.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, localKeytabPath);
+			containerEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, keytabPrincipal);
 		}
 
 		ctx.setEnvironment(containerEnv);
@@ -594,5 +631,4 @@ public final class Utils {
 			throw new RuntimeException(String.format(message, values));
 		}
 	}
-
 }

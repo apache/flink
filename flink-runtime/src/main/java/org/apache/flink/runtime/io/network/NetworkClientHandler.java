@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -33,6 +35,9 @@ public interface NetworkClientHandler extends ChannelHandler {
 	void addInputChannel(RemoteInputChannel inputChannel) throws IOException;
 
 	void removeInputChannel(RemoteInputChannel inputChannel);
+
+	@Nullable
+	RemoteInputChannel getInputChannel(InputChannelID inputChannelId);
 
 	void cancelRequestFor(InputChannelID inputChannelId);
 

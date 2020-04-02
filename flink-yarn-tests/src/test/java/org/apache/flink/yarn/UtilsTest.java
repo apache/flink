@@ -33,9 +33,6 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.Level;
-import org.apache.log4j.spi.LoggingEvent;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,7 +43,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -147,64 +143,6 @@ public class UtilsTest extends TestLogger {
 		}
 		assertTrue(hasHdfsDelegationToken);
 		assertFalse(hasAmRmToken);
-	}
-
-	//
-	// --------------- Tools to test if a certain string has been logged with Log4j. -------------
-	// See :  http://stackoverflow.com/questions/3717402/how-to-test-w-junit-that-warning-was-logged-w-log4j
-	//
-	private static TestAppender testAppender;
-	public static void addTestAppender(Class target, Level level) {
-		testAppender = new TestAppender();
-		testAppender.setThreshold(level);
-		org.apache.log4j.Logger lg = org.apache.log4j.Logger.getLogger(target);
-		lg.setLevel(level);
-		lg.addAppender(testAppender);
-		//org.apache.log4j.Logger.getRootLogger().addAppender(testAppender);
-	}
-
-	public static void checkForLogString(String expected) {
-		LoggingEvent found = getEventContainingString(expected);
-		if (found != null) {
-			LOG.info("Found expected string '" + expected + "' in log message " + found);
-			return;
-		}
-		Assert.fail("Unable to find expected string '" + expected + "' in log messages");
-	}
-
-	public static LoggingEvent getEventContainingString(String expected) {
-		if (testAppender == null) {
-			throw new NullPointerException("Initialize test appender first");
-		}
-		LoggingEvent found = null;
-		// make sure that different threads are not logging while the logs are checked
-		synchronized (testAppender.events) {
-			for (LoggingEvent event : testAppender.events) {
-				if (event.getMessage().toString().contains(expected)) {
-					found = event;
-					break;
-				}
-			}
-		}
-		return found;
-	}
-
-	private static class TestAppender extends AppenderSkeleton {
-		public final List<LoggingEvent> events = new ArrayList<>();
-
-		public void close() {
-		}
-
-		public boolean requiresLayout() {
-			return false;
-		}
-
-		@Override
-		protected void append(LoggingEvent event) {
-			synchronized (events){
-				events.add(event);
-			}
-		}
 	}
 }
 

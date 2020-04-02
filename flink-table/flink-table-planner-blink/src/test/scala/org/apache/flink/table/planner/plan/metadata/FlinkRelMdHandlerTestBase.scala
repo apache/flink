@@ -57,7 +57,7 @@ import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinInfo, JoinRelType, Project, Window}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
@@ -2446,7 +2446,7 @@ class TestRel(
 object FlinkRelMdHandlerTestBase {
   @BeforeClass
   def beforeAll(): Unit = {
-    RelMetadataQuery
+    RelMetadataQueryBase
       .THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
   }

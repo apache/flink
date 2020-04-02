@@ -121,6 +121,7 @@ under the License.
 									<include>io.fabric8:kubernetes-client</include>
 									<include>io.fabric8:kubernetes-model</include>
 									<include>io.fabric8:kubernetes-model-common</include>
+									<include>io.fabric8:zjsonpatch</include>
 
 									<!-- Shade all the dependencies of kubernetes client  -->
 									<include>com.fasterxml.jackson.core:jackson-core</include>

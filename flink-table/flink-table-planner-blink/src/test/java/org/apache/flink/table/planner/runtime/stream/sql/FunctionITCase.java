@@ -453,13 +453,36 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE TestTable(a INT NOT NULL, b BIGINT NOT NULL, c STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
-		tEnv().sqlUpdate("INSERT INTO TestTable SELECT a, PrimitiveScalarFunction(a, b, c), c FROM TestTable");
+		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
 		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
+	public void testRowScalarFunction() throws Exception {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of(1, Row.of(1, "1")),
+			Row.of(2, Row.of(2, "2")),
+			Row.of(3, Row.of(3, "3"))
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().sqlUpdate(
+			"CREATE TABLE TestTable(i INT, r ROW<i INT, s STRING>) " +
+			"WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("RowScalarFunction", RowScalarFunction.class);
+		// the names of the function input and r differ
+		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, RowScalarFunction(r) FROM TestTable");
+		tEnv().execute("Test Job");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sourceData));
 	}
 
 	@Test
@@ -547,6 +570,8 @@ public class FunctionITCase extends StreamingTestBase {
 			tEnv().sqlUpdate(
 				"INSERT INTO SinkTable " +
 				"SELECT CustomScalarFunction('test')");
+			// trigger translation
+			tEnv().explain(false);
 			fail();
 		} catch (CodeGenException e) {
 			assertThat(
@@ -578,7 +603,7 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.initData(sourceData);
 
 		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING> NOT NULL) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		tEnv().sqlUpdate("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
@@ -621,6 +646,8 @@ public class FunctionITCase extends StreamingTestBase {
 			tEnv().sqlUpdate(
 				"INSERT INTO SinkTable " +
 				"SELECT * FROM TABLE(PrimitiveScalarFunction(1, 2, '3'))");
+			// trigger translation
+			tEnv().explain(false);
 			fail();
 		} catch (ValidationException e) {
 			assertThat(
@@ -639,6 +666,8 @@ public class FunctionITCase extends StreamingTestBase {
 			tEnv().sqlUpdate(
 				"INSERT INTO SinkTable " +
 				"SELECT * FROM TABLE(MD5('3'))");
+			// trigger translation
+			tEnv().explain(false);
 			fail();
 		} catch (ValidationException e) {
 			assertThat(
@@ -678,6 +707,16 @@ public class FunctionITCase extends StreamingTestBase {
 	public static class PrimitiveScalarFunction extends ScalarFunction {
 		public long eval(int i, long l, String s) {
 			return i + l + s.length();
+		}
+	}
+
+	/**
+	 * Function that takes and returns rows.
+	 */
+	public static class RowScalarFunction extends ScalarFunction {
+		public @DataTypeHint("ROW<f0 INT, f1 STRING>") Row eval(
+				@DataTypeHint("ROW<f0 INT, f1 STRING>") Row row) {
+			return row;
 		}
 	}
 
@@ -722,7 +761,7 @@ public class FunctionITCase extends StreamingTestBase {
 	/**
 	 * Function that returns a row.
 	 */
-	@FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING>>"))
+	@FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING> NOT NULL>"))
 	public static class RowTableFunction extends TableFunction<Row> {
 		public void eval(String s) {
 			if (s == null) {

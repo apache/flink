@@ -32,16 +32,12 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -50,8 +46,6 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for failure of checkpoint coordinator.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(PendingCheckpoint.class)
 public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 	/**
@@ -62,7 +56,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 	public void testFailingCompletedCheckpointStoreAdd() throws Exception {
 		JobID jid = new JobID();
 
-		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
+		final ManuallyTriggeredScheduledExecutor mainThreadExecutor =
 			new ManuallyTriggeredScheduledExecutor();
 
 		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
@@ -76,12 +70,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 				.setJobId(jid)
 				.setTasks(new ExecutionVertex[] { vertex })
 				.setCompletedCheckpointStore(new FailingCompletedCheckpointStore())
-				.setTimer(manuallyTriggeredScheduledExecutor)
+				.setMainThreadExecutor(mainThreadExecutor)
 				.build();
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
 
-		manuallyTriggeredScheduledExecutor.triggerAll();
+		mainThreadExecutor.triggerAll();
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
@@ -109,13 +103,9 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		AcknowledgeCheckpoint acknowledgeMessage = new AcknowledgeCheckpoint(jid, executionAttemptId, checkpointId, new CheckpointMetrics(), subtaskState);
 
-		try {
-			coord.receiveAcknowledgeMessage(acknowledgeMessage, "Unknown location");
-			fail("Expected a checkpoint exception because the completed checkpoint store could not " +
-				"store the completed checkpoint.");
-		} catch (CheckpointException e) {
-			// ignore because we expected this exception
-		}
+		coord.receiveAcknowledgeMessage(acknowledgeMessage, "Unknown location");
+		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
+		mainThreadExecutor.triggerAll();
 
 		// make sure that the pending checkpoint has been discarded after we could not complete it
 		assertTrue(pendingCheckpoint.isDiscarded());

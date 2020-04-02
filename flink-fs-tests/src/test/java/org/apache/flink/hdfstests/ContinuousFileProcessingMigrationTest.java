@@ -75,7 +75,6 @@ public class ContinuousFileProcessingMigrationTest {
 	@Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
 	public static Collection<Tuple2<MigrationVersion, Long>> parameters () {
 		return Arrays.asList(
-			Tuple2.of(MigrationVersion.v1_2, 1493116191000L),
 			Tuple2.of(MigrationVersion.v1_3, 1496532000000L),
 			Tuple2.of(MigrationVersion.v1_4, 1516897628000L),
 			Tuple2.of(MigrationVersion.v1_5, 1533639934000L),

@@ -51,6 +51,11 @@ public class PythonConfig implements Serializable {
 	private final long maxBundleTimeMills;
 
 	/**
+	 * Max number of elements to include in an arrow batch.
+	 */
+	private final int maxArrowBatchSize;
+
+	/**
 	 * The amount of memory to be allocated by the Python framework.
 	 */
 	private final String pythonFrameworkMemorySize;
@@ -98,9 +103,15 @@ public class PythonConfig implements Serializable {
 	@Nullable
 	private final String pythonExec;
 
+	/**
+	 * Whether metric is enabled.
+	 */
+	private final boolean metricEnabled;
+
 	public PythonConfig(Configuration config) {
 		maxBundleSize = config.get(PythonOptions.MAX_BUNDLE_SIZE);
 		maxBundleTimeMills = config.get(PythonOptions.MAX_BUNDLE_TIME_MILLS);
+		maxArrowBatchSize = config.get(PythonOptions.MAX_ARROW_BATCH_SIZE);
 		pythonFrameworkMemorySize = config.get(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE);
 		pythonDataBufferMemorySize = config.get(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE);
 		pythonFilesInfo = config.getString(PYTHON_FILES, null);
@@ -108,6 +119,7 @@ public class PythonConfig implements Serializable {
 		pythonRequirementsCacheDirInfo = config.getString(PYTHON_REQUIREMENTS_CACHE, null);
 		pythonArchivesInfo = config.getString(PYTHON_ARCHIVES, null);
 		pythonExec = config.getString(PYTHON_EXEC, null);
+		metricEnabled = config.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
 	}
 
 	public int getMaxBundleSize() {
@@ -116,6 +128,10 @@ public class PythonConfig implements Serializable {
 
 	public long getMaxBundleTimeMills() {
 		return maxBundleTimeMills;
+	}
+
+	public int getMaxArrowBatchSize() {
+		return maxArrowBatchSize;
 	}
 
 	public String getPythonFrameworkMemorySize() {
@@ -144,5 +160,9 @@ public class PythonConfig implements Serializable {
 
 	public Optional<String> getPythonExec() {
 		return Optional.ofNullable(pythonExec);
+	}
+
+	public boolean isMetricEnabled() {
+		return metricEnabled;
 	}
 }

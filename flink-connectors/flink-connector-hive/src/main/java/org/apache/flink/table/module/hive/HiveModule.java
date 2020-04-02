@@ -53,6 +53,10 @@ public class HiveModule implements Module {
 	private final String hiveVersion;
 	private final HiveShim hiveShim;
 
+	public HiveModule() {
+		this(HiveShimLoader.getHiveVersion());
+	}
+
 	public HiveModule(String hiveVersion) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null");
 

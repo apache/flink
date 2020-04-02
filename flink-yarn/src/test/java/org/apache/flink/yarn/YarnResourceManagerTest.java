@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -56,6 +57,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
@@ -523,6 +525,59 @@ public class YarnResourceManagerTest extends TestLogger {
 				verify(mockResourceManagerClient, VERIFICATION_TIMEOUT).releaseAssignedContainer(testingContainer.getId());
 				verify(mockResourceManagerClient, VERIFICATION_TIMEOUT.times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 			});
+		}};
+	}
+
+	@Test
+	public void testGetCpuCoresCommonOption() throws Exception {
+		final Configuration configuration = new Configuration();
+		configuration.setDouble(TaskManagerOptions.CPU_CORES, 1.0);
+		configuration.setInteger(YarnConfigOptions.VCORES, 2);
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+
+		new Context() {{
+			runTest(() -> assertThat(resourceManager.getCpuCores(configuration), is(1.0)));
+		}};
+	}
+
+	@Test
+	public void testGetCpuCoresYarnOption() throws Exception {
+		final Configuration configuration = new Configuration();
+		configuration.setInteger(YarnConfigOptions.VCORES, 2);
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+
+		new Context() {{
+			runTest(() -> assertThat(resourceManager.getCpuCores(configuration), is(2.0)));
+		}};
+	}
+
+	@Test
+	public void testGetCpuCoresNumSlots() throws Exception {
+		final Configuration configuration = new Configuration();
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+
+		new Context() {{
+			runTest(() -> assertThat(resourceManager.getCpuCores(configuration), is(3.0)));
+		}};
+	}
+
+	@Test
+	public void testGetCpuRoundUp() throws Exception {
+		final Configuration configuration = new Configuration();
+		configuration.setDouble(TaskManagerOptions.CPU_CORES, 0.5);
+
+		new Context() {{
+			runTest(() -> assertThat(resourceManager.getCpuCores(configuration), is(1.0)));
+		}};
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testGetCpuExceedMaxInt() throws Exception {
+		final Configuration configuration = new Configuration();
+		configuration.setDouble(TaskManagerOptions.CPU_CORES, Double.MAX_VALUE);
+
+		new Context() {{
+			resourceManager.getCpuCores(configuration);
 		}};
 	}
 

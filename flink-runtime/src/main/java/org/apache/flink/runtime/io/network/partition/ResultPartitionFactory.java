@@ -90,9 +90,11 @@ public class ResultPartitionFactory {
 
 	public ResultPartition create(
 			String taskNameWithSubtaskAndId,
+			int partitionIndex,
 			ResultPartitionDeploymentDescriptor desc) {
 		return create(
 			taskNameWithSubtaskAndId,
+			partitionIndex,
 			desc.getShuffleDescriptor().getResultPartitionID(),
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
@@ -103,6 +105,7 @@ public class ResultPartitionFactory {
 	@VisibleForTesting
 	public ResultPartition create(
 			String taskNameWithSubtaskAndId,
+			int partitionIndex,
 			ResultPartitionID id,
 			ResultPartitionType type,
 			int numberOfSubpartitions,
@@ -117,6 +120,7 @@ public class ResultPartitionFactory {
 		ResultPartition partition = forcePartitionReleaseOnConsumption || !type.isBlocking()
 			? new ReleaseOnConsumptionResultPartition(
 				taskNameWithSubtaskAndId,
+				partitionIndex,
 				id,
 				type,
 				subpartitions,
@@ -126,6 +130,7 @@ public class ResultPartitionFactory {
 				bufferPoolFactory)
 			: new ResultPartition(
 				taskNameWithSubtaskAndId,
+				partitionIndex,
 				id,
 				type,
 				subpartitions,

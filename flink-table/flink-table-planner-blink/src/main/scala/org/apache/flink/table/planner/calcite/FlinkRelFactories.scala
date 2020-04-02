@@ -24,9 +24,10 @@ import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.Contexts
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilderFactory
+import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -37,6 +38,19 @@ import java.util
 object FlinkRelFactories {
 
   val FLINK_REL_BUILDER: RelBuilderFactory = FlinkRelBuilder.proto(Contexts.empty)
+
+  // Because of:
+  // [CALCITE-3763] RelBuilder.aggregate should prune unused fields from the input,
+  // if the input is a Project.
+  //
+  // the field can not be pruned if it is referenced by other expressions
+  // of the window aggregation(i.e. the TUMBLE_START/END).
+  // To solve this, we config the RelBuilder to forbidden this feature.
+  val LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE: RelBuilderFactory = RelBuilder.proto(
+    Contexts.of(
+      RelFactories.DEFAULT_STRUCT,
+      RelBuilder.Config.DEFAULT
+        .withPruneInputOfAggregate(false)))
 
   val DEFAULT_EXPAND_FACTORY = new ExpandFactoryImpl
 

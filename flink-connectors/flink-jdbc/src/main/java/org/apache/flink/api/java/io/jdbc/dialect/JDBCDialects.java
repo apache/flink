@@ -32,7 +32,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Default Jdbc dialects.
+ * Default JDBC dialects.
  */
 public final class JDBCDialects {
 
@@ -203,7 +203,10 @@ public final class JDBCDialects {
 		}
 	}
 
-	private static class MySQLDialect extends AbstractDialect {
+	/**
+	 * MySQL dialect.
+	 */
+	public static class MySQLDialect extends AbstractDialect {
 
 		private static final long serialVersionUID = 1L;
 
@@ -301,7 +304,10 @@ public final class JDBCDialects {
 		}
 	}
 
-	private static class PostgresDialect extends AbstractDialect {
+	/**
+	 * Postgres dialect.
+	 */
+	public static class PostgresDialect extends AbstractDialect {
 
 		private static final long serialVersionUID = 1L;
 
@@ -340,6 +346,11 @@ public final class JDBCDialects {
 							" ON CONFLICT (" + uniqueColumns + ")" +
 							" DO UPDATE SET " + updateClause
 			);
+		}
+
+		@Override
+		public String quoteIdentifier(String identifier) {
+			return identifier;
 		}
 
 		@Override

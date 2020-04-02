@@ -18,10 +18,8 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -42,13 +40,13 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.sort.BinaryExternalSorter;
 import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.util.BitSet;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -438,10 +436,12 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		}
 	}
 
-	private ResettableExternalBuffer newBuffer(BinaryRowSerializer serializer) throws MemoryAllocationException {
-		List<MemorySegment> externalBufferSegments = memManager.allocatePages(
-				this.getContainingTask(), (int) (externalBufferMemory / memManager.getPageSize()));
-		return new ResettableExternalBuffer(memManager, ioManager, externalBufferSegments, serializer,
+	private ResettableExternalBuffer newBuffer(BinaryRowSerializer serializer) {
+		LazyMemorySegmentPool pool = new LazyMemorySegmentPool(
+				this.getContainingTask(),
+				memManager,
+				(int) (externalBufferMemory / memManager.getPageSize()));
+		return new ResettableExternalBuffer(ioManager, pool, serializer,
 				false /* we don't use newIterator(int beginRow), so don't need use this optimization*/);
 	}
 

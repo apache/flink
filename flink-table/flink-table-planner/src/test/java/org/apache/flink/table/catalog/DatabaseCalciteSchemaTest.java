@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.TestExternalTableSourceFactory.TestExternalTableSource;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -55,7 +56,8 @@ public class DatabaseCalciteSchemaTest {
 		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(true,
 			databaseName,
 			catalogName,
-			catalogManager);
+			catalogManager,
+			new TableConfig());
 
 		catalog.createTable(new ObjectPath(databaseName, tableName), new TestCatalogBaseTable(), false);
 		Table table = calciteSchema.getTable(tableName);

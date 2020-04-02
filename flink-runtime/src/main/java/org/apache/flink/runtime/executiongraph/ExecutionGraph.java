@@ -41,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
+import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
@@ -60,10 +61,12 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
@@ -394,6 +397,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {
 		this.jobMasterMainThreadExecutor = jobMasterMainThreadExecutor;
+		if (checkpointCoordinator != null) {
+			checkpointCoordinator.start(this.jobMasterMainThreadExecutor);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -457,6 +463,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		ExecutionVertex[] tasksToWaitFor = collectExecutionVertices(verticesToWaitFor);
 		ExecutionVertex[] tasksToCommitTo = collectExecutionVertices(verticesToCommitTo);
 
+		final Collection<OperatorCoordinatorCheckpointContext> operatorCoordinators = buildOpCoordinatorCheckpointContexts();
+
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(
@@ -487,6 +495,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			tasksToTrigger,
 			tasksToWaitFor,
 			tasksToCommitTo,
+			operatorCoordinators,
 			checkpointIDCounter,
 			checkpointStore,
 			checkpointStateBackend,
@@ -564,6 +573,21 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 			return all.toArray(new ExecutionVertex[all.size()]);
 		}
+	}
+
+	private Collection<OperatorCoordinatorCheckpointContext> buildOpCoordinatorCheckpointContexts() {
+		final ArrayList<OperatorCoordinatorCheckpointContext> contexts = new ArrayList<>();
+		for (final ExecutionJobVertex vertex : verticesInCreationOrder) {
+			for (final Map.Entry<OperatorID, OperatorCoordinator> coordinator : vertex.getOperatorCoordinatorMap().entrySet()) {
+				contexts.add(new OperatorCoordinatorCheckpointContext(
+						coordinator.getValue(),
+						coordinator.getKey(),
+						vertex.getMaxParallelism(),
+						vertex.getParallelism()));
+			}
+		}
+		contexts.trimToSize();
+		return contexts;
 	}
 
 	// --------------------------------------------------------------------------------------------

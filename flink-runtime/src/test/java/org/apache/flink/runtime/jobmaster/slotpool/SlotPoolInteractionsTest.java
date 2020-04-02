@@ -26,7 +26,6 @@ import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecuto
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -55,6 +54,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecution;
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -96,7 +96,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				new SlotRequestId(),
-				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
+				new ScheduledUnit(getExecution()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				fastTimeout));
 
@@ -124,7 +124,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			SlotRequestId requestId = new SlotRequestId();
 			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				requestId,
-				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
+				new ScheduledUnit(getExecution()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				fastTimeout));
 
@@ -221,7 +221,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			SlotRequestId requestId = new SlotRequestId();
 			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				requestId,
-				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
+				new ScheduledUnit(getExecution()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				fastTimeout));
 

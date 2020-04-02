@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.mock.Whitebox;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -659,6 +660,8 @@ public class CheckpointCoordinatorTestingUtils {
 
 		private ExecutionVertex[] tasksToCommitTo;
 
+		private Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint = Collections.emptyList();
+
 		private CheckpointIDCounter checkpointIDCounter =
 			new StandaloneCheckpointIDCounter();
 
@@ -670,6 +673,9 @@ public class CheckpointCoordinatorTestingUtils {
 		private Executor ioExecutor = Executors.directExecutor();
 
 		private ScheduledExecutor timer = new ManuallyTriggeredScheduledExecutor();
+
+		private ScheduledExecutor mainThreadExecutor =
+			new ManuallyTriggeredScheduledExecutor();
 
 		private SharedStateRegistryFactory sharedStateRegistryFactory =
 			SharedStateRegistry.DEFAULT_FACTORY;
@@ -718,6 +724,10 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
+		public void setCoordinatorsToCheckpoint(Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint) {
+			this.coordinatorsToCheckpoint = coordinatorsToCheckpoint;
+		}
+
 		public CheckpointCoordinatorBuilder setCheckpointIDCounter(
 			CheckpointIDCounter checkpointIDCounter) {
 			this.checkpointIDCounter = checkpointIDCounter;
@@ -735,13 +745,18 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
-		public CheckpointCoordinatorBuilder setIoExecutor(Executor exioExecutorecutor) {
+		public CheckpointCoordinatorBuilder setIoExecutor(Executor ioExecutor) {
 			this.ioExecutor = ioExecutor;
 			return this;
 		}
 
 		public CheckpointCoordinatorBuilder setTimer(ScheduledExecutor timer) {
 			this.timer = timer;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setMainThreadExecutor(ScheduledExecutor mainThreadExecutor) {
+			this.mainThreadExecutor = mainThreadExecutor;
 			return this;
 		}
 
@@ -758,12 +773,13 @@ public class CheckpointCoordinatorTestingUtils {
 		}
 
 		public CheckpointCoordinator build() {
-			return new CheckpointCoordinator(
+			final CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinator(
 				jobId,
 				checkpointCoordinatorConfiguration,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
+				coordinatorsToCheckpoint,
 				checkpointIDCounter,
 				completedCheckpointStore,
 				checkpointStateBackend,
@@ -771,6 +787,11 @@ public class CheckpointCoordinatorTestingUtils {
 				timer,
 				sharedStateRegistryFactory,
 				failureManager);
+			checkpointCoordinator.start(
+				new ComponentMainThreadExecutorServiceAdapter(
+					mainThreadExecutor,
+					Thread.currentThread()));
+			return checkpointCoordinator;
 		}
 	}
 

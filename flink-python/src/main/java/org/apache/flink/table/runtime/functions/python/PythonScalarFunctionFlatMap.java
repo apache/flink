@@ -34,6 +34,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -53,6 +54,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -141,6 +144,11 @@ public final class PythonScalarFunctionFlatMap
 	private final PythonConfig config;
 
 	/**
+	 * The options used to configure the Python worker process.
+	 */
+	private final Map<String, String> jobOptions;
+
+	/**
 	 * Use an AtomicBoolean because we start/stop bundles by a timer thread.
 	 */
 	private transient AtomicBoolean bundleStarted;
@@ -178,6 +186,7 @@ public final class PythonScalarFunctionFlatMap
 		this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
 		this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
+		this.jobOptions = buildJobOptions(config);
 	}
 
 	@Override
@@ -285,7 +294,9 @@ public final class PythonScalarFunctionFlatMap
 			scalarFunctions,
 			createPythonEnvironmentManager(),
 			udfInputType,
-			udfOutputType);
+			udfOutputType,
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 
 	private PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
@@ -321,6 +332,14 @@ public final class PythonScalarFunctionFlatMap
 		}
 	}
 
+	private Map<String, String> buildJobOptions(Configuration config) {
+		Map<String, String> jobOptions = new HashMap<>();
+		if (config.containsKey("table.exec.timezone")) {
+			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
+		}
+		return jobOptions;
+	}
+
 	@Override
 	public TypeInformation<Row> getProducedType() {
 		return (TypeInformation<Row>) LegacyTypeInfoDataTypeConverter
@@ -339,5 +358,10 @@ public final class PythonScalarFunctionFlatMap
 		} finally {
 			super.close();
 		}
+	}
+
+	private FlinkMetricContainer getFlinkMetricContainer() {
+		return this.config.isMetricEnabled() ?
+			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
 	}
 }

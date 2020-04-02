@@ -17,6 +17,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.fabric8:kubernetes-client:4.5.2
 - io.fabric8:kubernetes-model:4.5.2
 - io.fabric8:kubernetes-model-common:4.5.2
+- io.fabric8:zjsonpatch:0.3.0
 - org.yaml:snakeyaml:1.23
 
 This project bundles the following dependencies under the BSD License.

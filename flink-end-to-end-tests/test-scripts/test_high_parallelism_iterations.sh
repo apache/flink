@@ -32,6 +32,7 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 set_config_key "taskmanager.numberOfTaskSlots" "$SLOTS_PER_TM"
 set_config_key "taskmanager.memory.network.min" "160m"
 set_config_key "taskmanager.memory.network.max" "160m"
+set_config_key "taskmanager.memory.framework.off-heap.size" "300m"
 
 print_mem_use
 start_cluster

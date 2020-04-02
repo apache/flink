@@ -1,6 +1,6 @@
 ---
 title: Glossary
-nav-pos: 3
+nav-pos: 10
 nav-title: Glossary
 nav-parent_id: concepts
 ---

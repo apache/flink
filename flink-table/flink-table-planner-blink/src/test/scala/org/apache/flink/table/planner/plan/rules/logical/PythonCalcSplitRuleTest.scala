@@ -24,7 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPythonScalarFunction, PythonScalarFunction}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPandasScalarFunction, BooleanPythonScalarFunction, PandasScalarFunction, PythonScalarFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.{Before, Test}
 
@@ -58,6 +58,10 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     util.addFunction("pyFunc2", new PythonScalarFunction("pyFunc2"))
     util.addFunction("pyFunc3", new PythonScalarFunction("pyFunc3"))
     util.addFunction("pyFunc4", new BooleanPythonScalarFunction("pyFunc4"))
+    util.addFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+    util.addFunction("pandasFunc2", new PandasScalarFunction("pandasFunc2"))
+    util.addFunction("pandasFunc3", new PandasScalarFunction("pandasFunc3"))
+    util.addFunction("pandasFunc4", new BooleanPandasScalarFunction("pandasFunc4"))
   }
 
   @Test
@@ -118,6 +122,60 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   @Test
   def testReorderPythonCalc(): Unit = {
     val sqlQuery = "SELECT a, pyFunc1(a, c), b FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPandasFunctionAsInputOfJavaFunction(): Unit = {
+    val sqlQuery = "SELECT pandasFunc1(a, b) + 1 FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPandasFunctionMixedWithJavaFunction(): Unit = {
+    val sqlQuery = "SELECT pandasFunc1(a, b), c + 1 FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPandasFunctionMixedWithJavaFunctionInWhereClause(): Unit = {
+    val sqlQuery = "SELECT pandasFunc1(a, b), c + 1 FROM MyTable WHERE pandasFunc2(a, c) > 0"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPandasFunctionInWhereClause(): Unit = {
+    val sqlQuery = "SELECT pandasFunc1(a, b) FROM MyTable WHERE pandasFunc4(a, c)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testChainingPandasFunction(): Unit = {
+    val sqlQuery = "SELECT pandasFunc3(pandasFunc2(a + pandasFunc1(a, c), b), c) FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testOnlyOnePandasFunction(): Unit = {
+    val sqlQuery = "SELECT pandasFunc1(a, b) FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testOnlyOnePandasFunctionInWhereClause(): Unit = {
+    val sqlQuery = "SELECT a, b FROM MyTable WHERE pandasFunc4(a, c)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPandasFunctionMixedWithGeneralPythonFunction(): Unit = {
+    val sqlQuery = "SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1 FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPandasFunctionNotChainingWithGeneralPythonFunction(): Unit = {
+    val sqlQuery = "SELECT pyFunc1(a, pandasFunc1(a, b)) + 1 FROM MyTable"
     util.verifyPlan(sqlQuery)
   }
 }

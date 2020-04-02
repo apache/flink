@@ -27,6 +27,7 @@ import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
 
 /**
   * Flink RelNode which matches along with join a python user defined table function.
@@ -48,7 +49,12 @@ class StreamExecPythonCorrelate(
     scan,
     condition,
     outputRowType,
-    joinType) {
+    joinType)
+  with CommonPythonCorrelate {
+
+  if (condition.isDefined) {
+    throw new TableException("Currently Python correlate does not support conditions in left join.")
+  }
 
   def copy(
       traitSet: RelTraitSet,
@@ -68,6 +74,14 @@ class StreamExecPythonCorrelate(
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
-    throw new TableException("The implementation will be FLINK-15972.")
+    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
+      .asInstanceOf[Transformation[BaseRow]]
+    createPythonOneInputTransformation(
+      inputTransformation,
+      scan,
+      "StreamExecPythonCorrelate",
+      outputRowType,
+      getConfig(planner.getTableConfig),
+      joinType)
   }
 }

@@ -441,7 +441,6 @@ the current catalog and current database will be referred. Users can switch the 
 table API or SQL.
 
 Identifiers follow SQL requirements which means that they can be escaped with a backtick character (`` ` ``).
-Additionally all SQL reserved keywords must be escaped.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -459,10 +458,6 @@ tableEnv.createTemporaryView("exampleView", table);
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table);
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table);
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -491,10 +486,6 @@ tableEnv.createTemporaryView("exampleView", table)
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table)
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table)
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -844,13 +835,18 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 1. Optimization of the logical plan
 2. Translation into a DataStream or DataSet program
 
-A Table API or SQL query is translated when:
+For streaming, a Table API or SQL query is translated when:
+
+* `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first. Each sink will be optimized independently. The execution graph contains multiple independent sub-DAGs.
+* A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
+
+For batch, a Table API or SQL query is translated when:
 
 * a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
 * a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
-* a `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)).
+* a `Table` is converted into a `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)).
 
-Once translated, a Table API or SQL query is handled like a regular DataStream or DataSet program and is executed when `StreamExecutionEnvironment.execute()` or `ExecutionEnvironment.execute()` is called.
+Once translated, a Table API or SQL query is handled like a regular DataSet program and is executed when `ExecutionEnvironment.execute()` is called.
 
 </div>
 
@@ -860,17 +856,11 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 1. Optimization of the logical plan,
 2. Translation into a DataStream program.
 
-The behavior of translating  a query is different for `TableEnvironment` and `StreamTableEnvironment`.
+a Table API or SQL query is translated when:
 
-For `TableEnvironment`, a Table API or SQL query is translated when `TableEnvironment.execute()` is called, because `TableEnvironment` will optimize multiple-sinks into one DAG.
+* `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first. All sinks will be optimized into one DAG.
+* A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
 
-While for `StreamTableEnvironment`, a Table API or SQL query is translated when:
-
-* a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
-* a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
-* a `Table` is converted into a `DataStream`.
-
-Once translated, a Table API or SQL query is handled like a regular DataStream program and is executed when `TableEnvironment.execute()` or `StreamExecutionEnvironment.execute()` is called.
 
 </div>
 </div>

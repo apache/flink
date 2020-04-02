@@ -140,7 +140,12 @@ public class OrcSplitReaderUtil {
 			case CHAR:
 				return TypeDescription.createChar().withMaxLength(((CharType) type).getLength());
 			case VARCHAR:
-				return TypeDescription.createVarchar().withMaxLength(((VarCharType) type).getLength());
+				int len = ((VarCharType) type).getLength();
+				if (len == VarCharType.MAX_LENGTH) {
+					return TypeDescription.createString();
+				} else {
+					return TypeDescription.createVarchar().withMaxLength(len);
+				}
 			case BOOLEAN:
 				return TypeDescription.createBoolean();
 			case VARBINARY:
@@ -153,8 +158,8 @@ public class OrcSplitReaderUtil {
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) type;
 				return TypeDescription.createDecimal()
-						.withPrecision(decimalType.getPrecision())
-						.withScale(decimalType.getScale());
+						.withScale(decimalType.getScale())
+						.withPrecision(decimalType.getPrecision());
 			case TINYINT:
 				return TypeDescription.createByte();
 			case SMALLINT:

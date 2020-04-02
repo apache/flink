@@ -51,9 +51,15 @@ import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -65,18 +71,23 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
@@ -643,6 +654,66 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, printVertex.getInputs().get(0).getSource().getResultType());
 	}
 
+	@Test
+	public void testYieldingOperatorNotChainableToTaskChainedToLegacySource() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		chainEnv.fromElements(1)
+			.map((x) -> x)
+			// not chainable because of YieldingOperatorFactory and legacy source
+			.transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>());
+
+		final StreamGraph streamGraph = chainEnv.getStreamGraph();
+
+		final List<StreamNode> streamNodes = streamGraph.getStreamNodes().stream()
+			.sorted(Comparator.comparingInt(StreamNode::getId))
+			.collect(Collectors.toList());
+		assertTrue(areOperatorsChainable(streamNodes.get(0), streamNodes.get(1), streamGraph));
+		assertFalse(areOperatorsChainable(streamNodes.get(1), streamNodes.get(2), streamGraph));
+	}
+
+	@Test
+	public void testYieldingOperatorChainableToTaskNotChainedToLegacySource() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		chainEnv.fromElements(1).disableChaining()
+			.map((x) -> x)
+			.transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>());
+
+		final StreamGraph streamGraph = chainEnv.getStreamGraph();
+
+		final List<StreamNode> streamNodes = streamGraph.getStreamNodes().stream()
+			.sorted(Comparator.comparingInt(StreamNode::getId))
+			.collect(Collectors.toList());
+		assertFalse(areOperatorsChainable(streamNodes.get(0), streamNodes.get(1), streamGraph));
+		assertTrue(areOperatorsChainable(streamNodes.get(1), streamNodes.get(2), streamGraph));
+	}
+
+	/**
+	 * Tests that {@link org.apache.flink.streaming.api.operators.YieldingOperatorFactory} are not chained to legacy
+	 * sources, see FLINK-16219.
+	 */
+	@Test
+	public void testYieldingOperatorProperlyChained() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		chainEnv.fromElements(1)
+			.map((x) -> x)
+			// should automatically break chain here
+			.transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>())
+			.map((x) -> x)
+			.transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>())
+			.map((x) -> x)
+			.addSink(new DiscardingSink<>());
+
+		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
+
+		final List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		Assert.assertEquals(2, vertices.size());
+		assertEquals(2, vertices.get(0).getOperatorIDs().size());
+		assertEquals(5, vertices.get(1).getOperatorIDs().size());
+	}
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testNotSupportInputSelectableOperatorIfCheckpointing() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -785,10 +856,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		assertEquals(4, verticesSorted.size());
 
-		final JobVertex source1Vertex = verticesSorted.get(0);
-		final JobVertex source2Vertex = verticesSorted.get(1);
-		final JobVertex map1Vertex = verticesSorted.get(2);
-		final JobVertex map2Vertex = verticesSorted.get(3);
+		final List<JobVertex> verticesMatched = getExpectedVerticesList(verticesSorted);
+		final JobVertex source1Vertex = verticesMatched.get(0);
+		final JobVertex source2Vertex = verticesMatched.get(1);
+		final JobVertex map1Vertex = verticesMatched.get(2);
+		final JobVertex map2Vertex = verticesMatched.get(3);
 
 		// all vertices should be in the same default slot sharing group
 		// except for map1 which has a specified slot sharing group
@@ -805,16 +877,30 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		assertEquals(4, verticesSorted.size());
 
-		final JobVertex source1Vertex = verticesSorted.get(0);
-		final JobVertex source2Vertex = verticesSorted.get(1);
-		final JobVertex map1Vertex = verticesSorted.get(2);
-		final JobVertex map2Vertex = verticesSorted.get(3);
+		final List<JobVertex> verticesMatched = getExpectedVerticesList(verticesSorted);
+		final JobVertex source1Vertex = verticesMatched.get(0);
+		final JobVertex source2Vertex = verticesMatched.get(1);
+		final JobVertex map1Vertex = verticesMatched.get(2);
+		final JobVertex map2Vertex = verticesMatched.get(3);
 
 		// vertices in the same region should be in the same slot sharing group
 		assertSameSlotSharingGroup(source1Vertex, map1Vertex);
 
 		// vertices in different regions should be in different slot sharing groups
 		assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex);
+	}
+
+	private static List<JobVertex> getExpectedVerticesList(List<JobVertex> vertices) {
+		final List<JobVertex> verticesMatched = new ArrayList<JobVertex>();
+		final List<String> expectedOrder = Arrays.asList("source1", "source2", "map1", "map2");
+		for (int i = 0; i < expectedOrder.size(); i++) {
+			for (JobVertex vertex : vertices) {
+				if (vertex.getName().contains(expectedOrder.get(i))) {
+					verticesMatched.add(vertex);
+				}
+			}
+		}
+		return verticesMatched;
 	}
 
 	/**
@@ -857,4 +943,16 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		setResourcesMethod.setAccessible(true);
 		return setResourcesMethod;
 	}
+
+	private static class YieldingTestOperatorFactory<T> extends SimpleOperatorFactory<T> implements
+			YieldingOperatorFactory<T>, OneInputStreamOperatorFactory<T, T> {
+		private YieldingTestOperatorFactory() {
+			super(new StreamMap<T, T>(x -> x));
+		}
+
+		@Override
+		public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+		}
+	}
+
 }

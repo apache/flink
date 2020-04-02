@@ -67,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -320,8 +321,19 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
-		vertices.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
-			.resetForNewExecution());
+		final Set<CoLocationGroup> colGroups = new HashSet<>();
+		vertices.forEach(executionVertexId -> {
+			final ExecutionVertex ev = getExecutionVertex(executionVertexId);
+
+			final CoLocationGroup cgroup = ev.getJobVertex().getCoLocationGroup();
+			if (cgroup != null && !colGroups.contains(cgroup)){
+				cgroup.resetConstraints();
+				colGroups.add(cgroup);
+			}
+
+			ev.resetForNewExecution();
+		});
+
 	}
 
 	protected void restoreState(final Set<ExecutionVertexID> vertices) throws Exception {
@@ -786,13 +798,11 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final String taskManagerLocationInfo = retrieveTaskManagerLocation(executionAttemptID);
 
 		if (checkpointCoordinator != null) {
-			ioExecutor.execute(() -> {
-				try {
-					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage, taskManagerLocationInfo);
-				} catch (Throwable t) {
-					log.warn("Error while processing checkpoint acknowledgement message", t);
-				}
-			});
+			try {
+				checkpointCoordinator.receiveAcknowledgeMessage(ackMessage, taskManagerLocationInfo);
+			} catch (Throwable t) {
+				log.warn("Error while processing checkpoint acknowledgement message", t);
+			}
 		} else {
 			String errorMessage = "Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator";
 			if (executionGraph.getState() == JobStatus.RUNNING) {
@@ -811,13 +821,11 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final String taskManagerLocationInfo = retrieveTaskManagerLocation(decline.getTaskExecutionId());
 
 		if (checkpointCoordinator != null) {
-			ioExecutor.execute(() -> {
-				try {
-					checkpointCoordinator.receiveDeclineMessage(decline, taskManagerLocationInfo);
-				} catch (Exception e) {
-					log.error("Error in CheckpointCoordinator while processing {}", decline, e);
-				}
-			});
+			try {
+				checkpointCoordinator.receiveDeclineMessage(decline, taskManagerLocationInfo);
+			} catch (Exception e) {
+				log.error("Error in CheckpointCoordinator while processing {}", decline, e);
+			}
 		} else {
 			String errorMessage = "Received DeclineCheckpoint message for job {} with no CheckpointCoordinator";
 			if (executionGraph.getState() == JobStatus.RUNNING) {

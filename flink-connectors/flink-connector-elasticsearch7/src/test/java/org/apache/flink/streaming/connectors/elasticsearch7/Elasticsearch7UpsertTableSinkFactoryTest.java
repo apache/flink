@@ -78,7 +78,7 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 				new StreamExecutionEnvironmentMock(),
 				Types.TUPLE(Types.BOOLEAN, schema.toRowType()));
 
-		testSink.emitDataStream(dataStreamMock);
+		testSink.consumeDataStream(dataStreamMock);
 
 		final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> expectedBuilder = new ElasticsearchSink.Builder<>(
 			Collections.singletonList(new HttpHost(ElasticsearchUpsertTableSinkFactoryTestBase.HOSTNAME, ElasticsearchUpsertTableSinkFactoryTestBase.PORT, ElasticsearchUpsertTableSinkFactoryTestBase.SCHEMA)),

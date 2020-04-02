@@ -104,7 +104,7 @@ class TemporalJoinTest extends TableTestBase {
     val rates = util.tableEnv
       .sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110")
       .createTemporalTableFunction("rowtime", "currency")
-    util.addFunction("Rates", rates)
+    util.addTemporarySystemFunction("Rates", rates)
 
     val sqlQuery =
       "SELECT * FROM " +

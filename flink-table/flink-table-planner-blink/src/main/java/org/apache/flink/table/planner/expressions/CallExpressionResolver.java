@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
@@ -45,7 +46,9 @@ public class CallExpressionResolver {
 		this.resolver = ExpressionResolver.resolverFor(
 				context.getTableConfig(),
 				name -> Optional.empty(),
-				context.getFunctionCatalog(),
+				context.getFunctionCatalog().asLookup(str -> {
+					throw new TableException("We should not need to lookup any expressions at this point");
+				}),
 				context.getCatalogManager().getDataTypeFactory())
 			.build();
 	}

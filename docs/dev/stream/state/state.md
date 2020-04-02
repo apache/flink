@@ -22,66 +22,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document explains how to use Flink's state abstractions when developing an application.
+In this section you will learn about the APIs that Flink provides for writing
+stateful programs. Please take a look at [Stateful Stream
+Processing]({{site.baseurl}}{% link concepts/stateful-stream-processing.md %})
+to learn about the concepts behind stateful stream processing.
 
 * ToC
 {:toc}
 
-## Keyed State and Operator State
+## Using Keyed State
 
-There are two basic kinds of state in Flink: `Keyed State` and `Operator State`.
-
-### Keyed State
-
-*Keyed State* is always relative to keys and can only be used in functions and operators on a `KeyedStream`.
-
-You can think of Keyed State as Operator State that has been partitioned,
-or sharded, with exactly one state-partition per key.
-Each keyed-state is logically bound to a unique
-composite of <parallel-operator-instance, key>, and since each key
-"belongs" to exactly one parallel instance of a keyed operator, we can
-think of this simply as <operator, key>.
-
-Keyed State is further organized into so-called *Key Groups*. Key Groups are the
-atomic unit by which Flink can redistribute Keyed State;
-there are exactly as many Key Groups as the defined maximum parallelism.
-During execution each parallel instance of a keyed operator works with the keys
-for one or more Key Groups.
-
-### Operator State
-
-With *Operator State* (or *non-keyed state*), each operator state is
-bound to one parallel operator instance.
-The [Kafka Connector]({{ site.baseurl }}/dev/connectors/kafka.html) is a good motivating example for the use of Operator State
-in Flink. Each parallel instance of the Kafka consumer maintains a map
-of topic partitions and offsets as its Operator State.
-
-The Operator State interfaces support redistributing state among
-parallel operator instances when the parallelism is changed. There can be different schemes for doing this redistribution.
-
-## Raw and Managed State
-
-*Keyed State* and *Operator State* exist in two forms: *managed* and *raw*.
-
-*Managed State* is represented in data structures controlled by the Flink runtime, such as internal hash tables, or RocksDB.
-Examples are "ValueState", "ListState", etc. Flink's runtime encodes
-the states and writes them into the checkpoints.
-
-*Raw State* is state that operators keep in their own data structures. When checkpointed, they only write a sequence of bytes into
-the checkpoint. Flink knows nothing about the state's data structures and sees only the raw bytes.
-
-All datastream functions can use managed state, but the raw state interfaces can only be used when implementing operators.
-Using managed state (rather than raw state) is recommended, since with
-managed state Flink is able to automatically redistribute state when the parallelism is
-changed, and also do better memory management.
-
-<span class="label label-danger">Attention</span> If your managed state needs custom serialization logic, please see 
-the [corresponding guide](custom_serialization.html) in order to ensure future compatibility. Flink's default serializers 
-don't need special treatment.
-
-## Using Managed Keyed State
-
-The managed keyed state interface provides access to different types of state that are all scoped to
+The keyed state interfaces provides access to different types of state that are all scoped to
 the key of the current input element. This means that this type of state can only be used
 on a `KeyedStream`, which can be created via `stream.keyBy(…)`.
 
@@ -255,7 +206,7 @@ object ExampleCountWindowAverage extends App {
     .print()
   // the printed output will be (1,4) and (1,5)
 
-  env.execute("ExampleManagedState")
+  env.execute("ExampleKeyedState")
 }
 {% endhighlight %}
 </div>
@@ -545,10 +496,46 @@ val counts: DataStream[(String, Int)] = stream
     })
 {% endhighlight %}
 
-## Using Managed Operator State
+## Operator State
 
-To use managed operator state, a stateful function can implement either the more general `CheckpointedFunction`
+*Operator State* (or *non-keyed state*) is state that is is bound to one
+parallel operator instance. The [Kafka Connector]({{ site.baseurl }}{% link
+dev/connectors/kafka.md %}) is a good motivating example for the use of
+Operator State in Flink. Each parallel instance of the Kafka consumer maintains
+a map of topic partitions and offsets as its Operator State.
+
+The Operator State interfaces support redistributing state among parallel
+operator instances when the parallelism is changed. There are different schemes
+for doing this redistribution.
+
+In a typical stateful Flink Application you don't need operators state. It is
+mostly a special type of state that is used in source/sink implementations and
+scenarios where you don't have a key by which state can be partitioned.
+
+## Broadcast State
+
+*Broadcast State* is a special type of *Operator State*.  It was introduced to
+support use cases where records of one stream need to be broadcasted to all
+downstream tasks, where they are used to maintain the same state among all
+subtasks. This state can then be accessed while processing records of a second
+stream. As an example where broadcast state can emerge as a natural fit, one
+can imagine a low-throughput stream containing a set of rules which we want to
+evaluate against all elements coming from another stream. Having the above type
+of use cases in mind, broadcast state differs from the rest of operator states
+in that:
+
+ 1. it has a map format,
+ 2. it is only available to specific operators that have as inputs a
+    *broadcasted* stream and a *non-broadcasted* one, and
+ 3. such an operator can have *multiple broadcast states* with different names.
+
+{% top %}
+
+## Using Operator State
+
+To use operator state, a stateful function can implement either the more general `CheckpointedFunction`
 interface, or the `ListCheckpointed<T extends Serializable>` interface.
+
 
 #### CheckpointedFunction
 
@@ -566,7 +553,7 @@ is called every time the user-defined function is initialized, be that when the 
 or be that when the function is actually recovering from an earlier checkpoint. Given this, `initializeState()` is not
 only the place where different types of state are initialized, but also where state recovery logic is included.
 
-Currently, list-style managed operator state is supported. The state
+Currently, list-style operator state is supported. The state
 is expected to be a `List` of *serializable* objects, independent from each other,
 thus eligible for redistribution upon rescaling. In other words, these objects are the finest granularity at which
 non-keyed state can be redistributed. Depending on the state accessing method,
@@ -580,7 +567,9 @@ the following redistribution schemes are defined:
     while `element2` will go to operator instance 1.
 
   - **Union redistribution:** Each operator returns a List of state elements. The whole state is logically a concatenation of
-    all lists. On restore/redistribution, each operator gets the complete list of state elements.
+    all lists. On restore/redistribution, each operator gets the complete list of state elements. Do not use this feature if
+    your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC
+    framesize or out-of-memory errors.
 
 Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction`
 to buffer elements before sending them to the outside world. It demonstrates

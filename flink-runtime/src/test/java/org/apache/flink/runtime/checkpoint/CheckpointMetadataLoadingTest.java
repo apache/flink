@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -85,7 +85,7 @@ public class CheckpointMetadataLoadingTest {
 		JobID jobId = new JobID();
 
 		// Store savepoint
-		final SavepointV2 savepoint = new SavepointV2(checkpointId, taskStates.values(), Collections.emptyList());
+		final CheckpointMetadata savepoint = new CheckpointMetadata(checkpointId, taskStates.values(), Collections.emptyList());
 		final StreamStateHandle serializedMetadata;
 
 		try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {

@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -137,26 +138,27 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 		}
 		finally {
 			// clean up
-			fs.delete(directory, true);
+			cleanupDirectoryWithRetry(fs, directory, deadline);
 		}
-
-		// now directory must be gone
-		checkPathExistence(directory, false, deadline);
 	}
 
 	@AfterClass
 	public static void teardown() throws IOException, InterruptedException {
 		try {
 			if (fs != null) {
-				// clean up
-				fs.delete(basePath, true);
-
-				// now directory must be gone
-				checkPathExistence(basePath, false, deadline);
+				cleanupDirectoryWithRetry(fs, basePath, deadline);
 			}
 		}
 		finally {
 			FileSystem.initialize(new Configuration());
 		}
+	}
+
+	public static void cleanupDirectoryWithRetry(FileSystem fs, Path path, long deadline) throws IOException, InterruptedException {
+		while (fs.exists(path) && System.nanoTime() < deadline) {
+			fs.delete(path, true);
+			Thread.sleep(50L);
+		}
+		Assert.assertFalse(fs.exists(path));
 	}
 }

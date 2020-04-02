@@ -135,7 +135,7 @@ public class SynchronousCheckpointITCase {
 		// Flag to emit the first event only once.
 		private boolean isRunning;
 
-		public SynchronousCheckpointTestingTask(Environment environment) {
+		public SynchronousCheckpointTestingTask(Environment environment) throws Exception {
 			super(environment);
 		}
 

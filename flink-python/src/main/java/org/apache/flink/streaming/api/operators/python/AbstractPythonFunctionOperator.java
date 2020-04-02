@@ -28,6 +28,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryReservationException;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -106,6 +107,10 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	public AbstractPythonFunctionOperator(Configuration config) {
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
+	}
+
+	public PythonConfig getPythonConfig() {
+		return config;
 	}
 
 	@Override
@@ -348,5 +353,10 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			throw new UnsupportedOperationException(String.format(
 				"Execution type '%s' is not supported.", pythonEnv.getExecType()));
 		}
+	}
+
+	protected FlinkMetricContainer getFlinkMetricContainer() {
+		return this.config.isMetricEnabled() ?
+			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
 	}
 }

@@ -38,7 +38,7 @@ class DataSetCalcRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsPythonCall)
+    !program.getExprList.asScala.exists(containsPythonCall(_))
   }
 
   def convert(rel: RelNode): RelNode = {

@@ -23,16 +23,16 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonStatelessFunctionRunner;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+
+import java.util.Map;
 
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
@@ -52,8 +52,10 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN);
+		RowType outputType,
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN, jobOptions, flinkMetricContainer);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 	}
 
@@ -63,45 +65,11 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 	@VisibleForTesting
 	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
+		// add udf proto
 		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
 			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
 		}
+		builder.setMetricEnabled(flinkMetricContainer != null);
 		return builder.build();
 	}
-
-	/**
-	 * Gets the proto representation of the input coder.
-	 */
-	@Override
-	public RunnerApi.Coder getInputCoderProto() {
-		return getRowCoderProto(getInputType());
-	}
-
-	/**
-	 * Gets the proto representation of the output coder.
-	 */
-	@Override
-	public RunnerApi.Coder getOutputCoderProto() {
-		return getRowCoderProto(getOutputType());
-	}
-
-	private RunnerApi.Coder getRowCoderProto(RowType rowType) {
-		return RunnerApi.Coder.newBuilder()
-			.setSpec(
-				RunnerApi.FunctionSpec.newBuilder()
-					.setUrn(getInputOutputCoderUrn())
-					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-						toProtoType(rowType).getRowSchema().toByteArray()))
-					.build())
-			.build();
-	}
-
-	private FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
-		return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
-	}
-
-	/**
-	 * Returns the URN of the input/output coder.
-	 */
-	public abstract String getInputOutputCoderUrn();
 }

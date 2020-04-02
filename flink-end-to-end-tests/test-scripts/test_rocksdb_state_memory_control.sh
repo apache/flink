@@ -41,7 +41,7 @@ CHECKPOINT_DIR_URI="file://$CHECKPOINT_DIR"
 EXPECTED_MAX_MEMORY_USAGE=200000000
 
 set_config_key "taskmanager.numberOfTaskSlots" "$PARALLELISM"
-set_config_key "taskmanager.memory.process.size" "1024m"
+set_config_key "taskmanager.memory.process.size" "1184m"
 set_config_key "taskmanager.memory.managed.size" "300m"
 set_config_key "state.backend.rocksdb.memory.managed" "true"
 set_config_key "state.backend.rocksdb.memory.write-buffer-ratio" "0.8"

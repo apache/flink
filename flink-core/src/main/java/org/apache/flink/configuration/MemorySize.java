@@ -191,6 +191,7 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 		} else {
 			double approximate = 1.0 * bytes / highestUnit.getMultiplier();
 			return String.format(
+				Locale.ROOT,
 				"%.3f%s (%d bytes)",
 				approximate,
 				highestUnit.getUnits()[1],

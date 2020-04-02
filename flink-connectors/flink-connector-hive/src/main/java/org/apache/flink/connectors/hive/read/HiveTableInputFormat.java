@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.InputFormat;
@@ -113,14 +114,72 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 
 	@Override
 	public void open(HiveTableInputSplit split) throws IOException {
-		if (!useMapRedReader && useOrcVectorizedRead(split.getHiveTablePartition())) {
+		HiveTablePartition partition = split.getHiveTablePartition();
+		if (!useMapRedReader && useOrcVectorizedRead(partition)) {
 			this.reader = new HiveVectorizedOrcSplitReader(
+					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
+		} else if (!useMapRedReader && useParquetVectorizedRead(partition)) {
+			this.reader = new HiveVectorizedParquetSplitReader(
 					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
 		} else {
 			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split,
 					HiveShimLoader.loadHiveShim(hiveVersion));
 		}
 		currentReadCount = 0L;
+	}
+
+	private boolean isVectorizationUnsupported(LogicalType t) {
+		switch (t.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+			case BOOLEAN:
+			case BINARY:
+			case VARBINARY:
+			case DECIMAL:
+			case TINYINT:
+			case SMALLINT:
+			case INTEGER:
+			case BIGINT:
+			case FLOAT:
+			case DOUBLE:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return false;
+			case TIMESTAMP_WITH_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+			case INTERVAL_DAY_TIME:
+			case ARRAY:
+			case MULTISET:
+			case MAP:
+			case ROW:
+			case DISTINCT_TYPE:
+			case STRUCTURED_TYPE:
+			case NULL:
+			case RAW:
+			case SYMBOL:
+			default:
+				return true;
+		}
+	}
+
+	private boolean useParquetVectorizedRead(HiveTablePartition partition) {
+		boolean isParquet = partition.getStorageDescriptor().getSerdeInfo().getSerializationLib()
+				.toLowerCase().contains("parquet");
+		if (!isParquet) {
+			return false;
+		}
+
+		for (int i : selectedFields) {
+			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
+				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
+				return false;
+			}
+		}
+
+		LOG.info("Use flink parquet ColumnarRow reader.");
+		return true;
 	}
 
 	private boolean useOrcVectorizedRead(HiveTablePartition partition) {
@@ -131,39 +190,9 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		}
 
 		for (int i : selectedFields) {
-			switch (fieldTypes[i].getLogicalType().getTypeRoot()) {
-				case CHAR:
-				case VARCHAR:
-				case BOOLEAN:
-				case BINARY:
-				case VARBINARY:
-				case DECIMAL:
-				case TINYINT:
-				case SMALLINT:
-				case INTEGER:
-				case BIGINT:
-				case FLOAT:
-				case DOUBLE:
-				case DATE:
-				case TIME_WITHOUT_TIME_ZONE:
-				case TIMESTAMP_WITHOUT_TIME_ZONE:
-				case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-					break;
-				case TIMESTAMP_WITH_TIME_ZONE:
-				case INTERVAL_YEAR_MONTH:
-				case INTERVAL_DAY_TIME:
-				case ARRAY:
-				case MULTISET:
-				case MAP:
-				case ROW:
-				case DISTINCT_TYPE:
-				case STRUCTURED_TYPE:
-				case NULL:
-				case RAW:
-				case SYMBOL:
-				default:
-					LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
-					return false;
+			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
+				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
+				return false;
 			}
 		}
 

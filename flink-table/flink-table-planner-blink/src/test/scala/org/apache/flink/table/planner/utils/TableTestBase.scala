@@ -173,7 +173,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
     val dataStream = env.fromElements[T]().javaStream
     val tableEnv = getTableEnv
-    TableTestUtil.registerDataStream(tableEnv, name, dataStream, Some(fields.toArray))
+    TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
     tableEnv.scan(name)
   }
 
@@ -261,7 +261,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlan(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -269,7 +269,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlan(table: Table): Unit = {
     doVerifyPlan(
       table,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -277,7 +277,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlanWithType(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = true,
       printPlanBefore = true)
   }
@@ -285,7 +285,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlanWithType(table: Table): Unit = {
     doVerifyPlan(
       table,
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = true,
       printPlanBefore = true)
   }
@@ -299,7 +299,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRetractTraits = false,
       withRowType = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
@@ -357,7 +357,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val planBefore = SystemUtils.LINE_SEPARATOR +
         FlinkRelOptUtil.toString(
           relNode,
-          SqlExplainLevel.DIGEST_ATTRIBUTES,
+          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
           withRowType = withRowType)
       assertEqualsOrExpand("planBefore", planBefore)
     }
@@ -371,7 +371,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val table = getTableEnv.sqlQuery(sql)
     doVerifyPlan(
       table,
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
       withRetractTraits = false,
       printResource = true,
@@ -410,7 +410,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val planBefore = SystemUtils.LINE_SEPARATOR +
         FlinkRelOptUtil.toString(
           relNode,
-          SqlExplainLevel.DIGEST_ATTRIBUTES,
+          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
           withRowType = withRowType)
       assertEqualsOrExpand("planBefore", planBefore)
     }
@@ -563,6 +563,13 @@ abstract class TableTestUtil(
   }
 
   /**
+   * Registers a [[UserDefinedFunction]] according to FLIP-65.
+   */
+  def addTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = {
+    testingTableEnv.createTemporarySystemFunction(name, function)
+  }
+
+  /**
     * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
     */
   def addFunction[T: TypeInformation](
@@ -588,7 +595,7 @@ abstract class TableTestUtil(
   def verifySqlUpdate(sql: String): Unit = {
     doVerifySqlUpdate(
       sql,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
       withRetractTraits = false,
       printPlanBefore = true)
@@ -596,7 +603,7 @@ abstract class TableTestUtil(
 
   def verifyPlan(): Unit = {
     doVerifyPlan(
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
       withRetractTraits = false,
       printPlanBefore = true)
@@ -637,7 +644,7 @@ abstract class TableTestUtil(
       val planBefore = new StringBuilder
       relNodes.foreach { sink =>
         planBefore.append(System.lineSeparator)
-        planBefore.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.DIGEST_ATTRIBUTES))
+        planBefore.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
       }
       assertEqualsOrExpand("planBefore", planBefore.toString())
     }
@@ -763,7 +770,7 @@ case class StreamTableTestUtil(
 
   def verifyPlanWithTrait(): Unit = {
     doVerifyPlan(
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRetractTraits = true,
       withRowType = false,
       printPlanBefore = true)
@@ -772,7 +779,7 @@ case class StreamTableTestUtil(
   def verifyPlanWithTrait(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRetractTraits = true,
       withRowType = false,
       printPlanBefore = true)
@@ -781,7 +788,7 @@ case class StreamTableTestUtil(
   def verifyPlanWithTrait(table: Table): Unit = {
     doVerifyPlan(
       table,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRetractTraits = true,
       withRowType = false,
       printPlanBefore = true)
@@ -1012,13 +1019,7 @@ class TestingTableEnvironment private(
   override def insertInto(path: String, table: Table): Unit = {
     val unresolvedIdentifier = parser.parseIdentifier(path)
     val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
-
-    val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))
-    if (isEagerOperationTranslation) {
-      translate(modifyOperations)
-    } else {
-      buffer(modifyOperations)
-    }
+    buffer(List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation)))
   }
 
   override def sqlUpdate(stmt: String): Unit = {
@@ -1030,12 +1031,7 @@ class TestingTableEnvironment private(
     val operation = operations.get(0)
     operation match {
       case modifyOperation: ModifyOperation =>
-        val modifyOperations = List(modifyOperation)
-        if (isEagerOperationTranslation) {
-          translate(modifyOperations)
-        } else {
-          buffer(modifyOperations)
-        }
+        buffer(List(modifyOperation))
       case createOperation: CreateTableOperation =>
         catalogManager.createTable(
           createOperation.getCatalogTable,
@@ -1052,23 +1048,14 @@ class TestingTableEnvironment private(
 
   @throws[Exception]
   override def execute(jobName: String): JobExecutionResult = {
-    translate(bufferedOperations.toList)
+    val transformations = planner.translate(bufferedOperations)
     bufferedOperations.clear()
-    execEnv.execute(jobName)
-  }
-
-  // for test
-  def translate(): Unit = {
-    translate(bufferedOperations.toList)
+    val pipeline = executor.createPipeline(transformations, tableConfig, jobName)
+    execEnv.execute(pipeline)
   }
 
   override def createTable(tableOperation: QueryOperation): TableImpl = {
     super.createTable(tableOperation)
-  }
-
-  private def translate(modifyOperations: List[ModifyOperation]): Unit = {
-    val transformations = planner.translate(modifyOperations)
-    execEnv.apply(transformations)
   }
 
   private def buffer(modifyOperations: List[ModifyOperation]): Unit = {
@@ -1143,7 +1130,7 @@ object TableTestUtil {
       .getRelBuilder.queryOperation(table.getQueryOperation).build()
   }
 
-  def registerDataStream[T](
+  def createTemporaryView[T](
       tEnv: TableEnvironment,
       name: String,
       dataStream: DataStream[T],

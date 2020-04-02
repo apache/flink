@@ -40,6 +40,7 @@ import org.apache.flink.table.operations.{OutputConversionModifyOperation, Query
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
+
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
 
@@ -186,14 +187,6 @@ class StreamTableEnvironmentImpl (
         "A rowtime attribute requires an EventTime time characteristic in stream " +
           "environment. But is: %s}", scalaExecutionEnvironment.getStreamTimeCharacteristic))
     }
-  }
-
-  override protected def isEagerOperationTranslation(): Boolean = true
-
-  override def explain(extended: Boolean): String = {
-    // throw exception directly, because the operations to explain are always empty
-    throw new TableException(
-      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
   }
 
   private def toDataStream[T](

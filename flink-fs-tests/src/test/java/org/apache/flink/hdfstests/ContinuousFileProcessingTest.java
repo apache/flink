@@ -32,6 +32,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
@@ -150,6 +151,23 @@ public class ContinuousFileProcessingTest {
 		}
 	}
 
+	@Test(expected = ExpectedTestException.class)
+	public void testExceptionHandling() throws Exception {
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI + "/" + UUID.randomUUID() + "/")) {
+			@Override
+			public void close() {
+				throw new ExpectedTestException();
+			}
+		};
+
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = createHarness(format);
+		harness.getExecutionConfig().setAutoWatermarkInterval(10);
+		harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+		try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = harness) {
+			tester.open();
+		}
+	}
+
 	@Test
 	public void testFileReadingOperatorWithIngestionTime() throws Exception {
 		String testBasePath = hdfsURI + "/" + UUID.randomUUID() + "/";
@@ -165,7 +183,6 @@ public class ContinuousFileProcessingTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(testBasePath));
-		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
 		final long watermarkInterval = 10;
 

@@ -1,6 +1,6 @@
 ---
 title: 词汇表
-nav-pos: 3
+nav-pos: 10
 nav-title: 词汇表
 nav-parent_id: concepts
 ---

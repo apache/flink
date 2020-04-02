@@ -40,7 +40,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val t = util.addTableSource[(Double, Long)]('double, 'long)
 
    util.addFunction("TestFunc", TestFunc)
-    val tab1 = t.select(TestFunc(withColumns('*)))
+    val tab1 = t.select(call("TestFunc", withColumns('*)))
     val tab2 = t.select("TestFunc(withColumns(*))")
     verifyTableEquals(tab1, tab2)
     util.verifyPlan(tab1)
@@ -171,9 +171,9 @@ class ColumnFunctionsTest extends TableTestBase {
       .window(
         Over partitionBy withColumns('c) orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
       .select('c,
-        countFun(withColumns('b)) over 'w as 'mycount,
-        weightAvgFun(withColumns('a to 'b)) over 'w as 'wAvg,
-        countDist('a) over 'w as 'countDist)
+        call("countFun", withColumns('b)) over 'w as 'mycount,
+        call("weightAvgFun", withColumns('a to 'b)) over 'w as 'wAvg,
+        call("countDist", 'a) over 'w as 'countDist)
       .select('c, 'mycount, 'wAvg, 'countDist)
 
     val tab2 = table
@@ -194,7 +194,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val t = util.addTableSource[(Double, Long, String)]('a, 'b, 'c)
 
    util.addFunction("TestFunc", TestFunc)
-    val tab1 = t.addColumns(TestFunc(withColumns('a, 'b)) as 'd)
+    val tab1 = t.addColumns(call("TestFunc", withColumns('a, 'b)) as 'd)
     val tab2 = t.addColumns("TestFunc(withColumns(a, b)) as d")
     verifyTableEquals(tab1, tab2)
     util.verifyPlan(tab1)

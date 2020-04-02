@@ -26,11 +26,13 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, F
 import org.apache.flink.table.planner.plan.schema._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.{JDouble, JLong}
+import org.apache.flink.table.utils.CatalogManagerMocks
 import org.apache.flink.util.Preconditions
+
 import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQueryBase}
 import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -43,10 +45,9 @@ import org.junit.{Before, BeforeClass, Test}
 import org.powermock.api.mockito.PowerMockito._
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
+
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
-
-import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConverters._
 
@@ -1107,10 +1108,8 @@ object SelectivityEstimatorTest {
 
   @BeforeClass
   def beforeAll(): Unit = {
-    RelMetadataQuery
+    RelMetadataQueryBase
       .THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
   }
-
 }
-

@@ -19,21 +19,32 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
+import org.apache.flink.runtime.checkpoint.PendingCheckpoint.TaskAcknowledgeResult;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinator;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
+import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
+import org.apache.flink.util.ExceptionUtils;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,6 +57,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,11 +71,13 @@ import java.util.concurrent.ScheduledFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -151,7 +165,7 @@ public class PendingCheckpointTest {
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
-		pending.abort(CheckpointFailureReason.CHECKPOINT_DECLINED);
+		pending.abort(CheckpointFailureReason.CHECKPOINT_EXPIRED);
 		assertTrue(future.isDone());
 
 		// Abort subsumed
@@ -159,7 +173,7 @@ public class PendingCheckpointTest {
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
-		pending.abort(CheckpointFailureReason.CHECKPOINT_DECLINED);
+		pending.abort(CheckpointFailureReason.CHECKPOINT_SUBSUMED);
 		assertTrue(future.isDone());
 
 		// Finalize (all ACK'd)
@@ -169,7 +183,7 @@ public class PendingCheckpointTest {
 		assertFalse(future.isDone());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 		assertTrue(pending.areTasksFullyAcknowledged());
-		pending.finalizeCheckpoint();
+		pending.finalizeCheckpoint().get();
 		assertTrue(future.isDone());
 
 		// Finalize (missing ACKs)
@@ -178,10 +192,11 @@ public class PendingCheckpointTest {
 
 		assertFalse(future.isDone());
 		try {
-			pending.finalizeCheckpoint();
+			pending.finalizeCheckpoint().get();
 			fail("Did not throw expected Exception");
-		} catch (IllegalStateException ignored) {
+		} catch (Throwable t) {
 			// Expected
+			assertTrue(ExceptionUtils.findThrowable(t, IllegalStateException.class).isPresent());
 		}
 	}
 
@@ -189,7 +204,6 @@ public class PendingCheckpointTest {
 	 * Tests that abort discards state.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testAbortDiscardsState() throws Exception {
 		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
@@ -255,7 +269,7 @@ public class PendingCheckpointTest {
 			pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 			verify(callback, times(1)).reportSubtaskStats(nullable(JobVertexID.class), any(SubtaskStateStats.class));
 
-			pending.finalizeCheckpoint();
+			pending.finalizeCheckpoint().get();
 			verify(callback, times(1)).reportCompletedCheckpoint(any(String.class));
 		}
 
@@ -428,29 +442,269 @@ public class PendingCheckpointTest {
 		assertEquals("state", deserializedState);
 	}
 
+	@Test
+	public void testInitiallyUnacknowledgedCoordinatorStates() throws Exception {
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(
+				createOperatorCoordinator(), createOperatorCoordinator());
+
+		assertEquals(2, checkpoint.getNumberOfNonAcknowledgedOperatorCoordinators());
+		assertFalse(checkpoint.isFullyAcknowledged());
+	}
+
+	@Test
+	public void testAcknowledgedCoordinatorStates() throws Exception {
+		final OperatorCoordinatorCheckpointContext coord1 = createOperatorCoordinator();
+		final OperatorCoordinatorCheckpointContext coord2 = createOperatorCoordinator();
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coord1, coord2);
+
+		final TaskAcknowledgeResult ack1 = checkpoint.acknowledgeCoordinatorState(coord1, new TestingStreamStateHandle());
+		final TaskAcknowledgeResult ack2 = checkpoint.acknowledgeCoordinatorState(coord2, null);
+
+		assertEquals(TaskAcknowledgeResult.SUCCESS, ack1);
+		assertEquals(TaskAcknowledgeResult.SUCCESS, ack2);
+		assertEquals(0, checkpoint.getNumberOfNonAcknowledgedOperatorCoordinators());
+		assertTrue(checkpoint.isFullyAcknowledged());
+		assertThat(checkpoint.getOperatorStates().keySet(), Matchers.contains(coord1.operatorId()));
+	}
+
+	@Test
+	public void testDuplicateAcknowledgeCoordinator() throws Exception {
+		final OperatorCoordinatorCheckpointContext coordinator = createOperatorCoordinator();
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coordinator);
+
+		checkpoint.acknowledgeCoordinatorState(coordinator, new TestingStreamStateHandle());
+		final TaskAcknowledgeResult secondAck = checkpoint.acknowledgeCoordinatorState(coordinator, null);
+
+		assertEquals(TaskAcknowledgeResult.DUPLICATE, secondAck);
+	}
+
+	@Test
+	public void testAcknowledgeUnknownCoordinator() throws Exception {
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(createOperatorCoordinator());
+
+		final TaskAcknowledgeResult ack = checkpoint.acknowledgeCoordinatorState(createOperatorCoordinator(), null);
+
+		assertEquals(TaskAcknowledgeResult.UNKNOWN, ack);
+	}
+
+	@Test
+	public void testDisposeDisposesCoordinatorStates() throws Exception {
+		final TestingStreamStateHandle handle1 = new TestingStreamStateHandle();
+		final TestingStreamStateHandle handle2 = new TestingStreamStateHandle();
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithAcknowledgedCoordinators(handle1, handle2);
+
+		checkpoint.abort(CheckpointFailureReason.CHECKPOINT_EXPIRED);
+
+		assertTrue(handle1.isDisposed());
+		assertTrue(handle2.isDisposed());
+	}
+
+	@Test
+	public void testAsyncFinalizeCheckpoint() throws Exception {
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+
+		ManuallyTriggeredScheduledExecutor ioExecutor = new ManuallyTriggeredScheduledExecutor();
+		ManuallyTriggeredScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		CompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(10);
+		PendingCheckpoint pending = createPendingCheckpoint(
+			props,
+			Collections.emptyList(),
+			Collections.emptyList(),
+			ioExecutor,
+			mainThreadExecutor,
+			completedCheckpointStore);
+
+		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture = pending.finalizeCheckpoint();
+
+		assertFalse(checkpointCompletableFuture.isDone());
+		ioExecutor.triggerAll();
+
+		assertFalse(checkpointCompletableFuture.isDone());
+		mainThreadExecutor.triggerAll();
+		assertNotNull(checkpointCompletableFuture.get());
+		assertEquals(1, completedCheckpointStore.getNumberOfRetainedCheckpoints());
+	}
+
+	@Test
+	public void testAsyncFinalizeCheckpointFailed() throws Exception {
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+
+		ManuallyTriggeredScheduledExecutor ioExecutor = new ManuallyTriggeredScheduledExecutor();
+		ManuallyTriggeredScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
+
+		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(10);
+		PendingCheckpoint pending = new PendingCheckpoint(
+			new JobID(),
+			0,
+			1,
+			ackTasks,
+			Collections.emptyList(),
+			Collections.emptyList(),
+			props,
+			new FailingCheckpointStorageLocation(),
+			ioExecutor,
+			mainThreadExecutor,
+			new CompletableFuture<>(),
+			completedCheckpointStore);
+
+		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture = pending.finalizeCheckpoint();
+
+		assertFalse(checkpointCompletableFuture.isDone());
+		ioExecutor.triggerAll();
+
+		assertTrue(checkpointCompletableFuture.isCompletedExceptionally());
+		assertEquals(0, completedCheckpointStore.getNumberOfRetainedCheckpoints());
+	}
+
+	@Test
+	public void testAbortingAfterAsyncFinalization() throws Exception {
+		final CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+
+		final ManuallyTriggeredScheduledExecutor ioExecutor = new ManuallyTriggeredScheduledExecutor();
+		final ManuallyTriggeredScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		final CompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(10);
+		final PendingCheckpoint checkpoint = createPendingCheckpoint(
+			props,
+			Collections.emptyList(),
+			Collections.emptyList(),
+			ioExecutor,
+			mainThreadExecutor,
+			completedCheckpointStore);
+
+		checkpoint.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		final CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture = checkpoint.finalizeCheckpoint();
+
+		assertFalse(checkpointCompletableFuture.isDone());
+		ioExecutor.triggerAll();
+
+		assertFalse(checkpointCompletableFuture.isDone());
+
+		checkpoint.abort(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
+		completedCheckpointStore.shutdown(JobStatus.CANCELED);
+
+		mainThreadExecutor.triggerAll();
+		// trigger the async cleanup operations
+		ioExecutor.triggerAll();
+		assertTrue(checkpointCompletableFuture.isCompletedExceptionally());
+
+		assertEquals(0, completedCheckpointStore.getNumberOfRetainedCheckpoints());
+
+		final FsCheckpointStorageLocation location =
+			(FsCheckpointStorageLocation) checkpoint.getCheckpointStorageLocation();
+		assertFalse(LocalFileSystem.getSharedInstance().exists(location.getCheckpointDirectory()));
+	}
+
+	@Test
+	public void testAbortingBeforeAsyncFinalization() throws Exception {
+		final CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+
+		final ManuallyTriggeredScheduledExecutor ioExecutor = new ManuallyTriggeredScheduledExecutor();
+		final ManuallyTriggeredScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		final CompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(10);
+		final PendingCheckpoint checkpoint = createPendingCheckpoint(
+			props,
+			Collections.emptyList(),
+			Collections.emptyList(),
+			ioExecutor,
+			mainThreadExecutor,
+			completedCheckpointStore);
+
+		checkpoint.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		final CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture = checkpoint.finalizeCheckpoint();
+
+		assertFalse(checkpointCompletableFuture.isDone());
+		checkpoint.abort(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
+		completedCheckpointStore.shutdown(JobStatus.CANCELED);
+
+		ioExecutor.triggerAll();
+
+		mainThreadExecutor.triggerAll();
+		assertTrue(checkpointCompletableFuture.isCompletedExceptionally());
+
+		assertEquals(0, completedCheckpointStore.getNumberOfRetainedCheckpoints());
+
+		final FsCheckpointStorageLocation location =
+			(FsCheckpointStorageLocation) checkpoint.getCheckpointStorageLocation();
+		assertFalse(LocalFileSystem.getSharedInstance().exists(location.getCheckpointDirectory()));
+	}
+
 	// ------------------------------------------------------------------------
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props) throws IOException {
-		return createPendingCheckpoint(props, Collections.emptyList(), Executors.directExecutor());
+		return createPendingCheckpoint(props, Collections.emptyList(), Collections.emptyList(), Executors.directExecutor());
 	}
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Executor executor) throws IOException {
-		return createPendingCheckpoint(props, Collections.emptyList(), executor);
+		return createPendingCheckpoint(props, Collections.emptyList(), Collections.emptyList(), executor);
 	}
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Collection<String> masterStateIdentifiers) throws IOException {
-		return createPendingCheckpoint(props, masterStateIdentifiers, Executors.directExecutor());
+		return createPendingCheckpoint(props, Collections.emptyList(), masterStateIdentifiers, Executors.directExecutor());
 	}
 
-	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Collection<String> masterStateIdentifiers, Executor executor) throws IOException {
+	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Collection<OperatorID> operatorCoordinators, Collection<String> masterStateIdentifiers, Executor executor) throws IOException {
+		return createPendingCheckpoint(props, operatorCoordinators, masterStateIdentifiers, executor, Executors.directExecutor());
+	}
+
+	private PendingCheckpoint createPendingCheckpoint(
+		CheckpointProperties props,
+		Collection<OperatorID> operatorCoordinators,
+		Collection<String> masterStateIdentifiers,
+		Executor executor,
+		Executor mainThreadExecutor) throws IOException {
+
+		return createPendingCheckpoint(props, operatorCoordinators, masterStateIdentifiers, executor, mainThreadExecutor, new StandaloneCompletedCheckpointStore(1));
+	}
+
+	private PendingCheckpoint createPendingCheckpointWithCoordinators(
+			OperatorCoordinatorCheckpointContext... coordinators) throws IOException {
+
+		final PendingCheckpoint checkpoint = createPendingCheckpoint(
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+				OperatorCoordinatorCheckpointContext.getIds(Arrays.asList(coordinators)),
+				Collections.emptyList(),
+				Executors.directExecutor());
+
+		checkpoint.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		return checkpoint;
+	}
+
+	private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(StreamStateHandle... handles) throws IOException {
+		OperatorCoordinatorCheckpointContext[] coords = new OperatorCoordinatorCheckpointContext[handles.length];
+		for (int i = 0; i < handles.length; i++) {
+			coords[i] = createOperatorCoordinator();
+		}
+
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coords);
+		for (int i = 0; i < handles.length; i++) {
+			checkpoint.acknowledgeCoordinatorState(coords[i], handles[i]);
+		}
+
+		return checkpoint;
+	}
+
+	private PendingCheckpoint createPendingCheckpoint(
+			CheckpointProperties props,
+			Collection<OperatorID> operatorCoordinators,
+			Collection<String> masterStateIdentifiers,
+			Executor executor,
+			Executor mainThreadExecutor,
+			CompletedCheckpointStore completedCheckpointStore) throws IOException {
 
 		final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
 		final FsCheckpointStorageLocation location = new FsCheckpointStorageLocation(
-				LocalFileSystem.getSharedInstance(),
-				checkpointDir, checkpointDir, checkpointDir,
-				CheckpointStorageLocationReference.getDefault(),
-				1024,
-				4096);
+			LocalFileSystem.getSharedInstance(),
+			checkpointDir, checkpointDir, checkpointDir,
+			CheckpointStorageLocationReference.getDefault(),
+			1024,
+			4096);
 
 		final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
 
@@ -459,10 +713,22 @@ public class PendingCheckpointTest {
 			0,
 			1,
 			ackTasks,
+			operatorCoordinators,
 			masterStateIdentifiers,
 			props,
 			location,
-			executor);
+			executor,
+			mainThreadExecutor,
+			new CompletableFuture<>(),
+			completedCheckpointStore);
+	}
+
+	private static OperatorCoordinatorCheckpointContext createOperatorCoordinator() {
+		return new OperatorCoordinatorCheckpointContext(
+				new MockOperatorCoordinator(),
+				new OperatorID(),
+				256,
+				50);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -523,6 +789,30 @@ public class PendingCheckpointTest {
 		@Override
 		public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
 			return new StringSerializer();
+		}
+	}
+
+	private static class FailingCheckpointStorageLocation implements CheckpointStorageLocation {
+
+		@Override
+		public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
+			throw new IOException("Create meta data output stream failed");
+		}
+
+		@Override
+		public void disposeOnFailure() throws IOException {
+
+		}
+
+		@Override
+		public CheckpointStorageLocationReference getLocationReference() {
+			return null;
+		}
+
+		@Override
+		public CheckpointStateOutputStream createCheckpointStateOutputStream(
+			CheckpointedStateScope scope) throws IOException {
+			return null;
 		}
 	}
 }

@@ -141,7 +141,7 @@ under the License.
 				<executions>
 					<execution>
 						<id>copy</id>
-						<phase>process-test-resources</phase>
+						<phase>pre-integration-test</phase>
 						<goals>
 							<goal>copy</goal>
 						</goals>

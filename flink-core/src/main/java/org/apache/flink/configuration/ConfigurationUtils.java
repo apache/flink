@@ -51,12 +51,12 @@ public class ConfigurationUtils {
 	 */
 	public static MemorySize getJobManagerHeapMemory(Configuration configuration) {
 		if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
-			return MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
+			return configuration.get(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
 		} else if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB.key())) {
 			return MemorySize.ofMebiBytes(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB));
 		} else {
 			//use default value
-			return MemorySize.parse(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue());
+			return JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue();
 		}
 	}
 
@@ -192,7 +192,7 @@ public class ConfigurationUtils {
 	}
 
 	@VisibleForTesting
-	public static Map<String, String> parseTmResourceJvmParams(String jvmParamsStr) {
+	public static Map<String, String> parseJvmArgString(String jvmParamsStr) {
 		final String xmx = "-Xmx";
 		final String xms = "-Xms";
 		final String maxDirect = "-XX:MaxDirectMemorySize=";
@@ -217,6 +217,21 @@ public class ConfigurationUtils {
 		checkArgument(configs.containsKey(maxMetadata));
 
 		return configs;
+	}
+
+	/**
+	 * Extract and parse Flink configuration properties with a given name prefix and
+	 * return the result as a Map.
+	 */
+	public static Map<String, String> getPrefixedKeyValuePairs(String prefix, Configuration configuration) {
+		Map<String, String> result  = new HashMap<>();
+		for (Map.Entry<String, String> entry: configuration.toMap().entrySet()) {
+			if (entry.getKey().startsWith(prefix) && entry.getKey().length() > prefix.length()) {
+				String key = entry.getKey().substring(prefix.length());
+				result.put(key, entry.getValue());
+			}
+		}
+		return result;
 	}
 
 	// Make sure that we cannot instantiate this class

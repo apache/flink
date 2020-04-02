@@ -24,18 +24,18 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonStatelessFunctionRunner;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+
+import java.util.Map;
 
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
@@ -45,7 +45,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 @Internal
 public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPythonStatelessFunctionRunner<IN> {
 
-	private static final String SCHEMA_CODER_URN = "flink:coder:schema:v1";
+	private static final String TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1";
 	private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
 
 	private final PythonFunctionInfo tableFunction;
@@ -61,8 +61,10 @@ public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPyth
 		PythonFunctionInfo tableFunction,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN);
+		RowType outputType,
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN, jobOptions, flinkMetricContainer);
 		this.tableFunction = Preconditions.checkNotNull(tableFunction);
 	}
 
@@ -79,23 +81,8 @@ public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPyth
 	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
 		builder.addUdfs(getUserDefinedFunctionProto(tableFunction));
+		builder.setMetricEnabled(flinkMetricContainer != null);
 		return builder.build();
-	}
-
-	/**
-	 * Gets the proto representation of the input coder.
-	 */
-	@Override
-	public RunnerApi.Coder getInputCoderProto() {
-		return getTableCoderProto(getInputType());
-	}
-
-	/**
-	 * Gets the proto representation of the output coder.
-	 */
-	@Override
-	public RunnerApi.Coder getOutputCoderProto() {
-		return getTableCoderProto(getOutputType());
 	}
 
 	@Override
@@ -127,35 +114,8 @@ public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPyth
 	 */
 	public abstract TypeSerializer<IN> getInputTypeSerializer();
 
-	private RunnerApi.Coder getTableCoderProto(RowType rowType) {
-		return RunnerApi.Coder.newBuilder()
-			.setSpec(
-				RunnerApi.FunctionSpec.newBuilder()
-					.setUrn(SCHEMA_CODER_URN)
-					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-						toTableFunctionProtoType(rowType).toByteArray()))
-					.build())
-			.build();
-	}
-
-	private FlinkFnApi.Schema.FieldType toTableFunctionProtoType(RowType rowType) {
-		FlinkFnApi.Schema.FieldType.Builder builder =
-			FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.TABLE_FUNCTION_ROW)
-				.setNullable(rowType.isNullable());
-
-		LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> converter =
-			new PythonTypeUtils.LogicalTypeToProtoTypeConverter();
-		FlinkFnApi.Schema.Builder schemaBuilder = FlinkFnApi.Schema.newBuilder();
-		for (RowType.RowField field : rowType.getFields()) {
-			schemaBuilder.addFields(
-				FlinkFnApi.Schema.Field.newBuilder()
-					.setName(field.getName())
-					.setDescription(field.getDescription().orElse(""))
-					.setType(field.getType().accept(converter))
-					.build());
-		}
-		builder.setRowSchema(schemaBuilder.build());
-		return builder.build();
+	@Override
+	public String getInputOutputCoderUrn() {
+		return TABLE_FUNCTION_SCHEMA_CODER_URN;
 	}
 }

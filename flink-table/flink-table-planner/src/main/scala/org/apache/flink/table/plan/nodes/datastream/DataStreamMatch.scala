@@ -77,8 +77,8 @@ class DataStreamMatch(
   with CommonMatchRecognize
   with DataStreamRel {
 
-  if (logicalMatch.measures.values().exists(containsPythonCall) ||
-    logicalMatch.patternDefinitions.values().exists(containsPythonCall)) {
+  if (logicalMatch.measures.values().exists(containsPythonCall(_)) ||
+    logicalMatch.patternDefinitions.values().exists(containsPythonCall(_))) {
     throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
   }
 

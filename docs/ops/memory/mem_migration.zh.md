@@ -1,5 +1,5 @@
 ---
-title: "Migration Guide"
+title: "升级指南"
 nav-parent_id: ops_mem
 nav-pos: 5
 ---
@@ -22,67 +22,63 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The [memory setup of task managers](mem_setup.html) has changed a lot with the 1.10 release. Many configuration options
-were removed or their semantics changed. This guide will help you to migrate the memory configuration from Flink
-[<= *1.9*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html) to >= *1.10*.
+在 1.10 版本中，Flink 的 [TaskExecutor 内存配置方法](mem_setup.html)发生了较大的变化。
+部分配置参数被移除了，或是语义上发生了变化。
+本篇升级指南将介绍如何将 [*Flink 1.9 及以前版本*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html)的内存配置升级到 *Flink 1.10 及以后版本*。
 
 * toc
 {:toc}
 
 <div class="alert alert-warning">
-  <strong>Warning:</strong> It is important to review this guide because the legacy and new memory configuration can
-  result in different sizes of memory components. If you try to reuse your Flink configuration from older versions
-  before 1.10, it can result in changes to the behavior, performance or even configuration failures of your application.
+  <strong>注意：</strong> 请仔细阅读本篇升级指南。
+  使用原本的和新的内存配制方法可能会使内存组成部分具有截然不同的大小。
+  未经调整直接沿用 Flink 1.10 以前版本的配置文件，可能导致应用的行为、性能发生变化，甚至造成应用执行失败。
 </div>
 
-<span class="label label-info">Note</span> Before version *1.10*, Flink did not require that memory related options are set at all
-as they all had default values. The [new memory configuration](mem_setup.html#configure-total-memory) requires
-that at least one subset of the following options is configured explicitly, otherwise the configuration will fail:
+<span class="label label-info">提示</span> 在 *1.10* 版本之前，Flink 不要求用户一定要配置内存相关的参数，因为这些参数都具有默认值。
+[新的内存配置](mem_setup.html#配置总内存)要求用户至少指定下列配置参数（或参数组合）的其中之一，否则 Flink 将无法启动。
 * [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)
 * [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
-* [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size) and [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size)
+* [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size) 和 [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size)
 
-The [default `flink-conf.yaml`](#default-configuration-in-flink-confyaml) shipped with Flink sets [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
-to make the default memory configuration consistent.
+Flink 自带的[默认 flink-conf.yaml](#flink-confyaml-中的默认配置) 文件指定了 [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)，以便与此前的行为保持一致。
 
-This [spreadsheet](https://docs.google.com/spreadsheets/d/1mJaMkMPfDJJ-w6nMXALYmTc4XxiV30P5U7DzgwLkSoE) can also help
-to evaluate and compare the results of the legacy and new memory computations.
+可以使用这张[电子表格](https://docs.google.com/spreadsheets/d/1mJaMkMPfDJJ-w6nMXALYmTc4XxiV30P5U7DzgwLkSoE)来估算和比较原本的和新的内存配置下的计算结果。
 
-## Changes in Configuration Options
+## 配置参数变化
 
-This chapter shortly lists all changes to Flink's memory configuration options introduced with the *1.10* release.
-It also references other chapters for more details about migrating to the new configuration options.
+本节简要列出了 *Flink 1.10* 引入的配置参数变化，并援引其他章节中关于如何升级到新配置参数的相关描述。
 
-The following options are completely removed. If they are still used, they will be ignored.
+下列配置参数已被彻底移除，配置它们将不会产生任何效果。
 
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left">Removed option</th>
-            <th class="text-left">Note</th>
+            <th class="text-left">移除的配置参数</th>
+            <th class="text-left">备注</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td>
-                Check the description of the new option <a href="../config.html#taskmanager-memory-managed-fraction)">taskmanager.memory.managed.fraction</a>.
-                The new option has different semantics and the value of the deprecated option usually has to be adjusted.
-                See also <a href="#managed-memory">how to migrate managed memory</a>.
+                请参考新配置参数 <a href="../config.html#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
+                新的配置参数与被移除的配置参数在语义上有所差别，因此其配置值通常也需要做出适当调整。
+                请参考<a href="#托管内存">如何升级托管内存</a>。
             </td>
         </tr>
         <tr>
              <td><h5>taskmanager.memory.off-heap</h5></td>
-             <td>On-heap <i>managed memory</i> is no longer supported. See also <a href="#managed-memory">how to migrate managed memory</a>.</td>
+             <td>Flink 不再支持堆上的（On-Heap）<i>托管内存</i>。请参考<a href="#托管内存">如何升级托管内存</a>。</td>
         </tr>
         <tr>
              <td><h5>taskmanager.memory.preallocate</h5></td>
-             <td>Pre-allocation is no longer supported and <i>managed memory</i> is always allocated lazily. See also <a href="#managed-memory">how to migrate managed memory</a>.</td>
+             <td>Flink 不再支持内存预分配，今后<i>托管内存</i>将都是惰性分配的。请参考<a href="#托管内存">如何升级托管内存</a>。</td>
         </tr>
     </tbody>
 </table>
 
-The following options are deprecated but if they are still used they will be interpreted as new options for backwards compatibility:
+下列配置参数将被弃用，出于向后兼容性考虑，配置它们将被解读成对应的新配置参数。
 
 <table class="table table-bordered">
     <thead>
@@ -96,15 +92,15 @@ The following options are deprecated but if they are still used they will be int
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="../config.html#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a> for <a href="../deployment/cluster_setup.html">standalone deployment</a></li>
-                  <li><a href="../config.html#taskmanager-memory-process-size">taskmanager.memory.process.size</a> for containerized deployments</li>
+                  <li><a href="../deployment/cluster_setup.html">独立部署模式（Standalone Deployment）</a>下：<a href="../config.html#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
+                  <li>容器化部署模式（Containerized Deployement）下：<a href="../config.html#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
                 </ul>
-                See also <a href="#total-memory-previously-heap-memory">how to migrate total memory</a>.
+                请参考<a href="#总内存原堆内存">如何升级总内存</a>。
             </td>
         </tr>
         <tr>
              <td><h5>taskmanager.memory.size</h5></td>
-             <td><a href="../config.html#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>, see also <a href="#managed-memory">how to migrate managed memory</a>.</td>
+             <td><a href="../config.html#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>。请参考<a href="#托管内存">如何升级托管内存</a>。</td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.min</h5></td>
@@ -121,116 +117,105 @@ The following options are deprecated but if they are still used they will be int
     </tbody>
 </table>
 
-Although, the network memory configuration has not changed too much it is recommended to verify its configuration.
-It can change if other memory components have new sizes, e.g. the total memory which the network can be a fraction of.
-See also [new detailed memory model](mem_setup.html#detailed-memory-model).
+尽管网络内存的配置参数没有发生太多变化，我们仍建议您检查其配置结果。
+网络内存的大小可能会受到其他内存部分大小变化的影响，例如总内存变化时，根据占比计算出的网络内存也可能发生变化。
+请参考[内存模型详解](mem_detail.html)。
 
-The container cut-off configuration options, [`containerized.heap-cutoff-ratio`](config.html#containerized-heap-cutoff-ratio)
-and [`containerized.heap-cutoff-min`](config.html#containerized-heap-cutoff-min), have no effect for task manager processes anymore
-but they still have the same semantics for the job manager process. See also [how to migrate container cut-off](#container-cut-off-memory).
+容器切除（Cut-Off）内存相关的配置参数（[`containerized.heap-cutoff-ratio`](config.html#containerized-heap-cutoff-ratio)
+和 [`containerized.heap-cutoff-min`](config.html#containerized-heap-cutoff-min)）将不再对 TaskExecutor 进程生效。
+对于 JobManager 进程，它们仍具有与此前相同的语义。
+请参考[如何升级容器切除内存](#容器切除cut-off内存)。
 
-## Total Memory (Previously Heap Memory)
+## 总内存（原堆内存）
 
-The previous options which were responsible for the total memory used by Flink are `taskmanager.heap.size` or `taskmanager.heap.mb`.
-Despite their naming, they included not only JVM heap but also other off-heap memory components. The options have been deprecated.
+在原本的内存配置方法中，用于指定用于 Flink 的总内存的配置参数是 `taskmanager.heap.size` 或 `taskmanager.heap.mb`。
+尽管这两个参数以“堆（Heap）”命名，实际上它们指定的内存既包含了 JVM 堆内存，也包含了其他堆外内存部分。
+这两个配置参数目前已被弃用。
 
-The Mesos integration also had a separate option with the same semantics: `mesos.resourcemanager.tasks.mem` which has also been deprecated.
+Flink 在 Mesos 上还有另一个具有同样语义的配置参数 `mesos.resourcemanager.tasks.mem`，目前也已经被弃用。
 
-If the mentioned legacy options are used without specifying the corresponding new options,
-they will be directly translated into the following new options:
-* Total Flink memory ([`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)) for standalone deployments
-* Total process memory ([`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)) for containerized deployments (Yarn or Mesos)
+如果配置了上述弃用的参数，同时又没有配置与之对应的新配置参数，那它们将按如下规则对应到新的配置参数。
+* 独立部署模式（Standalone Deployment）下：Flink 总内存（[`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)）
+* 容器化部署模式（Containerized Deployement）下（Yarn、Mesos）：进程总内存（[`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)）
 
-It is also recommended to use these new options instead of the legacy ones as they might be completely removed in the following releases.
+建议您尽早使用新的配置参数取代启用的配置参数，它们在今后的版本中可能会被彻底移除。
 
-See also [how to configure total memory now](mem_setup.html#configure-total-memory).
+请参考[如何配置总内存](mem_setup.html#配置总内存).
 
-## JVM Heap Memory
+## JVM 堆内存
 
-JVM heap memory previously consisted of the managed memory (if configured to be on-heap) and the rest
-which included any other usages of heap memory. This rest was always implicitly derived as the remaining part of the total memory,
-see also [how to migrate managed memory](#managed-memory).
+此前，JVM 堆空间由托管内存（仅在配置为堆上时）及 Flink 用到的所有其他堆内存组成。
+这里的其他堆内存是由总内存减去所有其他非堆内存得到的。
+请参考[如何升级托管内存](#托管内存)。
 
-Now, if only *total Flink memory* or *total process memory* is configured, then the JVM heap is also derived as the rest of
-what is left after subtracting all other components from the total memory, see also [how to configure total memory](mem_setup.html#configure-total-memory).
+现在，如果仅配置了*Flink总内存*或*进程总内存*，JVM 的堆空间依然是根据总内存减去所有其他非堆内存得到的。
+请参考[如何配置总内存](mem_setup.html#配置总内存)。
 
-Additionally, you can now have more direct control over the JVM heap assigned to the operator tasks
-([`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)),
-see also [Task (Operator) Heap Memory](mem_setup.html#task-operator-heap-memory).
-The JVM heap memory is also used by the heap state backends ([MemoryStateBackend](../state/state_backends.html#the-memorystatebackend)
-or [FsStateBackend](../state/state_backends.html#the-fsstatebackend) if it is chosen for streaming jobs.
+此外，你现在可以更直接地控制用于任务和算子的 JVM 的堆内存（[`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)），详见[任务堆内存](mem_setup.html#任务算子堆内存)。
+如果流处理作业选择使用 Heap State Backend（[MemoryStateBackend](../state/state_backends.html#memorystatebackend)
+或 [FsStateBackend](../state/state_backends.html#fsstatebackend)），那么它同样需要使用 JVM 堆内存。
 
-A part of the JVM heap is now always reserved for Flink framework
-([`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)).
-See also [Framework memory](mem_detail.html#framework-memory).
+Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)）。
+请参考[框架内存](mem_detail.html#框架内存)。
 
-## Managed Memory
+## 托管内存
 
-See also [how to configure managed memory now](mem_setup.html#managed-memory).
+请参考[如何配置托管内存](mem_setup.html#托管内存)。
 
-### Explicit Size
+### 明确的大小
 
-The previous option to configure managed memory size (`taskmanager.memory.size`) was renamed to
-[`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) and deprecated.
-It is recommended to use the new option because the legacy one can be removed in future releases.
+原本用于指定明确的托管内存大小的配置参数（`taskmanager.memory.size`）已被弃用，与它具有相同语义的新配置参数为 [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size)。
+建议使用新的配置参数，原本的配置参数在今后的版本中可能会被彻底移除。
 
-### Fraction
+### 占比
 
-If not set explicitly, the managed memory could be previously specified as a fraction (`taskmanager.memory.fraction`)
-of the total memory minus network memory and container cut-off (only for [Yarn](../deployment/yarn_setup.html) and
-[Mesos](../deployment/mesos.html) deployments). This option has been completely removed and will have no effect if still used.
-Please, use the new option [`taskmanager.memory.managed.fraction`](../config.html#taskmanager-memory-managed-fraction) instead.
-This new option will set the [managed memory](mem_setup.html#managed-memory) to the specified fraction of the
-[total Flink memory](mem_setup.html#configure-total-memory) if its size is not set explicitly by
-[`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size).
+此前，如果不指定明确的大小，也可以将托管内存配置为占用总内存减去网络内存和容器切除内存（仅在 [Yarn](../deployment/yarn_setup.html) 和
+[Mesos](../deployment/mesos.html) 上）之后剩余部分的固定比例（`taskmanager.memory.fraction`）。
+该配置参数已经被彻底移除，配置它不会产生任何效果。
+请使用新的配置参数 [`taskmanager.memory.managed.fraction`](../config.html#taskmanager-memory-managed-fraction)。
+在未通过 [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) 指定明确大小的情况下，新的配置参数将指定[托管内存](mem_setup.html#托管内存)在 [Flink 总内存](mem_setup.html#配置总内存)中的所占比例。
 
-### RocksDB state
+### RocksDB State Backend
 
-If the [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is chosen for a streaming job,
-its native memory consumption should now be accounted for in [managed memory](mem_setup.html#managed-memory).
-The RocksDB memory allocation is limited by the [managed memory](mem_setup.html#managed-memory) size.
-This should prevent the killing of containers on [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html).
-You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed](../config.html#state-backend-rocksdb-memory-managed)
-to `false`. See also [how to migrate container cut-off](#container-cut-off-memory).
+流处理作业如果选择使用 [RocksDBStateBackend](../state/state_backends.html#rocksdbstatebackend)，它使用的本地内存现在也被归为[托管内存](mem_setup.html#托管内存)。
+默认情况下，RocksDB 将限制其内存用量不超过[托管内存](mem_setup.html#托管内存)大小，以避免在 [Yarn](../deployment/yarn_setup.html) 或 [Mesos](../deployment/mesos.html) 上容器被杀。你也可以通过设置 [state.backend.rocksdb.memory.managed](../config.html#state-backend-rocksdb-memory-managed) 来关闭 RocksDB 的内存控制。
+请参考[如何升级容器切除内存](#容器切除cut-off内存)。
 
-### Other changes
+### 其他变化
 
-Additionally, the following changes have been made:
-* The [managed memory](mem_setup.html#managed-memory) is always off-heap now. The configuration option `taskmanager.memory.off-heap` is removed and will have no effect anymore.
-* The [managed memory](mem_setup.html#managed-memory) now uses native memory which is not direct memory. It means that the managed memory is no longer accounted for in the JVM direct memory limit.
-* The [managed memory](mem_setup.html#managed-memory) is always lazily allocated now. The configuration option `taskmanager.memory.preallocate` is removed and will have no effect anymore.
+此外，Flink 1.10 对托管内存还引入了下列变化：
+* [托管内存](mem_setup.html#托管内存)现在总是在堆外。配置参数 `taskmanager.memory.off-heap` 已被彻底移除，配置它不会产生任何效果。
+* [托管内存](mem_setup.html#托管内存)现在使用本地内存而非直接内存。这意味着托管内存将不在 JVM 直接内存限制的范围内。
+* [托管内存](mem_setup.html#托管内存)现在总是惰性分配的。配置参数 `taskmanager.memory.preallocate` 已被彻底移除，配置它不会产生任何效果。
 
-## Container Cut-Off Memory
+## 容器切除（Cut-Off）内存
 
-For containerized deployments, you could previously specify a cut-off memory. This memory could accommodate for unaccounted memory allocations.
-Dependencies which were not directly controlled by Flink were the main source of those allocations, e.g. RocksDB, internals of JVM, etc.
-This is no longer available and the related configuration options (`containerized.heap-cutoff-ratio` and `containerized.heap-cutoff-min`)
-will have no effect on the task manager process anymore. The new memory model introduced more specific memory components,
-described further, to address these concerns.
+在容器化部署模式（Containerized Deployment）下，此前你可以指定切除内存。
+这部分内存将预留给所有未被 Flink 计算在内的内存开销。
+其主要来源是不受 Flink 直接管理的依赖使用的内存，例如 RocksDB、JVM 内部开销等。
+相应的配置参数（`containerized.heap-cutoff-ratio` 和 `containerized.heap-cutoff-min`）现在不再对 TaskExecutor 生效。
+新的内存配置方法引入了新的内存组成部分来具体描述这些内存用量。
 
-In streaming jobs which use [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend), the RocksDB
-native memory consumption should be accounted for as a part of the [managed memory](mem_setup.html#managed-memory) now.
-The RocksDB memory allocation is also limited by the configured size of the [managed memory](mem_setup.html#managed-memory).
-See also [migrating managed memory](#managed-memory) and [how to configure managed memory now](mem_setup.html#managed-memory).
+流处理作业如果使用了 [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend)，RocksDB 使用的本地内存现在将被归为[托管内存](mem_setup.html#托管内存)。
+默认情况下，RocksDB 将限制其内存用量不超过[托管内存](mem_setup.html#托管内存)大小。
+请同时参考[如何升级托管内存](#托管内存)以及[如何配置托管内存](mem_setup.html#托管内存)。
 
-The other direct or native off-heap memory consumers can now be addressed by the following new configuration options:
-* Task off-heap memory ([`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size))
-* Framework off-heap memory ([`taskmanager.memory.framework.off-heap.size`](../config.html#taskmanager-memory-framework-off-heap-size))
-* JVM metaspace ([`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size))
-* JVM overhead (see also [detailed new memory model](mem_setup.html#detailed-memory-model))
+其他直接内存或堆外内存开销，现在可以通过下列配置参数进行设置：
+* 任务堆外内存（[`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size)）
+* 框架堆外内存（[`taskmanager.memory.framework.off-heap.size`](../config.html#taskmanager-memory-framework-off-heap-size)）
+* JVM Metaspace（[`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size)）
+* JVM 开销（请参考[内存模型详解](mem_detail.html)）
 
-<span class="label label-info">Note</span> The job manager still has container cut-off memory configuration options.
-The mentioned configuration options remain valid for the job manager in the same way as before.
+<span class="label label-info">提示</span> JobManager 进程仍保留了容器切除内存，相关配置项和此前一样仍对 JobManager 生效。
 
-## Default Configuration in flink-conf.yaml
+## flink-conf.yaml 中的默认配置
 
-This section describes the changes of the default `flink-conf.yaml` shipped with Flink.
+本节描述 Flink 自带的默认 `flink-conf.yaml` 文件中的变化。
 
-The total memory (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
-in the default `flink-conf.yaml`. The value is also increased from 1024Mb to 1568Mb.
-See also [how to configure total memory now](mem_setup.html#configure-total-memory).
+在默认 `flink-conf.yaml` 文件中，原本的总内存（`taskmanager.heap.size`）被新的配置项 [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size) 所取代。
+默认值从 1024Mb 增加到了 1568Mb。
+请参考[如何配置总内存](mem_setup.html#配置总内存)。
 
 <div class="alert alert-warning">
-  <strong>Warning:</strong> If you use the new default `flink-conf.yaml` it can result in different sizes of
-  the memory components and can lead to performance changes.
+  <strong>注意：</strong> 使用新的默认 `flink-conf.yaml` 可能会造成各内存部分的大小发生变化，从而产生性能变化。
 </div>

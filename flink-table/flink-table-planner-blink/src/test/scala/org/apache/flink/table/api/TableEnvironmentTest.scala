@@ -64,7 +64,7 @@ class TableEnvironmentTest {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Temporary table `default_catalog`.`default_database`.`MyTable` already exists")
-    tableEnv.registerDataStream("MyTable", env.fromElements[(Int, Long)]())
+    tableEnv.createTemporaryView("MyTable", env.fromElements[(Int, Long)]())
   }
 
   @Test
@@ -81,10 +81,6 @@ class TableEnvironmentTest {
 
   @Test
   def testStreamTableEnvironmentExplain(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
-
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
@@ -96,7 +92,9 @@ class TableEnvironmentTest {
     val table1 = tEnv.sqlQuery("select first from MyTable")
     tEnv.insertInto(table1, "MySink")
 
-    tEnv.explain(false)
+    val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
+    val actual = tEnv.explain(false)
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 
 }

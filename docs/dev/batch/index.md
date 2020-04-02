@@ -249,10 +249,10 @@ Dataset<Tuple3<Integer, String, Double>> input = // [...]
 DataSet<Tuple3<Integer, String, Double>> output = input.aggregate(SUM, 0).and(MIN, 2);
 {% endhighlight %}
 	<p>You can also use short-hand syntax for minimum, maximum, and sum aggregations.</p>
-	{% highlight java %}
-	Dataset<Tuple3<Integer, String, Double>> input = // [...]
+{% highlight java %}
+Dataset<Tuple3<Integer, String, Double>> input = // [...]
 DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
-	{% endhighlight %}
+{% endhighlight %}
       </td>
     </tr>
 
@@ -588,9 +588,9 @@ val output: DataSet[(Int, String, Double)] = input.sum(0).min(2)
       <td>
         <p>Returns the distinct elements of a data set. It removes the duplicate entries
         from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
-      {% highlight scala %}
-         data.distinct()
-      {% endhighlight %}
+{% highlight scala %}
+data.distinct()
+{% endhighlight %}
       </td>
     </tr>
 

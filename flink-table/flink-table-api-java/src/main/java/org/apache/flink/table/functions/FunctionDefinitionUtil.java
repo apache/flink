@@ -45,7 +45,7 @@ public class FunctionDefinitionUtil {
 			return new TableFunctionDefinition(
 				name,
 				t,
-				t.getResultType()
+				UserDefinedFunctionHelper.getReturnTypeOfTableFunction(t)
 			);
 		} else if (udf instanceof AggregateFunction) {
 			AggregateFunction a = (AggregateFunction) udf;
@@ -53,8 +53,8 @@ public class FunctionDefinitionUtil {
 			return new AggregateFunctionDefinition(
 				name,
 				a,
-				a.getAccumulatorType(),
-				a.getResultType()
+				UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(a),
+				UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(a)
 			);
 		} else if (udf instanceof TableAggregateFunction) {
 			TableAggregateFunction a = (TableAggregateFunction) udf;
@@ -62,8 +62,8 @@ public class FunctionDefinitionUtil {
 			return new TableAggregateFunctionDefinition(
 				name,
 				a,
-				a.getAccumulatorType(),
-				a.getResultType()
+				UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(a),
+				UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(a)
 			);
 		} else {
 			throw new UnsupportedOperationException(

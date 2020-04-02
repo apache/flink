@@ -495,7 +495,7 @@ object CodeGenUtils {
       }
     } else if (rowClass == classOf[GenericRow] || rowClass == classOf[BoxedWrapperRow]) {
       val writeField = if (rowClass == classOf[GenericRow]) {
-        s"$rowTerm.setField($indexTerm, $fieldTerm);"
+        s"$rowTerm.setField($indexTerm, $fieldTerm)"
       } else {
         boxedWrapperRowFieldSetAccess(rowTerm, indexTerm, fieldTerm, fieldType)
       }

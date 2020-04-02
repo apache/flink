@@ -78,8 +78,10 @@ import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandle
 import org.apache.flink.runtime.rest.handler.legacy.files.StdoutFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
@@ -110,8 +112,10 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -641,8 +645,27 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			transientBlobService,
 			cacheEntryDuration);
 
+		final TaskManagerCustomLogHandler taskManagerCustomLogHandler = new TaskManagerCustomLogHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerCustomLogHeaders.getInstance(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
+
+		final TaskManagerLogListHandler taskManagerLogListHandler = new TaskManagerLogListHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerLogsHeaders.getInstance(),
+			resourceManagerRetriever
+		);
+
 		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
 		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
+		handlers.add(Tuple2.of(TaskManagerCustomLogHeaders.getInstance(), taskManagerCustomLogHandler));
+		handlers.add(Tuple2.of(TaskManagerLogsHeaders.getInstance(), taskManagerLogListHandler));
 
 		handlers.stream()
 			.map(tuple -> tuple.f1)

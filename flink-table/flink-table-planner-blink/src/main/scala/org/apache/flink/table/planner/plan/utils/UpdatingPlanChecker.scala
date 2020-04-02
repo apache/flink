@@ -17,9 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
+import org.apache.flink.table.sinks.UpsertStreamTableSink
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
@@ -37,20 +39,6 @@ object UpdatingPlanChecker {
     appendOnlyValidator.isAppendOnly
   }
 
-  /** Extracts the unique keys of the table produced by the plan. */
-  def getUniqueKeyFields(
-      relNode: RelNode,
-      planner: StreamPlanner,
-      sinkFieldNames: Array[String]): Option[Array[Array[String]]] = {
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
-    val uniqueKeys = fmq.getUniqueKeys(relNode)
-    if (uniqueKeys != null && uniqueKeys.size() > 0) {
-      Some(uniqueKeys.filter(_.nonEmpty).map(_.toArray.map(sinkFieldNames)).toArray)
-    } else {
-      None
-    }
-  }
-
   private class AppendOnlyValidator extends RelVisitor {
 
     var isAppendOnly = true
@@ -66,6 +54,30 @@ object UpdatingPlanChecker {
         case _ =>
           super.visit(node, ordinal, parent)
       }
+    }
+  }
+
+  def getUniqueKeyForUpsertSink(
+      sinkNode: Sink,
+      planner: PlannerBase,
+      sink: UpsertStreamTableSink[_]): Option[Array[String]] = {
+    // extract unique key fields
+    // Now we pick shortest one to sink
+    // TODO UpsertStreamTableSink setKeyFields interface should be Array[Array[String]]
+    val sinkFieldNames = sink.getTableSchema.getFieldNames
+    /** Extracts the unique keys of the table produced by the plan. */
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(
+      planner.getRelBuilder.getCluster.getMetadataQuery)
+    val uniqueKeys = fmq.getUniqueKeys(sinkNode.getInput)
+    if (uniqueKeys != null && uniqueKeys.size() > 0) {
+      uniqueKeys
+          .filter(_.nonEmpty)
+          .map(_.toArray.map(sinkFieldNames))
+          .toSeq
+          .sortBy(_.length)
+          .headOption
+    } else {
+      None
     }
   }
 }

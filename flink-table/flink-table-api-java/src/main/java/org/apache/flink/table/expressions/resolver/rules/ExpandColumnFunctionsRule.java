@@ -33,9 +33,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RANGE_TO;
@@ -86,17 +84,17 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 			} else if (definition == WITHOUT_COLUMNS) {
 				result = resolveArgsOfColumns(unresolvedCall.getChildren(), true);
 			} else {
-				Expression[] args = unresolvedCall.getChildren()
+				List<Expression> args = unresolvedCall.getChildren()
 					.stream()
 					.flatMap(c -> c.accept(this).stream())
-					.toArray(Expression[]::new);
-				result = Collections.singletonList(unresolvedCall(unresolvedCall.getFunctionDefinition(), args));
+					.collect(Collectors.toList());
+				result = Collections.singletonList(unresolvedCall.replaceArgs(args));
 
 				// validate alias
 				if (definition == AS) {
-					for (int i = 1; i < args.length; ++i) {
-						if (!(args[i] instanceof ValueLiteralExpression)) {
-							final String errorMessage = Stream.of(args)
+					for (int i = 1; i < args.size(); ++i) {
+						if (!(args.get(i) instanceof ValueLiteralExpression)) {
+							final String errorMessage = args.stream()
 								.map(Object::toString)
 								.collect(Collectors.joining(", "));
 							throw new ValidationException(String.format("Invalid AS, parameters are: [%s].", errorMessage));

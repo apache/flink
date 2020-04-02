@@ -101,6 +101,22 @@ function revert_flink_dir() {
     CURL_SSL_ARGS=""
 }
 
+function setup_flink_shaded_zookeeper() {
+  local version=$1
+  # if it is already in lib we don't have to do anything
+  if ! [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-${version}* ]; then
+    if ! [ -e "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* ]; then
+      echo "Could not find ZK ${version} in opt or lib."
+      exit 1
+    else
+      # contents of 'opt' must not be changed since it is not backed up in common.sh#backup_flink_dir
+      # it is fine to delete jars from 'lib' since it is backed up and will be restored after the test
+      rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-*
+      cp "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* "${FLINK_DIR}/lib"
+    fi
+  fi
+}
+
 function add_optional_lib() {
     local lib_name=$1
     cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
@@ -715,7 +731,8 @@ function wait_for_restart_to_complete {
     local expected_num_restarts=$((current_num_restarts + 1))
 
     echo "Waiting for restart to happen"
-    while ! [[ ${current_num_restarts} -eq ${expected_num_restarts} ]]; do
+    while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
+        echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
         current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
         if [[ -z ${current_num_restarts} ]]; then

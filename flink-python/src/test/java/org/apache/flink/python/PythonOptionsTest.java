@@ -82,4 +82,30 @@ public class PythonOptionsTest {
 		final String actualPythonBufferMemorySize = configuration.getString(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE);
 		assertThat(actualPythonBufferMemorySize, is(equalTo(expectedPythonBufferMemorySize)));
 	}
+
+	@Test
+	public void testArrowBatchSize() {
+		final Configuration configuration = new Configuration();
+		final int defaultArrowBatchSize = configuration.getInteger(PythonOptions.MAX_ARROW_BATCH_SIZE);
+		assertThat(defaultArrowBatchSize, is(equalTo(PythonOptions.MAX_ARROW_BATCH_SIZE.defaultValue())));
+
+		final int expectedArrowBatchSize = 100;
+		configuration.setInteger(PythonOptions.MAX_ARROW_BATCH_SIZE, expectedArrowBatchSize);
+
+		final int actualArrowBatchSize = configuration.getInteger(PythonOptions.MAX_ARROW_BATCH_SIZE);
+		assertThat(actualArrowBatchSize, is(equalTo(expectedArrowBatchSize)));
+	}
+
+	@Test
+	public void testPythonMetricEnabled() {
+		final Configuration configuration = new Configuration();
+		final boolean isMetricEnabled = configuration.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
+		assertThat(isMetricEnabled, is(equalTo(PythonOptions.PYTHON_METRIC_ENABLED.defaultValue())));
+
+		final boolean expectedIsMetricEnabled = false;
+		configuration.setBoolean(PythonOptions.PYTHON_METRIC_ENABLED, false);
+
+		final boolean actualIsMetricEnabled = configuration.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
+		assertThat(actualIsMetricEnabled, is(equalTo(expectedIsMetricEnabled)));
+	}
 }
