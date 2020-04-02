@@ -258,6 +258,10 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		}
 	}
 
+	protected TtlTimeProvider getTtlTimeProvider() {
+		return TtlTimeProvider.DEFAULT;
+	}
+
 	protected <K> AbstractKeyedStateBackend<K> keyedStatedBackend(
 		TypeSerializer<K> keySerializer,
 		String operatorIdentifierText,
@@ -293,7 +297,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					taskInfo.getMaxNumberOfParallelSubtasks(),
 					keyGroupRange,
 					environment.getTaskKvStateRegistry(),
-					TtlTimeProvider.DEFAULT,
+					getTtlTimeProvider(),
 					metricGroup,
 					stateHandles,
 					cancelStreamRegistryForRestore),

@@ -18,10 +18,13 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -51,5 +54,25 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
 		result.setup();
 		result.open();
 		result.initializeState(new OperatorSubtaskState());
+	}
+
+	@Test
+	public void testSetTtlTimeProvider() throws Exception {
+		AbstractStreamOperatorTestHarness<Integer> result;
+		AbstractStreamOperator operator = new AbstractStreamOperator<Integer>() {};
+		result =
+			new AbstractStreamOperatorTestHarness<>(
+				operator,
+				1,
+				1,
+				0);
+		result.config.setStateKeySerializer(IntSerializer.INSTANCE);
+
+		long expectedTimeStamp = 42;
+		result.setTtlTimeProvider(() -> expectedTimeStamp);
+		result.initializeState(new OperatorSubtaskState());
+		result.open();
+		Assert.assertEquals(expectedTimeStamp,
+			((AbstractKeyedStateBackend<?>) operator.getKeyedStateBackend()).getTtlTimeProvider().currentTimestamp());
 	}
 }

@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -121,6 +122,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	// use this as default for tests
 	protected StateBackend stateBackend = new MemoryStateBackend();
+
+	protected TtlTimeProvider ttlTimeProvider = TtlTimeProvider.DEFAULT;
+
 	private CheckpointStorage checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
 
 	private final Object checkpointLock;
@@ -270,7 +274,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		Environment env,
 		StateBackend stateBackend,
 		ProcessingTimeService processingTimeService) {
-		return new StreamTaskStateInitializerImpl(
+		return new StreamTaskStateInitializerTestImpl(
 			env,
 			stateBackend);
 	}
@@ -283,6 +287,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		} catch (IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
+	}
+
+	public void setTtlTimeProvider(TtlTimeProvider ttlTimeProvider) {
+		this.ttlTimeProvider = ttlTimeProvider;
 	}
 
 	/**
@@ -742,4 +750,15 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		}
 	}
 
+	private class StreamTaskStateInitializerTestImpl extends StreamTaskStateInitializerImpl {
+
+		public StreamTaskStateInitializerTestImpl(Environment environment, StateBackend stateBackend) {
+			super(environment, stateBackend);
+		}
+
+		@Override
+		protected TtlTimeProvider getTtlTimeProvider() {
+			return ttlTimeProvider;
+		}
+	}
 }
