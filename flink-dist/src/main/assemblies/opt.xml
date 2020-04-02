@@ -75,6 +75,28 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- External Resource -->
+		<file>
+			<source>../flink-external-resources/flink-external-resource-gpu/target/flink-external-resource-gpu-${project.version}.jar</source>
+			<outputDirectory>opt/external-resource-gpu/</outputDirectory>
+			<destName>flink-external-resource-gpu-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-external-resources/flink-external-resource-gpu/src/main/resources/gpu-discovery-common.sh</source>
+			<outputDirectory>opt/external-resource-gpu/</outputDirectory>
+			<destName>gpu-discovery-common.sh</destName>
+			<fileMode>0755</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-external-resources/flink-external-resource-gpu/src/main/resources/nvidia-gpu-discovery.sh</source>
+			<outputDirectory>opt/external-resource-gpu/</outputDirectory>
+			<destName>nvidia-gpu-discovery.sh</destName>
+			<fileMode>0755</fileMode>
+		</file>
+
 		<!-- Metrics -->
 		<file>
 			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}.jar</source>
