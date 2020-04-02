@@ -24,6 +24,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.handler.resourcemanager.AbstractResourceManagerHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
@@ -47,7 +48,7 @@ import java.util.concurrent.CompletionException;
 /**
  * Handler which serves detailed TaskManager log list information.
  */
-public class TaskManagerLogListHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
+public class TaskManagerLogListHandler extends AbstractResourceManagerHandler<RestfulGateway, EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
 
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
