@@ -20,7 +20,7 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.util.FileUtils;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -29,6 +29,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -55,7 +56,7 @@ public class KubeClientFactory {
 				// Note: the third parameter kubeconfigPath is optional and is set to null. It is only used to rewrite
 				// relative tls asset paths inside kubeconfig when a file is passed, and in the case that the kubeconfig
 				// references some assets via relative paths.
-				config = Config.fromKubeconfig(kubeContext, KubernetesUtils.getContentFromFile(kubeConfigFile), null);
+				config = Config.fromKubeconfig(kubeContext, FileUtils.readFileUtf8(new File(kubeConfigFile)), null);
 			} catch (IOException e) {
 				throw new KubernetesClientException("Load kubernetes config failed.", e);
 			}
