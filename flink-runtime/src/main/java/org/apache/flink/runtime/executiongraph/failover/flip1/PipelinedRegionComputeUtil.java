@@ -72,7 +72,7 @@ public final class PipelinedRegionComputeUtil {
 
 		// iterate all the vertices which are topologically sorted
 		for (V vertex : topology.getVertices()) {
-			Set<V> currentRegion = new HashSet<>(1);
+			Set<V> currentRegion = new HashSet<>();
 			currentRegion.add(vertex);
 			vertexToRegion.put(vertex, currentRegion);
 
