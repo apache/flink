@@ -42,8 +42,10 @@ import java.util.concurrent.TimeUnit;
 public class DatadogHttpClient {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpClient.class);
 
-	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.com/api/v1/series?api_key=%s";
-	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.com/api/v1/validate?api_key=%s";
+	private static final String SERIES_URL_FORMAT_US = "https://app.datadoghq.com/api/v1/series?api_key=%s";
+	private static final String VALIDATE_URL_FORMAT_US = "https://app.datadoghq.com/api/v1/validate?api_key=%s";
+	private static final String SERIES_URL_FORMAT_EU = "https://app.datadoghq.eu/api/v1/series?api_key=%s";
+	private static final String VALIDATE_URL_FORMAT_EU = "https://app.datadoghq.eu/api/v1/validate?api_key=%s";
 	private static final MediaType MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
 	private static final int TIMEOUT = 3;
 	private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -55,26 +57,31 @@ public class DatadogHttpClient {
 
 	private final String proxyHost;
 	private final int proxyPort;
+	private final String dataCenter;
 
-	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, boolean validateApiKey) {
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, String dgDataCenter,
+			boolean validateApiKey) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
 		apiKey = dgApiKey;
 		proxyHost = dgProxyHost;
 		proxyPort = dgProxyPort;
+		dataCenter = dgDataCenter;
 
 		Proxy proxy = getProxy();
 
-		client = new OkHttpClient.Builder()
-			.connectTimeout(TIMEOUT, TimeUnit.SECONDS)
-			.writeTimeout(TIMEOUT, TimeUnit.SECONDS)
-			.readTimeout(TIMEOUT, TimeUnit.SECONDS)
-			.proxy(proxy)
-			.build();
+		client = new OkHttpClient.Builder().connectTimeout(TIMEOUT, TimeUnit.SECONDS)
+				.writeTimeout(TIMEOUT, TimeUnit.SECONDS).readTimeout(TIMEOUT, TimeUnit.SECONDS).proxy(proxy).build();
+		if (dataCenter.equals("US")){
+			seriesUrl = String.format(SERIES_URL_FORMAT_US, apiKey);
+			validateUrl = String.format(VALIDATE_URL_FORMAT_US, apiKey);
+		}
+		else {
+			seriesUrl = String.format(SERIES_URL_FORMAT_EU, apiKey);
+			validateUrl = String.format(VALIDATE_URL_FORMAT_EU, apiKey);
+		}
 
-		seriesUrl = String.format(SERIES_URL_FORMAT, apiKey);
-		validateUrl = String.format(VALIDATE_URL_FORMAT, apiKey);
 		if (validateApiKey) {
 			validateApiKey();
 		}
@@ -93,8 +100,7 @@ public class DatadogHttpClient {
 
 		try (Response response = client.newCall(r).execute()) {
 			if (!response.isSuccessful()) {
-				throw new IllegalArgumentException(
-					String.format("API key: %s is invalid", apiKey));
+				throw new IllegalArgumentException(String.format("API key: %s is invalid", apiKey));
 			}
 		} catch (IOException e) {
 			throw new IllegalStateException("Failed contacting Datadog to validate API key", e);
@@ -104,10 +110,7 @@ public class DatadogHttpClient {
 	public void send(DSeries request) throws Exception {
 		String postBody = serialize(request);
 
-		Request r = new Request.Builder()
-			.url(seriesUrl)
-			.post(RequestBody.create(MEDIA_TYPE, postBody))
-			.build();
+		Request r = new Request.Builder().url(seriesUrl).post(RequestBody.create(MEDIA_TYPE, postBody)).build();
 
 		client.newCall(r).enqueue(EmptyCallback.getEmptyCallback());
 	}
@@ -122,7 +125,8 @@ public class DatadogHttpClient {
 	}
 
 	/**
-	 * A handler for OkHttpClient callback.  In case of error or failure it logs the error at warning level.
+	 * A handler for OkHttpClient callback. In case of error or failure it logs the
+	 * error at warning level.
 	 */
 	protected static class EmptyCallback implements Callback {
 

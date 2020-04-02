@@ -60,6 +60,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public static final String API_KEY = "apikey";
 	public static final String PROXY_HOST = "proxyHost";
 	public static final String PROXY_PORT = "proxyPort";
+	public static final String DATACENTER = "dataCenter";
 	public static final String TAGS = "tags";
 
 	@Override
@@ -109,9 +110,10 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		String apiKey = config.getString(API_KEY, null);
 		String proxyHost = config.getString(PROXY_HOST, null);
 		Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
+		String dataCenter = config.getString(DATACENTER, null);
 		String tags = config.getString(TAGS, "");
 
-		client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, true);
+		client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
 
 		configTags = getTagsFromConfig(tags);
 
