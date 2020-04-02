@@ -28,6 +28,7 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -46,11 +47,19 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
+	private final boolean enforceSingleJobExecution;
+
+	private int jobCounter;
+
 	public StreamContextEnvironment(
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader) {
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.enforceSingleJobExecution = enforceSingleJobExecution;
+
+		this.jobCounter = 0;
 	}
 
 	@Override
@@ -87,6 +96,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+		validateAllowedExecution();
+
 		final JobClient jobClient = super.executeAsync(streamGraph);
 
 		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
@@ -94,16 +105,25 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		return jobClient;
 	}
 
+	private void validateAllowedExecution() {
+		if (enforceSingleJobExecution && jobCounter > 0) {
+			throw new FlinkRuntimeException("Cannot have more than one execute() or executeAsync() call in a single environment.");
+		}
+		jobCounter++;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	public static void setAsContext(
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader) {
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution) {
 		StreamExecutionEnvironmentFactory factory = () -> new StreamContextEnvironment(
 			executorServiceLoader,
 			configuration,
-			userCodeClassLoader);
+			userCodeClassLoader,
+			enforceSingleJobExecution);
 		initializeContextEnvironment(factory);
 	}
 
