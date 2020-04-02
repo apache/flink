@@ -44,12 +44,14 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -173,22 +175,22 @@ public class OrcTableSourceTest {
 	public void testApplyPredicate() throws Exception {
 
 		OrcTableSource orc = OrcTableSource.builder()
-				.path(getPath(TEST_FILE_NESTED))
-				.forOrcSchema(TEST_SCHEMA_NESTED)
-				.build();
+			.path(getPath(TEST_FILE_NESTED))
+			.forOrcSchema(TEST_SCHEMA_NESTED)
+			.build();
 
 		// expressions for supported predicates
 		Expression pred1 = new GreaterThan(
-				new PlannerResolvedFieldReference("int1", Types.INT),
-				new Literal(100, Types.INT));
+			new PlannerResolvedFieldReference("int1", Types.INT),
+			new Literal(100, Types.INT));
 		Expression pred2 = new EqualTo(
-				new PlannerResolvedFieldReference("string1", Types.STRING),
-				new Literal("hello", Types.STRING));
+			new PlannerResolvedFieldReference("string1", Types.STRING),
+			new Literal("hello", Types.STRING));
 		// invalid predicate
 		Expression invalidPred = new EqualTo(
-				new PlannerResolvedFieldReference("long1", Types.LONG),
-				// some invalid, non-serializable literal (here an object of this test class)
-				new Literal(new OrcTableSourceTest(), Types.LONG)
+			new PlannerResolvedFieldReference("long1", Types.LONG),
+			// some invalid, non-serializable literal (here an object of this test class)
+			new Literal(new OrcTableSourceTest(), Types.LONG)
 		);
 
 		ArrayList<Expression> preds = new ArrayList<>();
@@ -208,8 +210,8 @@ public class OrcTableSourceTest {
 
 		// ensure return type is identical
 		assertEquals(
-				Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes()),
-				projected.getReturnType());
+			Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes()),
+			projected.getReturnType());
 
 		// ensure IF is configured with valid/supported predicates
 		OrcTableSource spyTS = spy(projected);
@@ -219,13 +221,13 @@ public class OrcTableSourceTest {
 		when(environment.createInput(any(InputFormat.class))).thenReturn(mock(DataSource.class));
 		spyTS.getDataSet(environment);
 
-		ArgumentCaptor<OrcSplitReader.Predicate> arguments = ArgumentCaptor.forClass(OrcSplitReader.Predicate.class);
+		ArgumentCaptor<OrcRowInputFormat.Predicate> arguments = ArgumentCaptor.forClass(OrcRowInputFormat.Predicate.class);
 		verify(mockIF, times(2)).addPredicate(arguments.capture());
 		List<String> values = arguments.getAllValues().stream().map(Object::toString).collect(Collectors.toList());
 		assertTrue(values.contains(
-				new OrcSplitReader.Not(new OrcSplitReader.LessThanEquals("int1", PredicateLeaf.Type.LONG, 100)).toString()));
+			new OrcRowInputFormat.Not(new OrcRowInputFormat.LessThanEquals("int1", PredicateLeaf.Type.LONG, 100)).toString()));
 		assertTrue(values.contains(
-				new OrcSplitReader.Equals("string1", PredicateLeaf.Type.STRING, "hello").toString()));
+			new OrcRowInputFormat.Equals("string1", PredicateLeaf.Type.STRING, "hello").toString()));
 
 		// ensure filter pushdown is correct
 		assertTrue(spyTS.isFilterPushedDown());
@@ -249,13 +251,13 @@ public class OrcTableSourceTest {
 	@Test
 	public void testUnsupportedPredOnly() {
 		OrcTableSource orc = OrcTableSource.builder()
-				.path(getPath(TEST_FILE_NESTED))
-				.forOrcSchema(TEST_SCHEMA_NESTED)
-				.build();
+			.path(getPath(TEST_FILE_NESTED))
+			.forOrcSchema(TEST_SCHEMA_NESTED)
+			.build();
 
 		// apply predicates on TableSource
 		OrcTableSource projected = (OrcTableSource) orc.applyPredicate(
-				Collections.singletonList(unsupportedPred()));
+			Collections.singletonList(unsupportedPred()));
 
 		assertNotEquals(orc.explainSource(), projected.explainSource());
 	}
