@@ -60,7 +60,6 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -397,16 +396,14 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		@Override
 		void fail(int trackingIndex) throws Exception {
 			//noinspection OverlyBroadCatchBlock
-			try (TemporaryClassLoaderContext unused = TemporaryClassLoaderContext.of(ClassLoader.getSystemClassLoader())) {
-				try {
-					restartTaskManager();
-				} catch (InterruptedException e) {
-					// ignore the exception, task should have been failed while stopping TM
-					Thread.currentThread().interrupt();
-				} catch (Throwable t) {
-					failureTracker.unrelatedFailure(t);
-					throw t;
-				}
+			try {
+				restartTaskManager();
+			} catch (InterruptedException e) {
+				// ignore the exception, task should have been failed while stopping TM
+				Thread.currentThread().interrupt();
+			} catch (Throwable t) {
+				failureTracker.unrelatedFailure(t);
+				throw t;
 			}
 		}
 	}

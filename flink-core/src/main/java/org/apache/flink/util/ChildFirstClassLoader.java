@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -31,7 +32,7 @@ import java.util.List;
  * <p>{@link #getResourceAsStream(String)} uses {@link #getResource(String)} internally so we
  * don't override that.
  */
-public final class ChildFirstClassLoader extends FlinkUserCodeClassLoader {
+public final class ChildFirstClassLoader extends URLClassLoader {
 
 	/**
 	 * The classes that should always go through the parent ClassLoader. This is relevant
@@ -46,7 +47,7 @@ public final class ChildFirstClassLoader extends FlinkUserCodeClassLoader {
 	}
 
 	@Override
-	public synchronized Class<?> loadClass(
+	protected synchronized Class<?> loadClass(
 		String name, boolean resolve) throws ClassNotFoundException {
 
 		// First, check if the class has already been loaded
