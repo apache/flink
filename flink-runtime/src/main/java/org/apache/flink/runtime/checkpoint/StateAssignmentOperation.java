@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -459,10 +460,11 @@ public class StateAssignmentOperation {
 	/**
 	 * Extracts certain key group ranges from the given state handles and adds them to the collector.
 	 */
-	private static void extractIntersectingState(
-		Collection<KeyedStateHandle> originalSubtaskStateHandles,
-		KeyGroupRange rangeToExtract,
-		List<KeyedStateHandle> extractedStateCollector) {
+	@VisibleForTesting
+	public static void extractIntersectingState(
+			Collection<? extends KeyedStateHandle> originalSubtaskStateHandles,
+			KeyGroupRange rangeToExtract,
+			List<KeyedStateHandle> extractedStateCollector) {
 
 		for (KeyedStateHandle keyedStateHandle : originalSubtaskStateHandles) {
 
@@ -618,26 +620,4 @@ public class StateAssignmentOperation {
 			newParallelism);
 		}
 
-	/**
-	 * Determine the subset of {@link KeyGroupsStateHandle KeyGroupsStateHandles} with correct
-	 * key group index for the given subtask {@link KeyGroupRange}.
-	 *
-	 * <p>This is publicly visible to be used in tests.
-	 */
-	public static List<KeyedStateHandle> getKeyedStateHandles(
-		Collection<? extends KeyedStateHandle> keyedStateHandles,
-		KeyGroupRange subtaskKeyGroupRange) {
-
-		List<KeyedStateHandle> subtaskKeyedStateHandles = new ArrayList<>(keyedStateHandles.size());
-
-		for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
-			KeyedStateHandle intersectedKeyedStateHandle = keyedStateHandle.getIntersection(subtaskKeyGroupRange);
-
-			if (intersectedKeyedStateHandle != null) {
-				subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
-			}
-		}
-
-		return subtaskKeyedStateHandles;
-	}
 }

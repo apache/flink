@@ -398,13 +398,17 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 		KeyGroupRange localKeyGroupRange = keyGroupPartitions.get(subtaskIndex);
 
-		List<KeyedStateHandle> localManagedKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
+		List<KeyedStateHandle> localManagedKeyGroupState = new ArrayList<>();
+		StateAssignmentOperation.extractIntersectingState(
 			operatorStateHandles.getManagedKeyedState(),
-			localKeyGroupRange);
+			localKeyGroupRange,
+			localManagedKeyGroupState);
 
-		List<KeyedStateHandle> localRawKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
+		List<KeyedStateHandle> localRawKeyGroupState = new ArrayList<>();
+		StateAssignmentOperation.extractIntersectingState(
 			operatorStateHandles.getRawKeyedState(),
-			localKeyGroupRange);
+			localKeyGroupRange,
+			localRawKeyGroupState);
 
 		StateObjectCollection<OperatorStateHandle> managedOperatorStates = operatorStateHandles.getManagedOperatorState();
 		Collection<OperatorStateHandle> localManagedOperatorState;
