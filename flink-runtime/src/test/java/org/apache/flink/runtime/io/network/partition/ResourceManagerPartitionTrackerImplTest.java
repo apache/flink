@@ -102,56 +102,27 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
 
 		assertThat(tracker.listDataSets().size(), is(0));
 
-		report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 1, PARTITION_ID_1);
+		report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1);
+		checkListedDataSets(tracker, 1, 2);
 
-		final Map<IntermediateDataSetID, DataSetMetaInfo> listing = tracker.listDataSets();
-		assertThat(listing, hasKey(DATA_SET_ID));
-		DataSetMetaInfo metaInfo = listing.get(DATA_SET_ID);
-		assertThat(metaInfo.getNumTotalPartitions(), is(1));
+		report(tracker, TASK_EXECUTOR_ID_2, DATA_SET_ID, 2, PARTITION_ID_2);
+		checkListedDataSets(tracker, 2, 2);
 
 		reportEmpty(tracker, TASK_EXECUTOR_ID_1);
+		checkListedDataSets(tracker, 1, 2);
+
+		reportEmpty(tracker, TASK_EXECUTOR_ID_2);
 		assertThat(tracker.listDataSets().size(), is(0));
 
 		assertThat(tracker.areAllMapsEmpty(), is(true));
 	}
 
-	@Test
-	public void testListDataSetsMultiplePartitionsOnSingleTaskExecutor() {
-		final ResourceManagerPartitionTrackerImpl tracker = new ResourceManagerPartitionTrackerImpl(new TestClusterPartitionReleaser());
-
-		// data set consists of 2 partitions but only 1 is being tracked -> incomplete and should not be listed (yet)
-		report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1);
-		assertThat(tracker.listDataSets().size(), is(0));
-
-		// start tracking another partitions, but we lost partition 1 so the data set is still incomplete
-		report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_2);
-		assertThat(tracker.listDataSets().size(), is(0));
-
-		// dataset is considered complete since all partitions are being tracked
-		report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1, PARTITION_ID_2);
+	private static void checkListedDataSets(ResourceManagerPartitionTracker tracker, int expectedRegistered, int expectedTotal) {
 		final Map<IntermediateDataSetID, DataSetMetaInfo> listing = tracker.listDataSets();
 		assertThat(listing, hasKey(DATA_SET_ID));
-
-		// dataset is no longer considered complete since partition 2 was lost
-		report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1);
-		assertThat(tracker.listDataSets().size(), is(0));
-
-		assertThat(tracker.areAllMapsEmpty(), is(false));
-	}
-
-	@Test
-	public void testListDataSetsMultiplePartitionsAcrossTaskExecutors() {
-		final ResourceManagerPartitionTrackerImpl tracker = new ResourceManagerPartitionTrackerImpl(new TestClusterPartitionReleaser());
-
-		report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1);
-		report(tracker, TASK_EXECUTOR_ID_2, DATA_SET_ID, 2, PARTITION_ID_2);
-		final Map<IntermediateDataSetID, DataSetMetaInfo> listing = tracker.listDataSets();
-		assertThat(listing, hasKey(DATA_SET_ID));
-
-		reportEmpty(tracker, TASK_EXECUTOR_ID_1);
-		assertThat(tracker.listDataSets().size(), is(0));
-
-		assertThat(tracker.areAllMapsEmpty(), is(false));
+		DataSetMetaInfo metaInfo = listing.get(DATA_SET_ID);
+		assertThat(metaInfo.getNumRegisteredPartitions().orElse(-1), is(expectedRegistered));
+		assertThat(metaInfo.getNumTotalPartitions(), is(expectedTotal));
 	}
 
 	@Test

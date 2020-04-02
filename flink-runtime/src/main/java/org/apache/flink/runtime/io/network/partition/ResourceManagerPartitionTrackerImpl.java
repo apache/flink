@@ -159,7 +159,7 @@ public class ResourceManagerPartitionTrackerImpl implements ResourceManagerParti
 		clusterPartitionReport.getEntries().forEach(entry ->
 			dataSetMetaInfo.compute(entry.getDataSetId(), (dataSetID, dataSetMetaInfo) -> {
 				if (dataSetMetaInfo == null) {
-					return new DataSetMetaInfo(entry.getNumTotalPartitions());
+					return DataSetMetaInfo.withoutNumRegisteredPartitions(entry.getNumTotalPartitions());
 				} else {
 					// double check that the meta data is consistent
 					Preconditions.checkState(dataSetMetaInfo.getNumTotalPartitions() == entry.getNumTotalPartitions());
@@ -201,7 +201,7 @@ public class ResourceManagerPartitionTrackerImpl implements ResourceManagerParti
 	@Override
 	public Map<IntermediateDataSetID, DataSetMetaInfo> listDataSets() {
 		return dataSetMetaInfo.entrySet().stream()
-			.filter(entry -> {
+			.collect(Collectors.toMap(Map.Entry::getKey, entry -> {
 				final Map<ResourceID, Set<ResultPartitionID>> taskExecutorToPartitions = dataSetToTaskExecutors.get(entry.getKey());
 				Preconditions.checkState(taskExecutorToPartitions != null, "Have metadata entry for dataset %s, but no partition is tracked.", entry.getKey());
 
@@ -210,9 +210,8 @@ public class ResourceManagerPartitionTrackerImpl implements ResourceManagerParti
 					numTrackedPartitions += hostedPartitions.size();
 				}
 
-				return numTrackedPartitions == entry.getValue().getNumTotalPartitions();
-			})
-			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+				return DataSetMetaInfo.withNumRegisteredPartitions(numTrackedPartitions, entry.getValue().getNumTotalPartitions());
+			}));
 	}
 
 	/**
