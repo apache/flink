@@ -211,6 +211,13 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<!-- Bump hbase netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
 			<!-- Replaces Hbase log4j dependency -->
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-1.2-api</artifactId>
