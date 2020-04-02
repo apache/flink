@@ -67,9 +67,10 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<T
 
 	@Override
 	public TransportClient createClient(Map<String, String> clientConfig) {
-		Settings settings = Settings.builder().put(clientConfig)
+		Settings settings = Settings.builder()
 			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
 			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
+			.put(clientConfig)
 			.build();
 
 		TransportClient transportClient = new PreBuiltTransportClient(settings);
