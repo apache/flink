@@ -38,8 +38,10 @@ import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -635,6 +637,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestLogList(timeout);
 		}
+	}
+
+	@Override
+	public CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetId) {
+		return clusterPartitionTracker.releaseClusterPartitions(dataSetId);
+	}
+
+	@Override
+	public CompletableFuture<Map<IntermediateDataSetID, DataSetMetaInfo>> listDataSets() {
+		return CompletableFuture.completedFuture(clusterPartitionTracker.listDataSets());
 	}
 
 	// ------------------------------------------------------------------------

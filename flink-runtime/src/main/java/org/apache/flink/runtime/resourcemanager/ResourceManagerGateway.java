@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -50,7 +51,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The {@link ResourceManager}'s RPC gateway interface.
  */
-public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManagerId> {
+public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager {
 
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
