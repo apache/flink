@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import java.util.{LinkedList => JLinkedList, Map => JMap}
-
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.io.RichOutputFormat
@@ -27,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_T
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
@@ -39,6 +39,7 @@ import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
@@ -154,7 +155,7 @@ class PartitionableSinkITCase extends AbstractTestBase {
       staticPartitions
     }
 
-    override def emitDataSet(dataSet: DataSet[Row]): Unit = {
+    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
       dataSet.map(new MapFunction[Row, String] {
         override def map(value: Row): String = value.toString
       }).output(new CollectionOutputFormat)
