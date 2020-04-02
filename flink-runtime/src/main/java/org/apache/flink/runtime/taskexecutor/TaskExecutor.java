@@ -120,7 +120,6 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -150,8 +149,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -230,8 +227,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final BackPressureSampleService backPressureSampleService;
 
-	private final ExecutorService ioExecutor;
-
 	// --------- resource manager --------
 
 	@Nullable
@@ -295,8 +290,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final ResourceID resourceId = taskExecutorServices.getUnresolvedTaskManagerLocation().getResourceID();
 		this.jobManagerHeartbeatManager = createJobManagerHeartbeatManager(heartbeatServices, resourceId);
 		this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices, resourceId);
-
-		this.ioExecutor = Executors.newSingleThreadExecutor(new ExecutorThreadFactory("taskexecutor-io"));
 	}
 
 	private HeartbeatManager<Void, TaskExecutorHeartbeatPayload> createResourceManagerHeartbeatManager(HeartbeatServices heartbeatServices, ResourceID resourceId) {
@@ -337,7 +330,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						.collect(Collectors.toList());
 			}
 			return Collections.emptyList();
-		}, ioExecutor);
+		}, taskExecutorServices.getIOExecutor());
 	}
 
 	// ------------------------------------------------------------------------
@@ -456,12 +449,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		try {
 			fileCache.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		try {
-			ioExecutor.shutdown();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -1695,7 +1682,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
 					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
 				}
-			}, ioExecutor);
+			}, taskExecutorServices.getIOExecutor());
 		} else {
 			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));
