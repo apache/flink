@@ -513,6 +513,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		boolean recycleBuffer = true;
 
 		try {
+			if (expectedSequenceNumber != sequenceNumber) {
+				onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
+				return;
+			}
 
 			final boolean wasEmpty;
 			synchronized (receivedBuffers) {
@@ -523,15 +527,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 					return;
 				}
 
-				if (expectedSequenceNumber != sequenceNumber) {
-					onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
-					return;
-				}
-
 				wasEmpty = receivedBuffers.isEmpty();
 				receivedBuffers.add(buffer);
-				recycleBuffer = false;
 			}
+			recycleBuffer = false;
 
 			++expectedSequenceNumber;
 
