@@ -42,7 +42,7 @@ trait FileSystemITCaseBase {
   @Rule
   def fileTempFolder: TemporaryFolder = fileTmpFolder
 
-  def formatProperties(): Seq[String] = Seq()
+  def formatProperties(): Array[String] = Array()
 
   def tableEnv: TableEnvironment
 
