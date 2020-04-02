@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet.row;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -53,17 +54,14 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 
 	private final RowType rowType;
 	private final boolean utcTimestamp;
-	private final boolean isLegacyFormat;
 
 	public ParquetRowDataBuilder(
 			OutputFile path,
 			RowType rowType,
-			boolean utcTimestamp,
-			boolean isLegacyFormat) {
+			boolean utcTimestamp) {
 		super(path);
 		this.rowType = rowType;
 		this.utcTimestamp = utcTimestamp;
-		this.isLegacyFormat = isLegacyFormat;
 	}
 
 	@Override
@@ -78,8 +76,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 
 	private class ParquetWriteSupport extends WriteSupport<BaseRow> {
 
-		private MessageType schema = convertToParquetMessageType(
-				"flink_schema", rowType, isLegacyFormat);
+		private MessageType schema = convertToParquetMessageType("flink_schema", rowType);
 		private ParquetRowDataWriter writer;
 
 		@Override
@@ -93,8 +90,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 					recordConsumer,
 					rowType,
 					schema,
-					utcTimestamp,
-					isLegacyFormat);
+					utcTimestamp);
 		}
 
 		@Override
@@ -107,13 +103,21 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 		}
 	}
 
+	/**
+	 * Create a parquet {@link BulkWriter.Factory}.
+	 *
+	 * @param rowType row type of parquet table.
+	 * @param conf hadoop configuration.
+	 * @param utcTimestamp Use UTC timezone or local timezone to the conversion between epoch time
+	 *                     and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x
+	 *                     use UTC timezone.
+	 */
 	public static ParquetWriterFactory<BaseRow> createWriterFactory(
 			RowType rowType,
 			Configuration conf,
-			boolean utcTimestamp,
-			boolean isLegacyFormat) {
+			boolean utcTimestamp) {
 		return new ParquetWriterFactory<>(
-				new FlinkParquetBuilder(rowType, conf, utcTimestamp, isLegacyFormat));
+				new FlinkParquetBuilder(rowType, conf, utcTimestamp));
 	}
 
 	/**
@@ -124,23 +128,20 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 		private final RowType rowType;
 		private final SerializableConfiguration configuration;
 		private final boolean utcTimestamp;
-		private final boolean isLegacyFormat;
 
 		public FlinkParquetBuilder(
 				RowType rowType,
 				Configuration conf,
-				boolean utcTimestamp,
-				boolean isLegacyFormat) {
+				boolean utcTimestamp) {
 			this.rowType = rowType;
 			this.configuration = new SerializableConfiguration(conf);
 			this.utcTimestamp = utcTimestamp;
-			this.isLegacyFormat = isLegacyFormat;
 		}
 
 		@Override
 		public ParquetWriter<BaseRow> createWriter(OutputFile out) throws IOException {
 			Configuration conf = configuration.conf();
-			return new ParquetRowDataBuilder(out, rowType, utcTimestamp, isLegacyFormat)
+			return new ParquetRowDataBuilder(out, rowType, utcTimestamp)
 					.withCompressionCodec(getParquetCompressionCodec(conf))
 					.withRowGroupSize(getBlockSize(conf))
 					.withPageSize(getPageSize(conf))

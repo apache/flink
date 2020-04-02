@@ -90,22 +90,21 @@ public class ParquetRowDataWriterTest {
 	@Test
 	public void testTypes() throws IOException {
 		Configuration conf = new Configuration();
-		innerTest(conf, true, true);
-		innerTest(conf, false, false);
+		innerTest(conf, true);
+		innerTest(conf, false);
 	}
 
 	@Test
 	public void testCompression() throws IOException {
 		Configuration conf = new Configuration();
 		conf.set(ParquetOutputFormat.COMPRESSION, "GZIP");
-		innerTest(conf, true, true);
-		innerTest(conf, false, false);
+		innerTest(conf, true);
+		innerTest(conf, false);
 	}
 
 	private void innerTest(
 			Configuration conf,
-			boolean utcTimestamp,
-			boolean isLegacyFormat) throws IOException {
+			boolean utcTimestamp) throws IOException {
 		Path path = new Path(TEMPORARY_FOLDER.newFolder().getPath(), UUID.randomUUID().toString());
 		int number = 1000;
 		List<Row> rows = new ArrayList<>(number);
@@ -128,7 +127,7 @@ public class ParquetRowDataWriterTest {
 		}
 
 		ParquetWriterFactory<BaseRow> factory = ParquetRowDataBuilder.createWriterFactory(
-				ROW_TYPE, conf, utcTimestamp, isLegacyFormat);
+				ROW_TYPE, conf, utcTimestamp);
 		BulkWriter<BaseRow> writer = factory.create(path.getFileSystem().create(
 				path, FileSystem.WriteMode.OVERWRITE));
 		for (int i = 0; i < number; i++) {

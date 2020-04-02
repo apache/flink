@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -437,22 +436,21 @@ public class ParquetSchemaConverter {
 		return fieldType;
 	}
 
-	public static MessageType convertToParquetMessageType(
-			String name, RowType rowType, boolean isLegacyFormat) {
+	public static MessageType convertToParquetMessageType(String name, RowType rowType) {
 		Type[] types = new Type[rowType.getFieldCount()];
 		for (int i = 0; i < rowType.getFieldCount(); i++) {
 			types[i] = convertToParquetType(
-					rowType.getFieldNames().get(i), rowType.getTypeAt(i), isLegacyFormat);
+					rowType.getFieldNames().get(i), rowType.getTypeAt(i));
 		}
 		return new MessageType(name, types);
 	}
 
-	private static Type convertToParquetType(String name, LogicalType type, boolean isLegacyFormat) {
-		return convertToParquetType(name, type, isLegacyFormat, Type.Repetition.OPTIONAL);
+	private static Type convertToParquetType(String name, LogicalType type) {
+		return convertToParquetType(name, type, Type.Repetition.OPTIONAL);
 	}
 
 	private static Type convertToParquetType(
-			String name, LogicalType type, boolean isLegacyFormat, Type.Repetition repetition) {
+			String name, LogicalType type, Type.Repetition repetition) {
 		switch (type.getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
@@ -468,28 +466,14 @@ public class ParquetSchemaConverter {
 			case DECIMAL:
 				int precision = ((DecimalType) type).getPrecision();
 				int scale = ((DecimalType) type).getScale();
-				if (!isLegacyFormat && Decimal.is32BitDecimal(precision)) {
-					return Types.primitive(PrimitiveType.PrimitiveTypeName.INT32, repetition)
-							.precision(precision)
-							.scale(scale)
-							.as(OriginalType.DECIMAL)
-							.named(name);
-				} else if (!isLegacyFormat && Decimal.is64BitDecimal(precision)) {
-					return Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, repetition)
-							.precision(precision)
-							.scale(scale)
-							.as(OriginalType.DECIMAL)
-							.named(name);
-				} else {
-					int numBytes = computeMinBytesForDecimalPrecision(precision);
-					return Types.primitive(
-							PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, repetition)
-							.precision(precision)
-							.scale(scale)
-							.length(numBytes)
-							.as(OriginalType.DECIMAL)
-							.named(name);
-				}
+				int numBytes = computeMinBytesForDecimalPrecision(precision);
+				return Types.primitive(
+						PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, repetition)
+						.precision(precision)
+						.scale(scale)
+						.length(numBytes)
+						.as(OriginalType.DECIMAL)
+						.named(name);
 			case TINYINT:
 				return Types.primitive(PrimitiveType.PrimitiveTypeName.INT32, repetition)
 						.as(OriginalType.INT_8)

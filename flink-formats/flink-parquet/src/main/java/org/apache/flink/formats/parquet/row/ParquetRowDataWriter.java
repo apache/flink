@@ -54,20 +54,17 @@ public class ParquetRowDataWriter {
 
 	private final FieldWriter[] filedWriters;
 	private final String[] fieldNames;
-	private final boolean isLegacyFormat;
 
 	public ParquetRowDataWriter(
 			RecordConsumer recordConsumer,
 			RowType rowType,
 			GroupType schema,
-			boolean utcTimestamp,
-			boolean isLegacyFormat) {
+			boolean utcTimestamp) {
 		this.recordConsumer = recordConsumer;
 		this.utcTimestamp = utcTimestamp;
 
 		this.filedWriters = new FieldWriter[rowType.getFieldCount()];
 		this.fieldNames = rowType.getFieldNames().toArray(new String[0]);
-		this.isLegacyFormat = isLegacyFormat;
 		for (int i = 0; i < rowType.getFieldCount(); i++) {
 			this.filedWriters[i] = createWriter(rowType.getTypeAt(i), schema.getType(i));
 		}
@@ -261,22 +258,6 @@ public class ParquetRowDataWriter {
 			"Decimal precision %s exceeds max precision %s",
 			precision, DecimalType.MAX_PRECISION);
 
-		class Int32Writer implements FieldWriter {
-			@Override
-			public void write(BaseRow row, int ordinal) {
-				long unscaledLong = row.getDecimal(ordinal, precision, scale).toUnscaledLong();
-				recordConsumer.addInteger((int) unscaledLong);
-			}
-		}
-
-		class Int64Writer implements FieldWriter {
-			@Override
-			public void write(BaseRow row, int ordinal) {
-				long unscaledLong = row.getDecimal(ordinal, precision, scale).toUnscaledLong();
-				recordConsumer.addLong(unscaledLong);
-			}
-		}
-
 		/*
 		 * This is optimizer for UnscaledBytesWriter.
 		 */
@@ -332,20 +313,9 @@ public class ParquetRowDataWriter {
 			}
 		}
 
-		// 1 <= precision <= 9, writes as INT32
-		if (!isLegacyFormat && Decimal.is32BitDecimal(precision)) {
-			return new Int32Writer();
-		}
-
-		// 10 <= precision <= 18, writes as INT64
-		if (!isLegacyFormat && Decimal.is64BitDecimal(precision)) {
-			return new Int64Writer();
-		}
-
 		// 1 <= precision <= 18, writes as FIXED_LEN_BYTE_ARRAY
 		// optimizer for UnscaledBytesWriter
-		if (isLegacyFormat &&
-				(Decimal.is32BitDecimal(precision) || Decimal.is64BitDecimal(precision))) {
+		if (Decimal.is32BitDecimal(precision) || Decimal.is64BitDecimal(precision)) {
 			return new LongUnscaledBytesWriter();
 		}
 
