@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.taskmanager;
+package org.apache.flink.runtime.rest.handler.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -40,18 +40,18 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Base class for TaskManager related REST handler which need access to the {@link ResourceManager}.
+ * Base class for REST handlers which need access to the {@link ResourceManager}.
  *
  * @param <T> type of the {@link RestfulGateway}
  * @param <R> request type
  * @param <P> response type
  * @param <M> message parameters type
  */
-abstract class AbstractTaskManagerHandler<T extends RestfulGateway, R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends AbstractRestHandler<T, R, P, M> {
+public abstract class AbstractResourceManagerHandler<T extends RestfulGateway, R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends AbstractRestHandler<T, R, P, M> {
 
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-	protected AbstractTaskManagerHandler(
+	protected AbstractResourceManagerHandler(
 			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -71,7 +71,7 @@ abstract class AbstractTaskManagerHandler<T extends RestfulGateway, R extends Re
 
 	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull ResourceManagerGateway gateway) throws RestHandlerException;
 
-	protected ResourceManagerGateway getResourceManagerGateway(GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) throws RestHandlerException {
+	public static ResourceManagerGateway getResourceManagerGateway(GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) throws RestHandlerException {
 		return resourceManagerGatewayRetriever
 			.getNow()
 			.orElseThrow(() -> new RestHandlerException(
