@@ -32,6 +32,20 @@ function cleanup {
     stop_kubernetes
 }
 
+function setConsoleLogging {
+    cat >> $FLINK_DIR/conf/log4j.properties <<END
+rootLogger.appenderRef.console.ref = ConsoleAppender
+
+# Log all infos to the console
+appender.console.name = ConsoleAppender
+appender.console.type = CONSOLE
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
+END
+}
+
+setConsoleLogging
+
 start_kubernetes
 
 cd "$DOCKER_MODULE_DIR"
@@ -48,7 +62,8 @@ mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
     -Djobmanager.heap.size=512m \
     -Dcontainerized.heap-cutoff-min=100 \
     -Dkubernetes.jobmanager.cpu=0.5 \
-    -Dkubernetes.taskmanager.cpu=0.5
+    -Dkubernetes.taskmanager.cpu=0.5 \
+    -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"
 
 "$FLINK_DIR"/bin/flink run -e kubernetes-session \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
@@ -57,3 +72,7 @@ mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
 
 check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"
+
+if [ $? != 0 ];then
+  debug_copy_and_show_logs
+fi
