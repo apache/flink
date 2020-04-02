@@ -21,6 +21,7 @@ package org.apache.flink.formats.parquet.row;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
+import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -32,9 +33,6 @@ import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.HashMap;
 
 import static org.apache.flink.formats.parquet.utils.ParquetSchemaConverter.convertToParquetMessageType;
@@ -152,35 +150,6 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 					.withValidation(getValidation(conf))
 					.withWriterVersion(getWriterVersion(conf))
 					.withConf(conf).build();
-		}
-	}
-
-	/**
-	 * Wrap {@link Configuration} to a serializable class.
-	 */
-	public static class SerializableConfiguration implements Serializable {
-
-		private static final long serialVersionUID = 1L;
-
-		private Configuration conf;
-
-		public SerializableConfiguration(Configuration conf) {
-			this.conf = conf;
-		}
-
-		public Configuration conf() {
-			return conf;
-		}
-
-		private void writeObject(ObjectOutputStream out) throws IOException {
-			conf.write(out);
-		}
-
-		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-			if (conf == null) {
-				conf = new Configuration();
-			}
-			conf.readFields(in);
 		}
 	}
 }
