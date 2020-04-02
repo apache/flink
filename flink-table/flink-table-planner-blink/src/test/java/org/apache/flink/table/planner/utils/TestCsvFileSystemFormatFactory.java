@@ -77,7 +77,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public Optional<Encoder<BaseRow>> createEncoder(WriterContext context) {
-		LogicalType[] fieldTypes = Arrays.stream(context.getFieldTypes())
+		LogicalType[] fieldTypes = Arrays.stream(context.getFieldTypesWithoutPartKeys())
 				.map(DataType::getLogicalType)
 				.toArray(LogicalType[]::new);
 		DataFormatConverters.DataFormatConverter converter = DataFormatConverters.getConverterForDataType(

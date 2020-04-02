@@ -29,6 +29,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.TableFormatFactory;
 import org.apache.flink.table.types.DataType;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -110,13 +111,37 @@ public interface FileSystemFormatFactory extends TableFormatFactory<BaseRow> {
 	interface WriterContext {
 
 		/**
+		 * Full schema of the table.
+		 */
+		TableSchema getSchema();
+
+		/**
 		 * Properties of this format.
 		 */
 		Map<String, String> getFormatProperties();
 
 		/**
-		 * Field types without partition fields.
+		 * Partition keys of the table.
 		 */
-		DataType[] getFieldTypes();
+		List<String> getPartitionKeys();
+
+		/**
+		 * Get field names without partition keys.
+		 */
+		default String[] getFieldNamesWithoutPartKeys() {
+			return Arrays.stream(getSchema().getFieldNames())
+					.filter(name -> !getPartitionKeys().contains(name))
+					.toArray(String[]::new);
+		}
+
+		/**
+		 * Get field types without partition keys.
+		 */
+		default DataType[] getFieldTypesWithoutPartKeys() {
+			return Arrays.stream(getSchema().getFieldNames())
+					.filter(name -> !getPartitionKeys().contains(name))
+					.map(name -> getSchema().getFieldDataType(name).get())
+					.toArray(DataType[]::new);
+		}
 	}
 }

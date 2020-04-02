@@ -39,7 +39,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,13 +108,6 @@ public class FileSystemTableSink implements
 				.setParallelism(dataStream.getParallelism());
 	}
 
-	private DataType[] getNonPartitionTypes() {
-		return Arrays.stream(schema.getFieldNames())
-				.filter(name -> !partitionKeys.contains(name))
-				.map(name -> schema.getFieldDataType(name).get())
-				.toArray(DataType[]::new);
-	}
-
 	private Path toStagingPath() {
 		Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
 		try {
@@ -134,13 +126,18 @@ public class FileSystemTableSink implements
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
 			@Override
+			public TableSchema getSchema() {
+				return schema;
+			}
+
+			@Override
 			public Map<String, String> getFormatProperties() {
 				return formatProperties;
 			}
 
 			@Override
-			public DataType[] getFieldTypes() {
-				return getNonPartitionTypes();
+			public List<String> getPartitionKeys() {
+				return partitionKeys;
 			}
 		};
 
