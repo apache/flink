@@ -362,6 +362,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + (forcePartitionReleaseOnConsumption ? 1 : 0);
 		result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
 		result = 31 * result + Objects.hashCode(compressionCodec);
+		result = 31 * result + maxBuffersPerChannel;
 		return result;
 	}
 
@@ -387,6 +388,7 @@ public class NettyShuffleEnvironmentConfiguration {
 					Arrays.equals(this.tempDirs, that.tempDirs) &&
 					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption &&
 					this.blockingShuffleCompressionEnabled == that.blockingShuffleCompressionEnabled &&
+					this.maxBuffersPerChannel == that.maxBuffersPerChannel &&
 					Objects.equals(this.compressionCodec, that.compressionCodec);
 		}
 	}
@@ -406,6 +408,7 @@ public class NettyShuffleEnvironmentConfiguration {
 				", forcePartitionReleaseOnConsumption=" + forcePartitionReleaseOnConsumption +
 				", blockingShuffleCompressionEnabled=" + blockingShuffleCompressionEnabled +
 				", compressionCodec=" + compressionCodec +
+				", maxBuffersPerChannel=" + maxBuffersPerChannel +
 				'}';
 	}
 }

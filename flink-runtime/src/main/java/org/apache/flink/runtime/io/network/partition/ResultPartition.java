@@ -426,11 +426,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 */
 	public void notifyDecreaseBacklog(int buffersInBacklog) {
 		if (buffersInBacklog == maxBuffersPerChannel) {
-			unavailableSubpartitionsCount--;
-			if (unavailableSubpartitionsCount == 0) {
+			if (--unavailableSubpartitionsCount == 0) {
 				CompletableFuture<?> toNotify = availabilityHelper.getUnavailableToResetAvailable();
 				toNotify.complete(null);
-				int[] a = new int[1024];
 			}
 		}
 	}
@@ -441,8 +439,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 */
 	public void notifyIncreaseBacklog(int buffersInBacklog) {
 		if (buffersInBacklog == maxBuffersPerChannel + 1) {
-			unavailableSubpartitionsCount++;
-			if (unavailableSubpartitionsCount == 1) {
+			if (++unavailableSubpartitionsCount == 1) {
 				availabilityHelper.resetUnavailable();
 			}
 		}
