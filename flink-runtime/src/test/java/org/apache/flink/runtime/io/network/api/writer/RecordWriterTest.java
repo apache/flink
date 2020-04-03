@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.Se
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -41,8 +43,15 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -460,6 +469,59 @@ public class RecordWriterTest {
 			assertEquals(recordWriter.AVAILABLE, recordWriter.getAvailableFuture());
 		} finally {
 			localPool.lazyDestroy();
+			globalPool.destroy();
+		}
+	}
+
+	@Test
+	public void testEmitRecordWithPartitionStateRecovery() throws Exception {
+		final int totalBuffers = 10; // enough for both states and normal records
+		final int totalStates = 2;
+		final int[] states = {1, 2, 3, 4};
+		final int[] records = {5, 6, 7, 8};
+		final int bufferSize = states.length * Integer.BYTES;
+
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize, 1);
+		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setNetworkBufferPool(globalPool)
+			.build();
+		final RecordWriter<IntValue> recordWriter = new RecordWriterBuilder<IntValue>().build(partition);
+
+		try {
+			partition.setup();
+			partition.initializeState(stateReader);
+
+			for (int record: records) {
+				// the record length 4 is also written into buffer for every emit
+				recordWriter.broadcastEmit(new IntValue(record));
+			}
+
+			// every buffer can contain 2 int records with 2 int length(4)
+			final int[][] expectedRecordsInBuffer = {{4, 5, 4, 6}, {4, 7, 4, 8}};
+
+			for (ResultSubpartition subpartition : partition.getAllPartitions()) {
+				// create the view to consume all the buffers with states and records
+				final ResultSubpartitionView view = new PipelinedSubpartitionView(
+					(PipelinedSubpartition) subpartition,
+					new NoOpBufferAvailablityListener());
+
+				int numConsumedBuffers = 0;
+				ResultSubpartition.BufferAndBacklog bufferAndBacklog;
+				while ((bufferAndBacklog = view.getNextBuffer()) != null) {
+					Buffer buffer = bufferAndBacklog.buffer();
+					int[] expected = numConsumedBuffers < totalStates ? states : expectedRecordsInBuffer[numConsumedBuffers - totalStates];
+					BufferBuilderAndConsumerTest.assertContent(buffer, partition.getBufferPool(), expected);
+
+					buffer.recycleBuffer();
+					numConsumedBuffers++;
+				}
+
+				assertEquals(totalStates + expectedRecordsInBuffer.length, numConsumedBuffers);
+			}
+		} finally {
+			// cleanup
+			globalPool.destroyAllBufferPools();
 			globalPool.destroy();
 		}
 	}

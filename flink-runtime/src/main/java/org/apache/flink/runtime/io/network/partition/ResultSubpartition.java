@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -74,6 +75,9 @@ public abstract class ResultSubpartition {
 	 */
 	protected void onConsumedSubpartition() {
 		parent.onConsumedSubpartition(index);
+	}
+
+	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
 	}
 
 	/**
