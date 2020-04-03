@@ -472,12 +472,14 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			new CheckpointFailureManager.FailJobCallback() {
 				@Override
 				public void failJob(Throwable cause) {
-					getJobMasterMainThreadExecutor().execute(() -> failGlobal(cause));
+					assertRunningInJobMasterMainThread();
+					failGlobal(cause);
 				}
 
 				@Override
 				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {
-					getJobMasterMainThreadExecutor().execute(() -> failGlobalIfExecutionIsStillRunning(cause, failingTask));
+					assertRunningInJobMasterMainThread();
+					failGlobalIfExecutionIsStillRunning(cause, failingTask);
 				}
 			}
 		);
