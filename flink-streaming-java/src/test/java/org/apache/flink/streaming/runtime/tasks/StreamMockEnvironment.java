@@ -37,7 +37,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -87,7 +87,7 @@ public class StreamMockEnvironment implements Environment {
 
 	private final Configuration taskConfiguration;
 
-	private final List<InputGate> inputs;
+	private final List<IndexedInputGate> inputs;
 
 	private final List<ResultPartitionWriter> outputs;
 
@@ -161,7 +161,7 @@ public class StreamMockEnvironment implements Environment {
 			0 /* attempt number */);
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
-		this.inputs = new LinkedList<InputGate>();
+		this.inputs = new LinkedList<>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
 		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, offHeapMemorySize).build();
 		this.ioManager = new IOManagerAsync();
@@ -188,7 +188,7 @@ public class StreamMockEnvironment implements Environment {
 		this(jobConfig, taskConfig, new ExecutionConfig(), memorySize, inputSplitProvider, bufferSize, taskStateManager);
 	}
 
-	public void addInputGate(InputGate gate) {
+	public void addInputGate(IndexedInputGate gate) {
 		inputs.add(gate);
 	}
 
@@ -270,15 +270,13 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public InputGate getInputGate(int index) {
+	public IndexedInputGate getInputGate(int index) {
 		return inputs.get(index);
 	}
 
 	@Override
-	public InputGate[] getAllInputGates() {
-		InputGate[] gates = new InputGate[inputs.size()];
-		inputs.toArray(gates);
-		return gates;
+	public IndexedInputGate[] getAllInputGates() {
+		return inputs.toArray(new IndexedInputGate[0]);
 	}
 
 	@Override
