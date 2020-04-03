@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.dataformat.vector;
 
+import org.apache.flink.table.dataformat.BaseArray;
+import org.apache.flink.table.dataformat.ColumnarArray;
 import org.apache.flink.table.dataformat.ColumnarRow;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
@@ -46,6 +48,7 @@ import static org.junit.Assert.assertTrue;
 public class VectorizedColumnBatchTest {
 
 	private static final int VECTOR_SIZE = 1024;
+	private static final int ARRAY_SIZE = 3;
 
 	@Test
 	public void testTyped() throws IOException {
@@ -200,6 +203,23 @@ public class VectorizedColumnBatchTest {
 			vector11[i] = i;
 		}
 
+		HeapIntVector col12Data = new HeapIntVector(VECTOR_SIZE * ARRAY_SIZE);
+		for (int i = 0; i < VECTOR_SIZE * ARRAY_SIZE; i++) {
+			col12Data.vector[i] = i;
+		}
+		ArrayColumnVector col12 = new ArrayColumnVector() {
+
+			@Override
+			public boolean isNullAt(int i) {
+				return false;
+			}
+
+			@Override
+			public BaseArray getArray(int i) {
+				return new ColumnarArray(col12Data, i * ARRAY_SIZE, ARRAY_SIZE);
+			}
+		};
+
 		VectorizedColumnBatch batch = new VectorizedColumnBatch(new ColumnVector[]{
 				col0,
 				col1,
@@ -212,7 +232,8 @@ public class VectorizedColumnBatchTest {
 				col8,
 				col9,
 				col10,
-				col11});
+				col11,
+				col12});
 		batch.setNumRows(VECTOR_SIZE);
 
 		for (int i = 0; i < batch.getNumRows(); i++) {
@@ -230,6 +251,9 @@ public class VectorizedColumnBatchTest {
 			assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
 			assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
 			assertEquals(row.getDecimal(11, 10, 0).toUnscaledLong(), i);
+			for (int j = 0; j < ARRAY_SIZE; j++) {
+				assertEquals(row.getArray(12).getInt(j), i * ARRAY_SIZE + j);
+			}
 		}
 
 		assertEquals(VECTOR_SIZE, batch.getNumRows());

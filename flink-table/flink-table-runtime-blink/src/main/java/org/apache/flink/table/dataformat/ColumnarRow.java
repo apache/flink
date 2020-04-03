@@ -146,8 +146,7 @@ public final class ColumnarRow implements BaseRow {
 
 	@Override
 	public BaseArray getArray(int ordinal) {
-		// TODO
-		throw new UnsupportedOperationException("Array is not supported.");
+		return vectorizedColumnBatch.getArray(rowId, ordinal);
 	}
 
 	@Override
