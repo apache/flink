@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import jdk.internal.org.objectweb.asm.ClassReader;
-import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.commons.RemappingClassAdapter;
-import jdk.internal.org.objectweb.asm.commons.SimpleRemapper;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassWriter;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.commons.ClassRemapper;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.commons.SimpleRemapper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,7 +57,7 @@ public final class ClassRelocator {
 		Class<?> originalClass) {
 
 		ClassRegistry remapping = new ClassRegistry(originalClass);
-		ClassRemapper classRenamer = new ClassRemapper(remapping);
+		ClassRenamer classRenamer = new ClassRenamer(remapping);
 		Map<String, byte[]> newClassBytes = classRenamer.remap();
 
 		return (Class<? extends T>) patchClass(newClassBytes, remapping);
@@ -136,10 +136,10 @@ public final class ClassRelocator {
 		}
 	}
 
-	private static final class ClassRemapper {
+	private static final class ClassRenamer {
 		private final ClassRegistry renaming;
 
-		ClassRemapper(ClassRegistry renaming) {
+		ClassRenamer(ClassRegistry renaming) {
 			this.renaming = renaming;
 		}
 
@@ -148,6 +148,7 @@ public final class ClassRelocator {
 
 			return renaming.getDefinedClassesUnderRoot()
 				.stream()
+				.filter(klass -> klass.getClassLoader() != null)
 				.collect(Collectors.toMap(renaming::newNameFor, classToTransform -> {
 					ClassReader providerClassReader = classReaderFor(classToTransform);
 					ClassWriter transformedProvider = remap(renames, providerClassReader);
@@ -157,7 +158,7 @@ public final class ClassRelocator {
 
 		private static ClassWriter remap(Map<String, String> reMapping, ClassReader providerClassReader) {
 			ClassWriter cw = new ClassWriter(0);
-			RemappingClassAdapter remappingClassAdapter = new RemappingClassAdapter(cw, new SimpleRemapper(reMapping));
+			ClassRemapper remappingClassAdapter = new ClassRemapper(cw, new SimpleRemapper(reMapping));
 			providerClassReader.accept(remappingClassAdapter, ClassReader.EXPAND_FRAMES);
 			return cw;
 		}
