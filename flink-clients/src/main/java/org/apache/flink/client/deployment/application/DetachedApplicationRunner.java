@@ -53,10 +53,15 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DetachedApplicationRunner.class);
 
+	private final boolean forbidBlockingJobClient;
+
 	private final boolean enforceSingleJobExecution;
 
-	public DetachedApplicationRunner(final boolean enforceSingleJobExecution) {
+	public DetachedApplicationRunner(
+			final boolean enforceSingleJobExecution,
+			final boolean forbidBlockingJobClient) {
 		this.enforceSingleJobExecution = enforceSingleJobExecution;
+		this.forbidBlockingJobClient = forbidBlockingJobClient;
 	}
 
 	@Override
@@ -75,7 +80,7 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway);
 
 		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution);
+			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution, forbidBlockingJobClient);
 		} catch (ProgramInvocationException e) {
 			LOG.warn("Could not execute application: ", e);
 			throw new FlinkRuntimeException("Could not execute application.", e);

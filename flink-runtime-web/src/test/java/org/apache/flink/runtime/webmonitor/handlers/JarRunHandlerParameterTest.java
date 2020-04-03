@@ -79,7 +79,7 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 	private static class ConfigurationVerifyingDetachedApplicationRunner extends DetachedApplicationRunner {
 
 		public ConfigurationVerifyingDetachedApplicationRunner() {
-			super(true);
+			super(true, true);
 		}
 
 		@Override
