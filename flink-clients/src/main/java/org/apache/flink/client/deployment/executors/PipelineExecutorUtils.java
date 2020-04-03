@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Utility class with method related to job execution.
  */
-public class ExecutorUtils {
+public class PipelineExecutorUtils {
 
 	/**
 	 * Creates the {@link JobGraph} corresponding to the provided {@link Pipeline}.
