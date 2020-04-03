@@ -28,6 +28,11 @@ function setup_elasticsearch {
     local downloadUrl=$1
     local elasticsearch_version=$2
 
+    if [ -z $elasticsearch_version ]; then
+      echo "Elasticsearch version not declared."
+      exit 1
+    fi
+
     # start downloading Elasticsearch
     echo "Downloading Elasticsearch from $downloadUrl ..."
     curl "$downloadUrl" > $TEST_DATA_DIR/elasticsearch.tar.gz
