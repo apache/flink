@@ -25,11 +25,10 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ProcessorArchitecture;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +109,7 @@ public class ResultPartitionFactory {
 			ResultPartitionType type,
 			int numberOfSubpartitions,
 			int maxParallelism,
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+			SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 		BufferCompressor bufferCompressor = null;
 		if (type.isBlocking() && blockingShuffleCompressionEnabled) {
 			bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
@@ -210,10 +209,10 @@ public class ResultPartitionFactory {
 	 * based on at-least one buffer available on output side.
 	 */
 	@VisibleForTesting
-	FunctionWithException<BufferPoolOwner, BufferPool, IOException> createBufferPoolFactory(
+	SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
 			int numberOfSubpartitions,
 			ResultPartitionType type) {
-		return bufferPoolOwner -> {
+		return () -> {
 			int maxNumberOfMemorySegments = type.isBounded() ?
 				numberOfSubpartitions * networkBuffersPerChannel + floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
 			// If the partition type is back pressure-free, we register with the buffer pool for
@@ -221,7 +220,6 @@ public class ResultPartitionFactory {
 			return bufferPoolFactory.createBufferPool(
 				numberOfSubpartitions + 1,
 				maxNumberOfMemorySegments,
-				type.hasBackPressure() ? null : bufferPoolOwner,
 				numberOfSubpartitions,
 				maxBuffersPerChannel);
 		};
