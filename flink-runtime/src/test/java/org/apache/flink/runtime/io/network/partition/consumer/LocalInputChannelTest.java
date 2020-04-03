@@ -133,8 +133,8 @@ public class LocalInputChannelTest {
 				.setNumberOfSubpartitions(parallelism)
 				.setNumTargetKeyGroups(parallelism)
 				.setResultPartitionManager(partitionManager)
-				.setBufferPoolFactory(p -> networkBuffers.createBufferPool(
-					producerBufferPoolSize, producerBufferPoolSize, null, parallelism, Integer.MAX_VALUE))
+				.setBufferPoolFactory(() -> networkBuffers.createBufferPool(
+					producerBufferPoolSize, producerBufferPoolSize, parallelism, Integer.MAX_VALUE))
 				.build();
 
 			// Create a buffer pool for this partition
