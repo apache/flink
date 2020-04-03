@@ -44,8 +44,8 @@ class TableSinkITCase extends BatchTestBase {
         .field("d", DataTypes.CHAR(5))
         .build()
 
-    MemoryTableSourceSinkUtil.createTemporaryTable(
-      tEnv, schema, "DataTypeOutputFormatTable", "testSink")
+    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
+      tEnv, schema, "testSink")
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
     tEnv.scan("Table3")
@@ -71,8 +71,8 @@ class TableSinkITCase extends BatchTestBase {
         .field("d", DataTypes.CHAR(5))
         .build()
 
-    MemoryTableSourceSinkUtil.createTemporaryTable(
-      tEnv, schema, "DataTypeAppendStreamTable", "testSink")
+    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
+      tEnv, schema, "testSink")
 
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
@@ -101,8 +101,8 @@ class TableSinkITCase extends BatchTestBase {
 
     // TODO: should failed at TableSinkUtils::validateLogicalPhysicalTypesCompatible
     // CatalogTable hold new type but sink hold legacy type
-    MemoryTableSourceSinkUtil.createTemporaryTable(
-      tEnv, schema, "LegacyUnsafeMemoryAppendTable", "testSink")
+    MemoryTableSourceSinkUtil.createLegacyUnsafeMemoryAppendTable(
+      tEnv, schema, "testSink")
 
     registerCollection("Table3", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
 

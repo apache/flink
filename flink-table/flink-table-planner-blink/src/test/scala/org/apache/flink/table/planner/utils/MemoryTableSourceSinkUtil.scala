@@ -50,12 +50,20 @@ object MemoryTableSourceSinkUtil {
     MemoryTableSourceSinkUtil.tableData.clear()
   }
 
-  def createTemporaryTable(
+  def createDataTypeOutputFormatTable(
       tEnv: TableEnvironment,
       schema: TableSchema,
-      connectorType: String,
       tableName: String): Unit = {
-    tEnv.connect(new CustomConnectorDescriptor(connectorType, 1, false))
+    tEnv.connect(new CustomConnectorDescriptor("DataTypeOutputFormatTable", 1, false))
+      .withSchema(new Schema().schema(schema))
+      .createTemporaryTable(tableName)
+  }
+
+  def createLegacyUnsafeMemoryAppendTable(
+      tEnv: TableEnvironment,
+      schema: TableSchema,
+      tableName: String): Unit = {
+    tEnv.connect(new CustomConnectorDescriptor("LegacyUnsafeMemoryAppendTable", 1, false))
       .withSchema(new Schema().schema(schema))
       .createTemporaryTable(tableName)
   }

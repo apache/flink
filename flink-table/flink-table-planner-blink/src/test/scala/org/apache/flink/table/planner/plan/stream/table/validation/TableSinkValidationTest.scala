@@ -107,8 +107,8 @@ class TableSinkValidationTest extends TableTestBase {
       .field("d", DataTypes.INT())
       .build()
 
-    MemoryTableSourceSinkUtil.createTemporaryTable(
-      tEnv, sinkSchema, "DataTypeOutputFormatTable", "testSink")
+    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
+      tEnv, sinkSchema, "testSink")
     tEnv.insertInto(resultTable, "testSink")
 
     // must fail because query result table schema is different with sink table schema
