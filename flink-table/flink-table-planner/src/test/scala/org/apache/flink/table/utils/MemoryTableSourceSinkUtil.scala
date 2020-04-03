@@ -20,7 +20,6 @@ package org.apache.flink.table.utils
 
 import org.apache.flink.api.common.io.{OutputFormat, RichOutputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
@@ -112,7 +111,7 @@ object MemoryTableSourceSinkUtil {
       new UnsafeMemoryAppendTableSink
     }
 
-    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
+    override def emitDataSet(dataSet: DataSet[Row]): Unit = {
       dataSet
         .output(new MemoryCollectionOutputFormat)
         .name(TableConnectorUtils.generateRuntimeName(this.getClass, getTableSchema.getFieldNames))

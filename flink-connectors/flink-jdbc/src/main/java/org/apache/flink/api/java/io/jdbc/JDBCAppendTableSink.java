@@ -21,7 +21,6 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -70,8 +69,8 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 	}
 
 	@Override
-	public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
-		return dataSet.output(outputFormat);
+	public void emitDataSet(DataSet<Row> dataSet) {
+		dataSet.output(outputFormat);
 	}
 
 	@Override

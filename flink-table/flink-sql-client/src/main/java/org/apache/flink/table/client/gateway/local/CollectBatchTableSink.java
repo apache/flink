@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
-import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
@@ -69,8 +68,8 @@ public class CollectBatchTableSink extends OutputFormatTableSink<Row> implements
 	}
 
 	@Override
-	public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
-		return dataSet
+	public void emitDataSet(DataSet<Row> dataSet) {
+		dataSet
 			.output(new Utils.CollectHelper<>(accumulatorName, serializer))
 			.name("SQL Client Batch Collect Sink");
 	}
