@@ -19,26 +19,26 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.types.Row;
 
-import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.SmallIntVector;
 
 /**
- * {@link ArrowFieldWriter} for VarChar.
+ * {@link ArrowFieldWriter} for SmallInt.
  */
 @Internal
-public final class BaseRowVarCharWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowSmallIntWriter extends ArrowFieldWriter<Row> {
 
-	public BaseRowVarCharWriter(VarCharVector varCharVector) {
-		super(varCharVector);
+	public RowSmallIntWriter(SmallIntVector smallIntVector) {
+		super(smallIntVector);
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((VarCharVector) getValueVector()).setNull(getCount());
+	public void doWrite(Row value, int ordinal) {
+		if (value.getField(ordinal) == null) {
+			((SmallIntVector) getValueVector()).setNull(getCount());
 		} else {
-			((VarCharVector) getValueVector()).setSafe(getCount(), row.getString(ordinal).getBytes());
+			((SmallIntVector) getValueVector()).setSafe(getCount(), (short) value.getField(ordinal));
 		}
 	}
 }

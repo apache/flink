@@ -19,26 +19,26 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.types.Row;
 
-import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.Float8Vector;
 
 /**
- * {@link ArrowFieldWriter} for TinyInt.
+ * {@link ArrowFieldWriter} for Double.
  */
 @Internal
-public final class BaseRowTinyIntWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowDoubleWriter extends ArrowFieldWriter<Row> {
 
-	public BaseRowTinyIntWriter(TinyIntVector tinyIntVector) {
-		super(tinyIntVector);
+	public RowDoubleWriter(Float8Vector doubleVector) {
+		super(doubleVector);
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((TinyIntVector) getValueVector()).setNull(getCount());
+	public void doWrite(Row value, int ordinal) {
+		if (value.getField(ordinal) == null) {
+			((Float8Vector) getValueVector()).setNull(getCount());
 		} else {
-			((TinyIntVector) getValueVector()).setSafe(getCount(), row.getByte(ordinal));
+			((Float8Vector) getValueVector()).setSafe(getCount(), (double) value.getField(ordinal));
 		}
 	}
 }

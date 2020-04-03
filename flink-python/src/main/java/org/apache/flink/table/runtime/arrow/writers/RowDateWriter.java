@@ -19,26 +19,30 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.types.Row;
 
-import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.DateDayVector;
+
+import java.sql.Date;
 
 /**
- * {@link ArrowFieldWriter} for SmallInt.
+ * {@link ArrowFieldWriter} for Date.
  */
 @Internal
-public final class BaseRowSmallIntWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowDateWriter extends ArrowFieldWriter<Row> {
 
-	public BaseRowSmallIntWriter(SmallIntVector smallIntVector) {
-		super(smallIntVector);
+	public RowDateWriter(DateDayVector dateDayVector) {
+		super(dateDayVector);
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((SmallIntVector) getValueVector()).setNull(getCount());
+	public void doWrite(Row value, int ordinal) {
+		if (value.getField(ordinal) == null) {
+			((DateDayVector) getValueVector()).setNull(getCount());
 		} else {
-			((SmallIntVector) getValueVector()).setSafe(getCount(), row.getShort(ordinal));
+			((DateDayVector) getValueVector()).setSafe(
+				getCount(), PythonTypeUtils.dateToInternal(((Date) value.getField(ordinal))));
 		}
 	}
 }

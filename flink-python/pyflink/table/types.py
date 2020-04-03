@@ -2333,6 +2333,11 @@ def to_arrow_type(data_type):
             return pa.timestamp('us')
         else:
             return pa.timestamp('ns')
+    elif type(data_type) == ArrayType:
+        if type(data_type.element_type) == LocalZonedTimestampType:
+            raise ValueError("%s is not supported to be used as the element type of ArrayType." %
+                             data_type.element_type)
+        return pa.list_(to_arrow_type(data_type.element_type))
     else:
         raise ValueError("field_type %s is not supported." % data_type)
 
