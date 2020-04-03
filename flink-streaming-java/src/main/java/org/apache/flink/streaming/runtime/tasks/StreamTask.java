@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -434,6 +435,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// so that we avoid race conditions in the case that initializeState()
 			// registers a timer, that fires before the open() is called.
 			operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+
+			ResultPartitionWriter[] writers = getEnvironment().getAllWriters();
+			if (writers != null) {
+				//TODO we should get proper state reader from getEnvironment().getTaskStateManager().getChannelStateReader()
+				for (ResultPartitionWriter writer : writers) {
+					writer.initializeState(ChannelStateReader.NO_OP);
+				}
+			}
 		});
 
 		isRunning = true;

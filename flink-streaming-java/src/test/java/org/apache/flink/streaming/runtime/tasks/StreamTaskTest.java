@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -895,6 +897,30 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testInitializeResultPartitionState() throws Exception {
+		int numWriters = 2;
+		RecoveryResultPartition[] partitions = new RecoveryResultPartition[numWriters];
+		for (int i = 0; i < numWriters; i++) {
+			partitions[i] = new RecoveryResultPartition();
+		}
+
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
+		mockEnvironment.addOutputs(Arrays.asList(partitions));
+		StreamTask task = new MockStreamTaskBuilder(mockEnvironment).build();
+
+		try {
+			task.beforeInvoke();
+
+			// output recovery should be done before task processing
+			for (RecoveryResultPartition resultPartition : partitions) {
+				assertTrue(resultPartition.isStateInitialized());
+			}
+		} finally {
+			task.cleanUpInvoke();
+		}
+	}
+
 	/**
 	 * Tests that some StreamTask methods are called only in the main task's thread.
 	 * Currently, the main task's thread is the thread that creates the task.
@@ -1721,6 +1747,22 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
 			throw new UnsupportedOperationException();
+		}
+	}
+
+	private static class RecoveryResultPartition extends MockResultPartitionWriter {
+		private boolean isStateInitialized;
+
+		RecoveryResultPartition() {
+		}
+
+		@Override
+		public void initializeState(ChannelStateReader stateReader) {
+			isStateInitialized = true;
+		}
+
+		boolean isStateInitialized() {
+			return isStateInitialized;
 		}
 	}
 }

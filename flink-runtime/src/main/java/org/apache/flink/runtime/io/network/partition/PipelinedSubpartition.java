@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
 import org.slf4j.Logger;
@@ -52,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notification} for any
  * {@link BufferConsumer} present in the queue.
  */
-class PipelinedSubpartition extends ResultSubpartition {
+public class PipelinedSubpartition extends ResultSubpartition {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
@@ -87,6 +90,23 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
 		super(index, parent);
+	}
+
+	@Override
+	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		for (ReadResult readResult = ReadResult.HAS_MORE_DATA; readResult == ReadResult.HAS_MORE_DATA;) {
+			BufferBuilder bufferBuilder = parent.getBufferPool().requestBufferBuilderBlocking();
+			BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+			readResult = stateReader.readOutputData(subpartitionInfo, bufferBuilder);
+
+			// check whether there are some states data filled in this time
+			if (bufferConsumer.isDataAvailable()) {
+				add(bufferConsumer);
+				bufferBuilder.finish();
+			} else {
+				bufferConsumer.close();
+			}
+		}
 	}
 
 	@Override
