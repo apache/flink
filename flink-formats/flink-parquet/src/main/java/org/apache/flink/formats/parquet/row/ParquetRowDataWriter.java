@@ -103,7 +103,7 @@ public class ParquetRowDataWriter {
 					return new BinaryWriter();
 				case DECIMAL:
 					DecimalType decimalType = (DecimalType) t;
-					return makeDecimalWriter(decimalType.getPrecision(), decimalType.getScale());
+					return createDecimalWriter(decimalType.getPrecision(), decimalType.getScale());
 				case TINYINT:
 					return new ByteWriter();
 				case SMALLINT:
@@ -252,7 +252,7 @@ public class ParquetRowDataWriter {
 		return Binary.fromConstantByteBuffer(buf);
 	}
 
-	private FieldWriter makeDecimalWriter(int precision, int scale) {
+	private FieldWriter createDecimalWriter(int precision, int scale) {
 		Preconditions.checkArgument(
 			precision <= DecimalType.MAX_PRECISION,
 			"Decimal precision %s exceeds max precision %s",

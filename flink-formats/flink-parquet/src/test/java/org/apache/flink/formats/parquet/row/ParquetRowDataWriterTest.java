@@ -160,7 +160,7 @@ public class ParquetRowDataWriterTest {
 	}
 
 	private LocalDateTime toDateTime(Integer v) {
-		v = (v > 0 ? v : -v) % 10000;
+		v = (v > 0 ? v : -v) % 1000;
 		return LocalDateTime.now().plusNanos(v).plusSeconds(v);
 	}
 }
