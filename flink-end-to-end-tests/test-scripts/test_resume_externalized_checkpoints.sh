@@ -39,6 +39,8 @@ fi
 
 set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
 set_config_key "metrics.fetcher.update-interval" "2000"
+# hotfix for FLINK-16770
+set_config_key "state.checkpoints.num-retained" "2"
 setup_flink_slf4j_metric_reporter
 start_cluster
 
