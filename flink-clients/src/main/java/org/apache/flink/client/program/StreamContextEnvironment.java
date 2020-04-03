@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.deployment.DetachedOnlyJobClientAdapter;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -47,6 +48,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
+	private final boolean forbidBlockingJobClient;
+
 	private final boolean enforceSingleJobExecution;
 
 	private int jobCounter;
@@ -55,8 +58,10 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution) {
+			final boolean enforceSingleJobExecution,
+			final boolean forbidBlockingJobClient) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.forbidBlockingJobClient = forbidBlockingJobClient;
 		this.enforceSingleJobExecution = enforceSingleJobExecution;
 
 		this.jobCounter = 0;
@@ -102,7 +107,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
 
-		return jobClient;
+		return forbidBlockingJobClient
+				? new DetachedOnlyJobClientAdapter(jobClient)
+				: jobClient;
 	}
 
 	private void validateAllowedExecution() {
@@ -118,12 +125,14 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution) {
+			final boolean enforceSingleJobExecution,
+			final boolean disallowBlockingJobClient) {
 		StreamExecutionEnvironmentFactory factory = () -> new StreamContextEnvironment(
 			executorServiceLoader,
 			configuration,
 			userCodeClassLoader,
-			enforceSingleJobExecution);
+			enforceSingleJobExecution,
+			disallowBlockingJobClient);
 		initializeContextEnvironment(factory);
 	}
 

@@ -88,7 +88,7 @@ public class JarHandlers {
 			jarDir,
 			new Configuration(),
 			executor,
-			() -> new DetachedApplicationRunner(true));
+			() -> new DetachedApplicationRunner(true, true));
 
 		deleteHandler = new JarDeleteHandler(
 			gatewayRetriever,
