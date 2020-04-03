@@ -152,8 +152,8 @@ public class FileSystemTableSink implements
 				.<OutputFormatFactory<BaseRow>>map(en -> path -> createEncoderOutputFormat(en, path))
 				.orElseGet(() -> {
 					// Optional is not serializable.
-					BulkWriter.Factory<BaseRow> bulkWriter = bulk.get();
-					return path -> createBulkWriterOutputFormat(bulkWriter, path);
+					BulkWriter.Factory<BaseRow> bulkWriterFactory = bulk.get();
+					return path -> createBulkWriterOutputFormat(bulkWriterFactory, path);
 				});
 	}
 

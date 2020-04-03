@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.runtime
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{SqlDialect, TableEnvironment}
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -49,7 +50,6 @@ trait FileSystemITCaseBase {
   def check(sqlQuery: String, expectedResult: Seq[Row]): Unit
 
   def open(): Unit = {
-    tableEnv.getConfig.setSqlDialect(SqlDialect.HIVE)
     resultPath = fileTmpFolder.newFolder().toURI.toString
     BatchTableEnvUtil.registerCollection(
       tableEnv,
@@ -195,6 +195,31 @@ trait FileSystemITCaseBase {
       "select x, y from nonPartitionedTable where a=1 and b=1",
       data_partition_1_1
     )
+  }
+
+  @Test
+  def testLimitPushDown(): Unit = {
+    tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tableEnv.sqlUpdate("insert into nonPartitionedTable select x, y, a, b from originalT")
+    tableEnv.execute("test")
+
+    check(
+      "select x, y from nonPartitionedTable limit 3",
+      Seq(
+        row("x1", 1),
+        row("x2", 2),
+        row("x3", 3)))
+  }
+
+  @Test
+  def testFilterPushDown(): Unit = {
+    tableEnv.sqlUpdate("insert into nonPartitionedTable select x, y, a, b from originalT")
+    tableEnv.execute("test")
+
+    check(
+      "select x, y from nonPartitionedTable where a=10086",
+      Seq())
   }
 }
 

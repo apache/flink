@@ -37,7 +37,7 @@ class FileSystemTestCsvITCase(useBulkWriter: Boolean) extends BatchFileSystemITC
 }
 
 object FileSystemTestCsvITCase {
-  @Parameterized.Parameters(name = "{0}")
+  @Parameterized.Parameters(name = "useBulkWriter-{0}")
   def parameters(): java.util.Collection[Boolean] = {
     java.util.Arrays.asList(true, false)
   }
