@@ -95,7 +95,6 @@ public class TestTaskStateManager implements TaskStateManager {
 		@Nullable TaskStateSnapshot acknowledgedState,
 		@Nullable TaskStateSnapshot localState) {
 
-
 		jobManagerTaskStateSnapshotsByCheckpointId.put(
 			checkpointMetaData.getCheckpointId(),
 			acknowledgedState);
