@@ -361,11 +361,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		return keyValueStatesByName.size();
 	}
 
-	@VisibleForTesting
-	public TtlTimeProvider getTtlTimeProvider() {
-		return ttlTimeProvider;
-	}
-
 	// TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
 	public boolean requiresLegacySynchronousTimerSnapshots() {
 		return false;
