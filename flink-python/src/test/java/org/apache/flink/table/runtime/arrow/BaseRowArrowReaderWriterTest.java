@@ -22,10 +22,14 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.GenericArray;
 import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordUtils;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DateType;
@@ -117,6 +121,7 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 		fieldTypes.add(new TimestampType(2));
 		fieldTypes.add(new TimestampType(4));
 		fieldTypes.add(new TimestampType(8));
+		fieldTypes.add(new ArrayType(new VarCharType()));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (int i = 0; i < fieldTypes.size(); i++) {
@@ -146,18 +151,22 @@ public class BaseRowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Base
 	public BaseRow[] getTestData() {
 		BaseRow row1 = StreamRecordUtils.baserow((byte) 1, (short) 2, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
 			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000),
-			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000));
+			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000),
+			new GenericArray(new BinaryString[] {BinaryString.fromString("hello"), BinaryString.fromString("中文"), null}, 3));
 		BinaryRow row2 = StreamRecordUtils.binaryrow((byte) 1, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
 			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8),
-			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8));
+			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8),
+			Tuple2.of(new GenericArray(new String[] {null, null, null}, 3), new BaseArraySerializer(new VarCharType(), null)));
 		BaseRow row3 = StreamRecordUtils.baserow(null, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
 			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000),
-			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000));
+			SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000), SqlTimestamp.fromEpochMillis(3600000, 100000), SqlTimestamp.fromEpochMillis(3600000, 100000),
+			new GenericArray(new String[] {null, null, null}, 3));
 		BinaryRow row4 = StreamRecordUtils.binaryrow((byte) 1, null, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), Decimal.fromLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
 			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8),
-			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8));
-		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+			Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 0), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000), 2), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 4), Tuple2.of(SqlTimestamp.fromEpochMillis(3600000, 100000), 8),
+			Tuple2.of(new GenericArray(new BinaryString[] {BinaryString.fromString("hello"), BinaryString.fromString("中文"), null}, 3), new BaseArraySerializer(new VarCharType(), null)));
+		BaseRow row5 = StreamRecordUtils.baserow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+		BinaryRow row6 = StreamRecordUtils.binaryrow(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		return new BaseRow[]{row1, row2, row3, row4, row5, row6};
 	}
 }

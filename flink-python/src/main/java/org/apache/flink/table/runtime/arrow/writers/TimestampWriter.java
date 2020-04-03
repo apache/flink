@@ -19,11 +19,10 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.TimeStampMicroVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.TimeStampNanoVector;
@@ -32,34 +31,36 @@ import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-import java.sql.Timestamp;
-
 /**
  * {@link ArrowFieldWriter} for Timestamp.
  */
 @Internal
-public final class TimestampWriter extends ArrowFieldWriter<Row> {
+public final class TimestampWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
 
-	public TimestampWriter(ValueVector valueVector) {
+	private final int precision;
+
+	public TimestampWriter(ValueVector valueVector, int precision) {
 		super(valueVector);
 		Preconditions.checkState(valueVector instanceof TimeStampVector && ((ArrowType.Timestamp) valueVector.getField().getType()).getTimezone() == null);
+		this.precision = precision;
 	}
 
 	@Override
-	public void doWrite(Row row, int ordinal) {
+	public void doWrite(T row, int ordinal) {
 		ValueVector valueVector = getValueVector();
-		if (row.getField(ordinal) == null) {
-			((BaseFixedWidthVector) getValueVector()).setNull(getCount());
+		if (row.isNullAt(ordinal)) {
+			((TimeStampVector) valueVector).setNull(getCount());
 		} else {
-			long millisecond = PythonTypeUtils.timestampToInternal((Timestamp) row.getField(ordinal));
+			SqlTimestamp sqlTimestamp = row.getTimestamp(ordinal, precision);
+
 			if (valueVector instanceof TimeStampSecVector) {
-				((TimeStampSecVector) valueVector).setSafe(getCount(), millisecond / 1000);
+				((TimeStampSecVector) valueVector).setSafe(getCount(), sqlTimestamp.getMillisecond() / 1000);
 			} else if (valueVector instanceof TimeStampMilliVector) {
-				((TimeStampMilliVector) valueVector).setSafe(getCount(), millisecond);
+				((TimeStampMilliVector) valueVector).setSafe(getCount(), sqlTimestamp.getMillisecond());
 			} else if (valueVector instanceof TimeStampMicroVector) {
-				((TimeStampMicroVector) valueVector).setSafe(getCount(), millisecond * 1000);
+				((TimeStampMicroVector) valueVector).setSafe(getCount(), sqlTimestamp.getMillisecond() * 1000 + sqlTimestamp.getNanoOfMillisecond() / 1000);
 			} else {
-				((TimeStampNanoVector) valueVector).setSafe(getCount(), millisecond * 1_000_000);
+				((TimeStampNanoVector) valueVector).setSafe(getCount(), sqlTimestamp.getMillisecond() * 1_000_000 + sqlTimestamp.getNanoOfMillisecond());
 			}
 		}
 	}

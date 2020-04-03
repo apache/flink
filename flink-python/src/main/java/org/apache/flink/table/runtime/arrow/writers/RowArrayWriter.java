@@ -19,26 +19,45 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.types.Row;
 
-import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.complex.ListVector;
 
 /**
- * {@link ArrowFieldWriter} for Double.
+ * {@link ArrowFieldWriter} for Array.
  */
 @Internal
-public final class DoubleWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public final class RowArrayWriter extends ArrowFieldWriter<Row> {
 
-	public DoubleWriter(Float8Vector doubleVector) {
-		super(doubleVector);
+	private final ArrowFieldWriter<Row> elementWriter;
+
+	public RowArrayWriter(ListVector listVector, ArrowFieldWriter<Row> elementWriter) {
+		super(listVector);
+		this.elementWriter = elementWriter;
 	}
 
 	@Override
-	public void doWrite(T row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((Float8Vector) getValueVector()).setNull(getCount());
-		} else {
-			((Float8Vector) getValueVector()).setSafe(getCount(), row.getDouble(ordinal));
+	public void doWrite(Row row, int ordinal) {
+		Object field = row.getField(ordinal);
+		if (field != null) {
+			((ListVector) getValueVector()).startNewValue(getCount());
+			Object[] array = (Object[]) field;
+			for (Object element : array) {
+				elementWriter.write(Row.of(element), 0);
+			}
+			((ListVector) getValueVector()).endValue(getCount(), array.length);
 		}
+	}
+
+	@Override
+	public void finish() {
+		super.finish();
+		elementWriter.finish();
+	}
+
+	@Override
+	public void reset() {
+		super.reset();
+		elementWriter.reset();
 	}
 }

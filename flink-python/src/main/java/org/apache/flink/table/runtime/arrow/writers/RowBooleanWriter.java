@@ -19,26 +19,28 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.types.Row;
 
-import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.BitVector;
 
 /**
- * {@link ArrowFieldWriter} for Int.
+ * {@link ArrowFieldWriter} for Boolean.
  */
 @Internal
-public final class BaseRowIntWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowBooleanWriter extends ArrowFieldWriter<Row> {
 
-	public BaseRowIntWriter(IntVector intVector) {
-		super(intVector);
+	public RowBooleanWriter(BitVector bitVector) {
+		super(bitVector);
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((IntVector) getValueVector()).setNull(getCount());
+	public void doWrite(Row value, int ordinal) {
+		if (value.getField(ordinal) == null) {
+			((BitVector) getValueVector()).setNull(getCount());
+		} else if ((boolean) value.getField(ordinal)) {
+			((BitVector) getValueVector()).setSafe(getCount(), 1);
 		} else {
-			((IntVector) getValueVector()).setSafe(getCount(), row.getInt(ordinal));
+			((BitVector) getValueVector()).setSafe(getCount(), 0);
 		}
 	}
 }

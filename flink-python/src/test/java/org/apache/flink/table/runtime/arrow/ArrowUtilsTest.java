@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.arrow;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
+import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BooleanFieldReader;
@@ -36,6 +37,7 @@ import org.apache.flink.table.runtime.arrow.readers.TimestampFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TinyIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarBinaryFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarCharFieldReader;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDateColumnVector;
@@ -50,20 +52,8 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarCharColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.BaseRowArrowReader;
+import org.apache.flink.table.runtime.arrow.writers.ArrayWriter;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowBigIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowBooleanWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowDateWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowDecimalWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowDoubleWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowFloatWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowSmallIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowTimeWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowTimestampWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowTinyIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowVarBinaryWriter;
-import org.apache.flink.table.runtime.arrow.writers.BaseRowVarCharWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BooleanWriter;
 import org.apache.flink.table.runtime.arrow.writers.DateWriter;
@@ -71,12 +61,27 @@ import org.apache.flink.table.runtime.arrow.writers.DecimalWriter;
 import org.apache.flink.table.runtime.arrow.writers.DoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowArrayWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowBigIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowBooleanWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowDateWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowDecimalWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowDoubleWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowFloatWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowSmallIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowTimeWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowTimestampWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowTinyIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowVarBinaryWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowVarCharWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.TimeWriter;
 import org.apache.flink.table.runtime.arrow.writers.TimestampWriter;
 import org.apache.flink.table.runtime.arrow.writers.TinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DateType;
@@ -124,52 +129,54 @@ public class ArrowUtilsTest {
 	public static void init() {
 		testFields = new ArrayList<>();
 		testFields.add(Tuple7.of(
-			"f1", new TinyIntType(), new ArrowType.Int(8, true), TinyIntWriter.class,
-			BaseRowTinyIntWriter.class, TinyIntFieldReader.class, ArrowTinyIntColumnVector.class));
+			"f1", new TinyIntType(), new ArrowType.Int(8, true), RowTinyIntWriter.class,
+			TinyIntWriter.class, TinyIntFieldReader.class, ArrowTinyIntColumnVector.class));
 		testFields.add(Tuple7.of("f2", new SmallIntType(), new ArrowType.Int(8 * 2, true),
-			SmallIntWriter.class, BaseRowSmallIntWriter.class, SmallIntFieldReader.class, ArrowSmallIntColumnVector.class));
+			RowSmallIntWriter.class, SmallIntWriter.class, SmallIntFieldReader.class, ArrowSmallIntColumnVector.class));
 		testFields.add(Tuple7.of("f3", new IntType(), new ArrowType.Int(8 * 4, true),
-			IntWriter.class, BaseRowIntWriter.class, IntFieldReader.class, ArrowIntColumnVector.class));
+			RowIntWriter.class, IntWriter.class, IntFieldReader.class, ArrowIntColumnVector.class));
 		testFields.add(Tuple7.of("f4", new BigIntType(), new ArrowType.Int(8 * 8, true),
-			BigIntWriter.class, BaseRowBigIntWriter.class, BigIntFieldReader.class, ArrowBigIntColumnVector.class));
+			RowBigIntWriter.class, BigIntWriter.class, BigIntFieldReader.class, ArrowBigIntColumnVector.class));
 		testFields.add(Tuple7.of("f5", new BooleanType(), new ArrowType.Bool(),
-			BooleanWriter.class, BaseRowBooleanWriter.class, BooleanFieldReader.class, ArrowBooleanColumnVector.class));
+			RowBooleanWriter.class, BooleanWriter.class, BooleanFieldReader.class, ArrowBooleanColumnVector.class));
 		testFields.add(Tuple7.of("f6", new FloatType(), new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE),
-			FloatWriter.class, BaseRowFloatWriter.class, FloatFieldReader.class, ArrowFloatColumnVector.class));
+			RowFloatWriter.class, FloatWriter.class, FloatFieldReader.class, ArrowFloatColumnVector.class));
 		testFields.add(Tuple7.of("f7", new DoubleType(), new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE),
-			DoubleWriter.class, BaseRowDoubleWriter.class, DoubleFieldReader.class, ArrowDoubleColumnVector.class));
+			RowDoubleWriter.class, DoubleWriter.class, DoubleFieldReader.class, ArrowDoubleColumnVector.class));
 		testFields.add(Tuple7.of("f8", new VarCharType(), ArrowType.Utf8.INSTANCE,
-			VarCharWriter.class, BaseRowVarCharWriter.class, VarCharFieldReader.class, ArrowVarCharColumnVector.class));
+			RowVarCharWriter.class, VarCharWriter.class, VarCharFieldReader.class, ArrowVarCharColumnVector.class));
 		testFields.add(Tuple7.of("f9", new VarBinaryType(), ArrowType.Binary.INSTANCE,
-			VarBinaryWriter.class, BaseRowVarBinaryWriter.class, VarBinaryFieldReader.class, ArrowVarBinaryColumnVector.class));
+			RowVarBinaryWriter.class, VarBinaryWriter.class, VarBinaryFieldReader.class, ArrowVarBinaryColumnVector.class));
 		testFields.add(Tuple7.of("f10", new DecimalType(10, 3), new ArrowType.Decimal(10, 3),
-			DecimalWriter.class, BaseRowDecimalWriter.class, DecimalFieldReader.class, ArrowDecimalColumnVector.class));
+			RowDecimalWriter.class, DecimalWriter.class, DecimalFieldReader.class, ArrowDecimalColumnVector.class));
 		testFields.add(Tuple7.of("f11", new DateType(), new ArrowType.Date(DateUnit.DAY),
-			DateWriter.class, BaseRowDateWriter.class, DateFieldReader.class, ArrowDateColumnVector.class));
+			RowDateWriter.class, DateWriter.class, DateFieldReader.class, ArrowDateColumnVector.class));
 		testFields.add(Tuple7.of("f13", new TimeType(0), new ArrowType.Time(TimeUnit.SECOND, 32),
-			TimeWriter.class, BaseRowTimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
+			RowTimeWriter.class, TimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
 		testFields.add(Tuple7.of("f14", new TimeType(2), new ArrowType.Time(TimeUnit.MILLISECOND, 32),
-			TimeWriter.class, BaseRowTimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
+			RowTimeWriter.class, TimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
 		testFields.add(Tuple7.of("f15", new TimeType(4), new ArrowType.Time(TimeUnit.MICROSECOND, 64),
-			TimeWriter.class, BaseRowTimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
+			RowTimeWriter.class, TimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
 		testFields.add(Tuple7.of("f16", new TimeType(8), new ArrowType.Time(TimeUnit.NANOSECOND, 64),
-			TimeWriter.class, BaseRowTimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
+			RowTimeWriter.class, TimeWriter.class, TimeFieldReader.class, ArrowTimeColumnVector.class));
 		testFields.add(Tuple7.of("f17", new LocalZonedTimestampType(0), new ArrowType.Timestamp(TimeUnit.SECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f18", new LocalZonedTimestampType(2), new ArrowType.Timestamp(TimeUnit.MILLISECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f19", new LocalZonedTimestampType(4), new ArrowType.Timestamp(TimeUnit.MICROSECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f20", new LocalZonedTimestampType(8), new ArrowType.Timestamp(TimeUnit.NANOSECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f21", new TimestampType(0), new ArrowType.Timestamp(TimeUnit.SECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f22", new TimestampType(2), new ArrowType.Timestamp(TimeUnit.MILLISECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f23", new TimestampType(4), new ArrowType.Timestamp(TimeUnit.MICROSECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f24", new TimestampType(8), new ArrowType.Timestamp(TimeUnit.NANOSECOND, null),
-			TimestampWriter.class, BaseRowTimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
+		testFields.add(Tuple7.of("f25", new ArrayType(new VarCharType()), ArrowType.List.INSTANCE,
+			RowArrayWriter.class, ArrayWriter.class, ArrayFieldReader.class, ArrowArrayColumnVector.class));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (Tuple7<String, LogicalType, ArrowType, Class<?>, Class<?>, Class<?>, Class<?>> field : testFields) {

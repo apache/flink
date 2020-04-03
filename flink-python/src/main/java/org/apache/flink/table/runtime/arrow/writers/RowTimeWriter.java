@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -29,13 +29,21 @@ import org.apache.arrow.vector.TimeNanoVector;
 import org.apache.arrow.vector.TimeSecVector;
 import org.apache.arrow.vector.ValueVector;
 
+import java.sql.Time;
+import java.util.TimeZone;
+
 /**
  * {@link ArrowFieldWriter} for Time.
  */
 @Internal
-public final class BaseRowTimeWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowTimeWriter extends ArrowFieldWriter<Row> {
 
-	public BaseRowTimeWriter(ValueVector valueVector) {
+	// The local time zone.
+	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+
+	private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
+
+	public RowTimeWriter(ValueVector valueVector) {
 		super(valueVector);
 		Preconditions.checkState(
 			valueVector instanceof TimeSecVector ||
@@ -45,18 +53,24 @@ public final class BaseRowTimeWriter extends ArrowFieldWriter<BaseRow> {
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
+	public void doWrite(Row row, int ordinal) {
 		ValueVector valueVector = getValueVector();
-		if (row.isNullAt(ordinal)) {
-			((BaseFixedWidthVector) valueVector).setNull(getCount());
-		} else if (valueVector instanceof TimeSecVector) {
-			((TimeSecVector) valueVector).setSafe(getCount(), row.getInt(ordinal) / 1000);
-		} else if (valueVector instanceof TimeMilliVector) {
-			((TimeMilliVector) valueVector).setSafe(getCount(), row.getInt(ordinal));
-		} else if (valueVector instanceof TimeMicroVector) {
-			((TimeMicroVector) valueVector).setSafe(getCount(), row.getInt(ordinal) * 1000L);
+		if (row.getField(ordinal) == null) {
+			((BaseFixedWidthVector) getValueVector()).setNull(getCount());
 		} else {
-			((TimeNanoVector) valueVector).setSafe(getCount(), row.getInt(ordinal) * 1000000L);
+			Time time = (Time) row.getField(ordinal);
+			long ts = time.getTime() + LOCAL_TZ.getOffset(time.getTime());
+			int timeMilli = (int) (ts % MILLIS_PER_DAY);
+
+			if (valueVector instanceof TimeSecVector) {
+				((TimeSecVector) valueVector).setSafe(getCount(), timeMilli / 1000);
+			} else if (valueVector instanceof TimeMilliVector) {
+				((TimeMilliVector) valueVector).setSafe(getCount(), timeMilli);
+			} else if (valueVector instanceof TimeMicroVector) {
+				((TimeMicroVector) valueVector).setSafe(getCount(), timeMilli * 1000L);
+			} else {
+				((TimeNanoVector) valueVector).setSafe(getCount(), timeMilli * 1000000L);
+			}
 		}
 	}
 }

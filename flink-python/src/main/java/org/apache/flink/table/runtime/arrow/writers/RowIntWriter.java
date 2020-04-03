@@ -19,26 +19,26 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.types.Row;
 
-import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.IntVector;
 
 /**
- * {@link ArrowFieldWriter} for Date.
+ * {@link ArrowFieldWriter} for Int.
  */
 @Internal
-public final class BaseRowDateWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowIntWriter extends ArrowFieldWriter<Row> {
 
-	public BaseRowDateWriter(DateDayVector dateDayVector) {
-		super(dateDayVector);
+	public RowIntWriter(IntVector intVector) {
+		super(intVector);
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((DateDayVector) getValueVector()).setNull(getCount());
+	public void doWrite(Row value, int ordinal) {
+		if (value.getField(ordinal) == null) {
+			((IntVector) getValueVector()).setNull(getCount());
 		} else {
-			((DateDayVector) getValueVector()).setSafe(getCount(), row.getInt(ordinal));
+			((IntVector) getValueVector()).setSafe(getCount(), (int) value.getField(ordinal));
 		}
 	}
 }

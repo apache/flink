@@ -19,30 +19,26 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.dataformat.TypeGetterSetters;
 
 import org.apache.arrow.vector.DateDayVector;
-
-import java.sql.Date;
 
 /**
  * {@link ArrowFieldWriter} for Date.
  */
 @Internal
-public final class DateWriter extends ArrowFieldWriter<Row> {
+public final class DateWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
 
 	public DateWriter(DateDayVector dateDayVector) {
 		super(dateDayVector);
 	}
 
 	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
+	public void doWrite(T row, int ordinal) {
+		if (row.isNullAt(ordinal)) {
 			((DateDayVector) getValueVector()).setNull(getCount());
 		} else {
-			((DateDayVector) getValueVector()).setSafe(
-				getCount(), PythonTypeUtils.dateToInternal(((Date) value.getField(ordinal))));
+			((DateDayVector) getValueVector()).setSafe(getCount(), row.getInt(ordinal));
 		}
 	}
 }

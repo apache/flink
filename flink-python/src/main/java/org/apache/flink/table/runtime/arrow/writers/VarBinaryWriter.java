@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.dataformat.TypeGetterSetters;
 
 import org.apache.arrow.vector.VarBinaryVector;
 
@@ -27,18 +27,18 @@ import org.apache.arrow.vector.VarBinaryVector;
  * {@link ArrowFieldWriter} for VarBinary.
  */
 @Internal
-public final class VarBinaryWriter extends ArrowFieldWriter<Row> {
+public final class VarBinaryWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
 
 	public VarBinaryWriter(VarBinaryVector varBinaryVector) {
 		super(varBinaryVector);
 	}
 
 	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
+	public void doWrite(T row, int ordinal) {
+		if (row.isNullAt(ordinal)) {
 			((VarBinaryVector) getValueVector()).setNull(getCount());
 		} else {
-			((VarBinaryVector) getValueVector()).setSafe(getCount(), (byte[]) value.getField(ordinal));
+			((VarBinaryVector) getValueVector()).setSafe(getCount(), row.getBinary(ordinal));
 		}
 	}
 }

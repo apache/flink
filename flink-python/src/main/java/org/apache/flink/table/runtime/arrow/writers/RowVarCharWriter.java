@@ -19,26 +19,28 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.util.StringUtf8Utils;
+import org.apache.flink.types.Row;
 
-import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.VarCharVector;
 
 /**
- * {@link ArrowFieldWriter} for Double.
+ * {@link ArrowFieldWriter} for VarChar.
  */
 @Internal
-public final class BaseRowDoubleWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowVarCharWriter extends ArrowFieldWriter<Row> {
 
-	public BaseRowDoubleWriter(Float8Vector doubleVector) {
-		super(doubleVector);
+	public RowVarCharWriter(VarCharVector varCharVector) {
+		super(varCharVector);
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((Float8Vector) getValueVector()).setNull(getCount());
+	public void doWrite(Row value, int ordinal) {
+		if (value.getField(ordinal) == null) {
+			((VarCharVector) getValueVector()).setNull(getCount());
 		} else {
-			((Float8Vector) getValueVector()).setSafe(getCount(), row.getDouble(ordinal));
+			((VarCharVector) getValueVector()).setSafe(
+				getCount(), StringUtf8Utils.encodeUTF8(((String) value.getField(ordinal))));
 		}
 	}
 }

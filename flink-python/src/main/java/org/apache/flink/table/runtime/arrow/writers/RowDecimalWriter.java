@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.DecimalVector;
 
@@ -31,23 +31,23 @@ import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.fromBigDe
  * {@link ArrowFieldWriter} for Decimal.
  */
 @Internal
-public final class BaseRowDecimalWriter extends ArrowFieldWriter<BaseRow> {
+public final class RowDecimalWriter extends ArrowFieldWriter<Row> {
 
 	private final int precision;
 	private final int scale;
 
-	public BaseRowDecimalWriter(DecimalVector decimalVector, int precision, int scale) {
+	public RowDecimalWriter(DecimalVector decimalVector, int precision, int scale) {
 		super(decimalVector);
 		this.precision = precision;
 		this.scale = scale;
 	}
 
 	@Override
-	public void doWrite(BaseRow row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
+	public void doWrite(Row value, int ordinal) {
+		if (value.getField(ordinal) == null) {
 			((DecimalVector) getValueVector()).setNull(getCount());
 		} else {
-			BigDecimal bigDecimal = row.getDecimal(ordinal, precision, scale).toBigDecimal();
+			BigDecimal bigDecimal = (BigDecimal) value.getField(ordinal);
 			bigDecimal = fromBigDecimal(bigDecimal, precision, scale);
 			if (bigDecimal == null) {
 				((DecimalVector) getValueVector()).setNull(getCount());
