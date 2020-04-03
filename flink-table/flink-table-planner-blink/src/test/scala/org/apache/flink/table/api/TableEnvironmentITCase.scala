@@ -155,6 +155,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
     val result1 = tEnv.explain(false)
     val result2 = tEnv.explain(false)
+    assertEquals(replaceStageId(result1), replaceStageId(result2))
   }
 
   @Test

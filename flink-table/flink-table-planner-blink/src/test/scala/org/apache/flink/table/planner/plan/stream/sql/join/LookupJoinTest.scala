@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.factories.TableSourceFactory
+import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.sources.{LookupableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.table.types.DataType

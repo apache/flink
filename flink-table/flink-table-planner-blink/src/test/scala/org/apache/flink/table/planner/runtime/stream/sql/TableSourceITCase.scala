@@ -417,9 +417,7 @@ class TableSourceITCase extends StreamingTestBase {
       row(3, new java.math.BigDecimal(7.1), "123", "123")
     )
 
-    TestDataTypeTableSource.setData(data.seq)
-    TestDataTypeTableSource.setTableSchema(tableSchema)
-    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable")
+    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data.seq)
 
     val sink = new TestingAppendSink()
     tEnv.sqlQuery("SELECT a, b, c, d FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)

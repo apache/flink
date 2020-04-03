@@ -50,6 +50,7 @@ import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, Preserv
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.{EncodingUtils, TableSchemaUtils}
 import org.apache.flink.types.Row
+
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
 import _root_.java.util
 import _root_.java.util.Collections
@@ -733,11 +734,16 @@ class TestDataTypeTableSourceFactory extends TableSourceFactory[Row] {
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    //    val tableSchema = TableSchemaUtils.getPhysicalSchema(
-    //      descriptorProperties.getTableSchema(SCHEMA))
-    // Use the tableSchema in the companion object to keep the actual conversion class
+    val tableSchema = TableSchemaUtils.getPhysicalSchema(
+      descriptorProperties.getTableSchema(Schema.SCHEMA))
+    val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
+    val data = if (serializedRows != null) {
+      EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
+    } else {
+      Seq.empty[Row]
+    }
     new TestDataTypeTableSource(
-      TestDataTypeTableSource.tableSchema, TestDataTypeTableSource.data)
+      tableSchema, data)
   }
 
   override def requiredContext(): JMap[String, String] = {
@@ -754,32 +760,14 @@ class TestDataTypeTableSourceFactory extends TableSourceFactory[Row] {
 }
 
 object TestDataTypeTableSource {
-  var data: Seq[Row] = null
-  var tableSchema: TableSchema = null
-
-  def setData(d: Seq[Row]): Unit = {
-    data = d
-  }
-
-  def setTableSchema(schema: TableSchema): Unit = {
-    tableSchema = schema
-  }
-
-  def clear(): Unit = {
-    data = null
-    tableSchema = null
-  }
-
   def createTemporaryTable(
       tEnv: TableEnvironment,
       schema: TableSchema,
       tableName: String,
-      data: Seq[Row] = null): Unit = {
-    val desc = new CustomConnectorDescriptor("TestDataTypeTableSource", 1, false)
-    if (data != null) {
-      desc.property("data", EncodingUtils.encodeObjectToString(data.toList))
-    }
-    tEnv.connect(desc)
+      data: Seq[Row]): Unit = {
+    tEnv.connect(
+      new CustomConnectorDescriptor("TestDataTypeTableSource", 1, false)
+        .property("data", EncodingUtils.encodeObjectToString(data.toList)))
       .withSchema(new Schema().schema(schema))
       .createTemporaryTable(tableName)
   }
@@ -825,13 +813,18 @@ class TestDataTypeTableSourceWithTimeFactory extends TableSourceFactory[Row] {
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    //    val tableSchema = TableSchemaUtils.getPhysicalSchema(
-    //      descriptorProperties.getTableSchema(SCHEMA))
-    // Use the tableSchema in the companion object to keep the actual conversion class
-    new TestDataTypeTableSourceWithTime(
-      TestDataTypeTableSourceWithTime.tableSchema,
-      TestDataTypeTableSourceWithTime.data,
-      TestDataTypeTableSourceWithTime.rowTime)
+    val tableSchema = TableSchemaUtils.getPhysicalSchema(
+      descriptorProperties.getTableSchema(Schema.SCHEMA))
+
+    val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
+    val data = if (serializedRows != null) {
+      EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
+    } else {
+      Seq.empty[Row]
+    }
+
+    val rowTime = descriptorProperties.getOptionalString("rowtime").orElse(null)
+    new TestDataTypeTableSourceWithTime(tableSchema, data, rowTime)
   }
 
   override def requiredContext(): JMap[String, String] = {
@@ -848,42 +841,16 @@ class TestDataTypeTableSourceWithTimeFactory extends TableSourceFactory[Row] {
 }
 
 object TestDataTypeTableSourceWithTime {
-  var data: Seq[Row] = null
-  var tableSchema: TableSchema = null
-  var rowTime: String = null
-
-  def setData(d: Seq[Row]): Unit = {
-    data = d
-  }
-
-  def setTableSchema(schema: TableSchema): Unit = {
-    tableSchema = schema
-  }
-
-  def setRowTime(s: String): Unit = {
-    rowTime = s
-  }
-
-  def clear(): Unit = {
-    data = null
-    tableSchema = null
-    rowTime = null
-  }
-
   def createTemporaryTable(
       tEnv: TableEnvironment,
       schema: TableSchema,
       tableName: String,
-      data: Seq[Row] = null,
-      rowTime: String = null): Unit = {
-    val desc = new CustomConnectorDescriptor("TestDataTypeTableSourceWithTime", 1, false)
-    if (data != null) {
-      desc.property("data", EncodingUtils.encodeObjectToString(data.toList))
-    }
-    if (rowTime != null) {
-      desc.property("rowtime", rowTime)
-    }
-    tEnv.connect(desc)
+      data: Seq[Row],
+      rowTime: String): Unit = {
+    tEnv.connect(
+        new CustomConnectorDescriptor("TestDataTypeTableSourceWithTime", 1, false)
+          .property("data", EncodingUtils.encodeObjectToString(data.toList))
+          .property("rowtime", rowTime))
       .withSchema(new Schema().schema(schema))
       .createTemporaryTable(tableName)
   }
@@ -1194,7 +1161,6 @@ class WithoutTimeAttributesTableSource(bounded: Boolean) extends StreamTableSour
     dataStream.getTransformation.setMaxParallelism(1)
     dataStream
   }
-
 
   override def isBounded: Boolean = bounded
 

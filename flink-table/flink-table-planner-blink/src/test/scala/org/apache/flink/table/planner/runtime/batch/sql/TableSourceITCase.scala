@@ -32,7 +32,6 @@ import org.junit.{Before, Test}
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
-import java.sql.Timestamp
 import java.time.{Instant, LocalDateTime, ZoneId}
 
 import scala.collection.mutable
@@ -247,14 +246,13 @@ class TableSourceITCase extends BatchTestBase {
   @Test
   def testMultiTypeSource(): Unit = {
     val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d", "e", "f", "g"),
+      Array("a", "b", "c", "d", "e", "f"),
       Array(
         DataTypes.INT(),
         DataTypes.DECIMAL(5, 2),
         DataTypes.VARCHAR(5),
         DataTypes.CHAR(5),
-        DataTypes.TIMESTAMP(9).bridgedTo(classOf[LocalDateTime]),
-        DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp]),
+        DataTypes.TIMESTAMP(9),
         DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
       )
     ).build()
@@ -270,13 +268,6 @@ class TableSourceITCase extends BatchTestBase {
       LocalDateTime.of(1971, 1, 1, 0, 0, 0, 123000000),
       LocalDateTime.of(1972, 1, 1, 0, 0, 0, 0),
       null)
-    val timestamps = List(
-      Timestamp.valueOf("1969-01-01 00:00:00.123456789"),
-      Timestamp.valueOf("1970-01-01 00:00:00.123456"),
-      Timestamp.valueOf("1971-01-01 00:00:00.123"),
-      Timestamp.valueOf("1972-01-01 00:00:00"),
-      null
-    )
 
     val instants = new mutable.MutableList[Instant]
     for (i <- datetimes.indices) {
@@ -292,33 +283,27 @@ class TableSourceITCase extends BatchTestBase {
 
     for (i <- ints.indices) {
       data += row(
-        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), timestamps(i), instants(i))
+        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), instants(i))
     }
 
-    TestDataTypeTableSource.setData(data.seq)
-    TestDataTypeTableSource.setTableSchema(tableSchema)
-    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable")
+    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data.seq)
 
     checkResult(
-      "SELECT a, b, c, d, e, f, g FROM MyInputFormatTable",
+      "SELECT a, b, c, d, e, f FROM MyInputFormatTable",
       Seq(
         row(1, "5.10", "1", "1",
-          "1969-01-01T00:00:00.123456789",
           "1969-01-01T00:00:00.123456789",
           "1969-01-01T00:00:00.123456789Z"),
         row(2, "6.10", "12", "12",
           "1970-01-01T00:00:00.123456",
-          "1970-01-01T00:00:00.123456",
           "1970-01-01T00:00:00.123456Z"),
         row(3, "7.10", "123", "123",
-          "1971-01-01T00:00:00.123",
           "1971-01-01T00:00:00.123",
           "1971-01-01T00:00:00.123Z"),
         row(4, "8.12", "1234", "1234",
           "1972-01-01T00:00",
-          "1972-01-01T00:00",
           "1972-01-01T00:00:00Z"),
-        row(null, null, null, null, null, null, null))
+        row(null, null, null, null, null, null))
     )
   }
 
