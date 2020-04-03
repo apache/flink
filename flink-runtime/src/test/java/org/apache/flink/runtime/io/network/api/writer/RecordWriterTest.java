@@ -300,9 +300,9 @@ public class RecordWriterTest {
 	public void testIsAvailableOrNot() throws Exception {
 		// setup
 		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
-		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
-			.setBufferPoolFactory(p -> localPool)
+			.setBufferPoolFactory(() -> localPool)
 			.build();
 		resultPartition.setup();
 		final ResultPartitionWriter partitionWrapper = new ConsumableNotifyingResultPartitionWriterDecorator(

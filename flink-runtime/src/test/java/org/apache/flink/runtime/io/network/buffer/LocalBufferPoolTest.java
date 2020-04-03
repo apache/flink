@@ -409,7 +409,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	@Test
 	public void testMaxBuffersPerChannelAndAvailability() throws IOException, InterruptedException {
 		localBufferPool.lazyDestroy();
-		localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, null, 3, 1);
+		localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 1);
 		localBufferPool.setNumBuffers(10);
 
 		assertTrue(localBufferPool.getAvailableFuture().isDone());

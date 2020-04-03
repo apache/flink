@@ -572,9 +572,9 @@ public class ResultPartitionTest {
 		// setup
 		int bufferSize = 1024;
 		NetworkBufferPool globalPool = new NetworkBufferPool(10, bufferSize);
-		BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
+		BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE);
 		BufferWritingResultPartition resultPartition = (BufferWritingResultPartition) new ResultPartitionBuilder()
-			.setBufferPoolFactory(p -> localPool)
+			.setBufferPoolFactory(() -> localPool)
 			.build();
 		resultPartition.setup();
 

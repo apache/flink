@@ -100,9 +100,6 @@ class LocalBufferPool implements BufferPool {
 
 	private boolean isDestroyed;
 
-	@Nullable
-	private final BufferPoolOwner bufferPoolOwner;
-
 	private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
 	/**
@@ -119,7 +116,6 @@ class LocalBufferPool implements BufferPool {
 			networkBufferPool,
 			numberOfRequiredMemorySegments,
 			Integer.MAX_VALUE,
-			null,
 			0,
 			Integer.MAX_VALUE);
 	}
@@ -141,7 +137,6 @@ class LocalBufferPool implements BufferPool {
 			networkBufferPool,
 			numberOfRequiredMemorySegments,
 			maxNumberOfMemorySegments,
-			null,
 			0,
 			Integer.MAX_VALUE);
 	}
@@ -156,8 +151,6 @@ class LocalBufferPool implements BufferPool {
 	 * 		minimum number of network buffers
 	 * @param maxNumberOfMemorySegments
 	 * 		maximum number of network buffers to allocate
-	 * @param bufferPoolOwner
-	 * 		the owner of this buffer pool to release memory when needed
 	 * @param numberOfSubpartitions
 	 * 		number of subpartitions
 	 * @param maxBuffersPerChannel
@@ -167,7 +160,6 @@ class LocalBufferPool implements BufferPool {
 			NetworkBufferPool networkBufferPool,
 			int numberOfRequiredMemorySegments,
 			int maxNumberOfMemorySegments,
-			@Nullable BufferPoolOwner bufferPoolOwner,
 			int numberOfSubpartitions,
 			int maxBuffersPerChannel) {
 		checkArgument(maxNumberOfMemorySegments >= numberOfRequiredMemorySegments,
@@ -185,7 +177,6 @@ class LocalBufferPool implements BufferPool {
 		this.numberOfRequiredMemorySegments = numberOfRequiredMemorySegments;
 		this.currentPoolSize = numberOfRequiredMemorySegments;
 		this.maxNumberOfMemorySegments = maxNumberOfMemorySegments;
-		this.bufferPoolOwner = bufferPoolOwner;
 
 		if (numberOfSubpartitions > 0) {
 			checkArgument(maxBuffersPerChannel > 0,
@@ -347,10 +338,6 @@ class LocalBufferPool implements BufferPool {
 			}
 		}
 
-		if (bufferPoolOwner != null) {
-			bufferPoolOwner.releaseMemory(1);
-		}
-
 		return null;
 	}
 
@@ -484,12 +471,6 @@ class LocalBufferPool implements BufferPool {
 		}
 
 		mayNotifyAvailable(toNotify);
-
-		// If there is a registered owner and we have still requested more buffers than our
-		// size, trigger a recycle via the owner.
-		if (bufferPoolOwner != null && numExcessBuffers > 0) {
-			bufferPoolOwner.releaseMemory(numExcessBuffers);
-		}
 	}
 
 	@Override

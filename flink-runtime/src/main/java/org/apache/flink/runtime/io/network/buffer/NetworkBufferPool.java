@@ -329,7 +329,6 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		return internalCreateBufferPool(
 			numRequiredBuffers,
 			maxUsedBuffers,
-			null,
 			0,
 			Integer.MAX_VALUE);
 	}
@@ -338,13 +337,11 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	public BufferPool createBufferPool(
 			int numRequiredBuffers,
 			int maxUsedBuffers,
-			BufferPoolOwner bufferPoolOwner,
 			int numSubpartitions,
 			int maxBuffersPerChannel) throws IOException {
 		return internalCreateBufferPool(
 			numRequiredBuffers,
 			maxUsedBuffers,
-			bufferPoolOwner,
 			numSubpartitions,
 			maxBuffersPerChannel);
 	}
@@ -352,7 +349,6 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	private BufferPool internalCreateBufferPool(
 			int numRequiredBuffers,
 			int maxUsedBuffers,
-			@Nullable BufferPoolOwner bufferPoolOwner,
 			int numSubpartitions,
 			int maxBuffersPerChannel) throws IOException {
 
@@ -382,7 +378,6 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 					this,
 					numRequiredBuffers,
 					maxUsedBuffers,
-					bufferPoolOwner,
 					numSubpartitions,
 					maxBuffersPerChannel);
 

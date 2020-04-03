@@ -22,9 +22,8 @@ import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -61,7 +60,7 @@ public class ResultPartitionBuilder {
 	private int networkBufferSize = 1;
 
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
+	private Optional<SupplierWithException<BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
@@ -130,7 +129,7 @@ public class ResultPartitionBuilder {
 	}
 
 	public ResultPartitionBuilder setBufferPoolFactory(
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+			SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 		this.bufferPoolFactory = Optional.of(bufferPoolFactory);
 		return this;
 	}
@@ -164,7 +163,7 @@ public class ResultPartitionBuilder {
 			compressionCodec,
 			maxBuffersPerChannel);
 
-		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
+		SupplierWithException<BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
 
 		return resultPartitionFactory.create(
