@@ -54,6 +54,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -200,7 +201,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	private final ResultPartitionWriter[] consumableNotifyingPartitionWriters;
 
-	private final InputGate[] inputGates;
+	private final IndexedInputGate[] inputGates;
 
 	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
@@ -386,14 +387,15 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			resultPartitionConsumableNotifier);
 
 		// consumed intermediate result partitions
-		final InputGate[] gates = shuffleEnvironment.createInputGates(
-			taskShuffleContext,
-			this,
-			inputGateDeploymentDescriptors).toArray(new InputGate[] {});
+		final IndexedInputGate[] gates = shuffleEnvironment.createInputGates(
+				taskShuffleContext,
+				this,
+				inputGateDeploymentDescriptors)
+			.toArray(new IndexedInputGate[0]);
 
-		this.inputGates = new InputGate[gates.length];
+		this.inputGates = new IndexedInputGate[gates.length];
 		int counter = 0;
-		for (InputGate gate : gates) {
+		for (IndexedInputGate gate : gates) {
 			inputGates[counter++] = new InputGateWithMetrics(gate, metrics.getIOMetricGroup().getNumBytesInCounter());
 		}
 

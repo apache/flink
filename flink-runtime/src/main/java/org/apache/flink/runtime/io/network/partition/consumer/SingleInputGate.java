@@ -100,7 +100,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
  */
-public class SingleInputGate extends InputGate {
+public class SingleInputGate extends IndexedInputGate {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGate.class);
 
@@ -260,6 +260,7 @@ public class SingleInputGate extends InputGate {
 		return numberOfInputChannels;
 	}
 
+	@Override
 	public int getGateIndex() {
 		return gateIndex;
 	}

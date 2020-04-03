@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.io.IOException;
@@ -90,7 +91,7 @@ import java.util.List;
  * @param <P> type of provided result partition writers
  * @param <G> type of provided input gates
  */
-public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends InputGate> extends AutoCloseable {
+public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends IndexedInputGate> extends AutoCloseable {
 
 	/**
 	 * Start the internal related services before using the shuffle service environment.
