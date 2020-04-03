@@ -39,6 +39,8 @@ import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
+import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetDeleteHandlers;
+import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetListHandler;
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
 import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
@@ -543,6 +545,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders);
 
+		final ClusterDataSetListHandler clusterDataSetListHandler = new ClusterDataSetListHandler(leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
+		final ClusterDataSetDeleteHandlers clusterDataSetDeleteHandlers = new ClusterDataSetDeleteHandlers();
+		final ClusterDataSetDeleteHandlers.ClusterDataSetDeleteTriggerHandler clusterDataSetDeleteTriggerHandler =
+			clusterDataSetDeleteHandlers.new ClusterDataSetDeleteTriggerHandler(leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
+		final ClusterDataSetDeleteHandlers.ClusterDataSetDeleteStatusHandler clusterDataSetDeleteStatusHandler =
+			clusterDataSetDeleteHandlers.new ClusterDataSetDeleteStatusHandler(leaderRetriever, timeout, responseHeaders);
+
 		final ShutdownHandler shutdownHandler = new ShutdownHandler(
 			leaderRetriever,
 			timeout,
@@ -606,6 +615,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(rescalingStatusHandler.getMessageHeaders(), rescalingStatusHandler));
 		handlers.add(Tuple2.of(savepointDisposalTriggerHandler.getMessageHeaders(), savepointDisposalTriggerHandler));
 		handlers.add(Tuple2.of(savepointDisposalStatusHandler.getMessageHeaders(), savepointDisposalStatusHandler));
+		handlers.add(Tuple2.of(clusterDataSetListHandler.getMessageHeaders(), clusterDataSetListHandler));
+		handlers.add(Tuple2.of(clusterDataSetDeleteTriggerHandler.getMessageHeaders(), clusterDataSetDeleteTriggerHandler));
+		handlers.add(Tuple2.of(clusterDataSetDeleteStatusHandler.getMessageHeaders(), clusterDataSetDeleteStatusHandler));
 
 		// TODO: Remove once the Yarn proxy can forward all REST verbs
 		handlers.add(Tuple2.of(YarnCancelJobTerminationHeaders.getInstance(), yarnJobCancelTerminationHandler));

@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Optional;
@@ -30,7 +31,7 @@ public final class DataSetMetaInfo {
 	private final int numRegisteredPartitions;
 	private final int numTotalPartitions;
 
-	public DataSetMetaInfo(int numRegisteredPartitions, int numTotalPartitions) {
+	private DataSetMetaInfo(int numRegisteredPartitions, int numTotalPartitions) {
 		this.numRegisteredPartitions = numRegisteredPartitions;
 		this.numTotalPartitions = numTotalPartitions;
 	}
@@ -49,7 +50,8 @@ public final class DataSetMetaInfo {
 		return new DataSetMetaInfo(UNKNOWN, numTotalPartitions);
 	}
 
-	static DataSetMetaInfo withNumRegisteredPartitions(int numRegisteredPartitions, int numTotalPartitions) {
+	@VisibleForTesting
+	public static DataSetMetaInfo withNumRegisteredPartitions(int numRegisteredPartitions, int numTotalPartitions) {
 		Preconditions.checkArgument(numRegisteredPartitions > 0);
 		return new DataSetMetaInfo(numRegisteredPartitions, numTotalPartitions);
 	}
