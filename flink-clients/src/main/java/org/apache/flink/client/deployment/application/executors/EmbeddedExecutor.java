@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.deployment.application.EmbeddedJobClient;
-import org.apache.flink.client.deployment.executors.ExecutorUtils;
+import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -81,7 +81,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 
-		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
+		final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 		final JobID actualJobId = jobGraph.getJobID();
 
 		this.submittedJobIds.add(actualJobId);
