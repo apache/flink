@@ -26,7 +26,12 @@ LOCAL_OUTPUT_PATH="${TEST_DATA_DIR}/out/wc_out"
 OUTPUT_PATH="/tmp/wc_out"
 ARGS="--output ${OUTPUT_PATH}"
 
+SUCCEEDED=1
+
 function cleanup {
+    if [ $SUCCEEDED != 0 ];then
+      debug_and_show_logs
+    fi
     kubectl delete deployment ${CLUSTER_ID}
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
     stop_kubernetes
@@ -77,7 +82,4 @@ wait_rest_endpoint_up "${JOBMANAGER_URL}/taskmanagers" "Dispatcher" "\{\"taskman
 kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
 
 check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"
-
-if [ $? != 0 ];then
-  debug_copy_and_show_logs
-fi
+SUCCEEDED=$?
