@@ -422,37 +422,37 @@ class ArrowCoder(DeterministicCoder):
                               for n, t in zip(row_type.field_names(), row_type.field_types())])
 
         def _to_data_type(field):
-            if field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.TINYINT:
+            if field.type.type_name == flink_fn_execution_pb2.Schema.TINYINT:
                 return TinyIntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.SMALLINT:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.SMALLINT:
                 return SmallIntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.INT:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.INT:
                 return IntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.BIGINT:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.BIGINT:
                 return BigIntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.BOOLEAN:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.BOOLEAN:
                 return BooleanType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.FLOAT:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.FLOAT:
                 return FloatType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.DOUBLE:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.DOUBLE:
                 return DoubleType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.VARCHAR:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.VARCHAR:
                 return VarCharType(0x7fffffff, field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.VARBINARY:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
                 return VarBinaryType(0x7fffffff, field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.DECIMAL:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
                 return DecimalType(field.type.decimal_info.precision,
                                    field.type.decimal_info.scale,
                                    field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.DATE:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.DATE:
                 return DateType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.TIME:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TIME:
                 return TimeType(field.type.time_info.precision, field.type.nullable)
             elif field.type.type_name == \
-                    flink_fn_execution_pb2.Schema.TypeName.LOCAL_ZONED_TIMESTAMP:
+                    flink_fn_execution_pb2.Schema.LOCAL_ZONED_TIMESTAMP:
                 return LocalZonedTimestampType(field.type.local_zoned_timestamp_info.precision,
                                                field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.TIMESTAMP:
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
                 return TimestampType(field.type.timestamp_info.precision, field.type.nullable)
             else:
                 raise ValueError("field_type %s is not supported." % field.type)
@@ -487,7 +487,7 @@ class PassThroughLengthPrefixCoder(LengthPrefixCoder):
 Coder.register_structured_urn(
     common_urns.coders.LENGTH_PREFIX.urn, PassThroughLengthPrefixCoder)
 
-type_name = flink_fn_execution_pb2.Schema.TypeName
+type_name = flink_fn_execution_pb2.Schema
 _type_name_mappings = {
     type_name.TINYINT: TinyIntCoder(),
     type_name.SMALLINT: SmallIntCoder(),
