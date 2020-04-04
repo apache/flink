@@ -31,7 +31,7 @@ import org.junit.Test
 class JsonFunctionsTest extends ExpressionTestBase {
 
   override def testData: Row = {
-    val testData = new Row(9)
+    val testData = new Row(10)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -41,20 +41,34 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testData.setField(6, 4.6)
     testData.setField(7, 3)
     testData.setField(8, """{ "name" : "flink" }""")
+    testData.setField(9,
+      """{
+        | "info":{
+        |       "type":1,
+        |       "address":{
+        |         "town":"Bristol",
+        |         "county":"Avon",
+        |         "country":"England"
+        |       },
+        |       "tags":["Sport", "Water polo"]
+        |    },
+        |    "type":"Basic"
+        | }""".stripMargin)
     testData
   }
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */  Types.STRING,
-      /* 1 */  Types.BOOLEAN,
-      /* 2 */  Types.BYTE,
-      /* 3 */  Types.SHORT,
-      /* 4 */  Types.LONG,
-      /* 5 */  Types.FLOAT,
-      /* 6 */  Types.DOUBLE,
-      /* 7 */  Types.INT,
-      /* 8 */  Types.STRING)
+      /* 0 */ Types.STRING,
+      /* 1 */ Types.BOOLEAN,
+      /* 2 */ Types.BYTE,
+      /* 3 */ Types.SHORT,
+      /* 4 */ Types.LONG,
+      /* 5 */ Types.FLOAT,
+      /* 6 */ Types.DOUBLE,
+      /* 7 */ Types.INT,
+      /* 8 */ Types.STRING,
+      /* 9 */ Types.STRING)
   }
 
   @Test
@@ -85,12 +99,12 @@ class JsonFunctionsTest extends ExpressionTestBase {
   }
 
   /**
-   * Utility for verify predicates.
-   *
-   * @param candidate to be verified, can be a scalar or a column
-   * @param expectedValues array of expected values as result of
-   *                       (IS_JSON_VALUE, IS_JSON_OBJECT, IS_JSON_ARRAY, IS_JSON_SCALAR)
-   */
+    * Utility for verify predicates.
+    *
+    * @param candidate      to be verified, can be a scalar or a column
+    * @param expectedValues array of expected values as result of
+    *                       (IS_JSON_VALUE, IS_JSON_OBJECT, IS_JSON_ARRAY, IS_JSON_SCALAR)
+    */
   private def verifyPredicates(candidate: String, expectedValues: Array[Boolean]): Unit = {
     assert(expectedValues.length == 4)
 
@@ -105,9 +119,9 @@ class JsonFunctionsTest extends ExpressionTestBase {
   }
 
   private def verifyException[T <: Exception](
-    candidate: String,
-    expectedException: Class[T]
-  ): Unit = {
+       candidate: String,
+       expectedException: Class[T]
+     ): Unit = {
     val sqlCandidates = Array(
       s"$candidate is json value",
       s"$candidate is not json value",
@@ -166,6 +180,13 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testSqlApi("json_exists('{\"foo\":\"bar\"}', "
       + "'lax $.foo1' unknown on error)", "false")
 
+    // nested json test
+    testSqlApi("json_exists(f9, 'lax $.info.type')", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type')", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.address' false on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.address' true on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.\"address\"' unknown on error)", "null")
+
     // nulls
     testSqlApi("json_exists(cast(null as varchar), 'lax $' unknown on error)", "null")
   }
@@ -173,7 +194,7 @@ class JsonFunctionsTest extends ExpressionTestBase {
   @Test
   def testJsonFuncError(): Unit = {
     expectedException.expect(classOf[CodeGenException])
-    expectedException.expectMessage(startsWith("Unsupported call: JSON_EXISTS"))
+    expectedException.expectMessage(startsWith("The input parameter is illegal"))
     testSqlApi("json_exists(f7, 'lax $' unknown on error)", "null")
   }
 }

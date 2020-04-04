@@ -23,16 +23,14 @@ import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateStringResultCallIfArgsNotNull}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
-
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
-
 import java.lang.reflect.Method
 
 /**
@@ -222,6 +220,16 @@ object StringCallGen {
           isCharacterString(operands(1).resultType) &&
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
+
+      case JSON_EXISTS => FunctionGenerator
+        .getCallGenerator(
+          operator,
+          operands.map(expr => expr.resultType),
+          returnType)
+        .getOrElse(
+          throw new CodeGenException(s"The input parameter is illegal: " +
+            s"$operator(${operands.map(_.resultType).mkString(", ")})."))
+        .generate(ctx, operands, returnType)
 
       case _ => null
     }
