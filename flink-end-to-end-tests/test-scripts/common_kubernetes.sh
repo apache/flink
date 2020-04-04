@@ -114,10 +114,11 @@ function stop_kubernetes {
     fi
 }
 
-function debug_copy_and_show_logs {
+function debug_and_show_logs {
     echo "Debugging failed Kubernetes test:"
     echo "Currently existing Kubernetes resources"
     kubectl get all
+    kubectl describe all
 
     echo "Flink logs:"
     kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read pod;do
