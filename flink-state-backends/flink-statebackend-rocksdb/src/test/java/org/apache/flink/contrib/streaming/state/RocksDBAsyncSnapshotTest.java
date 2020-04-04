@@ -76,7 +76,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.annotation.Nullable;
@@ -107,7 +106,6 @@ import static org.mockito.Mockito.verify;
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
  */
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*"})
 @SuppressWarnings("serial")
 public class RocksDBAsyncSnapshotTest extends TestLogger {
 
