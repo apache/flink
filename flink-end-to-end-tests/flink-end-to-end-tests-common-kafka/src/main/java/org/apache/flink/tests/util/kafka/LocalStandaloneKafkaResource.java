@@ -199,7 +199,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	private static boolean isKafkaRunning(final Path kafkaDir) throws IOException {
 		try {
 			final AtomicBoolean atomicBrokerStarted = new AtomicBoolean(false);
-			queryBrokerStatus(kafkaDir, line -> atomicBrokerStarted.compareAndSet(false, !line.contains("Node does not exist")));
+			queryBrokerStatus(kafkaDir, line -> atomicBrokerStarted.compareAndSet(false, line.contains("dataLength =")));
 			return atomicBrokerStarted.get();
 		} catch (final IOException ioe) {
 			// we get an exception if zookeeper isn't running

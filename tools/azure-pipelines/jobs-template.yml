@@ -117,6 +117,8 @@ jobs:
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
     displayName: "Set to jdk11"
     condition: eq('${{parameters.jdk}}', 'jdk11')  
+  - script: sudo sysctl -w kernel.core_pattern=core.%p
+    displayName: Set coredump pattern
   # Test
   - script: STAGE=test ${{parameters.environment}} ./tools/azure_controller.sh $(module)
     displayName: Test - $(module)
