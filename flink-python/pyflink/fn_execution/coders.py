@@ -322,7 +322,7 @@ def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_co
     return RowCoder([from_proto(f.type) for f in schema_proto.fields])
 
 
-type_name = flink_fn_execution_pb2.Schema.TypeName
+type_name = flink_fn_execution_pb2.Schema
 _type_name_mappings = {
     type_name.TINYINT: TinyIntCoder(),
     type_name.SMALLINT: SmallIntCoder(),
