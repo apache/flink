@@ -30,6 +30,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.GenericClassAware;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
@@ -41,6 +42,8 @@ import org.apache.flink.types.Value;
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -50,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <T> The type of the tuple.
  */
 @Public
-public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
+public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> implements GenericClassAware {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -115,6 +118,11 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	@Override
 	protected TypeComparatorBuilder<T> createTypeComparatorBuilder() {
 		return new TupleTypeComparatorBuilder();
+	}
+
+	@Override
+	public Class<?> getGenericClass() {
+		return GENERIC_CLASSES.get(types.length);
 	}
 
 	private class TupleTypeComparatorBuilder implements TypeComparatorBuilder<T> {
@@ -277,4 +285,12 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		}
 		return result;
 	}
+
+	private static final Map<Integer, Class<?>> GENERIC_CLASSES = new ImmutableMap.Builder()
+		.put(0, Tuple0.class).put(1, Tuple1.class).put(2, Tuple2.class).put(3, Tuple3.class).put(4, Tuple4.class)
+		.put(5, Tuple5.class).put(6, Tuple6.class).put(7, Tuple7.class).put(8, Tuple8.class).put(9, Tuple9.class)
+		.put(10, Tuple10.class).put(11, Tuple11.class).put(12, Tuple12.class).put(13, Tuple13.class).put(14, Tuple14.class)
+		.put(15, Tuple15.class).put(16, Tuple16.class).put(17, Tuple17.class).put(18, Tuple18.class).put(19, Tuple19.class)
+		.put(20, Tuple20.class).put(21, Tuple21.class).put(23, Tuple23.class).put(24, Tuple24.class).put(25, Tuple25.class)
+		.build();
 }
