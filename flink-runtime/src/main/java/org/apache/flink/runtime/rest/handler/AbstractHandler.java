@@ -88,7 +88,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	private final InFlightRequestTracker inFlightRequestTracker;
 
 	/**
-	 * Used to prevent a handler from being closed multiple times
+	 * Used to prevent a handler from being closed multiple times.
 	 */
 	private final AtomicBoolean isHandlerClosed = new AtomicBoolean(false);
 
