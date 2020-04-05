@@ -295,7 +295,7 @@ Apache Hive 是基于Hadoop之上构建的, 首先您需要hadoop的依赖，请
 
 ## 连接到Hive
 
-通过TableEnvironment或者YAML配置，使用 [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 和[HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html)连接到现有的Hive集群。
+通过TableEnvironment或者YAML配置，使用 [catalog interface]({{ site.baseurl }}/zh/dev/table/catalogs.html) 和[HiveCatalog]({{ site.baseurl }}/zh/dev/table/hive/hive_catalog.html)连接到现有的Hive集群。
 
 如果`hive-conf/hive-site.xml`文件存储在远端存储系统，则用户首先应该将hive配置文件下载至其本地环境中。
 
@@ -364,4 +364,4 @@ catalogs:
 
 ## DML
 
-Flink支持DML写入Hive表，请参考[Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html)
+Flink支持DML写入Hive表，请参考[Reading & Writing Hive Tables]({{ site.baseurl }}/zh/dev/table/hive/read_write_hive.html)
