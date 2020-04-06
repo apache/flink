@@ -28,9 +28,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import java.util.Map;
