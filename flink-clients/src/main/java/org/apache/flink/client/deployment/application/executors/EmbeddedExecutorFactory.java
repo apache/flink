@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 
-	private final Collection<JobID> applicationJobIds;
+	private final Collection<JobID> submittedJobIds;
 
 	private final DispatcherGateway dispatcherGateway;
 
@@ -49,7 +49,7 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 	public EmbeddedExecutorFactory(
 			final Collection<JobID> submittedJobIds,
 			final DispatcherGateway dispatcherGateway) {
-		this.applicationJobIds = checkNotNull(submittedJobIds);
+		this.submittedJobIds = checkNotNull(submittedJobIds);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 	}
 
@@ -68,6 +68,6 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 	@Override
 	public PipelineExecutor getExecutor(final Configuration configuration) {
 		checkNotNull(configuration);
-		return new EmbeddedExecutor(applicationJobIds, dispatcherGateway);
+		return new EmbeddedExecutor(submittedJobIds, dispatcherGateway);
 	}
 }

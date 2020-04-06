@@ -29,20 +29,26 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link PipelineExecutor} that invokes directly methods of the
- * {@link org.apache.flink.runtime.dispatcher.DispatcherGateway Dispatcher} does
+ * {@link org.apache.flink.runtime.dispatcher.DispatcherGateway Dispatcher} and does
  * not go through the REST API.
  */
 @Internal
@@ -52,7 +58,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 
 	public static final String NAME = "embedded";
 
-	private final Collection<JobID> applicationJobIds;
+	private final Collection<JobID> submittedJobIds;
 
 	private final DispatcherGateway dispatcherGateway;
 
@@ -66,7 +72,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 	public EmbeddedExecutor(
 			final Collection<JobID> submittedJobIds,
 			final DispatcherGateway dispatcherGateway) {
-		this.applicationJobIds = checkNotNull(submittedJobIds);
+		this.submittedJobIds = checkNotNull(submittedJobIds);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 	}
 
@@ -78,16 +84,48 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
 		final JobID actualJobId = jobGraph.getJobID();
 
-		this.applicationJobIds.add(actualJobId);
+		this.submittedJobIds.add(actualJobId);
 		LOG.info("Job {} is submitted.", actualJobId);
+
+		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+
+		final CompletableFuture<JobID> jobSubmissionFuture = submitJob(
+				dispatcherGateway,
+				blobServerAddress -> new BlobClient(blobServerAddress, configuration),
+				jobGraph,
+				timeout);
 
 		final EmbeddedJobClient embeddedClient = new EmbeddedJobClient(
 				actualJobId,
 				dispatcherGateway,
-				Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT)));
+				timeout);
 
-		return embeddedClient
-				.submitJob(blobServerAddress -> new BlobClient(blobServerAddress, configuration), jobGraph)
+		return jobSubmissionFuture
 				.thenApplyAsync(jobID -> embeddedClient);
+	}
+
+	private static CompletableFuture<JobID> submitJob(
+			final DispatcherGateway dispatcherGateway,
+			final FunctionWithException<InetSocketAddress, BlobClient, IOException> blobClientCreator,
+			final JobGraph jobGraph,
+			final Time rpcTimeout) {
+		checkNotNull(blobClientCreator);
+		checkNotNull(jobGraph);
+
+		LOG.info("Submitting Job with JobId={}.", jobGraph.getJobID());
+
+		return dispatcherGateway
+				.getBlobServerPort(rpcTimeout)
+				.thenApply(blobServerPort -> new InetSocketAddress(dispatcherGateway.getHostname(), blobServerPort))
+				.thenCompose(blobServerAddress -> {
+
+					try {
+						ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> blobClientCreator.apply(blobServerAddress));
+					} catch (FlinkException e) {
+						throw new CompletionException(e);
+					}
+
+					return dispatcherGateway.submitJob(jobGraph, rpcTimeout);
+				}).thenApply(ack -> jobGraph.getJobID());
 	}
 }

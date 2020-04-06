@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An {@link ApplicationRunner} which runs the user specified application using the {@link EmbeddedExecutor}.
@@ -63,7 +62,7 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 	}
 
 	private List<JobID> tryExecuteJobs(final DispatcherGateway dispatcherGateway, final PackagedProgram program, final Configuration configuration) {
-		checkState(!configuration.get(DeploymentOptions.ATTACHED));
+		configuration.set(DeploymentOptions.ATTACHED, false);
 
 		final List<JobID> applicationJobIds = new ArrayList<>();
 		final PipelineExecutorServiceLoader executorServiceLoader =

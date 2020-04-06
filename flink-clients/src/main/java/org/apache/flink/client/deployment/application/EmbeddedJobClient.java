@@ -25,21 +25,14 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -52,8 +45,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class EmbeddedJobClient implements JobClient {
-
-	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedJobClient.class);
 
 	private final JobID jobId;
 
@@ -68,29 +59,6 @@ public class EmbeddedJobClient implements JobClient {
 		this.jobId = checkNotNull(jobId);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 		this.timeout = checkNotNull(rpcTimeout);
-	}
-
-	public CompletableFuture<JobID> submitJob(
-			final FunctionWithException<InetSocketAddress, BlobClient, IOException> blobClientCreator,
-			final JobGraph jobGraph) {
-		checkNotNull(blobClientCreator);
-		checkNotNull(jobGraph);
-
-		LOG.info("Submitting Job with JobId={}.", jobGraph.getJobID());
-
-		return dispatcherGateway
-				.getBlobServerPort(timeout)
-				.thenApply(blobServerPort -> new InetSocketAddress(dispatcherGateway.getHostname(), blobServerPort))
-				.thenCompose(blobServerAddress -> {
-
-					try {
-						ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> blobClientCreator.apply(blobServerAddress));
-					} catch (FlinkException e) {
-						throw new CompletionException(e);
-					}
-
-					return dispatcherGateway.submitJob(jobGraph, timeout);
-				}).thenApply(ack -> jobGraph.getJobID());
 	}
 
 	@Override
