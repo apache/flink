@@ -41,7 +41,7 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 
 	/**
 	 * Creates an {@link EmbeddedExecutorFactory}.
-	 * @param submittedJobIds a list that going to be filled with the job ids of the
+	 * @param submittedJobIds a list that is going to be filled with the job ids of the
 	 *                        new jobs that will be submitted. This is essentially used to return the submitted job ids
 	 *                        to the caller.
 	 * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit jobs.

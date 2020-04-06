@@ -44,7 +44,7 @@ public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoa
 
 	/**
 	 * Creates an {@link EmbeddedExecutorServiceLoader}.
-	 * @param submittedJobIds a list that going to be filled by the {@link EmbeddedExecutor} with the job ids of the
+	 * @param submittedJobIds a list that is going to be filled by the {@link EmbeddedExecutor} with the job ids of the
 	 *                        new jobs that will be submitted. This is essentially used to return the submitted job ids
 	 *                        to the caller.
 	 * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit jobs.
