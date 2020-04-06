@@ -77,7 +77,7 @@ abstract class ExpressionTestBase {
   protected val notNullable = "not null"
 
   // used for accurate exception information checking.
-  val expectedException: ExpectedException = ExpectedException.none()
+  var expectedException: ExpectedException = ExpectedException.none()
 
   @Rule
   def thrown: ExpectedException = expectedException

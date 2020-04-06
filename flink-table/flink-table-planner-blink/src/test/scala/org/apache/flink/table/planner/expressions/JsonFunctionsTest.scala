@@ -21,12 +21,12 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 import org.hamcrest.Matchers.startsWith
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.rules.ExpectedException
 
 class JsonFunctionsTest extends ExpressionTestBase {
 
@@ -57,19 +57,17 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testData
   }
 
-  override def typeInfo: RowTypeInfo = {
-    new RowTypeInfo(
-      /* 0 */ Types.STRING,
-      /* 1 */ Types.BOOLEAN,
-      /* 2 */ Types.BYTE,
-      /* 3 */ Types.SHORT,
-      /* 4 */ Types.LONG,
-      /* 5 */ Types.FLOAT,
-      /* 6 */ Types.DOUBLE,
-      /* 7 */ Types.INT,
-      /* 8 */ Types.STRING,
-      /* 9 */ Types.STRING)
-  }
+  override def typeInfo = new RowTypeInfo(
+    /* 0 */ Types.STRING,
+    /* 1 */ Types.BOOLEAN,
+    /* 2 */ Types.BYTE,
+    /* 3 */ Types.SHORT,
+    /* 4 */ Types.LONG,
+    /* 5 */ Types.FLOAT,
+    /* 6 */ Types.DOUBLE,
+    /* 7 */ Types.INT,
+    /* 8 */ Types.STRING,
+    /* 9 */ Types.STRING)
 
   @Test
   def testPredicates(): Unit = {
@@ -133,9 +131,7 @@ class JsonFunctionsTest extends ExpressionTestBase {
       s"$candidate is not json scalar")
 
     for (sql <- sqlCandidates) {
-      try {
-        testSqlApi(sql, "null")
-      } catch {
+      try testSqlApi(sql, "null") catch {
         case e: Exception => assertEquals(e.getClass, expectedException)
       }
     }
@@ -143,58 +139,42 @@ class JsonFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testJsonExists(): Unit = {
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'strict $.foo' false on error)", "true")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'strict $.foo' true on error)", "true")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'strict $.foo' unknown on error)", "true")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'lax $.foo' false on error)", "true")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'lax $.foo' true on error)", "true")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'lax $.foo' unknown on error)", "true")
-    testSqlApi("json_exists('{}', "
-      + "'invalid $.foo' false on error)", "false")
-    testSqlApi("json_exists('{}', "
-      + "'invalid $.foo' true on error)", "true")
-    testSqlApi("json_exists('{}', "
-      + "'invalid $.foo' unknown on error)", "null")
-    testSqlApi("json_exists(cast('{\"foo\":\"bar\"}' as varchar), "
-      + "'strict $.foo1')", "false")
-
-    // not exists
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'strict $.foo1' false on error)", "false")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'strict $.foo1' true on error)", "true")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'strict $.foo1' unknown on error)", "null")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'lax $.foo1' true on error)", "false")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'lax $.foo1' false on error)", "false")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'lax $.foo1' error on error)", "false")
-    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
-      + "'lax $.foo1' unknown on error)", "false")
-
-    // nested json test
+    // lax json test
+    testSqlApi("json_exists(f9, 'lax $')", "true")
     testSqlApi("json_exists(f9, 'lax $.info.type')", "true")
-    testSqlApi("json_exists(f9, 'strict $.info.type')", "true")
-    testSqlApi("json_exists(f9, 'strict $.info.address' false on error)", "true")
-    testSqlApi("json_exists(f9, 'strict $.info.address' true on error)", "true")
-    testSqlApi("json_exists(f9, 'strict $.info.\"address\"' unknown on error)", "null")
+    testSqlApi("json_exists(f9, 'lax $.info.address.town')", "true")
+    testSqlApi("json_exists(f9, 'lax $.info.\"address\"')", "false")
+    testSqlApi("json_exists(f9, 'lax $.info.tags')", "true")
+    testSqlApi("json_exists(f9, 'lax $.info.type[0]')", "false")
+    testSqlApi("json_exists(f9, 'lax $.info.none')", "false")
 
-    // nulls
-    testSqlApi("json_exists(cast(null as varchar), 'lax $' unknown on error)", "null")
+    // strict + no error
+    testSqlApi("json_exists(f9, 'strict $.info.type')", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type1')", "false")
+    // strict + error
+    testSqlApi("json_exists(f9, 'strict $.info.type1' false on error)", "false")
+    testSqlApi("json_exists(f9, 'strict $.info.type1' true on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type' true on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type' false on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type' unknown on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.\"type\"' unknown on error)", "null")
+    testSqlApi("json_exists(f9, 'strict $.info.type' error on error)", "true")
+
+    verifyJsonExistsException("json_exists(f7, 'lax aa')",
+      "Illegal Parameter Type error : JSON_EXISTS(INT, CHAR(6) NOT NULL)")
+    verifyJsonExistsException("json_exists(f9, 'lax $' error on error)",
+      "Illegal operation, JSON_EXISTS no need to fill in the error behavior in lax mode!")
+    verifyJsonExistsException("json_exists(f9, '$.info.type')",
+      "Illegal jsonpath spec: $.info.type, format of the spec should be: '<lax|strict> ${expr}'")
   }
 
-  @Test
-  def testJsonFuncError(): Unit = {
-    expectedException.expect(classOf[CodeGenException])
-    expectedException.expectMessage(startsWith("The input parameter is illegal"))
-    testSqlApi("json_exists(f7, 'lax $' unknown on error)", "null")
+  private def verifyJsonExistsException[T <: Exception](
+       sqlExpr: String,
+       expectedMessage: String
+     ): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(startsWith(expectedMessage))
+    testSqlApi(sqlExpr, "null")
+    expectedException = ExpectedException.none()
   }
 }

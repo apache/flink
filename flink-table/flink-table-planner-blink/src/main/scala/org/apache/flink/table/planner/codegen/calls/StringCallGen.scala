@@ -23,7 +23,7 @@ import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateStringResultCallIfArgsNotNull}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
@@ -221,15 +221,7 @@ object StringCallGen {
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
 
-      case JSON_EXISTS => FunctionGenerator
-        .getCallGenerator(
-          operator,
-          operands.map(expr => expr.resultType),
-          returnType)
-        .getOrElse(
-          throw new CodeGenException(s"The input parameter is illegal: " +
-            s"$operator(${operands.map(_.resultType).mkString(", ")})."))
-        .generate(ctx, operands, returnType)
+      case JSON_EXISTS => new JsonExistsCallGen().generate(ctx, operands, returnType)
 
       case _ => null
     }
