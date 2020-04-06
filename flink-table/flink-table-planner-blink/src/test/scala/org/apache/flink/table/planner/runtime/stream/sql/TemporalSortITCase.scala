@@ -79,6 +79,49 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   }
 
   @Test
+  def testEventTimeOrderByWithParallelInput(): Unit = {
+    val data = List(
+      (3L, 2L, "Hello world", 3),
+      (2L, 2L, "Hello", 2),
+      (6L, 3L, "Luke Skywalker", 6),
+      (5L, 3L, "I am fine.", 5),
+      (7L, 4L, "Comment#1", 7),
+      (9L, 4L, "Comment#3", 9),
+      (10L, 4L, "Comment#4", 10),
+      (8L, 4L, "Comment#2", 8),
+      (1L, 1L, "Hi", 1),
+      (4L, 3L, "Helloworld, how are you?", 4))
+
+    val t = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
+      .setParallelism(env.getParallelism)
+      .toTable(tEnv, 'rowtime.rowtime, 'key, 'str, 'int)
+    tEnv.registerTable("T", t)
+
+    val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime"
+
+    val sink = new TestingRetractSink
+    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    results.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq(
+      "1,Hi,1",
+      "2,Hello,2",
+      "2,Hello world,3",
+      "3,Helloworld, how are you?,4",
+      "3,I am fine.,5",
+      "3,Luke Skywalker,6",
+      "4,Comment#1,7",
+      "4,Comment#2,8",
+      "4,Comment#3,9",
+      "4,Comment#4,10")
+
+    assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
   def testEventTimeAndOtherFieldOrderBy(): Unit = {
     val data = List(
       (3L, 2L, "Hello world", 3),
