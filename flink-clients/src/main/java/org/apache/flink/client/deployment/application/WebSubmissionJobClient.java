@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.deployment;
+package org.apache.flink.client.deployment.application;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -33,24 +33,23 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link JobClient} that wraps any other job client and transforms it into one that is not allowed
- * to wait for the job result.
+ * A {@link JobClient} that only allows asking for the job id of the job it is attached to.
  *
  * <p>This is used in web submission, where we do not want the Web UI to have jobs blocking threads while
  * waiting for their completion.
  */
-@Internal
-public class DetachedOnlyJobClientAdapter implements JobClient {
+@PublicEvolving
+public class WebSubmissionJobClient implements JobClient {
 
-	private final JobClient jobClient;
+	private final JobID jobId;
 
-	public DetachedOnlyJobClientAdapter(final JobClient jobClient) {
-		this.jobClient = checkNotNull(jobClient);
+	public WebSubmissionJobClient(final JobID jobId) {
+		this.jobId = checkNotNull(jobId);
 	}
 
 	@Override
 	public JobID getJobID() {
-		return jobClient.getJobID();
+		return jobId;
 	}
 
 	@Override
