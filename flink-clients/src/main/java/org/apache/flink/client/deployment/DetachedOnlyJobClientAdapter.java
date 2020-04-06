@@ -60,12 +60,12 @@ public class DetachedOnlyJobClientAdapter implements JobClient {
 
 	@Override
 	public CompletableFuture<Void> cancel() {
-		throw new FlinkRuntimeException("Cancelling the job is not supporter by the Job Client when in Web Submission.");
+		throw new FlinkRuntimeException("Cancelling the job is not supported by the Job Client when in Web Submission.");
 	}
 
 	@Override
 	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-		throw new FlinkRuntimeException("Stop with Savepoint is not supporter by the Job Client when in Web Submission.");
+		throw new FlinkRuntimeException("Stop with Savepoint is not supported by the Job Client when in Web Submission.");
 	}
 
 	@Override
