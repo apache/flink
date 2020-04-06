@@ -90,7 +90,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			jarDir,
 			configuration,
 			executor,
-			() -> new DetachedApplicationRunner(true, true));
+			() -> new DetachedApplicationRunner(true));
 
 		final JarDeleteHandler jarDeleteHandler = new JarDeleteHandler(
 			leaderRetriever,
