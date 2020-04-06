@@ -73,6 +73,7 @@ function aws_cli() {
   fi
   if ! docker exec "$AWSCLI_CONTAINER_ID" aws $endpoint "$@"; then
     echo "Error executing aws command: $@";
+    return 1
   fi
 }
 
