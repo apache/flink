@@ -39,6 +39,8 @@ resources:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
     image: rmetzger/flink-ci:ubuntu-amd64-3528acd
+    # On AZP provided machines, set this flag to allow writing coredumps in docker
+    options: --privileged
 
 # Define variables:
 # - See tools/azure-pipelines/jobs-template.yml for a short summary of the caching
