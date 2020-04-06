@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -28,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Implementation which archives an {@link AccessExecutionGraph} such that it stores
@@ -39,18 +39,25 @@ class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
 
 	private final Path archivePath;
 
-	JsonResponseHistoryServerArchivist(JsonArchivist jsonArchivist, Path archivePath) {
+	private final Executor ioExecutor;
+
+	JsonResponseHistoryServerArchivist(JsonArchivist jsonArchivist, Path archivePath, Executor ioExecutor) {
 		this.jsonArchivist = Preconditions.checkNotNull(jsonArchivist);
 		this.archivePath = Preconditions.checkNotNull(archivePath);
+		this.ioExecutor = ioExecutor;
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> archiveExecutionGraph(AccessExecutionGraph executionGraph) {
-		try {
-			FsJobArchivist.archiveJob(archivePath, executionGraph.getJobID(), jsonArchivist.archiveJsonWithPath(executionGraph));
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		} catch (IOException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
+		final CompletableFuture<Acknowledge> ackFuture = new CompletableFuture<>();
+		ioExecutor.execute(() -> {
+			try {
+				FsJobArchivist.archiveJob(archivePath, executionGraph.getJobID(), jsonArchivist.archiveJsonWithPath(executionGraph));
+				ackFuture.complete(Acknowledge.get());
+			} catch (IOException e) {
+				ackFuture.completeExceptionally(e);
+			}
+		});
+		return ackFuture;
 	}
 }
