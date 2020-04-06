@@ -33,6 +33,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -68,9 +69,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 	@Internal
 	private static <T extends SpecificRecordBase> List<PojoField> generateFieldsFromAvroSchema(Class<T> typeClass) {
 			PojoTypeExtractor pte = new PojoTypeExtractor();
-			ArrayList<Type> typeHierarchy = new ArrayList<>();
-			typeHierarchy.add(typeClass);
-			TypeInformation ti = pte.analyzePojo(typeClass, typeHierarchy, null, null);
+			TypeInformation ti = pte.analyzePojo(typeClass, null, null, Collections.emptyList());
 
 			if (!(ti instanceof PojoTypeInfo)) {
 				throw new IllegalStateException("Expecting type to be a PojoTypeInfo");
@@ -100,9 +99,9 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 		}
 
 		@Override
-		public <OUT> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
-				ParameterizedType parameterizedType, final Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings) {
-			return super.analyzePojo(clazz, typeHierarchy, parameterizedType, typeVariableBindings);
+		public <OUT> TypeInformation<OUT> analyzePojo(Class<OUT> clazz,
+				ParameterizedType parameterizedType, Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings, List<Class<?>> extractingClasses) {
+			return super.analyzePojo(clazz, parameterizedType, typeVariableBindings, extractingClasses);
 		}
 	}
 }
