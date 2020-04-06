@@ -950,6 +950,47 @@ under the License.
 				<derby.version>10.14.1.0</derby.version>
 			</properties>
 
+			<dependencyManagement>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.hive</groupId>
+						<artifactId>hive-metastore</artifactId>
+						<version>${hive.version}</version>
+						<scope>provided</scope>
+						<exclusions>
+							<exclusion>
+								<!-- Override arrow netty dependency -->
+								<groupId>io.netty</groupId>
+								<artifactId>netty-buffer</artifactId>
+							</exclusion>
+							<exclusion>
+								<!-- Override arrow netty dependency -->
+								<groupId>io.netty</groupId>
+								<artifactId>netty-common</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+
+			<dependencies>
+				<dependency>
+					<!-- Bump arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-buffer</artifactId>
+					<version>4.1.44.Final</version>
+					<scope>provided</scope>
+				</dependency>
+
+				<dependency>
+					<!-- Bump arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-common</artifactId>
+					<version>4.1.44.Final</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
+
 		</profile>
 		<profile>
 			<id>skip-hive-tests</id>
