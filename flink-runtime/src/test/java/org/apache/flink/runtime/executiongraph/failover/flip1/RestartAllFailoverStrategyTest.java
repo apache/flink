@@ -39,9 +39,9 @@ public class RestartAllFailoverStrategyTest extends TestLogger {
 	public void testGetTasksNeedingRestart() {
 		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		final TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		final TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		final TestingSchedulingExecutionVertex v3 = topology.newVertex();
+		final TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		final TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		final TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
 
 		topology.connect(v1, v2, ResultPartitionType.PIPELINED);
 		topology.connect(v2, v3, ResultPartitionType.BLOCKING);

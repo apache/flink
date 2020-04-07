@@ -64,12 +64,12 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForRegionInternalErrors() {
 		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
 
 		topology.connect(v1, v4, ResultPartitionType.BLOCKING);
 		topology.connect(v1, v5, ResultPartitionType.BLOCKING);
@@ -142,12 +142,12 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForDataConsumptionErrors() throws Exception {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
 
 		topology.connect(v1, v4, ResultPartitionType.BLOCKING);
 		topology.connect(v1, v5, ResultPartitionType.BLOCKING);
@@ -241,9 +241,9 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForVariousResultPartitionAvailabilityCombinations() throws Exception {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
 
 		topology.connect(v1, v3, ResultPartitionType.BLOCKING);
 		topology.connect(v2, v3, ResultPartitionType.BLOCKING);
@@ -354,12 +354,12 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForMultipleVerticesRegions() throws Exception {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
 
 		topology.connect(v1, v2, ResultPartitionType.PIPELINED);
 		topology.connect(v2, v3, ResultPartitionType.BLOCKING);

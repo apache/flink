@@ -49,9 +49,9 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testIndividualVertices() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
@@ -77,12 +77,12 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testEmbarrassinglyParallelCase() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newVertex();
-		TestingSchedulingExecutionVertex va3 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb3 = topology.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb3 = topology.newExecutionVertex();
 
 		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
@@ -119,12 +119,12 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testOneComponentViaTwoExchanges() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vc1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vc2 = topology.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc2 = topology.newExecutionVertex();
 
 		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
@@ -166,13 +166,13 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testOneComponentViaCascadeOfJoins() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newVertex();
-		TestingSchedulingExecutionVertex v7 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v7 = topology.newExecutionVertex();
 
 		topology
 			.connect(v1, v5, ResultPartitionType.PIPELINED)
@@ -213,13 +213,13 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testOneComponentInstanceFromOneSource() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newVertex();
-		TestingSchedulingExecutionVertex v7 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v7 = topology.newExecutionVertex();
 
 		topology
 			.connect(v1, v2, ResultPartitionType.PIPELINED)
@@ -258,12 +258,12 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testTwoComponentsViaBlockingExchange() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vc1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vc2 = topology.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc2 = topology.newExecutionVertex();
 
 		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
@@ -303,12 +303,12 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testTwoComponentsViaBlockingExchange2() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vc1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vc2 = topology.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc2 = topology.newExecutionVertex();
 
 		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
@@ -356,13 +356,13 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testMultipleComponentsViaCascadeOfJoins() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newVertex();
-		TestingSchedulingExecutionVertex v7 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v7 = topology.newExecutionVertex();
 
 		topology
 			.connect(v1, v5, ResultPartitionType.PIPELINED)
@@ -405,10 +405,10 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testDiamondWithMixedPipelinedAndBlockingExchanges() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
 
 		topology
 			.connect(v1, v2, ResultPartitionType.BLOCKING)
@@ -444,10 +444,10 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testBlockingAllToAllTopologyWithCoLocation() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
 
 		topology
 			.connect(va1, vb1, ResultPartitionType.BLOCKING)
@@ -481,10 +481,10 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	public void testPipelinedOneToOneTopologyWithCoLocation() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
 
 		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
