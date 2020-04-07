@@ -22,14 +22,15 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The client to talk with kubernetes.
+ * The client to talk with kubernetes. The interfaces will be called both in Client and ResourceManager. To avoid
+ * potentially blocking the execution of RpcEndpoint's main thread, these interfaces
+ * {@link #createTaskManagerPod(TaskManagerPodParameter)}, {@link #stopPod(String)} should be implemented asynchronously.
  */
 public interface FlinkKubeClient extends AutoCloseable {
 
@@ -66,15 +67,17 @@ public interface FlinkKubeClient extends AutoCloseable {
 	 * Create task manager pod.
 	 *
 	 * @param parameter {@link TaskManagerPodParameter} to create a taskmanager pod.
+	 * @return  Return the taskmanager pod creation future
 	 */
-	void createTaskManagerPod(TaskManagerPodParameter parameter);
+	CompletableFuture<Void> createTaskManagerPod(TaskManagerPodParameter parameter);
 
 	/**
 	 * Stop a specified pod by name.
 	 *
 	 * @param podName pod name
+	 * @return  Return the pod stop future
 	 */
-	void stopPod(String podName);
+	CompletableFuture<Void> stopPod(String podName);
 
 	/**
 	 * Stop cluster and clean up all resources, include services, auxiliary services and all running pods.
@@ -87,28 +90,25 @@ public interface FlinkKubeClient extends AutoCloseable {
 	 * Get the kubernetes internal service of the given flink clusterId.
 	 *
 	 * @param clusterId cluster id
-	 * @return Return the internal service of the specified cluster id. Return null if the service does not exist.
+	 * @return Return the optional internal service of the specified cluster id.
 	 */
-	@Nullable
-	KubernetesService getInternalService(String clusterId);
+	Optional<KubernetesService> getInternalService(String clusterId);
 
 	/**
 	 * Get the kubernetes rest service of the given flink clusterId.
 	 *
 	 * @param clusterId cluster id
-	 * @return Return the rest service of the specified cluster id. Return null if the service does not exist.
+	 * @return Return the optional rest service of the specified cluster id.
 	 */
-	@Nullable
-	KubernetesService getRestService(String clusterId);
+	Optional<KubernetesService> getRestService(String clusterId);
 
 	/**
 	 * Get the rest endpoint for access outside cluster.
 	 *
 	 * @param clusterId cluster id
-	 * @return Return null if the service does not exist or could not extract the Endpoint from the service.
+	 * @return Return empty if the service does not exist or could not extract the Endpoint from the service.
 	 */
-	@Nullable
-	Endpoint getRestEndpoint(String clusterId);
+	Optional<Endpoint> getRestEndpoint(String clusterId);
 
 	/**
 	 * List the pods with specified labels.

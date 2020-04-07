@@ -23,7 +23,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
+import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -32,6 +35,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -76,6 +81,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertEquals;
@@ -95,6 +102,8 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 	private final String jobManagerHost = "jm-host1";
 
+	private static final Time TESTING_POD_CREATION_RETRY_INTERVAL = Time.milliseconds(50L);
+
 	private Configuration flinkConfig;
 
 	private TestingKubernetesResourceManager resourceManager;
@@ -108,7 +117,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1024m"));
 
 		flinkKubeClient = getFabric8FlinkKubeClient();
-		resourceManager = createAndStartResourceManager(flinkConfig);
+		resourceManager = createAndStartResourceManager(flinkConfig, getFabric8FlinkKubeClient());
 	}
 
 	@After
@@ -134,7 +143,9 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				JobLeaderIdService jobLeaderIdService,
 				ClusterInformation clusterInformation,
 				FatalErrorHandler fatalErrorHandler,
-				ResourceManagerMetricGroup resourceManagerMetricGroup) {
+				ResourceManagerMetricGroup resourceManagerMetricGroup,
+				FlinkKubeClient flinkKubeClient,
+				KubernetesResourceManagerConfiguration configuration) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -146,7 +157,9 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				jobLeaderIdService,
 				clusterInformation,
 				fatalErrorHandler,
-				resourceManagerMetricGroup
+				resourceManagerMetricGroup,
+				flinkKubeClient,
+				configuration
 			);
 			this.slotManager = slotManager;
 		}
@@ -158,11 +171,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		@Override
 		protected void runAsync(Runnable runnable) {
 			runnable.run();
-		}
-
-		@Override
-		protected FlinkKubeClient createFlinkKubeClient() {
-			return flinkKubeClient;
 		}
 
 		MainThreadExecutor getMainThreadExecutorForTesting() {
@@ -266,7 +274,8 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 			new ArrayList<>(),
 			1024,
 			1,
-			new HashMap<>()));
+			new HashMap<>()))
+			.get();
 		final KubernetesClient client = getKubeClient();
 		assertEquals(1, client.pods().list().getItems().size());
 
@@ -315,7 +324,30 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		assertThat(resourceManager.getCpuCores(configuration), is(3.0));
 	}
 
-	private TestingKubernetesResourceManager createAndStartResourceManager(Configuration configuration) throws Exception {
+	@Test
+	public void testCreateTaskManagerPodFailedAndRetry() throws Exception {
+		final AtomicInteger retries = new AtomicInteger(0);
+		final int numOfFailedRetries = 3;
+		final OneShotLatch podCreated = new OneShotLatch();
+		final FlinkKubeClient flinkKubeClient =
+			createTestingFlinkKubeClientAllocatingPodsAfter(numOfFailedRetries, retries, podCreated);
+		final TestingKubernetesResourceManager testRM = createAndStartResourceManager(flinkConfig, flinkKubeClient);
+		registerSlotRequest(testRM);
+
+		podCreated.await();
+		// Creating taskmanager should retry 4 times (3 failed and then succeed)
+		assertThat(
+			"Creating taskmanager should fail " + numOfFailedRetries + " times and then succeed",
+			retries.get(),
+			is(numOfFailedRetries + 1));
+
+		testRM.close();
+		flinkKubeClient.close();
+	}
+
+	private TestingKubernetesResourceManager createAndStartResourceManager(
+			Configuration configuration,
+			FlinkKubeClient flinkKubeClient) throws Exception {
 
 		final TestingRpcService rpcService = new TestingRpcService(configuration);
 		final MockResourceManagerRuntimeServices rmServices = new MockResourceManagerRuntimeServices(rpcService, TIMEOUT);
@@ -331,20 +363,25 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 			rmServices.jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
 			testingFatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup()
-		);
+			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
+			flinkKubeClient,
+			new KubernetesResourceManagerConfiguration(CLUSTER_ID, TESTING_POD_CREATION_RETRY_INTERVAL));
 		kubernetesResourceManager.start();
 		rmServices.grantLeadership();
 		return kubernetesResourceManager;
 	}
 
-	private void registerSlotRequest() throws Exception {
+	private void registerSlotRequest(TestingKubernetesResourceManager resourceManager) throws Exception {
 		CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
 			resourceManager.getSlotManager().registerSlotRequest(
 				new SlotRequest(new JobID(), new AllocationID(), ResourceProfile.UNKNOWN, jobManagerHost));
 			return null;
 		});
 		registerSlotRequestFuture.get();
+	}
+
+	private void registerSlotRequest() throws Exception {
+		registerSlotRequest(resourceManager);
 	}
 
 	private void registerTaskExecutor(ResourceID resourceID) throws Exception {
@@ -389,5 +426,22 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				new ContainerStateBuilder().withNewTerminated().endTerminated().build())
 				.build())
 			.build());
+	}
+
+	private FlinkKubeClient createTestingFlinkKubeClientAllocatingPodsAfter(
+			int numberOfRetries,
+			AtomicInteger retries,
+			OneShotLatch podCreated) {
+		ExecutorService kubeClientExecutorService = Executors.newDirectExecutorService();
+		return new Fabric8FlinkKubeClient(flinkConfig, getKubeClient(), () -> kubeClientExecutorService) {
+			@Override
+			public CompletableFuture<Void> createTaskManagerPod(TaskManagerPodParameter parameter) {
+				if (retries.getAndIncrement() < numberOfRetries) {
+					return FutureUtils.completedExceptionally(new RuntimeException("Exception"));
+				}
+				podCreated.trigger();
+				return super.createTaskManagerPod(parameter);
+			}
+		};
 	}
 }

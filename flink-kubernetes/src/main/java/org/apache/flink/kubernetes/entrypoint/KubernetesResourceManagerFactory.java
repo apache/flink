@@ -18,9 +18,13 @@
 
 package org.apache.flink.kubernetes.entrypoint;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.KubernetesResourceManager;
 import org.apache.flink.kubernetes.KubernetesWorkerNode;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
+import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -42,6 +46,8 @@ import javax.annotation.Nullable;
 public class KubernetesResourceManagerFactory extends ActiveResourceManagerFactory<KubernetesWorkerNode> {
 
 	private static final KubernetesResourceManagerFactory INSTANCE = new KubernetesResourceManagerFactory();
+
+	private static final Time POD_CREATION_RETRY_INTERVAL = Time.seconds(3L);
 
 	private KubernetesResourceManagerFactory() {}
 
@@ -66,6 +72,10 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 			rmServicesConfiguration,
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
+		final KubernetesResourceManagerConfiguration kubernetesResourceManagerConfiguration =
+			new KubernetesResourceManagerConfiguration(
+				configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
+				POD_CREATION_RETRY_INTERVAL);
 
 		return new KubernetesResourceManager(
 			rpcService,
@@ -78,6 +88,8 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 			rmRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
-			resourceManagerMetricGroup);
+			resourceManagerMetricGroup,
+			KubeClientFactory.fromConfiguration(configuration),
+			kubernetesResourceManagerConfiguration);
 	}
 }
