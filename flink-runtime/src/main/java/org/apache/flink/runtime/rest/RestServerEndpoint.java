@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -63,9 +64,11 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -137,6 +140,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			final Router router = new Router();
 			final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
+			final Set<ChannelInboundHandler> distinctHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
 
 			handlers = initializeHandlers(restAddressFuture);
 
@@ -152,7 +156,12 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				RestHandlerUrlComparator.INSTANCE);
 
 			handlers.forEach(handler -> {
+				if (distinctHandlers.contains(handler.f1)) {
+					throw new FlinkRuntimeException("Duplicate REST handler instance found."
+						+ " Please ensure each instance is registered only once.");
+				}
 				registerHandler(router, handler, log);
+				distinctHandlers.add(handler.f1);
 			});
 
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {

@@ -223,7 +223,6 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				responseHeaders);
 		}
-
 	}
 
 	@Override
@@ -231,7 +230,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 		if (isHandlerClosed.compareAndSet(false, true)) {
 			return FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
 		} else {
-			log.warn("Handler instance {} had already been closed, not allowed to close it again.", this);
+			log.warn("The handler instance for {} had already been closed, but another attempt at closing it was made.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
 			return CompletableFuture.completedFuture(null);
 		}
 	}

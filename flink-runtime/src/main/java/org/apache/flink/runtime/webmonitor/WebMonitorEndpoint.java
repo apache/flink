@@ -500,9 +500,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			JobCancellationHeaders.getInstance(),
 			TerminationModeQueryParameter.TerminationMode.CANCEL);
 
-		// this is to prevent the same JobCancellationHandler from being registered twice
-		// should be removed once the Yarn proxy can forward all REST verbs
-		final JobCancellationHandler legacyJobCancelTerminationHandler = new JobCancellationHandler(
+		// use a separate handler for the yarn-cancel to ensure close() is only called once
+		final JobCancellationHandler yarnJobCancelTerminationHandler = new JobCancellationHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -603,7 +602,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(savepointDisposalStatusHandler.getMessageHeaders(), savepointDisposalStatusHandler));
 
 		// TODO: Remove once the Yarn proxy can forward all REST verbs
-		handlers.add(Tuple2.of(YarnCancelJobTerminationHeaders.getInstance(), legacyJobCancelTerminationHandler));
+		handlers.add(Tuple2.of(YarnCancelJobTerminationHeaders.getInstance(), yarnJobCancelTerminationHandler));
 		handlers.add(Tuple2.of(YarnStopJobTerminationHeaders.getInstance(), jobStopTerminationHandler));
 
 		handlers.add(Tuple2.of(shutdownHandler.getMessageHeaders(), shutdownHandler));
