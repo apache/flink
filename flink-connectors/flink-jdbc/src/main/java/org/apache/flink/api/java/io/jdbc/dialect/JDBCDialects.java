@@ -18,11 +18,16 @@
 
 package org.apache.flink.api.java.io.jdbc.dialect;
 
+import org.apache.flink.api.java.io.jdbc.source.row.converter.DerbyRowConverter;
+import org.apache.flink.api.java.io.jdbc.source.row.converter.JDBCRowConverter;
+import org.apache.flink.api.java.io.jdbc.source.row.converter.MySQLRowConverter;
+import org.apache.flink.api.java.io.jdbc.source.row.converter.PostgresRowConverter;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 
@@ -143,6 +148,11 @@ public final class JDBCDialects {
 		}
 
 		@Override
+		public JDBCRowConverter getRowConverter(RowType rowType) {
+			return new DerbyRowConverter(rowType);
+		}
+
+		@Override
 		public Optional<String> defaultDriverName() {
 			return Optional.of("org.apache.derby.jdbc.EmbeddedDriver");
 		}
@@ -223,6 +233,11 @@ public final class JDBCDialects {
 		@Override
 		public boolean canHandle(String url) {
 			return url.startsWith("jdbc:mysql:");
+		}
+
+		@Override
+		public JDBCRowConverter getRowConverter(RowType rowType) {
+			return new MySQLRowConverter(rowType);
 		}
 
 		@Override
@@ -324,6 +339,11 @@ public final class JDBCDialects {
 		@Override
 		public boolean canHandle(String url) {
 			return url.startsWith("jdbc:postgresql:");
+		}
+
+		@Override
+		public JDBCRowConverter getRowConverter(RowType rowType) {
+			return new PostgresRowConverter(rowType);
 		}
 
 		@Override

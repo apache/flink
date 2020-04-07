@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
+import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialects;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.types.Row;
 
@@ -38,6 +39,7 @@ import java.sql.Statement;
 import java.sql.Types;
 
 import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.OUTPUT_TABLE;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.ROW_TYPE;
 import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.ROW_TYPE_INFO;
 import static org.hamcrest.core.StringContains.containsString;
 
@@ -83,7 +85,8 @@ public class JDBCFullTest extends JDBCDataTestBase {
 				.setDrivername(getDbMetadata().getDriverClass())
 				.setDBUrl(getDbMetadata().getUrl())
 				.setQuery(JdbcTestFixture.SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO);
+				.setRowTypeInfo(ROW_TYPE_INFO)
+				.setRowConverter(JDBCDialects.get(getDbMetadata().getUrl()).get().getRowConverter(ROW_TYPE));
 
 		if (exploitParallelism) {
 			final int fetchSize = 1;
