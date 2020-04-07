@@ -33,7 +33,7 @@ import java.time.LocalTime;
  * {@link TimestampData} is an internal data structure represents data of {@link TimestampType}
  * and {@link LocalZonedTimestampType} in Flink Table/SQL.
  *
- * <p>It is an immutable implementation which is composite of a millisecond 
+ * <p>It is an immutable implementation which is composite of a millisecond
  * and nanoOfMillisecond since {@code 1970-01-01 00:00:00}.
  */
 @PublicEvolving
