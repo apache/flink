@@ -78,6 +78,7 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -334,7 +335,8 @@ public class SqlToOperationConverter {
 			identifier,
 			query,
 			insert.getStaticPartitionKVs(),
-			insert.isOverwrite());
+			insert.isOverwrite(),
+			Collections.emptyList());
 	}
 
 	/** Convert use catalog statement. */

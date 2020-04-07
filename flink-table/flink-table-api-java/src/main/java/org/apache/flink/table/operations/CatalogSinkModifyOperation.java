@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -37,20 +37,23 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 	private final Map<String, String> staticPartitions;
 	private final QueryOperation child;
 	private final boolean overwrite;
+	private final List<?> tableHints;
 
 	public CatalogSinkModifyOperation(ObjectIdentifier tableIdentifier, QueryOperation child) {
-		this(tableIdentifier, child, new HashMap<>(), false);
+		this(tableIdentifier, child, Collections.emptyMap(), false, Collections.emptyList());
 	}
 
 	public CatalogSinkModifyOperation(
 			ObjectIdentifier tableIdentifier,
 			QueryOperation child,
 			Map<String, String> staticPartitions,
-			boolean overwrite) {
+			boolean overwrite,
+			List<?> tableHints) {
 		this.tableIdentifier = tableIdentifier;
 		this.child = child;
 		this.staticPartitions = staticPartitions;
 		this.overwrite = overwrite;
+		this.tableHints = tableHints;
 	}
 
 	public ObjectIdentifier getTableIdentifier() {
@@ -63,6 +66,10 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 
 	public boolean isOverwrite() {
 		return overwrite;
+	}
+
+	public List<?> getTableHints() {
+		return tableHints;
 	}
 
 	@Override
@@ -81,6 +88,7 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 		params.put("identifier", tableIdentifier);
 		params.put("staticPartitions", staticPartitions);
 		params.put("overwrite", overwrite);
+		params.put("tableHints", tableHints);
 
 		return OperationUtils.formatWithChildren(
 			"CatalogSink",

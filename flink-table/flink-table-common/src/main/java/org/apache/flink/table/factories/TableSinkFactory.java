@@ -65,7 +65,7 @@ public interface TableSinkFactory<T> extends TableFactory {
 
 	/**
 	 * Creates and configures a {@link TableSink} based on the given
-	 {@link Context}.
+	 * {@link Context}.
 	 *
 	 * @param context context of this table sink.
 	 * @return the configured table sink.

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.catalog
 
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
 import org.apache.flink.table.catalog.{CatalogDatabaseImpl, CatalogFunctionImpl, GenericInMemoryCatalog, ObjectPath}
@@ -63,6 +63,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Before
   def before(): Unit = {
+    tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED,
+      true)
+
     tableEnv.getConfig
       .getConfiguration
       .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
@@ -247,6 +251,71 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val expected =
       "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
       "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
+    assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
+  }
+
+  @Test
+  def testReadWriteCsvWithDynamicTableOptions(): Unit = {
+    val csvRecords = Seq(
+      "2.02,Euro,2019-12-12 00:00:01.001001",
+      "1.11,US Dollar,2019-12-12 00:00:02.002001",
+      "50,Yen,2019-12-12 00:00:04.004001",
+      "3.1,Euro,2019-12-12 00:00:05.005001",
+      "5.33,US Dollar,2019-12-12 00:00:06.006001"
+    )
+    val tempFilePath = createTempFile(
+      "csv-order-test",
+      csvRecords.mkString("#"))
+    val sourceDDL =
+      s"""
+         |CREATE TABLE T1 (
+         |  price DECIMAL(10, 2),
+         |  currency STRING,
+         |  ts6 TIMESTAMP(6),
+         |  ts AS CAST(ts6 AS TIMESTAMP(3)),
+         |  WATERMARK FOR ts AS ts
+         |) WITH (
+         |  'connector.type' = 'filesystem',
+         |  'connector.path' = '$tempFilePath',
+         |  'format.type' = 'csv',
+         |  'format.field-delimiter' = ','
+         |)
+     """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+
+    val sinkFilePath = getTempFilePath("csv-order-sink")
+    val sinkDDL =
+      s"""
+         |CREATE TABLE T2 (
+         |  window_end TIMESTAMP(3),
+         |  max_ts TIMESTAMP(6),
+         |  counter BIGINT,
+         |  total_price DECIMAL(10, 2)
+         |) with (
+         |  'connector.type' = 'filesystem',
+         |  'connector.path' = '$sinkFilePath',
+         |  'format.type' = 'csv'
+         |)
+      """.stripMargin
+    tableEnv.sqlUpdate(sinkDDL)
+
+    val query =
+      """
+        |INSERT INTO T2 /*+ OPTIONS('format.field-delimiter' = ',') */
+        |SELECT
+        |  TUMBLE_END(ts, INTERVAL '5' SECOND),
+        |  MAX(ts6),
+        |  COUNT(*),
+        |  MAX(price)
+        |FROM T1 /*+ OPTIONS('format.line-delimiter' = '#') */
+        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
+      """.stripMargin
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+
+    val expected =
+      "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
+        "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 

@@ -23,37 +23,45 @@ import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
+import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema, Types}
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
-import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSourceFactory}
+import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
+import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
+import org.apache.flink.table.planner.{JArrayList, JList, JMap}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.sinks.{BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Row
-import java.io.{File, FileOutputStream, OutputStreamWriter}
-import java.util
-import java.util.{Collections, function, ArrayList => JArrayList, List => JList, Map => JMap}
 
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
+import _root_.java.util
+import _root_.java.util.Collections
+import _root_.java.util.function.BiConsumer
 
-object TestTableSources {
+import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
+
+object TestTableSourceSinks {
 
   def getPersonCsvTableSource: CsvTableSource = {
     val csvRecords = Seq(
@@ -789,7 +797,7 @@ class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
     val isBounded = dp.getBoolean("is-bounded")
     val sourceFetchPartitions = dp.getBoolean("source-fetch-partitions")
     val remainingPartitions = dp.getOptionalArray("remaining-partition",
-      new function.Function[String, util.Map[String, String]] {
+      new java.util.function.Function[String, util.Map[String, String]] {
       override def apply(t: String): util.Map[String, String] = {
         dp.getString(t).split(",")
             .map(kv => kv.split(":"))
@@ -866,5 +874,120 @@ object TestPartitionableSourceFactory {
       new CatalogPartitionImpl(Map[String, String](), ""),
       true))
 
+  }
+}
+
+/** Factory for [[OptionsTableSource]]. */
+class TestOptionsTableFactory
+    extends TableSourceFactory[Row]
+    with TableSinkFactory[Row] {
+  import TestOptionsTableFactory._
+
+  override def requiredContext(): util.Map[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR, "OPTIONS")
+    context
+  }
+
+  override def supportedProperties(): util.List[String] = {
+    val supported = new JArrayList[String]()
+    supported.add("*")
+    supported
+  }
+
+  override def createTableSource(context: TableSourceFactory.Context): TableSource[Row] = {
+    createPropertiesSource(context.getTable.toProperties)
+  }
+
+  override def createTableSink(context: TableSinkFactory.Context): BatchTableSink[Row] = {
+    createPropertiesSink(context.getTable.toProperties)
+  }
+}
+
+/** A table source that explains the properties in the plan. */
+class OptionsTableSource(
+    isBounded: Boolean,
+    tableSchema: TableSchema,
+    props: JMap[String, String])
+    extends BatchTableSource[Row]
+    with StreamTableSource[Row] {
+  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] =
+    None.asInstanceOf[DataSet[Row]]
+
+  override def explainSource(): String = s"${classOf[OptionsTableSource].getSimpleName}" +
+    s"(props=$props)"
+
+  override def getTableSchema: TableSchema = TableSchemaUtils.getPhysicalSchema(tableSchema)
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] =
+    None.asInstanceOf[DataStream[Row]]
+
+  override def isBounded: Boolean = {
+    isBounded
+  }
+}
+
+/** A table source that explains the properties in the plan. */
+class OptionsTableSink(
+    tableSchema: TableSchema,
+    val props: JMap[String, String])
+    extends BatchTableSink[Row]
+    with StreamTableSink[Row] {
+
+  override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
+    None.asInstanceOf[DataStreamSink[Row]]
+  }
+
+  override def configure(fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]])
+  : TableSink[Row] = this
+
+  override def getTableSchema: TableSchema = tableSchema
+
+  override def getConsumedDataType: DataType = {
+    TableSchemaUtils.getPhysicalSchema(tableSchema).toRowDataType
+  }
+
+  override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
+    None.asInstanceOf[DataSink[Row]]
+  }
+}
+
+object TestOptionsTableFactory {
+
+  def createPropertiesSource(props: JMap[String, String]): OptionsTableSource = {
+    val properties = new DescriptorProperties()
+    properties.putProperties(props)
+    val schema = properties.getTableSchema(Schema.SCHEMA)
+    val propsToShow = new util.HashMap[String, String]()
+    val isBounded = properties.getBoolean(IS_BOUNDED)
+    props.forEach(new BiConsumer[String, String] {
+      override def accept(k: String, v: String): Unit = {
+        if (!k.startsWith(Schema.SCHEMA)
+          && !k.equalsIgnoreCase(CONNECTOR)
+          && !k.equalsIgnoreCase(IS_BOUNDED)) {
+          propsToShow.put(k, v)
+        }
+      }
+    })
+
+    new OptionsTableSource(isBounded, schema, propsToShow)
+  }
+
+  def createPropertiesSink(props: JMap[String, String]): OptionsTableSink = {
+    val properties = new DescriptorProperties()
+    properties.putProperties(props)
+    val schema = properties.getTableSchema(Schema.SCHEMA)
+    val propsToShow = new util.HashMap[String, String]()
+    props.forEach(new BiConsumer[String, String] {
+      override def accept(k: String, v: String): Unit = {
+        if (!k.startsWith(Schema.SCHEMA)
+          && !k.equalsIgnoreCase(CONNECTOR)
+          && !k.equalsIgnoreCase(IS_BOUNDED)) {
+          propsToShow.put(k, v)
+        }
+      }
+    })
+
+    new OptionsTableSink(schema, propsToShow)
   }
 }

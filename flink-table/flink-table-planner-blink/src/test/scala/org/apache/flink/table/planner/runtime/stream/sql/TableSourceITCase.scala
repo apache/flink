@@ -25,7 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestStreamTableSource, TestTableSources}
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestStreamTableSource, TestTableSourceSinks}
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -334,7 +334,7 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testCsvTableSource(): Unit = {
-    val csvTable = TestTableSources.getPersonCsvTableSource
+    val csvTable = TestTableSourceSinks.getPersonCsvTableSource
     tEnv.registerTableSource("persons", csvTable)
 
     val sink = new TestingAppendSink()
@@ -354,8 +354,8 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testLookupJoinCsvTemporalTable(): Unit = {
-    val orders = TestTableSources.getOrdersCsvTableSource
-    val rates = TestTableSources.getRatesCsvTableSource
+    val orders = TestTableSourceSinks.getOrdersCsvTableSource
+    val rates = TestTableSourceSinks.getRatesCsvTableSource
     tEnv.registerTableSource("orders", orders)
     tEnv.registerTableSource("rates", rates)
 

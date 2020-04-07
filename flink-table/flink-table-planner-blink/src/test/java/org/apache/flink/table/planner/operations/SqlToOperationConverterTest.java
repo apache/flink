@@ -57,14 +57,18 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
+import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -77,8 +81,11 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 /**
  * Test cases for {@link SqlToOperationConverter}.
@@ -101,6 +108,9 @@ public class SqlToOperationConverterTest {
 			catalogManager,
 			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
 			new ArrayList<>());
+
+	@Rule
+	public ExpectedException exceptionRule = ExpectedException.none();
 
 	@Before
 	public void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -361,6 +371,37 @@ public class SqlToOperationConverterTest {
 		final Map<String, String> expectedStaticPartitions = new HashMap<>();
 		expectedStaticPartitions.put("a", "1");
 		assertEquals(expectedStaticPartitions, sinkModifyOperation.getStaticPartitions());
+	}
+
+	@Test
+	public void testSqlInsertWithDynamicTableOptions() {
+		final String sql = "insert into t1 /*+ OPTIONS('k1'='v1', 'k2'='v2') */\n"
+				+ "select a, b, c, d from t2";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		Operation operation = parse(sql, planner, parser);
+		assert operation instanceof CatalogSinkModifyOperation;
+		CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation) operation;
+		//noinspection unchecked
+		List<RelHint> hints = (List<RelHint>) sinkModifyOperation.getTableHints();
+		assertNotNull(hints);
+		assertThat(hints.size(), is(1));
+		RelHint expected = RelHint.builder(FlinkHints.HINT_NAME_OPTIONS)
+				.hintOption("k1", "v1")
+				.hintOption("k2", "v2")
+				.build();
+		assertThat(hints.get(0), is(expected));
+	}
+
+	@Test
+	public void testDynamicTableWithInvalidOptions() {
+		final String sql = "select * from t1 /*+ OPTIONS('opt1', 'opt2') */";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		exceptionRule.expect(AssertionError.class);
+		exceptionRule.expectMessage("Hint [OPTIONS] only support "
+				+ "non empty key value options");
+		parse(sql, planner, parser);
 	}
 
 	@Test // TODO: tweak the tests when FLINK-13604 is fixed.
