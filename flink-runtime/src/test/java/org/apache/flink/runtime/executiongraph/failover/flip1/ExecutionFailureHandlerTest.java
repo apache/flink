@@ -58,7 +58,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	@Before
 	public void setUp() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
-		topology.newVertex();
+		topology.newExecutionVertex();
 		schedulingTopology = topology;
 
 		failoverStrategy = new TestFailoverStrategy();

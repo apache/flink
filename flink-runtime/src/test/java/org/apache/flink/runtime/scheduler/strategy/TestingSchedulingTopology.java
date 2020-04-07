@@ -101,7 +101,7 @@ public class TestingSchedulingTopology
 		return new SchedulingExecutionVerticesBuilder();
 	}
 
-	public TestingSchedulingExecutionVertex newVertex() {
+	public TestingSchedulingExecutionVertex newExecutionVertex() {
 		final TestingSchedulingExecutionVertex newVertex = new TestingSchedulingExecutionVertex(new JobVertexID(), 0);
 		addSchedulingExecutionVertex(newVertex);
 		return newVertex;
