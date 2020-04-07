@@ -30,10 +30,10 @@ import java.sql.SQLException;
 public interface JDBCRowConverter extends Serializable {
 
 	/**
-	 * Set {@link Row} with data retrieved from {@link ResultSet}.
+	 * Convert data retrieved from {@link ResultSet} to {@link Row}.
 	 *
 	 * @param resultSet ResultSet from JDBC
 	 * @param reuse The row to set
 	 */
-	Row setRow(ResultSet resultSet, Row reuse) throws SQLException;
+	Row convert(ResultSet resultSet, Row reuse) throws SQLException;
 }

@@ -294,7 +294,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			if (!hasNext) {
 				return null;
 			}
-			Row row = rowConverter.setRow(resultSet, reuse);
+			Row row = rowConverter.convert(resultSet, reuse);
 			//update hasNext after we've read the record
 			hasNext = resultSet.next();
 			return row;

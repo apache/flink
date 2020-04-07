@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.io.jdbc.source.row.converter;
 
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -39,7 +38,7 @@ public abstract class AbstractJDBCRowConverter implements JDBCRowConverter {
 	}
 
 	@Override
-	public Row setRow(ResultSet resultSet, Row reuse) throws SQLException {
+	public Row convert(ResultSet resultSet, Row reuse) throws SQLException {
 		for (int pos = 0; pos < rowType.getFieldCount(); pos++) {
 			Object v = resultSet.getObject(pos + 1);
 			reuse.setField(pos, v);
