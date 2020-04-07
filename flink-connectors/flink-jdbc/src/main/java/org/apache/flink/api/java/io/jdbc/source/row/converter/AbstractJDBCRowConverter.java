@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.io.jdbc.source.row.converter;
 
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -32,18 +34,35 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractJDBCRowConverter implements JDBCRowConverter {
 
 	protected final RowType rowType;
+	protected final JDBCFieldConverter[] converters;
 
 	public AbstractJDBCRowConverter(RowType rowType) {
 		this.rowType = checkNotNull(rowType);
+		converters = new JDBCFieldConverter[rowType.getFieldCount()];
+
+		for (int i = 0; i < converters.length; i++) {
+			converters[i] = createConverter(rowType.getTypeAt(i));
+		}
 	}
 
 	@Override
 	public Row convert(ResultSet resultSet, Row reuse) throws SQLException {
 		for (int pos = 0; pos < rowType.getFieldCount(); pos++) {
-			Object v = resultSet.getObject(pos + 1);
-			reuse.setField(pos, v);
+			reuse.setField(pos, converters[pos].convert(resultSet.getObject(pos + 1)));
 		}
 
 		return reuse;
+	}
+
+	private JDBCFieldConverter createConverter(LogicalType type) {
+		LogicalTypeRoot root = type.getTypeRoot();
+
+		if (root == LogicalTypeRoot.SMALLINT) {
+			// Converter for small type that casts value to int and then return short value, since
+	        // JDBC 1.0 use int type for small values.
+			return v -> ((Integer) v).shortValue();
+		} else {
+			return v -> v;
+		}
 	}
 }
