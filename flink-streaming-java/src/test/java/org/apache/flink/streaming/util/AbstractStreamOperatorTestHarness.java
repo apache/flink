@@ -732,7 +732,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 		@Override
 		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-			sideOutputSerializer = TypeExtractor.getForObject(record.getValue()).createSerializer(executionConfig);
+			sideOutputSerializer = outputTag.getTypeInfo().createSerializer(executionConfig);
 
 			ConcurrentLinkedQueue<Object> sideOutputList = sideOutputLists.get(outputTag);
 			if (sideOutputList == null) {
