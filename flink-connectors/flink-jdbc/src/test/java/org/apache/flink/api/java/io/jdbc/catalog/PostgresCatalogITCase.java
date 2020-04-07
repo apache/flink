@@ -78,6 +78,16 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 		assertEquals("[1]", results.toString());
 	}
 
+	@Test
+	public void testPrimitiveTypes() throws Exception {
+		TableEnvironment tEnv = getTableEnvWithPgCatalog();
+
+		List<Row> results = TableUtils.collectToList(
+			tEnv.sqlQuery(String.format("select * from %s", TABLE_PRIMITIVE_TYPE)));
+
+		assertEquals("[1,[50],3,4,5.5,6.6,7.70000,true,a,b,c  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03]", results.toString());
+	}
+
 	private TableEnvironment getTableEnvWithPgCatalog() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
