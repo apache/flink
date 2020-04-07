@@ -27,6 +27,7 @@ import java.sql.SQLException;
 /**
  * Convert row from JDBC result set to a Flink row.
  */
+@FunctionalInterface
 public interface JDBCRowConverter extends Serializable {
 
 	/**
@@ -36,4 +37,12 @@ public interface JDBCRowConverter extends Serializable {
 	 * @param reuse The row to set
 	 */
 	Row convert(ResultSet resultSet, Row reuse) throws SQLException;
+
+	/**
+	 * Runtime converter to convert JDBC field to Java objects.
+	 */
+	@FunctionalInterface
+	interface JDBCFieldConverter extends Serializable {
+		Object convert(Object value);
+	}
 }
