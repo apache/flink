@@ -20,8 +20,10 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.util.AutoCloseableAsync;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 /**
  * Utility functions for Flink's RPC implementation.
@@ -78,6 +81,21 @@ public class RpcUtils {
 	}
 
 	/**
+	 * Shuts the given {@link RpcEndpoint RpcEndpoints} down and waits for their termination.
+	 *
+	 * @param rpcEndpoints to shut down
+	 * @param timeout for this operation
+	 * @throws InterruptedException if the operation has been interrupted
+	 * @throws ExecutionException if a problem occurred
+	 * @throws TimeoutException if a timeout occurred
+	 */
+	public static void terminateRpcEndpoints(
+			Time timeout,
+			RpcEndpoint... rpcEndpoints) throws InterruptedException, ExecutionException, TimeoutException {
+		terminateAsyncCloseables(Arrays.asList(rpcEndpoints), timeout);
+	}
+
+	/**
 	 * Shuts the given rpc service down and waits for its termination.
 	 *
 	 * @param rpcService to shut down
@@ -102,11 +120,19 @@ public class RpcUtils {
 	public static void terminateRpcServices(
 			Time timeout,
 			RpcService... rpcServices) throws InterruptedException, ExecutionException, TimeoutException {
-		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(rpcServices.length);
+		terminateAsyncCloseables(
+			Arrays.stream(rpcServices)
+				.map(rpcService -> (AutoCloseableAsync) rpcService::stopService)
+				.collect(Collectors.toList()),
+			timeout);
+	}
 
-		for (RpcService service : rpcServices) {
-			if (service != null) {
-				terminationFutures.add(service.stopService());
+	private static void terminateAsyncCloseables(Collection<? extends AutoCloseableAsync> closeables, Time timeout) throws InterruptedException, ExecutionException, TimeoutException {
+		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(closeables.size());
+
+		for (AutoCloseableAsync closeableAsync : closeables) {
+			if (closeableAsync != null) {
+				terminationFutures.add(closeableAsync.closeAsync());
 			}
 		}
 
