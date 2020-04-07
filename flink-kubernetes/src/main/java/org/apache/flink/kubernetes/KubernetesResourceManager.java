@@ -22,8 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.taskmanager.KubernetesTaskExecutorRunner;
@@ -91,6 +91,8 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 	private final List<String> taskManagerStartCommand;
 
+	private final KubernetesResourceManagerConfiguration configuration;
+
 	/** The number of pods requested, but not yet granted. */
 	private int numPendingPodRequests = 0;
 
@@ -105,7 +107,9 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) {
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			FlinkKubeClient kubeClient,
+			KubernetesResourceManagerConfiguration configuration) {
 		super(
 			flinkConfig,
 			System.getenv(),
@@ -119,15 +123,16 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			clusterInformation,
 			fatalErrorHandler,
 			resourceManagerMetricGroup);
-		this.clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
+		this.clusterId = configuration.getClusterId();
 		this.defaultCpus = taskExecutorProcessSpec.getCpuCores().getValue().doubleValue();
 
-		this.kubeClient = createFlinkKubeClient();
+		this.kubeClient = kubeClient;
 
 		this.taskManagerParameters =
 			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec, numSlotsPerTaskManager);
 
 		this.taskManagerStartCommand = getTaskManagerStartCommand();
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -184,12 +189,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	public boolean stopWorker(final KubernetesWorkerNode worker) {
 		LOG.info("Stopping Worker {}.", worker.getResourceID());
 		workerNodes.remove(worker.getResourceID());
-		try {
-			kubeClient.stopPod(worker.getResourceID().toString());
-		} catch (Exception e) {
-			kubeClient.handleException(e);
-			return false;
-		}
+		internalStopPod(worker.getResourceID().toString());
 		return true;
 	}
 
@@ -271,7 +271,23 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			env);
 
 		log.info("TaskManager {} will be started with {}.", podName, taskExecutorProcessSpec);
-		kubeClient.createTaskManagerPod(parameter);
+		kubeClient.createTaskManagerPod(parameter)
+			.whenComplete(
+				(ignore, throwable) -> {
+					if (throwable != null) {
+						log.error("Could not start TaskManager in pod {}.", podName, throwable);
+						scheduleRunAsync(
+							this::decreasePendingAndRequestKubernetesPodIfRequired,
+							configuration.getPodCreationRetryInterval());
+					}
+				}
+			);
+	}
+
+	private void decreasePendingAndRequestKubernetesPodIfRequired() {
+		validateRunsInMainThread();
+		numPendingPodRequests--;
+		requestKubernetesPodIfRequired();
 	}
 
 	/**
@@ -288,7 +304,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 	private void removePodIfTerminated(KubernetesPod pod) {
 		if (pod.isTerminated()) {
-			kubeClient.stopPod(pod.getName());
+			internalStopPod(pod.getName());
 			final KubernetesWorkerNode kubernetesWorkerNode = workerNodes.remove(new ResourceID(pod.getName()));
 			if (kubernetesWorkerNode != null) {
 				requestKubernetesPodIfRequired();
@@ -333,12 +349,19 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 		return labels;
 	}
 
-	protected FlinkKubeClient createFlinkKubeClient() {
-		return KubeClientFactory.fromConfiguration(flinkConfig);
-	}
-
 	@Override
 	protected double getCpuCores(Configuration configuration) {
 		return TaskExecutorProcessUtils.getCpuCoresWithFallbackConfigOption(configuration, KubernetesConfigOptions.TASK_MANAGER_CPU);
+	}
+
+	private void internalStopPod(String podName) {
+		kubeClient.stopPod(podName)
+			.whenComplete(
+				(ignore, throwable) -> {
+					if (throwable != null) {
+						log.error("Could not stop TaskManager in pod {}.", podName, throwable);
+					}
+				}
+			);
 	}
 }

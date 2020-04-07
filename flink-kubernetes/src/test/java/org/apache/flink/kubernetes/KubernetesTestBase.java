@@ -34,6 +34,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.ServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -117,7 +118,10 @@ public class KubernetesTestBase extends TestLogger {
 	}
 
 	protected FlinkKubeClient getFabric8FlinkKubeClient(Configuration flinkConfig){
-		return new Fabric8FlinkKubeClient(flinkConfig, server.getClient().inNamespace(NAMESPACE));
+		return new Fabric8FlinkKubeClient(
+			flinkConfig,
+			server.getClient().inNamespace(NAMESPACE),
+			Executors::newDirectExecutorService);
 	}
 
 	protected KubernetesClient getKubeClient() {
