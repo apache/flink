@@ -54,7 +54,6 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.failover.NoOpFailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
@@ -133,8 +132,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	private final ExecutionGraph executionGraph;
 
 	private final SchedulingTopology<?, ?> schedulingTopology;
-
-	private final FailoverTopology<?, ?> failoverTopology;
 
 	private final InputsLocationsRetriever inputsLocationsRetriever;
 
@@ -222,7 +219,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
 		this.schedulingTopology = executionGraph.getSchedulingTopology();
-		this.failoverTopology = executionGraph.getFailoverTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 	}
@@ -287,7 +283,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	 * execution graph and accessors should be preferred over direct access:
 	 * <ul>
 	 *     <li>{@link #getSchedulingTopology()}
-	 *     <li>{@link #getFailoverTopology()}
 	 *     <li>{@link #getInputsLocationsRetriever()}
 	 *     <li>{@link #getExecutionVertex(ExecutionVertexID)}
 	 *     <li>{@link #getExecutionVertexId(ExecutionAttemptID)}
@@ -382,10 +377,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	protected void failJob(Throwable cause) {
 		incrementVersionsOfAllVertices();
 		executionGraph.failJob(cause);
-	}
-
-	protected final FailoverTopology<?, ?> getFailoverTopology() {
-		return failoverTopology;
 	}
 
 	protected final SchedulingTopology<?, ?> getSchedulingTopology() {
