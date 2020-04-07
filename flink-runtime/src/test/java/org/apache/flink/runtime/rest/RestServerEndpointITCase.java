@@ -50,6 +50,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -100,6 +101,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
@@ -590,6 +592,25 @@ public class RestServerEndpointITCase extends TestLogger {
 			assertThat(serverEndpoint2.getServerAddress().getPort(), is(greaterThanOrEqualTo(portRangeStart)));
 			assertThat(serverEndpoint2.getServerAddress().getPort(), is(lessThanOrEqualTo(portRangeEnd)));
 		}
+	}
+
+	@Test
+	public void testDuplicateHandlerRegistrationIsForbidden() throws Exception {
+		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+
+		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
+			Tuple2.of(new TestHeaders(), testHandler),
+			Tuple2.of(new TestHeaders(), testHandler)
+		);
+
+		assertThrows("Duplicate REST handler",
+			FlinkRuntimeException.class,
+			() -> {
+				try (TestRestServerEndpoint restServerEndpoint =  new TestRestServerEndpoint(serverConfig, handlers)) {
+					restServerEndpoint.start();
+					return null;
+				}
+			});
 	}
 
 	private static File getTestResource(final String fileName) {

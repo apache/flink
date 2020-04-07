@@ -88,7 +88,6 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
@@ -124,7 +123,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
@@ -271,24 +269,6 @@ public class RestClusterClientTest extends TestLogger {
 			}
 		}
 
-	}
-
-	/**
-	 * Tests that ensure each handler is registered only once.
-	 */
-	@Test
-	public void testDuplicatedHandlerRegistration() throws Exception {
-		final TestJobSubmitHandler testJobSubmitHandler = new TestJobSubmitHandler();
-
-		assertThrows("Duplicate REST handler instance found. Please ensure each instance is registered only once.",
-			FlinkRuntimeException.class,
-			() -> {
-				try (TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(
-					testJobSubmitHandler, testJobSubmitHandler)) {
-					createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
-					return null;
-				}
-			});
 	}
 
 	private class TestJobSubmitHandler extends TestHandler<JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
