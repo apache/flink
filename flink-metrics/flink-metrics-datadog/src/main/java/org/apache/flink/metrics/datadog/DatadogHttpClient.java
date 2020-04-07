@@ -42,10 +42,8 @@ import java.util.concurrent.TimeUnit;
 public class DatadogHttpClient {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpClient.class);
 
-	private static final String SERIES_URL_FORMAT_US = "https://app.datadoghq.com/api/v1/series?api_key=%s";
-	private static final String VALIDATE_URL_FORMAT_US = "https://app.datadoghq.com/api/v1/validate?api_key=%s";
-	private static final String SERIES_URL_FORMAT_EU = "https://app.datadoghq.eu/api/v1/series?api_key=%s";
-	private static final String VALIDATE_URL_FORMAT_EU = "https://app.datadoghq.eu/api/v1/validate?api_key=%s";
+	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.%s/api/v1/series?api_key=%s";
+	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.%s/api/v1/validate?api_key=%s";
 	private static final MediaType MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
 	private static final int TIMEOUT = 3;
 	private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -57,9 +55,8 @@ public class DatadogHttpClient {
 
 	private final String proxyHost;
 	private final int proxyPort;
-	private final String dataCenter;
 
-	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, String dgDataCenter,
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, DataCenter dataCenter,
 			boolean validateApiKey) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
@@ -67,20 +64,14 @@ public class DatadogHttpClient {
 		apiKey = dgApiKey;
 		proxyHost = dgProxyHost;
 		proxyPort = dgProxyPort;
-		dataCenter = dgDataCenter;
 
 		Proxy proxy = getProxy();
 
 		client = new OkHttpClient.Builder().connectTimeout(TIMEOUT, TimeUnit.SECONDS)
 				.writeTimeout(TIMEOUT, TimeUnit.SECONDS).readTimeout(TIMEOUT, TimeUnit.SECONDS).proxy(proxy).build();
-		if (dataCenter.equals("US")){
-			seriesUrl = String.format(SERIES_URL_FORMAT_US, apiKey);
-			validateUrl = String.format(VALIDATE_URL_FORMAT_US, apiKey);
-		}
-		else {
-			seriesUrl = String.format(SERIES_URL_FORMAT_EU, apiKey);
-			validateUrl = String.format(VALIDATE_URL_FORMAT_EU, apiKey);
-		}
+
+		seriesUrl = String.format(SERIES_URL_FORMAT, dataCenter.getDomain(), apiKey);
+		validateUrl = String.format(VALIDATE_URL_FORMAT, dataCenter.getDomain(), apiKey);
 
 		if (validateApiKey) {
 			validateApiKey();
