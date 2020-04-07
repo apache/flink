@@ -407,7 +407,6 @@ public final class JDBCDialects {
 			//  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in LegacyTypeInfoDataTypeConverter.
 			return Arrays.asList(
 					LogicalTypeRoot.BINARY,
-					LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
 					LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE,
 					LogicalTypeRoot.INTERVAL_YEAR_MONTH,
 					LogicalTypeRoot.INTERVAL_DAY_TIME,
