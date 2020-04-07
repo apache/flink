@@ -197,8 +197,13 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
 			return createClusterClientProvider(clusterId);
 		} catch (Exception e) {
-			client.handleException(e);
-			throw new ClusterDeploymentException("Could not create Kubernetes cluster " + clusterId, e);
+			try {
+				LOG.warn("Failed to create the Kubernetes cluster \"{}\", try to clean up the residual resources.", clusterId);
+				client.stopAndCleanupCluster(clusterId);
+			} catch (Exception e1) {
+				LOG.info("Failed to stop and clean up the Kubernetes cluster \"{}\".", clusterId, e1);
+			}
+			throw new ClusterDeploymentException("Could not create Kubernetes cluster \"" + clusterId + "\".", e);
 		}
 	}
 
