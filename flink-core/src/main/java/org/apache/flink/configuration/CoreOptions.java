@@ -178,6 +178,12 @@ public class CoreOptions {
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of the HistoryServer with.").build());
 
+	public static final ConfigOption<String> FLINK_CLI_JVM_OPTIONS = ConfigOptions
+		.key("env.java.opts.client")
+		.stringType()
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the Flink Client with.").build());
+
 	/**
 	 * This options is here only for documentation generation, it is only
 	 * evaluated in the shell scripts.
