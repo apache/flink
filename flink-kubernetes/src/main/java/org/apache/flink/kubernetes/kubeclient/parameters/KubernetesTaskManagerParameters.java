@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -82,6 +83,11 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	@Override
 	public Map<String, String> getAnnotations() {
 		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
+	}
+
+	@Override
+	public List<Map<String, String>> getTolerations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
 	}
 
 	public String getTaskManagerMainContainerName() {

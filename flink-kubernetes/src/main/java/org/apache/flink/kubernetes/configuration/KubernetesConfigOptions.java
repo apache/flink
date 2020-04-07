@@ -186,6 +186,24 @@ public class KubernetesConfigOptions {
 		.withDescription("The user-specified annotations that are set to the TaskManager pod. The value could be " +
 			"in the form of a1:v1,a2:v2");
 
+	public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_TOLERATIONS =
+		key("kubernetes.jobmanager.tolerations")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("The user-specified tolerations to be set to the JobManager pod. The value should be " +
+				"in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+				"key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000");
+
+	public static final ConfigOption<List<Map<String, String>>> TASK_MANAGER_TOLERATIONS =
+		key("kubernetes.taskmanager.tolerations")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("The user-specified tolerations to be set to the TaskManager pod. The value should be " +
+				"in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+				"key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000");
+
 	/**
 	 * The flink rest service exposed type.
 	 */

@@ -105,6 +105,12 @@
             <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.jobmanager.tolerations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified tolerations to be set to the JobManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.namespace</h5></td>
             <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>
@@ -139,6 +145,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>The node selector to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.tolerations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
         </tr>
     </tbody>
 </table>
