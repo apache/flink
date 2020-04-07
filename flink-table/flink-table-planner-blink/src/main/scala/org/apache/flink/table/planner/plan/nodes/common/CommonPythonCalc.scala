@@ -46,7 +46,10 @@ trait CommonPythonCalc extends CommonPythonBase {
 
     val udfInputOffsets = inputNodes.toArray
       .map(_._1)
-      .collect { case inputRef: RexInputRef => inputRef.getIndex }
+      .collect {
+        case inputRef: RexInputRef => inputRef.getIndex
+        case fac: RexFieldAccess => fac.getField.getIndex
+      }
     (udfInputOffsets, pythonFunctionInfos)
   }
 
