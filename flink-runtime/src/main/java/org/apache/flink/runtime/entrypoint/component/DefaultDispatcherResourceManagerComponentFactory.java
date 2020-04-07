@@ -89,7 +89,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 	@Nonnull
 	private final RestEndpointFactory<?> restEndpointFactory;
 
-	DefaultDispatcherResourceManagerComponentFactory(
+	public DefaultDispatcherResourceManagerComponentFactory(
 			@Nonnull DispatcherRunnerFactory dispatcherRunnerFactory,
 			@Nonnull ResourceManagerFactory<?> resourceManagerFactory,
 			@Nonnull RestEndpointFactory<?> restEndpointFactory) {
