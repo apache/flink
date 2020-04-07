@@ -103,6 +103,11 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	}
 
 	@Override
+	public CatalogTable copy(Map<String, String> options) {
+		throw new UnsupportedOperationException("ConnectorCatalogTable cannot copy with new table options");
+	}
+
+	@Override
 	public CatalogBaseTable copy() {
 		return this;
 	}

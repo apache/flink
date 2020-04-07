@@ -802,12 +802,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				.ok("DROP TEMPORARY SYSTEM FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1`");
 	}
 
-	@Override
-	public void testTableHintsInInsert() {
-		// Override the superclass tests because Flink insert parse block
-		// is totally customized, and the hints are not supported yet.
-	}
-
 	/** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. **/
 	private static class ValidationMatcher extends BaseMatcher<SqlNode> {
 		private String expectedColumnSql;

@@ -71,11 +71,14 @@ import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.hint.HintStrategyTable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlDialect;
@@ -83,6 +86,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -342,8 +346,14 @@ public class SqlToOperationConverter {
 
 	/** Convert insert into statement. */
 	private Operation convertSqlInsert(RichSqlInsert insert) {
-		// get name of sink table
-		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTable()).names;
+		// Get sink table name.
+		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTableID()).names;
+		// Get sink table hints.
+		HintStrategyTable hintStrategyTable = flinkPlanner.config()
+				.getSqlToRelConverterConfig()
+				.getHintStrategyTable();
+		List<RelHint> tableHints = SqlUtil.getRelHint(hintStrategyTable, insert.getTableHints());
+		Map<String, String> dynamicOptions = FlinkHints.getHintedOptions(tableHints);
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -359,7 +369,8 @@ public class SqlToOperationConverter {
 			identifier,
 			query,
 			insert.getStaticPartitionKVs(),
-			insert.isOverwrite());
+			insert.isOverwrite(),
+			dynamicOptions);
 	}
 
 	/** Convert use catalog statement. */

@@ -28,9 +28,11 @@ import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
+import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
@@ -185,7 +187,8 @@ abstract class PlannerBase(
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
         val identifier = catalogSink.getTableIdentifier
-        getTableSink(identifier).map { case (table, sink) =>
+        val dynamicOptions = catalogSink.getDynamicOptions
+        getTableSink(identifier, dynamicOptions).map { case (table, sink) =>
           // check the logical field type and physical field type are compatible
           val queryLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
           // validate logical schema and physical schema are compatible
@@ -280,7 +283,9 @@ abstract class PlannerBase(
     */
   protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
 
-  private def getTableSink(objectIdentifier: ObjectIdentifier)
+  private def getTableSink(
+      objectIdentifier: ObjectIdentifier,
+      dynamicOptions: JMap[String, String])
     : Option[(CatalogTable, TableSink[_])] = {
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
       .map(_.getTable) match {
@@ -294,8 +299,15 @@ abstract class PlannerBase(
       case Some(s) if s.isInstanceOf[CatalogTable] =>
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val table = s.asInstanceOf[CatalogTable]
+        val tableToFind = if (dynamicOptions.nonEmpty) {
+          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getProperties))
+        } else {
+          table
+        }
         val context = new TableSinkFactoryContextImpl(
-          objectIdentifier, table, getTableConfig.getConfiguration)
+          objectIdentifier,
+          tableToFind,
+          getTableConfig.getConfiguration)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {

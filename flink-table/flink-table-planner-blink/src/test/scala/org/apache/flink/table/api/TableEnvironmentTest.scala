@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSources}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.sinks.CsvTableSink
 
 import org.apache.calcite.plan.RelOptUtil
@@ -85,7 +85,7 @@ class TableEnvironmentTest {
     val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
-    tEnv.registerTableSource("MyTable", TestTableSources.getPersonCsvTableSource)
+    tEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
     tEnv.registerTableSink("MySink",
       new CsvTableSink("/tmp").configure(Array("first"), Array(STRING)))
 
