@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.cluster.JobManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;

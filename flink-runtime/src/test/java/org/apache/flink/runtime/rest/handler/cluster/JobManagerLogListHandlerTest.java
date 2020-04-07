@@ -31,8 +31,10 @@ import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -42,28 +44,33 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
  * Test for the {@link JobManagerLogListHandler}.
  */
-public class JobManagerLogListHandlerTest {
+public class JobManagerLogListHandlerTest extends TestLogger {
 
-	private static final DispatcherGateway mockRestfulGateway = new TestingDispatcherGateway.Builder().build();
-	private HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest;
-	private Configuration config;
+	private DispatcherGateway mockRestfulGateway;
+
+	private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> testRequest;
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@BeforeClass
+	public static void initHandlerRequest() throws HandlerRequestException {
+		testRequest = new HandlerRequest<>(EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap());
+	}
+
 	@Before
 	public void setUp() throws Exception {
-		handlerRequest = createRequest();
-		config = new Configuration();
+		mockRestfulGateway = new TestingDispatcherGateway.Builder().build();
 	}
 
 	@Test
@@ -73,26 +80,15 @@ public class JobManagerLogListHandlerTest {
 			new LogInfo("jobmanager.out", 0L),
 			new LogInfo("test.log", 0L));
 		JobManagerLogListHandler jobManagerLogListHandler = createHandler(logsList);
-		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(handlerRequest, mockRestfulGateway).get();
+		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(testRequest, mockRestfulGateway).get();
 		assertThat(logListInfo.getLogInfos(), hasSize(logsList.size()));
 	}
 
 	@Test
-	public void testGetJobManagerLogsListForLogDirIsNull() throws Exception {
+	public void testGetJobManagerLogsListWhenLogDirIsNull() throws Exception {
 		JobManagerLogListHandler jobManagerLogListHandler = createHandler(Collections.emptyList());
-		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(handlerRequest, mockRestfulGateway).get();
-		assertThat(logListInfo.getLogInfos(), hasSize(0));
-	}
-
-	private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> createRequest() throws HandlerRequestException {
-		Map<String, String> pathParameters = Collections.emptyMap();
-		Map<String, List<String>> queryParameters = Collections.emptyMap();
-
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			EmptyMessageParameters.getInstance(),
-			pathParameters,
-			queryParameters);
+		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(testRequest, mockRestfulGateway).get();
+		assertThat(logListInfo.getLogInfos(), is(empty()));
 	}
 
 	private JobManagerLogListHandler createHandler(List<LogInfo> logsList) {
@@ -102,10 +98,11 @@ public class JobManagerLogListHandlerTest {
 			TestingUtils.TIMEOUT(),
 			Collections.emptyMap(),
 			JobManagerLogListHeaders.getInstance(),
-			logFileLocation);
+			logFileLocation.logDir);
 	}
 
 	private WebMonitorUtils.LogFileLocation createLogFileLocation(List<LogInfo> logsList) {
+		Configuration config = new Configuration();
 		try {
 			for (LogInfo logInfo : logsList) {
 				File file = temporaryFolder.newFile(logInfo.getName());

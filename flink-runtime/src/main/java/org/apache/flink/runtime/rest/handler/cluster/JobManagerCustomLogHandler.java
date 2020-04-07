@@ -20,43 +20,37 @@ package org.apache.flink.runtime.rest.handler.cluster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.FileMessageParameters;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.StringUtils;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.File;
 import java.util.Map;
-import java.util.concurrent.CompletionException;
 
 /**
  * Rest handler which serves the custom log file from JobManager.
  */
 public class JobManagerCustomLogHandler extends AbstractJobManagerFileHandler<FileMessageParameters> {
 
+	private String logDir;
+
 	public JobManagerCustomLogHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout, Map<String, String> responseHeaders,
 			UntypedResponseMessageHeaders<EmptyRequestBody, FileMessageParameters> messageHeaders,
-			WebMonitorUtils.LogFileLocation logFileLocation) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, logFileLocation);
+			String logDir) {
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+
+		this.logDir = logDir;
 	}
 
 	@Override
 	protected File getFile(HandlerRequest<EmptyRequestBody, FileMessageParameters> handlerRequest) {
-		if (logFileLocation.logFile == null) {
-			throw new CompletionException(new RestHandlerException("Can not get JobManager log dir.", HttpResponseStatus.NOT_FOUND));
-		}
-		final String logDir = logFileLocation.logFile.getParent();
-		if (StringUtils.isNullOrWhitespaceOnly(logDir)) {
-			throw new CompletionException(new RestHandlerException("JobManager log dir is empty.", HttpResponseStatus.NOT_FOUND));
+		if (logDir == null) {
+			return null;
 		}
 		String filename = handlerRequest.getPathParameter(LogFileNamePathParameter.class);
 		return new File(logDir, filename);

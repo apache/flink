@@ -38,7 +38,6 @@ import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
-import org.apache.flink.runtime.rest.handler.cluster.JobManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
@@ -620,15 +619,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders,
 			JobManagerLogFileHeader.getInstance(),
-			logFileLocation
+			logFileLocation.logFile
 		);
 
-		final JobManagerStdoutFileHandler jobManagerStdoutFileHandler = new JobManagerStdoutFileHandler(
+		final JobManagerLogFileHandler jobManagerStdoutFileHandler = new JobManagerLogFileHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JobManagerStdoutFileHeader.getInstance(),
-			logFileLocation
+			logFileLocation.stdOutFile
 		);
 
 		final JobManagerCustomLogHandler jobManagerCustomLogHandler = new JobManagerCustomLogHandler(
@@ -636,7 +635,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders,
 			JobManagerCustomLogHeaders.getInstance(),
-			logFileLocation
+			logFileLocation.logDir
 		);
 
 		final JobManagerLogListHandler jobManagerLogListHandler = new JobManagerLogListHandler(
@@ -644,7 +643,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders,
 			JobManagerLogListHeaders.getInstance(),
-			logFileLocation
+			logFileLocation.logDir
 		);
 
 		handlers.add(Tuple2.of(JobManagerLogFileHeader.getInstance(), jobManagerLogFileHandler));

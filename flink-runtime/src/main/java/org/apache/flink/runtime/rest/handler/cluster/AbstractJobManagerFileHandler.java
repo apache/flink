@@ -27,10 +27,8 @@ import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -47,17 +45,12 @@ import java.util.concurrent.CompletionException;
  */
 public abstract class AbstractJobManagerFileHandler<M extends MessageParameters> extends AbstractHandler<RestfulGateway, EmptyRequestBody, M> {
 
-	protected final WebMonitorUtils.LogFileLocation logFileLocation;
-
 	protected AbstractJobManagerFileHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
-			UntypedResponseMessageHeaders<EmptyRequestBody, M> messageHeaders,
-			WebMonitorUtils.LogFileLocation logFileLocation) {
+			UntypedResponseMessageHeaders<EmptyRequestBody, M> messageHeaders) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-
-		this.logFileLocation = Preconditions.checkNotNull(logFileLocation);
 	}
 
 	@Override
@@ -77,7 +70,7 @@ public abstract class AbstractJobManagerFileHandler<M extends MessageParameters>
 			return HandlerUtils.sendErrorResponse(
 				ctx,
 				httpRequest,
-				new ErrorResponseBody("This file is not exist in JobManager log dir."),
+				new ErrorResponseBody("This file does not exist in JobManager log dir."),
 				HttpResponseStatus.NOT_FOUND,
 				Collections.emptyMap());
 		}

@@ -29,9 +29,7 @@ import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nonnull;
@@ -50,25 +48,24 @@ import java.util.stream.Collectors;
  */
 public class JobManagerLogListHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, LogListInfo, EmptyMessageParameters> {
 
-	private final WebMonitorUtils.LogFileLocation logFileLocation;
+	private final String logDir;
 
 	public JobManagerLogListHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, LogListInfo, EmptyMessageParameters> messageHeaders,
-			WebMonitorUtils.LogFileLocation logFileLocation) {
+			String logDir) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-		Preconditions.checkNotNull(logFileLocation);
-		this.logFileLocation = logFileLocation;
+
+		this.logDir = logDir;
 	}
 
 	@Override
 	protected CompletableFuture<LogListInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-		if (logFileLocation.logFile == null || StringUtils.isNullOrWhitespaceOnly(logFileLocation.logFile.getParent())) {
+		if (StringUtils.isNullOrWhitespaceOnly(logDir)) {
 			return CompletableFuture.completedFuture(new LogListInfo(Collections.emptyList()));
 		}
-		final String logDir = logFileLocation.logFile.getParent();
 		final File[] logFiles = new File(logDir).listFiles();
 		if (logFiles == null) {
 			return FutureUtils.completedExceptionally(new IOException("Could not list files in " + logDir));
