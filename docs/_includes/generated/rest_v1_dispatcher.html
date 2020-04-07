@@ -2263,7 +2263,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       }
     },
     "operation" : {
-      "type" : "any"
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationInfo",
+      "properties" : {
+        "failure-cause" : {
+          "type" : "any"
+        }
+      }
     }
   }
 }            </code>
@@ -2394,7 +2400,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       }
     },
     "operation" : {
-      "type" : "any"
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:SavepointInfo",
+      "properties" : {
+        "location" : {
+          "type" : "string"
+        },
+        "failure-cause" : {
+          "type" : "any"
+        }
+      }
     }
   }
 }            </code>
@@ -3767,7 +3782,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       }
     },
     "operation" : {
-      "type" : "any"
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationInfo",
+      "properties" : {
+        "failure-cause" : {
+          "type" : "any"
+        }
+      }
     }
   }
 }            </code>

@@ -19,6 +19,8 @@
 package org.apache.flink.docs.rest;
 
 import org.apache.flink.runtime.rest.RestServerEndpoint;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationStatusMessageHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -38,6 +40,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -127,11 +131,17 @@ public class RestAPIDocGenerator {
 	}
 
 	private static String createHtmlEntry(MessageHeaders<?, ?, ?> spec) {
+		Class<?> nestedAsyncOperationResultClass = null;
+		if (spec instanceof AsynchronousOperationStatusMessageHeaders) {
+			nestedAsyncOperationResultClass = ((AsynchronousOperationStatusMessageHeaders<?, ?>) spec).getValueClass();
+		}
 		String requestEntry = createMessageHtmlEntry(
 			spec.getRequestClass(),
+			null,
 			EmptyRequestBody.class);
 		String responseEntry = createMessageHtmlEntry(
 			spec.getResponseClass(),
+			nestedAsyncOperationResultClass,
 			EmptyResponseBody.class);
 
 		String pathParameterList = createPathParameterHtmlList(spec.getUnresolvedMessageParameters().getPathParameters());
@@ -235,13 +245,12 @@ public class RestAPIDocGenerator {
 		return queryParameterList.toString();
 	}
 
-	private static String createMessageHtmlEntry(Class<?> messageClass, Class<?> emptyMessageClass) {
-		JsonSchema schema;
-		try {
-			schema = schemaGen.generateSchema(messageClass);
-		} catch (JsonProcessingException e) {
-			LOG.error("Failed to generate message schema for class {}.", messageClass, e);
-			throw new RuntimeException("Failed to generate message schema for class " + messageClass.getCanonicalName() + ".", e);
+	private static String createMessageHtmlEntry(Class<?> messageClass, @Nullable Class<?> nestedAsyncOperationResultClass, Class<?> emptyMessageClass) {
+		JsonSchema schema = generateSchema(messageClass);
+
+		if (nestedAsyncOperationResultClass != null) {
+			JsonSchema innerSchema = generateSchema(nestedAsyncOperationResultClass);
+			schema.asObjectSchema().getProperties().put(AsynchronousOperationResult.FIELD_NAME_OPERATION, innerSchema);
 		}
 
 		String json;
@@ -258,6 +267,15 @@ public class RestAPIDocGenerator {
 		}
 
 		return json;
+	}
+
+	private static JsonSchema generateSchema(Class<?> messageClass) {
+		try {
+			return schemaGen.generateSchema(messageClass);
+		} catch (JsonProcessingException e) {
+			LOG.error("Failed to generate message schema for class {}.", messageClass, e);
+			throw new RuntimeException("Failed to generate message schema for class " + messageClass.getCanonicalName() + ".", e);
+		}
 	}
 
 	/**
