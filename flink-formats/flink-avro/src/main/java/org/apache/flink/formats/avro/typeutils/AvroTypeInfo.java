@@ -30,7 +30,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.avro.specific.SpecificRecordBase;
 
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;

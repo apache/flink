@@ -816,13 +816,20 @@ public class TypeExtractor {
 			currentExtractingClasses = extractingClasses;
 		}
 
+		final List<TypeInformationExtractor<?>> typeInformationExtractors = findTypeInformationExtractors(t);
+
 		// check if type information can be created using a type factory
-		final TypeInformation<OUT> typeFromFactory = createTypeInfoFromFactory(t, typeVariableBindings, currentExtractingClasses);
-		if (typeFromFactory != null) {
-			return typeFromFactory;
+//		final TypeInformation<OUT> typeFromFactory = createTypeInfoFromFactory(t, typeVariableBindings, currentExtractingClasses);
+		if (typeInformationExtractors.size() > 0) {
+			for (int i = 0; i < typeInformationExtractors.size(); i++) {
+				final TypeInformation<OUT> typeInformation = (TypeInformation<OUT>) typeInformationExtractors.get(i).create(t, new TypeInformationExtractorContext<>(typeVariableBindings, currentExtractingClasses));
+				if (typeInformation != null) {
+					return typeInformation;
+				}
+			}
 		}
 		// check if type is a subclass of tuple
-		else if (isClassType(t) && Tuple.class.isAssignableFrom(typeToClass(t))) {
+		if (isClassType(t) && Tuple.class.isAssignableFrom(typeToClass(t))) {
 			final List<Type> typeHierarchy = new ArrayList<Type>(Arrays.asList(t));
 
 			Type curT = t;
@@ -2253,5 +2260,151 @@ public class TypeExtractor {
 		}
 
 		return typeVariableBindings;
+	}
+
+
+	private static final Map<Class<?>, TypeInformationExtractor<?>> REGISTERED_TYPEINFORMATION_EXTRACTOR = new HashMap<>();
+
+	interface TypeInformationExtractor<T> {
+
+		List<Class<?>> getTypeHandled();
+
+		TypeInformation<? extends T> create(Type type, Context<T> context);
+	}
+
+	interface Context<T> {
+		TypeInformation<T> create(Type type);
+	}
+
+	class TypeInformationExtractorContext<T> implements Context<T> {
+
+		final Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings;
+
+		final List<Class<?>> extractingClasses;
+
+		public TypeInformationExtractorContext(
+			final Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings,
+			final List<Class<?>> extractingClasses) {
+			this.typeVariableBindings = typeVariableBindings;
+			this.extractingClasses = extractingClasses;
+		}
+
+		@Override
+		public TypeInformation<T> create(Type type) {
+			if (type instanceof TypeVariable) {
+				return (TypeInformation<T>) typeVariableBindings.get(type);
+			}
+			return new TypeExtractor().createTypeInfo(type, typeVariableBindings, extractingClasses);
+		}
+
+	}
+
+	private List<TypeInformationExtractor<?>> findTypeInformationExtractors(Type type) {
+
+		final List<TypeInformationExtractor<?>> typeInformationExtractors = new ArrayList<>();
+		final Class<?> typeClass;
+
+		if (isClassType(type)) {
+			typeClass = typeToClass(type);
+		} else {
+			return Collections.emptyList();
+		}
+
+		//TODO:: use a new fix.
+		final List<Type> typeHierarchy = new ArrayList<>();
+		final TypeInfoFactory<?> typeInfoFactory = getClosestFactory(typeHierarchy, type);
+		if (typeInfoFactory != null) {
+			final Type factoryClass = typeHierarchy.get(typeHierarchy.size() - 1);
+			typeInformationExtractors.add(new TypeInfoFactoryExtractor(typeInfoFactory, factoryClass));
+		}
+
+		typeInformationExtractors.addAll(findRegisteredTypeInformationExtractor(typeClass));
+
+		return typeInformationExtractors;
+	}
+
+	private static List<TypeInformationExtractor<?>> findRegisteredTypeInformationExtractor(Class<?> clazz) {
+
+		if (clazz == null || clazz.equals(Object.class)) {
+			return Collections.emptyList();
+		}
+
+		List<TypeInformationExtractor<?>> result = new ArrayList<>();
+
+		TypeInformationExtractor<?> typeInformationExtractor = REGISTERED_TYPEINFORMATION_EXTRACTOR.get(clazz);
+
+		if (typeInformationExtractor != null) {
+			result.add(typeInformationExtractor);
+		}
+
+		result.addAll(findRegisteredTypeInformationExtractor(clazz.getSuperclass()));
+
+		for (Class<?>  c : clazz.getInterfaces()) {
+			result.addAll(findRegisteredTypeInformationExtractor(c));
+		}
+		return result;
+	}
+
+	private static class TypeInfoFactoryExtractor<T> implements TypeInformationExtractor<T> {
+
+		private final TypeInfoFactory<T> typeInfoFactory;
+
+		private final Type factoryType;
+
+		public TypeInfoFactoryExtractor(TypeInfoFactory<T> typeInfoFactory, Type factoryType) {
+			this.typeInfoFactory = typeInfoFactory;
+			this.factoryType = factoryType;
+		}
+
+		@Override
+		public List<Class<?>> getTypeHandled() {
+			throw new UnsupportedOperationException(String.format("%s does not support getTypeHandled.", getClass()));
+		}
+
+		@Override
+		public TypeInformation<? extends T> create(Type type, Context<T> context) {
+
+			final List<Type> factoryHierarchy = new ArrayList<>(Arrays.asList(type));
+			factoryHierarchy.addAll(buildTypeHierarchy(typeToClass(type), typeToClass(factoryType)));
+
+			final Type factoryDefiningType = resolveTypeFromTypeHierachy(factoryHierarchy.get(factoryHierarchy.size() - 1), factoryHierarchy, true);
+			final Map<String, TypeInformation<?>> genericParams;
+
+			if (factoryDefiningType instanceof ParameterizedType) {
+				genericParams = new HashMap<>();
+				final ParameterizedType paramDefiningType = (ParameterizedType) factoryDefiningType;
+				final Type[] args = typeToClass(paramDefiningType).getTypeParameters();
+
+				final TypeInformation<?>[] subtypeInfo = createSubTypesInfo(paramDefiningType, context);
+				assert subtypeInfo != null;
+				for (int i = 0; i < subtypeInfo.length; i++) {
+					genericParams.put(args[i].toString(), subtypeInfo[i]);
+				}
+			} else {
+				genericParams = Collections.emptyMap();
+			}
+
+			final TypeInformation<? extends T> createdTypeInfo = typeInfoFactory.createTypeInfo(type, genericParams);
+
+			if (createdTypeInfo == null) {
+				throw new InvalidTypesException("TypeInfoFactory returned invalid TypeInformation 'null'");
+			}
+			return createdTypeInfo;
+		}
+
+		private TypeInformation<?>[] createSubTypesInfo(final ParameterizedType definingType, final Context<T> context) {
+
+			final int typeArgumentsLength = definingType.getActualTypeArguments().length;
+			final TypeInformation<?>[] subTypesInfo = new TypeInformation<?>[typeArgumentsLength];
+			for (int i = 0; i < typeArgumentsLength; i++) {
+				final Type acutalTypeArgument = definingType.getActualTypeArguments()[i];
+				try {
+					subTypesInfo[i] = context.create(acutalTypeArgument);
+				} catch (InvalidTypesException e) {
+					subTypesInfo[i] = null;
+				}
+			}
+			return subTypesInfo;
+		}
 	}
 }
