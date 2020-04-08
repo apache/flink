@@ -76,15 +76,10 @@ public class BashJavaUtils {
 	}
 
 	private static void getJmResourceParams(String[] args) throws Exception {
-		Configuration configuration = getConfigurationForStandaloneJobManager(args);
-		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(configuration);
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfigWithFallbackForLegacyHeap(
+			FlinkConfigLoader.loadConfiguration(args),
+			JobManagerOptions.TOTAL_FLINK_MEMORY);
 		System.out.println(EXECUTION_PREFIX + ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec));
-	}
-
-	private static Configuration getConfigurationForStandaloneJobManager(String[] args) throws Exception {
-		Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
-		return JobManagerProcessUtils.getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-			configuration, JobManagerOptions.TOTAL_FLINK_MEMORY);
 	}
 
 	/**
