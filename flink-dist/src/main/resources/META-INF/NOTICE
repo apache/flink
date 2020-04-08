@@ -23,7 +23,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.commons:commons-math3:3.5
 - org.javassist:javassist:3.24.0-GA
-- org.lz4:lz4-java:1.5.0
+- org.lz4:lz4-java:1.6.0
 - org.objenesis:objenesis:2.1
 - org.xerial.snappy:snappy-java:1.1.4
 

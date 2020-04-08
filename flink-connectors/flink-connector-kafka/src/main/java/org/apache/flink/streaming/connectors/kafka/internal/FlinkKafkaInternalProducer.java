@@ -211,12 +211,13 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 			Object transactionManager = getField(kafkaProducer, "transactionManager");
 			synchronized (transactionManager) {
-				Object nextSequence = getField(transactionManager, "nextSequence");
+				Object topicPartitionBookkeeper =
+						getField(transactionManager, "topicPartitionBookkeeper");
 
 				invoke(transactionManager,
 					"transitionTo",
 					getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
-				invoke(nextSequence, "clear");
+				invoke(topicPartitionBookkeeper, "reset");
 
 				Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
 				setField(producerIdAndEpoch, "producerId", producerId);
@@ -295,7 +296,9 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 				invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
 				result = (TransactionalRequestResult) getField(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
 			} else {
-				result = new TransactionalRequestResult();
+				// we don't have an operation but this operation string is also used in
+				// addPartitionsToTransactionHandler.
+				result = new TransactionalRequestResult("AddPartitionsToTxn");
 				result.done();
 			}
 			return result;
