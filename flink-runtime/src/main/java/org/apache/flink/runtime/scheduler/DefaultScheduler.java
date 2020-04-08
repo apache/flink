@@ -34,7 +34,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingRes
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ThrowingRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -269,7 +269,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	@Override
-	protected void scheduleOrUpdateConsumersInternal(final ExecutionVertexID producerVertexId, final ResultPartitionID partitionId) {
+	protected void scheduleOrUpdateConsumersInternal(final ExecutionVertexID producerVertexId, final IntermediateResultPartitionID partitionId) {
 		schedulingStrategy.onPartitionConsumable(producerVertexId, partitionId);
 	}
 

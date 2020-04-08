@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.TestLogger;
@@ -253,7 +251,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		final TestingSchedulingResultPartition partition1 = producer1.getProducedResults().iterator().next();
 
 		schedulingStrategy.onExecutionStateChange(producer1.getId(), ExecutionState.RUNNING);
-		schedulingStrategy.onPartitionConsumable(producer1.getId(), new ResultPartitionID(partition1.getId(), new ExecutionAttemptID()));
+		schedulingStrategy.onPartitionConsumable(producer1.getId(), partition1.getId());
 
 		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}

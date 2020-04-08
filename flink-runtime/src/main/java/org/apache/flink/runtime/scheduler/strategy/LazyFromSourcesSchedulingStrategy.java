@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.DeploymentOption;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
@@ -113,9 +113,9 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	@Override
-	public void onPartitionConsumable(ExecutionVertexID executionVertexId, ResultPartitionID resultPartitionId) {
+	public void onPartitionConsumable(ExecutionVertexID executionVertexId, IntermediateResultPartitionID resultPartitionId) {
 		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology
-			.getResultPartitionOrThrow(resultPartitionId.getPartitionId());
+			.getResultPartitionOrThrow(resultPartitionId);
 
 		if (!resultPartition.getResultType().isPipelined()) {
 			return;
