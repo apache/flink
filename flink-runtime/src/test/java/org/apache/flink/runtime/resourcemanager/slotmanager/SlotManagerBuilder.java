@@ -75,12 +75,15 @@ public class SlotManagerBuilder {
 	}
 
 	public SlotManagerImpl build() {
-		return new SlotManagerImpl(
-			slotMatchingStrategy,
-			scheduledExecutor,
+		final SlotManagerConfiguration slotManagerConfiguration = new SlotManagerConfiguration(
 			taskManagerRequestTimeout,
 			slotRequestTimeout,
 			taskManagerTimeout,
-			waitResultConsumedBeforeRelease);
+			waitResultConsumedBeforeRelease,
+			slotMatchingStrategy);
+
+		return new SlotManagerImpl(
+			scheduledExecutor,
+			slotManagerConfiguration);
 	}
 }

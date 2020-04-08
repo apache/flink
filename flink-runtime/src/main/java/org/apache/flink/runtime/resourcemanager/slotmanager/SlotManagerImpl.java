@@ -126,19 +126,17 @@ public class SlotManagerImpl implements SlotManager {
 	private boolean failUnfulfillableRequest = true;
 
 	public SlotManagerImpl(
-			SlotMatchingStrategy slotMatchingStrategy,
 			ScheduledExecutor scheduledExecutor,
-			Time taskManagerRequestTimeout,
-			Time slotRequestTimeout,
-			Time taskManagerTimeout,
-			boolean waitResultConsumedBeforeRelease) {
+			SlotManagerConfiguration slotManagerConfiguration) {
 
-		this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
 		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
-		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
-		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
-		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
-		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
+
+		Preconditions.checkNotNull(slotManagerConfiguration);
+		this.slotMatchingStrategy = slotManagerConfiguration.getSlotMatchingStrategy();
+		this.taskManagerRequestTimeout = slotManagerConfiguration.getTaskManagerRequestTimeout();
+		this.slotRequestTimeout = slotManagerConfiguration.getSlotRequestTimeout();
+		this.taskManagerTimeout = slotManagerConfiguration.getTaskManagerTimeout();
+		this.waitResultConsumedBeforeRelease = slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
 
 		slots = new HashMap<>(16);
 		freeSlots = new LinkedHashMap<>(16);
