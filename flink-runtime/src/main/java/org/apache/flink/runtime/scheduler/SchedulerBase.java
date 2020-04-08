@@ -61,6 +61,7 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategyResolving;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -615,10 +616,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 
 		final ExecutionVertexID producerVertexId = getExecutionVertexIdOrThrow(partitionId.getProducerId());
-		scheduleOrUpdateConsumersInternal(producerVertexId, partitionId);
+		scheduleOrUpdateConsumersInternal(producerVertexId, partitionId.getPartitionId());
 	}
 
-	protected void scheduleOrUpdateConsumersInternal(ExecutionVertexID producerVertexId, ResultPartitionID resultPartitionId) {
+	protected void scheduleOrUpdateConsumersInternal(ExecutionVertexID producerVertexId, IntermediateResultPartitionID resultPartitionId) {
 	}
 
 	@Override
