@@ -67,6 +67,15 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	/**
 	 * Parquet properties, start with "parquet", see more in {@link ParquetOutputFormat}.
+	 * - parquet.compression
+	 * - parquet.block.size
+	 * - parquet.page.size
+	 * - parquet.dictionary.page.size
+	 * - parquet.writer.max-padding
+	 * - parquet.enable.dictionary
+	 * - parquet.validation
+	 * - parquet.writer.version
+	 * ...
 	 */
 	public static final String PARQUET_PROPERTIES = "format.parquet";
 
