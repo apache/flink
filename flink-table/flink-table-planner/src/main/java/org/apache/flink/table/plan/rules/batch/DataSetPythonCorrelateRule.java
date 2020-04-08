@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.datastream;
+package org.apache.flink.table.plan.rules.batch;
 
 import org.apache.flink.table.plan.nodes.FlinkConventions;
-import org.apache.flink.table.plan.nodes.datastream.DataStreamPythonCorrelate;
+import org.apache.flink.table.plan.nodes.dataset.DataSetPythonCorrelate;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.plan.schema.RowSchema;
 import org.apache.flink.table.plan.util.CorrelateUtil;
 import org.apache.flink.table.plan.util.PythonUtil;
 
@@ -40,15 +39,15 @@ import scala.Some;
 
 /**
  * The physical rule is responsible for convert {@link FlinkLogicalCorrelate} to
- * {@link DataStreamPythonCorrelate}.
+ * {@link DataSetPythonCorrelate}.
  */
-public class DataStreamPythonCorrelateRule extends ConverterRule {
+public class DataSetPythonCorrelateRule extends ConverterRule {
 
-	public static final RelOptRule INSTANCE = new DataStreamPythonCorrelateRule();
+	public static final DataSetPythonCorrelateRule INSTANCE = new DataSetPythonCorrelateRule();
 
-	private DataStreamPythonCorrelateRule() {
-		super(FlinkLogicalCorrelate.class, FlinkConventions.LOGICAL(), FlinkConventions.DATASTREAM(),
-			"DataStreamPythonCorrelateRule");
+	private DataSetPythonCorrelateRule() {
+		super(FlinkLogicalCorrelate.class, FlinkConventions.LOGICAL(), FlinkConventions.DATASET(),
+			"DataSetPythonCorrelateRule");
 	}
 
 	@Override
@@ -58,8 +57,7 @@ public class DataStreamPythonCorrelateRule extends ConverterRule {
 
 		if (right instanceof FlinkLogicalTableFunctionScan) {
 			// right node is a python table function
-			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
-			return PythonUtil.isPythonCall(scan.getCall(), null);
+			return PythonUtil.isPythonCall(((FlinkLogicalTableFunctionScan) right).getCall(), null);
 		} else if (right instanceof FlinkLogicalCalc) {
 			// a filter is pushed above the table function
 			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
@@ -71,33 +69,33 @@ public class DataStreamPythonCorrelateRule extends ConverterRule {
 
 	@Override
 	public RelNode convert(RelNode rel) {
-		DataStreamPythonCorrelateFactory factory = new DataStreamPythonCorrelateFactory(rel);
+		DataSetPythonCorrelateFactory factory = new DataSetPythonCorrelateFactory(rel);
 		return factory.convertToCorrelate();
 	}
 
 	/**
-	 * The factory is responsible to creating {@link DataStreamPythonCorrelate}.
+	 * The factory is responsible to creating {@link DataSetPythonCorrelate}.
 	 */
-	private static class DataStreamPythonCorrelateFactory {
+	private static class DataSetPythonCorrelateFactory {
 		private final RelNode correlateRel;
 		private final FlinkLogicalCorrelate join;
 		private final RelTraitSet traitSet;
 		private final RelNode convInput;
 		private final RelNode right;
 
-		DataStreamPythonCorrelateFactory(RelNode rel) {
+		DataSetPythonCorrelateFactory(RelNode rel) {
 			this.correlateRel = rel;
 			this.join = (FlinkLogicalCorrelate) rel;
-			this.traitSet = rel.getTraitSet().replace(FlinkConventions.DATASTREAM());
-			this.convInput = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASTREAM());
+			this.traitSet = rel.getTraitSet().replace(FlinkConventions.DATASET());
+			this.convInput = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASET());
 			this.right = join.getInput(1);
 		}
 
-		DataStreamPythonCorrelate convertToCorrelate() {
+		DataSetPythonCorrelate convertToCorrelate() {
 			return convertToCorrelate(right, Option.empty());
 		}
 
-		private DataStreamPythonCorrelate convertToCorrelate(
+		private DataSetPythonCorrelate convertToCorrelate(
 			RelNode relNode,
 			Option<RexNode> condition) {
 			if (relNode instanceof RelSubset) {
@@ -112,17 +110,16 @@ public class DataStreamPythonCorrelateRule extends ConverterRule {
 					Some.apply(newCalc.getProgram().expandLocalRef(newCalc.getProgram().getCondition())));
 			} else {
 				FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) relNode;
-				return new DataStreamPythonCorrelate(
+				return new DataSetPythonCorrelate(
 					relNode.getCluster(),
 					traitSet,
-					new RowSchema(convInput.getRowType()),
 					convInput,
 					scan,
 					condition,
-					new RowSchema(correlateRel.getRowType()),
-					new RowSchema(join.getRowType()),
+					correlateRel.getRowType(),
+					join.getRowType(),
 					join.getJoinType(),
-					"DataStreamPythonCorrelateRule");
+					"DataSetPythonCorrelateRule");
 			}
 		}
 	}

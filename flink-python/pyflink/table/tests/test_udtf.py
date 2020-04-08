@@ -20,7 +20,7 @@ from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase
+    PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase
 
 
 class UserDefinedTableFunctionTests(object):
@@ -79,6 +79,42 @@ class PyFlinkStreamUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
 class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
                                                  PyFlinkBlinkStreamTableTestCase):
     pass
+
+
+class PyFlinkBatchUserDefinedTableFunctionTests(PyFlinkBatchTableTestCase):
+
+    def test_table_function(self):
+        self.t_env.register_function(
+            "multi_emit", udtf(MultiEmit(), [DataTypes.BIGINT(), DataTypes.BIGINT()],
+                               [DataTypes.BIGINT(), DataTypes.BIGINT()]))
+
+        self.t_env.register_function("condition_multi_emit", condition_multi_emit)
+
+        self.t_env.register_function(
+            "multi_num", udf(MultiNum(), [DataTypes.BIGINT()],
+                             DataTypes.BIGINT()))
+
+        t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c']) \
+            .join_lateral("multi_emit(a, multi_num(b)) as (x, y)") \
+            .left_outer_join_lateral("condition_multi_emit(x, y) as m") \
+            .select("x, y, m")
+        result = self.collect(t)
+        self.assert_equals(result,
+                           ["1,0,null", "1,1,null", "2,0,null", "2,1,null", "3,0,0", "3,0,1",
+                            "3,0,2", "3,1,1", "3,1,2", "3,2,2", "3,3,null"])
+
+    def test_table_function_with_sql_query(self):
+        self.t_env.register_function(
+            "multi_emit", udtf(MultiEmit(), [DataTypes.BIGINT(), DataTypes.BIGINT()],
+                               [DataTypes.BIGINT(), DataTypes.BIGINT()]))
+
+        t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
+        self.t_env.register_table("MyTable", t)
+        res = self.t_env.sql_query(
+            "SELECT a, x, y FROM MyTable LEFT JOIN LATERAL TABLE(multi_emit(a, b)) as T(x, y)"
+            " ON TRUE")
+        result = self.collect(res)
+        self.assert_equals(result, ["1,1,0", "2,2,0", "3,3,0", "3,3,1"])
 
 
 class MultiEmit(TableFunction, unittest.TestCase):
