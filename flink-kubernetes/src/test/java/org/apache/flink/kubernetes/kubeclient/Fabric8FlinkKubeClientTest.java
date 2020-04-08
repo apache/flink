@@ -42,6 +42,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -61,6 +63,8 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 	private static final int JOB_MANAGER_MEMORY = 768;
 
 	private static final String SERVICE_ACCOUNT_NAME = "service-test";
+
+	private static final String TASKMANAGER_POD_NAME = "mock-task-manager-pod";
 
 	private static final String ENTRY_POINT_CLASS = KubernetesSessionClusterEntrypoint.class.getCanonicalName();
 
@@ -140,10 +144,10 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 			.editOrNewSpec()
 			.endSpec()
 			.build());
-		this.flinkKubeClient.createTaskManagerPod(kubernetesPod);
+		this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
 		final Pod resultTaskManagerPod =
-			this.kubeClient.pods().inNamespace(NAMESPACE).withName("mock-task-manager-pod").get();
+			this.kubeClient.pods().inNamespace(NAMESPACE).withName(TASKMANAGER_POD_NAME).get();
 
 		assertEquals(
 			this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().get(0).getMetadata().getUid(),
@@ -151,7 +155,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 	}
 
 	@Test
-	public void testStopPod() {
+	public void testStopPod() throws ExecutionException, InterruptedException {
 		final String podName = "pod-for-delete";
 		final Pod pod = new PodBuilder()
 			.editOrNewMetadata()
@@ -164,7 +168,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 		this.kubeClient.pods().inNamespace(NAMESPACE).create(pod);
 		assertNotNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
 
-		this.flinkKubeClient.stopPod(podName);
+		this.flinkKubeClient.stopPod(podName).get();
 		assertNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
 	}
 
@@ -173,42 +177,45 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 		final String hostName = "test-host-name";
 		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(hostName, ""));
 
-		final Endpoint resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
 
-		assertEquals(hostName, resultEndpoint.getAddress());
-		assertEquals(REST_PORT, resultEndpoint.getPort());
+		assertThat(resultEndpoint.isPresent(), is(true));
+		assertThat(resultEndpoint.get().getAddress(), is(hostName));
+		assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
 	}
 
 	@Test
 	public void testServiceLoadBalancerEmptyHostAndIP() {
 		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer("", ""));
 
-		final Endpoint resultEndpoint1 = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertNull(resultEndpoint1);
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(false));
 	}
 
 	@Test
 	public void testServiceLoadBalancerNullHostAndIP() {
 		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(null, null));
 
-		final Endpoint resultEndpoint2 = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertNull(resultEndpoint2);
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(false));
 	}
 
 	@Test
 	public void testNodePortService() {
 		mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
 
-		final Endpoint resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertThat(resultEndpoint.getPort(), is(NODE_PORT));
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(true));
+		assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
 	}
 
 	@Test
 	public void testClusterIPService() {
 		mockExpectedServiceFromServerSide(buildExternalServiceWithClusterIP());
-		final Endpoint resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
 
-		assertThat(resultEndpoint.getPort(), is(REST_PORT));
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(true));
+		assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
 	}
 
 	@Test
@@ -217,12 +224,12 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 
 		final KubernetesPod kubernetesPod = new KubernetesPod(new PodBuilder()
 			.editOrNewMetadata()
-			.withName("mock-task-manager-pod")
+			.withName(TASKMANAGER_POD_NAME)
 			.endMetadata()
 			.editOrNewSpec()
 			.endSpec()
 			.build());
-		this.flinkKubeClient.createTaskManagerPod(kubernetesPod);
+		this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
 		assertEquals(1, this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().size());
 		assertEquals(1, this.kubeClient.configMaps().inNamespace(NAMESPACE).list().getItems().size());

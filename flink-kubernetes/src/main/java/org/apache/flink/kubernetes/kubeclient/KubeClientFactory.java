@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
 
 import io.fabric8.kubernetes.client.Config;
@@ -31,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Factory class to create {@link FlinkKubeClient}.
@@ -68,6 +71,10 @@ public class KubeClientFactory {
 
 		final KubernetesClient client = new DefaultKubernetesClient(config);
 
-		return new Fabric8FlinkKubeClient(flinkConfig, client);
+		return new Fabric8FlinkKubeClient(flinkConfig, client, KubeClientFactory::createThreadPoolForAsyncIO);
+	}
+
+	private static ExecutorService createThreadPoolForAsyncIO() {
+		return Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO"));
 	}
 }

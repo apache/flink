@@ -51,6 +51,8 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -85,11 +87,11 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		return () -> {
 			final Configuration configuration = new Configuration(flinkConfig);
 
-			final Endpoint restEndpoint = client.getRestEndpoint(clusterId);
+			final Optional<Endpoint> restEndpoint = client.getRestEndpoint(clusterId);
 
-			if (restEndpoint != null) {
-				configuration.setString(RestOptions.ADDRESS, restEndpoint.getAddress());
-				configuration.setInteger(RestOptions.PORT, restEndpoint.getPort());
+			if (restEndpoint.isPresent()) {
+				configuration.setString(RestOptions.ADDRESS, restEndpoint.get().getAddress());
+				configuration.setInteger(RestOptions.PORT, restEndpoint.get().getPort());
 			} else {
 				throw new RuntimeException(
 						new ClusterRetrieveException(
