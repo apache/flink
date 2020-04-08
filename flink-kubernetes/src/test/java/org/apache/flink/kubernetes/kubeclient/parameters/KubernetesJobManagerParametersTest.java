@@ -47,7 +47,6 @@ import static org.junit.Assert.fail;
  */
 public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
-	private static final int JOB_MANAGER_MEMORY = 768;
 	private static final double JOB_MANAGER_CPU = 2.0;
 
 	private final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()

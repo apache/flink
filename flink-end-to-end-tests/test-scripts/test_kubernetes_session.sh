@@ -64,8 +64,7 @@ mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
 "$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
     -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
-    -Djobmanager.heap.size=512m \
-    -Dcontainerized.heap-cutoff-min=100 \
+    -Djobmanager.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%" \
