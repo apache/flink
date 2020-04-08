@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.LegacyMemoryOptions;
+import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
@@ -64,7 +65,14 @@ public class JobManagerProcessUtils {
 	private JobManagerProcessUtils() {
 	}
 
-	public static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
+	public static JobManagerProcessSpec processSpecFromConfigWithFallbackForLegacyHeap(
+			Configuration config,
+			ConfigOption<MemorySize> newFallbackOptionForLegacyHeap) {
+		return processSpecFromConfig(
+			getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(config, newFallbackOptionForLegacyHeap));
+	}
+
+	static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
 		return createMemoryProcessSpec(PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
 	}
 
@@ -73,9 +81,16 @@ public class JobManagerProcessUtils {
 		return new JobManagerProcessSpec(processMemory.getFlinkMemory(), processMemory.getJvmMetaspaceAndOverhead());
 	}
 
-	public static Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
+	static Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
 			Configuration configuration,
 			ConfigOption<MemorySize> configOption) {
 		return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
+	}
+
+	@VisibleForTesting
+	public static JobManagerProcessSpec createDefaultJobManagerProcessSpec(int totalProcessMemoryMb) {
+		Configuration configuration = new Configuration();
+		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalProcessMemoryMb));
+		return processSpecFromConfig(configuration);
 	}
 }
