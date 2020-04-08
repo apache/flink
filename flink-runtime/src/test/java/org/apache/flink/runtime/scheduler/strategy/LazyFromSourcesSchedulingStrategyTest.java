@@ -251,7 +251,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		final TestingSchedulingResultPartition partition1 = producer1.getProducedResults().iterator().next();
 
 		schedulingStrategy.onExecutionStateChange(producer1.getId(), ExecutionState.RUNNING);
-		schedulingStrategy.onPartitionConsumable(producer1.getId(), partition1.getId());
+		schedulingStrategy.onPartitionConsumable(partition1.getId());
 
 		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}

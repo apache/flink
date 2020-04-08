@@ -25,8 +25,6 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.util.IterableUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -113,18 +111,12 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	@Override
-	public void onPartitionConsumable(ExecutionVertexID executionVertexId, IntermediateResultPartitionID resultPartitionId) {
+	public void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId) {
 		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology
 			.getResultPartitionOrThrow(resultPartitionId);
 
 		if (!resultPartition.getResultType().isPipelined()) {
 			return;
-		}
-
-		final SchedulingExecutionVertex<?, ?> producerVertex = schedulingTopology.getVertexOrThrow(executionVertexId);
-		if (!Iterables.contains(producerVertex.getProducedResults(), resultPartition)) {
-			throw new IllegalStateException("partition " + resultPartitionId
-					+ " is not the produced partition of " + executionVertexId);
 		}
 
 		allocateSlotsAndDeployExecutionVertices(resultPartition.getConsumers());

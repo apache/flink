@@ -63,7 +63,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	@Override
-	public void onPartitionConsumable(ExecutionVertexID executionVertexId, IntermediateResultPartitionID resultPartitionId) {
+	public void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId) {
 		// Will not react to these notifications.
 	}
 

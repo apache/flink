@@ -269,8 +269,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	@Override
-	protected void scheduleOrUpdateConsumersInternal(final ExecutionVertexID producerVertexId, final IntermediateResultPartitionID partitionId) {
-		schedulingStrategy.onPartitionConsumable(producerVertexId, partitionId);
+	protected void scheduleOrUpdateConsumersInternal(final IntermediateResultPartitionID partitionId) {
+		schedulingStrategy.onPartitionConsumable(partitionId);
 	}
 
 	// ------------------------------------------------------------------------
