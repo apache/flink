@@ -1714,11 +1714,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					// filter out outdated connections
 					//noinspection ObjectEquality
 					if (resourceManagerConnection == connection) {
-						establishResourceManagerConnection(
-							resourceManagerGateway,
-							resourceManagerId,
-							taskExecutorRegistrationId,
-							clusterInformation);
+						try {
+							establishResourceManagerConnection(
+								resourceManagerGateway,
+								resourceManagerId,
+								taskExecutorRegistrationId,
+								clusterInformation);
+						} catch (Throwable t) {
+							log.error("Establishing Resource Manager connection in Task Executor failed", t);
+						}
 					}
 				});
 		}
