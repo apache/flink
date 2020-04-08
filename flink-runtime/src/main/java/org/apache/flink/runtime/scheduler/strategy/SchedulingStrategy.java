@@ -55,8 +55,7 @@ public interface SchedulingStrategy {
 	/**
 	 * Called whenever an {@link IntermediateResultPartition} becomes consumable.
 	 *
-	 * @param executionVertexId The id of the producer
 	 * @param resultPartitionId The id of the result partition
 	 */
-	void onPartitionConsumable(ExecutionVertexID executionVertexId, IntermediateResultPartitionID resultPartitionId);
+	void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId);
 }

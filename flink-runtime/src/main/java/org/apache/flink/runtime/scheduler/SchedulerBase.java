@@ -615,11 +615,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 			throw new RuntimeException(e);
 		}
 
-		final ExecutionVertexID producerVertexId = getExecutionVertexIdOrThrow(partitionId.getProducerId());
-		scheduleOrUpdateConsumersInternal(producerVertexId, partitionId.getPartitionId());
+		scheduleOrUpdateConsumersInternal(partitionId.getPartitionId());
 	}
 
-	protected void scheduleOrUpdateConsumersInternal(ExecutionVertexID producerVertexId, IntermediateResultPartitionID resultPartitionId) {
+	protected void scheduleOrUpdateConsumersInternal(IntermediateResultPartitionID resultPartitionId) {
 	}
 
 	@Override
