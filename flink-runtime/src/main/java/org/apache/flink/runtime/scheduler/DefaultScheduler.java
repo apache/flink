@@ -42,7 +42,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -302,11 +301,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			deploymentOptionsByVertex,
 			slotExecutionVertexAssignments);
 
-		if (isDeployIndividually()) {
-			deployIndividually(deploymentHandles);
-		} else {
-			waitForAllSlotsAndDeploy(deploymentHandles);
-		}
+		waitForAllSlotsAndDeploy(deploymentHandles);
 	}
 
 	private void validateDeploymentOptions(final Collection<ExecutionVertexDeploymentOption> deploymentOptions) {
@@ -349,25 +344,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 					slotExecutionVertexAssignment);
 			})
 			.collect(Collectors.toList());
-	}
-
-	/**
-	 * <b>HACK:</b> See <a href="https://issues.apache.org/jira/browse/FLINK-14162">FLINK-14162</a>
-	 * for details.
-	 */
-	private boolean isDeployIndividually() {
-		return schedulingStrategy instanceof LazyFromSourcesSchedulingStrategy;
-	}
-
-	private void deployIndividually(final List<DeploymentHandle> deploymentHandles) {
-		for (final DeploymentHandle deploymentHandle : deploymentHandles) {
-			FutureUtils.assertNoException(
-				deploymentHandle
-					.getSlotExecutionVertexAssignment()
-					.getLogicalSlotFuture()
-					.handle(assignResourceOrHandleError(deploymentHandle))
-					.handle(deployOrHandleError(deploymentHandle)));
-		}
 	}
 
 	private void waitForAllSlotsAndDeploy(final List<DeploymentHandle> deploymentHandles) {
