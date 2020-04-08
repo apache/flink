@@ -29,7 +29,6 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -43,13 +42,12 @@ import org.apache.flink.api.java.io.TextValueInputFormat;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
-import org.apache.flink.api.java.operators.OperatorTranslation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
-import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
+import org.apache.flink.api.java.utils.PlanGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -70,7 +68,6 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
-import org.apache.flink.util.Visitor;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
@@ -83,10 +80,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1036,6 +1031,14 @@ public class ExecutionEnvironment {
 	}
 
 	/**
+	 * Get the registered cached files
+	 */
+	@Internal
+	public List<Tuple2<String, DistributedCacheEntry>> getCacheFile() {
+		return new ArrayList<>(cacheFile);
+	}
+
+	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
 	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
@@ -1093,77 +1096,13 @@ public class ExecutionEnvironment {
 			}
 		}
 
-		OperatorTranslation translator = new OperatorTranslation();
-		Plan plan = translator.translateToPlan(this.sinks, jobName);
-
-		if (getParallelism() > 0) {
-			plan.setDefaultParallelism(getParallelism());
-		}
-		plan.setExecutionConfig(getConfig());
-
-		// Check plan for GenericTypeInfo's and register the types at the serializers.
-		if (!config.isAutoTypeRegistrationDisabled()) {
-			plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
-
-				private final Set<Class<?>> registeredTypes = new HashSet<>();
-				private final Set<org.apache.flink.api.common.operators.Operator<?>> visitedOperators = new HashSet<>();
-
-				@Override
-				public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
-					if (!visitedOperators.add(visitable)) {
-						return false;
-					}
-					OperatorInformation<?> opInfo = visitable.getOperatorInfo();
-					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, registeredTypes);
-					return true;
-				}
-
-				@Override
-				public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {}
-			});
-		}
-
-		try {
-			registerCachedFilesWithPlan(plan);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
-		}
+		final PlanGenerator generator = new PlanGenerator(sinks, config, cacheFile, jobName);
+		final Plan plan = generator.generate();
 
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {
 			this.sinks.clear();
 			wasExecuted = true;
-		}
-
-		// All types are registered now. Print information.
-		int registeredTypes = config.getRegisteredKryoTypes().size() +
-				config.getRegisteredPojoTypes().size() +
-				config.getRegisteredTypesWithKryoSerializerClasses().size() +
-				config.getRegisteredTypesWithKryoSerializers().size();
-		int defaultKryoSerializers = config.getDefaultKryoSerializers().size() +
-				config.getDefaultKryoSerializerClasses().size();
-		LOG.info("The job has {} registered types and {} default Kryo serializers", registeredTypes, defaultKryoSerializers);
-
-		if (config.isForceKryoEnabled() && config.isForceAvroEnabled()) {
-			LOG.warn("In the ExecutionConfig, both Avro and Kryo are enforced. Using Kryo serializer");
-		}
-		if (config.isForceKryoEnabled()) {
-			LOG.info("Using KryoSerializer for serializing POJOs");
-		}
-		if (config.isForceAvroEnabled()) {
-			LOG.info("Using AvroSerializer for serializing POJOs");
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Registered Kryo types: {}", config.getRegisteredKryoTypes().toString());
-			LOG.debug("Registered Kryo with Serializers types: {}", config.getRegisteredTypesWithKryoSerializers().entrySet().toString());
-			LOG.debug("Registered Kryo with Serializer Classes types: {}", config.getRegisteredTypesWithKryoSerializerClasses().entrySet().toString());
-			LOG.debug("Registered Kryo default Serializers: {}", config.getDefaultKryoSerializers().entrySet().toString());
-			LOG.debug("Registered Kryo default Serializers Classes {}", config.getDefaultKryoSerializerClasses().entrySet().toString());
-			LOG.debug("Registered POJO types: {}", config.getRegisteredPojoTypes().toString());
-
-			// print information about static code analysis
-			LOG.debug("Static code analysis mode: {}", config.getCodeAnalysisMode());
 		}
 
 		return plan;
