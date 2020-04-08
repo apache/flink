@@ -27,7 +27,6 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -473,58 +472,6 @@ public class BootstrapToolsTest extends TestLogger {
 
 		final String value3 = "\"foo\" \"bar\"";
 		assertEquals("\"\\\"foo\\\" \\\"bar\\\"\"", BootstrapTools.escapeWithDoubleQuote(value3));
-	}
-
-	@Test
-	public void testHeapCutoff() {
-		Configuration conf = new Configuration();
-		conf.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15F);
-		conf.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
-
-		Assert.assertEquals(616, BootstrapTools.calculateHeapSize(1000, conf));
-		Assert.assertEquals(8500, BootstrapTools.calculateHeapSize(10000, conf));
-
-		// test different configuration
-		Assert.assertEquals(3400, BootstrapTools.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key(), "1000");
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.1");
-		Assert.assertEquals(3000, BootstrapTools.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.5");
-		Assert.assertEquals(2000, BootstrapTools.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1");
-		Assert.assertEquals(0, BootstrapTools.calculateHeapSize(4000, conf));
-
-		// test also deprecated keys
-		conf = new Configuration();
-		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
-		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
-
-		Assert.assertEquals(616, BootstrapTools.calculateHeapSize(1000, conf));
-		Assert.assertEquals(8500, BootstrapTools.calculateHeapSize(10000, conf));
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void illegalArgument() {
-		final Configuration conf = new Configuration();
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1.1");
-		BootstrapTools.calculateHeapSize(4000, conf);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void illegalArgumentNegative() {
-		final Configuration conf = new Configuration();
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "-0.01");
-		BootstrapTools.calculateHeapSize(4000, conf);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void tooMuchCutoff() {
-		final Configuration conf = new Configuration();
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "6000");
-		BootstrapTools.calculateHeapSize(4000, conf);
 	}
 
 	@Test

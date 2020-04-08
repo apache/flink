@@ -392,14 +392,14 @@ public final class ConfigConstants {
 	/**
 	 * Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate
 	 * for other JVM memory usage.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String CONTAINERIZED_HEAP_CUTOFF_RATIO = "containerized.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of heap memory to remove in containers, as a safety margin.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_MIN} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String CONTAINERIZED_HEAP_CUTOFF_MIN = "containerized.heap-cutoff-min";
@@ -434,14 +434,14 @@ public final class ConfigConstants {
 
 	/**
 	 * Percentage of heap space to remove from containers started by YARN.
-	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_RATIO}
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
-	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_MIN}
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
@@ -1526,7 +1526,7 @@ public final class ConfigConstants {
 	/**
 	 * Minimum amount of memory to subtract from the process memory to get the TaskManager
 	 * heap size. We came up with these values experimentally.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_MIN} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final int DEFAULT_YARN_HEAP_CUTOFF = 600;
@@ -1534,7 +1534,7 @@ public final class ConfigConstants {
 	/**
 	 * Relative amount of memory to subtract from Java process memory to get the TaskManager
 	 * heap size.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
