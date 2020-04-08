@@ -26,6 +26,8 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -55,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -156,8 +159,9 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		Configuration cfg = new Configuration();
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(cfg);
 
+		final JobManagerProcessSpec jobManagerProcessSpec = createDefaultJobManagerProcessSpec(1024);
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xms424m -Xmx424m";
+		final String jvmmem = ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec);
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
@@ -173,7 +177,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
 			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
-		final int jobManagerMemory = 1024;
 
 		try {
 			// no logging, with/out krb5
@@ -188,7 +191,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						false,
 						false,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			assertEquals(
@@ -202,7 +205,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						false,
 						false,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// logback only, with/out krb5
@@ -217,7 +220,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						false,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			assertEquals(
@@ -231,7 +234,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						false,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// log4j, with/out krb5
@@ -246,7 +249,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						false,
 						true,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			assertEquals(
@@ -260,7 +263,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						false,
 						true,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// logback + log4j, with/out krb5
@@ -275,7 +278,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			assertEquals(
@@ -289,7 +292,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// logback + log4j, with/out krb5, different JVM opts
@@ -307,7 +310,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			assertEquals(
@@ -321,7 +324,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// logback + log4j, with/out krb5, different JVM opts
@@ -338,7 +341,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			assertEquals(
@@ -352,7 +355,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// now try some configurations with different yarn.container-start-command-template
@@ -370,7 +373,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
@@ -388,7 +391,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 						true,
 						true,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 		} finally {
 			clusterDescriptor.close();
