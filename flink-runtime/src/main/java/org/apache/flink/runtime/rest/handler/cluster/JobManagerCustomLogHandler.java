@@ -35,13 +35,13 @@ import java.util.Map;
  */
 public class JobManagerCustomLogHandler extends AbstractJobManagerFileHandler<FileMessageParameters> {
 
-	private String logDir;
+	private File logDir;
 
 	public JobManagerCustomLogHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout, Map<String, String> responseHeaders,
 			UntypedResponseMessageHeaders<EmptyRequestBody, FileMessageParameters> messageHeaders,
-			String logDir) {
+			File logDir) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.logDir = logDir;
@@ -53,6 +53,6 @@ public class JobManagerCustomLogHandler extends AbstractJobManagerFileHandler<Fi
 			return null;
 		}
 		String filename = handlerRequest.getPathParameter(LogFileNamePathParameter.class);
-		return new File(logDir, filename);
+		return new File(logDir.getPath(), filename);
 	}
 }

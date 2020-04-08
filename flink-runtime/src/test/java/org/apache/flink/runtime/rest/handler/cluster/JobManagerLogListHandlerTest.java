@@ -41,14 +41,16 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -75,13 +77,19 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 
 	@Test
 	public void testGetJobManagerLogsList() throws Exception {
-		List<LogInfo> logsList = Arrays.asList(
-			new LogInfo("jobmanager.log", 0L),
-			new LogInfo("jobmanager.out", 0L),
-			new LogInfo("test.log", 0L));
-		JobManagerLogListHandler jobManagerLogListHandler = createHandler(logsList);
+		LogInfo jobmanagerLog = new LogInfo("jobmanager.log", 0L);
+		LogInfo jobmanagerStdout = new LogInfo("jobmanager.out", 0L);
+		LogInfo customLog = new LogInfo("test.log", 0L);
+		Map<String, LogInfo> fileNameAndLogInfoMap = new HashMap<>(3);
+		fileNameAndLogInfoMap.put(jobmanagerLog.getName(), jobmanagerLog);
+		fileNameAndLogInfoMap.put(jobmanagerStdout.getName(), jobmanagerStdout);
+		fileNameAndLogInfoMap.put(customLog.getName(), customLog);
+		JobManagerLogListHandler jobManagerLogListHandler = createHandler(fileNameAndLogInfoMap.values());
 		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(testRequest, mockRestfulGateway).get();
-		assertThat(logListInfo.getLogInfos(), hasSize(logsList.size()));
+		assertThat(logListInfo.getLogInfos(), hasSize(fileNameAndLogInfoMap.size()));
+		for (LogInfo logInfo : logListInfo.getLogInfos()) {
+			assertEquals(logInfo, fileNameAndLogInfoMap.get(logInfo.getName()));
+		}
 	}
 
 	@Test
@@ -91,7 +99,7 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 		assertThat(logListInfo.getLogInfos(), is(empty()));
 	}
 
-	private JobManagerLogListHandler createHandler(List<LogInfo> logsList) {
+	private JobManagerLogListHandler createHandler(Collection<LogInfo> logsList) {
 		WebMonitorUtils.LogFileLocation logFileLocation = createLogFileLocation(logsList);
 		return new JobManagerLogListHandler(
 			() -> CompletableFuture.completedFuture(null),
@@ -101,7 +109,7 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 			logFileLocation.logDir);
 	}
 
-	private WebMonitorUtils.LogFileLocation createLogFileLocation(List<LogInfo> logsList) {
+	private WebMonitorUtils.LogFileLocation createLogFileLocation(Collection<LogInfo> logsList) {
 		Configuration config = new Configuration();
 		try {
 			for (LogInfo logInfo : logsList) {

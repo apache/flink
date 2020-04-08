@@ -34,6 +34,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.util.Collections;
 import java.util.Map;
@@ -76,5 +78,6 @@ public abstract class AbstractJobManagerFileHandler<M extends MessageParameters>
 		}
 	}
 
+	@Nullable
 	protected abstract File getFile(HandlerRequest<EmptyRequestBody, M> handlerRequest);
 }

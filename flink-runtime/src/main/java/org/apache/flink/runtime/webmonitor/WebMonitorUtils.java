@@ -40,6 +40,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -70,9 +72,9 @@ public final class WebMonitorUtils {
 
 		public final File logFile;
 		public final File stdOutFile;
-		public final String logDir;
+		public final File logDir;
 
-		private LogFileLocation(File logFile, File stdOutFile, String logDir) {
+		private LogFileLocation(@Nullable File logFile, @Nullable File stdOutFile, @Nullable File logDir) {
 			this.logFile = logFile;
 			this.stdOutFile = stdOutFile;
 			this.logDir = logDir;
@@ -100,9 +102,9 @@ public final class WebMonitorUtils {
 
 			String outFilePath = logFilePath.substring(0, logFilePath.length() - 3).concat("out");
 			File logFile = resolveFileLocation(logFilePath);
-			String logDir = null;
+			File logDir = null;
 			if (logFile != null && logFile.exists()) {
-				logDir = logFile.getParent();
+				logDir = resolveFileLocation(logFile.getParent());
 			}
 
 			LOG.info("Determined location of main cluster component log file: {}", logFilePath);
