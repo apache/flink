@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
 
@@ -49,12 +50,23 @@ import java.io.Serializable;
  * <p>This interface provides a {@link ComputedColumnConverter} that needs to be applied to every row
  * during runtime.
  *
- * <p>Note: The final data type emitted by a source changes from the produced data type to the full data
- * type of the table's schema. For the example above, this means:
+ * <p>Note: The final output data type emitted by a source changes from the physically produced data
+ * type to the full data type of the table's schema. For the example above, this means:
  *
  * <pre>{@code
  *    ROW<str STRING, i INT>                    // before conversion
  *    ROW<str STRING, ts TIMESTAMP(3), i INT>   // after conversion
+ * }</pre>
+ *
+ * <p>Note: If a source implements {@link SupportsProjectionPushDown}, the projection must be applied to
+ * the physical data in the first step. The {@link SupportsComputedColumnPushDown} (already aware of the
+ * projection) will then use the projected physical data and insert computed columns into the result. In
+ * the example below, the projections {@code [i, d]} are derived from the DDL ({@code c} requires {@code i})
+ * and query ({@code d} and {@code c} are required). The pushed converter will rely on this order and
+ * will process {@code [i, d]} to produce {@code [d, c]}.
+ * <pre>{@code
+ *   CREATE TABLE t (i INT, s STRING, c AS i + 2, d DOUBLE);
+ *   SELECT d, c FROM t;
  * }</pre>
  */
 @PublicEvolving
@@ -64,10 +76,12 @@ public interface SupportsComputedColumnPushDown {
 	 * Provides a converter that converts the produced {@link RowData} containing the physical
 	 * fields of the external system into a new {@link RowData} with push-downed computed columns.
 	 *
-	 * <p>Note: Use {@link TableSchema#toRowDataType()} instead of {@link TableSchema#toPhysicalRowDataType()}
-	 * for describing the final output data type when creating {@link TypeInformation}.
+	 * <p>Note: Use the passed data type instead of {@link TableSchema#toPhysicalRowDataType()} for
+	 * describing the final output data type when creating {@link TypeInformation}. If the source implements
+	 * {@link SupportsProjectionPushDown}, the projection is already considered in both the converter
+	 * and the given output data type.
 	 */
-	void applyComputedColumn(ComputedColumnConverter converter);
+	void applyComputedColumn(ComputedColumnConverter converter, DataType outputDataType);
 
 	/**
 	 * Generates and adds computed columns to {@link RowData} if necessary.
