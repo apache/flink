@@ -18,52 +18,66 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.job.SubtaskAllExecutionAttemptsDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
- * Request handler providing details about a single task execution attempt.
+ * Handler which returns the details of all execution attempts of a subtask.
  */
-public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> {
+public class SubtaskAllExecutionAttemptsDetailsHandler extends AbstractSubtaskHandler<SubtaskAllExecutionAttemptsDetailsInfo, SubtaskMessageParameters> {
 
 	private final MetricFetcher metricFetcher;
 
-	public SubtaskCurrentAttemptDetailsHandler(
+	public SubtaskAllExecutionAttemptsDetailsHandler(
 		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 		Time timeout,
 		Map<String, String> responseHeaders,
-		MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> messageHeaders,
+		MessageHeaders<EmptyRequestBody, SubtaskAllExecutionAttemptsDetailsInfo, SubtaskMessageParameters> messageHeaders,
 		ExecutionGraphCache executionGraphCache,
 		Executor executor,
 		MetricFetcher metricFetcher) {
-
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
 
 	@Override
-	protected SubtaskExecutionAttemptDetailsInfo handleRequest(
+	protected SubtaskAllExecutionAttemptsDetailsInfo handleRequest(
 			HandlerRequest<EmptyRequestBody, SubtaskMessageParameters> request,
 			AccessExecutionVertex executionVertex) throws RestHandlerException {
+		return createSubtaskExecutionAttemptsDetailsInfo(executionVertex, this.jobID, this.jobVertexID);
+	}
 
-		final AccessExecution execution = executionVertex.getCurrentExecutionAttempt();
+	protected SubtaskAllExecutionAttemptsDetailsInfo createSubtaskExecutionAttemptsDetailsInfo(AccessExecutionVertex executionVertex, JobID jobID, JobVertexID jobVertexID) {
+		AccessExecution currentExecution = executionVertex.getCurrentExecutionAttempt();
+		List<SubtaskExecutionAttemptDetailsInfo> allAttempts = new ArrayList<>();
+		executionVertex.getPriorExecutionAttempts().forEach(execution -> {
+			if (execution != null) {
+				allAttempts.add(SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, jobID, jobVertexID));
+			}
+		});
+		allAttempts.add(SubtaskExecutionAttemptDetailsInfo.create(currentExecution, metricFetcher, jobID, jobVertexID));
 
-		return SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, this.jobID, this.jobVertexID);
+		return new SubtaskAllExecutionAttemptsDetailsInfo(allAttempts);
 	}
 }

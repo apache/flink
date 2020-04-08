@@ -49,6 +49,7 @@ import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexTaskManagersHandler;
 import org.apache.flink.runtime.rest.handler.job.JobsOverviewHandler;
+import org.apache.flink.runtime.rest.handler.job.SubtaskAllExecutionAttemptsDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskCurrentAttemptDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptDetailsHandler;
@@ -109,6 +110,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistic
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.job.SubtaskAllExecutionAttemptsDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
@@ -479,6 +481,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor,
 			metricFetcher);
 
+		final SubtaskAllExecutionAttemptsDetailsHandler subtaskAllExecutionAttemptsDetailsHandler = new  SubtaskAllExecutionAttemptsDetailsHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			SubtaskAllExecutionAttemptsDetailsHeaders.getInstance(),
+			executionGraphCache,
+			executor,
+			metricFetcher);
+
 		final RescalingHandlers rescalingHandlers = new RescalingHandlers();
 
 		final RescalingHandlers.RescalingTriggerHandler rescalingTriggerHandler = rescalingHandlers.new RescalingTriggerHandler(
@@ -588,6 +599,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(subtaskExecutionAttemptDetailsHandler.getMessageHeaders(), subtaskExecutionAttemptDetailsHandler));
 		handlers.add(Tuple2.of(subtaskExecutionAttemptAccumulatorsHandler.getMessageHeaders(), subtaskExecutionAttemptAccumulatorsHandler));
 		handlers.add(Tuple2.of(subtaskCurrentAttemptDetailsHandler.getMessageHeaders(), subtaskCurrentAttemptDetailsHandler));
+		handlers.add(Tuple2.of(subtaskAllExecutionAttemptsDetailsHandler.getMessageHeaders(), subtaskAllExecutionAttemptsDetailsHandler));
 		handlers.add(Tuple2.of(jobVertexTaskManagersHandler.getMessageHeaders(), jobVertexTaskManagersHandler));
 		handlers.add(Tuple2.of(jobVertexBackPressureHandler.getMessageHeaders(), jobVertexBackPressureHandler));
 		handlers.add(Tuple2.of(jobCancelTerminationHandler.getMessageHeaders(), jobCancelTerminationHandler));

@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -52,6 +54,9 @@ import java.util.concurrent.Executor;
  */
 public abstract class AbstractSubtaskHandler<R extends ResponseBody, M extends SubtaskMessageParameters> extends AbstractJobVertexHandler<R, M> {
 
+	protected JobID jobID;
+	protected JobVertexID jobVertexID;
+
 	/**
 	 * Instantiates a new Abstract job vertex handler.
 	 *
@@ -76,7 +81,8 @@ public abstract class AbstractSubtaskHandler<R extends ResponseBody, M extends S
 	protected R handleRequest(
 			HandlerRequest<EmptyRequestBody, M> request,
 			AccessExecutionJobVertex jobVertex) throws RestHandlerException {
-
+		jobID = request.getPathParameter(JobIDPathParameter.class);
+		jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
 		final Integer subtaskIndex = request.getPathParameter(SubtaskIndexPathParameter.class);
 		final AccessExecutionVertex[] executionVertices = jobVertex.getTaskVertices();
 

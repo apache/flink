@@ -24,8 +24,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
+import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
@@ -110,6 +113,19 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			execution,
 			new EvictingBoundedList<>(0));
 
+		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
+		ArchivedExecutionJobVertex jobVertex = new ArchivedExecutionJobVertex(
+			new ArchivedExecutionVertex[]{
+				null,
+				executionVertex
+			},
+			jobVertexID,
+			"test",
+			1,
+			1,
+			ResourceProfile.UNKNOWN,
+			emptyAccumulators);
+
 		// Instance the handler.
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
 
@@ -131,9 +147,10 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			metricFetcher);
 
-		final HashMap<String, String> receivedPathParameters = new HashMap<>(2);
+		final HashMap<String, String> receivedPathParameters = new HashMap<>(3);
 		receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
 		receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexID.toString());
+		receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
 
 		final HandlerRequest<EmptyRequestBody, SubtaskMessageParameters> request = new HandlerRequest<>(
 			EmptyRequestBody.getInstance(),
@@ -142,7 +159,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			Collections.emptyMap());
 
 		// Handle request.
-		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(request, executionVertex);
+		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(request, jobVertex);
 
 		// Verify
 		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
