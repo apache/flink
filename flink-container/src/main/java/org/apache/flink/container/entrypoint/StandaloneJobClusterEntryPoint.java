@@ -29,6 +29,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -58,7 +61,7 @@ import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLi
  * {@link JobClusterEntrypoint} which is started with a job in a predefined
  * location.
  */
-public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
+public final class StandaloneJobClusterEntryPoint extends ClusterEntrypoint {
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
@@ -79,6 +82,13 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 								.create(configuration, SessionDispatcherFactory.INSTANCE, program)),
 				StandaloneResourceManagerFactory.INSTANCE,
 				JobRestEndpointFactory.INSTANCE);
+	}
+
+	@Override
+	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+			Configuration configuration,
+			ScheduledExecutor scheduledExecutor) {
+		return new MemoryArchivedExecutionGraphStore();
 	}
 
 	public static void main(String[] args) {
