@@ -73,4 +73,6 @@ public class Constants {
 	public static final String ENV_FLINK_POD_IP_ADDRESS = "_POD_IP_ADDRESS";
 
 	public static final String POD_IP_FIELD_PATH = "status.podIP";
+
+	public static final String HEADLESS_SERVICE_CLUSTER_IP = "None";
 }
