@@ -152,32 +152,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
-			MockEnvironment env) throws Exception {
-		this(operator, buildOperatorFactory(operator), env, false, new OperatorID());
-	}
-
-	public AbstractStreamOperatorTestHarness(
-		StreamOperatorFactory<OUT> factory,
-		int maxParallelism,
-		int parallelism,
-		int subtaskIndex,
-		OperatorID operatorID) throws Exception {
-		this(
-			null,
-			factory,
-			buildMockEnvironment(maxParallelism, parallelism, subtaskIndex),
-			true,
-			operatorID);
-	}
-
-	public AbstractStreamOperatorTestHarness(
-		StreamOperatorFactory<OUT> factory,
-		MockEnvironment env) throws Exception {
-		this(null, factory, env, false, new OperatorID());
-	}
-
-	public AbstractStreamOperatorTestHarness(
-			StreamOperator<OUT> operator,
 			StreamOperatorFactory<OUT> factory,
 			MockEnvironment env,
 			boolean environmentIsInternal,

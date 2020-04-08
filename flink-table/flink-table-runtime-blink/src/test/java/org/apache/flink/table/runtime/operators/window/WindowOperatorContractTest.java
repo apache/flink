@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.window;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
@@ -215,8 +216,11 @@ public class WindowOperatorContractTest {
 					2,
 					sendRetraction,
 					allowedLateness);
-			return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
-				operator, keySelector, keyType);
+			return new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+				.setStreamOperator(operator)
+				.setKeySelector(keySelector)
+				.setKeyType(keyType)
+				.build();
 		} else {
 			TableAggregateWindowOperator operator = new TableAggregateWindowOperator(
 					(NamespaceTableAggsHandleFunction) aggregationsFunction,
@@ -231,8 +235,11 @@ public class WindowOperatorContractTest {
 					sendRetraction,
 					allowedLateness);
 
-			return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
-				operator, keySelector, keyType);
+			return new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+				.setStreamOperator(operator)
+				.setKeySelector(keySelector)
+				.setKeyType(keyType)
+				.build();
 		}
 	}
 

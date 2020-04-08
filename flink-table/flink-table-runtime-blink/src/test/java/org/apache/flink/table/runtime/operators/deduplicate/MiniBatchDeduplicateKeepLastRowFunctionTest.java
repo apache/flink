@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
@@ -52,7 +52,11 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 			throws Exception {
 		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
 		KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
-		return new KeyedOneInputStreamOperatorTestHarness<>(op, rowKeySelector, rowKeySelector.getProducedType());
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+			.setStreamOperator(op)
+			.setKeySelector(rowKeySelector)
+			.setKeyType(rowKeySelector.getProducedType())
+			.build();
 	}
 
 	@Test

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarnessBuilder, TestHarnessUtil}
 import org.apache.flink.util.{Collector, TestLogger}
 import org.junit.Test
 
@@ -37,8 +37,11 @@ class KeyedProcessOperatorWithWatermarkDelayTest extends TestLogger {
   def testHoldingBackWatermarks(): Unit = {
     val operator = new KeyedProcessOperatorWithWatermarkDelay[Integer, Integer, String](
       new EmptyProcessFunction, 100)
-    val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, Integer, String](
-      operator, new IdentityKeySelector[Integer], BasicTypeInfo.INT_TYPE_INFO)
+    val testHarness = new KeyedOneInputStreamOperatorTestHarnessBuilder[Integer, Integer, String]()
+      .setStreamOperator(operator)
+      .setKeySelector(new IdentityKeySelector[Integer])
+      .setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+      .build
 
     testHarness.setup()
     testHarness.open()

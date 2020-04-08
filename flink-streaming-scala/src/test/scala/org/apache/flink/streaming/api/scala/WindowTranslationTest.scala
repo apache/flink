@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, EventTim
 import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 import org.apache.flink.streaming.runtime.operators.windowing._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, KeyedOneInputStreamOperatorTestHarnessBuilder}
 import org.apache.flink.util.Collector
 import org.junit.Assert._
 import org.junit.Test
@@ -1950,7 +1950,11 @@ class WindowTranslationTest {
       keyType: TypeInformation[K],
       element: IN) {
     val testHarness =
-      new KeyedOneInputStreamOperatorTestHarness[K, IN, OUT](operator, keySelector, keyType)
+      new KeyedOneInputStreamOperatorTestHarnessBuilder[K, IN, OUT]()
+        .setStreamOperator(operator)
+        .setKeySelector(keySelector)
+        .setKeyType(keyType)
+        .build
 
     if (operator.isInstanceOf[OutputTypeConfigurable[String]]) {
       // use a dummy type since window functions just need the ExecutionConfig

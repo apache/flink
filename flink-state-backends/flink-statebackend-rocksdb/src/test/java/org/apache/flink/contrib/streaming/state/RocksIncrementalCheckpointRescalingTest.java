@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -377,13 +378,14 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 		int maxParallelism,
 		int taskParallelism,
 		int subtaskIdx) throws Exception {
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-			new KeyedProcessOperator<>(new TestKeyedFunction()),
-			keySelector,
-			BasicTypeInfo.STRING_TYPE_INFO,
-			maxParallelism,
-			taskParallelism,
-			subtaskIdx);
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<String, String, Integer>()
+			.setStreamOperator(new KeyedProcessOperator<>(new TestKeyedFunction()))
+			.setKeySelector(keySelector)
+			.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+			.setMaxParallelism(maxParallelism)
+			.setParallelism(taskParallelism)
+			.setSubtaskIndex(subtaskIdx)
+			.build();
 	}
 
 	private StateBackend getStateBackend() throws Exception {

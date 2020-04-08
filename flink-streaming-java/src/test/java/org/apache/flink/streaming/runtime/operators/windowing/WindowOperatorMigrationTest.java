@@ -49,7 +49,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalSingleValueWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -134,7 +134,11 @@ public class WindowOperatorMigrationTest {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple3<String, Long, Long>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -180,7 +184,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple3<String, Long, Long>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 
@@ -232,7 +240,11 @@ public class WindowOperatorMigrationTest {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple3<String, Long, Long>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -272,7 +284,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple3<String, Long, Long>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 
@@ -338,7 +354,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -394,7 +414,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 
@@ -448,7 +472,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -503,7 +531,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 
@@ -558,7 +590,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -608,7 +644,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 
@@ -657,7 +697,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -705,7 +749,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 
@@ -760,7 +808,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), TypeInformation.of(NonPojoType.class));
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<NonPojoType, Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(TypeInformation.of(NonPojoType.class))
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -821,7 +873,11 @@ public class WindowOperatorMigrationTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), TypeInformation.of(NonPojoType.class));
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<NonPojoType, Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector<>())
+				.setKeyType(TypeInformation.of(NonPojoType.class))
+				.build();
 
 		testHarness.setup();
 

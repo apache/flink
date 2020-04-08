@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -333,7 +333,11 @@ abstract class TopNFunctionTestBase {
 			throws Exception {
 		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(rankFunction);
 		rankFunction.setKeyContext(operator);
-		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+			.setStreamOperator(operator)
+			.setKeySelector(keySelector)
+			.setKeyType(keySelector.getProducedType())
+			.build();
 	}
 
 	abstract AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,

@@ -30,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.testutils.migration.MigrationVersion;
@@ -106,10 +106,11 @@ public class CEPMigrationTest {
 		final SubEvent middleEvent2 = new SubEvent(42, "foo2", 2.0, 10.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-					getKeyedCepOpearator(false, new NFAFactory()),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();
@@ -151,10 +152,11 @@ public class CEPMigrationTest {
 		final Event endEvent = new Event(42, "end", 1.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-						getKeyedCepOpearator(false, new NFAFactory()),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();
@@ -213,10 +215,11 @@ public class CEPMigrationTest {
 			OperatorSubtaskState snapshot = harness.snapshot(1L, 1L);
 			harness.close();
 
-			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				getKeyedCepOpearator(false, new NFAFactory()),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+			harness = new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -268,10 +271,11 @@ public class CEPMigrationTest {
 		final SubEvent middleEvent1 = new SubEvent(42, "foo1", 1.0, 10.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-					getKeyedCepOpearator(false, new NFAFactory()),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();
@@ -311,10 +315,11 @@ public class CEPMigrationTest {
 		final Event endEvent = new Event(42, "end", 1.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-					getKeyedCepOpearator(false, new NFAFactory()),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();
@@ -388,10 +393,11 @@ public class CEPMigrationTest {
 			OperatorSubtaskState snapshot = harness.snapshot(1L, 1L);
 			harness.close();
 
-			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				getKeyedCepOpearator(false, new NFAFactory()),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+			harness = new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -442,10 +448,11 @@ public class CEPMigrationTest {
 		final Event startEvent1 = new Event(42, "start", 1.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-						getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();
@@ -476,10 +483,11 @@ public class CEPMigrationTest {
 		final Event startEvent1 = new Event(42, "start", 1.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-						getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new SinglePatternNFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();
@@ -533,10 +541,11 @@ public class CEPMigrationTest {
 		final Event startEvent1 = new SubEvent(42, "start", 1.0, 6.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				getKeyedCepOpearator(false, new NFAComplexConditionsFactory()),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();
@@ -568,10 +577,11 @@ public class CEPMigrationTest {
 		final Event startEvent1 = new SubEvent(42, "start", 1.0, 6.0);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				getKeyedCepOpearator(false, new NFAComplexConditionsFactory()),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAComplexConditionsFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			harness.setup();

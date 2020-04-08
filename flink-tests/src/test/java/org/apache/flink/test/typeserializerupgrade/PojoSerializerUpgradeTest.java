@@ -44,7 +44,7 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -329,11 +329,12 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			OneInputStreamOperatorTestHarness<Long, Long> harness = null;
 			try {
 				if (isKeyedState) {
-					harness = new KeyedOneInputStreamOperatorTestHarness<>(
-						operator,
-						keySelector,
-						BasicTypeInfo.LONG_TYPE_INFO,
-						environment);
+					harness = new KeyedOneInputStreamOperatorTestHarnessBuilder<Long, Long, Long>()
+						.setStreamOperator(operator)
+						.setKeySelector(keySelector)
+						.setKeyType(BasicTypeInfo.LONG_TYPE_INFO)
+						.setEnvironment(environment)
+						.build();
 				} else {
 					harness = new OneInputStreamOperatorTestHarnessBuilder<Long, Long>()
 						.setStreamOperator(operator)

@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 
@@ -184,7 +185,14 @@ public class KeyedStateInputFormatTest {
 
 	private OperatorSubtaskState createOperatorSubtaskState(OneInputStreamOperator<Integer, Void> operator) throws Exception {
 		try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, id -> id, Types.INT, 128, 1, 0)) {
+				new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, Void>()
+					.setStreamOperator(operator)
+					.setKeySelector(id -> id)
+					.setKeyType(Types.INT)
+					.setMaxParallelism(128)
+					.setParallelism(1)
+					.setSubtaskIndex(0)
+					.build()) {
 
 			testHarness.setup(VoidSerializer.INSTANCE);
 			testHarness.open();

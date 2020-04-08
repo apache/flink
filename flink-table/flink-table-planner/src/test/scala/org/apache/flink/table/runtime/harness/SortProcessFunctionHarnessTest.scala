@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, KeyedOneInputStreamOperatorTestHarnessBuilder, TestHarnessUtil}
 import org.apache.flink.table.runtime.aggregate.{CollectionRowComparator, ProcTimeSortProcessFunction, RowTimeSortProcessFunction}
 import org.apache.flink.table.runtime.harness.SortProcessFunctionHarnessTest.TupleRowSelector
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -75,11 +75,12 @@ class SortProcessFunctionHarnessTest {
       new ProcTimeSortProcessFunction[Integer](
         inputCRowType,
         collectionRowComparator))
-  
-   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, CRow, CRow](
-      processFunction, 
-      new TupleRowSelector(0), 
-      BasicTypeInfo.INT_TYPE_INFO)
+
+    val testHarness = new KeyedOneInputStreamOperatorTestHarnessBuilder[Integer, CRow, CRow]()
+      .setStreamOperator(processFunction)
+      .setKeySelector(new TupleRowSelector(0))
+      .setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+      .build
     
    testHarness.open()
 
@@ -176,10 +177,11 @@ class SortProcessFunctionHarnessTest {
         4,
         Some(collectionRowComparator)))
 
-   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, CRow, CRow](
-      processFunction,
-      new TupleRowSelector(0),
-      BasicTypeInfo.INT_TYPE_INFO)
+    val testHarness = new KeyedOneInputStreamOperatorTestHarnessBuilder[Integer, CRow, CRow]()
+      .setStreamOperator(processFunction)
+      .setKeySelector(new TupleRowSelector(0))
+      .setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+      .build
 
    testHarness.open()
 

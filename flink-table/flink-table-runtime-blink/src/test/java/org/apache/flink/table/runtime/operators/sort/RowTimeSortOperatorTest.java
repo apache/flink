@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -201,8 +201,11 @@ public class RowTimeSortOperatorTest {
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(BaseTemporalSortOperator operator)
 			throws Exception {
-		OneInputStreamOperatorTestHarness testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
-				operator, NullBinaryRowKeySelector.INSTANCE, NullBinaryRowKeySelector.INSTANCE.getProducedType());
+		OneInputStreamOperatorTestHarness testHarness = new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+			.setStreamOperator(operator)
+			.setKeySelector(NullBinaryRowKeySelector.INSTANCE)
+			.setKeyType(NullBinaryRowKeySelector.INSTANCE.getProducedType())
+			.build();
 		return testHarness;
 	}
 

@@ -58,6 +58,7 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -1409,10 +1410,11 @@ public class AllWindowTranslationTest {
 			IN element) throws Exception {
 
 		KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-						operator,
-						keySelector,
-						keyType);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<K, IN, OUT>()
+				.setStreamOperator(operator)
+				.setKeySelector(keySelector)
+				.setKeyType(keyType)
+				.build();
 
 		testHarness.open();
 

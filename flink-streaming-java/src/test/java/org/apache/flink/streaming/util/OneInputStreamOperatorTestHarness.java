@@ -21,8 +21,6 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -68,41 +66,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		if (typeSerializerIn != null) {
 			config.setTypeSerializersIn(typeSerializerIn);
 		}
-	}
-
-	public OneInputStreamOperatorTestHarness(
-			StreamOperatorFactory<OUT> operatorFactory,
-			int maxParallelism,
-			int parallelism,
-			int subtaskIndex) throws Exception {
-		this(operatorFactory, maxParallelism, parallelism, subtaskIndex, new OperatorID());
-	}
-
-	public OneInputStreamOperatorTestHarness(
-			StreamOperatorFactory<OUT> operatorFactory,
-			int maxParallelism,
-			int parallelism,
-			int subtaskIndex,
-			OperatorID operatorID) throws Exception {
-		super(null,
-			operatorFactory,
-			new MockEnvironmentBuilder()
-				.setTaskName("MockTask")
-				.setManagedMemorySize(3 * 1024 * 1024)
-				.setInputSplitProvider(new MockInputSplitProvider())
-				.setBufferSize(1024)
-				.setMaxParallelism(maxParallelism)
-				.setParallelism(parallelism)
-				.setSubtaskIndex(subtaskIndex)
-				.build(),
-			true,
-			operatorID);
-	}
-
-	public OneInputStreamOperatorTestHarness(
-		OneInputStreamOperator<IN, OUT> operator,
-		MockEnvironment environment) throws Exception {
-		super(operator, environment);
 	}
 
 	@Override

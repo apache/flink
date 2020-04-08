@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -289,22 +290,25 @@ public class CEPOperatorTest extends TestLogger {
 		final OutputTag<Tuple2<Map<String, List<Event>>, Long>> timedOut =
 			new OutputTag<Tuple2<Map<String, List<Event>>, Long>>("timedOut") {};
 		final KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> harness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				new CepOperator<>(
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(new CepOperator<>(
 					Event.createTypeSerializer(),
 					false,
 					new NFAFactory(true),
 					null,
 					null,
 					new TimedOutProcessFunction(timedOut),
-					null), new KeySelector<Event, Integer>() {
-				private static final long serialVersionUID = 7219185117566268366L;
+					null))
+				.setKeySelector(new KeySelector<Event, Integer>() {
+					private static final long serialVersionUID = 7219185117566268366L;
 
-				@Override
-				public Integer getKey(Event value) throws Exception {
-					return value.getId();
-				}
-			}, BasicTypeInfo.INT_TYPE_INFO);
+					@Override
+					public Integer getKey(Event value) throws Exception {
+						return value.getId();
+					}
+				})
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		try {
 			String rocksDbPath = tempFolder.newFolder().getAbsolutePath();

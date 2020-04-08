@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
@@ -909,8 +909,11 @@ public class WindowOperatorTest {
 				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
-						operator, keySelector, keyType);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+				.setStreamOperator(operator)
+				.setKeySelector(keySelector)
+				.setKeyType(keyType)
+				.build();
 
 		testHarness.open();
 
@@ -1406,8 +1409,11 @@ public class WindowOperatorTest {
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
 			WindowOperator operator)
 			throws Exception {
-		return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
-				operator, keySelector, keyType);
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+			.setStreamOperator(operator)
+			.setKeySelector(keySelector)
+			.setKeyType(keyType)
+			.build();
 	}
 
 }

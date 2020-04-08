@@ -31,6 +31,7 @@ import org.apache.flink.state.api.output.operators.KeyedStateBootstrapOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -82,8 +83,15 @@ public class KeyedStateBootstrapOperatorTest {
 	}
 
 	private <T> KeyedOneInputStreamOperatorTestHarness<Long, Long, T> getHarness(OneInputStreamOperator<Long, T> bootstrapOperator) throws Exception {
-		KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness = new KeyedOneInputStreamOperatorTestHarness<>(
-			bootstrapOperator, id -> id, Types.LONG, 128, 1, 0);
+		KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness =
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Long, Long, T>()
+				.setStreamOperator(bootstrapOperator)
+				.setKeySelector(id -> id)
+				.setKeyType(Types.LONG)
+				.setMaxParallelism(128)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		harness.setStateBackend(new RocksDBStateBackend(folder.newFolder().toURI()));
 		return harness;

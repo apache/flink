@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.Test;
@@ -386,15 +387,14 @@ public class CEPRescalingTest {
 
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
 		KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-						getKeyedCepOpearator(
-								false,
-								new NFAFactory()),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO,
-						maxParallelism,
-						taskParallelism,
-						subtaskIdx);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, Map<String, List<Event>>>()
+				.setStreamOperator(getKeyedCepOpearator(false, new NFAFactory()))
+				.setKeySelector(keySelector)
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.setMaxParallelism(maxParallelism)
+				.setParallelism(taskParallelism)
+				.setSubtaskIndex(subtaskIdx)
+				.build();
 		harness.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 		return harness;
 	}

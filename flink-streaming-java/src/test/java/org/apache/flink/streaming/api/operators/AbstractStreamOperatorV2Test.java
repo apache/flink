@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 
 import java.util.Collections;
 import java.util.List;
@@ -39,13 +40,13 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
 			int maxParalelism,
 			int numSubtasks,
 			int subtaskIndex) throws Exception {
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-			new TestOperatorFactory(),
-			new TestKeySelector(),
-			BasicTypeInfo.INT_TYPE_INFO,
-			maxParalelism,
-			numSubtasks,
-			subtaskIndex);
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Tuple2<Integer, String>, String>()
+			.setStreamOperatorFactory(new TestOperatorFactory())
+			.setKeySelector(new TestKeySelector())
+			.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+			.setMaxParallelism(maxParalelism)
+			.setParallelism(numSubtasks)
+			.setSubtaskIndex(subtaskIndex).build();
 	}
 
 	private static class TestOperatorFactory extends AbstractStreamOperatorFactory<String> {

@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations._
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, KeyedOneInputStreamOperatorTestHarnessBuilder, OneInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.api.dataview.DataView
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
@@ -404,7 +404,11 @@ class HarnessTestBase extends StreamingWithStateTestBase {
     operator: OneInputStreamOperator[IN, OUT],
     keySelector: KeySelector[IN, KEY],
     keyType: TypeInformation[KEY]): KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
-    new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](operator, keySelector, keyType)
+    new KeyedOneInputStreamOperatorTestHarnessBuilder[KEY, IN, OUT]()
+      .setStreamOperator(operator)
+      .setKeySelector(keySelector)
+      .setKeyType(keyType)
+      .build
   }
 
   def getOperator(testHarness: OneInputStreamOperatorTestHarness[_, _])

@@ -47,7 +47,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
@@ -98,7 +98,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -170,7 +174,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -237,7 +245,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -305,7 +317,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -376,7 +392,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -448,7 +468,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -516,7 +540,11 @@ public class EvictingWindowOperatorTest {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -582,7 +610,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -649,7 +681,11 @@ public class EvictingWindowOperatorTest {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, Tuple2<String, Integer>>()
+				.setStreamOperator(operator)
+				.setKeySelector(new TupleKeySelector())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		long initialTime = 0L;
 

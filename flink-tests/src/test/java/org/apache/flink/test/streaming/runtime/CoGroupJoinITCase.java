@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
@@ -367,7 +367,11 @@ public class CoGroupJoinITCase extends AbstractTestBase {
 
 		// wrap the operator in the test harness, and perform a snapshot
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, String> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new Tuple2KeyExtractor(), BasicTypeInfo.STRING_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<String, Tuple2<String, Integer>, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new Tuple2KeyExtractor())
+				.setKeyType(BasicTypeInfo.STRING_TYPE_INFO)
+				.build();
 
 		testHarness.open();
 		testHarness.snapshot(0L, 0L);

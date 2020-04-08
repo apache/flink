@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 
@@ -39,7 +39,11 @@ public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTest
 			DeduplicateKeepFirstRowFunction func)
 			throws Exception {
 		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(func);
-		return new KeyedOneInputStreamOperatorTestHarness<>(operator, rowKeySelector, rowKeySelector.getProducedType());
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow, BaseRow>()
+			.setStreamOperator(operator)
+			.setKeySelector(rowKeySelector)
+			.setKeyType(rowKeySelector.getProducedType())
+			.build();
 	}
 
 	@Test

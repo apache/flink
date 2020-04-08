@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.OutputTag;
 
 import org.junit.Test;
@@ -227,10 +228,11 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
 				allowedLatenss,
 				null /* late output tag */);
 
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-				operator,
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, OUT>()
+			.setStreamOperator(operator)
+			.setKeySelector(keySelector)
+			.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+			.build();
 	}
 
 	@Override
@@ -265,10 +267,11 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
 				allowedLatenss,
 				lateOutputTag);
 
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-				operator,
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, OUT>()
+			.setStreamOperator(operator)
+			.setKeySelector(keySelector)
+			.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+			.build();
 	}
 
 	@Override

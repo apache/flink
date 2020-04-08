@@ -32,6 +32,7 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.OutputTag;
 
 /**
@@ -78,10 +79,11 @@ public class EvictingWindowOperatorContractTest extends WindowOperatorContractTe
 				allowedLatenss,
 				lateOutputTag);
 
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-				operator,
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, OUT>()
+			.setStreamOperator(operator)
+			.setKeySelector(keySelector)
+			.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+			.build();
 	}
 
 	protected <W extends Window, OUT> KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(

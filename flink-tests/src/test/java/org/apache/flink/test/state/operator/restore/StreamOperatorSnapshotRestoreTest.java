@@ -34,6 +34,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -62,7 +63,9 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -202,11 +205,12 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 			.build();
 
 		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				op,
-				(KeySelector<Integer, Integer>) value -> value,
-				TypeInformation.of(Integer.class),
-				mockEnvironment);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, Integer>()
+				.setStreamOperator(op)
+				.setKeySelector(value -> value)
+				.setKeyType(TypeInformation.of(Integer.class))
+				.setEnvironment(mockEnvironment)
+				.build();
 
 		testHarness.setStateBackend(stateBackend);
 		testHarness.open();
@@ -224,11 +228,12 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 		op = new TestOneInputStreamOperator(true);
 		testHarness = new KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer>(
 			op,
+			AbstractStreamOperatorTestHarness.buildOperatorFactory(op),
 			(KeySelector<Integer, Integer>) value -> value,
 			TypeInformation.of(Integer.class),
-			MAX_PARALLELISM,
-			1 /* num subtasks */,
-			0 /* subtask index */) {
+			AbstractStreamOperatorTestHarness.buildMockEnvironment(MAX_PARALLELISM, 1, 0),
+			true,
+			new OperatorID()) {
 
 			@Override
 			protected StreamTaskStateInitializer createStreamTaskStateManager(

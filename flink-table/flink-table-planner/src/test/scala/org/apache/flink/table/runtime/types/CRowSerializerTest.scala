@@ -27,10 +27,9 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, KeyedProcessOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, InstantiationUtil, TestLogger}
-
 import org.junit.{Assert, Test}
 
 class CRowSerializerTest extends TestLogger {
@@ -64,12 +63,16 @@ class CRowSerializerTest extends TestLogger {
 
     val operator = new KeyedProcessOperator[Integer, Integer, Integer](new IKeyedProcessFunction)
 
-    var testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, Integer, Integer](
-      operator,
-      new KeySelector[Integer, Integer] {
+    var testHarness = new KeyedOneInputStreamOperatorTestHarnessBuilder[Integer, Integer, Integer]()
+      .setStreamOperator(operator)
+      .setKeySelector(new KeySelector[Integer, Integer] {
         override def getKey(value: Integer): Integer= -1
-      },
-      Types.INT, 1, 1, 0)
+      })
+      .setKeyType(Types.INT)
+      .setMaxParallelism(1)
+      .setParallelism(1)
+      .setSubtaskIndex(0)
+      .build()
     testHarness.setup()
     testHarness.open()
 
@@ -82,12 +85,16 @@ class CRowSerializerTest extends TestLogger {
     val snapshot = testHarness.snapshot(0L, 0L)
     testHarness.close()
 
-    testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, Integer, Integer](
-      operator,
-      new KeySelector[Integer, Integer] {
+    testHarness = new KeyedOneInputStreamOperatorTestHarnessBuilder[Integer, Integer, Integer]()
+      .setStreamOperator(operator)
+      .setKeySelector(new KeySelector[Integer, Integer] {
         override def getKey(value: Integer): Integer= -1
-      },
-      Types.INT, 1, 1, 0)
+      })
+      .setKeyType(Types.INT)
+      .setMaxParallelism(1)
+      .setParallelism(1)
+      .setSubtaskIndex(0)
+      .build()
     testHarness.setup()
 
     testHarness.initializeState(snapshot)

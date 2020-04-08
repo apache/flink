@@ -24,7 +24,7 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -51,10 +51,11 @@ public class CepOperatorTestUtilities {
 		CepOperator<Event, Integer, T> cepOperator) throws Exception {
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
 
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-			cepOperator,
-			keySelector,
-			BasicTypeInfo.INT_TYPE_INFO);
+		return new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Event, T>()
+			.setStreamOperator(cepOperator)
+			.setKeySelector(keySelector)
+			.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+			.build();
 	}
 
 	public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(

@@ -30,14 +30,12 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, KeyedOneInputStreamOperatorTestHarnessBuilder}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-
 import org.junit.runners.Parameterized
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -62,10 +60,11 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
       operator: OneInputStreamOperator[IN, OUT],
       keySelector: KeySelector[IN, KEY],
       keyType: TypeInformation[KEY]): KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
-    val harness = new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](
-      operator,
-      keySelector,
-      keyType)
+    val harness = new KeyedOneInputStreamOperatorTestHarnessBuilder[KEY, IN, OUT]()
+      .setStreamOperator(operator)
+      .setKeySelector(keySelector)
+      .setKeyType(keyType)
+      .build
     harness.setStateBackend(getStateBackend)
     harness
   }

@@ -83,14 +83,14 @@ public class ProcessFunctionTestHarnesses {
 		final TypeInformation<K> keyType) throws Exception {
 
 		KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedProcessOperator<>(
-					Preconditions.checkNotNull(function)),
-				keySelector,
-				keyType,
-				1,
-				1,
-				0);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<K, IN, OUT>()
+				.setStreamOperator(new KeyedProcessOperator<>(Preconditions.checkNotNull(function)))
+				.setKeySelector(keySelector)
+				.setKeyType(keyType)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 		testHarness.open();
 		return testHarness;
 	}

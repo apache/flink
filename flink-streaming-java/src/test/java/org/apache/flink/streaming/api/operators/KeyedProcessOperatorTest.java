@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
@@ -77,7 +77,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		try (
 			OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, (in) -> in.f0 , BasicTypeInfo.INT_TYPE_INFO)) {
+				new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Tuple2<Integer, String>, String>()
+					.setStreamOperator(operator)
+					.setKeySelector((in) -> in.f0)
+					.setKeyType(BasicTypeInfo.INT_TYPE_INFO).build()) {
 
 			testHarness.setup();
 			testHarness.open();
@@ -103,7 +106,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				new KeyedProcessOperator<>(new QueryingFlatMapFunction(TimeDomain.EVENT_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -133,7 +140,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				new KeyedProcessOperator<>(new QueryingFlatMapFunction(TimeDomain.PROCESSING_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -163,7 +174,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				new KeyedProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.EVENT_TIME, expectedKey));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, Integer>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -195,7 +210,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				new KeyedProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.PROCESSING_TIME, expectedKey));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, Integer>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -224,7 +243,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				new KeyedProcessOperator<>(new TriggeringStatefulFlatMapFunction(TimeDomain.EVENT_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -267,7 +290,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				new KeyedProcessOperator<>(new TriggeringStatefulFlatMapFunction(TimeDomain.PROCESSING_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -305,7 +332,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				new KeyedProcessOperator<>(new BothTriggeringFlatMapFunction(expectedKey));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -319,7 +350,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		operator = new KeyedProcessOperator<>(new BothTriggeringFlatMapFunction(expectedKey));
 
-		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+		testHarness = new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+			.setStreamOperator(operator)
+			.setKeySelector(new IdentityKeySelector<>())
+			.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+			.build();
 
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
@@ -344,8 +379,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		KeyedProcessOperator<Integer, Integer, String> operator = new KeyedProcessOperator<>(new NullOutputTagEmittingProcessFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				operator, new IdentityKeySelector<>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -367,8 +405,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		KeyedProcessOperator<Integer, Integer, String> operator = new KeyedProcessOperator<>(new SideOutputProcessFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				operator, new IdentityKeySelector<>(), BasicTypeInfo.INT_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<Integer, Integer, String>()
+				.setStreamOperator(operator)
+				.setKeySelector(new IdentityKeySelector<>())
+				.setKeyType(BasicTypeInfo.INT_TYPE_INFO)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();

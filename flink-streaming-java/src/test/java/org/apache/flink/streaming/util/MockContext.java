@@ -63,7 +63,11 @@ public class MockContext<IN, OUT> {
 				KeySelector<IN, KEY> keySelector, TypeInformation<KEY> keyType) throws Exception {
 
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
+			new KeyedOneInputStreamOperatorTestHarnessBuilder<KEY, IN, OUT>()
+				.setStreamOperator(operator)
+				.setKeySelector(keySelector)
+				.setKeyType(keyType)
+				.build();
 
 		testHarness.setup();
 		testHarness.open();
