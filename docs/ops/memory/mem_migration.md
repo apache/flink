@@ -125,9 +125,8 @@ Although, the network memory configuration has not changed too much it is recomm
 It can change if other memory components have new sizes, e.g. the total memory which the network can be a fraction of.
 See also [new detailed memory model](mem_detail.html).
 
-The container cut-off configuration options, [`containerized.heap-cutoff-ratio`](config.html#containerized-heap-cutoff-ratio)
-and [`containerized.heap-cutoff-min`](config.html#containerized-heap-cutoff-min), have no effect for task manager processes anymore
-but they still have the same semantics for the job manager process. See also [how to migrate container cut-off](#container-cut-off-memory).
+The container cut-off configuration options, `containerized.heap-cutoff-ratio` and `containerized.heap-cutoff-min`,
+have no effect anymore. See also [how to migrate container cut-off](#container-cut-off-memory).
 
 ## Total Memory (Previously Heap Memory)
 

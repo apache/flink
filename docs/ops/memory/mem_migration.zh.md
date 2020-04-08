@@ -121,10 +121,7 @@ Flink 自带的[默认 flink-conf.yaml](#flink-confyaml-中的默认配置) 文�
 网络内存的大小可能会受到其他内存部分大小变化的影响，例如总内存变化时，根据占比计算出的网络内存也可能发生变化。
 请参考[内存模型详解](mem_detail.html)。
 
-容器切除（Cut-Off）内存相关的配置参数（[`containerized.heap-cutoff-ratio`](config.html#containerized-heap-cutoff-ratio)
-和 [`containerized.heap-cutoff-min`](config.html#containerized-heap-cutoff-min)）将不再对 TaskExecutor 进程生效。
-对于 JobManager 进程，它们仍具有与此前相同的语义。
-请参考[如何升级容器切除内存](#容器切除cut-off内存)。
+容器切除（Cut-Off）内存相关的配置参数（`containerized.heap-cutoff-ratio` 和 `containerized.heap-cutoff-min`）将不再对进程生效。
 
 ## 总内存（原堆内存）
 

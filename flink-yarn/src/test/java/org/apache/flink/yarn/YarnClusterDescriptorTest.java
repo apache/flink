@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
@@ -101,7 +100,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
 		final Configuration flinkConfiguration = new Configuration();
-		flinkConfiguration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(flinkConfiguration);
 
@@ -130,7 +128,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
-		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(configuration);
 

@@ -25,7 +25,6 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -84,9 +83,6 @@ public class YarnConfigurationITCase extends YarnTestBase {
 		runTest(() -> {
 			final YarnClient yarnClient = getYarnClient();
 			final Configuration configuration = new Configuration(flinkConfiguration);
-
-			// disable heap cutoff min
-			configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
 			final int slotsPerTaskManager = 3;
 			configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
