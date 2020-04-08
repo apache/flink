@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.AutoCloseableAsync;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,6 +45,8 @@ public class RpcUtils {
 	 * method {@code checkMaxDelay()} in {@link akka.actor.LightArrayRevolverScheduler}.
 	 */
 	public static final Time INF_TIMEOUT = Time.seconds(21474835);
+
+	public static final Duration INF_DURATION = Duration.ofSeconds(21474835);
 
 	/**
 	 * Extracts all {@link RpcGateway} interfaces implemented by the given clazz.
