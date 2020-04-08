@@ -286,6 +286,13 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		result.await();
 	}
 
+	/**
+	 * Enqueues new transactions at the transaction manager and returns a {@link
+	 * TransactionalRequestResult} that allows waiting on them.
+	 *
+	 * <p>If there are no new transactions we return a {@link TransactionalRequestResult} that is
+	 * already done.
+	 */
 	private TransactionalRequestResult enqueueNewPartitions() {
 		Object transactionManager = getField(kafkaProducer, "transactionManager");
 		synchronized (transactionManager) {
