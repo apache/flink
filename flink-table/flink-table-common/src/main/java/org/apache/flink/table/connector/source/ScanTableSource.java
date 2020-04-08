@@ -20,9 +20,13 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.abilities.SupportsComputedColumnPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -49,7 +53,10 @@ import java.io.Serializable;
  * during planning:
  * <ul>
  *     <li>{@link SupportsComputedColumnPushDown}
+ *     <li>{@link SupportsWatermarkPushDown}
  *     <li>{@link SupportsFilterPushDown}
+ *     <li>{@link SupportsProjectionPushDown}
+ *     <li>{@link SupportsPartitionPushDown}
  * </ul>
  *
  * <p>In the last step, the planner will call {@link #getScanRuntimeProvider(Context)} for obtaining a
@@ -99,6 +106,8 @@ public interface ScanTableSource extends DynamicTableSource {
 
 		/**
 		 * Creates type information describing the internal data structures of the given {@link DataType}.
+		 *
+		 * @see TableSchema#toPhysicalRowDataType()
 		 */
 		TypeInformation<?> createTypeInformation(DataType producedDataType);
 
@@ -110,6 +119,7 @@ public interface ScanTableSource extends DynamicTableSource {
 		 * nested) POJO can be converted into the internal representation for structured types.
 		 *
 		 * @see LogicalType#supportsInputConversion(Class)
+		 * @see TableSchema#toPhysicalRowDataType()
 		 */
 		DataStructureConverter createDataStructureConverter(DataType producedDataType);
 	}

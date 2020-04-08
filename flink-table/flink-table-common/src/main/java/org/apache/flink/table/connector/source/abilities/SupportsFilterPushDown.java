@@ -28,6 +28,14 @@ import java.util.List;
 /**
  * Enables to push down filters into a {@link ScanTableSource}.
  *
+ * <p>Given the following SQL:
+ * <pre>{@code
+ *   SELECT * FROM t WHERE (a = '1' OR a = '2') AND b IS NOT NULL;
+ * }</pre>
+ *
+ * <p>In the example above, {@code [a = '1' OR a = '2']} and {@code [b IS NOT NULL]} are acceptable
+ * filters.
+ *
  * <p>By default, if this interface is not implemented, filters are applied in a subsequent operation
  * after the source.
  *

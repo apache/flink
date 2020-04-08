@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
 
@@ -49,8 +50,8 @@ import java.io.Serializable;
  * <p>This interface provides a {@link ComputedColumnConverter} that needs to be applied to every row
  * during runtime.
  *
- * <p>Note: The final data type emitted by a source changes from the produced data type to the full data
- * type of the table's schema. For the example above, this means:
+ * <p>Note: The final output data type emitted by a source changes from the physically produced data
+ * type to the full data type of the table's schema. For the example above, this means:
  *
  * <pre>{@code
  *    ROW<str STRING, i INT>                    // before conversion
@@ -64,10 +65,12 @@ public interface SupportsComputedColumnPushDown {
 	 * Provides a converter that converts the produced {@link RowData} containing the physical
 	 * fields of the external system into a new {@link RowData} with push-downed computed columns.
 	 *
-	 * <p>Note: Use {@link TableSchema#toRowDataType()} instead of {@link TableSchema#toPhysicalRowDataType()}
-	 * for describing the final output data type when creating {@link TypeInformation}.
+	 * <p>Note: Use the passed data type instead of {@link TableSchema#toPhysicalRowDataType()} for
+	 * describing the final output data type when creating {@link TypeInformation}. If the source implements
+	 * {@link SupportsProjectionPushDown}, the projection is already considered in both the converter
+	 * and the given output data type.
 	 */
-	void applyComputedColumn(ComputedColumnConverter converter);
+	void applyComputedColumn(ComputedColumnConverter converter, DataType outputDataType);
 
 	/**
 	 * Generates and adds computed columns to {@link RowData} if necessary.
