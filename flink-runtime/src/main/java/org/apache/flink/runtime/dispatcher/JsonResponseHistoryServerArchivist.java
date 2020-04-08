@@ -24,8 +24,8 @@ import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingRunnable;
 
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -44,20 +44,16 @@ class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
 	JsonResponseHistoryServerArchivist(JsonArchivist jsonArchivist, Path archivePath, Executor ioExecutor) {
 		this.jsonArchivist = Preconditions.checkNotNull(jsonArchivist);
 		this.archivePath = Preconditions.checkNotNull(archivePath);
-		this.ioExecutor = ioExecutor;
+		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> archiveExecutionGraph(AccessExecutionGraph executionGraph) {
-		final CompletableFuture<Acknowledge> ackFuture = new CompletableFuture<>();
-		ioExecutor.execute(() -> {
-			try {
-				FsJobArchivist.archiveJob(archivePath, executionGraph.getJobID(), jsonArchivist.archiveJsonWithPath(executionGraph));
-				ackFuture.complete(Acknowledge.get());
-			} catch (IOException e) {
-				ackFuture.completeExceptionally(e);
-			}
-		});
-		return ackFuture;
+		return CompletableFuture
+			.runAsync(
+				ThrowingRunnable.unchecked(() ->
+					FsJobArchivist.archiveJob(archivePath, executionGraph.getJobID(), jsonArchivist.archiveJsonWithPath(executionGraph))),
+				ioExecutor)
+			.thenApply(ignored -> Acknowledge.get());
 	}
 }
