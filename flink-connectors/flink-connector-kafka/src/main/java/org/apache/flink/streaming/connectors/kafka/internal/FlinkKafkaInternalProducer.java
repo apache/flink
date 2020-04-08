@@ -218,18 +218,18 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 				producerId,
 				epoch);
 
-			Object transactionManager = getValue(kafkaProducer, "transactionManager");
+			Object transactionManager = getField(kafkaProducer, "transactionManager");
 			synchronized (transactionManager) {
-				Object nextSequence = getValue(transactionManager, "nextSequence");
+				Object nextSequence = getField(transactionManager, "nextSequence");
 
 				invoke(transactionManager,
 					"transitionTo",
 					getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
 				invoke(nextSequence, "clear");
 
-				Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
-				setValue(producerIdAndEpoch, "producerId", producerId);
-				setValue(producerIdAndEpoch, "epoch", epoch);
+				Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
+				setField(producerIdAndEpoch, "producerId", producerId);
+				setField(producerIdAndEpoch, "epoch", epoch);
 
 				invoke(transactionManager,
 					"transitionTo",
@@ -238,7 +238,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 				invoke(transactionManager,
 					"transitionTo",
 					getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.IN_TRANSACTION"));
-				setValue(transactionManager, "transactionStarted", true);
+				setField(transactionManager, "transactionStarted", true);
 			}
 		}
 	}
@@ -248,20 +248,20 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 	}
 
 	public long getProducerId() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
-		return (long) getValue(producerIdAndEpoch, "producerId");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
+		Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
+		return (long) getField(producerIdAndEpoch, "producerId");
 	}
 
 	public short getEpoch() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
-		return (short) getValue(producerIdAndEpoch, "epoch");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
+		Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
+		return (short) getField(producerIdAndEpoch, "epoch");
 	}
 
 	@VisibleForTesting
 	public int getTransactionCoordinatorId() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
 		Node node = (Node) invoke(transactionManager, "coordinator", FindCoordinatorRequest.CoordinatorType.TRANSACTION);
 		return node.id();
 	}
@@ -281,21 +281,21 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 	private void flushNewPartitions() {
 		LOG.info("Flushing new partitions");
 		TransactionalRequestResult result = enqueueNewPartitions();
-		Object sender = getValue(kafkaProducer, "sender");
+		Object sender = getField(kafkaProducer, "sender");
 		invoke(sender, "wakeup");
 		result.await();
 	}
 
 	private TransactionalRequestResult enqueueNewPartitions() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
 		synchronized (transactionManager) {
-			Object newPartitionsInTransaction = getValue(transactionManager, "newPartitionsInTransaction");
+			Object newPartitionsInTransaction = getField(transactionManager, "newPartitionsInTransaction");
 			Object newPartitionsInTransactionIsEmpty = invoke(newPartitionsInTransaction, "isEmpty");
 			TransactionalRequestResult result;
 			if (newPartitionsInTransactionIsEmpty instanceof Boolean && !((Boolean) newPartitionsInTransactionIsEmpty)) {
 				Object txnRequestHandler = invoke(transactionManager, "addPartitionsToTransactionHandler");
 				invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
-				result = (TransactionalRequestResult) getValue(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
+				result = (TransactionalRequestResult) getField(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
 			} else {
 				result = new TransactionalRequestResult();
 				result.done();
@@ -337,11 +337,19 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	protected static Object getValue(Object object, String fieldName) {
-		return getValue(object, object.getClass(), fieldName);
+	/**
+	 * Gets and returns the field {@code fieldName} from the given Object {@code object} using
+	 * reflection.
+	 */
+	protected static Object getField(Object object, String fieldName) {
+		return getField(object, object.getClass(), fieldName);
 	}
 
-	private static Object getValue(Object object, Class<?> clazz, String fieldName) {
+	/**
+	 * Gets and returns the field {@code fieldName} from the given Object {@code object} using
+	 * reflection.
+	 */
+	private static Object getField(Object object, Class<?> clazz, String fieldName) {
 		try {
 			Field field = clazz.getDeclaredField(fieldName);
 			field.setAccessible(true);
@@ -351,7 +359,11 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	protected static void setValue(Object object, String fieldName, Object value) {
+	/**
+	 * Sets the field {@code fieldName} on the given Object {@code object} to {@code value} using
+	 * reflection.
+	 */
+	protected static void setField(Object object, String fieldName, Object value) {
 		try {
 			Field field = object.getClass().getDeclaredField(fieldName);
 			field.setAccessible(true);
