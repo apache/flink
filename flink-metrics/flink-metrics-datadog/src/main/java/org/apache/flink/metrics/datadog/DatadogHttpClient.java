@@ -56,8 +56,7 @@ public class DatadogHttpClient {
 	private final String proxyHost;
 	private final int proxyPort;
 
-	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, DataCenter dataCenter,
-			boolean validateApiKey) {
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, DataCenter dataCenter, boolean validateApiKey) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
