@@ -45,7 +45,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	private final Meter numRecordsInRate;
 	private final Meter numRecordsOutRate;
 	private final Meter numBuffersOutRate;
-	private final Meter idleTimePerSecond;
 
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
@@ -62,8 +61,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 		this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
 		this.numBuffersOutRate = meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
-
-		this.idleTimePerSecond = meter(MetricNames.TASK_IDLE_TIME, new MeterView(new SimpleCounter()));
 	}
 
 	public IOMetrics createSnapshot() {
@@ -92,10 +89,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 	public Counter getNumBuffersOutCounter() {
 		return numBuffersOut;
-	}
-
-	public Meter getIdleTimeMsPerSecond() {
-		return idleTimePerSecond;
 	}
 
 	// ============================================================================================

@@ -60,14 +60,6 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 */
 	BufferBuilder getBufferBuilder() throws IOException, InterruptedException;
 
-
-	/**
-	 * Try to request a {@link BufferBuilder} from this partition for writing data.
-	 *
-	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
-	 */
-	BufferBuilder tryGetBufferBuilder() throws IOException;
-
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.
 	 *

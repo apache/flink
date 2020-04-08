@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -235,53 +234,6 @@ public class TaskMailboxProcessorTest {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		mailboxProcessor.close();
 		mailboxProcessor.allActionsCompleted();
-	}
-
-	@Test
-	public void testIdleTime() throws InterruptedException {
-		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
-		final int totalSwitches = 10;
-
-		MailboxThread mailboxThread = new MailboxThread() {
-			int count = 0;
-
-			@Override
-			public void runDefaultAction(Controller controller) {
-				// If this is violated, it means that the default action was invoked while we assumed suspension
-				Assert.assertTrue(suspendedActionRef.compareAndSet(null, controller.suspendDefaultAction()));
-				++count;
-				if (count == totalSwitches) {
-					controller.allActionsCompleted();
-				}
-			}
-		};
-		mailboxThread.start();
-		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-
-		final Thread asyncUnblocker = new Thread(() -> {
-			while (!Thread.currentThread().isInterrupted()) {
-				final MailboxDefaultAction.Suspension resume =
-					suspendedActionRef.getAndSet(null);
-
-				if (resume != null) {
-					try {
-						Thread.sleep(1);
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-					}
-					mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(resume::resume, "resume");
-				}
-			}
-		});
-
-		asyncUnblocker.start();
-		mailboxThread.signalStart();
-		mailboxThread.join();
-		asyncUnblocker.interrupt();
-		asyncUnblocker.join();
-
-		Assert.assertThat(mailboxProcessor.getIdleTime().getCount(), Matchers.greaterThanOrEqualTo(10L));
-
 	}
 
 	private static MailboxProcessor start(MailboxThread mailboxThread) {

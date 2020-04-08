@@ -50,11 +50,6 @@ public abstract class AbstractCollectingResultPartitionWriter extends MockResult
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
-		return bufferProvider.requestBufferBuilder();
-	}
-
-	@Override
 	public synchronized boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 		checkState(targetChannel < getNumberOfSubpartitions());
 		bufferConsumers.add(bufferConsumer);

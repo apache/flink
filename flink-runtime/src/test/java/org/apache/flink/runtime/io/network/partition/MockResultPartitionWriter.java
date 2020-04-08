@@ -70,11 +70,6 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public void flushAll() {
 	}
 
