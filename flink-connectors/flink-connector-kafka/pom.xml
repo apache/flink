@@ -36,7 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kafka.version>2.2.2</kafka.version>
+		<kafka.version>2.4.1</kafka.version>
 	</properties>
 
 	<dependencies>
