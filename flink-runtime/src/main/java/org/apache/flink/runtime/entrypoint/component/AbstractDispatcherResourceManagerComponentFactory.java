@@ -181,7 +181,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				webMonitorEndpoint.getRestBaseUrl(),
 				jobManagerMetricGroup);
 
-			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
+			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint, ioExecutor);
 
 			dispatcher = dispatcherFactory.createDispatcher(
 				configuration,
