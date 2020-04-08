@@ -86,7 +86,7 @@ public class AkkaRpcService implements RpcService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcService.class);
 
-	static final int VERSION = 1;
+	static final int VERSION = 2;
 
 	private final Object lock = new Object();
 
