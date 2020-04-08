@@ -123,7 +123,7 @@ public class DatadogHttpClient {
 	}
 
 	/**
-	 * A handler for OkHttpClient callback. In case of error or failure it logs the error at warning level.
+	 * A handler for OkHttpClient callback.  In case of error or failure it logs the error at warning level.
 	 */
 	protected static class EmptyCallback implements Callback {
 

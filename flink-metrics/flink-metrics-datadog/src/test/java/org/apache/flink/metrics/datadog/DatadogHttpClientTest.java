@@ -45,7 +45,7 @@ public class DatadogHttpClientTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testClientWithEmptyKey() {
-		new DatadogHttpClient("", null, 123, DataCenter.US,  false);
+		new DatadogHttpClient("", null, 123, DataCenter.US, false);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
