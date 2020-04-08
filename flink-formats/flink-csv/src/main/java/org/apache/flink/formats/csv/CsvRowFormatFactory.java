@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvParser;
 import org.apache.flink.table.descriptors.CsvValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
@@ -56,7 +57,10 @@ public final class CsvRowFormatFactory extends TableFormatFactoryBase<Row>
 		properties.add(CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER);
 		properties.add(CsvValidator.FORMAT_ESCAPE_CHARACTER);
 		properties.add(CsvValidator.FORMAT_NULL_LITERAL);
-		properties.add(CsvValidator.FORMAT_SCHEMA);
+		for(CsvParser.Feature feature : CsvParser.Feature.values()) {
+			properties.add(CsvValidator.FORMAT_FEATURE_PREFIX + "." + feature.toString().toUpperCase());
+		}
+
 		return properties;
 	}
 
@@ -88,6 +92,9 @@ public final class CsvRowFormatFactory extends TableFormatFactoryBase<Row>
 		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_LITERAL)
 			.ifPresent(schemaBuilder::setNullLiteral);
 
+		descriptorProperties.getPropertiesWithPrefix(CsvValidator.FORMAT_FEATURE_PREFIX)
+			.forEach((k,v) -> schemaBuilder.setFeature(k,Boolean.valueOf(v)));
+
 		return schemaBuilder.build();
 	}
 
@@ -118,6 +125,9 @@ public final class CsvRowFormatFactory extends TableFormatFactoryBase<Row>
 
 		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_LITERAL)
 			.ifPresent(schemaBuilder::setNullLiteral);
+
+		descriptorProperties.getPropertiesWithPrefix(CsvValidator.FORMAT_FEATURE_PREFIX)
+			.forEach((k,v) -> schemaBuilder.setFeature(k,Boolean.valueOf(v)));
 
 		return schemaBuilder.build();
 	}
