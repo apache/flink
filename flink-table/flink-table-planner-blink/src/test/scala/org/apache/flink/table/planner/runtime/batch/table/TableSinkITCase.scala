@@ -71,7 +71,7 @@ class TableSinkITCase extends BatchTestBase {
         .field("d", DataTypes.CHAR(5))
         .build()
 
-    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
+    MemoryTableSourceSinkUtil.createDataTypeAppendStreamTable(
       tEnv, schema, "testSink")
 
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)

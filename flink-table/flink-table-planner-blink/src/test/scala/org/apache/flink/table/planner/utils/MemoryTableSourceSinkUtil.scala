@@ -68,6 +68,15 @@ object MemoryTableSourceSinkUtil {
       .createTemporaryTable(tableName)
   }
 
+  def createDataTypeAppendStreamTable(
+      tEnv: TableEnvironment,
+      schema: TableSchema,
+      tableName: String): Unit = {
+    tEnv.connect(new CustomConnectorDescriptor("DataTypeAppendStreamTable", 1, false))
+      .withSchema(new Schema().schema(schema))
+      .createTemporaryTable(tableName)
+  }
+
   final class UnsafeMemoryAppendTableSink
     extends TableSinkBase[Row] with AppendStreamTableSink[Row] {
 

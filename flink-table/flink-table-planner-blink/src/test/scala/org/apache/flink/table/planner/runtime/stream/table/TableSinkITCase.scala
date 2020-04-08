@@ -570,7 +570,7 @@ class TableSinkITCase extends AbstractTestBase {
         .field("d", DataTypes.CHAR(5))
         .build()
 
-    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
+    MemoryTableSourceSinkUtil.createDataTypeAppendStreamTable(
       tEnv, schema, "testSink")
 
     env.fromCollection(tupleData3)
