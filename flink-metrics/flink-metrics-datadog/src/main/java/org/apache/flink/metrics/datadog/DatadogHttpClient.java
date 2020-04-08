@@ -67,8 +67,11 @@ public class DatadogHttpClient {
 
 		Proxy proxy = getProxy();
 
-		client = new OkHttpClient.Builder().connectTimeout(TIMEOUT, TimeUnit.SECONDS)
-				.writeTimeout(TIMEOUT, TimeUnit.SECONDS).readTimeout(TIMEOUT, TimeUnit.SECONDS).proxy(proxy).build();
+		client = new OkHttpClient.Builder()
+			.connectTimeout(TIMEOUT, TimeUnit.SECONDS)
+			.writeTimeout(TIMEOUT, TimeUnit.SECONDS)
+			.readTimeout(TIMEOUT, TimeUnit.SECONDS)
+			.proxy(proxy).build();
 
 		seriesUrl = String.format(SERIES_URL_FORMAT, dataCenter.getDomain(), apiKey);
 		validateUrl = String.format(VALIDATE_URL_FORMAT, dataCenter.getDomain(), apiKey);
@@ -91,7 +94,8 @@ public class DatadogHttpClient {
 
 		try (Response response = client.newCall(r).execute()) {
 			if (!response.isSuccessful()) {
-				throw new IllegalArgumentException(String.format("API key: %s is invalid", apiKey));
+				throw new IllegalArgumentException(
+					String.format("API key: %s is invalid", apiKey));
 			}
 		} catch (IOException e) {
 			throw new IllegalStateException("Failed contacting Datadog to validate API key", e);
@@ -101,7 +105,10 @@ public class DatadogHttpClient {
 	public void send(DSeries request) throws Exception {
 		String postBody = serialize(request);
 
-		Request r = new Request.Builder().url(seriesUrl).post(RequestBody.create(MEDIA_TYPE, postBody)).build();
+		Request r = new Request.Builder()
+			.url(seriesUrl)
+			.post(RequestBody.create(MEDIA_TYPE, postBody))
+			.build();
 
 		client.newCall(r).enqueue(EmptyCallback.getEmptyCallback());
 	}
@@ -116,8 +123,7 @@ public class DatadogHttpClient {
 	}
 
 	/**
-	 * A handler for OkHttpClient callback. In case of error or failure it logs the
-	 * error at warning level.
+	 * A handler for OkHttpClient callback. In case of error or failure it logs the error at warning level.
 	 */
 	protected static class EmptyCallback implements Callback {
 
