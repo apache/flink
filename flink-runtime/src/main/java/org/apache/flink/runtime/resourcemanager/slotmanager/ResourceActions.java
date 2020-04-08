@@ -23,8 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 
-import java.util.Collection;
-
 /**
  * Resource related actions which the {@link SlotManager} can perform.
  */
@@ -42,9 +40,9 @@ public interface ResourceActions {
 	 * Requests to allocate a resource with the given {@link ResourceProfile}.
 	 *
 	 * @param resourceProfile for the to be allocated resource
-	 * @return Collection of {@link ResourceProfile} describing the allocated slots
+	 * @return whether the resource can be allocated
 	 */
-	Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile);
+	boolean allocateResource(ResourceProfile resourceProfile);
 
 	/**
 	 * Notifies that an allocation failure has occurred.

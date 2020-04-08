@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
@@ -37,9 +36,7 @@ import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlink
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemoryUtils;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -98,30 +95,6 @@ public class TaskExecutorProcessUtils {
 			sb.append("-D ").append(entry.getKey()).append("=").append(entry.getValue()).append(" ");
 		}
 		return sb.toString();
-	}
-
-	// ------------------------------------------------------------------------
-	//  Generating Slot Resource Profiles
-	// ------------------------------------------------------------------------
-
-	public static List<ResourceProfile> createDefaultWorkerSlotProfiles(
-			TaskExecutorProcessSpec taskExecutorProcessSpec,
-			int numberOfSlots) {
-		final ResourceProfile resourceProfile =
-			generateDefaultSlotResourceProfile(taskExecutorProcessSpec, numberOfSlots);
-		return Collections.nCopies(numberOfSlots, resourceProfile);
-	}
-
-	public static ResourceProfile generateDefaultSlotResourceProfile(
-			TaskExecutorProcessSpec taskExecutorProcessSpec,
-			int numberOfSlots) {
-		return ResourceProfile.newBuilder()
-			.setCpuCores(taskExecutorProcessSpec.getCpuCores().divide(numberOfSlots))
-			.setTaskHeapMemory(taskExecutorProcessSpec.getTaskHeapSize().divide(numberOfSlots))
-			.setTaskOffHeapMemory(taskExecutorProcessSpec.getTaskOffHeapSize().divide(numberOfSlots))
-			.setManagedMemory(taskExecutorProcessSpec.getManagedMemorySize().divide(numberOfSlots))
-			.setNetworkMemory(taskExecutorProcessSpec.getNetworkMemSize().divide(numberOfSlots))
-			.build();
 	}
 
 	// ------------------------------------------------------------------------

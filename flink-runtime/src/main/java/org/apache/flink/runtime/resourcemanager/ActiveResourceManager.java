@@ -25,7 +25,6 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -39,7 +38,6 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -57,8 +55,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	protected final TaskExecutorProcessSpec taskExecutorProcessSpec;
 
 	protected final int defaultMemoryMB;
-
-	protected final Collection<ResourceProfile> resourceProfilesPerWorker;
 
 	/**
 	 * The updated Flink configuration. The client uploaded configuration may be updated before passed on to
@@ -107,9 +103,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 			.withCpuCores(defaultCpus)
 			.build();
 		this.defaultMemoryMB = taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes();
-
-		this.resourceProfilesPerWorker = TaskExecutorProcessUtils
-			.createDefaultWorkerSlotProfiles(taskExecutorProcessSpec, numSlotsPerTaskManager);
 
 		// Load the flink config uploaded by flink client
 		this.flinkClientConfig = loadClientConfiguration();

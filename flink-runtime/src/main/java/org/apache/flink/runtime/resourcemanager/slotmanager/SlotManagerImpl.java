@@ -49,7 +49,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -133,6 +132,8 @@ public class SlotManagerImpl implements SlotManager {
 
 	private final int numSlotsPerWorker;
 
+	private final ResourceProfile defaultSlotResourceProfile;
+
 	public SlotManagerImpl(
 			ScheduledExecutor scheduledExecutor,
 			SlotManagerConfiguration slotManagerConfiguration) {
@@ -147,6 +148,7 @@ public class SlotManagerImpl implements SlotManager {
 		this.waitResultConsumedBeforeRelease = slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
 		this.defaultWorkerResourceSpec = slotManagerConfiguration.getDefaultWorkerResourceSpec();
 		this.numSlotsPerWorker = slotManagerConfiguration.getNumSlotsPerWorker();
+		this.defaultSlotResourceProfile = generateDefaultSlotResourceProfile(defaultWorkerResourceSpec, numSlotsPerWorker);
 
 		slots = new HashMap<>(16);
 		freeSlots = new LinkedHashMap<>(16);
@@ -801,23 +803,25 @@ public class SlotManagerImpl implements SlotManager {
 		return false;
 	}
 
-	private Optional<PendingTaskManagerSlot> allocateResource(ResourceProfile resourceProfile) {
-		final Collection<ResourceProfile> requestedSlots = resourceActions.allocateResource(resourceProfile);
-
-		if (requestedSlots.isEmpty()) {
+	private Optional<PendingTaskManagerSlot> allocateResource(ResourceProfile requestedSlotResourceProfile) {
+		if (!defaultSlotResourceProfile.isMatching(requestedSlotResourceProfile)) {
+			// requested resource profile is unfulfillable
 			return Optional.empty();
-		} else {
-			final Iterator<ResourceProfile> slotIterator = requestedSlots.iterator();
-			final PendingTaskManagerSlot pendingTaskManagerSlot = new PendingTaskManagerSlot(slotIterator.next());
-			pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
-
-			while (slotIterator.hasNext()) {
-				final PendingTaskManagerSlot additionalPendingTaskManagerSlot = new PendingTaskManagerSlot(slotIterator.next());
-				pendingSlots.put(additionalPendingTaskManagerSlot.getTaskManagerSlotId(), additionalPendingTaskManagerSlot);
-			}
-
-			return Optional.of(pendingTaskManagerSlot);
 		}
+
+		if (!resourceActions.allocateResource(requestedSlotResourceProfile)) {
+			// resource cannot be allocated
+			return Optional.empty();
+		}
+
+		PendingTaskManagerSlot pendingTaskManagerSlot = null;
+		for (int i = 0; i < numSlotsPerWorker; ++i) {
+			pendingTaskManagerSlot = new PendingTaskManagerSlot(defaultSlotResourceProfile);
+			pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
+		}
+
+		return Optional.of(Preconditions.checkNotNull(pendingTaskManagerSlot,
+			"At least one pending slot should be created."));
 	}
 
 	private void assignPendingTaskManagerSlot(PendingSlotRequest pendingSlotRequest, PendingTaskManagerSlot pendingTaskManagerSlot) {
@@ -1070,6 +1074,17 @@ public class SlotManagerImpl implements SlotManager {
 		if (null != request) {
 			request.cancel(false);
 		}
+	}
+
+	@VisibleForTesting
+	static ResourceProfile generateDefaultSlotResourceProfile(WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
+		return ResourceProfile.newBuilder()
+			.setCpuCores(workerResourceSpec.getCpuCores().divide(numSlotsPerWorker))
+			.setTaskHeapMemory(workerResourceSpec.getTaskHeapSize().divide(numSlotsPerWorker))
+			.setTaskOffHeapMemory(workerResourceSpec.getTaskOffHeapSize().divide(numSlotsPerWorker))
+			.setManagedMemory(workerResourceSpec.getManagedMemSize().divide(numSlotsPerWorker))
+			.setNetworkMemory(workerResourceSpec.getNetworkMemSize().divide(numSlotsPerWorker))
+			.build();
 	}
 
 	// ---------------------------------------------------------------------------------------------
