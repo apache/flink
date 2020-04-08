@@ -42,20 +42,20 @@ public class SlotManagerConfiguration {
 	private final Time slotRequestTimeout;
 	private final Time taskManagerTimeout;
 	private final boolean waitResultConsumedBeforeRelease;
-	private final boolean evenlySpreadOutSlots;
+	private final SlotMatchingStrategy slotMatchingStrategy;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
 			Time taskManagerTimeout,
 			boolean waitResultConsumedBeforeRelease,
-			boolean evenlySpreadOutSlots) {
+			SlotMatchingStrategy slotMatchingStrategy) {
 
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
 		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
-		this.evenlySpreadOutSlots = evenlySpreadOutSlots;
+		this.slotMatchingStrategy = slotMatchingStrategy;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -74,8 +74,8 @@ public class SlotManagerConfiguration {
 		return waitResultConsumedBeforeRelease;
 	}
 
-	public boolean evenlySpreadOutSlots() {
-		return evenlySpreadOutSlots;
+	public SlotMatchingStrategy getSlotMatchingStrategy() {
+		return slotMatchingStrategy;
 	}
 
 	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
@@ -95,13 +95,15 @@ public class SlotManagerConfiguration {
 			configuration.getBoolean(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
 
 		boolean evenlySpreadOutSlots = configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+		final SlotMatchingStrategy slotMatchingStrategy = evenlySpreadOutSlots ?
+			LeastUtilizationSlotMatchingStrategy.INSTANCE : AnyMatchingSlotMatchingStrategy.INSTANCE;
 
 		return new SlotManagerConfiguration(
 			rpcTimeout,
 			slotRequestTimeout,
 			taskManagerTimeout,
 			waitResultConsumedBeforeRelease,
-			evenlySpreadOutSlots);
+			slotMatchingStrategy);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {
