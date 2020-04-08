@@ -351,4 +351,109 @@ public class TypeExtractionUtils {
 				+ "Otherwise the type has to be specified explicitly using type information.");
 		}
 	}
+
+	/**
+	 * Build the parameterized type hierarchy from subClass to baseClass.
+	 * @param subClass the begin class of the type hierarchy
+	 * @param baseClass the end class of the type hierarchy
+	 * @return the type hierarchy.
+	 */
+	public static List<Type> buildTypeHierarchy(final Class<?> subClass, final Class<?> baseClass) {
+
+		final List<Type> typeHierarchy = new ArrayList<>();
+
+		if (baseClass.equals(subClass) || !baseClass.isAssignableFrom(subClass)) {
+			return Collections.emptyList();
+		}
+
+		final Type[] interfaceTypes = subClass.getGenericInterfaces();
+
+		for (Type type : interfaceTypes) {
+			if (baseClass.isAssignableFrom(typeToClass(type))) {
+				final List<Type> subTypeHierarchy = buildTypeHierarchy(typeToClass(type), baseClass);
+				if (type instanceof ParameterizedType) {
+					typeHierarchy.add(type);
+				}
+				typeHierarchy.addAll(subTypeHierarchy);
+				return typeHierarchy;
+			}
+		}
+
+		if (baseClass.isAssignableFrom(subClass)) {
+			final Type type = subClass.getGenericSuperclass();
+			final List<Type> subTypeHierarchy = buildTypeHierarchy(typeToClass(type), baseClass);
+			if (type instanceof ParameterizedType) {
+				typeHierarchy.add(type);
+			}
+			typeHierarchy.addAll(subTypeHierarchy);
+
+			return typeHierarchy;
+		}
+		return typeHierarchy;
+	}
+
+	/**
+	 * Resolve all {@link TypeVariable}s of the type from the type hierarchy.
+	 * @param type the type needed to be resovled
+	 * @param typeHierarchy the set of types which the {@link TypeVariable} could be resovled from.
+	 * @param resolveGenericArray whether to resolve the {@code GenericArrayType} or not. This is for compatible.
+	 *                               (Some code path resolves the component type of a GenericArrayType. Some code path
+	 *                               does not resolve the component type of a GenericArray. A example case is
+	 *                               {@link TypeExtractorTest#testParameterizedArrays()})
+	 * @return resolved type
+	 */
+	public static Type resolveTypeFromTypeHierachy(final Type type, final List<Type> typeHierarchy, final boolean resolveGenericArray) {
+		Type resolvedType = type;
+
+		if (type instanceof TypeVariable) {
+			resolvedType = materializeTypeVariable(typeHierarchy, (TypeVariable) type);
+		}
+
+		if (resolvedType instanceof ParameterizedType) {
+			return TypeExtractor.resolveParameterizedType((ParameterizedType) resolvedType, typeHierarchy, resolveGenericArray);
+		} else if (resolveGenericArray && resolvedType instanceof GenericArrayType) {
+			return TypeExtractor.resolveGenericArrayType((GenericArrayType) resolvedType, typeHierarchy);
+		}
+
+		return resolvedType;
+	}
+
+	/**
+	 * Tries to find a concrete value (Class, ParameterizedType etc. ) for a TypeVariable by traversing the type hierarchy downwards.
+	 * If a value could not be found it will return the most bottom type variable in the hierarchy.
+	 */
+	static Type materializeTypeVariable(List<Type> typeHierarchy, TypeVariable<?> typeVar) {
+		TypeVariable<?> inTypeTypeVar = typeVar;
+		// iterate thru hierarchy from top to bottom until type variable gets a class assigned
+		for (int i = typeHierarchy.size() - 1; i >= 0; i--) {
+			Type curT = typeHierarchy.get(i);
+
+			// parameterized type
+			if (curT instanceof ParameterizedType) {
+				Class<?> rawType = ((Class<?>) ((ParameterizedType) curT).getRawType());
+
+				for (int paramIndex = 0; paramIndex < rawType.getTypeParameters().length; paramIndex++) {
+
+					TypeVariable<?> curVarOfCurT = rawType.getTypeParameters()[paramIndex];
+
+					// check if variable names match
+					if (sameTypeVars(curVarOfCurT, inTypeTypeVar)) {
+						Type curVarType = ((ParameterizedType) curT).getActualTypeArguments()[paramIndex];
+
+						// another type variable level
+						if (curVarType instanceof TypeVariable<?>) {
+							inTypeTypeVar = (TypeVariable<?>) curVarType;
+						}
+						// class
+						else {
+							return curVarType;
+						}
+					}
+				}
+			}
+		}
+		// can not be materialized, most likely due to type erasure
+		// return the type variable of the deepest level
+		return inTypeTypeVar;
+	}
 }
