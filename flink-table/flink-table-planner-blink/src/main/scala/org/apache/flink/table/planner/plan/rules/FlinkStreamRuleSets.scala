@@ -407,16 +407,6 @@ object FlinkStreamRuleSets {
   )
 
   /**
-    * RuleSet for retraction inference.
-    */
-  val RETRACTION_RULES: RuleSet = RuleSets.ofList(
-    // retraction rules
-    StreamExecRetractionRules.DEFAULT_RETRACTION_INSTANCE,
-    StreamExecRetractionRules.UPDATES_AS_RETRACTION_INSTANCE,
-    StreamExecRetractionRules.ACCMODE_INSTANCE
-  )
-
-  /**
     * RuleSet related to watermark assignment.
     */
   val MINI_BATCH_RULES: RuleSet = RuleSets.ofList(

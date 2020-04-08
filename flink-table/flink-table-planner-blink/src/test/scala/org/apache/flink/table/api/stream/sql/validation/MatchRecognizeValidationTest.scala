@@ -124,8 +124,8 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testUpdatesInUpstreamOperatorNotSupported(): Unit = {
-    thrown.expectMessage("Retraction on match recognize is not supported. Note: Match " +
-      "recognize should not follow a non-windowed GroupBy aggregation.")
+    thrown.expectMessage("Match Recognize doesn't support consuming update changes " +
+      "which is produced by node GroupAggregate(")
     thrown.expect(classOf[TableException])
 
     val sqlQuery =

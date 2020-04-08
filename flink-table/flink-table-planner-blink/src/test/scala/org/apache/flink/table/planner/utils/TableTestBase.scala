@@ -300,7 +300,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       withRowType = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
     val message = s"\nactual plan:\n$optimizedPlan\nnot expected:\n${notExpected.mkString(", ")}"
@@ -332,7 +332,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     doVerifyPlan(
       sql = sql,
       explainLevel = explainLevel,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       withRowType = withRowType,
       printPlanBefore = printPlanBefore)
   }
@@ -340,7 +340,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def doVerifyPlan(
       sql: String,
       explainLevel: SqlExplainLevel,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(sql)
@@ -348,7 +348,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withRowType = withRowType)
 
     assertEqualsOrExpand("sql", sql)
@@ -373,7 +373,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       table,
       explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       printResource = true,
       printPlanBefore = false)
   }
@@ -386,7 +386,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     doVerifyPlan(
       table = table,
       explainLevel = explainLevel,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       withRowType = withRowType,
       printPlanBefore = printPlanBefore)
   }
@@ -395,14 +395,14 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       table: Table,
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       printPlanBefore: Boolean,
       printResource: Boolean = false): Unit = {
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withRowType = withRowType,
       withResource = printResource)
 
@@ -435,7 +435,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   protected def getOptimizedPlan(
       relNodes: Array[RelNode],
       explainLevel: SqlExplainLevel,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       withRowType: Boolean,
       withResource: Boolean = false): String = {
     require(relNodes.nonEmpty)
@@ -448,7 +448,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
         ExecNodePlanDumper.dagToString(
           optimizedNodes,
           detailLevel = explainLevel,
-          withRetractTraits = withRetractTraits,
+          withChangelogTraits = withChangelogTraits,
           withOutputType = withRowType,
           withResource = withResource)
       case _ =>
@@ -456,7 +456,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
           FlinkRelOptUtil.toString(
             rel,
             detailLevel = explainLevel,
-            withRetractTraits = withRetractTraits,
+            withChangelogTraits = withChangelogTraits,
             withRowType = withRowType)
         }.mkString("\n")
     }
@@ -597,7 +597,7 @@ abstract class TableTestUtil(
       sql,
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       printPlanBefore = true)
   }
 
@@ -605,7 +605,7 @@ abstract class TableTestUtil(
     doVerifyPlan(
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       printPlanBefore = true)
   }
 
@@ -613,17 +613,17 @@ abstract class TableTestUtil(
       sql: String,
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       printPlanBefore: Boolean): Unit = {
     tableEnv.sqlUpdate(sql)
     assertEqualsOrExpand("sql", sql)
-    doVerifyPlan(explainLevel, withRowType, withRetractTraits, printPlanBefore)
+    doVerifyPlan(explainLevel, withRowType, withChangelogTraits, printPlanBefore)
   }
 
   def doVerifyPlan(
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       printPlanBefore: Boolean): Unit = {
     val testTableEnv = tableEnv.asInstanceOf[TestingTableEnvironment]
     val relNodes = testTableEnv.getBufferedOperations.map(getPlanner.translateToRel)
@@ -636,7 +636,7 @@ abstract class TableTestUtil(
     val optimizedPlan = getOptimizedPlan(
       relNodes.toArray,
       explainLevel,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withRowType = withRowType)
     testTableEnv.clearBufferedOperations()
 
@@ -771,7 +771,7 @@ case class StreamTableTestUtil(
   def verifyPlanWithTrait(): Unit = {
     doVerifyPlan(
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRetractTraits = true,
+      withChangelogTraits = true,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -780,7 +780,7 @@ case class StreamTableTestUtil(
     doVerifyPlan(
       sql,
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRetractTraits = true,
+      withChangelogTraits = true,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -789,7 +789,7 @@ case class StreamTableTestUtil(
     doVerifyPlan(
       table,
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRetractTraits = true,
+      withChangelogTraits = true,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -1161,8 +1161,6 @@ object TableTestUtil {
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema,
       fieldNullables.getOrElse(Array.fill(fieldCnt)(true)),
-      false,
-      false,
       statistic.getOrElse(FlinkStatistic.UNKNOWN)
     )
     val table = createTable(tEnv, dataStreamQueryOperation)

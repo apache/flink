@@ -48,8 +48,8 @@ class StreamPlanner(
       ConventionTraitDef.INSTANCE,
       FlinkRelDistributionTraitDef.INSTANCE,
       MiniBatchIntervalTraitDef.INSTANCE,
-      UpdateAsRetractionTraitDef.INSTANCE,
-      AccModeTraitDef.INSTANCE)
+      ModifyKindSetTraitDef.INSTANCE,
+      UpdateKindTraitDef.INSTANCE)
   }
 
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
@@ -93,7 +93,7 @@ class StreamPlanner(
 
     sb.append("== Optimized Logical Plan ==")
     sb.append(System.lineSeparator)
-    val (explainLevel, withRetractTraits) = if (extended) {
+    val (explainLevel, withChangelogTraits) = if (extended) {
       (SqlExplainLevel.ALL_ATTRIBUTES, true)
     } else {
       (SqlExplainLevel.DIGEST_ATTRIBUTES, false)
@@ -101,7 +101,7 @@ class StreamPlanner(
     sb.append(ExecNodePlanDumper.dagToString(
       execNodes,
       explainLevel,
-      withRetractTraits = withRetractTraits))
+      withChangelogTraits = withChangelogTraits))
     sb.append(System.lineSeparator)
 
     sb.append("== Physical Execution Plan ==")

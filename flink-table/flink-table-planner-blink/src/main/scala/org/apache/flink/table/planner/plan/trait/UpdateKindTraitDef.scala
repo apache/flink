@@ -21,61 +21,32 @@ package org.apache.flink.table.planner.plan.`trait`
 import org.apache.calcite.plan.{RelOptPlanner, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 
-/**
-  * Definition of the [[UpdateAsRetractionTrait]].
-  */
-class UpdateAsRetractionTraitDef extends RelTraitDef[UpdateAsRetractionTrait] {
+class UpdateKindTraitDef extends RelTraitDef[UpdateKindTrait] {
+
+  override def getTraitClass: Class[UpdateKindTrait] = classOf[UpdateKindTrait]
+
+  override def getSimpleName: String = this.getClass.getSimpleName
+
   override def convert(
       planner: RelOptPlanner,
       rel: RelNode,
-      toTrait: UpdateAsRetractionTrait,
+      toTrait: UpdateKindTrait,
       allowInfiniteCostConverters: Boolean): RelNode = {
-
     rel.copy(rel.getTraitSet.plus(toTrait), rel.getInputs)
   }
 
   override def canConvert(
       planner: RelOptPlanner,
-      fromTrait: UpdateAsRetractionTrait,
-      toTrait: UpdateAsRetractionTrait): Boolean = true
-
-  override def getTraitClass: Class[UpdateAsRetractionTrait] = classOf[UpdateAsRetractionTrait]
-
-  override def getSimpleName: String = this.getClass.getSimpleName
-
-  override def getDefault: UpdateAsRetractionTrait = UpdateAsRetractionTrait.DEFAULT
-}
-
-object UpdateAsRetractionTraitDef {
-  val INSTANCE = new UpdateAsRetractionTraitDef
-}
-
-/**
-  * Definition of the [[AccModeTrait]].
-  */
-class AccModeTraitDef extends RelTraitDef[AccModeTrait] {
-
-  override def convert(
-      planner: RelOptPlanner,
-      rel: RelNode,
-      toTrait: AccModeTrait,
-      allowInfiniteCostConverters: Boolean): RelNode = {
-
-    rel.copy(rel.getTraitSet.plus(toTrait), rel.getInputs)
+      fromTrait: UpdateKindTrait,
+      toTrait: UpdateKindTrait): Boolean = {
+    throw new UnsupportedOperationException(
+      "UpdateKindTrait conversion is not supported for now.")
   }
 
-  override def canConvert(
-      planner: RelOptPlanner,
-      fromTrait: AccModeTrait,
-      toTrait: AccModeTrait): Boolean = true
-
-  override def getTraitClass: Class[AccModeTrait] = classOf[AccModeTrait]
-
-  override def getSimpleName: String = this.getClass.getSimpleName
-
-  override def getDefault: AccModeTrait = AccModeTrait.UNKNOWN
+  override def getDefault: UpdateKindTrait = UpdateKindTrait.NONE
 }
 
-object AccModeTraitDef {
-  val INSTANCE = new AccModeTraitDef
+object UpdateKindTraitDef {
+  val INSTANCE = new UpdateKindTraitDef()
 }
+

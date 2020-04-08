@@ -51,7 +51,7 @@ public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFun
 	}
 
 	@Test
-	public void testKeepFirstRowWithGenerateRetraction() throws Exception {
+	public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
 		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();

@@ -129,15 +129,15 @@ object FlinkExpandConversionRule {
                 .replace(RelCollations.EMPTY)
               new BatchExecExchange(node.getCluster, traitSet, node, requiredDistribution)
             case FlinkConventions.STREAM_PHYSICAL =>
-              val updateAsRetraction = fromTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)
-              val accMode = fromTraitSet.getTrait(AccModeTraitDef.INSTANCE)
+              val modifyKindSetTrait = fromTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
+              val updateKindTrait = fromTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
               // replace collation with empty since distribution destroy collation
               val traitSet = fromTraitSet
                 .replace(requiredDistribution)
                 .replace(flinkConvention)
                 .replace(RelCollations.EMPTY)
-                .replace(updateAsRetraction)
-                .replace(accMode)
+                .replace(modifyKindSetTrait)
+                .replace(updateKindTrait)
               new StreamExecExchange(node.getCluster, traitSet, node, requiredDistribution)
             case _ => throw new TableException(s"Unsupported convention: $flinkConvention")
           }

@@ -87,10 +87,10 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			RankType rankType,
 			RankRange rankRange,
 			GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateRetraction,
+			boolean generateUpdateBefore,
 			boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
-				rankRange, generateRetraction, outputRankNumber);
+				rankRange, generateUpdateBefore, outputRankNumber);
 		this.sortKeyType = sortKeySelector.getProducedType();
 		this.serializableComparator = new ComparatorWrapper(generatedRecordComparator);
 		this.generatedEqualiser = generatedEqualiser;

@@ -514,6 +514,46 @@ class TableSinkITCase extends AbstractTestBase {
     assertEquals(expected, retracted)
   }
 
+  @Test
+  def testUpsertSinkWithFilter(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableObjectReuse()
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+    env.setParallelism(4)
+
+    val t = env.fromCollection(tupleData3)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text)
+
+    val sink = new TestingUpsertTableSink(Array(0))
+    sink.expectedIsAppendOnly = Some(false)
+    tEnv.registerTableSink(
+      "upsertSink",
+      sink.configure(
+        Array[String]("num", "cnt"),
+        Array[TypeInformation[_]](Types.LONG, Types.LONG)))
+
+    // num, cnt
+    //   1, 1
+    //   2, 2
+    //   3, 3
+    //   4, 4
+    //   5, 5
+    //   6, 6
+
+    t.groupBy('num)
+      .select('num, 'id.count as 'cnt)
+      .where('cnt <= 3)
+      .insertInto("upsertSink")
+
+    tEnv.execute("job name")
+
+    val expectedWithFilter = List("1,1", "2,2", "3,3")
+     assertEquals(expectedWithFilter.sorted, sink.getUpsertResults.sorted)
+  }
+
   @Test(expected = classOf[TableException])
   def testToAppendStreamMultiRowtime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment

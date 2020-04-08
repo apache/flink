@@ -31,7 +31,6 @@ import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.operators.rank._
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -59,7 +58,8 @@ class StreamExecRank(
     rankType: RankType,
     rankRange: RankRange,
     rankNumberType: RelDataTypeField,
-    outputRankNumber: Boolean)
+    outputRankNumber: Boolean,
+    rankStrategy: RankProcessStrategy)
   extends Rank(
     cluster,
     traitSet,
@@ -73,27 +73,6 @@ class StreamExecRank(
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  /** please uses [[getStrategy]] instead of this field */
-  private var strategy: RankProcessStrategy = _
-
-  def getStrategy(forceRecompute: Boolean = false): RankProcessStrategy = {
-    if (strategy == null || forceRecompute) {
-      strategy = RankProcessStrategy.analyzeRankProcessStrategy(
-        inputRel, partitionKey, orderKey, cluster.getMetadataQuery)
-    }
-    strategy
-  }
-
-  override def producesUpdates = true
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
-    getStrategy(forceRecompute = true) == RetractStrategy
-  }
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
-
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -106,13 +85,28 @@ class StreamExecRank(
       rankType,
       rankRange,
       rankNumberType,
-      outputRankNumber)
+      outputRankNumber,
+      rankStrategy)
+  }
+
+  def copy(newStrategy: RankProcessStrategy): StreamExecRank = {
+    new StreamExecRank(
+      cluster,
+      traitSet,
+      inputRel,
+      partitionKey,
+      orderKey,
+      rankType,
+      rankRange,
+      rankNumberType,
+      outputRankNumber,
+      newStrategy)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = inputRel.getRowType
     pw.input("input", getInput)
-      .item("strategy", getStrategy())
+      .item("strategy", rankStrategy)
       .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
@@ -153,12 +147,12 @@ class StreamExecRank(
     val sortKeyType = sortKeySelector.getProducedType
     val sortKeyComparator = ComparatorCodeGenerator.gen(tableConfig, "StreamExecSortComparator",
       sortFields.indices.toArray, sortKeyType.getLogicalTypes, sortDirections, nullsIsLast)
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
 
-    val processFunction = getStrategy(true) match {
+    val processFunction = rankStrategy match {
       case AppendFastStrategy =>
         new AppendOnlyTopNFunction(
           minIdleStateRetentionTime,
@@ -168,7 +162,7 @@ class StreamExecRank(
           sortKeySelector,
           rankType,
           rankRange,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber,
           cacheSize)
 
@@ -183,7 +177,7 @@ class StreamExecRank(
           sortKeySelector,
           rankType,
           rankRange,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber,
           cacheSize)
 
@@ -201,7 +195,7 @@ class StreamExecRank(
           rankType,
           rankRange,
           generatedEqualiser,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber)
     }
     val operator = new KeyedProcessOperator(processFunction)

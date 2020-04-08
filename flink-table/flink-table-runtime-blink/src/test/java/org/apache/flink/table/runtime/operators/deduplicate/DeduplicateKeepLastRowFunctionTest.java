@@ -36,9 +36,12 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
  */
 public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestBase {
 
-	private DeduplicateKeepLastRowFunction createFunction(boolean generateRetraction) {
-		return new DeduplicateKeepLastRowFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
-				generateRetraction);
+	private DeduplicateKeepLastRowFunction createFunction(boolean generateUpdateBefore) {
+		return new DeduplicateKeepLastRowFunction(
+			minTime.toMilliseconds(),
+			maxTime.toMilliseconds(),
+			inputRowType,
+			generateUpdateBefore);
 	}
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
@@ -49,7 +52,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 	}
 
 	@Test
-	public void testWithoutGenerateRetraction() throws Exception {
+	public void testWithoutGenerateUpdateBefore() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -66,7 +69,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 	}
 
 	@Test
-	public void testWithGenerateRetraction() throws Exception {
+	public void testWithGenerateUpdateBefore() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();

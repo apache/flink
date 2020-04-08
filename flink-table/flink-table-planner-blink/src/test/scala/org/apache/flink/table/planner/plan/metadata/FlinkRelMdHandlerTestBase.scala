@@ -382,7 +382,7 @@ class FlinkRelMdHandlerTestBase {
       collection, offset, fetch, true)
 
     val streamSort = new StreamExecSortLimit(cluster, streamPhysicalTraits.replace(collection),
-      studentStreamScan, collection, offset, fetch)
+      studentStreamScan, collection, offset, fetch, UndefinedStrategy)
 
     (logicalSortLimit, flinkLogicalSortLimit,
       batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
@@ -463,7 +463,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new ConstantRankRange(1, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -544,7 +545,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new ConstantRankRange(3, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -592,7 +594,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.ROW_NUMBER,
       new ConstantRankRange(3, 6),
       new RelDataTypeFieldImpl("rn", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
@@ -702,7 +705,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new VariableRankRange(3),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)

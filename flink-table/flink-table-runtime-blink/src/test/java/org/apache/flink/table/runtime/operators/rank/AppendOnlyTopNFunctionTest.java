@@ -36,9 +36,9 @@ public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 
 	@Override
 	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
-			boolean generateRetraction, boolean outputRankNumber) {
+			boolean generateUpdateBefore, boolean outputRankNumber) {
 		return new AppendOnlyTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
-				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
+				sortKeyComparator, sortKeySelector, rankType, rankRange, generateUpdateBefore, outputRankNumber,
 				cacheSize);
 	}
 
