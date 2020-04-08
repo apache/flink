@@ -239,7 +239,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public ResultPartitionWriter[] getAllWriters() {
-		throw new UnsupportedOperationException(ERROR_MSG);
+		return new ResultPartitionWriter[0];
 	}
 
 	@Override
