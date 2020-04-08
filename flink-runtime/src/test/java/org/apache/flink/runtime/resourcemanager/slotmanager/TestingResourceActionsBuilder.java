@@ -24,8 +24,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -35,7 +33,7 @@ import java.util.function.Function;
  */
 public class TestingResourceActionsBuilder {
 	private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
-	private Function<ResourceProfile, Collection<ResourceProfile>> allocateResourceFunction = (ignored) -> Collections.singleton(ResourceProfile.ANY);
+	private Function<ResourceProfile, Boolean> allocateResourceFunction = (ignored) -> true;
 	private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer = (ignored) -> {};
 
 	public TestingResourceActionsBuilder setReleaseResourceConsumer(BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
@@ -43,7 +41,7 @@ public class TestingResourceActionsBuilder {
 		return this;
 	}
 
-	public TestingResourceActionsBuilder setAllocateResourceFunction(Function<ResourceProfile, Collection<ResourceProfile>> allocateResourceFunction) {
+	public TestingResourceActionsBuilder setAllocateResourceFunction(Function<ResourceProfile, Boolean> allocateResourceFunction) {
 		this.allocateResourceFunction = allocateResourceFunction;
 		return this;
 	}
@@ -51,7 +49,7 @@ public class TestingResourceActionsBuilder {
 	public TestingResourceActionsBuilder setAllocateResourceConsumer(Consumer<ResourceProfile> allocateResourceConsumer) {
 		this.allocateResourceFunction = (ResourceProfile resourceProfile) -> {
 			allocateResourceConsumer.accept(resourceProfile);
-			return Collections.singleton(ResourceProfile.ANY);
+			return true;
 		};
 		return this;
 	}

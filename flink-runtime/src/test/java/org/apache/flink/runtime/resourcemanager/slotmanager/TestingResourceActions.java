@@ -26,7 +26,6 @@ import org.apache.flink.runtime.instance.InstanceID;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -40,14 +39,14 @@ public class TestingResourceActions implements ResourceActions {
 	private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
 
 	@Nonnull
-	private final Function<ResourceProfile, Collection<ResourceProfile>> allocateResourceFunction;
+	private final Function<ResourceProfile, Boolean> allocateResourceFunction;
 
 	@Nonnull
 	private final Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer;
 
 	public TestingResourceActions(
 			@Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
-			@Nonnull Function<ResourceProfile, Collection<ResourceProfile>> allocateResourceFunction,
+			@Nonnull Function<ResourceProfile, Boolean> allocateResourceFunction,
 			@Nonnull Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
 		this.releaseResourceConsumer = releaseResourceConsumer;
 		this.allocateResourceFunction = allocateResourceFunction;
@@ -60,7 +59,7 @@ public class TestingResourceActions implements ResourceActions {
 	}
 
 	@Override
-	public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile){
+	public boolean allocateResource(ResourceProfile resourceProfile){
 		return allocateResourceFunction.apply(resourceProfile);
 	}
 

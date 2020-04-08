@@ -291,12 +291,9 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	}
 
 	@Override
-	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		if (!resourceProfilesPerWorker.iterator().next().isMatching(resourceProfile)) {
-			return Collections.emptyList();
-		}
+	public boolean startNewWorker(ResourceProfile resourceProfile) {
 		requestYarnContainer();
-		return resourceProfilesPerWorker;
+		return true;
 	}
 
 	@VisibleForTesting
