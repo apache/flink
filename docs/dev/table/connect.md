@@ -1435,8 +1435,11 @@ CREATE TABLE MyUserTable (
   'format.array-element-delimiter' = '|',     -- optional: the array element delimiter string for separating
                                               -- array and row element values (";" by default)
   'format.escape-character' = '\\',           -- optional: escape character for escaping values (disabled by default)
-  'format.null-literal' = 'n/a'               -- optional: null literal string that is interpreted as a
+  'format.null-literal' = 'n/a',              -- optional: null literal string that is interpreted as a
                                               -- null value (disabled by default)
+  'format.feature.ignore_trailing_unmappable' -- optional: CsvParser Feature that allows ignoring of unmappable "extra" columns;
+                                              -- that is, values for columns that appear after columns for which types are defined.
+                                              -- Support all CsvParser Features list in [Csvparser.Feature]
 )
 {% endhighlight %}
 </div>

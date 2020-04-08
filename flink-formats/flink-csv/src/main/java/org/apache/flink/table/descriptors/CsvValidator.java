@@ -40,6 +40,7 @@ public class CsvValidator extends FormatDescriptorValidator {
 	public static final String FORMAT_ESCAPE_CHARACTER = "format.escape-character";
 	public static final String FORMAT_NULL_LITERAL = "format.null-literal";
 	public static final String FORMAT_SCHEMA = "format.schema";
+	public static final String FORMAT_FEATURE_PREFIX = "format.feature";
 
 	@Override
 	public void validate(DescriptorProperties properties) {

@@ -33,6 +33,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvParser;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -76,11 +77,12 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 	private CsvRowDeserializationSchema(
 			RowTypeInfo typeInfo,
 			CsvSchema csvSchema,
-			boolean ignoreParseErrors) {
+			boolean ignoreParseErrors,
+			CsvMapper csvMapper) {
 		this.typeInfo = typeInfo;
 		this.runtimeConverter = createRowRuntimeConverter(typeInfo, ignoreParseErrors, true);
 		this.csvSchema = csvSchema;
-		this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
+		this.objectReader = csvMapper.readerFor(JsonNode.class).with(csvSchema);
 		this.ignoreParseErrors = ignoreParseErrors;
 	}
 
@@ -93,6 +95,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 		private final RowTypeInfo typeInfo;
 		private CsvSchema csvSchema;
 		private boolean ignoreParseErrors;
+		private CsvMapper csvMapper;
 
 		/**
 		 * Creates a CSV deserialization schema for the given {@link TypeInformation} with
@@ -107,6 +110,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 
 			this.typeInfo = (RowTypeInfo) typeInfo;
 			this.csvSchema = CsvRowSchemaConverter.convert((RowTypeInfo) typeInfo);
+			this.csvMapper = new CsvMapper();
 		}
 
 		public Builder setFieldDelimiter(char delimiter) {
@@ -141,6 +145,13 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 			return this;
 		}
 
+		public Builder setFeature(String feature, boolean flag) {
+			CsvParser.Feature f = CsvParser.Feature.valueOf(feature.toUpperCase());
+			if (flag) csvMapper.enable(f);
+			else csvMapper.disable(f);
+			return this;
+		}
+
 		public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
 			this.ignoreParseErrors = ignoreParseErrors;
 			return this;
@@ -150,7 +161,8 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 			return new CsvRowDeserializationSchema(
 				typeInfo,
 				csvSchema,
-				ignoreParseErrors);
+				ignoreParseErrors,
+				csvMapper);
 		}
 	}
 

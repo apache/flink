@@ -36,6 +36,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Cont
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvParser;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -82,10 +83,11 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 	private CsvRowSerializationSchema(
 			RowTypeInfo typeInfo,
-			CsvSchema csvSchema) {
+			CsvSchema csvSchema,
+			CsvMapper csvMapper) {
 		this.typeInfo = typeInfo;
 		this.runtimeConverter = createRowRuntimeConverter(typeInfo, true);
-		this.csvMapper = new CsvMapper();
+		this.csvMapper = csvMapper;
 		this.csvSchema = csvSchema;
 		this.objectWriter = csvMapper.writer(csvSchema);
 	}
@@ -98,6 +100,7 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 		private final RowTypeInfo typeInfo;
 		private CsvSchema csvSchema;
+		private CsvMapper csvMapper;
 
 		/**
 		 * Creates a {@link CsvRowSerializationSchema} expecting the given {@link TypeInformation}.
@@ -113,6 +116,7 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 			this.typeInfo = (RowTypeInfo) typeInfo;
 			this.csvSchema = CsvRowSchemaConverter.convert((RowTypeInfo) typeInfo);
+			this.csvMapper = new CsvMapper();
 		}
 
 		public Builder setFieldDelimiter(char c) {
@@ -156,10 +160,18 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 			return this;
 		}
 
+		public Builder setFeature(String feature,boolean flag) {
+			CsvParser.Feature f = CsvParser.Feature.valueOf(feature.toUpperCase());
+			if (flag) csvMapper.enable(f);
+			else csvMapper.disable(f);
+			return this;
+		}
+
 		public CsvRowSerializationSchema build() {
 			return new CsvRowSerializationSchema(
 				typeInfo,
-				csvSchema);
+				csvSchema,
+				csvMapper);
 		}
 	}
 

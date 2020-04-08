@@ -20,6 +20,7 @@ package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvParser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -152,6 +153,13 @@ public class CsvRowDeSerializationSchemaTest {
 	}
 
 	@Test
+	public void testDeserializeMoreColumnsThanExpectedWithFeature() throws Exception {
+		// one additional string column
+		assertEquals(testDeserialization(true, false, "Test,12,Test,Test"),
+			Row.of("Test", 12, "Test"));
+	}
+
+	@Test
 	public void testDeserializeIgnoreComment() throws Exception {
 		// # is part of the string
 		assertEquals(Row.of("#Test", 12, "Test"), testDeserialization(false, false, "#Test,12,Test"));
@@ -266,6 +274,18 @@ public class CsvRowDeSerializationSchemaTest {
 		final CsvRowDeserializationSchema.Builder deserSchemaBuilder = new CsvRowDeserializationSchema.Builder(rowInfo)
 			.setIgnoreParseErrors(allowParsingErrors)
 			.setAllowComments(allowComments);
+		return deserialize(deserSchemaBuilder, string);
+	}
+
+	private Row testDeserializationWithFeatures(
+		boolean allowParsingErrors,
+		boolean allowComments,
+		String string) throws Exception {
+		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+		final CsvRowDeserializationSchema.Builder deserSchemaBuilder = new CsvRowDeserializationSchema.Builder(rowInfo)
+			.setIgnoreParseErrors(allowParsingErrors)
+			.setAllowComments(allowComments)
+			.setFeature(CsvParser.Feature.IGNORE_TRAILING_UNMAPPABLE.toString(),true);
 		return deserialize(deserSchemaBuilder, string);
 	}
 
