@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -143,7 +144,12 @@ public class RMQSourceTest {
 
 		StreamSource<String, RMQSource<String>> src = new StreamSource<>(source);
 		AbstractStreamOperatorTestHarness<String> testHarness =
-			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(src)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 		testHarness.open();
 
 		sourceThread.start();
@@ -175,7 +181,12 @@ public class RMQSourceTest {
 			RMQTestSource sourceCopy = new RMQTestSource();
 			StreamSource<String, RMQTestSource> srcCopy = new StreamSource<>(sourceCopy);
 			AbstractStreamOperatorTestHarness<String> testHarnessCopy =
-				new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+				new AbstractStreamOperatorTestHarnessBuilder<String>()
+					.setStreamOperator(srcCopy)
+					.setMaxParallelism(1)
+					.setParallelism(1)
+					.setSubtaskIndex(0)
+					.build();
 
 			testHarnessCopy.setup();
 			testHarnessCopy.initializeState(data);

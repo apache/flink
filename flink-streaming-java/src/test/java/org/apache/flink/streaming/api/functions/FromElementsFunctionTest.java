@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -148,7 +149,12 @@ public class FromElementsFunctionTest {
 			final FromElementsFunction<Integer> source = new FromElementsFunction<>(IntSerializer.INSTANCE, data);
 			StreamSource<Integer, FromElementsFunction<Integer>> src = new StreamSource<>(source);
 			AbstractStreamOperatorTestHarness<Integer> testHarness =
-				new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+				new AbstractStreamOperatorTestHarnessBuilder<Integer>()
+					.setStreamOperator(src)
+					.setMaxParallelism(1)
+					.setParallelism(1)
+					.setSubtaskIndex(0)
+					.build();
 			testHarness.open();
 
 			final SourceFunction.SourceContext<Integer> ctx = new ListSourceContext<Integer>(result, 2L);
@@ -194,7 +200,12 @@ public class FromElementsFunctionTest {
 			final FromElementsFunction<Integer> sourceCopy = new FromElementsFunction<>(IntSerializer.INSTANCE, data);
 			StreamSource<Integer, FromElementsFunction<Integer>> srcCopy = new StreamSource<>(sourceCopy);
 			AbstractStreamOperatorTestHarness<Integer> testHarnessCopy =
-				new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+				new AbstractStreamOperatorTestHarnessBuilder<Integer>()
+					.setStreamOperator(srcCopy)
+					.setMaxParallelism(1)
+					.setParallelism(1)
+					.setSubtaskIndex(0)
+					.build();
 			testHarnessCopy.setup();
 			testHarnessCopy.initializeState(handles);
 			testHarnessCopy.open();

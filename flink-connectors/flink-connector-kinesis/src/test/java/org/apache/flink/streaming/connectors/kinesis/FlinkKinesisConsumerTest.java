@@ -56,6 +56,7 @@ import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.CollectingSourceContext;
 import org.apache.flink.util.TestLogger;
 
@@ -769,8 +770,12 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		// there is currently no test harness specifically for sources,
 		// so we overlay the source thread here
 		AbstractStreamOperatorTestHarness<Object> testHarness =
-			new AbstractStreamOperatorTestHarness<Object>(
-				new StreamSource(sourceFunc), 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<Object>()
+				.setStreamOperator(new StreamSource(sourceFunc))
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(autoWatermarkInterval);
 
@@ -913,8 +918,12 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		// there is currently no test harness specifically for sources,
 		// so we overlay the source thread here
 		AbstractStreamOperatorTestHarness<Object> testHarness =
-			new AbstractStreamOperatorTestHarness<Object>(
-				new StreamSource(sourceFunc), 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<Object>()
+				.setStreamOperator(new StreamSource(sourceFunc))
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(autoWatermarkInterval);
 

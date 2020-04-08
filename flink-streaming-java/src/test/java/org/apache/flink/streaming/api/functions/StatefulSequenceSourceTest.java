@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -62,14 +63,24 @@ public class StatefulSequenceSourceTest {
 		StreamSource<Long, StatefulSequenceSource> src1 = new StreamSource<>(source1);
 
 		final AbstractStreamOperatorTestHarness<Long> testHarness1 =
-			new AbstractStreamOperatorTestHarness<>(src1, maxParallelsim, 2, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<Long>()
+				.setStreamOperator(src1)
+				.setMaxParallelism(maxParallelsim)
+				.setParallelism(2)
+				.setSubtaskIndex(0)
+				.build();
 		testHarness1.open();
 
 		final StatefulSequenceSource source2 = new StatefulSequenceSource(initElement, maxElement);
 		StreamSource<Long, StatefulSequenceSource> src2 = new StreamSource<>(source2);
 
 		final AbstractStreamOperatorTestHarness<Long> testHarness2 =
-			new AbstractStreamOperatorTestHarness<>(src2, maxParallelsim, 2, 1);
+			new AbstractStreamOperatorTestHarnessBuilder<Long>()
+				.setStreamOperator(src2)
+				.setMaxParallelism(maxParallelsim)
+				.setParallelism(2)
+				.setSubtaskIndex(1)
+				.build();
 		testHarness2.open();
 
 		final Throwable[] error = new Throwable[3];
@@ -125,7 +136,12 @@ public class StatefulSequenceSourceTest {
 			snapshot, maxParallelsim, 2, 1, 0);
 
 		final AbstractStreamOperatorTestHarness<Long> testHarness3 =
-			new AbstractStreamOperatorTestHarness<>(src3, maxParallelsim, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<Long>()
+				.setStreamOperator(src3)
+				.setMaxParallelism(maxParallelsim)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 		testHarness3.setup();
 		testHarness3.initializeState(initState);
 		testHarness3.open();

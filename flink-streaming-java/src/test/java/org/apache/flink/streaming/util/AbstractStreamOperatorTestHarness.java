@@ -144,82 +144,39 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			int subtaskIndex) throws Exception {
 		this(
 			operator,
-			maxParallelism,
-			parallelism,
-			subtaskIndex,
+			buildOperatorFactory(operator),
+			buildMockEnvironment(maxParallelism, parallelism, subtaskIndex),
+			true,
 			new OperatorID());
 	}
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
-			int maxParallelism,
-			int parallelism,
-			int subtaskIndex,
-			OperatorID operatorID) throws Exception {
-		this(
-				operator,
-				SimpleOperatorFactory.of(operator),
-				new MockEnvironmentBuilder()
-						.setTaskName("MockTask")
-						.setManagedMemorySize(3 * 1024 * 1024)
-						.setInputSplitProvider(new MockInputSplitProvider())
-						.setBufferSize(1024)
-						.setMaxParallelism(maxParallelism)
-						.setParallelism(parallelism)
-						.setSubtaskIndex(subtaskIndex)
-						.build(),
-				true,
-				operatorID);
+			MockEnvironment env) throws Exception {
+		this(operator, buildOperatorFactory(operator), env, false, new OperatorID());
 	}
 
 	public AbstractStreamOperatorTestHarness(
-			StreamOperatorFactory<OUT> factory,
-			MockEnvironment env) throws Exception {
+		StreamOperatorFactory<OUT> factory,
+		int maxParallelism,
+		int parallelism,
+		int subtaskIndex,
+		OperatorID operatorID) throws Exception {
+		this(
+			null,
+			factory,
+			buildMockEnvironment(maxParallelism, parallelism, subtaskIndex),
+			true,
+			operatorID);
+	}
+
+	public AbstractStreamOperatorTestHarness(
+		StreamOperatorFactory<OUT> factory,
+		MockEnvironment env) throws Exception {
 		this(null, factory, env, false, new OperatorID());
 	}
 
 	public AbstractStreamOperatorTestHarness(
-			StreamOperatorFactory<OUT> factory,
-			int maxParallelism,
-			int parallelism,
-			int subtaskIndex) throws Exception {
-		this(
-				factory,
-				maxParallelism,
-				parallelism,
-				subtaskIndex,
-				new OperatorID());
-	}
-
-	public AbstractStreamOperatorTestHarness(
-			StreamOperatorFactory<OUT> factory,
-			int maxParallelism,
-			int parallelism,
-			int subtaskIndex,
-			OperatorID operatorID) throws Exception {
-		this(
-				null,
-				factory,
-				new MockEnvironmentBuilder()
-						.setTaskName("MockTask")
-						.setManagedMemorySize(3 * 1024 * 1024)
-						.setInputSplitProvider(new MockInputSplitProvider())
-						.setBufferSize(1024)
-						.setMaxParallelism(maxParallelism)
-						.setParallelism(parallelism)
-						.setSubtaskIndex(subtaskIndex)
-						.build(),
-				true,
-				operatorID);
-	}
-
-	public AbstractStreamOperatorTestHarness(
-			StreamOperator<OUT> operator,
-			MockEnvironment env) throws Exception {
-		this(operator, SimpleOperatorFactory.of(operator), env, false, new OperatorID());
-	}
-
-	private AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
 			StreamOperatorFactory<OUT> factory,
 			MockEnvironment env,
@@ -394,6 +351,32 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	public void initializeEmptyState() throws Exception {
 		initializeState((OperatorSubtaskState) null);
+	}
+
+	/**
+	 * Returns the stream operator factory based on the given operator.
+	 */
+	public static <OUT> StreamOperatorFactory<OUT> buildOperatorFactory(StreamOperator<OUT> operator) {
+		return SimpleOperatorFactory.of(operator);
+	}
+
+	/**
+	 * Returns the mock environment with given maxParallelism, parallelism and subtaskIndex.
+	 */
+	public static MockEnvironment buildMockEnvironment(
+		int maxParallelism,
+		int parallelism,
+		int subtaskIndex) {
+
+		return new MockEnvironmentBuilder()
+			.setTaskName("MockTask")
+			.setManagedMemorySize(3 * 1024 * 1024)
+			.setInputSplitProvider(new MockInputSplitProvider())
+			.setBufferSize(1024)
+			.setMaxParallelism(maxParallelism)
+			.setParallelism(parallelism)
+			.setSubtaskIndex(subtaskIndex)
+			.build();
 	}
 
 	/**

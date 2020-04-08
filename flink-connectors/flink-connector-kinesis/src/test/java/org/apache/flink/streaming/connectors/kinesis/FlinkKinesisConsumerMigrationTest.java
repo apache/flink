@@ -37,6 +37,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestRuntimeContex
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.testutils.migration.MigrationVersion;
 
@@ -149,7 +150,12 @@ public class FlinkKinesisConsumerMigrationTest {
 		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator = new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setup();
 		testHarness.initializeState(
@@ -205,7 +211,12 @@ public class FlinkKinesisConsumerMigrationTest {
 			new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setup();
 		testHarness.initializeState(
@@ -286,7 +297,12 @@ public class FlinkKinesisConsumerMigrationTest {
 			new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setup();
 		testHarness.initializeState(
@@ -359,7 +375,12 @@ public class FlinkKinesisConsumerMigrationTest {
 		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator = new StreamSource<>(consumer);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 

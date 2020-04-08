@@ -46,6 +46,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
@@ -796,7 +797,12 @@ public class ContinuousFileProcessingTest {
 			new StreamSource<>(monitoringFunction);
 
 		final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
-			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<TimestampedFileInputSplit>()
+				.setStreamOperator(src)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 		testHarness.open();
 
 		final Throwable[] error = new Throwable[1];
@@ -847,7 +853,12 @@ public class ContinuousFileProcessingTest {
 			new StreamSource<>(monitoringFunctionCopy);
 
 		AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarnessCopy =
-			new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<TimestampedFileInputSplit>()
+				.setStreamOperator(srcCopy)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 		testHarnessCopy.initializeState(snapshot);
 		testHarnessCopy.open();
 

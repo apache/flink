@@ -55,6 +55,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.TestSourceContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
@@ -841,8 +842,12 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		SourceFunction<T> source, int numSubtasks, int subtaskIndex) throws Exception {
 
 		AbstractStreamOperatorTestHarness<T> testHarness =
-			new AbstractStreamOperatorTestHarness<>(
-				new StreamSource<>(source), maxParallelism, numSubtasks, subtaskIndex);
+			new AbstractStreamOperatorTestHarnessBuilder<T>()
+				.setStreamOperator(new StreamSource<>(source))
+				.setMaxParallelism(maxParallelism)
+				.setParallelism(numSubtasks)
+				.setSubtaskIndex(subtaskIndex)
+				.build();
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 

@@ -21,6 +21,7 @@ package org.apache.flink.hdfstests;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -35,10 +36,13 @@ import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
@@ -226,7 +230,12 @@ public class ContinuousFileProcessingMigrationTest {
 			new StreamSource<>(monitoringFunction);
 
 		final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
-				new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<TimestampedFileInputSplit>()
+				.setStreamOperator(src)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.open();
 
@@ -292,7 +301,12 @@ public class ContinuousFileProcessingMigrationTest {
 			new StreamSource<>(monitoringFunction);
 
 		final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
-			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<TimestampedFileInputSplit>()
+				.setStreamOperator(src)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setup();
 

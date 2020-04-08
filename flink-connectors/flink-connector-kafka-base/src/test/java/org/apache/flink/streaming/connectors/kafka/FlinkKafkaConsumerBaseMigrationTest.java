@@ -35,6 +35,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.SerializedValue;
@@ -149,7 +150,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
@@ -207,7 +213,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator = new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
@@ -246,7 +257,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
@@ -298,7 +314,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
@@ -342,7 +363,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
-			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+			new AbstractStreamOperatorTestHarnessBuilder<String>()
+				.setStreamOperator(consumerOperator)
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.build();
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
