@@ -947,6 +947,7 @@ class TableEnvironment(object):
         :type job_name: str
         :return: The result of the job execution, containing elapsed time and accumulators.
         """
+        self._write_pipeline_jars_to_j_env()
         return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements, schema=None, verify_schema=True):
@@ -1094,6 +1095,19 @@ class TableEnvironment(object):
         if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
                 and is_local_deployment(j_config):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
+
+    def _write_pipeline_jars_to_j_env(self):
+        jvm = get_gateway().jvm
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        jar_urls = self.get_config().get_configuration().get_string(jars_key, None)
+        if jar_urls is not None:
+            # normalize and remove duplicates
+            jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
+            j_configuration = get_j_env_configuration(self)
+            if j_configuration.containsKey(jars_key):
+                for url in j_configuration.getString(jars_key).split(";"):
+                    jar_urls_set.add(url)
+            j_configuration.setString(jars_key, ";".join(jar_urls_set))
 
     @abstractmethod
     def _get_j_env(self):

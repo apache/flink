@@ -1725,7 +1725,10 @@ def _to_java_type(data_type):
     elif isinstance(data_type, UserDefinedType):
         if data_type.java_udt():
             return gateway.jvm.org.apache.flink.util.InstantiationUtil.instantiate(
-                gateway.jvm.Class.forName(data_type.java_udt()))
+                gateway.jvm.Class.forName(
+                    data_type.java_udt(),
+                    True,
+                    gateway.jvm.Thread.currentThread().getContextClassLoader()))
         else:
             return _to_java_type(data_type.sql_type())
 

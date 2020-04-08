@@ -69,6 +69,9 @@ if [[ -n "$FLINK_TESTING" ]]; then
   fi
 
   FIND_EXPRESSION=""
+  FIND_EXPRESSION="$FIND_EXPRESSION -path ${FLINK_SOURCE_ROOT_DIR}/flink-table/flink-table-planner/target/flink-table-planner*-tests.jar"
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-runtime/target/flink-runtime*tests.jar"
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-streaming-java/target/flink-streaming-java*tests.jar"
   FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-csv/target/flink-csv*.jar"
   FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-avro/target/flink-avro*.jar"
   FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-avro/target/avro*.jar"
@@ -86,7 +89,7 @@ if [[ -n "$FLINK_TESTING" ]]; then
     else
       FLINK_TEST_CLASSPATH="$FLINK_TEST_CLASSPATH":"$testJarFile"
     fi
-  done < <(find "$FLINK_SOURCE_ROOT_DIR" ! -type d \( -name 'flink-*-tests.jar'${FIND_EXPRESSION} \) -print0 | sort -z)
+  done < <(find "$FLINK_SOURCE_ROOT_DIR" ! -type d \( ${FIND_EXPRESSION} \) -print0 | sort -z)
   set +f
 
   cd $CURRENT_DIR
