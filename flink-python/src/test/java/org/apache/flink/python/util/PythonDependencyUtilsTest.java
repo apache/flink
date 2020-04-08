@@ -177,7 +177,6 @@ public class PythonDependencyUtilsTest {
 		Configuration actual = PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
 
 		Configuration expectedConfiguration = new Configuration();
-		expectedConfiguration.set(PYTHON_FILES, new HashMap<>());
 		expectedConfiguration.set(PythonOptions.PYTHON_EXECUTABLE, "venv/bin/python3");
 		expectedConfiguration.set(PythonOptions.PYTHON_CLIENT_EXECUTABLE, "python37");
 		verifyConfiguration(expectedConfiguration, actual);
