@@ -70,7 +70,8 @@ public class DatadogHttpClient {
 			.connectTimeout(TIMEOUT, TimeUnit.SECONDS)
 			.writeTimeout(TIMEOUT, TimeUnit.SECONDS)
 			.readTimeout(TIMEOUT, TimeUnit.SECONDS)
-			.proxy(proxy).build();
+			.proxy(proxy)
+			.build();
 
 		seriesUrl = String.format(SERIES_URL_FORMAT, dataCenter.getDomain(), apiKey);
 		validateUrl = String.format(VALIDATE_URL_FORMAT, dataCenter.getDomain(), apiKey);
