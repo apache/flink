@@ -316,6 +316,18 @@ under the License.
 	</dependencyManagement>
 
 	<build>
+
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+			</resource>
+			<resource>
+				<directory>src/main/resources-filtered</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -454,25 +466,26 @@ under the License.
 				</configuration>
 			</plugin>
 			<plugin>
-				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin
+				<!-- Description: https://github.com/git-commit-id/git-commit-id-maven-plugin
 					Used to show the git ref when starting the jobManager. -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>get-the-git-infos</id>
+						<phase>validate</phase>
 						<goals>
 							<goal>revision</goal>
-						 </goals>
+						</goals>
 					</execution>
 				</executions>
 				<configuration>
 					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
-					<generateGitPropertiesFile>true</generateGitPropertiesFile>
 					<skipPoms>false</skipPoms>
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
-					<generateGitPropertiesFilename>src/main/resources/.version.properties</generateGitPropertiesFilename>
 					<gitDescribe>
-						<!-- don't generate the describe property -->
+						<!-- Don't generate the describe property -->
+						<!-- It is useless due to the way Flink does branches and tags -->
 						<skip>true</skip>
 					</gitDescribe>
 				</configuration>
