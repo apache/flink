@@ -1814,14 +1814,18 @@ under the License.
 				<plugin>
 					<groupId>pl.project13.maven</groupId>
 					<artifactId>git-commit-id-plugin</artifactId>
-					<!-- Don't use 2.1.14 as it is incompatible with various maven versions -->
-					<version>2.1.10</version>
+					<version>4.0.0</version>
 					<configuration>
 						<excludeProperties>
-							<excludeProperty>git.build.*</excludeProperty>
+							<excludeProperty>git.build.user.*</excludeProperty>
+							<excludeProperty>git.commit.user.*</excludeProperty>
 							<excludeProperty>git.branch.*</excludeProperty>
 							<excludeProperty>git.remote.*</excludeProperty>
 						</excludeProperties>
+
+						<!-- This is the same as the default date time format of this plugin.      -->
+						<!-- Because we want to parse the result we are fixing it to avoid problems. -->
+						<dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
 					</configuration>
 				</plugin>
 
