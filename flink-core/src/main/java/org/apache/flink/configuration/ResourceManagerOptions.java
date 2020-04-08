@@ -57,26 +57,6 @@ public class ResourceManagerOptions {
 			" Its not possible to use this configuration key to define port ranges.");
 
 	/**
-	 * Percentage of heap space to remove from Job Master containers (YARN / Mesos/ Kubernetes), to compensate
-	 * for other JVM memory usage.
-	 */
-	public static final ConfigOption<Float> CONTAINERIZED_HEAP_CUTOFF_RATIO = ConfigOptions
-		.key("containerized.heap-cutoff-ratio")
-		.defaultValue(0.25f)
-		.withDeprecatedKeys("yarn.heap-cutoff-ratio")
-		.withDescription("Percentage of heap space to remove from Job Master containers (YARN / Mesos / Kubernetes), " +
-			"to compensate for other JVM memory usage.");
-
-	/**
-	 * Minimum amount of heap memory to remove in Job Master containers, as a safety margin.
-	 */
-	public static final ConfigOption<Integer> CONTAINERIZED_HEAP_CUTOFF_MIN = ConfigOptions
-		.key("containerized.heap-cutoff-min")
-		.defaultValue(600)
-		.withDeprecatedKeys("yarn.heap-cutoff-min")
-		.withDescription("Minimum amount of heap memory to remove in Job Master containers, as a safety margin.");
-
-	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.
 	 * @deprecated Use {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
 	 */

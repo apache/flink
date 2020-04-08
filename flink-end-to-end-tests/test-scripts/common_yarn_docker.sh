@@ -123,7 +123,6 @@ function start_hadoop_cluster_and_prepare_flink() {
 security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
 security.kerberos.login.principal: hadoop-user
 slot.request.timeout: 120000
-containerized.heap-cutoff-min: 100
 END
 )
     docker exec master bash -c "echo \"$FLINK_CONFIG\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
