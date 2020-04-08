@@ -73,7 +73,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import static java.awt.SystemColor.info;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getTypeHierarchy;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1803,10 +1802,8 @@ public class TypeExtractor {
 	private <X> TypeInformation<X> privateGetForObject(X value) {
 		checkNotNull(value);
 
-		// check if type information can be produced using a factory
-		final ArrayList<Type> typeHierarchy = new ArrayList<>();
-		typeHierarchy.add(value.getClass());
-		final TypeInformation<X> typeFromFactory = createTypeInfoFromFactory(value.getClass(), Collections.emptyMap(), Collections.emptyList());
+		final List<Class<?>> currentExtractingClasses = Arrays.asList(value.getClass());
+		final TypeInformation<X> typeFromFactory = createTypeInfoFromFactory(value.getClass(), Collections.emptyMap(), currentExtractingClasses);
 		if (typeFromFactory != null) {
 			return typeFromFactory;
 		}
@@ -1817,7 +1814,7 @@ public class TypeExtractor {
 			int numFields = t.getArity();
 			if(numFields != countFieldsInClass(value.getClass())) {
 				// not a tuple since it has more fields.
-				return analyzePojo((Class<X>) value.getClass(), null, Collections.emptyMap(), Collections.emptyList()); // we immediately call analyze Pojo here, because
+				return analyzePojo((Class<X>) value.getClass(), null, Collections.emptyMap(), currentExtractingClasses); // we immediately call analyze Pojo here, because
 				// there is currently no other type that can handle such a class.
 			}
 
@@ -1841,7 +1838,7 @@ public class TypeExtractor {
 				if (row.getField(i) == null) {
 					LOG.warn("Cannot extract type of Row field, because of Row field[" + i + "] is null. " +
 						"Should define RowTypeInfo explicitly.");
-					return privateGetForClass((Class<X>) value.getClass(), Collections.emptyMap(), Collections.emptyList());
+					return privateGetForClass((Class<X>) value.getClass(), Collections.emptyMap(), currentExtractingClasses);
 				}
 			}
 			TypeInformation<?>[] typeArray = new TypeInformation<?>[arity];
@@ -1851,7 +1848,7 @@ public class TypeExtractor {
 			return (TypeInformation<X>) new RowTypeInfo(typeArray);
 		}
 		else {
-			return privateGetForClass((Class<X>) value.getClass(), Collections.emptyMap(), Collections.emptyList());
+			return privateGetForClass((Class<X>) value.getClass(), Collections.emptyMap(), currentExtractingClasses);
 		}
 	}
 
