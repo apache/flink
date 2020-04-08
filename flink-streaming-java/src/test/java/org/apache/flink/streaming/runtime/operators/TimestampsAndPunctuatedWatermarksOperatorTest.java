@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import org.junit.Test;
 
@@ -43,7 +44,7 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 				new TimestampsAndPunctuatedWatermarksOperator<>(new PunctuatedExtractor());
 
 		OneInputStreamOperatorTestHarness<Tuple2<Long, Boolean>, Tuple2<Long, Boolean>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Tuple2<Long, Boolean>, Tuple2<Long, Boolean>>().setStreamOperator(operator).build();
 
 		testHarness.open();
 
@@ -89,7 +90,7 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 				new TimestampsAndPunctuatedWatermarksOperator<Long>(assigner);
 
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
-				new OneInputStreamOperatorTestHarness<Long, Long>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Long, Long>().setStreamOperator(operator).build();
 
 		testHarness.open();
 

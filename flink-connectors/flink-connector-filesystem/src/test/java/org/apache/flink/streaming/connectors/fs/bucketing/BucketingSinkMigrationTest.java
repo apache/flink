@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
@@ -124,7 +125,7 @@ public class BucketingSinkMigrationTest {
 			.setValidLengthSuffix(VALID_LENGTH_SUFFIX);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -163,8 +164,13 @@ public class BucketingSinkMigrationTest {
 			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
 			.setUseTruncate(false); // don't use truncate because files do not exist
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(sink), 10, 1, 0);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness =
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>()
+				.setStreamOperator(new StreamSink<>(sink))
+				.setMaxParallelism(10)
+				.setParallelism(1)
+				.setSubtaskIndex(0).build();
+
 		testHarness.setup();
 
 		testHarness.initializeState(

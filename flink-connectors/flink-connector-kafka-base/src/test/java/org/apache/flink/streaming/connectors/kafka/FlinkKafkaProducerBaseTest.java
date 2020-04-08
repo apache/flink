@@ -32,6 +32,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import org.apache.kafka.clients.producer.Callback;
@@ -133,7 +134,7 @@ public class FlinkKafkaProducerBaseTest {
 			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -164,7 +165,7 @@ public class FlinkKafkaProducerBaseTest {
 			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -203,7 +204,7 @@ public class FlinkKafkaProducerBaseTest {
 		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -256,7 +257,7 @@ public class FlinkKafkaProducerBaseTest {
 		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -316,7 +317,7 @@ public class FlinkKafkaProducerBaseTest {
 		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 

@@ -31,6 +31,7 @@ import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -139,7 +140,12 @@ public class BucketingSinkTest extends TestLogger {
 
 	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(
 			BucketingSink<T> sink, int totalParallelism, int taskIdx) throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), maxParallelism, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarnessBuilder<T, Object>()
+			.setMaxParallelism(maxParallelism)
+			.setParallelism(totalParallelism)
+			.setSubtaskIndex(taskIdx)
+			.setStreamOperator(new StreamSink<>(sink))
+			.build();
 	}
 
 	private OneInputStreamOperatorTestHarness<String, Object> createRescalingTestSinkWithRollover(

@@ -37,6 +37,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import java.util.Collection;
 import java.util.Properties;
@@ -159,7 +160,7 @@ public class DataGenerators {
 						new FlinkFixedPartitioner<String>());
 
 				OneInputStreamOperatorTestHarness<String, Object> testHarness =
-						new OneInputStreamOperatorTestHarness<>(sink);
+					new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(sink).build();
 
 				testHarness.open();
 

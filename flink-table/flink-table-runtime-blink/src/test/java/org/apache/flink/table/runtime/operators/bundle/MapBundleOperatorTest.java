@@ -22,6 +22,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.util.Collector;
 
@@ -52,8 +53,9 @@ public class MapBundleOperatorTest {
 				(KeySelector<Tuple2<String, String>, String>) value -> value.f0;
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, String>, String> op =
-				new OneInputStreamOperatorTestHarness<>(
-						new MapBundleOperator<>(func, trigger, keySelector));
+			new OneInputStreamOperatorTestHarnessBuilder<Tuple2<String, String>, String>()
+				.setStreamOperator(new MapBundleOperator<>(func, trigger, keySelector))
+				.build();
 		op.open();
 		synchronized (op.getCheckpointLock()) {
 			StreamRecord<Tuple2<String, String>> input = new StreamRecord<>(null);

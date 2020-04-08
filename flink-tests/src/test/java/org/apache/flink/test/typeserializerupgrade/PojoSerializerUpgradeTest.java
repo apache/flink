@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
@@ -334,7 +335,11 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 						BasicTypeInfo.LONG_TYPE_INFO,
 						environment);
 				} else {
-					harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+					harness = new OneInputStreamOperatorTestHarnessBuilder<Long, Long>()
+						.setStreamOperator(operator)
+						.setTypeSerializerIn(LongSerializer.INSTANCE)
+						.setEnvironment(environment)
+						.build();
 				}
 
 				harness.setStateBackend(stateBackend);

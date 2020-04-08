@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 /**
  * Utility class that contains common methods for testing.
@@ -43,7 +44,10 @@ public class Utils {
 		ExecutionConfig executionConfig) throws Exception {
 
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, OUT> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new ContinuousFileReaderOperatorFactory<>(inputFormat));
+			new OneInputStreamOperatorTestHarnessBuilder<TimestampedFileInputSplit, OUT>()
+				.setStreamOperatorFactory(new ContinuousFileReaderOperatorFactory<>(inputFormat))
+				.build();
+
 		testHarness.getOperatorFactory().setOutputType(
 			outTypeInfo,
 			executionConfig == null ? testHarness.getExecutionConfig() : executionConfig);

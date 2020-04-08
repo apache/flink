@@ -27,9 +27,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -230,7 +232,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 		);
 
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<IN, OUT>().setStreamOperator(operator).build();
 		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
 		testHarness.setup(getOutputTypeSerializer(dataType));
 		return testHarness;

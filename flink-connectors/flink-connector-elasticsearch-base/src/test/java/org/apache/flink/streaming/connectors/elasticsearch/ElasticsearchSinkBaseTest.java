@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
@@ -87,7 +88,7 @@ public class ElasticsearchSinkBaseTest {
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 
@@ -119,7 +120,7 @@ public class ElasticsearchSinkBaseTest {
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 
@@ -154,7 +155,7 @@ public class ElasticsearchSinkBaseTest {
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 
@@ -212,7 +213,7 @@ public class ElasticsearchSinkBaseTest {
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 
@@ -244,7 +245,7 @@ public class ElasticsearchSinkBaseTest {
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 
@@ -279,7 +280,7 @@ public class ElasticsearchSinkBaseTest {
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 
@@ -340,7 +341,7 @@ public class ElasticsearchSinkBaseTest {
 				new DummyRetryFailureHandler()); // use a failure handler that simply re-adds requests
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 
@@ -397,7 +398,7 @@ public class ElasticsearchSinkBaseTest {
 		sink.disableFlushOnCheckpoint(); // disable flushing
 
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(sink)).build();
 
 		testHarness.open();
 

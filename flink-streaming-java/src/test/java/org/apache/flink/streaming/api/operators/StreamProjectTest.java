@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.StreamProjection;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Test;
@@ -60,7 +61,8 @@ public class StreamProjectTest {
 				new StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
 						fields, serializer);
 
-		OneInputStreamOperatorTestHarness<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> testHarness = new OneInputStreamOperatorTestHarness<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(operator);
+		OneInputStreamOperatorTestHarness<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> testHarness =
+			new OneInputStreamOperatorTestHarnessBuilder<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>().setStreamOperator(operator).build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();

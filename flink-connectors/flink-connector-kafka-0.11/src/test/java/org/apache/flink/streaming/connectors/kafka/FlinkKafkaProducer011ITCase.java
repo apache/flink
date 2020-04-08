@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import kafka.server.KafkaServer;
@@ -646,13 +647,14 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBaseWithFlink {
 			properties,
 			semantic);
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			maxParallelism,
-			parallelism,
-			subtaskIndex,
-			IntSerializer.INSTANCE,
-			new OperatorID(42, 44));
+		return new OneInputStreamOperatorTestHarnessBuilder<Integer, Object>()
+			.setStreamOperator(new StreamSink<>(kafkaProducer))
+			.setMaxParallelism(maxParallelism)
+			.setParallelism(parallelism)
+			.setSubtaskIndex(subtaskIndex)
+			.setTypeSerializerIn(IntSerializer.INSTANCE)
+			.setOperatorID(new OperatorID(42, 44))
+			.build();
 	}
 
 	private Properties createProperties() {

@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.conf.Configuration;
@@ -160,8 +161,13 @@ public class CompressWriterFactoryTest extends TestLogger {
 			.build();
 
 		try (
-			OneInputStreamOperatorTestHarness<String, Object> testHarness = new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 1, 1, 0)
-		) {
+			OneInputStreamOperatorTestHarness<String, Object> testHarness =
+					new OneInputStreamOperatorTestHarnessBuilder<String, Object>()
+						.setMaxParallelism(1)
+						.setParallelism(1)
+						.setSubtaskIndex(0)
+						.setStreamOperator(new StreamSink<>(sink))
+						.build()) {
 			testHarness.setup();
 			testHarness.open();
 

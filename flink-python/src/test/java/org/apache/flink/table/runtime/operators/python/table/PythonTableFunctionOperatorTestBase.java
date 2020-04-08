@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -194,7 +195,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 		);
 
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<IN, OUT>().setStreamOperator(operator).build();
 		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
 		return testHarness;
 	}

@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -49,7 +50,7 @@ public class ProcessOperatorTest extends TestLogger {
 				new ProcessOperator<>(new QueryingProcessFunction(TimeDomain.EVENT_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Integer, String>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -79,7 +80,7 @@ public class ProcessOperatorTest extends TestLogger {
 				new ProcessOperator<>(new QueryingProcessFunction(TimeDomain.PROCESSING_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Integer, String>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -104,7 +105,8 @@ public class ProcessOperatorTest extends TestLogger {
 	public void testNullOutputTagRefusal() throws Exception {
 		ProcessOperator<Integer, String> operator = new ProcessOperator<>(new NullOutputTagEmittingProcessFunction());
 
-		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+			new OneInputStreamOperatorTestHarnessBuilder<Integer, String>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -127,7 +129,7 @@ public class ProcessOperatorTest extends TestLogger {
 			new ProcessOperator<>(new SideOutputProcessFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Integer, String>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.open();

@@ -29,6 +29,7 @@ import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerial
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -116,7 +117,7 @@ public class FlinkKinesisProducerTest {
 		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -146,7 +147,7 @@ public class FlinkKinesisProducerTest {
 		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -180,7 +181,7 @@ public class FlinkKinesisProducerTest {
 		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -229,7 +230,7 @@ public class FlinkKinesisProducerTest {
 		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 
@@ -284,7 +285,7 @@ public class FlinkKinesisProducerTest {
 		producer.setQueueLimit(1);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-				new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(new StreamSink<>(producer)).build();
 
 		testHarness.open();
 

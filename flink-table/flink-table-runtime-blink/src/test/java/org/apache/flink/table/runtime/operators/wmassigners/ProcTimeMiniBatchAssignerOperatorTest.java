@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 
@@ -42,7 +43,7 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
 		final ProcTimeMiniBatchAssignerOperator operator = new ProcTimeMiniBatchAssignerOperator(100);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow>().setStreamOperator(operator).build();
 
 		long currentTime = 0;
 

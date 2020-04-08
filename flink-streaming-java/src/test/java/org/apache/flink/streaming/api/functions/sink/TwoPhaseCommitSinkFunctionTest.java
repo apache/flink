@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.ContentDump;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.testutils.logging.TestLoggerResource;
 
 import org.junit.After;
@@ -88,7 +89,10 @@ public class TwoPhaseCommitSinkFunctionTest {
 
 	private void setUpTestHarness() throws Exception {
 		sinkFunction = new ContentDumpSinkFunction();
-		harness = new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sinkFunction), StringSerializer.INSTANCE);
+		harness = new OneInputStreamOperatorTestHarnessBuilder<String, Object>()
+			.setTypeSerializerIn(StringSerializer.INSTANCE)
+			.setStreamOperator(new StreamSink<>(sinkFunction))
+			.build();
 		harness.setup();
 	}
 

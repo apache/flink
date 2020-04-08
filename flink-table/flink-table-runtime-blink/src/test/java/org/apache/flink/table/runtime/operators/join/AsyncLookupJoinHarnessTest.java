@@ -24,13 +24,18 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.GenericRow;
@@ -242,13 +247,14 @@ public class AsyncLookupJoinHarnessTest {
 				ASYNC_BUFFER_CAPACITY);
 		}
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new AsyncWaitOperatorFactory<>(
+		return new OneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow>()
+			.setStreamOperatorFactory(new AsyncWaitOperatorFactory<>(
 				joinRunner,
 				ASYNC_TIMEOUT_MS,
 				ASYNC_BUFFER_CAPACITY,
-				AsyncDataStream.OutputMode.ORDERED),
-			inSerializer);
+				AsyncDataStream.OutputMode.ORDERED))
+			.setTypeSerializerIn(inSerializer)
+			.build();
 	}
 
 	/**

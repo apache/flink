@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -103,7 +104,7 @@ public class StreamSortOperatorTest {
 	}
 
 	private OneInputStreamOperatorTestHarness createTestHarness(StreamSortOperator operator) throws Exception {
-		OneInputStreamOperatorTestHarness testHarness = new OneInputStreamOperatorTestHarness(operator);
+		OneInputStreamOperatorTestHarness testHarness = new OneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow>().setStreamOperator(operator).build();
 		return testHarness;
 	}
 }

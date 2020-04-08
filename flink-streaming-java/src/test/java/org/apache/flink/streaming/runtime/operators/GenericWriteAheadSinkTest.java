@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -123,7 +124,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		ListSink2 sink = new ListSink2();
 
 		OneInputStreamOperatorTestHarness<Tuple1<Integer>, Tuple1<Integer>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(sink);
+			new OneInputStreamOperatorTestHarnessBuilder<Tuple1<Integer>, Tuple1<Integer>>().setStreamOperator(sink).build();
 
 		testHarness.open();
 

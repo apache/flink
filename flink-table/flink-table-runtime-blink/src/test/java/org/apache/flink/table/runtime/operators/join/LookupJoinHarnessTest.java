@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.GenericRow;
@@ -192,9 +193,10 @@ public class LookupJoinHarnessTest {
 		}
 
 		ProcessOperator<BaseRow, BaseRow> operator = new ProcessOperator<>(joinRunner);
-		return new OneInputStreamOperatorTestHarness<>(
-			operator,
-			inSerializer);
+		return new OneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow>()
+			.setStreamOperator(operator)
+			.setTypeSerializerIn(inSerializer)
+			.build();
 	}
 
 	/**

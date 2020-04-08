@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Assert;
@@ -54,7 +55,8 @@ public class StreamMapTest {
 	public void testMap() throws Exception {
 		StreamMap<Integer, String> operator = new StreamMap<Integer, String>(new Map());
 
-		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<Integer, String>(operator);
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+			new OneInputStreamOperatorTestHarnessBuilder<Integer, String>().setStreamOperator(operator).build();
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
@@ -78,7 +80,8 @@ public class StreamMapTest {
 	public void testOpenClose() throws Exception {
 		StreamMap<String, String> operator = new StreamMap<String, String>(new TestOpenCloseMapFunction());
 
-		OneInputStreamOperatorTestHarness<String, String> testHarness = new OneInputStreamOperatorTestHarness<String, String>(operator);
+		OneInputStreamOperatorTestHarness<String, String> testHarness =
+			new OneInputStreamOperatorTestHarnessBuilder<String, String>().setStreamOperator(operator).build();
 
 		long initialTime = 0L;
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.Cluster;
@@ -118,7 +119,8 @@ public class CassandraTupleWriteAheadSinkTest {
 			cc
 		);
 
-		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness<>(sink);
+		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness =
+			new OneInputStreamOperatorTestHarnessBuilder<Tuple0, Tuple0>().setStreamOperator(sink).build();
 		harness.getEnvironment().getTaskConfiguration().setBoolean("checkpointing", true);
 
 		harness.setup();

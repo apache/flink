@@ -429,9 +429,10 @@ public class ContinuousFileProcessingMigrationTest {
 
 	private OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> createHarness(BlockingFileInputFormat format) throws Exception {
 		ExecutionConfig config = new ExecutionConfig();
-		return new OneInputStreamOperatorTestHarness<>(
-			new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), config),
-			TypeExtractor.getForClass(TimestampedFileInputSplit.class).createSerializer(config));
+		return new OneInputStreamOperatorTestHarnessBuilder<TimestampedFileInputSplit, FileInputSplit>()
+			.setStreamOperatorFactory(new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), config))
+			.setTypeSerializerIn(TypeExtractor.getForClass(TimestampedFileInputSplit.class).createSerializer(config))
+			.build();
 	}
 
 }

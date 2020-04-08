@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 
@@ -41,7 +42,7 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
 	public void testRowTimeWatermarkAssigner() throws Exception {
 		final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(5);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow>().setStreamOperator(operator).build();
 		testHarness.open();
 
 		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));
@@ -90,7 +91,7 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
 	public void testEndWatermarkIsForwarded() throws Exception {
 		final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(50);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow>().setStreamOperator(operator).build();
 		testHarness.open();
 
 		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));

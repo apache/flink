@@ -54,6 +54,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -917,8 +918,9 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			int capacity,
 			AsyncDataStream.OutputMode outputMode) throws Exception {
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new AsyncWaitOperatorFactory<>(function, timeout, capacity, outputMode),
-			IntSerializer.INSTANCE);
+		return new OneInputStreamOperatorTestHarnessBuilder<Integer, OUT>()
+			.setStreamOperatorFactory(new AsyncWaitOperatorFactory<>(function, timeout, capacity, outputMode))
+			.setTypeSerializerIn(IntSerializer.INSTANCE)
+			.build();
 	}
 }

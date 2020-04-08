@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -161,11 +162,12 @@ public class ContinuousFileProcessingRescalingTest {
 		int noOfTasks,
 		int taskIdx) throws Exception {
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness =
-			new OneInputStreamOperatorTestHarness<>(
-				new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), new ExecutionConfig()),
-				maxParallelism,
-				noOfTasks,
-				taskIdx);
+			new OneInputStreamOperatorTestHarnessBuilder<TimestampedFileInputSplit, String>()
+				.setStreamOperatorFactory(new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), new ExecutionConfig()))
+				.setMaxParallelism(maxParallelism)
+				.setParallelism(noOfTasks)
+				.setSubtaskIndex(taskIdx)
+				.build();
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		return testHarness;
 	}

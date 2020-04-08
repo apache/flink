@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -72,12 +73,13 @@ public class FlinkKafkaProducerMigrationTest extends KafkaMigrationTestBase {
 			FlinkKafkaProducer.Semantic.EXACTLY_ONCE
 		).ignoreFailuresAfterTransactionTimeout();
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			1,
-			1,
-			0,
-			IntSerializer.INSTANCE,
-			new OperatorID(1, 1));
+		return new OneInputStreamOperatorTestHarnessBuilder<Integer, Object>()
+			.setStreamOperator(new StreamSink<>(kafkaProducer))
+			.setMaxParallelism(1)
+			.setParallelism(1)
+			.setSubtaskIndex(0)
+			.setTypeSerializerIn(IntSerializer.INSTANCE)
+			.setOperatorID(new OperatorID(1, 1))
+			.build();
 	}
 }

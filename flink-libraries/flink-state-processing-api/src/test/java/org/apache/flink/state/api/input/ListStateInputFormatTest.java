@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -85,7 +86,10 @@ public class ListStateInputFormatTest {
 	}
 
 	private OneInputStreamOperatorTestHarness<Integer, Void> getTestHarness() throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(new StreamFlatMap<>(new StatefulFunction()), IntSerializer.INSTANCE);
+		return new OneInputStreamOperatorTestHarnessBuilder<Integer, Void>()
+			.setTypeSerializerIn(IntSerializer.INSTANCE)
+			.setStreamOperator(new StreamFlatMap<>(new StatefulFunction()))
+			.build();
 	}
 
 	static class StatefulFunction implements FlatMapFunction<Integer, Void>, CheckpointedFunction {

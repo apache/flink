@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -56,7 +57,7 @@ public class StreamSinkOperatorTest extends TestLogger {
 		StreamSink<String> operator = new StreamSink<>(bufferingSink);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.open();

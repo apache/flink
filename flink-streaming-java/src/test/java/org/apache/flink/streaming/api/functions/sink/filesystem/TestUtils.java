@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
@@ -101,7 +102,12 @@ public class TestUtils {
 				.withBucketFactory(bucketFactory)
 				.build();
 
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarnessBuilder<Tuple2<String, Integer>, Object>()
+			.setMaxParallelism(MAX_PARALLELISM)
+			.setParallelism(totalParallelism)
+			.setSubtaskIndex(taskIdx)
+			.setStreamOperator(new StreamSink<>(sink))
+			.build();
 	}
 
 	static <ID> OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createCustomizedRescalingTestSink(
@@ -121,7 +127,12 @@ public class TestUtils {
 				.withBucketFactory(bucketFactory)
 				.build();
 
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarnessBuilder<Tuple2<String, Integer>, Object>()
+			.setMaxParallelism(MAX_PARALLELISM)
+			.setParallelism(totalParallelism)
+			.setSubtaskIndex(taskIdx)
+			.setStreamOperator(new StreamSink<>(sink))
+			.build();
 	}
 
 	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createTestSinkWithBulkEncoder(
@@ -163,7 +174,12 @@ public class TestUtils {
 			.withOutputFileConfig(outputFileConfig)
 			.build();
 
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarnessBuilder<Tuple2<String, Integer>, Object>()
+			.setMaxParallelism(MAX_PARALLELISM)
+			.setParallelism(totalParallelism)
+			.setSubtaskIndex(taskIdx)
+			.setStreamOperator(new StreamSink<>(sink))
+			.build();
 	}
 
 	static <ID> OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createTestSinkWithCustomizedBulkEncoder(
@@ -205,7 +221,12 @@ public class TestUtils {
 				.withOutputFileConfig(outputFileConfig)
 				.build();
 
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarnessBuilder<Tuple2<String, Integer>, Object>()
+			.setMaxParallelism(MAX_PARALLELISM)
+			.setParallelism(totalParallelism)
+			.setSubtaskIndex(taskIdx)
+			.setStreamOperator(new StreamSink<>(sink))
+			.build();
 	}
 
 	static void checkLocalFs(File outDir, int expectedInProgress, int expectedCompleted) {

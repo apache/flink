@@ -20,10 +20,13 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
@@ -224,20 +227,22 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 		WatermarkGenerator watermarkGenerator,
 		long idleTimeout) throws Exception {
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new WatermarkAssignerOperatorFactory(
-				rowtimeFieldIndex,
-				idleTimeout,
-				new GeneratedWatermarkGenerator(watermarkGenerator.getClass().getName(), "", new Object[]{}) {
-					@Override
-					public WatermarkGenerator newInstance(ClassLoader classLoader) {
-						return watermarkGenerator;
-					}
+		return new OneInputStreamOperatorTestHarnessBuilder<BaseRow, BaseRow>()
+			.setStreamOperatorFactory(
+				new WatermarkAssignerOperatorFactory(
+					rowtimeFieldIndex,
+					idleTimeout,
+					new GeneratedWatermarkGenerator(watermarkGenerator.getClass().getName(), "", new Object[]{}) {
+						@Override
+						public WatermarkGenerator newInstance(ClassLoader classLoader) {
+							return watermarkGenerator;
+						}
 
-					public WatermarkGenerator newInstance(ClassLoader classLoader, Object... args) {
-						return watermarkGenerator;
-					}
-				}));
+						public WatermarkGenerator newInstance(ClassLoader classLoader, Object... args) {
+							return watermarkGenerator;
+						}
+					}))
+			.build();
 	}
 
 	/**

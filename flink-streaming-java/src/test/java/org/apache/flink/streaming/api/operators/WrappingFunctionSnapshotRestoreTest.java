@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -51,7 +52,7 @@ public class WrappingFunctionSnapshotRestoreTest {
 				new WrappingTestFun(new WrappingTestFun(new InnerTestFun())));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Integer, Integer>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -66,7 +67,7 @@ public class WrappingFunctionSnapshotRestoreTest {
 		InnerTestFun innerTestFun = new InnerTestFun();
 		operator = new StreamMap<>(new WrappingTestFun(new WrappingTestFun(innerTestFun)));
 
-		testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+		testHarness = new OneInputStreamOperatorTestHarnessBuilder<Integer, Integer>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
@@ -83,7 +84,7 @@ public class WrappingFunctionSnapshotRestoreTest {
 				new WrappingTestFun(new WrappingTestFun(new InnerTestFunList())));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Integer, Integer>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.open();
@@ -98,7 +99,7 @@ public class WrappingFunctionSnapshotRestoreTest {
 		InnerTestFunList innerTestFun = new InnerTestFunList();
 		operator = new StreamMap<>(new WrappingTestFun(new WrappingTestFun(innerTestFun)));
 
-		testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+		testHarness = new OneInputStreamOperatorTestHarnessBuilder<Integer, Integer>().setStreamOperator(operator).build();
 
 		testHarness.setup();
 		testHarness.initializeState(snapshot);

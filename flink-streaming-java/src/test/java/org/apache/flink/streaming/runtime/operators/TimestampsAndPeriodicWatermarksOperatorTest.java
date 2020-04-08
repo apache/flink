@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 
 import org.junit.Test;
 
@@ -44,7 +45,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 				new TimestampsAndPeriodicWatermarksOperator<Long>(new LongExtractor());
 
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Long, Long>().setStreamOperator(operator).build();
 
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
 
@@ -129,7 +130,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 				new TimestampsAndPeriodicWatermarksOperator<Long>(assigner);
 
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
-				new OneInputStreamOperatorTestHarness<Long, Long>(operator);
+			new OneInputStreamOperatorTestHarnessBuilder<Long, Long>().setStreamOperator(operator).build();
 
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
 

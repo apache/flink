@@ -56,12 +56,12 @@ public class ProcessFunctionTestHarnesses {
 		throws Exception {
 
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-			new OneInputStreamOperatorTestHarness<>(
-				new ProcessOperator<>(
-					Preconditions.checkNotNull(function)),
-				1,
-				1,
-				0);
+			new OneInputStreamOperatorTestHarnessBuilder<IN, OUT>()
+				.setMaxParallelism(1)
+				.setParallelism(1)
+				.setSubtaskIndex(0)
+				.setStreamOperator(new ProcessOperator<>(Preconditions.checkNotNull(function)))
+				.build();
 		testHarness.setup();
 		testHarness.open();
 		return testHarness;

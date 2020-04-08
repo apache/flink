@@ -22,6 +22,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarnessBuilder;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -361,7 +362,7 @@ public class CassandraSinkBaseTest {
 		TestCassandraSink testCassandraSink) throws Exception {
 		final StreamSink<String> testStreamSink = new StreamSink<>(testCassandraSink);
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(testStreamSink);
+			new OneInputStreamOperatorTestHarnessBuilder<String, Object>().setStreamOperator(testStreamSink).build();
 		testHarness.open();
 		return testHarness;
 	}
