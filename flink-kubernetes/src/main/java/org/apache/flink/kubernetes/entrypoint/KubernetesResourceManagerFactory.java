@@ -68,7 +68,8 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration =
-			ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
+			ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
+				configuration, KubernetesWorkerResourceSpecFactory.INSTANCE);
 		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			rmServicesConfiguration,
 			highAvailabilityServices,

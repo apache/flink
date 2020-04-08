@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
@@ -43,19 +44,22 @@ public class SlotManagerConfiguration {
 	private final Time taskManagerTimeout;
 	private final boolean waitResultConsumedBeforeRelease;
 	private final SlotMatchingStrategy slotMatchingStrategy;
+	private final WorkerResourceSpec defaultWorkerResourceSpec;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
 			Time taskManagerTimeout,
 			boolean waitResultConsumedBeforeRelease,
-			SlotMatchingStrategy slotMatchingStrategy) {
+			SlotMatchingStrategy slotMatchingStrategy,
+			WorkerResourceSpec defaultWorkerResourceSpec) {
 
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
 		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
 		this.slotMatchingStrategy = slotMatchingStrategy;
+		this.defaultWorkerResourceSpec = defaultWorkerResourceSpec;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -78,7 +82,14 @@ public class SlotManagerConfiguration {
 		return slotMatchingStrategy;
 	}
 
-	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
+	public WorkerResourceSpec getDefaultWorkerResourceSpec() {
+		return defaultWorkerResourceSpec;
+	}
+
+	public static SlotManagerConfiguration fromConfiguration(
+			Configuration configuration,
+			WorkerResourceSpec defaultWorkerResourceSpec) throws ConfigurationException {
+
 		final Time rpcTimeout;
 		try {
 			rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
@@ -103,7 +114,8 @@ public class SlotManagerConfiguration {
 			slotRequestTimeout,
 			taskManagerTimeout,
 			waitResultConsumedBeforeRelease,
-			slotMatchingStrategy);
+			slotMatchingStrategy,
+			defaultWorkerResourceSpec);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {
