@@ -1031,7 +1031,7 @@ public class ExecutionEnvironment {
 	}
 
 	/**
-	 * Get the registered cached files
+	 * Get the registered cached files.
 	 */
 	@Internal
 	public List<Tuple2<String, DistributedCacheEntry>> getCacheFile() {
