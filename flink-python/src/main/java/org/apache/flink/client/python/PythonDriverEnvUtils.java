@@ -47,7 +47,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
-import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_ENTRY_POINT_SCRIPT;
 
 /**
  * The util class help to prepare Python env and run the python process.
@@ -103,11 +102,13 @@ public final class PythonDriverEnvUtils {
 	 * Prepares PythonEnvironment to start python process.
 	 *
 	 * @param config The Python configurations.
+	 * @param entryPointScript The entry point script, optional.
 	 * @param tmpDir The temporary directory which files will be copied to.
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
 	 */
 	public static PythonEnvironment preparePythonEnvironment(
 			Configuration config,
+			String entryPointScript,
 			String tmpDir) throws IOException {
 		PythonEnvironment env = new PythonEnvironment();
 
@@ -136,9 +137,8 @@ public final class PythonDriverEnvUtils {
 				.map(Path::new).collect(Collectors.toList());
 			appendUserFiles(env, userFiles);
 		}
-		if (config.getOptional(PYTHON_ENTRY_POINT_SCRIPT).isPresent()) {
-			List<Path> userFile = Collections.singletonList(
-				new Path(config.get(PYTHON_ENTRY_POINT_SCRIPT)));
+		if (entryPointScript != null) {
+			List<Path> userFile = Collections.singletonList(new Path(entryPointScript));
 			appendUserFiles(env, userFile);
 		}
 		return env;

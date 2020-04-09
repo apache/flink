@@ -35,6 +35,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -48,7 +49,6 @@ import static org.apache.flink.client.python.PythonDriverEnvUtils.systemEnv;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
-import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_ENTRY_POINT_SCRIPT;
 
 /**
  * Tests for the {@link PythonDriverEnvUtils}.
@@ -104,7 +104,7 @@ public class PythonDriverEnvUtilsTest {
 		Configuration config = new Configuration();
 		config.set(PYTHON_FILES, pyFiles);
 
-		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, tmpDirPath);
+		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 
 		String base = replaceUUID(env.tempDirectory);
 		Set<String> expectedPythonPaths = getBasicPythonPaths();
@@ -164,15 +164,16 @@ public class PythonDriverEnvUtilsTest {
 	public void testSetPythonExecutable() throws IOException {
 		Configuration config = new Configuration();
 
-		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, tmpDirPath);
+		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 		Assert.assertEquals("python", env.pythonExec);
 
+		systemEnv = new HashMap<>(systemEnv);
 		systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "python3");
-		env = preparePythonEnvironment(config, tmpDirPath);
+		env = preparePythonEnvironment(config, null, tmpDirPath);
 		Assert.assertEquals("python3", env.pythonExec);
 
 		config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
-		env = preparePythonEnvironment(config, tmpDirPath);
+		env = preparePythonEnvironment(config, null, tmpDirPath);
 		Assert.assertEquals("/usr/bin/python", env.pythonExec);
 	}
 
@@ -184,8 +185,7 @@ public class PythonDriverEnvUtilsTest {
 		String entryFilePath = entryFile.getAbsolutePath();
 
 		Configuration config = new Configuration();
-		config.set(PYTHON_ENTRY_POINT_SCRIPT, entryFilePath);
-		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, tmpDirPath);
+		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, entryFilePath, tmpDirPath);
 
 		Set<String> expectedPythonPaths = getBasicPythonPaths();
 		expectedPythonPaths.add(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}"));

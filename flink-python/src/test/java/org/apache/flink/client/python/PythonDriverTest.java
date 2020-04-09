@@ -18,10 +18,6 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.util.PythonDependencyUtils;
-import org.apache.flink.runtime.entrypoint.FlinkParseException;
-
 import org.junit.Assert;
 import org.junit.Test;
 import py4j.GatewayServer;
@@ -49,58 +45,21 @@ public class PythonDriverTest {
 	}
 
 	@Test
-	public void testConstructCommandsWithEntryPointModule() throws FlinkParseException {
-		Configuration config = new Configuration();
-		config.set(PythonDependencyUtils.PYTHON_ENTRY_POINT_MODULE, "xxx");
+	public void testConstructCommands() {
 		List<String> args = new ArrayList<>();
 		args.add("--input");
 		args.add("in.txt");
 
-		List<String> commands = PythonDriver.constructPythonCommands(config, args);
+		PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(
+			"xxx",
+			null,
+			args);
+		List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
 		// verify the generated commands
 		Assert.assertEquals(4, commands.size());
 		Assert.assertEquals(commands.get(0), "-m");
 		Assert.assertEquals(commands.get(1), "xxx");
 		Assert.assertEquals(commands.get(2), "--input");
 		Assert.assertEquals(commands.get(3), "in.txt");
-	}
-
-	@Test
-	public void testConstructCommandsWithEntryPointScript() throws FlinkParseException {
-		Configuration config = new Configuration();
-		config.set(PythonDependencyUtils.PYTHON_ENTRY_POINT_SCRIPT, "xxx.py");
-		List<String> args = new ArrayList<>();
-		args.add("--input");
-		args.add("in.txt");
-
-		List<String> commands = PythonDriver.constructPythonCommands(config, args);
-		// verify the generated commands
-		Assert.assertEquals(4, commands.size());
-		Assert.assertEquals(commands.get(0), "-m");
-		Assert.assertEquals(commands.get(1), "xxx");
-		Assert.assertEquals(commands.get(2), "--input");
-		Assert.assertEquals(commands.get(3), "in.txt");
-	}
-
-	@Test(expected = FlinkParseException.class)
-	public void testConstructCommandsWithMultipleEntryPointsSpecified() throws FlinkParseException {
-		Configuration config = new Configuration();
-		config.set(PythonDependencyUtils.PYTHON_ENTRY_POINT_SCRIPT, "xxx.py");
-		config.set(PythonDependencyUtils.PYTHON_ENTRY_POINT_MODULE, "xxx");
-		List<String> args = new ArrayList<>();
-		args.add("--input");
-		args.add("in.txt");
-
-		PythonDriver.constructPythonCommands(config, args);
-	}
-
-	@Test(expected = FlinkParseException.class)
-	public void testConstructCommandsWithEntryPointNotSpecified() throws FlinkParseException {
-		Configuration config = new Configuration();
-		List<String> args = new ArrayList<>();
-		args.add("--input");
-		args.add("in.txt");
-
-		PythonDriver.constructPythonCommands(config, args);
 	}
 }

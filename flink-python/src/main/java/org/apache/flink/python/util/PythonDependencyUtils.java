@@ -27,9 +27,6 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
-
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -41,12 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 
@@ -64,10 +55,6 @@ public class PythonDependencyUtils {
 
 	// Internal Python Config Options.
 
-	public static final ConfigOption<String> PYTHON_ENTRY_POINT_SCRIPT =
-		ConfigOptions.key("python.internal.entry-point.script").stringType().noDefaultValue();
-	public static final ConfigOption<String> PYTHON_ENTRY_POINT_MODULE =
-		ConfigOptions.key("python.internal.entry-point.module").stringType().noDefaultValue();
 	public static final ConfigOption<Map<String, String>> PYTHON_FILES =
 		ConfigOptions.key("python.internal.files-key-map").mapType().noDefaultValue();
 	public static final ConfigOption<Map<String, String>> PYTHON_REQUIREMENTS_FILE =
@@ -88,40 +75,6 @@ public class PythonDependencyUtils {
 			Configuration config) {
 		PythonDependencyManager pythonDependencyManager = new PythonDependencyManager(cachedFiles, config);
 		return pythonDependencyManager.getConfigWithPythonDependencyOptions();
-	}
-
-	public static Options getPythonCommandLineOptions() {
-		Options options = new Options();
-		options.addOption(PY_OPTION);
-		options.addOption(PYFILES_OPTION);
-		options.addOption(PYMODULE_OPTION);
-		options.addOption(PYREQUIREMENTS_OPTION);
-		options.addOption(PYARCHIVE_OPTION);
-		options.addOption(PYEXEC_OPTION);
-		return options;
-	}
-
-	public static Configuration parseCommandLine(CommandLine commandLine) {
-		Configuration config = new Configuration();
-		if (commandLine.hasOption(PYFILES_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_FILES, commandLine.getOptionValue(PYFILES_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PYREQUIREMENTS_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_REQUIREMENTS, commandLine.getOptionValue(PYREQUIREMENTS_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PYARCHIVE_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_ARCHIVES, commandLine.getOptionValue(PYARCHIVE_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PYEXEC_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_EXECUTABLE, commandLine.getOptionValue(PYEXEC_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PY_OPTION.getOpt())) {
-			config.set(PYTHON_ENTRY_POINT_SCRIPT, commandLine.getOptionValue(PY_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
-			config.set(PYTHON_ENTRY_POINT_MODULE, commandLine.getOptionValue(PYMODULE_OPTION.getOpt()));
-		}
-		return config;
 	}
 
 	/**
