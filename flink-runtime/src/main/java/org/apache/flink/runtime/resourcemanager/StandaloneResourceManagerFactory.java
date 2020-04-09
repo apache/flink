@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -31,6 +32,9 @@ import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ConfigurationException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -46,6 +50,8 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
 	public static StandaloneResourceManagerFactory getInstance() {
 		return INSTANCE;
 	}
+
+	private static final Logger LOG = LoggerFactory.getLogger(ConfigurationUtils.class);
 
 	@Override
 	protected ResourceManager<ResourceID> createResourceManager(
@@ -80,6 +86,23 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
 	@Override
 	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
 			Configuration configuration) throws ConfigurationException {
-		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, ArbitraryWorkerResourceSpecFactory.INSTANCE);
+		return ResourceManagerRuntimeServicesConfiguration
+			.fromConfiguration(getConfigurationWithoutMaxSlotNumberIfSet(configuration), ArbitraryWorkerResourceSpecFactory.INSTANCE);
+	}
+
+	/**
+	 * Get the configuration for standalone ResourceManager, overwrite invalid configs.
+	 *
+	 * @param configuration configuration object
+	 * @return the configuration for standalone ResourceManager
+	 */
+	private static Configuration getConfigurationWithoutMaxSlotNumberIfSet(Configuration configuration) {
+		final Configuration copiedConfig = new Configuration(configuration);
+		// The max slot limit should not take effect for standalone cluster, we overwrite the configure in case user
+		// sets this value by mistake.
+		if (copiedConfig.removeConfig(ResourceManagerOptions.MAX_SLOT_NUM)) {
+			LOG.warn("Config option {} will be ignored in standalone mode.", ResourceManagerOptions.MAX_SLOT_NUM.key());
+		}
+		return copiedConfig;
 	}
 }
