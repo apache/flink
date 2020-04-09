@@ -41,7 +41,7 @@ import java.util.UUID;
 public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
-	public static void main(String[] args) throws CliArgsException {
+	public static void main(String[] args) {
 		// the python job needs at least 2 args.
 		// e.g. py a.py ...
 		// e.g. pym a.b -pyfs a.zip ...
