@@ -334,7 +334,8 @@ public class InputTypeStrategiesTest {
 			TestSpec
 				.forStrategy(WILDCARD)
 				.calledWithArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL())
-				.expectErrorMessage("Invalid use of untyped NULL in arguments."),
+				.expectSignature("f(*)")
+				.expectArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL()),
 
 			// typed arguments help inferring a type
 			TestSpec
