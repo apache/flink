@@ -37,24 +37,24 @@ bin=`cd "$bin"; pwd`
 ARGS=("--configDir" "${FLINK_CONF_DIR}" "${@:2}")
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
-    if [ ! -z "${FLINK_JM_HEAP_MB}" ] && [ "${FLINK_JM_HEAP}" == 0 ]; then
-	    echo "used deprecated key \`${KEY_JOBM_MEM_MB}\`, please replace with key \`${KEY_JOBM_MEM_SIZE}\`"
-    else
-	    flink_jm_heap_bytes=$(parseBytes ${FLINK_JM_HEAP})
-	    FLINK_JM_HEAP_MB=$(getMebiBytes ${flink_jm_heap_bytes})
-    fi
-
-    if [[ ! ${FLINK_JM_HEAP_MB} =~ $IS_NUMBER ]] || [[ "${FLINK_JM_HEAP_MB}" -lt "0" ]]; then
-        echo "[ERROR] Configured memory size is not a valid value. Please set '${KEY_JOBM_MEM_SIZE}' in ${FLINK_CONF_FILE}."
-        exit 1
-    fi
-
-    if [ "${FLINK_JM_HEAP_MB}" -gt "0" ]; then
-        export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_HEAP_MB"m -Xmx"$FLINK_JM_HEAP_MB"m"
-    fi
-
     # Add cluster entry point specific JVM options
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
+
+    # Startup parameters
+
+    java_utils_output=$(runBashJavaUtilsCmd GET_JM_RESOURCE_PARAMS ${FLINK_CONF_DIR} $FLINK_BIN_DIR/bash-java-utils.jar:$(findFlinkDistJar) "${ARGS[@]}")
+    logging_output=$(extractLoggingOutputs "${java_utils_output}")
+    jvm_params=$(extractExecutionResults "${java_utils_output}" 1)
+    export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
+
+    export FLINK_INHERITED_LOGS="
+$FLINK_INHERITED_LOGS
+
+JM_RESOURCE_PARAMS extraction logs:
+jvm_params: $jvm_params
+logs: $logging_output
+"
+
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then

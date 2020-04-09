@@ -20,10 +20,13 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -47,9 +50,14 @@ public class BashJavaUtils {
 	public static void main(String[] args) throws Exception {
 		checkArgument(args.length > 0, "Command not specified.");
 
+		String[] commandArgs = Arrays.copyOfRange(args, 1, args.length);
+
 		switch (Command.valueOf(args[0])) {
 			case GET_TM_RESOURCE_PARAMS:
-				getTmResourceParams(Arrays.copyOfRange(args, 1, args.length));
+				getTmResourceParams(commandArgs);
+				break;
+			case GET_JM_RESOURCE_PARAMS:
+				getJmResourceParams(commandArgs);
 				break;
 			default:
 				// unexpected, Command#valueOf should fail if a unknown command is passed in
@@ -72,6 +80,18 @@ public class BashJavaUtils {
 		Configuration configuration = loadConfiguration(args);
 		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
 			configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
+	}
+
+	private static void getJmResourceParams(String[] args) throws Exception {
+		Configuration configuration = getConfigurationForStandaloneJobManager(args);
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(configuration);
+		System.out.println(EXECUTION_PREFIX + ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec));
+	}
+
+	private static Configuration getConfigurationForStandaloneJobManager(String[] args) throws Exception {
+		Configuration configuration = loadConfiguration(args);
+		return JobManagerProcessUtils.getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
+			configuration, JobManagerOptions.TOTAL_FLINK_MEMORY);
 	}
 
 	@VisibleForTesting
@@ -109,6 +129,11 @@ public class BashJavaUtils {
 		/**
 		 * Get JVM parameters and dynamic configs of task executor resources.
 		 */
-		GET_TM_RESOURCE_PARAMS
+		GET_TM_RESOURCE_PARAMS,
+
+		/**
+		 * Get JVM parameters and dynamic configs of job manager resources.
+		 */
+		GET_JM_RESOURCE_PARAMS
 	}
 }
