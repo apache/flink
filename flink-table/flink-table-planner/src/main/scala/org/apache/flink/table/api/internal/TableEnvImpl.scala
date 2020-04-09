@@ -127,11 +127,11 @@ abstract class TableEnvImpl(
   private val UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
       "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
-      "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION."
+      "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION."
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-      "CREATE FUNCTION."
+      "CREATE FUNCTION, DROP FUNCTION."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -555,7 +555,8 @@ abstract class TableEnvImpl(
     operation match {
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
-           _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation =>
+           _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
+           _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -578,14 +579,11 @@ abstract class TableEnvImpl(
           op.getTableIdentifier)
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
-           _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation =>
+           _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
+           _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation =>
         executeOperation(operation)
       case alterFunctionOperation: AlterCatalogFunctionOperation =>
           alterCatalogFunction(alterFunctionOperation)
-      case dropFunctionOperation: DropCatalogFunctionOperation =>
-          dropCatalogFunction(dropFunctionOperation)
-      case dropTempSystemFunctionOperation: DropTempSystemFunctionOperation =>
-          dropSystemFunction(dropTempSystemFunctionOperation)
       case useCatalogOperation: UseCatalogOperation =>
         catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case useDatabaseOperation: UseDatabaseOperation =>
@@ -674,6 +672,10 @@ abstract class TableEnvImpl(
         createCatalogFunction(createFunctionOperation)
       case createTempSystemFunctionOperation: CreateTempSystemFunctionOperation =>
         createSystemFunction(createTempSystemFunctionOperation)
+      case dropFunctionOperation: DropCatalogFunctionOperation =>
+        dropCatalogFunction(dropFunctionOperation)
+      case dropTempSystemFunctionOperation: DropTempSystemFunctionOperation =>
+        dropSystemFunction(dropTempSystemFunctionOperation)
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }
@@ -867,7 +869,8 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def dropCatalogFunction(dropFunctionOperation: DropCatalogFunctionOperation) = {
+  private def dropCatalogFunction(
+      dropFunctionOperation: DropCatalogFunctionOperation): TableResult = {
     val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
     try {
       if (dropFunctionOperation.isTemporary)  {
@@ -880,6 +883,7 @@ abstract class TableEnvImpl(
           dropFunctionOperation.getFunctionIdentifier.toObjectPath,
           dropFunctionOperation.isIfExists)
       }
+      TableResultImpl.TABLE_RESULT_OK
     } catch {
       case ex: ValidationException => throw ex
       case ex: FunctionNotExistException => throw new ValidationException(ex.getMessage, ex)
@@ -913,11 +917,13 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def dropSystemFunction(dropFunctionOperation: DropTempSystemFunctionOperation): Unit = {
+  private def dropSystemFunction(
+      dropFunctionOperation: DropTempSystemFunctionOperation): TableResult = {
     val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
     try {
       functionCatalog.dropTemporarySystemFunction(
         dropFunctionOperation.getFunctionName, dropFunctionOperation.isIfExists)
+      TableResultImpl.TABLE_RESULT_OK
     } catch {
       case e: ValidationException =>
         throw e

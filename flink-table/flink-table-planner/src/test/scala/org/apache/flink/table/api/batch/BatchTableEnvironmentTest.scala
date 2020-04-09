@@ -128,7 +128,7 @@ class BatchTableEnvironmentTest extends TableTestBase {
   }
 
   @Test
-  def testExecuteSqlWithCreateFunction(): Unit = {
+  def testExecuteSqlWithCreateDropFunction(): Unit = {
     val util = batchTestUtil()
     val funcName = classOf[TestUDF].getName
 
@@ -138,10 +138,20 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .functionExists(ObjectPath.fromString("default_database.f1")))
 
-    val tableResult2 = util.tableEnv.executeSql(
-      s"CREATE TEMPORARY SYSTEM FUNCTION default_database.f2 AS '$funcName'")
+    val tableResult2 = util.tableEnv.executeSql("DROP FUNCTION default_database.f1")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .functionExists(ObjectPath.fromString("default_database.f1")))
+
+    val tableResult3 = util.tableEnv.executeSql(
+      s"CREATE TEMPORARY SYSTEM FUNCTION default_database.f2 AS '$funcName'")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertTrue(util.tableEnv.listUserDefinedFunctions().contains("f2"))
+
+    val tableResult4 = util.tableEnv.executeSql(
+      "DROP TEMPORARY SYSTEM FUNCTION default_database.f2")
+    assertEquals(ResultKind.SUCCESS, tableResult4.getResultKind)
+    assertFalse(util.tableEnv.listUserDefinedFunctions().contains("f2"))
   }
 
   @Test

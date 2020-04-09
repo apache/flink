@@ -138,7 +138,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-			"CREATE FUNCTION";
+			"CREATE FUNCTION, DROP FUNCTION";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -614,7 +614,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof DropDatabaseOperation ||
 				operation instanceof AlterDatabaseOperation ||
 				operation instanceof CreateCatalogFunctionOperation ||
-				operation instanceof CreateTempSystemFunctionOperation) {
+				operation instanceof CreateTempSystemFunctionOperation ||
+				operation instanceof DropCatalogFunctionOperation ||
+				operation instanceof DropTempSystemFunctionOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -639,18 +641,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof DropDatabaseOperation ||
 				operation instanceof AlterDatabaseOperation ||
 				operation instanceof CreateCatalogFunctionOperation ||
-				operation instanceof CreateTempSystemFunctionOperation) {
+				operation instanceof CreateTempSystemFunctionOperation ||
+				operation instanceof DropCatalogFunctionOperation ||
+				operation instanceof DropTempSystemFunctionOperation) {
 			executeOperation(operation);
 		} else if (operation instanceof AlterCatalogFunctionOperation) {
 			AlterCatalogFunctionOperation alterCatalogFunctionOperation = (AlterCatalogFunctionOperation) operation;
 			alterCatalogFunction(alterCatalogFunctionOperation);
-		} else if (operation instanceof DropCatalogFunctionOperation) {
-			DropCatalogFunctionOperation dropCatalogFunctionOperation = (DropCatalogFunctionOperation) operation;
-			dropCatalogFunction(dropCatalogFunctionOperation);
-		} else if (operation instanceof DropTempSystemFunctionOperation) {
-			DropTempSystemFunctionOperation dropTempSystemFunctionOperation =
-				(DropTempSystemFunctionOperation) operation;
-			dropSystemFunction(dropTempSystemFunctionOperation);
 		} else if (operation instanceof CreateCatalogOperation) {
 			CreateCatalogOperation createCatalogOperation = (CreateCatalogOperation) operation;
 			String exMsg = getDDLOpExecuteErrorMsg(createCatalogOperation.asSummaryString());
@@ -759,6 +756,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			return createCatalogFunction((CreateCatalogFunctionOperation) operation);
 		} else if (operation instanceof CreateTempSystemFunctionOperation) {
 			return createSystemFunction((CreateTempSystemFunctionOperation) operation);
+		} else if (operation instanceof DropCatalogFunctionOperation) {
+			return dropCatalogFunction((DropCatalogFunctionOperation) operation);
+		} else if (operation instanceof DropTempSystemFunctionOperation) {
+			return dropSystemFunction((DropTempSystemFunctionOperation) operation);
 		} else {
 			throw new TableException("Unsupported operation: " + operation);
 		}
@@ -972,8 +973,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 	}
 
-	private void dropCatalogFunction(DropCatalogFunctionOperation dropCatalogFunctionOperation) {
-
+	private TableResult dropCatalogFunction(DropCatalogFunctionOperation dropCatalogFunctionOperation) {
 		String exMsg = getDDLOpExecuteErrorMsg(dropCatalogFunctionOperation.asSummaryString());
 		try {
 			if (dropCatalogFunctionOperation.isTemporary()) {
@@ -988,6 +988,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					dropCatalogFunctionOperation.getFunctionIdentifier().toObjectPath(),
 					dropCatalogFunctionOperation.isIfExists());
 			}
+			return TableResultImpl.TABLE_RESULT_OK;
 		} catch (ValidationException e) {
 			throw e;
 		}  catch (FunctionNotExistException e) {
@@ -1020,11 +1021,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 	}
 
-	private void dropSystemFunction(DropTempSystemFunctionOperation operation) {
+	private TableResult dropSystemFunction(DropTempSystemFunctionOperation operation) {
 		try {
 			functionCatalog.dropTemporarySystemFunction(
 				operation.getFunctionName(),
 				operation.isIfExists());
+			return TableResultImpl.TABLE_RESULT_OK;
 		} catch (ValidationException e) {
 			throw e;
 		} catch (Exception e) {
