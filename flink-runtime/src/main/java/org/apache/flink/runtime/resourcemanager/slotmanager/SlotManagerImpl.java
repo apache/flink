@@ -122,6 +122,9 @@ public class SlotManagerImpl implements SlotManager {
 	/** Release task executor only when each produced result partition is either consumed or failed. */
 	private final boolean waitResultConsumedBeforeRelease;
 
+	/** Defines the max limitation of the total number of slots. */
+	private final int maxSlotNum;
+
 	/**
 	 * If true, fail unfulfillable slot requests immediately. Otherwise, allow unfulfillable request to pend.
 	 * A slot request is considered unfulfillable if it cannot be fulfilled by neither a slot that is already registered
@@ -157,6 +160,7 @@ public class SlotManagerImpl implements SlotManager {
 		this.numSlotsPerWorker = slotManagerConfiguration.getNumSlotsPerWorker();
 		this.defaultSlotResourceProfile = generateDefaultSlotResourceProfile(defaultWorkerResourceSpec, numSlotsPerWorker);
 		this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
+		this.maxSlotNum = slotManagerConfiguration.getMaxSlotNum();
 
 		slots = new HashMap<>(16);
 		freeSlots = new LinkedHashMap<>(16);
