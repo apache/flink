@@ -26,5 +26,5 @@ import org.apache.flink.runtime.topology.PipelinedRegion;
 /**
  * Pipelined region on execution level, i.e., {@link ExecutionGraph} level.
  */
-public interface SchedulingPipelinedRegion<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>> extends PipelinedRegion<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
+public interface SchedulingPipelinedRegion extends PipelinedRegion<ExecutionVertexID, IntermediateResultPartitionID, SchedulingExecutionVertex, SchedulingResultPartition> {
 }

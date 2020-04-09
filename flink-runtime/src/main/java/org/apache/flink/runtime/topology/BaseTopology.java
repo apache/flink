@@ -30,7 +30,7 @@ public interface BaseTopology<VID extends VertexID, RID extends ResultID,
 	 *
 	 * @return topologically sorted iterable over all vertices
 	 */
-	Iterable<V> getVertices();
+	Iterable<? extends V> getVertices();
 
 	/**
 	 * Returns whether the topology contains co-location constraints.

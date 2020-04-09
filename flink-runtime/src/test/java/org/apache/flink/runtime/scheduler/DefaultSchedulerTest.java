@@ -344,11 +344,11 @@ public class DefaultSchedulerTest extends TestLogger {
 		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
 		final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
 		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
-		final SchedulingTopology<?, ?> topology = schedulingStrategy.getSchedulingTopology();
+		final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
 
 		startScheduling(scheduler);
 
-		final SchedulingExecutionVertex<?, ?> onlySchedulingVertex = Iterables.getOnlyElement(topology.getVertices());
+		final SchedulingExecutionVertex onlySchedulingVertex = Iterables.getOnlyElement(topology.getVertices());
 		schedulingStrategy.schedule(Collections.singletonList(onlySchedulingVertex.getId()));
 
 		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
@@ -368,7 +368,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
 		final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
 		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
-		final SchedulingTopology<?, ?> topology = schedulingStrategy.getSchedulingTopology();
+		final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
 
 		startScheduling(scheduler);
 
@@ -645,7 +645,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		final JobGraph jobGraph = singleJobVertexJobGraph(2);
 		final JobID jobid = jobGraph.getJobID();
 		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
-		final SchedulingTopology<?, ?> topology = scheduler.getSchedulingTopology();
+		final SchedulingTopology topology = scheduler.getSchedulingTopology();
 
 		final Iterator<ArchivedExecutionVertex> vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
 		final ExecutionAttemptID attemptId1 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();

@@ -37,8 +37,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A simple scheduling topology for testing purposes.
  */
-public class TestingSchedulingTopology
-	implements SchedulingTopology<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
+public class TestingSchedulingTopology implements SchedulingTopology {
 
 	// Use linked map here to so we can get the values in inserted order
 	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> schedulingExecutionVertices = new LinkedHashMap<>();
