@@ -24,7 +24,8 @@ under the License.
 -->
 
 Most operations require a user-defined function. This section lists different
-ways of how they can be specified.
+ways of how they can be specified. We also cover `Accumulators`, which can be
+used to gain insights into your Flink application.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -158,3 +159,83 @@ on iterations (see [Iterations]({{ site.baseurl }}/dev/batch/iterations.html)).
 
 {% top %}
 
+## Accumulators & Counters
+
+Accumulators are simple constructs with an **add operation** and a **final accumulated result**,
+which is available after the job ended.
+
+The most straightforward accumulator is a **counter**: You can increment it using the
+```Accumulator.add(V value)``` method. At the end of the job Flink will sum up (merge) all partial
+results and send the result to the client. Accumulators are useful during debugging or if you
+quickly want to find out more about your data.
+
+Flink currently has the following **built-in accumulators**. Each of them implements the
+{% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %}
+interface.
+
+- {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/IntCounter.java "__IntCounter__" %},
+  {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/LongCounter.java "__LongCounter__" %}
+  and {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/DoubleCounter.java "__DoubleCounter__" %}:
+  See below for an example using a counter.
+- {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Histogram.java "__Histogram__" %}:
+  A histogram implementation for a discrete number of bins. Internally it is just a map from Integer
+  to Integer. You can use this to compute distributions of values, e.g. the distribution of
+  words-per-line for a word count program.
+
+__How to use accumulators:__
+
+First you have to create an accumulator object (here a counter) in the user-defined transformation
+function where you want to use it.
+
+{% highlight java %}
+private IntCounter numLines = new IntCounter();
+{% endhighlight %}
+
+Second you have to register the accumulator object, typically in the ```open()``` method of the
+*rich* function. Here you also define the name.
+
+{% highlight java %}
+getRuntimeContext().addAccumulator("num-lines", this.numLines);
+{% endhighlight %}
+
+You can now use the accumulator anywhere in the operator function, including in the ```open()``` and
+```close()``` methods.
+
+{% highlight java %}
+this.numLines.add(1);
+{% endhighlight %}
+
+The overall result will be stored in the ```JobExecutionResult``` object which is
+returned from the `execute()` method of the execution environment
+(currently this only works if the execution waits for the
+completion of the job).
+
+{% highlight java %}
+myJobExecutionResult.getAccumulatorResult("num-lines")
+{% endhighlight %}
+
+All accumulators share a single namespace per job. Thus you can use the same accumulator in
+different operator functions of your job. Flink will internally merge all accumulators with the same
+name.
+
+A note on accumulators and iterations: Currently the result of accumulators is only available after
+the overall job has ended. We plan to also make the result of the previous iteration available in the
+next iteration. You can use
+{% gh_link /flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98 "Aggregators" %}
+to compute per-iteration statistics and base the termination of iterations on such statistics.
+
+__Custom accumulators:__
+
+To implement your own accumulator you simply have to write your implementation of the Accumulator
+interface. Feel free to create a pull request if you think your custom accumulator should be shipped
+with Flink.
+
+You have the choice to implement either
+{% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %}
+or {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}.
+
+```Accumulator<V,R>``` is most flexible: It defines a type ```V``` for the value to add, and a
+result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` is
+ a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
+
+{% top %}
