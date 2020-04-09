@@ -60,7 +60,7 @@ import java.util.Map;
  * @see OptimizerConfigOptions
  */
 @PublicEvolving
-public class TableConfig{
+public class TableConfig {
 
 	/**
 	 * Defines the zone id for timestamp with local time zone.
