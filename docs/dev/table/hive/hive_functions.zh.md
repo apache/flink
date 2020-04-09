@@ -171,7 +171,7 @@ public class TestHiveUDTF extends GenericUDTF {
 
 {% endhighlight %}
 
-在 Hive CLI 中，可以查询到已经注册的UDF函数:
+在 Hive CLI 中，可以查询到已经注册的 UDF 函数:
 
 {% highlight bash %}
 hive> show functions;
