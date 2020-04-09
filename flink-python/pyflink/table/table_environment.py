@@ -479,6 +479,20 @@ class TableEnvironment(object):
         j_table = self._j_tenv.sqlQuery(query)
         return Table(j_table)
 
+    def execute_sql(self, stmt):
+        """
+        Execute the given single statement, and return the execution result.
+
+        The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE.
+        For DML and DQL, this method returns TableResult once the job has been submitted.
+        For DDL and DCL statements, TableResult is returned once the operation has finished.
+
+        :return content for DQL/SHOW/DESCRIBE/EXPLAIN,
+                the affected row count for `DML` (-1 means unknown),
+                or a string message ("OK") for other statements.
+        """
+        return self._j_tenv.executeSql(stmt)
+
     def sql_update(self, stmt):
         """
         Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement

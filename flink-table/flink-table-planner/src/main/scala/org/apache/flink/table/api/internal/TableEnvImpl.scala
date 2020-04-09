@@ -540,6 +540,10 @@ abstract class TableEnvImpl(
     }
   }
 
+  override def executeSql(statement: String): TableResult = {
+    throw new UnsupportedOperationException("To be implemented")
+  }
+
   override def sqlUpdate(stmt: String): Unit = {
     val operations = parser.parse(stmt)
 

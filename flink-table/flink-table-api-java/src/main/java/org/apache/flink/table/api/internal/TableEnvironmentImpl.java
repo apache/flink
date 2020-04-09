@@ -30,6 +30,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -591,6 +592,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				"Unsupported SQL query! sqlQuery() only accepts a single SQL query of type " +
 					"SELECT, UNION, INTERSECT, EXCEPT, VALUES, and ORDER_BY.");
 		}
+	}
+
+	@Override
+	public TableResult executeSql(String statement) {
+		throw new UnsupportedOperationException("To be implemented");
 	}
 
 	@Override
