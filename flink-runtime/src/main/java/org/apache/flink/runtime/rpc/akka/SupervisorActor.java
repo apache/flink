@@ -156,7 +156,7 @@ class SupervisorActor extends AbstractActor {
 	}
 
 	public static ActorRef startSupervisorActor(ActorSystem actorSystem) {
-		final Props supervisorProps = Props.create(SupervisorActor.class);
+		final Props supervisorProps = Props.create(SupervisorActor.class).withDispatcher("akka.actor.supervisor-dispatcher");
 		return actorSystem.actorOf(supervisorProps, getActorName());
 	}
 
