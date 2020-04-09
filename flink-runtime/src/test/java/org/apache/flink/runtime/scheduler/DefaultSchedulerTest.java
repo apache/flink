@@ -35,8 +35,10 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -71,6 +73,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -711,6 +714,59 @@ public class DefaultSchedulerTest extends TestLogger {
 		assertThat(sourceVertex.getLocationConstraint().getSlotRequestId(), is(nullValue()));
 	}
 
+	@Test
+	public void pipelinedConsumablePartitionsAreNotifiedToSchedulingStrategy() throws Exception {
+		final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
+		final JobVertex source = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+
+		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
+		final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
+
+		startScheduling(scheduler);
+
+		final ExecutionVertex sourceVertex = scheduler.getExecutionVertex(new ExecutionVertexID(source.getID(), 0));
+		final ExecutionAttemptID sourceAttemptId = sourceVertex.getCurrentExecutionAttempt().getAttemptId();
+		final IntermediateResultPartitionID partitionID = sourceVertex.getProducedPartitions().keySet().iterator().next();
+		scheduler.scheduleOrUpdateConsumers(new ResultPartitionID(partitionID, sourceAttemptId));
+
+		final Set<IntermediateResultPartitionID> resultPartitionIds = schedulingStrategy.getReceivedConsumablePartitions();
+		assertThat(resultPartitionIds, hasSize(1));
+		assertEquals(partitionID, resultPartitionIds.iterator().next());
+	}
+
+	@Test
+	public void blockingConsumablePartitionsAreNotifiedToSchedulingStrategy() throws Exception {
+		final JobGraph jobGraph = sourceSinkJobGraph(2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+		final JobVertex source = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+
+		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
+		final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
+
+		startScheduling(scheduler);
+
+		final ExecutionVertex sourceVertex1 = scheduler.getExecutionVertex(new ExecutionVertexID(source.getID(), 0));
+		final ExecutionAttemptID sourceAttemptId1 = sourceVertex1.getCurrentExecutionAttempt().getAttemptId();
+		final ExecutionVertex sourceVertex2 = scheduler.getExecutionVertex(new ExecutionVertexID(source.getID(), 1));
+		final ExecutionAttemptID sourceAttemptId2 = sourceVertex2.getCurrentExecutionAttempt().getAttemptId();
+		schedulingStrategy.schedule(Arrays.asList(sourceVertex1.getID(), sourceVertex2.getID()));
+
+		scheduler.updateTaskExecutionState(
+			new TaskExecutionState(scheduler.getJobGraph().getJobID(), sourceAttemptId1, ExecutionState.FINISHED));
+
+		assertThat(schedulingStrategy.getReceivedConsumablePartitions(), is(nullValue()));
+
+		scheduler.updateTaskExecutionState(
+			new TaskExecutionState(scheduler.getJobGraph().getJobID(), sourceAttemptId2, ExecutionState.FINISHED));
+
+		final Set<IntermediateResultPartitionID> resultPartitionIds = schedulingStrategy.getReceivedConsumablePartitions();
+		final IntermediateResultPartitionID partitionID1 = sourceVertex1.getProducedPartitions().keySet().iterator().next();
+		final IntermediateResultPartitionID partitionID2 = sourceVertex2.getProducedPartitions().keySet().iterator().next();
+		assertThat(resultPartitionIds, hasSize(2));
+		assertThat(resultPartitionIds, containsInAnyOrder(partitionID1, partitionID2));
+	}
+
 	private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {
 		final JobVertex v = new JobVertex(name);
 		v.setParallelism(parallelism);
@@ -744,18 +800,28 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	private static JobGraph nonParallelSourceSinkJobGraph() {
+		return sourceSinkJobGraph(1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+	}
+
+	private static JobGraph sourceSinkJobGraph(
+			final int parallelism,
+			final DistributionPattern distributionPattern,
+			final ResultPartitionType resultPartitionType) {
+
 		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		final JobVertex source = new JobVertex("source");
 		source.setInvokableClass(NoOpInvokable.class);
+		source.setParallelism(parallelism);
 		jobGraph.addVertex(source);
 
 		final JobVertex sink = new JobVertex("sink");
 		sink.setInvokableClass(NoOpInvokable.class);
+		sink.setParallelism(parallelism);
 		jobGraph.addVertex(sink);
 
-		sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+		sink.connectNewDataSetAsInput(source, distributionPattern, resultPartitionType);
 
 		return jobGraph;
 	}

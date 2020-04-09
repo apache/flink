@@ -50,6 +50,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
+import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
@@ -497,6 +498,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 			if (isNotifiable(executionVertexId.get(), taskExecutionState)) {
 				updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
 			}
+
+			maybeNotifyBlockingPartitionsConsumable(executionVertexId.get());
 			return true;
 		} else {
 			return false;
@@ -526,6 +529,26 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 
 		return false;
+	}
+
+	private void maybeNotifyBlockingPartitionsConsumable(final ExecutionVertexID executionVertexId) {
+		final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
+
+		if (executionVertex.getExecutionState() != ExecutionState.FINISHED) {
+			return;
+		}
+
+		final Set<IntermediateResultPartitionID> consumableResultPartitions = new HashSet<>();
+		for (IntermediateResultPartition resultPartition : executionVertex.getProducedPartitions().values()) {
+			if (resultPartition.getResultType().isBlocking() && resultPartition.isConsumable()) {
+				// this partition is the last finished partition of the intermediate result
+				// all partitions in that intermediate result become consumable now
+				for (IntermediateResultPartition finishedPartition : resultPartition.getIntermediateResult().getPartitions()) {
+					consumableResultPartitions.add(finishedPartition.getPartitionId());
+				}
+			}
+		}
+		notifyPartitionConsumable(consumableResultPartitions);
 	}
 
 	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {

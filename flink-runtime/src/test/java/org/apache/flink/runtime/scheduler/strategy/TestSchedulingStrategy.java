@@ -43,6 +43,8 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 
 	private Set<ExecutionVertexID> receivedVerticesToRestart;
 
+	private Set<IntermediateResultPartitionID> receivedConsumablePartitions;
+
 	public TestSchedulingStrategy(
 			final SchedulerOperations schedulerOperations,
 			final SchedulingTopology<?, ?> schedulingTopology) {
@@ -66,6 +68,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 
 	@Override
 	public void onPartitionConsumable(final Set<IntermediateResultPartitionID> resultPartitionIds) {
+		this.receivedConsumablePartitions = resultPartitionIds;
 	}
 
 	public void schedule(final List<ExecutionVertexID> verticesToSchedule) {
@@ -78,6 +81,10 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 
 	public Set<ExecutionVertexID> getReceivedVerticesToRestart() {
 		return receivedVerticesToRestart;
+	}
+
+	public Set<IntermediateResultPartitionID> getReceivedConsumablePartitions() {
+		return receivedConsumablePartitions;
 	}
 
 	private void allocateSlotsAndDeploy(final List<ExecutionVertexID> verticesToSchedule) {
