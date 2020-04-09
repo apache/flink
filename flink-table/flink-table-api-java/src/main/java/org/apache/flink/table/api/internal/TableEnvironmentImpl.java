@@ -137,7 +137,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"DROP FUNCTION, ALTER FUNCTION";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE.";
+			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
+			"CREATE FUNCTION";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -611,7 +612,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof AlterTableOperation ||
 				operation instanceof CreateDatabaseOperation ||
 				operation instanceof DropDatabaseOperation ||
-				operation instanceof AlterDatabaseOperation) {
+				operation instanceof AlterDatabaseOperation ||
+				operation instanceof CreateCatalogFunctionOperation ||
+				operation instanceof CreateTempSystemFunctionOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -634,15 +637,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof AlterTableOperation ||
 				operation instanceof CreateDatabaseOperation ||
 				operation instanceof DropDatabaseOperation ||
-				operation instanceof AlterDatabaseOperation) {
+				operation instanceof AlterDatabaseOperation ||
+				operation instanceof CreateCatalogFunctionOperation ||
+				operation instanceof CreateTempSystemFunctionOperation) {
 			executeOperation(operation);
-		} else if (operation instanceof CreateCatalogFunctionOperation) {
-			CreateCatalogFunctionOperation createCatalogFunctionOperation = (CreateCatalogFunctionOperation) operation;
-			createCatalogFunction(createCatalogFunctionOperation);
-		} else if (operation instanceof CreateTempSystemFunctionOperation) {
-			CreateTempSystemFunctionOperation createtempSystemFunctionOperation =
-				(CreateTempSystemFunctionOperation) operation;
-			createSystemFunction(createtempSystemFunctionOperation);
 		} else if (operation instanceof AlterCatalogFunctionOperation) {
 			AlterCatalogFunctionOperation alterCatalogFunctionOperation = (AlterCatalogFunctionOperation) operation;
 			alterCatalogFunction(alterCatalogFunctionOperation);
@@ -757,6 +755,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			} catch (Exception e) {
 				throw new TableException(exMsg, e);
 			}
+		} else if (operation instanceof CreateCatalogFunctionOperation) {
+			return createCatalogFunction((CreateCatalogFunctionOperation) operation);
+		} else if (operation instanceof CreateTempSystemFunctionOperation) {
+			return createSystemFunction((CreateTempSystemFunctionOperation) operation);
 		} else {
 			throw new TableException("Unsupported operation: " + operation);
 		}
@@ -910,7 +912,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			.map(CatalogManager.TableLookupResult::getTable);
 	}
 
-	private void createCatalogFunction(CreateCatalogFunctionOperation createCatalogFunctionOperation) {
+	private TableResult createCatalogFunction(
+			CreateCatalogFunctionOperation createCatalogFunctionOperation) {
 		String exMsg = getDDLOpExecuteErrorMsg(createCatalogFunctionOperation.asSummaryString());
 		try {
 			CatalogFunction function = createCatalogFunctionOperation.getCatalogFunction();
@@ -935,6 +938,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					createCatalogFunctionOperation.getCatalogFunction(),
 					createCatalogFunctionOperation.isIgnoreIfExists());
 			}
+			return TableResultImpl.TABLE_RESULT_OK;
 		} catch (ValidationException e) {
 			throw e;
 		} catch (FunctionAlreadyExistException e) {
@@ -993,7 +997,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 	}
 
-	private void createSystemFunction(CreateTempSystemFunctionOperation operation) {
+	private TableResult createSystemFunction(CreateTempSystemFunctionOperation operation) {
 		String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
 		try {
 				boolean exist = functionCatalog.hasTemporarySystemFunction(operation.getFunctionName());
@@ -1008,6 +1012,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						String.format("Temporary system function %s is already defined",
 							operation.getFunctionName()));
 				}
+			return TableResultImpl.TABLE_RESULT_OK;
 		} catch (ValidationException e) {
 			throw e;
 		} catch (Exception e) {

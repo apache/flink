@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{ResultKind, TableException}
 import org.apache.flink.table.catalog.ObjectPath
+import org.apache.flink.table.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 
@@ -124,6 +125,23 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .databaseExists("db1"))
+  }
+
+  @Test
+  def testExecuteSqlWithCreateFunction(): Unit = {
+    val util = batchTestUtil()
+    val funcName = classOf[TestUDF].getName
+
+    val tableResult1 = util.tableEnv.executeSql(
+      s"CREATE FUNCTION default_database.f1 AS '$funcName'")
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .functionExists(ObjectPath.fromString("default_database.f1")))
+
+    val tableResult2 = util.tableEnv.executeSql(
+      s"CREATE TEMPORARY SYSTEM FUNCTION default_database.f2 AS '$funcName'")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertTrue(util.tableEnv.listUserDefinedFunctions().contains("f2"))
   }
 
   @Test
