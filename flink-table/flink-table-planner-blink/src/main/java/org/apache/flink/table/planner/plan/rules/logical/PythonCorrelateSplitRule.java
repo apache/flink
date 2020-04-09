@@ -60,7 +60,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		FlinkLogicalTableFunctionScan scan,
 		ScalarFunctionSplitter splitter) {
 		RexCall rightRexCall = (RexCall) scan.getCall();
-		// extract Java funcs of Python TableFunction or Python funcs of Java TableFunction.
+		// extract Java funcs from Python TableFunction or Python funcs from Java TableFunction.
 		List<RexNode> rightCalcProjects = rightRexCall
 			.getOperands()
 			.stream()
@@ -98,7 +98,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		return false;
 	}
 
-	private List<String> createNewFiledNames(
+	private List<String> createNewFieldNames(
 		RelDataType rowType,
 		RexBuilder rexBuilder,
 		int primitiveFieldCount,
@@ -134,7 +134,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		// add the fields of the primitive left input.
 		List<RexNode> leftCalcProjects = new LinkedList<>();
 		RelDataType leftRowType = left.getRowType();
-		List<String> leftCalcCalcFieldNames = createNewFiledNames(
+		List<String> leftCalcCalcFieldNames = createNewFieldNames(
 			leftRowType,
 			rexBuilder,
 			leftRowType.getFieldCount(),
@@ -190,19 +190,11 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		int primitiveLeftFieldCount,
 		ArrayBuffer<RexCall> extractedRexCalls,
 		boolean isJavaTableFunction) {
-		if (isJavaTableFunction) {
-			return new ScalarFunctionSplitter(
-				primitiveLeftFieldCount,
-				extractedRexCalls,
-				x -> PythonUtil.isPythonCall(x, null)
-			);
-		} else {
-			return new ScalarFunctionSplitter(
-				primitiveLeftFieldCount,
-				extractedRexCalls,
-				PythonUtil::isNonPythonCall
-			);
-		}
+		return new ScalarFunctionSplitter(
+			primitiveLeftFieldCount,
+			extractedRexCalls,
+			isJavaTableFunction ? x -> PythonUtil.isPythonCall(x, null) : PythonUtil::isNonPythonCall
+		);
 	}
 
 	@Override
