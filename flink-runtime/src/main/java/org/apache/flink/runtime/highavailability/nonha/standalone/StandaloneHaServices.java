@@ -48,9 +48,6 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	/** The fix address of the Dispatcher */
 	private final String dispatcherAddress;
 
-	/** The fix address of the JobManager */
-	private final String jobManagerAddress;
-
 	private final String clusterRestEndpointAddress;
 
 	/**
@@ -62,11 +59,9 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	public StandaloneHaServices(
 			String resourceManagerAddress,
 			String dispatcherAddress,
-			String jobManagerAddress,
 			String clusterRestEndpointAddress) {
 		this.resourceManagerAddress = checkNotNull(resourceManagerAddress, "resourceManagerAddress");
 		this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
-		this.jobManagerAddress = checkNotNull(jobManagerAddress, "jobManagerAddress");
 		this.clusterRestEndpointAddress = checkNotNull(clusterRestEndpointAddress, clusterRestEndpointAddress);
 	}
 
@@ -116,7 +111,7 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 		synchronized (lock) {
 			checkNotShutdown();
 
-			return new StandaloneLeaderRetrievalService(jobManagerAddress, DEFAULT_LEADER_ID);
+			return new StandaloneLeaderRetrievalService("UNKNOWN", DEFAULT_LEADER_ID);
 		}
 	}
 
