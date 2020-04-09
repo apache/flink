@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
+
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -51,5 +56,13 @@ public final class PythonTestUtils {
 		inputReceivers.put("input", windowedValueReceiverSpy);
 		when(remoteBundleSpy.getInputReceivers()).thenReturn(inputReceivers);
 		return jobBundleFactorySpy;
+	}
+
+	public static FlinkMetricContainer createMockFlinkMetricContainer() {
+		return new FlinkMetricContainer(
+			new GenericMetricGroup(
+				NoOpMetricRegistry.INSTANCE,
+				new MetricGroupTest.DummyAbstractMetricGroup(NoOpMetricRegistry.INSTANCE),
+				"root"));
 	}
 }

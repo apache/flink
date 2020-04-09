@@ -28,9 +28,10 @@ import org.apache.flink.table.planner.utils.BaseRowTestUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
+import org.apache.flink.util.function.FunctionWithException
+
 import org.junit.Assert
 import java.util
-import java.util.function
 
 import scala.collection.JavaConverters._
 
@@ -64,7 +65,7 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
       args: (CodeGenOperatorFactory[BaseRow], RowType, RowType),
       input: Array[BaseRow], expectedOutput: Array[GenericRow]): Unit = {
     val testHarness = new OneInputStreamTaskTestHarness[BaseRow, BaseRow](
-      new function.Function[Environment, OneInputStreamTask[BaseRow, BaseRow]] {
+      new FunctionWithException[Environment, OneInputStreamTask[BaseRow, BaseRow], Exception] {
         override def apply(t: Environment) = new OneInputStreamTask(t)
       }, 1, 1, BaseRowTypeInfo.of(args._2), BaseRowTypeInfo.of(args._3))
     testHarness.memorySize = 32 * 100 * 1024

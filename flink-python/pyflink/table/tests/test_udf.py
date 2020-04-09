@@ -15,6 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
+
+import pytz
+import unittest
+
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
@@ -26,6 +31,8 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
 class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
+        # test metric disabled.
+        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'false')
         # test lambda function
         self.t_env.register_function(
             "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
@@ -176,14 +183,14 @@ class UserDefinedFunctionTests(object):
                                                       DataTypes.SMALLINT(),
                                                       DataTypes.INT(),
                                                       DataTypes.BIGINT(),
-                                                      DataTypes.DECIMAL(20, 10),
+                                                      DataTypes.DECIMAL(38, 18),
                                                       DataTypes.FLOAT(),
                                                       DataTypes.DOUBLE(),
                                                       DataTypes.BOOLEAN(),
                                                       DataTypes.STRING(),
                                                       DataTypes.DATE(),
                                                       DataTypes.TIME(),
-                                                      DataTypes.TIMESTAMP()],
+                                                      DataTypes.TIMESTAMP(3)],
                                          result_type=DataTypes.BIGINT()))
 
         self.t_env.register_function(
@@ -234,6 +241,7 @@ class UserDefinedFunctionTests(object):
         self.assert_equals(actual, ["2", "6", "3"])
 
     def test_open(self):
+        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
         self.t_env.register_function(
             "subtract", udf(Subtract(), DataTypes.BIGINT(), DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
@@ -388,10 +396,10 @@ class UserDefinedFunctionTests(object):
             "date_func", udf(date_func, [DataTypes.DATE()], DataTypes.DATE()))
 
         self.t_env.register_function(
-            "time_func", udf(time_func, [DataTypes.TIME(3)], DataTypes.TIME(3)))
+            "time_func", udf(time_func, [DataTypes.TIME()], DataTypes.TIME()))
 
         self.t_env.register_function(
-            "timestamp_func", udf(timestamp_func, [DataTypes.TIMESTAMP()], DataTypes.TIMESTAMP()))
+            "timestamp_func", udf(timestamp_func, [DataTypes.TIMESTAMP(3)], DataTypes.TIMESTAMP(3)))
 
         self.t_env.register_function(
             "array_func", udf(array_func, [DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT()))],
@@ -414,8 +422,8 @@ class UserDefinedFunctionTests(object):
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
              DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT(),
              DataTypes.FLOAT(), DataTypes.DOUBLE(), DataTypes.BYTES(),
-             DataTypes.STRING(), DataTypes.DATE(), DataTypes.TIME(3),
-             DataTypes.TIMESTAMP(), DataTypes.ARRAY(DataTypes.BIGINT()),
+             DataTypes.STRING(), DataTypes.DATE(), DataTypes.TIME(),
+             DataTypes.TIMESTAMP(3), DataTypes.ARRAY(DataTypes.BIGINT()),
              DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING()),
              DataTypes.DECIMAL(38, 18), DataTypes.DECIMAL(38, 18)])
         self.t_env.register_table_sink("Results", table_sink)
@@ -441,8 +449,8 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("i", DataTypes.BYTES()),
                  DataTypes.FIELD("j", DataTypes.STRING()),
                  DataTypes.FIELD("k", DataTypes.DATE()),
-                 DataTypes.FIELD("l", DataTypes.TIME(3)),
-                 DataTypes.FIELD("m", DataTypes.TIMESTAMP()),
+                 DataTypes.FIELD("l", DataTypes.TIME()),
+                 DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
                  DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT()))),
                  DataTypes.FIELD("o", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())),
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
@@ -562,6 +570,36 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             self.t_env.register_function(
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
+    def test_data_types_only_supported_in_blink_planner(self):
+        timezone = self.t_env.get_config().get_local_timezone()
+        local_datetime = pytz.timezone(timezone).localize(
+            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+
+        def local_zoned_timestamp_func(local_zoned_timestamp_param):
+            assert local_zoned_timestamp_param == local_datetime, \
+                'local_zoned_timestamp_param is wrong value %s !' % local_zoned_timestamp_param
+            return local_zoned_timestamp_param
+
+        self.t_env.register_function(
+            "local_zoned_timestamp_func",
+            udf(local_zoned_timestamp_func,
+                [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)],
+                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)))
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a'], [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        t = self.t_env.from_elements(
+            [(local_datetime,)],
+            DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
+
+        t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))") \
+            .insert_into("Results")
+        self.t_env.execute("test")
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["1970-01-01T00:00:00.123Z"])
+
 
 class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
                                                 PyFlinkBlinkBatchTableTestCase):
@@ -579,15 +617,19 @@ class SubtractOne(ScalarFunction):
         return i - 1
 
 
-class Subtract(ScalarFunction):
-
-    def __init__(self):
-        self.subtracted_value = 0
+class Subtract(ScalarFunction, unittest.TestCase):
 
     def open(self, function_context):
         self.subtracted_value = 1
+        mg = function_context.get_metric_group()
+        self.counter = mg.add_group("key", "value").counter("my_counter")
+        self.counter_sum = 0
 
     def eval(self, i):
+        # counter
+        self.counter.inc(i)
+        self.counter_sum += i
+        self.assertEqual(self.counter_sum, self.counter.get_count())
         return i - self.subtracted_value
 
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.CatalogReader;
@@ -40,6 +41,7 @@ import org.apache.flink.table.expressions.RexPlannerExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
@@ -231,35 +233,43 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public <U> RelNode visit(CalculatedQueryOperation<U> calculatedTable) {
-			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
-			int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
-			TypeInformation<U> resultType = calculatedTable.getResultType();
-
-			FlinkTableFunctionImpl function = new FlinkTableFunctionImpl<>(
-				resultType,
-				fieldIndices,
-				fieldNames);
-			TableFunction<?> tableFunction = calculatedTable.getTableFunction();
-
+		public RelNode visit(CalculatedQueryOperation calculatedTable) {
 			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
-			TableSqlFunction sqlFunction = new TableSqlFunction(
-				tableFunction.functionIdentifier(),
-				tableFunction.toString(),
-				tableFunction,
-				resultType,
-				typeFactory,
-				function);
+			if (calculatedTable.getFunctionDefinition() instanceof TableFunctionDefinition) {
+				TableFunctionDefinition functionDefinition =
+					(TableFunctionDefinition) calculatedTable.getFunctionDefinition();
 
-			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
+				String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
+				int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
 
-			return LogicalTableFunctionScan.create(
-				relBuilder.peek().getCluster(),
-				Collections.emptyList(),
-				relBuilder.call(sqlFunction, parameters),
-				function.getElementType(null),
-				function.getRowType(typeFactory, null),
-				null);
+				TableFunction<?> tableFunction = functionDefinition.getTableFunction();
+				TypeInformation<?> rowType = functionDefinition.getResultType();
+				FlinkTableFunctionImpl<?> function = new FlinkTableFunctionImpl<>(
+					rowType,
+					fieldIndices,
+					fieldNames
+				);
+
+				final TableSqlFunction sqlFunction = new TableSqlFunction(
+					tableFunction.functionIdentifier(),
+					tableFunction.toString(),
+					tableFunction,
+					rowType,
+					typeFactory,
+					function);
+
+				List<RexNode> parameters = convertToRexNodes(calculatedTable.getArguments());
+				return LogicalTableFunctionScan.create(
+					relBuilder.peek().getCluster(),
+					Collections.emptyList(),
+					relBuilder.call(sqlFunction, parameters),
+					function.getElementType(null),
+					function.getRowType(typeFactory, null),
+					null);
+			}
+
+			throw new ValidationException(
+				"The new type inference for functions is only supported in the Blink planner.");
 		}
 
 		@Override
@@ -285,7 +295,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			} else if (other instanceof DataSetQueryOperation) {
 				return convertToDataSetScan((DataSetQueryOperation<?>) other);
 			} else if (other instanceof ScalaDataStreamQueryOperation) {
-				ScalaDataStreamQueryOperation dataStreamQueryOperation =
+				ScalaDataStreamQueryOperation<?> dataStreamQueryOperation =
 					(ScalaDataStreamQueryOperation<?>) other;
 				return convertToDataStreamScan(
 					dataStreamQueryOperation.getDataStream(),

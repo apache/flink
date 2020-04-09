@@ -33,7 +33,10 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Optionality;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
@@ -55,7 +58,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 
 	private final FlinkTypeFactory typeFactory;
 
-	private final FunctionIdentifier identifier;
+	private final @Nullable FunctionIdentifier identifier;
 
 	private final FunctionDefinition definition;
 
@@ -67,11 +70,11 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 			DataTypeFactory dataTypeFactory,
 			FlinkTypeFactory typeFactory,
 			SqlKind kind,
-			FunctionIdentifier identifier,
+			@Nullable FunctionIdentifier identifier,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
 		super(
-			createName(identifier),
+			createName(identifier, definition),
 			createSqlIdentifier(identifier),
 			kind,
 			createSqlReturnTypeInference(dataTypeFactory, definition, typeInference),
@@ -130,8 +133,8 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 		return typeFactory;
 	}
 
-	public FunctionIdentifier getIdentifier() {
-		return identifier;
+	public Optional<FunctionIdentifier> getIdentifier() {
+		return Optional.ofNullable(identifier);
 	}
 
 	public FunctionDefinition getDefinition() {

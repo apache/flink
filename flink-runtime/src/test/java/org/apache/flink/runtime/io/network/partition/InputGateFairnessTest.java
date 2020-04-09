@@ -331,7 +331,9 @@ public class InputGateFairnessTest {
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels) {
 
-			super(owningTaskName,
+			super(
+				owningTaskName,
+				0,
 				consumedResultId,
 				ResultPartitionType.PIPELINED,
 				consumedSubpartitionIndex,

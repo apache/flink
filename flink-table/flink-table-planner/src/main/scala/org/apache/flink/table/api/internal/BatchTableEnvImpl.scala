@@ -130,7 +130,7 @@ abstract class BatchTableEnvImpl(
         // translate the Table into a DataSet and provide the type that the TableSink expects.
         val result: DataSet[T] = translate(table)(outputType)
         // Give the DataSet to the TableSink to emit it.
-        batchSink.emitDataSet(result)
+        batchSink.consumeDataSet(result)
       case boundedSink: OutputFormatTableSink[T] =>
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]

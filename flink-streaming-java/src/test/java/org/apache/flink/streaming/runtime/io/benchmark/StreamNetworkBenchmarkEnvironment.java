@@ -264,10 +264,11 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	private InputGate createInputGateWithMetrics(
 		SingleInputGateFactory gateFactory,
 		InputGateDeploymentDescriptor gateDescriptor,
-		int channelIndex) {
+		int gateIndex) {
 
 		final SingleInputGate singleGate = gateFactory.create(
-			"receiving task[" + channelIndex + "]",
+			"receiving task[" + gateIndex + "]",
+			gateIndex,
 			gateDescriptor,
 			SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 			InputChannelTestUtils.newUnregisteredInputChannelMetrics());

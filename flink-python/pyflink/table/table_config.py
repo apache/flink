@@ -18,10 +18,10 @@
 
 from py4j.compat import long
 
-from pyflink.common import Configuration
+from pyflink.common.configuration import Configuration
 from pyflink.common.dependency_manager import DependencyManager
 from pyflink.java_gateway import get_gateway
-from pyflink.table import SqlDialect
+from pyflink.table.sql_dialect import SqlDialect
 
 __all__ = ['TableConfig']
 

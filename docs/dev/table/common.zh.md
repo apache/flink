@@ -950,6 +950,8 @@ val table2: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
 
 {% top %}
 
+<a name="convert-a-table-into-a-datastream"></a>
+
 ### 将表转换成 DataStream 或 DataSet
 
 `Table` 可以被转换成 `DataStream` 或 `DataSet`。通过这种方式，定制的 DataSet 或 DataStream 程序就可以在 Table API 或者 SQL 的查询结果上运行了。

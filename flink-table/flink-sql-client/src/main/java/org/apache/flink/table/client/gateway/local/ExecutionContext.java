@@ -271,12 +271,14 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	public Pipeline createPipeline(String name) {
-		if (streamExecEnv != null) {
-			StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
-			return streamTableEnv.getPipeline(name);
-		} else {
-			return execEnv.createProgramPlan(name);
-		}
+		return wrapClassLoader(() -> {
+			if (streamExecEnv != null) {
+				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
+				return streamTableEnv.getPipeline(name);
+			} else {
+				return execEnv.createProgramPlan(name);
+			}
+		});
 	}
 
 	/** Returns a builder for this {@link ExecutionContext}. */

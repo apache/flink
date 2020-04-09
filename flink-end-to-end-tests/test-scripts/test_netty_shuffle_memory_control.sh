@@ -33,8 +33,8 @@ set_config_key "taskmanager.numberOfTaskSlots" "20"
 # Sets only one arena per TM for boosting the netty internal memory overhead.
 set_config_key "taskmanager.network.netty.num-arenas" "1"
 
-# Limits the direct memory to be one chunk (16M) plus some margins.
-set_config_key "taskmanager.memory.framework.off-heap.size" "20m"
+# Limits the direct memory to be one chunk (4M) plus some margins.
+set_config_key "taskmanager.memory.framework.off-heap.size" "7m"
 
 # Starts the cluster which includes one TaskManager.
 start_cluster

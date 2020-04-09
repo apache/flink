@@ -168,8 +168,8 @@ Calc(select=[a])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
-+- LogicalAggregate(group=[{4}], EXPR$0=[SUM($0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], k=[org$apache$flink$table$planner$plan$batch$table$CalcTest$MyHashCode$$1945176195778b1bff1a30c41ce16445($2)])
++- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
+   +- LogicalProject(a=[$0], k=[org$apache$flink$table$planner$plan$batch$table$CalcTest$MyHashCode$$1945176195778b1bff1a30c41ce16445($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -179,7 +179,7 @@ Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[k], select=[k, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[k]])
       +- LocalHashAggregate(groupBy=[k], select=[k, Partial_SUM(a) AS sum$0])
-         +- Calc(select=[a, b, c, d, MyHashCode$(c) AS k])
+         +- Calc(select=[a, MyHashCode$(c) AS k])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -188,8 +188,8 @@ Calc(select=[EXPR$0])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
-+- LogicalAggregate(group=[{4}], EXPR$0=[SUM($0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], k=[UPPER($2)])
++- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
+   +- LogicalProject(a=[$0], k=[UPPER($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -199,7 +199,7 @@ Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[k], select=[k, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[k]])
       +- LocalHashAggregate(groupBy=[k], select=[k, Partial_SUM(a) AS sum$0])
-         +- Calc(select=[a, b, c, d, UPPER(c) AS k])
+         +- Calc(select=[a, UPPER(c) AS k])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>

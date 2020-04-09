@@ -95,4 +95,17 @@ public class PythonOptionsTest {
 		final int actualArrowBatchSize = configuration.getInteger(PythonOptions.MAX_ARROW_BATCH_SIZE);
 		assertThat(actualArrowBatchSize, is(equalTo(expectedArrowBatchSize)));
 	}
+
+	@Test
+	public void testPythonMetricEnabled() {
+		final Configuration configuration = new Configuration();
+		final boolean isMetricEnabled = configuration.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
+		assertThat(isMetricEnabled, is(equalTo(PythonOptions.PYTHON_METRIC_ENABLED.defaultValue())));
+
+		final boolean expectedIsMetricEnabled = false;
+		configuration.setBoolean(PythonOptions.PYTHON_METRIC_ENABLED, false);
+
+		final boolean actualIsMetricEnabled = configuration.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
+		assertThat(actualIsMetricEnabled, is(equalTo(expectedIsMetricEnabled)));
+	}
 }

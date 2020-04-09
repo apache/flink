@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
@@ -308,7 +307,7 @@ public class ExecutionGraphTestUtils {
 	public static ExecutionGraph createSimpleTestGraph(RestartStrategy restartStrategy) throws Exception {
 		JobVertex vertex = createNoOpVertex(10);
 
-		return createSimpleTestGraph(new JobID(), new SimpleAckingTaskManagerGateway(), restartStrategy, vertex);
+		return createSimpleTestGraph(new SimpleAckingTaskManagerGateway(), restartStrategy, vertex);
 	}
 
 	/**
@@ -316,15 +315,14 @@ public class ExecutionGraphTestUtils {
 	 *
 	 * <p>The execution graph uses {@link NoRestartStrategy} as the restart strategy.
 	 */
-	public static ExecutionGraph createSimpleTestGraph(JobID jid, JobVertex... vertices) throws Exception {
-		return createSimpleTestGraph(jid, new SimpleAckingTaskManagerGateway(), new NoRestartStrategy(), vertices);
+	public static ExecutionGraph createSimpleTestGraph(JobVertex... vertices) throws Exception {
+		return createSimpleTestGraph(new SimpleAckingTaskManagerGateway(), new NoRestartStrategy(), vertices);
 	}
 
 	/**
 	 * Creates an execution graph containing the given vertices and the given restart strategy.
 	 */
 	public static ExecutionGraph createSimpleTestGraph(
-			JobID jid,
 			TaskManagerGateway taskManagerGateway,
 			RestartStrategy restartStrategy,
 			JobVertex... vertices) throws Exception {
@@ -334,39 +332,35 @@ public class ExecutionGraphTestUtils {
 			numSlotsNeeded += vertex.getParallelism();
 		}
 
-		SlotProvider slotProvider = new SimpleSlotProvider(jid, numSlotsNeeded, taskManagerGateway);
+		SlotProvider slotProvider = new SimpleSlotProvider(numSlotsNeeded, taskManagerGateway);
 
-		return createSimpleTestGraph(jid, slotProvider, restartStrategy, vertices);
+		return createSimpleTestGraph(slotProvider, restartStrategy, vertices);
 	}
 
 	public static ExecutionGraph createSimpleTestGraph(
-			JobID jid,
 			SlotProvider slotProvider,
 			RestartStrategy restartStrategy,
 			JobVertex... vertices) throws Exception {
 
-		return createExecutionGraph(jid, slotProvider, restartStrategy, TestingUtils.defaultExecutor(), vertices);
+		return createExecutionGraph(slotProvider, restartStrategy, TestingUtils.defaultExecutor(), vertices);
 	}
 
 	public static ExecutionGraph createExecutionGraph(
-			JobID jid,
 			SlotProvider slotProvider,
 			RestartStrategy restartStrategy,
 			ScheduledExecutorService executor,
 			JobVertex... vertices) throws Exception {
 
-			return createExecutionGraph(jid, slotProvider, restartStrategy, executor, Time.seconds(10L), vertices);
+			return createExecutionGraph(slotProvider, restartStrategy, executor, Time.seconds(10L), vertices);
 	}
 
 	public static ExecutionGraph createExecutionGraph(
-			JobID jid,
 			SlotProvider slotProvider,
 			RestartStrategy restartStrategy,
 			ScheduledExecutorService executor,
 			Time timeout,
 			JobVertex... vertices) throws Exception {
 
-		checkNotNull(jid);
 		checkNotNull(restartStrategy);
 		checkNotNull(vertices);
 		checkNotNull(timeout);

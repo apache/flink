@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	public TwoInputStreamTask(Environment env) {
+	public TwoInputStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 

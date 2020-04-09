@@ -128,10 +128,6 @@ object AggregateUtil extends Enumeration {
       require(auxGroupCalls.isEmpty,
         "AUXILIARY_GROUP aggCalls should be empty when groupSet is empty")
     }
-    if (agg.indicator) {
-      require(auxGroupCalls.isEmpty,
-        "AUXILIARY_GROUP aggCalls should be empty when indicator is true")
-    }
 
     val auxGrouping = auxGroupCalls.map(_.getArgList.head.toInt).toArray
     require(auxGrouping.length + otherAggCalls.length == aggCalls.length)

@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
@@ -34,8 +35,8 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
@@ -65,6 +66,7 @@ import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.operations.DataStreamQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -79,6 +81,7 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -93,6 +96,7 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
@@ -270,36 +274,69 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public <U> RelNode visit(CalculatedQueryOperation<U> calculatedTable) {
-			DataType resultType = fromLegacyInfoToDataType(calculatedTable.getResultType());
-			TableFunction<?> tableFunction = calculatedTable.getTableFunction();
+		public RelNode visit(CalculatedQueryOperation calculatedTable) {
+			FunctionDefinition functionDefinition = calculatedTable.getFunctionDefinition();
+			List<RexNode> parameters = convertToRexNodes(calculatedTable.getArguments());
+			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
+			if (functionDefinition instanceof TableFunctionDefinition) {
+				return convertLegacyTableFunction(
+					calculatedTable,
+					(TableFunctionDefinition) functionDefinition,
+					parameters,
+					typeFactory);
+			}
+
+			DataTypeFactory dataTypeFactory = ShortcutUtils.unwrapContext(relBuilder.getCluster())
+				.getCatalogManager()
+				.getDataTypeFactory();
+
+			final BridgingSqlFunction sqlFunction = BridgingSqlFunction.of(
+					dataTypeFactory,
+					typeFactory,
+					SqlKind.OTHER_FUNCTION,
+					calculatedTable.getFunctionIdentifier().orElse(null),
+					calculatedTable.getFunctionDefinition(),
+					calculatedTable.getFunctionDefinition().getTypeInference(dataTypeFactory));
+
+			return relBuilder.functionScan(
+				sqlFunction,
+				0,
+				parameters)
+				.rename(Arrays.asList(calculatedTable.getTableSchema().getFieldNames()))
+				.build();
+		}
+
+		private RelNode convertLegacyTableFunction(
+				CalculatedQueryOperation calculatedTable,
+				TableFunctionDefinition functionDefinition,
+				List<RexNode> parameters,
+				FlinkTypeFactory typeFactory) {
 			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
 
+			TableFunction<?> tableFunction = functionDefinition.getTableFunction();
+			DataType resultType = fromLegacyInfoToDataType(functionDefinition.getResultType());
 			TypedFlinkTableFunction function = new TypedFlinkTableFunction(
-					tableFunction, fieldNames, resultType);
+				tableFunction,
+				fieldNames,
+				resultType
+			);
 
-			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
-
-			TableSqlFunction sqlFunction = new TableSqlFunction(
-					FunctionIdentifier.of(tableFunction.functionIdentifier()),
-					tableFunction.toString(),
-					tableFunction,
-					resultType,
-					typeFactory,
-					function,
-					scala.Option.empty());
-
-			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
-
-			// TODO use relBuilder.functionScan() once we remove TableSqlFunction
+			final TableSqlFunction sqlFunction = new TableSqlFunction(
+				calculatedTable.getFunctionIdentifier().orElse(null),
+				tableFunction.toString(),
+				tableFunction,
+				resultType,
+				typeFactory,
+				function,
+				scala.Option.empty());
 			return LogicalTableFunctionScan.create(
-					relBuilder.peek().getCluster(),
-					Collections.emptyList(),
-					relBuilder.getRexBuilder()
-						.makeCall(function.getRowType(typeFactory), sqlFunction, parameters),
-					function.getElementType(null),
-					function.getRowType(typeFactory),
-					null);
+				relBuilder.peek().getCluster(),
+				Collections.emptyList(),
+				relBuilder.getRexBuilder()
+					.makeCall(function.getRowType(typeFactory), sqlFunction, parameters),
+				function.getElementType(null),
+				function.getRowType(typeFactory),
+				null);
 		}
 
 		@Override

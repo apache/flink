@@ -586,7 +586,7 @@ LogicalFilter(condition=[=($0, $cor0.a)])
   LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
 })], variablesSet=[[$cor0]])
    +- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
-      +- LogicalValues(type=[RecordType(INTEGER EXPR$0, INTEGER EXPR$1)], tuples=[[{ 1, 2 }]])
+      +- LogicalValues(tuples=[[{ 1, 2 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -594,7 +594,7 @@ LogicalFilter(condition=[=($0, $cor0.a)])
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[=($2, $0)], joinType=[semi])
    :- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
-   :  +- LogicalValues(type=[RecordType(INTEGER EXPR$0, INTEGER EXPR$1)], tuples=[[{ 1, 2 }]])
+   :  +- LogicalValues(tuples=[[{ 1, 2 }]])
    +- LogicalProject(c=[$0])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])

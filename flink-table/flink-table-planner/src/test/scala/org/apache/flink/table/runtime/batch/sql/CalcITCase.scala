@@ -96,7 +96,7 @@ class CalcITCase(
     val sqlQuery = "SELECT * FROM MyTable"
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", ds, 'a, 'b, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -300,7 +300,7 @@ class CalcITCase(
       Date.valueOf("1984-07-12"),
       Time.valueOf("14:34:24"),
       Timestamp.valueOf("1984-07-12 14:34:24")))
-    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", ds, 'a, 'b, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -320,7 +320,7 @@ class CalcITCase(
     val rowValue = ("foo", 12, Timestamp.valueOf("1984-07-12 14:34:24"))
 
     val ds = env.fromElements(rowValue)
-    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", ds, 'a, 'b, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -345,7 +345,7 @@ class CalcITCase(
     tEnv.registerFunction("hashCode", MyHashCode)
 
     val ds = env.fromElements("a", "b", "c")
-    tEnv.registerDataSet("MyTable", ds, 'text)
+    tEnv.createTemporaryView("MyTable", ds, 'text)
 
     val result = tEnv.sqlQuery("SELECT hashCode(text) FROM MyTable")
 

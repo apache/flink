@@ -107,12 +107,20 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
       inputFieldType.getFieldList.get(index).getType
     }.map(FlinkTypeFactory.toLogicalType)
 
+    val partitionsFromSource = try {
+      Some(tableSource.getPartitions)
+    } catch {
+      case _: UnsupportedOperationException => None
+    }
+
     def getAllPartitions: util.List[util.Map[String, String]] = {
-      catalogOption match {
-        case Some(c) =>
-          c.listPartitions(tableIdentifier.toObjectPath)
-            .map(_.getPartitionSpec).toList
-        case None => tableSource.getPartitions
+      partitionsFromSource match {
+        case Some(parts) => parts
+        case None => catalogOption match {
+          case Some(catalog) =>
+            catalog.listPartitions(tableIdentifier.toObjectPath).map(_.getPartitionSpec).toList
+          case None => throw new TableException(s"The $tableSource must be a catalog.")
+        }
       }
     }
 
@@ -132,35 +140,39 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
       )
     }
 
-    val remainingPartitions: util.List[util.Map[String, String]] = catalogOption match {
-      case Some(catalog) =>
-        val converter = new RexNodeToExpressionConverter(
-          inputFields,
-          context.getFunctionCatalog,
-          context.getCatalogManager,
-          TimeZone.getTimeZone(config.getLocalTimeZone))
-        def toExpressions: Option[Seq[Expression]] = {
-          val expressions = new mutable.ArrayBuffer[Expression]()
-          for (predicate <- partitionPredicates) {
-            predicate.accept(converter) match {
-              case Some(expr) => expressions.add(expr)
-              case None => return None
+    val remainingPartitions: util.List[util.Map[String, String]] = partitionsFromSource match {
+      case Some(_) => internalPartitionPrune()
+      case None =>
+        catalogOption match {
+          case Some(catalog) =>
+            val converter = new RexNodeToExpressionConverter(
+              inputFields,
+              context.getFunctionCatalog,
+              context.getCatalogManager,
+              TimeZone.getTimeZone(config.getLocalTimeZone))
+            def toExpressions: Option[Seq[Expression]] = {
+              val expressions = new mutable.ArrayBuffer[Expression]()
+              for (predicate <- partitionPredicates) {
+                predicate.accept(converter) match {
+                  case Some(expr) => expressions.add(expr)
+                  case None => return None
+                }
+              }
+              Some(expressions)
             }
-          }
-          Some(expressions)
-        }
-        toExpressions match {
-          case Some(expressions) =>
-            try {
-              catalog
-                  .listPartitionsByFilter(tableIdentifier.toObjectPath, expressions)
-                  .map(_.getPartitionSpec)
-            } catch {
-              case _: UnsupportedOperationException => internalPartitionPrune()
+            toExpressions match {
+              case Some(expressions) =>
+                try {
+                  catalog
+                      .listPartitionsByFilter(tableIdentifier.toObjectPath, expressions)
+                      .map(_.getPartitionSpec)
+                } catch {
+                  case _: UnsupportedOperationException => internalPartitionPrune()
+                }
+              case None => internalPartitionPrune()
             }
           case None => internalPartitionPrune()
         }
-      case None => internalPartitionPrune()
     }
 
     val newTableSource = tableSource.applyPartitionPruning(remainingPartitions)

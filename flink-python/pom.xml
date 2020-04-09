@@ -94,6 +94,11 @@ under the License.
 			<artifactId>beam-runners-java-fn-execution</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.beam</groupId>
+			<artifactId>beam-runners-core-java</artifactId>
+		</dependency>
+
 		<!-- Protobuf dependencies -->
 
 		<dependency>
@@ -193,6 +198,12 @@ under the License.
 			<dependency>
 				<groupId>org.apache.beam</groupId>
 				<artifactId>beam-runners-java-fn-execution</artifactId>
+				<version>${beam.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.beam</groupId>
+				<artifactId>beam-runners-core-java</artifactId>
 				<version>${beam.version}</version>
 			</dependency>
 

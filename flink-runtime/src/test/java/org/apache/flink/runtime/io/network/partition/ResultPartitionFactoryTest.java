@@ -112,6 +112,6 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			true
 		);
 
-		return factory.create("test", descriptor);
+		return factory.create("test", 0, descriptor);
 	}
 }

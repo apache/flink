@@ -70,6 +70,8 @@ import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -97,6 +99,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -174,8 +177,17 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 
 		// create HiveConf from hadoop configuration
-		return new HiveConf(HadoopUtils.getHadoopConfiguration(new org.apache.flink.configuration.Configuration()),
-			HiveConf.class);
+		Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(new org.apache.flink.configuration.Configuration());
+
+		// Add mapred-site.xml. We need to read configurations like compression codec.
+		for (String possibleHadoopConfPath : HadoopUtils.possibleHadoopConfPaths(new org.apache.flink.configuration.Configuration())) {
+			File mapredSite = new File(new File(possibleHadoopConfPath), "mapred-site.xml");
+			if (mapredSite.exists()) {
+				hadoopConf.addResource(new Path(mapredSite.getAbsolutePath()));
+				break;
+			}
+		}
+		return new HiveConf(hadoopConf, HiveConf.class);
 	}
 
 	@VisibleForTesting

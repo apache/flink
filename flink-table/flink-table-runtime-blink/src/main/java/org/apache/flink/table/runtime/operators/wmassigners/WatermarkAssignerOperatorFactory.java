@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
@@ -53,14 +51,18 @@ public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFact
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public StreamOperator createStreamOperator(StreamTask containingTask, StreamConfig config, Output output) {
-		WatermarkGenerator watermarkGenerator = generatedWatermarkGenerator.newInstance(containingTask.getUserCodeClassLoader());
+	public StreamOperator createStreamOperator(StreamOperatorParameters initializer) {
+		WatermarkGenerator watermarkGenerator = generatedWatermarkGenerator.newInstance(
+			initializer.getContainingTask().getUserCodeClassLoader());
 		WatermarkAssignerOperator operator = new WatermarkAssignerOperator(
 			rowtimeFieldIndex,
 			watermarkGenerator,
 			idleTimeout,
 			processingTimeService);
-		operator.setup(containingTask, config, output);
+		operator.setup(
+			initializer.getContainingTask(),
+			initializer.getStreamConfig(),
+			initializer.getOutput());
 		return operator;
 	}
 

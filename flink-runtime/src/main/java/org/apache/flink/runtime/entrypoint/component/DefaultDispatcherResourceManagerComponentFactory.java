@@ -178,7 +178,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				webMonitorEndpoint.getRestBaseUrl(),
 				resourceManagerMetricGroup);
 
-			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
+			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint, ioExecutor);
 
 			final PartialDispatcherServices partialDispatcherServices = new PartialDispatcherServices(
 				configuration,

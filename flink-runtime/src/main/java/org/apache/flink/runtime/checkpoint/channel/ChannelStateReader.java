@@ -18,6 +18,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
 import java.io.IOException;
 
@@ -42,7 +43,7 @@ public interface ChannelStateReader extends AutoCloseable {
 	 * Put data into the supplied buffer to be injected into
 	 * {@link org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition}.
 	 */
-	ReadResult readOutputData(ResultSubpartitionInfo info, Buffer buffer) throws IOException;
+	ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) throws IOException;
 
 	@Override
 	void close() throws Exception;
@@ -55,7 +56,7 @@ public interface ChannelStateReader extends AutoCloseable {
 		}
 
 		@Override
-		public ReadResult readOutputData(ResultSubpartitionInfo info, Buffer buffer) {
+		public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) {
 			return ReadResult.NO_MORE_DATA;
 		}
 

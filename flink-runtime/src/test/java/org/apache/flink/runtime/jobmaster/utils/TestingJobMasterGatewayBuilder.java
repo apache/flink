@@ -51,7 +51,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
@@ -85,7 +85,7 @@ public class TestingJobMasterGatewayBuilder {
 	private Consumer<ResourceManagerId> disconnectResourceManagerConsumer = ignored -> {};
 	private BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Collections.emptyList());
 	private TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer = (ignoredA, ignoredB, ignoredC) -> {};
-	private BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
+	private BiFunction<String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
 	private BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer = (ignoredA, ignoredB) -> {};
 	private Consumer<ResourceID> resourceManagerHeartbeatConsumer = ignored -> {};
 	private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier = () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -158,7 +158,7 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
-	public TestingJobMasterGatewayBuilder setRegisterTaskManagerFunction(BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction) {
+	public TestingJobMasterGatewayBuilder setRegisterTaskManagerFunction(BiFunction<String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction) {
 		this.registerTaskManagerFunction = registerTaskManagerFunction;
 		return this;
 	}

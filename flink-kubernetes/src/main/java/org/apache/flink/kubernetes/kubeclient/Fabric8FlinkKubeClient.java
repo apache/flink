@@ -127,8 +127,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	@Nullable
 	public Endpoint getRestEndpoint(String clusterId) {
 		int restPort = this.flinkConfig.getInteger(RestOptions.PORT);
-		final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
-			flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+		final KubernetesConfigOptions.ServiceExposedType serviceExposedType = flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
 
 		// Return the service.namespace directly when use ClusterIP.
 		if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
@@ -193,16 +192,24 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		LOG.error("A Kubernetes exception occurred.", e);
 	}
 
-	@Nullable
-	@Override
-	public KubernetesService getInternalService(String clusterId) {
-		return getService(KubernetesUtils.getInternalServiceName(clusterId));
-	}
-
 	@Override
 	@Nullable
 	public KubernetesService getRestService(String clusterId) {
-		return getService(KubernetesUtils.getRestServiceName(clusterId));
+		final String serviceName = KubernetesUtils.getRestServiceName(clusterId);
+
+		final Service service = this.internalClient
+			.services()
+			.inNamespace(nameSpace)
+			.withName(serviceName)
+			.fromServer()
+			.get();
+
+		if (service == null) {
+			LOG.debug("Service {} does not exist", serviceName);
+			return null;
+		}
+
+		return new KubernetesService(service);
 	}
 
 	@Override
@@ -254,23 +261,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 			.build();
 		resources.forEach(resource ->
 			resource.getMetadata().setOwnerReferences(Collections.singletonList(deploymentOwnerReference)));
-	}
-
-	private KubernetesService getService(String serviceName) {
-		final Service service = this
-			.internalClient
-			.services()
-			.inNamespace(nameSpace)
-			.withName(serviceName)
-			.fromServer()
-			.get();
-
-		if (service == null) {
-			LOG.debug("Service {} does not exist", serviceName);
-			return null;
-		}
-
-		return new KubernetesService(service);
 	}
 
 	/**

@@ -125,7 +125,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	private final Object checkpointLock;
 
-	private static final OperatorStateRepartitioner operatorStateRepartitioner =
+	private static final OperatorStateRepartitioner<OperatorStateHandle> operatorStateRepartitioner =
 			RoundRobinOperatorStateRepartitioner.INSTANCE;
 
 	/**
@@ -495,7 +495,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			}
 		}
 
-		operator.initializeState();
+		operator.initializeState(mockTask.createStreamTaskStateInitializer());
 		initializeCalled = true;
 	}
 

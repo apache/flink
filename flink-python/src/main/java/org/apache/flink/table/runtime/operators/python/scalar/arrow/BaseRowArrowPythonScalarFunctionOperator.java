@@ -37,6 +37,7 @@ import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Arrow Python {@link ScalarFunction} operator for the blink planner.
@@ -92,7 +93,8 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 	@Override
 	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager) {
+		PythonEnvironmentManager pythonEnvironmentManager,
+		Map<String, String> jobOptions) {
 		return new BaseRowArrowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
@@ -100,7 +102,9 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType,
-			getPythonConfig().getMaxArrowBatchSize());
+			getPythonConfig().getMaxArrowBatchSize(),
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 
 	@Override
@@ -112,7 +116,7 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 			reader.loadNextBatch();
 			VectorSchemaRoot root = reader.getVectorSchemaRoot();
 			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createBaseRowArrowReader(root);
+				arrowReader = ArrowUtils.createBaseRowArrowReader(root, outputType);
 			}
 			for (int i = 0; i < root.getRowCount(); i++) {
 				BaseRow input = forwardedInputQueue.poll();

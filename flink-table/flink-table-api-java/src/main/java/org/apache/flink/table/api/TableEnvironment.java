@@ -689,7 +689,6 @@ public interface TableEnvironment {
 	 *                        'connector.type' = 'kafka',
 	 *                        'update-mode' = 'append',
 	 *                        'connector.topic' = 'xxx',
-	 *                        'connector.properties.zookeeper.connect' = 'localhost:2181',
 	 *                        'connector.properties.bootstrap.servers' = 'localhost:9092',
 	 *                        ...
 	 *                      )";
@@ -857,6 +856,11 @@ public interface TableEnvironment {
 	 * point in time of query construction (e.g. the currentCatalog) will be used. On the
 	 * other hand some values might be evaluated according to the state from the time when
 	 * this method is called (e.g. timeZone).
+	 *
+	 * <p>Once the execution finishes, any previously defined DMLs will be cleared, no matter
+	 * whether the execution succeeds or not. Therefore, if you want to retry in case of
+	 * failures, you have to re-define the DMLs, i.e. by calling {@link #sqlUpdate(String)},
+	 * before you call this method again.
 	 *
 	 * @param jobName Desired name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.

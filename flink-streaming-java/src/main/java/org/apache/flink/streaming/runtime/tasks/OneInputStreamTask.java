@@ -59,7 +59,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	 *
 	 * @param env The task environment for this task.
 	 */
-	public OneInputStreamTask(Environment env) {
+	public OneInputStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 
@@ -76,7 +76,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@VisibleForTesting
 	public OneInputStreamTask(
 			Environment env,
-			@Nullable TimerService timeProvider) {
+			@Nullable TimerService timeProvider) throws Exception {
 		super(env, timeProvider);
 	}
 

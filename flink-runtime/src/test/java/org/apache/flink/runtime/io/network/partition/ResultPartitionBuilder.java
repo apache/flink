@@ -40,6 +40,8 @@ public class ResultPartitionBuilder {
 
 	private BoundedBlockingSubpartitionType blockingSubpartitionType = BoundedBlockingSubpartitionType.AUTO;
 
+	private int partitionIndex = 0;
+
 	private int numberOfSubpartitions = 1;
 
 	private int numTargetKeyGroups = 1;
@@ -64,6 +66,11 @@ public class ResultPartitionBuilder {
 	private boolean blockingShuffleCompressionEnabled = false;
 
 	private String compressionCodec = "LZ4";
+
+	public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
+		this.partitionIndex = partitionIndex;
+		return this;
+	}
 
 	public ResultPartitionBuilder setResultPartitionId(ResultPartitionID partitionId) {
 		this.partitionId = partitionId;
@@ -167,6 +174,7 @@ public class ResultPartitionBuilder {
 
 		return resultPartitionFactory.create(
 			"Result Partition task",
+			partitionIndex,
 			partitionId,
 			partitionType,
 			numberOfSubpartitions,

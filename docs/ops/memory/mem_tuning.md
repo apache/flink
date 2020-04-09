@@ -31,7 +31,7 @@ depending on the use case and which options are important in which case.
 ## Configure memory for standalone deployment
 
 It is recommended to configure [total Flink memory](mem_setup.html#configure-total-memory)
-([`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)) or its [components](mem_setup.html#detailed-memory-model)
+([`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)) or its [components](mem_detail.html)
 for [standalone deployment](../deployment/cluster_setup.html) where you want to declare how much memory is given to Flink itself.
 Additionally, you can adjust *JVM metaspace* if it causes [problems](mem_trouble.html#outofmemoryerror-metaspace).
 
@@ -47,7 +47,7 @@ It declares how much memory in total should be assigned to the Flink *JVM proces
 
 <span class="label label-info">Note</span> If you configure the *total Flink memory* Flink will implicitly add JVM memory components
 to derive the *total process memory* and request a container with the memory of that derived size,
-see also [detailed Memory Model](mem_setup.html#detailed-memory-model).
+see also [detailed Memory Model](mem_detail.html).
 
 <div class="alert alert-warning">
   <strong>Warning:</strong> If Flink or user code allocates unmanaged off-heap (native) memory beyond the container size
@@ -63,7 +63,7 @@ will dictate the optimal memory configurations of your cluster.
 ### Heap state backend
 
 When running a stateless job or using a heap state backend ([MemoryStateBackend](../state/state_backends.html#the-memorystatebackend)
-or [FsStateBackend](../state/state_backends.html#the-fsstatebackend), set [managed memory](mem_setup.html#managed-memory) to zero.
+or [FsStateBackend](../state/state_backends.html#the-fsstatebackend)), set [managed memory](mem_setup.html#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ### RocksDB state backend

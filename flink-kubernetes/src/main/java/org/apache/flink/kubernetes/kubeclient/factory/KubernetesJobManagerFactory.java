@@ -22,6 +22,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InitJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.JavaCmdJobManagerDecorator;
@@ -58,6 +59,7 @@ public class KubernetesJobManagerFactory {
 			new JavaCmdJobManagerDecorator(kubernetesJobManagerParameters),
 			new InternalServiceDecorator(kubernetesJobManagerParameters),
 			new ExternalServiceDecorator(kubernetesJobManagerParameters),
+			new HadoopConfMountDecorator(kubernetesJobManagerParameters),
 			new FlinkConfMountDecorator(kubernetesJobManagerParameters)};
 
 		for (KubernetesStepDecorator stepDecorator: stepDecorators) {
@@ -92,9 +94,7 @@ public class KubernetesJobManagerFactory {
 			.editOrNewSpec()
 				.withReplicas(1)
 				.editOrNewTemplate()
-					.editOrNewMetadata()
-						.withLabels(labels)
-						.endMetadata()
+					.withMetadata(resolvedPod.getMetadata())
 					.withSpec(resolvedPod.getSpec())
 					.endTemplate()
 				.editOrNewSelector()

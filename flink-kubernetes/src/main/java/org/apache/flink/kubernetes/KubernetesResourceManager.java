@@ -37,6 +37,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
@@ -96,6 +97,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
+			ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
@@ -109,6 +111,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
+			clusterPartitionTrackerFactory,
 			jobLeaderIdService,
 			clusterInformation,
 			fatalErrorHandler,

@@ -169,7 +169,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 			// use wrong ports for the consumers
 			properties.setProperty("bootstrap.servers", "localhost:80");
-			properties.setProperty("zookeeper.connect", "localhost:80");
 			properties.setProperty("group.id", "test");
 			properties.setProperty("request.timeout.ms", "3000"); // let the test fail fast
 			properties.setProperty("socket.timeout.ms", "3000");

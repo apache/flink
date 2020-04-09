@@ -217,8 +217,8 @@ public class ExecutionConfigOptions {
 	public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
 		key("table.exec.shuffle-mode")
 			.defaultValue("batch")
-			.withDescription("Sets exec shuffle mode. Only batch or pipeline can be set.\n" +
+			.withDescription("Sets exec shuffle mode. Only batch or pipelined can be set.\n" +
 				"batch: the job will run stage by stage. \n" +
-				"pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
+				"pipelined: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
 				"the sender holds resource to wait to send data to the receiver.");
 }

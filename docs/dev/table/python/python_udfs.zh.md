@@ -24,6 +24,8 @@ under the License.
 
 User-defined functions are important features, because they significantly extend the expressiveness of Python Table API programs.
 
+**NOTE:** Python UDF execution requires Python3.5+ with PyFlink installed. It's required on both the client side and the cluster side.
+
 * This will be replaced by the TOC
 {:toc}
 

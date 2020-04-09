@@ -135,7 +135,7 @@ t_env.execute("python_job")
 首先，你需要在文件 “/tmp/input” 中准备好输入数据。你可以选择通过如下命令准备输入数据：
 
 {% highlight bash %}
-$ echo "flink\npyflink\nflink" > /tmp/input
+$ echo -e  "flink\npyflink\nflink" > /tmp/input
 {% endhighlight %}
 
 接下来，可以在命令行中运行作业（假设作业名为WordCount.py）（注意：如果输出结果文件“/tmp/output”已经存在，你需要先删除文件，否则程序将无法正确运行起来）：

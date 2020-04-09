@@ -31,7 +31,10 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
@@ -53,7 +56,7 @@ public final class BridgingSqlFunction extends SqlFunction {
 
 	private final FlinkTypeFactory typeFactory;
 
-	private final FunctionIdentifier identifier;
+	private final @Nullable FunctionIdentifier identifier;
 
 	private final FunctionDefinition definition;
 
@@ -63,11 +66,11 @@ public final class BridgingSqlFunction extends SqlFunction {
 			DataTypeFactory dataTypeFactory,
 			FlinkTypeFactory typeFactory,
 			SqlKind kind,
-			FunctionIdentifier identifier,
+			@Nullable FunctionIdentifier identifier,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
 		super(
-			createName(identifier),
+			createName(identifier, definition),
 			createSqlIdentifier(identifier),
 			kind,
 			createSqlReturnTypeInference(dataTypeFactory, definition, typeInference),
@@ -98,7 +101,7 @@ public final class BridgingSqlFunction extends SqlFunction {
 			DataTypeFactory dataTypeFactory,
 			FlinkTypeFactory typeFactory,
 			SqlKind kind,
-			FunctionIdentifier identifier,
+			@Nullable FunctionIdentifier identifier,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
 
@@ -123,8 +126,8 @@ public final class BridgingSqlFunction extends SqlFunction {
 		return typeFactory;
 	}
 
-	public FunctionIdentifier getIdentifier() {
-		return identifier;
+	public Optional<FunctionIdentifier> getIdentifier() {
+		return Optional.ofNullable(identifier);
 	}
 
 	public FunctionDefinition getDefinition() {

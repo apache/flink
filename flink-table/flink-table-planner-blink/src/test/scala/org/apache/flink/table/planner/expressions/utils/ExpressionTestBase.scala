@@ -87,7 +87,7 @@ abstract class ExpressionTestBase {
   @Before
   def prepare(): Unit = {
     val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
-    tEnv.registerDataStream(tableName, ds)
+    tEnv.createTemporaryView(tableName, ds)
     functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
     // prepare RelBuilder

@@ -21,8 +21,6 @@ package org.apache.flink.api.connector.source;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.metrics.MetricGroup;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * The class that expose some context from runtime to the {@link SourceReader}.
  */
@@ -38,8 +36,6 @@ public interface SourceReaderContext {
 	 * Send a source event to the source coordinator.
 	 *
 	 * @param sourceEvent the source event to coordinator.
-	 * @return a completable future which will be completed either the event has been successfully sent
-	 * or failed.
 	 */
-	CompletableFuture<Boolean> sendSourceEventToCoordinator(SourceEvent sourceEvent);
+	void sendSourceEventToCoordinator(SourceEvent sourceEvent);
 }

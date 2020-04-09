@@ -76,7 +76,7 @@ class BatchExecPythonCorrelate(
       scan,
       "BatchExecPythonCorrelate",
       outputRowType,
-      planner.getTableConfig.getConfiguration,
+      getConfig(planner.getTableConfig),
       joinType)
   }
 }

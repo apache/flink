@@ -41,7 +41,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * General tests for the {@link InitJobManagerDecorator}.
@@ -49,6 +52,12 @@ import static org.junit.Assert.assertEquals;
 public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
 
 	private static final List<String> IMAGE_PULL_SECRETS = Arrays.asList("s1", "s2", "s3");
+	private static final Map<String, String> ANNOTATIONS = new HashMap<String, String>() {
+		{
+			put("a1", "v1");
+			put("a2", "v2");
+		}
+	};
 
 	private Pod resultPod;
 	private Container resultMainContainer;
@@ -57,6 +66,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	public void setup() throws Exception {
 		super.setup();
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
+		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS, ANNOTATIONS);
 
 		final InitTaskManagerDecorator initTaskManagerDecorator =
 			new InitTaskManagerDecorator(kubernetesTaskManagerParameters);
@@ -85,7 +95,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
 	@Test
 	public void testMainContainerImagePullPolicy() {
-		assertEquals(CONTAINER_IMAGE_PULL_POLICY, this.resultMainContainer.getImagePullPolicy());
+		assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), this.resultMainContainer.getImagePullPolicy());
 	}
 
 	@Test
@@ -105,6 +115,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	public void testMainContainerPorts() {
 		final List<ContainerPort> expectedContainerPorts = Collections.singletonList(
 			new ContainerPortBuilder()
+				.withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
 				.withContainerPort(RPC_PORT)
 			.build());
 
@@ -132,8 +143,15 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	public void testPodLabels() {
 		final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
 		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
+		expectedLabels.putAll(userLabels);
 
 		assertEquals(expectedLabels, this.resultPod.getMetadata().getLabels());
+	}
+
+	@Test
+	public void testPodAnnotations() {
+		final Map<String, String> resultAnnotations = kubernetesTaskManagerParameters.getAnnotations();
+		assertThat(resultAnnotations, is(equalTo(ANNOTATIONS)));
 	}
 
 	@Test
@@ -144,5 +162,10 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 			.collect(Collectors.toList());
 
 		assertEquals(IMAGE_PULL_SECRETS, resultSecrets);
+	}
+
+	@Test
+	public void testNodeSelector() {
+		assertThat(this.resultPod.getSpec().getNodeSelector(), is(equalTo(nodeSelector)));
 	}
 }

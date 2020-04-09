@@ -34,6 +34,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.io.Writable;
@@ -140,8 +141,13 @@ public interface HiveShim extends Serializable {
 	/**
 	 * Get Hive's FileSinkOperator.RecordWriter.
 	 */
-	FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, String outputFormatClzName,
+	FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, Class outputFormatClz,
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath);
+
+	/**
+	 * For a given OutputFormat class, get the corresponding {@link HiveOutputFormat} class.
+	 */
+	Class getHiveOutputFormatClass(Class outputFormatClz);
 
 	/**
 	 * Get Hive table schema from deserializer.

@@ -34,19 +34,19 @@ public class FlinkResourceSetup {
 
 	@Nullable
 	private final Configuration config;
-	private final Collection<JarMove> jarMoveOperations;
+	private final Collection<JarOperation> jarOperations;
 
-	private FlinkResourceSetup(@Nullable Configuration config, Collection<JarMove> jarMoveOperations) {
+	private FlinkResourceSetup(@Nullable Configuration config, Collection<JarOperation> jarOperations) {
 		this.config = config;
-		this.jarMoveOperations = Preconditions.checkNotNull(jarMoveOperations);
+		this.jarOperations = Preconditions.checkNotNull(jarOperations);
 	}
 
 	public Optional<Configuration> getConfig() {
 		return Optional.ofNullable(config);
 	}
 
-	public Collection<JarMove> getJarMoveOperations() {
-		return jarMoveOperations;
+	public Collection<JarOperation> getJarOperations() {
+		return jarOperations;
 	}
 
 	public static FlinkResourceSetupBuilder builder() {
@@ -59,7 +59,7 @@ public class FlinkResourceSetup {
 	public static class FlinkResourceSetupBuilder {
 
 		private Configuration config;
-		private final Collection<JarMove> jarMoveOperations = new ArrayList<>();
+		private final Collection<JarOperation> jarOperations = new ArrayList<>();
 
 		private FlinkResourceSetupBuilder() {
 		}
@@ -70,12 +70,17 @@ public class FlinkResourceSetup {
 		}
 
 		public FlinkResourceSetupBuilder moveJar(String jarNamePrefix, JarLocation source, JarLocation target) {
-			this.jarMoveOperations.add(new JarMove(jarNamePrefix, source, target));
+			this.jarOperations.add(new JarOperation(jarNamePrefix, source, target, JarOperation.OperationType.MOVE));
+			return this;
+		}
+
+		public FlinkResourceSetupBuilder copyJar(String jarNamePrefix, JarLocation source, JarLocation target) {
+			this.jarOperations.add(new JarOperation(jarNamePrefix, source, target, JarOperation.OperationType.COPY));
 			return this;
 		}
 
 		public FlinkResourceSetup build() {
-			return new FlinkResourceSetup(config, Collections.unmodifiableCollection(jarMoveOperations));
+			return new FlinkResourceSetup(config,  Collections.unmodifiableCollection(jarOperations));
 		}
 	}
 

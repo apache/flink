@@ -49,7 +49,6 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
@@ -397,6 +396,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {
 		this.jobMasterMainThreadExecutor = jobMasterMainThreadExecutor;
+		if (checkpointCoordinator != null) {
+			checkpointCoordinator.start(this.jobMasterMainThreadExecutor);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -412,10 +414,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	public SchedulingTopology<?, ?> getSchedulingTopology() {
-		return executionTopology;
-	}
-
-	public FailoverTopology<?, ?> getFailoverTopology() {
 		return executionTopology;
 	}
 
@@ -469,12 +467,14 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			new CheckpointFailureManager.FailJobCallback() {
 				@Override
 				public void failJob(Throwable cause) {
-					getJobMasterMainThreadExecutor().execute(() -> failGlobal(cause));
+					assertRunningInJobMasterMainThread();
+					failGlobal(cause);
 				}
 
 				@Override
 				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {
-					getJobMasterMainThreadExecutor().execute(() -> failGlobalIfExecutionIsStillRunning(cause, failingTask));
+					assertRunningInJobMasterMainThread();
+					failGlobalIfExecutionIsStillRunning(cause, failingTask);
 				}
 			}
 		);

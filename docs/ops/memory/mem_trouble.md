@@ -29,7 +29,7 @@ under the License.
 
 If you see an *IllegalConfigurationException* thrown from *TaskExecutorProcessUtils*, it usually indicates
 that there is either an invalid configuration value (e.g. negative memory size, fraction that is greater than 1, etc.)
-or configuration conflicts. Check the documentation chapters related to the [memory components](mem_setup.html#detailed-memory-model)
+or configuration conflicts. Check the documentation chapters related to the [memory components](mem_detail.html)
 mentioned in the exception message.
 
 ## OutOfMemoryError: Java heap space
@@ -44,7 +44,7 @@ is advanced and should only be changed if you are sure that the Flink framework 
 
 The exception usually indicates that the JVM *direct memory* limit is too small or that there is a *direct memory leak*.
 Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
-You can try to increase its limit by adjusting [direct off-heap memory](mem_setup.html#detailed-memory-model).
+You can try to increase its limit by adjusting [direct off-heap memory](mem_detail.html).
 See also [how to configure off-heap memory](mem_setup.html#configure-off-heap-memory-direct-or-native) and
 the [JVM arguments](mem_detail.html#jvm-parameters) which Flink sets.
 
@@ -55,7 +55,7 @@ You can try to increase the [JVM metaspace option](../config.html#taskmanager-me
 
 ## IOException: Insufficient number of network buffers
 
-The exception usually indicates that the size of the configured [network memory](mem_setup.html#detailed-memory-model)
+The exception usually indicates that the size of the configured [network memory](mem_detail.html)
 is not big enough. You can try to increase the *network memory* by adjusting the following options:
 * [`taskmanager.memory.network.min`](../config.html#taskmanager-memory-network-min)
 * [`taskmanager.memory.network.max`](../config.html#taskmanager-memory-network-max)
@@ -70,5 +70,5 @@ monitoring system or from the error messages when a container gets killed by the
 If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is used and the memory controlling is disabled,
 you can try to increase the [managed memory](mem_setup.html#managed-memory).
 
-Alternatively, you can increase the [JVM overhead](mem_setup.html#detailed-memory-model).
+Alternatively, you can increase the [JVM overhead](mem_detail.html).
 See also [how to configure memory for containers](mem_tuning.html#configure-memory-for-containers).

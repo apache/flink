@@ -64,9 +64,9 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 		this.downloadAttemptTimeout = DOWNLOAD_ATTEMPT_TIMEOUT.get(Duration.ofMinutes(2));
 		this.downloadGlobalTimeout = DOWNLOAD_GLOBAL_TIMEOUT.get(Duration.ofMinutes(2));
-		this.downloadMaxRetries = DOWNLOAD_MAX_RETRIES.get(1);
+		this.downloadMaxRetries = DOWNLOAD_MAX_RETRIES.get(3);
 
-		log.info("Download configuration: maxAttempts={}, attemptTimeout={}, globalTimeout={}", downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
+		log.info("Download configuration: maxRetries={}, attemptTimeout={}, globalTimeout={}", downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
 	}
 
 	@Override
@@ -113,8 +113,8 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 		final Path cacheFile;
 		if (cachedFile.isPresent()) {
-			log.info("Using cached version of {}.", url);
 			cacheFile = cachedFile.get();
+			log.info("Using cached version of {} from {}", url, cacheFile.toAbsolutePath());
 		} else {
 			final Path scopedDownloadDir = downloadsDir.resolve(String.valueOf(url.hashCode()));
 			Files.createDirectories(scopedDownloadDir);

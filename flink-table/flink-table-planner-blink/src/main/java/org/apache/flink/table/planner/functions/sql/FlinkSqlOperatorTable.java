@@ -776,7 +776,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	 * We need custom group auxiliary functions in order to support nested windows.
 	 */
 	public static final SqlGroupedWindowFunction TUMBLE = new SqlGroupedWindowFunction(
-			SqlKind.TUMBLE, null,
+			// The TUMBLE group function was hard code to $TUMBLE in CALCITE-3382.
+			"$TUMBLE", SqlKind.TUMBLE, null,
 			OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
 		@Override
 		public List<SqlGroupedWindowFunction> getAuxiliaryFunctions() {

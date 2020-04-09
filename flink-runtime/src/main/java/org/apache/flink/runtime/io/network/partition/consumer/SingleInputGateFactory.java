@@ -108,6 +108,7 @@ public class SingleInputGateFactory {
 	 */
 	public SingleInputGate create(
 			@Nonnull String owningTaskName,
+			int gateIndex,
 			@Nonnull InputGateDeploymentDescriptor igdd,
 			@Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
 			@Nonnull InputChannelMetrics metrics) {
@@ -125,6 +126,7 @@ public class SingleInputGateFactory {
 
 		SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName,
+			gateIndex,
 			igdd.getConsumedResultId(),
 			igdd.getConsumedPartitionType(),
 			igdd.getConsumedSubpartitionIndex(),

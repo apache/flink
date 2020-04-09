@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -101,7 +100,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, slotFuture);
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -159,7 +157,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -205,7 +202,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -253,7 +249,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, slotFuture);
 
 		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -361,7 +356,6 @@ public class ExecutionTest extends TestLogger {
 			slotOwner);
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -410,7 +404,6 @@ public class ExecutionTest extends TestLogger {
 			slotOwner);
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -459,7 +452,6 @@ public class ExecutionTest extends TestLogger {
 			(LogicalSlot logicalSlot) -> returnedSlotFuture.complete(logicalSlot.getSlotRequestId()));
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -526,7 +518,6 @@ public class ExecutionTest extends TestLogger {
 			return slotFuture;
 		});
 		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);

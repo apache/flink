@@ -61,6 +61,8 @@ if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'heap' ]; then
   set_config_key "state.backend.rocksdb.timer-service.factory" "heap"
 fi
 set_config_key "metrics.fetcher.update-interval" "2000"
+# hotfix for FLINK-16770
+set_config_key "state.checkpoints.num-retained" "2"
 
 setup_flink_slf4j_metric_reporter
 

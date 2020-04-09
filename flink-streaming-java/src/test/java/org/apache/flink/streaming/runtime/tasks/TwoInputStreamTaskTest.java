@@ -210,7 +210,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
 		testHarness.processElement(new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
 		testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
-		                                                     // watermark (initial + 6) should be forwarded
+
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime + 5));
 		// We don't expect to see Watermark(6) here because the idle status of one

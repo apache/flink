@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.Counter;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -44,7 +44,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -170,22 +169,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	protected final StreamConfig configuration;
 
 	/** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
-	protected StateBackend stateBackend;
+	protected final StateBackend stateBackend;
 
 	/** The external storage where checkpoint data is persisted. */
-	private CheckpointStorageWorkerView checkpointStorage;
+	private final CheckpointStorageWorkerView checkpointStorage;
 
 	/**
 	 * The internal {@link TimerService} used to define the current
 	 * processing time (default = {@code System.currentTimeMillis()}) and
 	 * register timers for tasks to be executed in the future.
 	 */
-	protected TimerService timerService;
-
-	private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
-
-	/** The map of user-defined accumulators of this task. */
-	private final Map<String, Accumulator<?, ?>> accumulatorMap;
+	protected final TimerService timerService;
 
 	/** The currently active background materialization threads. */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
@@ -204,7 +198,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private boolean disposedOperators;
 
 	/** Thread pool for async snapshot workers. */
-	private ExecutorService asyncOperationsThreadPool;
+	private final ExecutorService asyncOperationsThreadPool;
 
 	private final RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
 
@@ -219,7 +213,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 *
 	 * @param env The task environment for this task.
 	 */
-	protected StreamTask(Environment env) {
+	protected StreamTask(Environment env) throws Exception {
 		this(env, null);
 	}
 
@@ -229,14 +223,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @param env The task environment for this task.
 	 * @param timerService Optionally, a specific timer service to use.
 	 */
-	protected StreamTask(Environment env, @Nullable TimerService timerService) {
+	protected StreamTask(Environment env, @Nullable TimerService timerService) throws Exception {
 		this(env, timerService, FatalExitExceptionHandler.INSTANCE);
 	}
 
 	protected StreamTask(
 			Environment environment,
 			@Nullable TimerService timerService,
-			Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+			Thread.UncaughtExceptionHandler uncaughtExceptionHandler) throws Exception {
 		this(environment, timerService, uncaughtExceptionHandler, StreamTaskActionExecutor.IMMEDIATE);
 	}
 
@@ -256,7 +250,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			Environment environment,
 			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
-			StreamTaskActionExecutor actionExecutor) {
+			StreamTaskActionExecutor actionExecutor) throws Exception {
 		this(environment, timerService, uncaughtExceptionHandler, actionExecutor, new TaskMailboxImpl(Thread.currentThread()));
 	}
 
@@ -265,18 +259,28 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
 			StreamTaskActionExecutor actionExecutor,
-			TaskMailbox mailbox) {
+			TaskMailbox mailbox) throws Exception {
 
 		super(environment);
 
-		this.timerService = timerService;
-		this.uncaughtExceptionHandler = Preconditions.checkNotNull(uncaughtExceptionHandler);
 		this.configuration = new StreamConfig(getTaskConfiguration());
-		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriter = createRecordWriterDelegate(configuration, environment);
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 		this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
+		this.asyncOperationsThreadPool = Executors.newCachedThreadPool(
+			new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
+
+		this.stateBackend = createStateBackend();
+		this.checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
+
+		// if the clock is not already set, then assign a default TimeServiceProvider
+		if (timerService == null) {
+			ThreadFactory timerThreadFactory = new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
+			this.timerService = new SystemProcessingTimeService(this::handleTimerException, timerThreadFactory);
+		} else {
+			this.timerService = timerService;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -410,21 +414,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		disposedOperators = false;
 		LOG.debug("Initializing {}.", getName());
 
-		asyncOperationsThreadPool = Executors.newCachedThreadPool(new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
-
-		stateBackend = createStateBackend();
-		checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
-
-		// if the clock is not already set, then assign a default TimeServiceProvider
-		if (timerService == null) {
-			ThreadFactory timerThreadFactory =
-				new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
-
-			timerService = new SystemProcessingTimeService(
-				this::handleTimerException,
-				timerThreadFactory);
-		}
-
 		operatorChain = new OperatorChain<>(this, recordWriter);
 		headOperator = operatorChain.getHeadOperator();
 
@@ -445,7 +434,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// both the following operations are protected by the lock
 			// so that we avoid race conditions in the case that initializeState()
 			// registers a timer, that fires before the open() is called.
-			operatorChain.initializeStateAndOpenOperators();
+			operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+
+			ResultPartitionWriter[] writers = getEnvironment().getAllWriters();
+			if (writers != null) {
+				//TODO we should get proper state reader from getEnvironment().getTaskStateManager().getChannelStateReader()
+				for (ResultPartitionWriter writer : writers) {
+					writer.initializeState(ChannelStateReader.NO_OP);
+				}
+			}
 		});
 
 		isRunning = true;
@@ -642,11 +639,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	@Override
 	protected void finalize() throws Throwable {
 		super.finalize();
-		if (timerService != null) {
-			if (!timerService.isTerminated()) {
-				LOG.info("Timer service is shutting down.");
-				timerService.shutdownService();
-			}
+		if (!timerService.isTerminated()) {
+			LOG.info("Timer service is shutting down.");
+			timerService.shutdownService();
 		}
 
 		cancelables.close();
@@ -687,16 +682,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return configuration;
 	}
 
-	public Map<String, Accumulator<?, ?>> getAccumulatorMap() {
-		return accumulatorMap;
-	}
-
 	public StreamStatusMaintainer getStreamStatusMaintainer() {
 		return operatorChain;
-	}
-
-	public OperatorEventDispatcher getOperatorEventDispatcher() {
-		return operatorChain.getOperatorEventDispatcher();
 	}
 
 	RecordWriterOutput<?>[] getStreamOutputs() {
@@ -893,7 +880,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void tryShutdownTimerService() {
 
-		if (timerService != null && !timerService.isTerminated()) {
+		if (!timerService.isTerminated()) {
 
 			try {
 				final long timeoutMs = getEnvironment().getTaskManagerInfo().getConfiguration().
@@ -929,7 +916,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			getCancelables(),
 			getAsyncOperationsThreadPool(),
 			getEnvironment(),
-			this);
+			this,
+			this::isCanceled);
 	}
 
 	// ------------------------------------------------------------------------
@@ -973,7 +961,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	@VisibleForTesting
 	TimerService getTimerService() {
-		Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
 		return timerService;
 	}
 
@@ -988,10 +975,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	public ProcessingTimeServiceFactory getProcessingTimeServiceFactory() {
-		return mailboxExecutor -> {
-			Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
-			return new ProcessingTimeServiceImpl(timerService, callback -> deferCallbackToMailbox(mailboxExecutor, callback));
-		};
+		return mailboxExecutor -> new ProcessingTimeServiceImpl(
+			timerService,
+			callback -> deferCallbackToMailbox(mailboxExecutor, callback));
 	}
 
 	/**

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.utils.python
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.TimeZone
 import java.util.function.BiConsumer
 
@@ -122,6 +122,12 @@ object PythonTableUtils {
     case _ if dataType == Types.SQL_TIMESTAMP => (obj: Any) => nullSafeConvert(obj) {
       case c: Long => new Timestamp(c / 1000)
       case c: Int => new Timestamp(c.toLong / 1000)
+    }
+
+    case _ if dataType == org.apache.flink.api.common.typeinfo.Types.INSTANT =>
+      (obj: Any) => nullSafeConvert(obj) {
+        case c: Long => Instant.ofEpochMilli(c / 1000)
+        case c: Int => Instant.ofEpochMilli(c.toLong / 1000)
     }
 
     case _ if dataType == Types.INTERVAL_MILLIS() => (obj: Any) => nullSafeConvert(obj) {

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -385,6 +386,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			netEnv.getNetworkBufferPool())
 			.create(
 				"TestTask",
+				0,
 				gateDesc,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 				InputChannelTestUtils.newUnregisteredInputChannelMetrics());
@@ -650,6 +652,27 @@ public class SingleInputGateTest extends InputGateTestBase {
 			}
 		} finally {
 			network.close();
+		}
+	}
+
+	@Test
+	public void testSingleInputGateInfo() {
+		final int numSingleInputGates = 2;
+		final int numInputChannels = 3;
+
+		for (int i = 0; i < numSingleInputGates; i++) {
+			final SingleInputGate gate = new SingleInputGateBuilder()
+				.setSingleInputGateIndex(i)
+				.setNumberOfChannels(numInputChannels)
+				.build();
+
+			int channelCounter = 0;
+			for (InputChannel inputChannel : gate.getInputChannels().values()) {
+				InputChannelInfo channelInfo = inputChannel.getChannelInfo();
+
+				assertEquals(i, channelInfo.getGateIdx());
+				assertEquals(channelCounter++, channelInfo.getInputChannelIdx());
+			}
 		}
 	}
 

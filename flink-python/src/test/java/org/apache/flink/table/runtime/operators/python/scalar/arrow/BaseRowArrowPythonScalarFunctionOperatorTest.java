@@ -38,11 +38,13 @@ import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFuncti
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.util.Collection;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
 
@@ -111,7 +113,8 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 			return new PassThroughArrowPythonScalarFunctionRunner<BaseRow>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
@@ -119,10 +122,12 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
-				getPythonConfig().getMaxArrowBatchSize()) {
+				getPythonConfig().getMaxArrowBatchSize(),
+				jobOptions,
+				PythonTestUtils.createMockFlinkMetricContainer()) {
 				@Override
 				public ArrowWriter<BaseRow> createArrowWriter() {
-					return ArrowUtils.createBaseRowArrowWriter(root);
+					return ArrowUtils.createBaseRowArrowWriter(root, getInputType());
 				}
 			};
 		}

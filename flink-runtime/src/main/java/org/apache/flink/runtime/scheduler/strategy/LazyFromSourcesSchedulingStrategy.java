@@ -27,6 +27,7 @@ import org.apache.flink.util.IterableUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,7 +144,9 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 				verticesToDeploy,
 				deploymentOptions::get);
 
-		schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
+		for (ExecutionVertexDeploymentOption deploymentOption : vertexDeploymentOptions) {
+			schedulerOperations.allocateSlotsAndDeploy(Collections.singletonList(deploymentOption));
+		}
 	}
 
 	private Predicate<SchedulingExecutionVertex<?, ?>> isInputConstraintSatisfied() {

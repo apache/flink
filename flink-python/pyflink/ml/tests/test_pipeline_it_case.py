@@ -169,3 +169,34 @@ class PythonPipelineTest(MLTestCase):
         # the first input is false since 0 + 0 is smaller than the max_sum 14.
         # the second input is true since 12 + 3 is bigger than the max_sum 14.
         self.assert_equals(actual, ["false", "true"])
+
+    def test_pipeline_from_and_to_java_json(self):
+        # json generated from Java api
+        java_json = '[{"stageClassName":"org.apache.flink.ml.pipeline.' \
+                    'UserDefinedPipelineStages$SelectColumnTransformer",' \
+                    '"stageJson":"{\\"selectedCols\\":\\"[\\\\\\"a\\\\\\",' \
+                    '\\\\\\"b\\\\\\"]\\"}"}]'
+
+        # load json
+        p = Pipeline()
+        p.load_json(java_json)
+        python_json = p.to_json()
+
+        t_env = MLEnvironmentFactory().get_default().get_stream_table_environment()
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
+        t_env.register_table_sink("TestJsonResults", table_sink)
+
+        source_table = t_env.from_elements([(1, 2, 3, 4), (4, 3, 2, 1)], ['a', 'b', 'c', 'd'])
+        transformer = p.get_stages()[0]
+        transformer\
+            .transform(t_env, source_table)\
+            .insert_into("TestJsonResults")
+
+        # execute
+        t_env.execute('JavaPipelineITCase')
+        actual = source_sink_utils.results()
+
+        self.assert_equals(actual, ["1,2", "4,3"])
+        self.assertEqual(python_json, java_json)

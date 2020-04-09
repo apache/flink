@@ -23,8 +23,8 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
-import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.junit.Rule;
 import org.junit.Test;

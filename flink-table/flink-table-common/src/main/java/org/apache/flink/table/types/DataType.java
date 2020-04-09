@@ -50,7 +50,7 @@ import java.util.Objects;
  * @see DataTypes for a list of supported data types and instances of this class.
  */
 @PublicEvolving
-public abstract class DataType implements Serializable {
+public abstract class DataType implements AbstractDataType<DataType>, Serializable {
 
 	protected final LogicalType logicalType;
 
@@ -83,37 +83,6 @@ public abstract class DataType implements Serializable {
 	public Class<?> getConversionClass() {
 		return conversionClass;
 	}
-
-	/**
-	 * Adds a hint that null values are not expected in the data for this type.
-	 *
-	 * @return a new, reconfigured data type instance
-	 */
-	public abstract DataType notNull();
-
-	/**
-	 * Adds a hint that null values are expected in the data for this type (default behavior).
-	 *
-	 * <p>This method exists for explicit declaration of the default behavior or for invalidation of
-	 * a previous call to {@link #notNull()}.
-	 *
-	 * @return a new, reconfigured data type instance
-	 */
-	public abstract DataType nullable();
-
-	/**
-	 * Adds a hint that data should be represented using the given class when entering or leaving
-	 * the table ecosystem.
-	 *
-	 * <p>A supported conversion class depends on the logical type and its nullability property.
-	 *
-	 * <p>Please see the implementation of {@link LogicalType#supportsInputConversion(Class)},
-	 * {@link LogicalType#supportsOutputConversion(Class)}, or the documentation for more information
-	 * about supported conversions.
-	 *
-	 * @return a new, reconfigured data type instance
-	 */
-	public abstract DataType bridgedTo(Class<?> newConversionClass);
 
 	public abstract <R> R accept(DataTypeVisitor<R> visitor);
 

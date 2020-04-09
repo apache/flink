@@ -164,7 +164,7 @@ public class BufferBuilderAndConsumerTest {
 	public void buildEmptyBuffer() {
 		Buffer buffer = buildSingleBuffer(createBufferBuilder());
 		assertEquals(0, buffer.getSize());
-		assertContent(buffer);
+		assertContent(buffer, FreeingBufferRecycler.INSTANCE);
 	}
 
 	@Test
@@ -240,7 +240,7 @@ public class BufferBuilderAndConsumerTest {
 		assertTrue(bufferConsumer.isFinished());
 	}
 
-	private static ByteBuffer toByteBuffer(int... data) {
+	public static ByteBuffer toByteBuffer(int... data) {
 		ByteBuffer byteBuffer = ByteBuffer.allocate(data.length * Integer.BYTES);
 		byteBuffer.asIntBuffer().put(data);
 		return byteBuffer;
@@ -250,18 +250,18 @@ public class BufferBuilderAndConsumerTest {
 		assertFalse(actualConsumer.isFinished());
 		Buffer buffer = actualConsumer.build();
 		assertFalse(buffer.isRecycled());
-		assertContent(buffer, expected);
+		assertContent(buffer, FreeingBufferRecycler.INSTANCE, expected);
 		assertEquals(expected.length * Integer.BYTES, buffer.getSize());
 		buffer.recycleBuffer();
 	}
 
-	private static void assertContent(Buffer actualBuffer, int... expected) {
+	public static void assertContent(Buffer actualBuffer, BufferRecycler recycler, int... expected) {
 		IntBuffer actualIntBuffer = actualBuffer.getNioBufferReadable().asIntBuffer();
 		int[] actual = new int[actualIntBuffer.limit()];
 		actualIntBuffer.get(actual);
 		assertArrayEquals(expected, actual);
 
-		assertEquals(FreeingBufferRecycler.INSTANCE, actualBuffer.getRecycler());
+		assertEquals(recycler, actualBuffer.getRecycler());
 	}
 
 	private static BufferBuilder createBufferBuilder() {

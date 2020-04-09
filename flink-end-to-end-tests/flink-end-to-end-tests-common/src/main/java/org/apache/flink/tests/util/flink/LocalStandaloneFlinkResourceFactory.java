@@ -37,17 +37,15 @@ public final class LocalStandaloneFlinkResourceFactory implements FlinkResourceF
 	private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY = new ParameterProperty<>("logBackupDir", Paths::get);
 
 	@Override
-	public Optional<FlinkResource> create(FlinkResourceSetup setup) {
+	public FlinkResource create(FlinkResourceSetup setup) {
 		Optional<Path> distributionDirectory = DISTRIBUTION_DIRECTORY.get();
 		if (!distributionDirectory.isPresent()) {
-			LOG.warn("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
-			return Optional.empty();
+			throw new IllegalArgumentException("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
 		}
 		Optional<Path> logBackupDirectory = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get();
 		if (!logBackupDirectory.isPresent()) {
 			LOG.warn("Property {} not set, logs will not be backed up in case of test failures.", DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
 		}
-		LOG.info("Created {}.", LocalStandaloneFlinkResource.class.getSimpleName());
-		return Optional.of(new LocalStandaloneFlinkResource(distributionDirectory.get(), logBackupDirectory.orElse(null), setup));
+		return new LocalStandaloneFlinkResource(distributionDirectory.get(), logBackupDirectory.orElse(null), setup);
 	}
 }

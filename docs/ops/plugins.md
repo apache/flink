@@ -70,7 +70,7 @@ possible across Flink core, plugins, and user code.
 
 ## File Systems
 
-All [file systems](filesystems/index) **except MapR** are pluggable. That means they can and should
+All [file systems](filesystems) **except MapR** are pluggable. That means they can and should
 be used as plugins. To use a pluggable file system, copy the corresponding JAR file from the `opt`
 directory to a directory under `plugins` directory of your Flink distribution before starting Flink,
 e.g.

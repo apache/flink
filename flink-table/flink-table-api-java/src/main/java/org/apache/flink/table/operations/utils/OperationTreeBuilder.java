@@ -47,14 +47,6 @@ import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
-import org.apache.flink.table.operations.utils.factories.AggregateOperationFactory;
-import org.apache.flink.table.operations.utils.factories.AliasOperationUtils;
-import org.apache.flink.table.operations.utils.factories.CalculatedTableFactory;
-import org.apache.flink.table.operations.utils.factories.ColumnOperationUtils;
-import org.apache.flink.table.operations.utils.factories.JoinOperationFactory;
-import org.apache.flink.table.operations.utils.factories.ProjectionOperationFactory;
-import org.apache.flink.table.operations.utils.factories.SetOperationFactory;
-import org.apache.flink.table.operations.utils.factories.SortOperationFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
@@ -471,9 +463,14 @@ public final class OperationTreeBuilder {
 			throw new ValidationException("Only a table function can be used in the flatMap operator.");
 		}
 
-		TypeInformation<?> resultType = ((TableFunctionDefinition) ((UnresolvedCallExpression) resolvedTableFunction)
-			.getFunctionDefinition())
-			.getResultType();
+		FunctionDefinition functionDefinition = ((UnresolvedCallExpression) resolvedTableFunction)
+			.getFunctionDefinition();
+		if (!(functionDefinition instanceof TableFunctionDefinition)) {
+			throw new ValidationException(
+				"The new type inference for functions is not supported in the flatMap yet.");
+		}
+
+		TypeInformation<?> resultType = ((TableFunctionDefinition) functionDefinition).getResultType();
 		List<String> originFieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultType));
 
 		List<String> childFields = Arrays.asList(child.getTableSchema().getFieldNames());

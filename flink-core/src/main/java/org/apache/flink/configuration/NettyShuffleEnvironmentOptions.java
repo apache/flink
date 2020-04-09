@@ -41,7 +41,17 @@ public class NettyShuffleEnvironmentOptions {
 	public static final ConfigOption<Integer> DATA_PORT =
 		key("taskmanager.data.port")
 			.defaultValue(0)
-			.withDescription("The task manager’s port used for data exchange operations.");
+			.withDescription("The task manager’s external port used for data exchange operations.");
+
+	/**
+	 * The local network port that the task manager listen at for data exchange.
+	 */
+	public static final ConfigOption<Integer> DATA_BIND_PORT =
+		key("taskmanager.data.bind-port")
+			.intType()
+			.noDefaultValue()
+			.withDescription("The task manager's bind port used for data exchange operations. If not configured, '" +
+				DATA_PORT.key() + "' will be used.");
 
 	/**
 	 * Config parameter to override SSL support for taskmanager's data transport.

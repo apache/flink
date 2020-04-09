@@ -46,6 +46,8 @@ public class TestingSchedulingTopology
 
 	private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition> schedulingResultPartitions = new HashMap<>();
 
+	private boolean containsCoLocationConstraints;
+
 	@Override
 	public Iterable<TestingSchedulingExecutionVertex> getVertices() {
 		return Collections.unmodifiableCollection(schedulingExecutionVertices.values());
@@ -53,7 +55,11 @@ public class TestingSchedulingTopology
 
 	@Override
 	public boolean containsCoLocationConstraints() {
-		return false;
+		return containsCoLocationConstraints;
+	}
+
+	public void setContainsCoLocationConstraints(final boolean containsCoLocationConstraints) {
+		this.containsCoLocationConstraints = containsCoLocationConstraints;
 	}
 
 	@Override
@@ -93,6 +99,33 @@ public class TestingSchedulingTopology
 
 	public SchedulingExecutionVerticesBuilder addExecutionVertices() {
 		return new SchedulingExecutionVerticesBuilder();
+	}
+
+	public TestingSchedulingExecutionVertex newExecutionVertex() {
+		final TestingSchedulingExecutionVertex newVertex = new TestingSchedulingExecutionVertex(new JobVertexID(), 0);
+		addSchedulingExecutionVertex(newVertex);
+		return newVertex;
+	}
+
+	public TestingSchedulingTopology connect(
+		TestingSchedulingExecutionVertex producer,
+		TestingSchedulingExecutionVertex consumer,
+		ResultPartitionType resultPartitionType) {
+
+		final TestingSchedulingResultPartition resultPartition = new TestingSchedulingResultPartition.Builder()
+			.withResultPartitionType(resultPartitionType)
+			.build();
+
+		resultPartition.addConsumer(consumer);
+		resultPartition.setProducer(producer);
+
+		producer.addProducedPartition(resultPartition);
+		consumer.addConsumedPartition(resultPartition);
+
+		updateVertexResultPartitions(producer);
+		updateVertexResultPartitions(consumer);
+
+		return this;
 	}
 
 	public ProducerConsumerConnectionBuilder connectPointwise(

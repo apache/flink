@@ -90,7 +90,7 @@ class ExpressionsConsistencyCheckTest {
     //  Scala implicit conversions to ImplicitExpressionOperations
     //-----------------------------------------------------------------------------------
     "WithOperations",
-    "apiExpressionToExpression",
+    "AnyWithOperations",
     "LiteralScalaDecimalExpression",
     "LiteralJavaDecimalExpression",
     "LiteralShortExpression",
@@ -127,6 +127,11 @@ class ExpressionsConsistencyCheckTest {
     "localDate2Literal",
     "float2Literal",
     "array2ArrayConstructor",
+    "seq2ArrayConstructor",
+    "javaList2ArrayConstructor",
+    "map2MapConstructor",
+    "javaMap2MapConstructor",
+    "row2RowConstructor",
     "tableSymbolToExpression",
 
     //-----------------------------------------------------------------------------------
