@@ -130,7 +130,7 @@ abstract class TableEnvImpl(
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-      "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE."
+      "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -553,7 +553,7 @@ abstract class TableEnvImpl(
     val operation = operations.get(0)
     operation match {
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
-           _: CreateDatabaseOperation | _: DropDatabaseOperation =>
+           _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -575,20 +575,8 @@ abstract class TableEnvImpl(
           InsertOptions(op.getStaticPartitions, op.isOverwrite),
           op.getTableIdentifier)
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
-           _: CreateDatabaseOperation | _: DropDatabaseOperation =>
+           _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation =>
         executeOperation(operation)
-      case alterDatabaseOperation: AlterDatabaseOperation =>
-        val catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName)
-        val exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString)
-        try {
-          catalog.alterDatabase(
-            alterDatabaseOperation.getDatabaseName,
-            alterDatabaseOperation.getCatalogDatabase,
-            false)
-        } catch {
-          case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
-          case ex: Exception => throw new TableException(exMsg, ex)
-        }
       case createFunctionOperation: CreateCatalogFunctionOperation =>
           createCatalogFunction(createFunctionOperation)
       case createTempSystemFunctionOperation: CreateTempSystemFunctionOperation =>
@@ -667,6 +655,19 @@ abstract class TableEnvImpl(
           TableResultImpl.TABLE_RESULT_OK
         } catch {
           case ex: DatabaseNotEmptyException => throw new ValidationException(exMsg, ex)
+          case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
+      case alterDatabaseOperation: AlterDatabaseOperation =>
+        val catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString)
+        try {
+          catalog.alterDatabase(
+            alterDatabaseOperation.getDatabaseName,
+            alterDatabaseOperation.getCatalogDatabase,
+            false)
+          TableResultImpl.TABLE_RESULT_OK
+        } catch {
           case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }

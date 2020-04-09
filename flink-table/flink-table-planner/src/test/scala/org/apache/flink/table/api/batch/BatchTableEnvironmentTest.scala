@@ -106,15 +106,22 @@ class BatchTableEnvironmentTest extends TableTestBase {
   }
 
   @Test
-  def testExecuteSqlWithCreateDropDatabase(): Unit = {
+  def testExecuteSqlWithCreateAlterDropDatabase(): Unit = {
     val util = batchTestUtil()
     val tableResult1 = util.tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .databaseExists("db1"))
 
-    val tableResult2 = util.tableEnv.executeSql("DROP DATABASE db1")
+    val tableResult2 = util.tableEnv.executeSql("ALTER DATABASE db1 SET ('k1' = 'a', 'k2' = 'b')")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertEquals(
+      Map("k1" -> "a", "k2" -> "b").asJava,
+      util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+        .getDatabase("db1").getProperties)
+
+    val tableResult3 = util.tableEnv.executeSql("DROP DATABASE db1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .databaseExists("db1"))
   }

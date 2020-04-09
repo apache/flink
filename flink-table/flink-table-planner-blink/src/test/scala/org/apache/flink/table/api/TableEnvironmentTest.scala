@@ -133,13 +133,19 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteSqlWithCreateDropDatabase(): Unit = {
+  def testExecuteSqlWithCreateAlterDropDatabase(): Unit = {
     val tableResult1 = tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().databaseExists("db1"))
 
-    val tableResult2 = tableEnv.executeSql("DROP DATABASE db1")
+    val tableResult2 = tableEnv.executeSql("ALTER DATABASE db1 SET ('k1' = 'a', 'k2' = 'b')")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertEquals(
+      Map("k1" -> "a", "k2" -> "b").asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().getDatabase("db1").getProperties)
+
+    val tableResult3 = tableEnv.executeSql("DROP DATABASE db1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().databaseExists("db1"))
   }
 
