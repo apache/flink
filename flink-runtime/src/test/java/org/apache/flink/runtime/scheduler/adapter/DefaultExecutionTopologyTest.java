@@ -98,7 +98,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
 			for (Map.Entry<IntermediateResultPartitionID, IntermediateResultPartition> entry : vertex.getProducedPartitions().entrySet()) {
 				IntermediateResultPartition partition = entry.getValue();
-				DefaultResultPartition schedulingResultPartition = adapter.getResultPartitionOrThrow(entry.getKey());
+				DefaultResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey());
 
 				assertPartitionEquals(partition, schedulingResultPartition);
 			}
@@ -114,7 +114,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 			.get();
 
 		final DefaultResultPartition schedulingResultPartition = adapter
-			.getResultPartitionOrThrow(intermediateResultPartition.getPartitionId());
+			.getResultPartition(intermediateResultPartition.getPartitionId());
 
 		assertEquals(ResultPartitionState.CREATED, schedulingResultPartition.getState());
 
@@ -125,7 +125,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 	@Test
 	public void testGetVertexOrThrow() {
 		try {
-			adapter.getVertexOrThrow(new ExecutionVertexID(new JobVertexID(), 0));
+			adapter.getVertex(new ExecutionVertexID(new JobVertexID(), 0));
 			fail("get not exist vertex");
 		} catch (IllegalArgumentException exception) {
 			// expected
@@ -135,7 +135,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 	@Test
 	public void testResultPartitionOrThrow() {
 		try {
-			adapter.getResultPartitionOrThrow(new IntermediateResultPartitionID());
+			adapter.getResultPartition(new IntermediateResultPartitionID());
 			fail("get not exist result partition");
 		} catch (IllegalArgumentException exception) {
 			// expected

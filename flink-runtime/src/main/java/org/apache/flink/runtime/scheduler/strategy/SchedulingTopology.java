@@ -34,7 +34,7 @@ public interface SchedulingTopology<V extends SchedulingExecutionVertex<V, R>, R
 	 * @return The respective scheduling vertex
 	 * @throws IllegalArgumentException If the vertex does not exist
 	 */
-	V getVertexOrThrow(ExecutionVertexID executionVertexId);
+	V getVertex(ExecutionVertexID executionVertexId);
 
 	/**
 	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
@@ -43,5 +43,5 @@ public interface SchedulingTopology<V extends SchedulingExecutionVertex<V, R>, R
 	 * @return The respective scheduling result partition
 	 * @throws IllegalArgumentException If the partition does not exist
 	 */
-	R getResultPartitionOrThrow(IntermediateResultPartitionID intermediateResultPartitionId);
+	R getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
 }

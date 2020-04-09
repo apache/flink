@@ -1547,7 +1547,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	ResultPartitionID createResultPartitionId(final IntermediateResultPartitionID resultPartitionId) {
 		final SchedulingResultPartition<?, ?> schedulingResultPartition =
-			getSchedulingTopology().getResultPartitionOrThrow(resultPartitionId);
+			getSchedulingTopology().getResultPartition(resultPartitionId);
 		final SchedulingExecutionVertex<?, ?> producer = schedulingResultPartition.getProducer();
 		final ExecutionVertexID producerId = producer.getId();
 		final JobVertexID jobVertexId = producerId.getJobVertexId();
