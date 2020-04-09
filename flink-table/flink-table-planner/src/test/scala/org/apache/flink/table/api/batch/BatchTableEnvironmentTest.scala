@@ -29,6 +29,8 @@ import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.Test
 
+import scala.collection.JavaConverters._
+
 class BatchTableEnvironmentTest extends TableTestBase {
 
   @Test
@@ -90,8 +92,15 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")))
 
-    val tableResult2 = util.tableEnv.executeSql("DROP TABLE tbl1")
+    val tableResult2 = util.tableEnv.executeSql("ALTER TABLE tbl1 SET ('k1' = 'a', 'k2' = 'b')")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertEquals(
+      Map("connector" -> "COLLECTION", "is-bounded" -> "true", "k1" -> "a", "k2" -> "b").asJava,
+      util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")).getProperties)
+
+    val tableResult3 = util.tableEnv.executeSql("DROP TABLE tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")))
   }

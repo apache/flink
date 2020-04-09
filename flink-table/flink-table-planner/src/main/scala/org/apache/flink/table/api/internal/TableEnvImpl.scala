@@ -130,7 +130,7 @@ abstract class TableEnvImpl(
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-      "CREATE TABLE, DROP TABLE."
+      "CREATE TABLE, DROP TABLE, ALTER TABLE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -552,7 +552,7 @@ abstract class TableEnvImpl(
 
     val operation = operations.get(0)
     operation match {
-      case _: CreateTableOperation | _: DropTableOperation =>
+      case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -573,7 +573,7 @@ abstract class TableEnvImpl(
           createTable(op.getChild),
           InsertOptions(op.getStaticPartitions, op.isOverwrite),
           op.getTableIdentifier)
-      case _: CreateTableOperation | _: DropTableOperation =>
+      case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation =>
         executeOperation(operation)
       case createDatabaseOperation: CreateDatabaseOperation =>
         val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
@@ -587,28 +587,6 @@ abstract class TableEnvImpl(
           case ex: DatabaseAlreadyExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }
-      case alterTableOperation: AlterTableOperation => {
-        val catalog = getCatalogOrThrowException(
-          alterTableOperation.getTableIdentifier.getCatalogName)
-        val exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString)
-        try {
-          alterTableOperation match {
-            case alterTableRenameOp: AlterTableRenameOperation =>
-              catalog.renameTable(
-                alterTableRenameOp.getTableIdentifier.toObjectPath,
-                alterTableRenameOp.getNewTableIdentifier.getObjectName,
-                false)
-            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
-              catalog.alterTable(
-                alterTablePropertiesOp.getTableIdentifier.toObjectPath,
-                alterTablePropertiesOp.getCatalogTable,
-                false)
-          }
-        } catch {
-          case ex: TableNotExistException => throw new ValidationException(exMsg, ex)
-          case ex: Exception => throw new TableException(exMsg, ex)
-        }
-      }
       case dropDatabaseOperation: DropDatabaseOperation =>
         val catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName)
         val exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString)
@@ -666,6 +644,28 @@ abstract class TableEnvImpl(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
         TableResultImpl.TABLE_RESULT_OK
+      case alterTableOperation: AlterTableOperation =>
+        val catalog = getCatalogOrThrowException(
+          alterTableOperation.getTableIdentifier.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString)
+        try {
+          alterTableOperation match {
+            case alterTableRenameOp: AlterTableRenameOperation =>
+              catalog.renameTable(
+                alterTableRenameOp.getTableIdentifier.toObjectPath,
+                alterTableRenameOp.getNewTableIdentifier.getObjectName,
+                false)
+            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
+              catalog.alterTable(
+                alterTablePropertiesOp.getTableIdentifier.toObjectPath,
+                alterTablePropertiesOp.getCatalogTable,
+                false)
+          }
+          TableResultImpl.TABLE_RESULT_OK
+        } catch {
+          case ex: TableNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }

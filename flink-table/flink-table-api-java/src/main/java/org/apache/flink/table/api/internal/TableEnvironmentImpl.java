@@ -137,7 +137,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"DROP FUNCTION, ALTER FUNCTION";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-			"CREATE TABLE, DROP TABLE.";
+			"CREATE TABLE, DROP TABLE, ALTER TABLE.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -607,7 +607,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		Operation operation = operations.get(0);
 		if (operation instanceof CreateTableOperation ||
-				operation instanceof DropTableOperation) {
+				operation instanceof DropTableOperation ||
+				operation instanceof AlterTableOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -626,7 +627,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		if (operation instanceof ModifyOperation) {
 			buffer(Collections.singletonList((ModifyOperation) operation));
 		} else if (operation instanceof CreateTableOperation ||
-				operation instanceof DropTableOperation) {
+				operation instanceof DropTableOperation ||
+				operation instanceof AlterTableOperation) {
 			executeOperation(operation);
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
@@ -638,29 +640,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						createDatabaseOperation.getCatalogDatabase(),
 						createDatabaseOperation.isIgnoreIfExists());
 			} catch (DatabaseAlreadyExistException e) {
-				throw new ValidationException(exMsg, e);
-			} catch (Exception e) {
-				throw new TableException(exMsg, e);
-			}
-		} else if (operation instanceof AlterTableOperation) {
-			AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
-			Catalog catalog = getCatalogOrThrowException(alterTableOperation.getTableIdentifier().getCatalogName());
-			String exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString());
-			try {
-				if (alterTableOperation instanceof AlterTableRenameOperation) {
-					AlterTableRenameOperation alterTableRenameOp = (AlterTableRenameOperation) operation;
-					catalog.renameTable(
-							alterTableRenameOp.getTableIdentifier().toObjectPath(),
-							alterTableRenameOp.getNewTableIdentifier().getObjectName(),
-							false);
-				} else if (alterTableOperation instanceof AlterTablePropertiesOperation){
-					AlterTablePropertiesOperation alterTablePropertiesOp = (AlterTablePropertiesOperation) operation;
-					catalog.alterTable(
-							alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
-							alterTablePropertiesOp.getCatalogTable(),
-							false);
-				}
-			} catch (TableAlreadyExistException | TableNotExistException e) {
 				throw new ValidationException(exMsg, e);
 			} catch (Exception e) {
 				throw new TableException(exMsg, e);
@@ -745,6 +724,30 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					dropTableOperation.getTableIdentifier(),
 					dropTableOperation.isIfExists());
 			return TableResultImpl.TABLE_RESULT_OK;
+		} else if (operation instanceof AlterTableOperation) {
+			AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(alterTableOperation.getTableIdentifier().getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString());
+			try {
+				if (alterTableOperation instanceof AlterTableRenameOperation) {
+					AlterTableRenameOperation alterTableRenameOp = (AlterTableRenameOperation) operation;
+					catalog.renameTable(
+							alterTableRenameOp.getTableIdentifier().toObjectPath(),
+							alterTableRenameOp.getNewTableIdentifier().getObjectName(),
+							false);
+				} else if (alterTableOperation instanceof AlterTablePropertiesOperation){
+					AlterTablePropertiesOperation alterTablePropertiesOp = (AlterTablePropertiesOperation) operation;
+					catalog.alterTable(
+							alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
+							alterTablePropertiesOp.getCatalogTable(),
+							false);
+				}
+				return TableResultImpl.TABLE_RESULT_OK;
+			} catch (TableAlreadyExistException | TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else {
 			throw new TableException("Unsupported operation: " + operation);
 		}

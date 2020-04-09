@@ -34,6 +34,8 @@ import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
+import _root_.scala.collection.JavaConverters._
+
 class TableEnvironmentTest {
 
   // used for accurate exception information checking.
@@ -100,7 +102,7 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteSqlWithCreateDropTable(): Unit = {
+  def testExecuteSqlWithCreateAlterDropTable(): Unit = {
     val createTableStmt =
       """
         |CREATE TABLE tbl1 (
@@ -117,8 +119,15 @@ class TableEnvironmentTest {
     assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
 
-    val tableResult2 = tableEnv.executeSql("DROP TABLE tbl1")
+    val tableResult2 = tableEnv.executeSql("ALTER TABLE tbl1 SET ('k1' = 'a', 'k2' = 'b')")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertEquals(
+      Map("connector" -> "COLLECTION", "is-bounded" -> "false", "k1" -> "a", "k2" -> "b").asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")).getProperties)
+
+    val tableResult3 = tableEnv.executeSql("DROP TABLE tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
   }
