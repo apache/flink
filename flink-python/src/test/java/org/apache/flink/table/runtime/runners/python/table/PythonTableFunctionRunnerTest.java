@@ -88,7 +88,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 
 		final PythonEnvironmentManager environmentManager =
 			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
 				new String[]{System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
@@ -113,7 +113,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 
 		final PythonEnvironmentManager environmentManager =
 			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
 				new String[]{System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
