@@ -98,8 +98,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
 			for (Map.Entry<IntermediateResultPartitionID, IntermediateResultPartition> entry : vertex.getProducedPartitions().entrySet()) {
 				IntermediateResultPartition partition = entry.getValue();
-				DefaultResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey())
-					.orElseThrow(() -> new IllegalArgumentException("can not find partition " + entry.getKey()));
+				DefaultResultPartition schedulingResultPartition = adapter.getResultPartitionOrThrow(entry.getKey());
 
 				assertPartitionEquals(partition, schedulingResultPartition);
 			}
@@ -115,8 +114,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 			.get();
 
 		final DefaultResultPartition schedulingResultPartition = adapter
-			.getResultPartition(intermediateResultPartition.getPartitionId())
-			.get();
+			.getResultPartitionOrThrow(intermediateResultPartition.getPartitionId());
 
 		assertEquals(ResultPartitionState.CREATED, schedulingResultPartition.getState());
 
