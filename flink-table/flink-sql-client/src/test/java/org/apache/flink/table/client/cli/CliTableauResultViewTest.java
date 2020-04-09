@@ -185,7 +185,7 @@ public class CliTableauResultViewTest {
 				"|  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
 				"|  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
 				"+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
-				"8 row in set" + System.lineSeparator(),
+				"8 rows in set" + System.lineSeparator(),
 				terminalOutput.toString());
 		assertThat(mockExecutor.getNumCancelCalls(), is(0));
 	}
