@@ -122,11 +122,11 @@ option.
 
 <div data-lang="python" markdown="1">
 
-<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
+<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python的版本为3.5, 3.6 或者 3.7中的一个：
 
 {% highlight bash %}
 $ python --version
-# the version printed here must be 3.5+
+# the version printed here must be 3.5, 3.6 or 3.7
 {% endhighlight %}
 
 -   提交一个Python Table的作业:
@@ -376,12 +376,12 @@ Action "run" compiles and runs a program.
                                           interpreter used to execute the python
                                           UDF worker (e.g.: --pyExecutable
                                           /usr/local/bin/python3). The python
-                                          UDF worker depends on Python 3.5+,
-                                          Apache Beam (version == 2.15.0), Pip
-                                          (version >= 7.1.0) and SetupTools
-                                          (version >= 37.0.0). Please ensure
-                                          that the specified environment meets
-                                          the above requirements.
+                                          UDF worker depends on a specified Python
+                                          version 3.5, 3.6 or 3.7, Apache Beam
+                                          (version == 2.15.0), Pip (version >= 7.1.0)
+                                          and SetupTools (version >= 37.0.0).
+                                          Please ensure that the specified environment
+                                          meets the above requirements.
      -pyfs,--pyFiles <pythonFiles>        Attach custom python files for job.
                                           These files will be added to the
                                           PYTHONPATH of both the local client

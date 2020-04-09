@@ -122,11 +122,11 @@ These examples about how to submit a job in CLI.
 
 <div data-lang="python" markdown="1">
 
-<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command “python”. Please run the following command to confirm that the command “python” in current environment points to Python 3.5+:
+<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command “python”. Please run the following command to confirm that the command “python” in current environment points to a specified Python version 3.5, 3.6 or 3.7:
 
 {% highlight bash %}
 $ python --version
-# the version printed here must be 3.5+
+# the version printed here must be 3.5, 3.6 or 3.7
 {% endhighlight %}
 
 -   Run Python Table program:
@@ -377,12 +377,12 @@ Action "run" compiles and runs a program.
                                           interpreter used to execute the python
                                           UDF worker (e.g.: --pyExecutable
                                           /usr/local/bin/python3). The python
-                                          UDF worker depends on Python 3.5+,
-                                          Apache Beam (version == 2.15.0), Pip
-                                          (version >= 7.1.0) and SetupTools
-                                          (version >= 37.0.0). Please ensure
-                                          that the specified environment meets
-                                          the above requirements.
+                                          UDF worker depends on a specified Python
+                                          version 3.5, 3.6 or 3.7, Apache Beam
+                                          (version == 2.15.0), Pip (version >= 7.1.0)
+                                          and SetupTools (version >= 37.0.0).
+                                          Please ensure that the specified environment
+                                          meets the above requirements.
      -pyfs,--pyFiles <pythonFiles>        Attach custom python files for job.
                                           These files will be added to the
                                           PYTHONPATH of both the local client
