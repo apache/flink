@@ -33,9 +33,15 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
+import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
+import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
+import static org.apache.flink.python.util.PythonDependencyUtils.CACHE;
+import static org.apache.flink.python.util.PythonDependencyUtils.FILE;
 import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_ARCHIVES;
 import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE;
+import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
 
 /**
  * Tests for PythonDependencyUtils.
@@ -55,7 +61,7 @@ public class PythonDependencyUtilsTest {
 		config.set(
 			PythonOptions.PYTHON_FILES,
 			"hdfs:///tmp_dir/test_file1.py,tmp_dir/test_file2.py,tmp_dir/test_dir,hdfs:///tmp_dir/test_file1.py");
-		Configuration actual = PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+		Configuration actual = configurePythonDependencies(cachedFiles, config);
 
 		Map<String, String> expectedCachedFiles = new HashMap<>();
 		expectedCachedFiles.put(
@@ -86,10 +92,8 @@ public class PythonDependencyUtilsTest {
 	@Test
 	public void testPythonRequirements() {
 		Configuration config = new Configuration();
-		config.set(
-			PythonOptions.PYTHON_REQUIREMENTS,
-			"tmp_dir/requirements.txt");
-		Configuration actual = PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+		config.set(PYTHON_REQUIREMENTS, "tmp_dir/requirements.txt");
+		Configuration actual = configurePythonDependencies(cachedFiles, config);
 
 		Map<String, String> expectedCachedFiles = new HashMap<>();
 		expectedCachedFiles.put(
@@ -100,14 +104,12 @@ public class PythonDependencyUtilsTest {
 		Configuration expectedConfiguration = new Configuration(config);
 		expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
 		expectedConfiguration.get(PYTHON_REQUIREMENTS_FILE).put(
-			"file",
+			FILE,
 			"python_requirements_file_69390ca43c69ada3819226fcfbb5b6d27e111132a9427e7f201edd82e9d65ff6");
 		verifyConfiguration(expectedConfiguration, actual);
 
-		config.set(
-			PythonOptions.PYTHON_REQUIREMENTS,
-			"tmp_dir/requirements2.txt#tmp_dir/cache");
-		actual = PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+		config.set(PYTHON_REQUIREMENTS, "tmp_dir/requirements2.txt#tmp_dir/cache");
+		actual = configurePythonDependencies(cachedFiles, config);
 
 		expectedCachedFiles = new HashMap<>();
 		expectedCachedFiles.put(
@@ -121,10 +123,10 @@ public class PythonDependencyUtilsTest {
 		expectedConfiguration = new Configuration(config);
 		expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
 		expectedConfiguration.get(PYTHON_REQUIREMENTS_FILE).put(
-			"file",
+			FILE,
 			"python_requirements_file_56fd0c530faaa7129dca8d314cf69cbfc7c1c5c952f5176a003253e2f418873e");
 		expectedConfiguration.get(PYTHON_REQUIREMENTS_FILE).put(
-			"cache",
+			CACHE,
 			"python_requirements_cache_2f563dd6731c2c7c5e1ef1ef8279f61e907dc3bfc698adb71b109e43ed93e143");
 		verifyConfiguration(expectedConfiguration, actual);
 	}
@@ -139,7 +141,7 @@ public class PythonDependencyUtilsTest {
 			"tmp_dir/py37.zip," +
 			"tmp_dir/py37.zip#venv," +
 			"tmp_dir/py37.zip#venv2,tmp_dir/py37.zip#venv");
-		Configuration actual = PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+		Configuration actual = configurePythonDependencies(cachedFiles, config);
 
 		Map<String, String> expectedCachedFiles = new HashMap<>();
 		expectedCachedFiles.put(
@@ -172,13 +174,13 @@ public class PythonDependencyUtilsTest {
 	@Test
 	public void testPythonExecutables() {
 		Configuration config = new Configuration();
-		config.set(PythonOptions.PYTHON_EXECUTABLE, "venv/bin/python3");
-		config.set(PythonOptions.PYTHON_CLIENT_EXECUTABLE, "python37");
-		Configuration actual = PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+		config.set(PYTHON_EXECUTABLE, "venv/bin/python3");
+		config.set(PYTHON_CLIENT_EXECUTABLE, "python37");
+		Configuration actual = configurePythonDependencies(cachedFiles, config);
 
 		Configuration expectedConfiguration = new Configuration();
-		expectedConfiguration.set(PythonOptions.PYTHON_EXECUTABLE, "venv/bin/python3");
-		expectedConfiguration.set(PythonOptions.PYTHON_CLIENT_EXECUTABLE, "python37");
+		expectedConfiguration.set(PYTHON_EXECUTABLE, "venv/bin/python3");
+		expectedConfiguration.set(PYTHON_CLIENT_EXECUTABLE, "python37");
 		verifyConfiguration(expectedConfiguration, actual);
 	}
 

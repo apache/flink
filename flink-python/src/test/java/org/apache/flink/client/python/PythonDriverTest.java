@@ -18,8 +18,6 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.core.fs.Path;
-
 import org.junit.Assert;
 import org.junit.Test;
 import py4j.GatewayServer;
@@ -48,22 +46,14 @@ public class PythonDriverTest {
 
 	@Test
 	public void testConstructCommands() {
-		List<Path> pyFilesList = new ArrayList<>();
-		pyFilesList.add(new Path("a.py"));
-		pyFilesList.add(new Path("b.py"));
-		pyFilesList.add(new Path("c.py"));
 		List<String> args = new ArrayList<>();
 		args.add("--input");
 		args.add("in.txt");
 
 		PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(
 			"xxx",
-			pyFilesList,
-			args,
-			new ArrayList<>(),
 			null,
-			null,
-			new ArrayList<>());
+			args);
 		List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
 		// verify the generated commands
 		Assert.assertEquals(4, commands.size());
