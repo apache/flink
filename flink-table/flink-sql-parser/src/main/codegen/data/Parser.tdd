@@ -474,20 +474,13 @@
   # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
-    "SqlCreateCatalog"
-    "SqlCreateTable"
-    "SqlCreateView"
-    "SqlCreateDatabase"
-    "SqlCreateFunction"
+    "SqlCreateExtended"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
-    "SqlDropTable"
-    "SqlDropView"
-    "SqlDropDatabase"
-    "SqlDropFunction"
+    "SqlDropExtended"
   ]
 
   # Binary operators tokens

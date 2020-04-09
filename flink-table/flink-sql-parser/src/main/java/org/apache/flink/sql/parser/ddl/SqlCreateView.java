@@ -46,6 +46,7 @@ public class SqlCreateView extends SqlCreate {
 	private final SqlIdentifier viewName;
 	private final SqlNodeList fieldList;
 	private final SqlNode query;
+	private final boolean isTemporary;
 
 	@Nullable
 	private final SqlCharStringLiteral comment;
@@ -56,11 +57,14 @@ public class SqlCreateView extends SqlCreate {
 			SqlNodeList fieldList,
 			SqlNode query,
 			boolean replace,
+			boolean isTemporary,
+			boolean ifNotExists,
 			SqlCharStringLiteral comment) {
-		super(OPERATOR, pos, replace, false);
+		super(OPERATOR, pos, replace, ifNotExists);
 		this.viewName = requireNonNull(viewName, "viewName should not be null");
 		this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
 		this.query = requireNonNull(query, "query should not be null");
+		this.isTemporary = requireNonNull(isTemporary, "isTemporary should not be null");
 		this.comment = comment;
 	}
 
@@ -93,10 +97,16 @@ public class SqlCreateView extends SqlCreate {
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("CREATE");
+		if (isTemporary()) {
+			writer.keyword("TEMPORARY");
+		}
 		if (getReplace()) {
 			writer.keyword("OR REPLACE");
 		}
 		writer.keyword("VIEW");
+		if (isIfNotExists()) {
+			writer.keyword("IF NOT EXISTS");
+		}
 		viewName.unparse(writer, leftPrec, rightPrec);
 		if (fieldList.size() > 0) {
 			fieldList.unparse(writer, 1, rightPrec);
@@ -116,5 +126,13 @@ public class SqlCreateView extends SqlCreate {
 		writer.sep(",", false);
 		writer.newlineAndIndent();
 		writer.print("  ");
+	}
+
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
+	public boolean isIfNotExists() {
+		return ifNotExists;
 	}
 }

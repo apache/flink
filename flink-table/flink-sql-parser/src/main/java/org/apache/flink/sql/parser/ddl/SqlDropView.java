@@ -38,10 +38,12 @@ public class SqlDropView extends SqlDrop {
 		new SqlSpecialOperator("DROP VIEW", SqlKind.DROP_VIEW);
 
 	private final SqlIdentifier viewName;
+	private final boolean isTemporary;
 
-	public SqlDropView(SqlParserPos pos, SqlIdentifier viewName, boolean ifExists) {
+	public SqlDropView(SqlParserPos pos, SqlIdentifier viewName, boolean ifExists, boolean isTemporary) {
 		super(OPERATOR, pos, ifExists);
 		this.viewName = viewName;
+		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -55,11 +57,18 @@ public class SqlDropView extends SqlDrop {
 
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("DROP");
+		if (isTemporary) {
+			writer.keyword("TEMPORARY");
+		}
 		writer.keyword("VIEW");
 		if (ifExists) {
 			writer.keyword("IF EXISTS");
 		}
 		viewName.unparse(writer, leftPrec, rightPrec);
+	}
+
+	public boolean isTemporary() {
+		return isTemporary;
 	}
 
 	public String[] fullViewName() {
