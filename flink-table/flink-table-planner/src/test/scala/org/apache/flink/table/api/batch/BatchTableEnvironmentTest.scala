@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{ResultKind, TableException}
 import org.apache.flink.table.catalog.ObjectPath
-import org.apache.flink.table.runtime.stream.sql.FunctionITCase.TestUDF
+import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 
@@ -131,6 +131,7 @@ class BatchTableEnvironmentTest extends TableTestBase {
   def testExecuteSqlWithCreateDropFunction(): Unit = {
     val util = batchTestUtil()
     val funcName = classOf[TestUDF].getName
+    val funcName2 = classOf[SimpleScalarFunction].getName
 
     val tableResult1 = util.tableEnv.executeSql(
       s"CREATE FUNCTION default_database.f1 AS '$funcName'")
@@ -138,19 +139,25 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .functionExists(ObjectPath.fromString("default_database.f1")))
 
-    val tableResult2 = util.tableEnv.executeSql("DROP FUNCTION default_database.f1")
+    val tableResult2 = util.tableEnv.executeSql(
+      s"ALTER FUNCTION default_database.f1 AS '$funcName2'")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .functionExists(ObjectPath.fromString("default_database.f1")))
+
+    val tableResult3 = util.tableEnv.executeSql("DROP FUNCTION default_database.f1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .functionExists(ObjectPath.fromString("default_database.f1")))
 
-    val tableResult3 = util.tableEnv.executeSql(
+    val tableResult4 = util.tableEnv.executeSql(
       s"CREATE TEMPORARY SYSTEM FUNCTION default_database.f2 AS '$funcName'")
-    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+    assertEquals(ResultKind.SUCCESS, tableResult4.getResultKind)
     assertTrue(util.tableEnv.listUserDefinedFunctions().contains("f2"))
 
-    val tableResult4 = util.tableEnv.executeSql(
+    val tableResult5 = util.tableEnv.executeSql(
       "DROP TEMPORARY SYSTEM FUNCTION default_database.f2")
-    assertEquals(ResultKind.SUCCESS, tableResult4.getResultKind)
+    assertEquals(ResultKind.SUCCESS, tableResult5.getResultKind)
     assertFalse(util.tableEnv.listUserDefinedFunctions().contains("f2"))
   }
 

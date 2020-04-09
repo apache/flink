@@ -127,11 +127,12 @@ abstract class TableEnvImpl(
   private val UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
       "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
-      "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION."
+      "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, " +
+      "ALTER FUNCTION."
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-      "CREATE FUNCTION, DROP FUNCTION."
+      "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -556,7 +557,8 @@ abstract class TableEnvImpl(
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
-           _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation =>
+           _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
+           _: AlterCatalogFunctionOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -580,10 +582,9 @@ abstract class TableEnvImpl(
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
-           _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation =>
+           _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
+           _: AlterCatalogFunctionOperation =>
         executeOperation(operation)
-      case alterFunctionOperation: AlterCatalogFunctionOperation =>
-          alterCatalogFunction(alterFunctionOperation)
       case useCatalogOperation: UseCatalogOperation =>
         catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case useDatabaseOperation: UseDatabaseOperation =>
@@ -676,6 +677,8 @@ abstract class TableEnvImpl(
         dropCatalogFunction(dropFunctionOperation)
       case dropTempSystemFunctionOperation: DropTempSystemFunctionOperation =>
         dropSystemFunction(dropTempSystemFunctionOperation)
+      case alterFunctionOperation: AlterCatalogFunctionOperation =>
+        alterCatalogFunction(alterFunctionOperation)
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }
@@ -848,7 +851,8 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def alterCatalogFunction(alterFunctionOperation: AlterCatalogFunctionOperation) = {
+  private def alterCatalogFunction(
+      alterFunctionOperation: AlterCatalogFunctionOperation): TableResult = {
     val exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString)
     try {
       val function = alterFunctionOperation.getCatalogFunction
@@ -862,6 +866,7 @@ abstract class TableEnvImpl(
           alterFunctionOperation.getCatalogFunction,
           alterFunctionOperation.isIfExists)
       }
+      TableResultImpl.TABLE_RESULT_OK
     } catch {
       case ex: ValidationException => throw ex
       case ex: FunctionNotExistException => throw new ValidationException(ex.getMessage, ex)
