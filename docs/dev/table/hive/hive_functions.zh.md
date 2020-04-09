@@ -24,9 +24,9 @@ under the License.
 
 ## 通过 HiveModule 使用 Hive 内置函数
 
-在Flink SQL 和 Table API 中，可以通过系统内置的`HiveModule` 来使用 Hive 内置函数，
+在 Flink SQL 和 Table API 中，可以通过系统内置的 `HiveModule` 来使用 Hive 内置函数，
 
-详细信息，请参考 [HiveModule]({{ site.baseurl }}/dev/table/modules.html#hivemodule)。
+详细信息，请参考 [HiveModule]({{ site.baseurl }}/zh/dev/table/modules.html#hivemodule)。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -58,7 +58,7 @@ modules:
 </div>
 </div>
 
-* 请注意在旧版本的部分 Hive 内置函数存在 [线程安全问题](https://issues.apache.org/jira/browse/HIVE-16183)。
+* 请注意旧版本的部分 Hive 内置函数存在 [线程安全问题](https://issues.apache.org/jira/browse/HIVE-16183)。
 我们建议用户及时通过补丁修正 Hive 中的这些问题。
 
 ## Hive 用户自定义函数(User Defined Functions)
@@ -183,7 +183,7 @@ myudtf
 
 {% endhighlight %}
 
-此时，用户如果想使用这些UDF，在 SQL 中就可以这样写：
+此时，用户如果想使用这些 UDF，在 SQL 中就可以这样写：
 
 
 {% highlight bash %}
