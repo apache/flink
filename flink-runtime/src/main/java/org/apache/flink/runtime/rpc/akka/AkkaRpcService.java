@@ -32,10 +32,12 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcRuntimeException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 
+import akka.actor.AbstractActor;
 import akka.actor.ActorIdentity;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
@@ -105,6 +107,8 @@ public class AkkaRpcService implements RpcService {
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private final ActorRef supervisor;
+
 	private volatile boolean stopped;
 
 	@VisibleForTesting
@@ -133,6 +137,12 @@ public class AkkaRpcService implements RpcService {
 		terminationFuture = new CompletableFuture<>();
 
 		stopped = false;
+
+		supervisor = startSupervisorActor();
+	}
+
+	private ActorRef startSupervisorActor() {
+		return SupervisorActor.startSupervisorActor(actorSystem);
 	}
 
 	public ActorSystem getActorSystem() {
@@ -201,32 +211,9 @@ public class AkkaRpcService implements RpcService {
 	public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
 		checkNotNull(rpcEndpoint, "rpc endpoint");
 
-		CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-		final Props akkaRpcActorProps;
-
-		if (rpcEndpoint instanceof FencedRpcEndpoint) {
-			akkaRpcActorProps = Props.create(
-				FencedAkkaRpcActor.class,
-				rpcEndpoint,
-				terminationFuture,
-				getVersion(),
-				configuration.getMaximumFramesize());
-		} else {
-			akkaRpcActorProps = Props.create(
-				AkkaRpcActor.class,
-				rpcEndpoint,
-				terminationFuture,
-				getVersion(),
-				configuration.getMaximumFramesize());
-		}
-
-		ActorRef actorRef;
-
-		synchronized (lock) {
-			checkState(!stopped, "RpcService is stopped");
-			actorRef = actorSystem.actorOf(akkaRpcActorProps, rpcEndpoint.getEndpointId());
-			actors.put(actorRef, rpcEndpoint);
-		}
+		final SupervisorActor.ActorRegistration actorRegistration = registerAkkaRpcActor(rpcEndpoint);
+		final ActorRef actorRef = actorRegistration.getActorRef();
+		final CompletableFuture<Void> actorTerminationFuture = actorRegistration.getTerminationFuture();
 
 		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
 
@@ -254,7 +241,7 @@ public class AkkaRpcService implements RpcService {
 				actorRef,
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
-				terminationFuture,
+				actorTerminationFuture,
 				((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken,
 				captureAskCallstacks);
 
@@ -266,7 +253,7 @@ public class AkkaRpcService implements RpcService {
 				actorRef,
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
-				terminationFuture,
+				actorTerminationFuture,
 				captureAskCallstacks);
 		}
 
@@ -282,6 +269,40 @@ public class AkkaRpcService implements RpcService {
 			akkaInvocationHandler);
 
 		return server;
+	}
+
+	private <C extends RpcEndpoint & RpcGateway> SupervisorActor.ActorRegistration registerAkkaRpcActor(C rpcEndpoint) {
+		final Class<? extends AbstractActor> akkaRpcActorType;
+
+		if (rpcEndpoint instanceof FencedRpcEndpoint) {
+			akkaRpcActorType = FencedAkkaRpcActor.class;
+		} else {
+			akkaRpcActorType = AkkaRpcActor.class;
+		}
+
+		synchronized (lock) {
+			checkState(!stopped, "RpcService is stopped");
+
+			final SupervisorActor.StartAkkaRpcActorResponse startAkkaRpcActorResponse = SupervisorActor.startAkkaRpcActor(
+				supervisor,
+				actorTerminationFuture -> Props.create(
+					akkaRpcActorType,
+					rpcEndpoint,
+					actorTerminationFuture,
+					getVersion(),
+					configuration.getMaximumFramesize()),
+				rpcEndpoint.getEndpointId());
+
+			final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActorResponse.orElseThrow(cause -> new AkkaRpcRuntimeException(
+				String.format("Could not create the %s for %s.",
+					AkkaRpcActor.class.getSimpleName(),
+					rpcEndpoint.getEndpointId()),
+				cause));
+
+			actors.put(actorRegistration.getActorRef(), rpcEndpoint);
+
+			return actorRegistration;
+		}
 	}
 
 	@Override
