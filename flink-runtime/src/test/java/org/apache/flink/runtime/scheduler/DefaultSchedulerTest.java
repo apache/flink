@@ -654,7 +654,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		scheduler.updateTaskExecutionState(new TaskExecutionState(jobid, attemptId1, ExecutionState.FAILED, new RuntimeException("expected")));
 		scheduler.cancel();
-		final ExecutionState vertex2StateAfterCancel = topology.getVertexOrThrow(executionVertex2).getState();
+		final ExecutionState vertex2StateAfterCancel = topology.getVertex(executionVertex2).getState();
 		final JobStatus statusAfterCancelWhileRestarting = scheduler.requestJobStatus();
 		scheduler.updateTaskExecutionState(new TaskExecutionState(jobid, attemptId2, ExecutionState.CANCELED, new RuntimeException("expected")));
 

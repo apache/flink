@@ -43,7 +43,7 @@ class SchedulingStrategyUtils {
 			final Set<ExecutionVertexID> vertexIds) {
 
 		return vertexIds.stream()
-			.map(topology::getVertexOrThrow)
+			.map(topology::getVertex)
 			.collect(Collectors.toSet());
 	}
 

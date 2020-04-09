@@ -62,7 +62,7 @@ public class TestingSchedulingTopology
 	}
 
 	@Override
-	public TestingSchedulingExecutionVertex getVertexOrThrow(final ExecutionVertexID executionVertexId) {
+	public TestingSchedulingExecutionVertex getVertex(final ExecutionVertexID executionVertexId) {
 		final TestingSchedulingExecutionVertex executionVertex = schedulingExecutionVertices.get(executionVertexId);
 		if (executionVertex == null) {
 			throw new IllegalArgumentException("can not find vertex: " + executionVertexId);
@@ -71,7 +71,7 @@ public class TestingSchedulingTopology
 	}
 
 	@Override
-	public TestingSchedulingResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID intermediateResultPartitionId) {
+	public TestingSchedulingResultPartition getResultPartition(final IntermediateResultPartitionID intermediateResultPartitionId) {
 		final TestingSchedulingResultPartition resultPartition = schedulingResultPartitions.get(intermediateResultPartitionId);
 		if (resultPartition == null) {
 			throw new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId);

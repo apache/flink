@@ -86,7 +86,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 		// increase counter of the dataset first
 		verticesToRestart
 			.stream()
-			.map(schedulingTopology::getVertexOrThrow)
+			.map(schedulingTopology::getVertex)
 			.flatMap(vertex -> IterableUtils.toStream(vertex.getProducedResults()))
 			.forEach(inputConstraintChecker::resetSchedulingResultPartition);
 
@@ -101,7 +101,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 		}
 
 		final Set<SchedulingExecutionVertex<?, ?>> verticesToSchedule = IterableUtils
-			.toStream(schedulingTopology.getVertexOrThrow(executionVertexId).getProducedResults())
+			.toStream(schedulingTopology.getVertex(executionVertexId).getProducedResults())
 			.filter(partition -> partition.getResultType().isBlocking())
 			.flatMap(partition -> inputConstraintChecker.markSchedulingResultPartitionFinished(partition).stream())
 			.flatMap(partition -> IterableUtils.toStream(partition.getConsumers()))
@@ -113,7 +113,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 	@Override
 	public void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId) {
 		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology
-			.getResultPartitionOrThrow(resultPartitionId);
+			.getResultPartition(resultPartitionId);
 
 		if (!resultPartition.getResultType().isPipelined()) {
 			return;

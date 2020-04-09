@@ -87,7 +87,7 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 	}
 
 	@Override
-	public DefaultExecutionVertex getVertexOrThrow(final ExecutionVertexID executionVertexId) {
+	public DefaultExecutionVertex getVertex(final ExecutionVertexID executionVertexId) {
 		final DefaultExecutionVertex executionVertex = executionVerticesById.get(executionVertexId);
 		if (executionVertex == null) {
 			throw new IllegalArgumentException("can not find vertex: " + executionVertexId);
@@ -96,7 +96,7 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 	}
 
 	@Override
-	public DefaultResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID intermediateResultPartitionId) {
+	public DefaultResultPartition getResultPartition(final IntermediateResultPartitionID intermediateResultPartitionId) {
 		final DefaultResultPartition resultPartition = resultPartitionsById.get(intermediateResultPartitionId);
 		if (resultPartition == null) {
 			throw new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId);
