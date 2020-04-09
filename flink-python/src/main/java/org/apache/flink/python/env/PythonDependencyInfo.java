@@ -65,18 +65,18 @@ public final class PythonDependencyInfo {
 	 * The path of the python interpreter (e.g. /usr/local/bin/python) specified by
 	 * pyflink.table.TableConfig#set_python_executable() or command line option "-pyexec".
 	 */
-	private final String pythonExec;
+	@Nonnull private final String pythonExec;
 
 	public PythonDependencyInfo(
 		@Nonnull Map<String, String> pythonFiles,
 		@Nullable String requirementsFilePath,
 		@Nullable String requirementsCacheDir,
 		@Nonnull Map<String, String> archives,
-		String pythonExec) {
+		@Nonnull String pythonExec) {
 		this.pythonFiles = Objects.requireNonNull(pythonFiles);
 		this.requirementsFilePath = requirementsFilePath;
 		this.requirementsCacheDir = requirementsCacheDir;
-		this.pythonExec = pythonExec;
+		this.pythonExec = Objects.requireNonNull(pythonExec);
 		this.archives = Objects.requireNonNull(archives);
 	}
 
