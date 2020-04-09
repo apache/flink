@@ -30,6 +30,14 @@ to learn about the concepts behind stateful stream processing.
 * ToC
 {:toc}
 
+## Keyed DataStream
+
+If you want to use keyed state, you first need to specify a key on a
+`DataStream` that should be used to partition the state (and also the records
+in the stream themselves). You can specify a key using `keyBy()` on a
+`DataStream`. This will yield a `KeyedDataStream`, which then allows operations
+that use keyed state.
+
 ## Using Keyed State
 
 The keyed state interfaces provides access to different types of state that are all scoped to
