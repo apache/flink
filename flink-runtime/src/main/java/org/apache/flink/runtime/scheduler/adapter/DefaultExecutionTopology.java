@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -88,13 +87,21 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 	}
 
 	@Override
-	public Optional<DefaultExecutionVertex> getVertex(ExecutionVertexID executionVertexId) {
-		return Optional.ofNullable(executionVerticesById.get(executionVertexId));
+	public DefaultExecutionVertex getVertexOrThrow(final ExecutionVertexID executionVertexId) {
+		final DefaultExecutionVertex executionVertex = executionVerticesById.get(executionVertexId);
+		if (executionVertex == null) {
+			throw new IllegalArgumentException("can not find vertex: " + executionVertexId);
+		}
+		return executionVertex;
 	}
 
 	@Override
-	public Optional<DefaultResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId) {
-		return Optional.ofNullable(resultPartitionsById.get(intermediateResultPartitionId));
+	public DefaultResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID intermediateResultPartitionId) {
+		final DefaultResultPartition resultPartition = resultPartitionsById.get(intermediateResultPartitionId);
+		if (resultPartition == null) {
+			throw new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId);
+		}
+		return resultPartition;
 	}
 
 	private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(
