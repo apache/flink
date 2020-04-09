@@ -159,7 +159,7 @@ public class TestingSchedulingTopology
 
 		protected ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
 
-		protected ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
+		protected ResultPartitionState resultPartitionState = ResultPartitionState.CREATED;
 
 		protected ProducerConsumerConnectionBuilder(
 			final List<TestingSchedulingExecutionVertex> producers,

@@ -91,6 +91,10 @@ public class TestingSchedulingResultPartition
 		this.producer = checkNotNull(producer);
 	}
 
+	void setState(final ResultPartitionState state) {
+		this.state = state;
+	}
+
 	/**
 	 * Builder for {@link TestingSchedulingResultPartition}.
 	 */

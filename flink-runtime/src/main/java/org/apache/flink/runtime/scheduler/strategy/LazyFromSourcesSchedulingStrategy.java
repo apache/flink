@@ -34,7 +34,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
-import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -73,7 +72,6 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 				if (srp.getResultType().isPipelined()) {
 					option = updateOption;
 				}
-				inputConstraintChecker.addSchedulingResultPartition(srp);
 			}
 			deploymentOptions.put(schedulingVertex.getId(), option);
 		}
@@ -83,31 +81,12 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 
 	@Override
 	public void restartTasks(Set<ExecutionVertexID> verticesToRestart) {
-		// increase counter of the dataset first
-		verticesToRestart
-			.stream()
-			.map(schedulingTopology::getVertex)
-			.flatMap(vertex -> IterableUtils.toStream(vertex.getProducedResults()))
-			.forEach(inputConstraintChecker::resetSchedulingResultPartition);
-
 		allocateSlotsAndDeployExecutionVertices(
 			SchedulingStrategyUtils.getVerticesFromIds(schedulingTopology, verticesToRestart));
 	}
 
 	@Override
 	public void onExecutionStateChange(ExecutionVertexID executionVertexId, ExecutionState executionState) {
-		if (!FINISHED.equals(executionState)) {
-			return;
-		}
-
-		final Set<SchedulingExecutionVertex<?, ?>> verticesToSchedule = IterableUtils
-			.toStream(schedulingTopology.getVertex(executionVertexId).getProducedResults())
-			.filter(partition -> partition.getResultType().isBlocking())
-			.flatMap(partition -> inputConstraintChecker.markSchedulingResultPartitionFinished(partition).stream())
-			.flatMap(partition -> IterableUtils.toStream(partition.getConsumers()))
-			.collect(Collectors.toSet());
-
-		allocateSlotsAndDeployExecutionVertices(verticesToSchedule);
 	}
 
 	@Override
@@ -115,7 +94,6 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 		final Set<SchedulingExecutionVertex<?, ?>> verticesToSchedule = IterableUtils
 			.toStream(resultPartitionIds)
 			.map(schedulingTopology::getResultPartition)
-			.filter(partition -> partition.getResultType().isPipelined())
 			.flatMap(partition -> IterableUtils.toStream(partition.getConsumers()))
 			.collect(Collectors.toSet());
 

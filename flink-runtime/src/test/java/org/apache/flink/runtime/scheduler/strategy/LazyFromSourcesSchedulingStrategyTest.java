@@ -18,20 +18,18 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
+import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
@@ -63,7 +61,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 	 * Tests that when restart tasks will only schedule input ready vertices in given ones.
 	 */
 	@Test
-	public void testRestartBlockingTasks() {
+	public void testRestartTasks() {
 		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
 
 		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices().finish();
@@ -85,7 +83,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 	 * Tests that when restart tasks will schedule input consumable vertices in given ones.
 	 */
 	@Test
-	public void testRestartConsumableBlockingTasks() {
+	public void testRestartInputConsumableTasks() {
 		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
 
 		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices().finish();
@@ -98,150 +96,24 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			.collect(Collectors.toSet());
 
 		for (TestingSchedulingExecutionVertex producer : producers) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
+			producer.getProducedResults().forEach(p -> p.setState(ResultPartitionState.CONSUMABLE));
 		}
 
 		schedulingStrategy.restartTasks(verticesToRestart);
 		assertLatestScheduledVerticesAreEqualTo(consumers);
-	}
-
-	/**
-	 * Tests that when all the input partitions are ready will start available downstream {@link ResultPartitionType#BLOCKING} vertices.
-	 * vertex#0    vertex#1
-	 *       \     /
-	 *        \   /
-	 *         \ /
-	 *  (BLOCKING, ALL)
-	 *     vertex#2
-	 */
-	@Test
-	public void testRestartBlockingALLExecutionStateChange() {
-		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
-
-		final List<TestingSchedulingExecutionVertex> producers1 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> producers2 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).withInputDependencyConstraint(ALL).finish();
-		testingSchedulingTopology.connectPointwise(producers1, consumers).finish();
-		testingSchedulingTopology.connectPointwise(producers2, consumers).finish();
-
-		final LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
-
-		for (TestingSchedulingExecutionVertex producer : producers1) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
-		}
-		for (TestingSchedulingExecutionVertex producer : producers2) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
-		}
-
-		Set<ExecutionVertexID> verticesToRestart = consumers.stream().map(TestingSchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-
-		schedulingStrategy.restartTasks(verticesToRestart);
-		assertLatestScheduledVerticesAreEqualTo(consumers);
-	}
-
-	/**
-	 * Tests that when any input dataset finishes will start available downstream {@link ResultPartitionType#BLOCKING} vertices.
-	 * vertex#0    vertex#1
-	 *       \     /
-	 *        \   /
-	 *         \ /
-	 *  (BLOCKING, ANY)
-	 *     vertex#2
-	 */
-	@Test
-	public void testRestartBlockingANYExecutionStateChange() {
-		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
-
-		final List<TestingSchedulingExecutionVertex> producers1 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> producers2 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		testingSchedulingTopology.connectPointwise(producers1, consumers).finish();
-		testingSchedulingTopology.connectPointwise(producers2, consumers).finish();
-
-		final LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
-
-		for (TestingSchedulingExecutionVertex producer : producers1) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
-		}
-
-		Set<ExecutionVertexID> verticesToRestart = consumers.stream().map(TestingSchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-
-		schedulingStrategy.restartTasks(verticesToRestart);
-		assertLatestScheduledVerticesAreEqualTo(consumers);
-	}
-
-	/**
-	 * Tests that when restart {@link ResultPartitionType#PIPELINED} tasks with {@link ResultPartitionState#CONSUMABLE} will be scheduled.
-	 */
-	@Test
-	public void testRestartConsumablePipelinedTasks() {
-		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
-
-		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		testingSchedulingTopology.connectAllToAll(producers, consumers).withResultPartitionState(ResultPartitionState.CONSUMABLE)
-			.withResultPartitionType(PIPELINED).finish();
-
-		LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
-
-		Set<ExecutionVertexID> verticesToRestart = producers.stream().map(TestingSchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-		verticesToRestart.addAll(consumers.stream().map(
-			TestingSchedulingExecutionVertex::getId).collect(Collectors.toList()));
-
-		schedulingStrategy.restartTasks(verticesToRestart);
-		List<TestingSchedulingExecutionVertex> toScheduleVertices = new ArrayList<>(producers.size() + consumers.size());
-		toScheduleVertices.addAll(producers);
-		toScheduleVertices.addAll(consumers);
-
-		assertLatestScheduledVerticesAreEqualTo(toScheduleVertices);
-	}
-
-	/**
-	 * Tests that when restart {@link ResultPartitionType#PIPELINED} tasks with {@link ResultPartitionState#CREATED} will not be scheduled.
-	 */
-	@Test
-	public void testRestartCreatedPipelinedTasks() {
-		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
-
-		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		testingSchedulingTopology.connectAllToAll(producers, consumers).withResultPartitionState(ResultPartitionState.CREATED)
-			.withResultPartitionType(PIPELINED).finish();
-
-		LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
-
-		Set<ExecutionVertexID> verticesToRestart = producers.stream().map(TestingSchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-		verticesToRestart.addAll(consumers.stream().map(
-			TestingSchedulingExecutionVertex::getId).collect(Collectors.toSet()));
-
-		schedulingStrategy.restartTasks(verticesToRestart);
-		assertLatestScheduledVerticesAreEqualTo(producers);
 	}
 
 	/**
 	 * Tests that when partition consumable notified will start available {@link ResultPartitionType#PIPELINED} downstream vertices.
 	 */
 	@Test
-	public void testPipelinedPartitionConsumable() {
+	public void testOnPartitionConsumable() {
 		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
 
 		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices()
 			.withParallelism(2).finish();
 		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
+			.withInputDependencyConstraint(ANY)
 			.withParallelism(2).finish();
 		testingSchedulingTopology.connectAllToAll(producers, consumers).withResultPartitionType(PIPELINED).finish();
 
@@ -250,95 +122,8 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		final TestingSchedulingExecutionVertex producer1 = producers.get(0);
 		final TestingSchedulingResultPartition partition1 = producer1.getProducedResults().iterator().next();
 
-		schedulingStrategy.onExecutionStateChange(producer1.getId(), ExecutionState.RUNNING);
+		producer1.getProducedResults().forEach(p -> p.setState(ResultPartitionState.CONSUMABLE));
 		schedulingStrategy.onPartitionConsumable(Collections.singleton(partition1.getId()));
-
-		assertLatestScheduledVerticesAreEqualTo(consumers);
-	}
-
-	/**
-	 * Tests that when partition consumable notified will start available {@link ResultPartitionType#BLOCKING} downstream vertices.
-	 */
-	@Test
-	public void testBlockingPointwiseExecutionStateChange() {
-		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
-
-		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).withInputDependencyConstraint(ALL).finish();
-		testingSchedulingTopology.connectPointwise(producers, consumers).finish();
-
-		final LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
-
-		for (TestingSchedulingExecutionVertex producer : producers) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
-		}
-
-		assertLatestScheduledVerticesAreEqualTo(consumers);
-	}
-
-	/**
-	 * Tests that when all the input partitions are ready will start available downstream {@link ResultPartitionType#BLOCKING} vertices.
-	 * vertex#0    vertex#1
-	 *       \     /
-	 *        \   /
-	 *         \ /
-	 *  (BLOCKING, ALL)
-	 *     vertex#2
-	 */
-	@Test
-	public void testBlockingALLExecutionStateChange() {
-		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
-
-		final List<TestingSchedulingExecutionVertex> producers1 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> producers2 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).withInputDependencyConstraint(ALL).finish();
-		testingSchedulingTopology.connectPointwise(producers1, consumers).finish();
-		testingSchedulingTopology.connectPointwise(producers2, consumers).finish();
-
-		final LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
-
-		for (TestingSchedulingExecutionVertex producer : producers1) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
-		}
-		for (TestingSchedulingExecutionVertex producer : producers2) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
-		}
-
-		assertLatestScheduledVerticesAreEqualTo(consumers);
-	}
-
-	/**
-	 * Tests that when any input dataset finishes will start available downstream {@link ResultPartitionType#BLOCKING} vertices.
-	 * vertex#0    vertex#1
-	 *       \     /
-	 *        \   /
-	 *         \ /
-	 *  (BLOCKING, ANY)
-	 *     vertex#2
-	 */
-	@Test
-	public void testBlockingANYExecutionStateChange() {
-		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
-
-		final List<TestingSchedulingExecutionVertex> producers1 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> producers2 = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
-			.withParallelism(2).finish();
-		testingSchedulingTopology.connectPointwise(producers1, consumers).finish();
-		testingSchedulingTopology.connectPointwise(producers2, consumers).finish();
-
-		final LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
-
-		for (TestingSchedulingExecutionVertex producer : producers1) {
-			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
-		}
 
 		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
