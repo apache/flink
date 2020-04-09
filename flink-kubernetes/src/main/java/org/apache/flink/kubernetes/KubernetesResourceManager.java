@@ -93,7 +93,6 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 	public KubernetesResourceManager(
 			RpcService rpcService,
-			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			Configuration flinkConfig,
 			HighAvailabilityServices highAvailabilityServices,
@@ -110,7 +109,6 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			flinkConfig,
 			System.getenv(),
 			rpcService,
-			resourceManagerEndpointId,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,
