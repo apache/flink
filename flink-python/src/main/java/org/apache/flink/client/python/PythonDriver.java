@@ -18,9 +18,17 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.cli.CliArgsException;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.program.ProgramAbortException;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.python.util.PythonDependencyUtils;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.HelpFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import py4j.GatewayServer;
@@ -38,39 +46,36 @@ import java.util.UUID;
 public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
-	public static void main(String[] args) {
-		// the python job needs at least 2 args.
-		// e.g. py a.py ...
-		// e.g. pym a.b -pyfs a.zip ...
-		if (args.length < 2) {
-			LOG.error("Required at least two arguments, only python file or python module is available.");
-			System.exit(1);
-		}
+	public static void main(String[] args) throws CliArgsException {
+		Configuration config = new Configuration(ExecutionEnvironment.getExecutionEnvironment().getConfiguration());
+		CommandLine line = CliFrontendParser.parse(PythonDependencyUtils.getPythonCommandLineOptions(), args, false);
+		config.addAll(PythonDependencyUtils.parseCommandLine(line));
 
-		// parse args
-		final CommandLineParser<PythonDriverOptions> commandLineParser = new CommandLineParser<>(
-			new PythonDriverOptionsParserFactory());
-		PythonDriverOptions pythonDriverOptions = null;
+		List<String> commands = null;
 		try {
-			pythonDriverOptions = commandLineParser.parse(args);
+			// commands which will be exec in python progress.
+			commands = constructPythonCommands(config, line.getArgList());
 		} catch (Exception e) {
-			LOG.error("Could not parse command line arguments {}.", args, e);
-			commandLineParser.printHelp(PythonDriver.class.getSimpleName());
+			LOG.error("Could not construct python command from config {}.", config, e);
+			HelpFormatter helpFormatter = new HelpFormatter();
+			helpFormatter.setLeftPadding(5);
+			helpFormatter.setWidth(80);
+			helpFormatter.printHelp(
+				PythonDriver.class.getSimpleName(),
+				PythonDependencyUtils.getPythonCommandLineOptions(),
+				true);
 			System.exit(1);
 		}
 
 		// start gateway server
 		GatewayServer gatewayServer = startGatewayServer();
 		// prepare python env
-
-		// commands which will be exec in python progress.
-		final List<String> commands = constructPythonCommands(pythonDriverOptions);
 		try {
 			// prepare the exec environment of python progress.
 			String tmpDir = System.getProperty("java.io.tmpdir") +
 				File.separator + "pyflink" + File.separator + UUID.randomUUID();
 			PythonDriverEnvUtils.PythonEnvironment pythonEnv = PythonDriverEnvUtils.preparePythonEnvironment(
-				pythonDriverOptions, tmpDir);
+				config, tmpDir);
 			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
 			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
@@ -117,13 +122,34 @@ public final class PythonDriver {
 	/**
 	 * Constructs the Python commands which will be executed in python process.
 	 *
-	 * @param pythonDriverOptions parsed Python command options
+	 * @param config The config object which contains python configurations.
+	 * @param userArgs The user args.
 	 */
-	static List<String> constructPythonCommands(final PythonDriverOptions pythonDriverOptions) {
+	static List<String> constructPythonCommands(final Configuration config, List<String> userArgs)
+			throws FlinkParseException {
+		final String entryPointModule;
+		if (config.contains(PythonDependencyUtils.PYTHON_ENTRY_POINT_MODULE) &&
+			config.contains(PythonDependencyUtils.PYTHON_ENTRY_POINT_SCRIPT)) {
+			throw new FlinkParseException("Cannot use options -py and -pym simultaneously.");
+		} else if (config.contains(PythonDependencyUtils.PYTHON_ENTRY_POINT_SCRIPT)) {
+			Path file = new Path(config.get(PythonDependencyUtils.PYTHON_ENTRY_POINT_SCRIPT));
+			String fileName = file.getName();
+			if (fileName.endsWith(".py")) {
+				entryPointModule = fileName.substring(0, fileName.length() - 3);
+			} else {
+				throw new FlinkParseException("The entry point script is not end with \".py\".");
+			}
+		} else if (config.contains(PythonDependencyUtils.PYTHON_ENTRY_POINT_MODULE)) {
+			entryPointModule = config.get(PythonDependencyUtils.PYTHON_ENTRY_POINT_MODULE);
+		} else {
+			throw new FlinkParseException("The Python entrypoint has not been specified. It can be specified with " +
+				"options -py or -pym");
+		}
+
 		final List<String> commands = new ArrayList<>();
 		commands.add("-m");
-		commands.add(pythonDriverOptions.getEntrypointModule());
-		commands.addAll(pythonDriverOptions.getProgramArgs());
+		commands.add(entryPointModule);
+		commands.addAll(userArgs);
 		return commands;
 	}
 }
