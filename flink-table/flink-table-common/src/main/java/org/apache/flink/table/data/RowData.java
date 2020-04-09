@@ -105,7 +105,7 @@ public interface RowData {
 	 *
 	 * @see RowKind
 	 */
-	void getRowKind(RowKind kind);
+	void setRowKind(RowKind kind);
 
 	// ------------------------------------------------------------------------------------------
 
