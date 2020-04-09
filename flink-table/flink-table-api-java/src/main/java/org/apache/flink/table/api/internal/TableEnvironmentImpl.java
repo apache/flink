@@ -137,7 +137,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"DROP FUNCTION, ALTER FUNCTION";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE.";
+			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -609,7 +609,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		if (operation instanceof CreateTableOperation ||
 				operation instanceof DropTableOperation ||
 				operation instanceof AlterTableOperation ||
-				operation instanceof CreateDatabaseOperation) {
+				operation instanceof CreateDatabaseOperation ||
+				operation instanceof DropDatabaseOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -630,22 +631,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof CreateTableOperation ||
 				operation instanceof DropTableOperation ||
 				operation instanceof AlterTableOperation ||
-				operation instanceof CreateDatabaseOperation) {
+				operation instanceof CreateDatabaseOperation ||
+				operation instanceof DropDatabaseOperation) {
 			executeOperation(operation);
-		} else if (operation instanceof DropDatabaseOperation) {
-			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
-			Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
-			String exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString());
-			try {
-				catalog.dropDatabase(
-						dropDatabaseOperation.getDatabaseName(),
-						dropDatabaseOperation.isIfExists(),
-						dropDatabaseOperation.isCascade());
-			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
-				throw new ValidationException(exMsg, e);
-			} catch (Exception e) {
-				throw new TableException(exMsg, e);
-			}
 		} else if (operation instanceof AlterDatabaseOperation) {
 			AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
@@ -747,6 +735,21 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						createDatabaseOperation.isIgnoreIfExists());
 				return TableResultImpl.TABLE_RESULT_OK;
 			} catch (DatabaseAlreadyExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
+		} else if (operation instanceof DropDatabaseOperation) {
+			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString());
+			try {
+				catalog.dropDatabase(
+						dropDatabaseOperation.getDatabaseName(),
+						dropDatabaseOperation.isIfExists(),
+						dropDatabaseOperation.isCascade());
+				return TableResultImpl.TABLE_RESULT_OK;
+			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
 				throw new ValidationException(exMsg, e);
 			} catch (Exception e) {
 				throw new TableException(exMsg, e);

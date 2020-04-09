@@ -133,10 +133,14 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteSqlWithCreateDatabase(): Unit = {
-    val tableResult = tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
-    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+  def testExecuteSqlWithCreateDropDatabase(): Unit = {
+    val tableResult1 = tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().databaseExists("db1"))
+
+    val tableResult2 = tableEnv.executeSql("DROP DATABASE db1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertFalse(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().databaseExists("db1"))
   }
 
   @Test
