@@ -1811,9 +1811,8 @@ def _from_java_type(j_data_type):
         logical_type = java_data_type.getLogicalType()
         field_data_types = java_data_type.getFieldDataTypes()
         if _is_instance_of(logical_type, gateway.jvm.RowType):
-            fields = [DataTypes.FIELD(item,
-                                      _from_java_type(
-                                          field_data_types[item])) for item in field_data_types]
+            fields = [DataTypes.FIELD(name, _from_java_type(field_data_types[name]))
+                      for name in logical_type.getFieldNames()]
             data_type = DataTypes.ROW(fields, logical_type.isNullable())
         else:
             raise TypeError("Unsupported row data type: %s" % j_data_type)
