@@ -102,7 +102,7 @@ public class HighAvailabilityServicesUtils {
 				final String dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
 					hostnamePort.f0,
 					hostnamePort.f1,
-					Dispatcher.DISPATCHER_NAME,
+					AkkaRpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),
 					addressResolution,
 					configuration);
 				final String webMonitorAddress = getWebMonitorAddress(
