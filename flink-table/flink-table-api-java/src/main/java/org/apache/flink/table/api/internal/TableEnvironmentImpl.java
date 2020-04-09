@@ -138,7 +138,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG.";
+			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -619,7 +619,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof DropTempSystemFunctionOperation ||
 				operation instanceof AlterCatalogFunctionOperation ||
 				operation instanceof CreateCatalogOperation ||
-				operation instanceof UseCatalogOperation) {
+				operation instanceof UseCatalogOperation ||
+				operation instanceof UseDatabaseOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -649,12 +650,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof DropTempSystemFunctionOperation ||
 				operation instanceof AlterCatalogFunctionOperation ||
 				operation instanceof CreateCatalogOperation ||
-				operation instanceof UseCatalogOperation) {
+				operation instanceof UseCatalogOperation ||
+				operation instanceof UseDatabaseOperation) {
 			executeOperation(operation);
-		} else if (operation instanceof UseDatabaseOperation) {
-			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
-			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
-			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
@@ -766,6 +764,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof UseCatalogOperation) {
 			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
 			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
+			return TableResultImpl.TABLE_RESULT_OK;
+		} else if (operation instanceof UseDatabaseOperation) {
+			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
+			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
+			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else {
 			throw new TableException("Unsupported operation: " + operation);
