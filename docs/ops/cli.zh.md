@@ -126,7 +126,7 @@ option.
 
 {% highlight bash %}
 $ python --version
-# # the version printed here must be 3.5, 3.6 or 3.7
+# the version printed here must be 3.5, 3.6 or 3.7
 {% endhighlight %}
 
 -   提交一个Python Table的作业:
