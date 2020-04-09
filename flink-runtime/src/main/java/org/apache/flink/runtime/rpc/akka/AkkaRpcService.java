@@ -39,14 +39,13 @@ import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.TimeUtils;
 
 import akka.actor.AbstractActor;
-import akka.actor.ActorIdentity;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
-import akka.actor.Identify;
 import akka.actor.Props;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
@@ -482,22 +481,7 @@ public class AkkaRpcService implements RpcService {
 		LOG.debug("Try to connect to remote RPC endpoint with address {}. Returning a {} gateway.",
 			address, clazz.getName());
 
-		final ActorSelection actorSel = actorSystem.actorSelection(address);
-
-		final Future<ActorIdentity> identify = Patterns
-			.ask(actorSel, new Identify(42), configuration.getTimeout().toMilliseconds())
-			.<ActorIdentity>mapTo(ClassTag$.MODULE$.<ActorIdentity>apply(ActorIdentity.class));
-
-		final CompletableFuture<ActorIdentity> identifyFuture = FutureUtils.toJava(identify);
-
-		final CompletableFuture<ActorRef> actorRefFuture = identifyFuture.thenApply(
-			(ActorIdentity actorIdentity) -> {
-				if (actorIdentity.getRef() == null) {
-					throw new CompletionException(new RpcConnectionException("Could not connect to rpc endpoint under address " + address + '.'));
-				} else {
-					return actorIdentity.getRef();
-				}
-			});
+		final CompletableFuture<ActorRef> actorRefFuture = resolveActorAddress(address);
 
 		final CompletableFuture<HandshakeSuccessMessage> handshakeFuture = actorRefFuture.thenCompose(
 			(ActorRef actorRef) -> FutureUtils.toJava(
@@ -524,6 +508,17 @@ public class AkkaRpcService implements RpcService {
 				return proxy;
 			},
 			actorSystem.dispatcher());
+	}
+
+	private CompletableFuture<ActorRef> resolveActorAddress(String address) {
+		final ActorSelection actorSel = actorSystem.actorSelection(address);
+
+		return actorSel.resolveOne(TimeUtils.toDuration(configuration.getTimeout()))
+			.toCompletableFuture()
+			.exceptionally(error -> {
+				throw new CompletionException(
+					new RpcConnectionException(String.format("Could not connect to rpc endpoint under address %s.", address), error));
+			});
 	}
 
 	// ---------------------------------------------------------------------------------------
