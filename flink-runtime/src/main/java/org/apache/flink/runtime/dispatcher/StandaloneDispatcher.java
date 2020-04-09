@@ -30,13 +30,11 @@ import org.apache.flink.runtime.rpc.RpcService;
 public class StandaloneDispatcher extends Dispatcher {
 	public StandaloneDispatcher(
 			RpcService rpcService,
-			String endpointId,
 			DispatcherId fencingToken,
 			DispatcherBootstrap dispatcherBootstrap,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
-			endpointId,
 			fencingToken,
 			dispatcherBootstrap,
 			dispatcherServices);

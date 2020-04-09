@@ -61,6 +61,7 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPre
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -134,11 +135,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	public Dispatcher(
 			RpcService rpcService,
-			String endpointId,
 			DispatcherId fencingToken,
 			DispatcherBootstrap dispatcherBootstrap,
 			DispatcherServices dispatcherServices) throws Exception {
-		super(rpcService, endpointId, fencingToken);
+		super(rpcService, AkkaRpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
 		checkNotNull(dispatcherServices);
 
 		this.configuration = dispatcherServices.getConfiguration();

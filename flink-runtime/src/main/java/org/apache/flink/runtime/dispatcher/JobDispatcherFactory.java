@@ -42,7 +42,6 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 
 		return new MiniDispatcher(
 			rpcService,
-			getEndpointId(),
 			fencingToken,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE),
 			dispatcherBootstrap,

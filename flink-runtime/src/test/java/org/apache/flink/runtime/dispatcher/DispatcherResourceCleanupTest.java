@@ -75,7 +75,6 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -194,7 +193,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 		dispatcher = new TestingDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
 			DispatcherId.generate(),
 			new DefaultDispatcherBootstrap(Collections.emptyList()),
 			new DispatcherServices(
