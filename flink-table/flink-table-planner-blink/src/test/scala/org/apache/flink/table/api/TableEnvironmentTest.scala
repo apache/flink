@@ -182,11 +182,16 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteSqlWithCreateCatalog(): Unit = {
-    val tableResult = tableEnv.executeSql(
+  def testExecuteSqlWithCreateUseCatalog(): Unit = {
+    val tableResult1 = tableEnv.executeSql(
       "CREATE CATALOG my_catalog WITH('type'='generic_in_memory')")
-    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     assertTrue(tableEnv.getCatalog("my_catalog").isPresent)
+
+    assertEquals("default_catalog", tableEnv.getCurrentCatalog)
+    val tableResult2 = tableEnv.executeSql("USE CATALOG my_catalog")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertEquals("my_catalog", tableEnv.getCurrentCatalog)
   }
 
   @Test

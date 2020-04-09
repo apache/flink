@@ -132,7 +132,7 @@ abstract class TableEnvImpl(
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-      "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION."
+      "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -558,7 +558,7 @@ abstract class TableEnvImpl(
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
-           _: AlterCatalogFunctionOperation =>
+           _: AlterCatalogFunctionOperation | _: UseCatalogOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -583,10 +583,8 @@ abstract class TableEnvImpl(
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
-           _: AlterCatalogFunctionOperation =>
+           _: AlterCatalogFunctionOperation | _: UseCatalogOperation =>
         executeOperation(operation)
-      case useCatalogOperation: UseCatalogOperation =>
-        catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case useDatabaseOperation: UseDatabaseOperation =>
         catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
         catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
@@ -679,6 +677,9 @@ abstract class TableEnvImpl(
         dropSystemFunction(dropTempSystemFunctionOperation)
       case alterFunctionOperation: AlterCatalogFunctionOperation =>
         alterCatalogFunction(alterFunctionOperation)
+      case useCatalogOperation: UseCatalogOperation =>
+        catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
+        TableResultImpl.TABLE_RESULT_OK
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }

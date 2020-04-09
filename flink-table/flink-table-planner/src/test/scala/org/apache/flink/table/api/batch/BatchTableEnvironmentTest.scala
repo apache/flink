@@ -21,7 +21,7 @@ package org.apache.flink.table.api.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{ResultKind, TableException}
-import org.apache.flink.table.catalog.ObjectPath
+import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
@@ -159,6 +159,16 @@ class BatchTableEnvironmentTest extends TableTestBase {
       "DROP TEMPORARY SYSTEM FUNCTION default_database.f2")
     assertEquals(ResultKind.SUCCESS, tableResult5.getResultKind)
     assertFalse(util.tableEnv.listUserDefinedFunctions().contains("f2"))
+  }
+
+  @Test
+  def testExecuteSqlWithUseCatalog(): Unit = {
+    val util = batchTestUtil()
+    util.tableEnv.registerCatalog("my_catalog", new GenericInMemoryCatalog("my_catalog"))
+    assertEquals("default_catalog", util.tableEnv.getCurrentCatalog)
+    val tableResult2 = util.tableEnv.executeSql("USE CATALOG my_catalog")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertEquals("my_catalog", util.tableEnv.getCurrentCatalog)
   }
 
   @Test
