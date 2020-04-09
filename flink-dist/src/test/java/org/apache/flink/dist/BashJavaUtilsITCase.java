@@ -19,6 +19,7 @@
 package org.apache.flink.dist;
 
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.util.BashJavaUtils;
 
@@ -54,7 +55,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 	}
 
 	@Test
-	public void testConfigOverwrittenByDynamicOpts() throws Exception {
+	public void testGetTmResourceParamsConfigsWithDynamicProperties() throws Exception {
 		int expectedResultLines = 2;
 		double cpuCores = 39.0;
 		String[] commands = {
@@ -67,6 +68,35 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 		assertThat(lines.size(), is(expectedResultLines));
 		Map<String, String> configs = ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
 		assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())), is(cpuCores));
+	}
+
+	@Test
+	public void testGetJmResourceParams() throws Exception {
+		int expectedResultLines = 1;
+		String[] commands = {
+			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+			BashJavaUtils.Command.GET_JM_RESOURCE_PARAMS.toString(),
+			String.valueOf(expectedResultLines)};
+		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(lines.size(), is(expectedResultLines));
+		ConfigurationUtils.parseJvmArgString(lines.get(0));
+	}
+
+	@Test
+	public void testGetJmResourceParamsWithDynamicProperties() throws Exception {
+		int expectedResultLines = 1;
+		long metaspace = 123456789L;
+		String[] commands = {
+			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+			BashJavaUtils.Command.GET_JM_RESOURCE_PARAMS.toString(),
+			String.valueOf(expectedResultLines),
+			"-D" + JobManagerOptions.JVM_METASPACE.key() + "=" + metaspace + "b"};
+		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(lines.size(), is(expectedResultLines));
+		Map<String, String> params = ConfigurationUtils.parseJvmArgString(lines.get(0));
+		assertThat(Long.valueOf(params.get("-XX:MaxMetaspaceSize=")), is(metaspace));
 	}
 
 	@Test
