@@ -123,7 +123,6 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 	public YarnResourceManager(
 			RpcService rpcService,
-			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			Configuration flinkConfig,
 			Map<String, String> env,
@@ -140,7 +139,6 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 			flinkConfig,
 			env,
 			rpcService,
-			resourceManagerEndpointId,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

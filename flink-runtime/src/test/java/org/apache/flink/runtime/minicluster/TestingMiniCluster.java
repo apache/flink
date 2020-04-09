@@ -29,6 +29,7 @@ import org.apache.flink.runtime.entrypoint.component.TestingDefaultDispatcherRes
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
@@ -132,6 +133,6 @@ public class TestingMiniCluster extends MiniCluster {
 	private DispatcherResourceManagerComponentFactory createTestingDispatcherResourceManagerComponentFactory() {
 		return TestingDefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
 			DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherWithUUIDFactory.INSTANCE),
-			StandaloneResourceManagerWithUUIDFactory.INSTANCE);
+			StandaloneResourceManagerFactory.INSTANCE);
 	}
 }

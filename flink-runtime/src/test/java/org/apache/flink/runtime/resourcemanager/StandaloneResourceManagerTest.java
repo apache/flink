@@ -39,7 +39,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -114,7 +113,6 @@ public class StandaloneResourceManagerTest extends TestLogger {
 
 		final TestingStandaloneResourceManager rm = new TestingStandaloneResourceManager(
 			rmServices.rpcService,
-			UUID.randomUUID().toString(),
 			ResourceID.generate(),
 			rmServices.highAvailabilityServices,
 			rmServices.heartbeatServices,
@@ -137,7 +135,6 @@ public class StandaloneResourceManagerTest extends TestLogger {
 
 		private TestingStandaloneResourceManager(
 				RpcService rpcService,
-				String resourceManagerEndpointId,
 				ResourceID resourceId,
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
@@ -150,7 +147,6 @@ public class StandaloneResourceManagerTest extends TestLogger {
 				MockResourceManagerRuntimeServices rmServices) {
 			super(
 				rpcService,
-				resourceManagerEndpointId,
 				resourceId,
 				highAvailabilityServices,
 				heartbeatServices,

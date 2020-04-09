@@ -145,7 +145,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 		TestingKubernetesResourceManager(
 				RpcService rpcService,
-				String resourceManagerEndpointId,
 				ResourceID resourceId,
 				Configuration flinkConfig,
 				HighAvailabilityServices highAvailabilityServices,
@@ -159,7 +158,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				KubernetesResourceManagerConfiguration configuration) {
 			super(
 				rpcService,
-				resourceManagerEndpointId,
 				resourceId,
 				flinkConfig,
 				highAvailabilityServices,
@@ -359,7 +357,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 		final TestingKubernetesResourceManager kubernetesResourceManager = new TestingKubernetesResourceManager(
 			rpcService,
-			"kubernetesResourceManager",
 			ResourceID.generate(),
 			configuration,
 			rmServices.highAvailabilityServices,

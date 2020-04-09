@@ -67,7 +67,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 			Configuration flinkConfig,
 			Map<String, String> env,
 			RpcService rpcService,
-			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
@@ -79,7 +78,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 			ResourceManagerMetricGroup resourceManagerMetricGroup) {
 		super(
 			rpcService,
-			resourceManagerEndpointId,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

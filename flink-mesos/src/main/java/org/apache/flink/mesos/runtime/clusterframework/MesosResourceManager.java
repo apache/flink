@@ -149,7 +149,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	public MesosResourceManager(
 			// base class
 			RpcService rpcService,
-			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
@@ -168,7 +167,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			ResourceManagerMetricGroup resourceManagerMetricGroup) {
 		super(
 			rpcService,
-			resourceManagerEndpointId,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

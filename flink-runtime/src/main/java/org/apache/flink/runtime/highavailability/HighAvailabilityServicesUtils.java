@@ -96,7 +96,7 @@ public class HighAvailabilityServicesUtils {
 				final String resourceManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
 					hostnamePort.f0,
 					hostnamePort.f1,
-					ResourceManager.RESOURCE_MANAGER_NAME,
+					AkkaRpcServiceUtils.createWildcardName(ResourceManager.RESOURCE_MANAGER_NAME),
 					addressResolution,
 					configuration);
 				final String dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(

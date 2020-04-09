@@ -143,7 +143,6 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
 		ResourceManager<?> resourceManager = new StandaloneResourceManager(
 			rpcService,
-			ResourceManager.RESOURCE_MANAGER_NAME,
 			rmResourceId,
 			haServices,
 			heartbeatServices,
