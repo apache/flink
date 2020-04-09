@@ -29,11 +29,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Set of {@link LogicalVertex} that are connected through pipelined {@link LogicalResult}.
  */
-public class LogicalPipelinedRegion {
+public class DefaultLogicalPipelinedRegion {
 
 	private final Set<JobVertexID> vertexIDs;
 
-	public LogicalPipelinedRegion(final Set<? extends LogicalVertex<?, ?>> logicalVertices) {
+	public DefaultLogicalPipelinedRegion(final Set<? extends LogicalVertex<?, ?>> logicalVertices) {
 		checkNotNull(logicalVertices);
 
 		this.vertexIDs = logicalVertices.stream()
@@ -47,7 +47,7 @@ public class LogicalPipelinedRegion {
 
 	@Override
 	public String toString() {
-		return "LogicalPipelinedRegion{" +
+		return "DefaultLogicalPipelinedRegion{" +
 			"vertexIDs=" + vertexIDs +
 			'}';
 	}
