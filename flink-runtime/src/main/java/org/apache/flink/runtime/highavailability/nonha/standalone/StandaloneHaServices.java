@@ -39,9 +39,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class StandaloneHaServices extends AbstractNonHaServices {
 
-	/** The constant name of the ResourceManager RPC endpoint */
-	private static final String RESOURCE_MANAGER_RPC_ENDPOINT_NAME = "resource_manager";
-
 	/** The fix address of the ResourceManager */
 	private final String resourceManagerAddress;
 
