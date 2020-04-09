@@ -126,4 +126,29 @@ function debug_and_show_logs {
     done
 }
 
+function wait_rest_endpoint_up_k8s {
+  local jm_pod_name=$1
+  local successful_response_regex="Rest endpoint listening at"
+
+  echo "Waiting for jobmanager pod ${jm_pod_name} ready."
+  kubectl wait --for=condition=Ready --timeout=30s pod/$jm_pod_name || exit 1
+
+  # wait at most 30 seconds until the endpoint is up
+  local TIMEOUT=30
+  for i in $(seq 1 ${TIMEOUT}); do
+    QUERY_RESULT=$(kubectl logs $jm_pod_name 2> /dev/null)
+
+    # ensure the response adapts with the successful regex
+    if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
+      echo "REST endpoint is up."
+      return
+    fi
+
+    echo "Waiting for REST endpoint to come up..."
+    sleep 1
+  done
+  echo "REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
+}
+
 on_exit cleanup
