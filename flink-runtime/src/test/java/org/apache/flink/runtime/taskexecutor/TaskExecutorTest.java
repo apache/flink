@@ -57,7 +57,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
@@ -1959,25 +1958,19 @@ public class TaskExecutorTest extends TestLogger {
 			.build());
 
 		jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
-		return new TaskExecutorTestingContext(offerSlotsLatch, jobMasterGateway, jobLeaderService, taskSlotTable, taskExecutor);
+		return new TaskExecutorTestingContext(jobMasterGateway, taskSlotTable, taskExecutor);
 	}
 
 	private class TaskExecutorTestingContext implements AutoCloseable {
-		private final OneShotLatch offerSlotsLatch;
 		private final TestingJobMasterGateway jobMasterGateway;
-		private final JobLeaderService jobLeaderService;
 		private final TaskSlotTable taskSlotTable;
 		private final TestingTaskExecutor taskExecutor;
 
 		private TaskExecutorTestingContext(
-				OneShotLatch offerSlotsLatch,
 				TestingJobMasterGateway jobMasterGateway,
-				JobLeaderService jobLeaderService,
 				TaskSlotTable taskSlotTable,
 				TestingTaskExecutor taskExecutor) {
-			this.offerSlotsLatch = offerSlotsLatch;
 			this.jobMasterGateway = jobMasterGateway;
-			this.jobLeaderService = jobLeaderService;
 			this.taskSlotTable = taskSlotTable;
 			this.taskExecutor = taskExecutor;
 		}
@@ -1985,36 +1978,6 @@ public class TaskExecutorTest extends TestLogger {
 		private void start() {
 			taskExecutor.start();
 			taskExecutor.waitUntilStarted();
-		}
-
-		private void startAllocateSlotAndSubmit(
-			final Class<? extends AbstractInvokable> task) throws Exception {
-			final AllocationID allocationId = new AllocationID();
-
-			start();
-
-			taskSlotTable.allocateSlot(0, jobId, allocationId, Time.milliseconds(10000L));
-
-			// we have to add the job after the TaskExecutor, because otherwise the service has not
-			// been properly started.
-			jobLeaderService.addJob(jobId, jobMasterGateway.getAddress());
-			offerSlotsLatch.await();
-
-			taskExecutor
-				.getSelfGateway(TaskExecutorGateway.class)
-				.submitTask(
-					createTaskDeploymentDescriptor(allocationId, task),
-					jobMasterGateway.getFencingToken(),
-					timeout);
-		}
-
-		private TaskDeploymentDescriptor createTaskDeploymentDescriptor(
-			final AllocationID allocationId,
-			final Class<? extends AbstractInvokable> task) throws IOException {
-			return TaskDeploymentDescriptorBuilder
-				.newBuilder(jobId, task)
-				.setAllocationId(allocationId)
-				.build();
 		}
 
 		@Override
