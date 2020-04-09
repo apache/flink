@@ -100,7 +100,6 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -852,11 +851,16 @@ public class TaskExecutorTest extends TestLogger {
 
 			assertThat(instanceIDSlotIDAllocationIDTuple3, equalTo(expectedResult));
 			// the slot 1 can be activate for task submission
-			assertThat(submitNoOpInvokableTask(allocationId1, jobMasterGateway, tmGateway).isLeft(), is(true));
+			submitNoOpInvokableTask(allocationId1, jobMasterGateway, tmGateway);
 			// wait for the task completion
 			taskInTerminalState.await();
 			// the slot 2 can NOT be activate for task submission
-			assertThat(submitNoOpInvokableTask(allocationId2, jobMasterGateway, tmGateway).right(), instanceOf(TaskSubmissionException.class));
+			try {
+				submitNoOpInvokableTask(allocationId2, jobMasterGateway, tmGateway);
+				fail("It should not be possible to submit task to acquired by JM slot with index 1 (allocationId2)");
+			} catch (CompletionException e) {
+				assertThat(e.getCause(), instanceOf(TaskSubmissionException.class));
+			}
 			// the slot 2 is free to request
 			tmGateway
 				.requestSlot(
@@ -924,7 +928,7 @@ public class TaskExecutorTest extends TestLogger {
 			// wait until slots have been offered
 			offerSlotsLatch.await();
 
-			assertThat(submitNoOpInvokableTask(allocationId1, jobMasterGateway, tmGateway).isLeft(), is(true));
+			submitNoOpInvokableTask(allocationId1, jobMasterGateway, tmGateway);
 
 			// acknowledge the offered slots
 			offerResultFuture.complete(Collections.singleton(offer1));
@@ -1012,7 +1016,7 @@ public class TaskExecutorTest extends TestLogger {
 		}
 	}
 
-	private Either<Acknowledge, Throwable> submitNoOpInvokableTask(
+	private void submitNoOpInvokableTask(
 			AllocationID allocationId,
 			TestingJobMasterGateway jobMasterGateway,
 			TaskExecutorGateway tmGateway) throws IOException {
@@ -1020,13 +1024,7 @@ public class TaskExecutorTest extends TestLogger {
 			.newBuilder(jobId, NoOpInvokable.class)
 			.setAllocationId(allocationId)
 			.build();
-
-		try {
-			// submit the task without having acknowledge the offered slots
-			return Either.Left(tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).join());
-		} catch (CompletionException e) {
-			return Either.Right(e.getCause());
-		}
+		tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).join();
 	}
 
 	/**
