@@ -23,10 +23,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
+import org.apache.flink.util.FlinkException;
 
+import org.apache.commons.cli.Options;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -63,9 +69,37 @@ public class BashJavaUtils {
 	}
 
 	private static Configuration getConfigurationForStandaloneTaskManagers(String[] args) throws Exception {
-		Configuration configuration = TaskManagerRunner.loadConfiguration(args);
+		Configuration configuration = loadConfiguration(args);
 		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
 			configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
+	}
+
+	@VisibleForTesting
+	static Configuration loadConfiguration(String[] args) throws FlinkException {
+		return ConfigurationParserUtils.loadCommonConfiguration(
+			filterCmdArgs(args),
+			BashJavaUtils.class.getSimpleName());
+	}
+
+	private static String[] filterCmdArgs(String[] args) {
+		final Options options = ClusterConfigurationParserFactory.options();
+		final List<String> filteredArgs = new ArrayList<>();
+		final Iterator<String> iter = Arrays.asList(args).iterator();
+
+		while (iter.hasNext()) {
+			String token = iter.next();
+			if (options.hasOption(token)) {
+				filteredArgs.add(token);
+				if (options.getOption(token).hasArg() && iter.hasNext()) {
+					filteredArgs.add(iter.next());
+				}
+			} else if (token.startsWith("-D")) {
+				// "-Dkey=value"
+				filteredArgs.add(token);
+			}
+		}
+
+		return filteredArgs.toArray(new String[0]);
 	}
 
 	/**
