@@ -57,7 +57,6 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Super class for netty-based handlers that work with {@link RequestBody}.
@@ -88,9 +87,14 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	private final InFlightRequestTracker inFlightRequestTracker;
 
 	/**
-	 * Used to prevent a handler from being closed multiple times.
+	 * CompletableFuture object that ensures calls to {@link #closeAsync()} idempotent.
 	 */
-	private final AtomicBoolean isHandlerClosed = new AtomicBoolean(false);
+	private CompletableFuture<Void> terminationFuture;
+
+	/**
+	 * Lock object to prevent concurrent calls to {@link #closeAsync()}.
+	 */
+	private final Object lock = new Object();
 
 	protected AbstractHandler(
 			@Nonnull GatewayRetriever<? extends T> leaderRetriever,
@@ -227,11 +231,13 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 	@Override
 	public final CompletableFuture<Void> closeAsync() {
-		if (isHandlerClosed.compareAndSet(false, true)) {
-			return FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
-		} else {
-			log.warn("The handler instance for {} had already been closed, but another attempt at closing it was made.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
-			return CompletableFuture.completedFuture(null);
+		synchronized (lock) {
+			if (terminationFuture == null) {
+				this.terminationFuture = FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
+			} else {
+				log.warn("The handler instance for {} had already been closed, but another attempt at closing it was made.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
+			}
+			return this.terminationFuture;
 		}
 	}
 
