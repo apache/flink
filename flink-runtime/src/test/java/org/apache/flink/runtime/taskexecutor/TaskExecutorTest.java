@@ -88,6 +88,7 @@ import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.TaskSubmissionTestEnvironment.Builder;
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
+import org.apache.flink.runtime.taskexecutor.exceptions.TaskSubmissionException;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -100,6 +101,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -135,6 +137,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -156,7 +159,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -810,13 +812,10 @@ public class TaskExecutorTest extends TestLogger {
 		final SlotOffer offer1 = new SlotOffer(allocationId1, 0, ResourceProfile.ANY);
 
 		final OneShotLatch offerSlotsLatch = new OneShotLatch();
+		final OneShotLatch taskInTerminalState = new OneShotLatch();
 		final CompletableFuture<Collection<SlotOffer>> offerResultFuture = new CompletableFuture<>();
-		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
-			.setOfferSlotsFunction((resourceID, slotOffers) -> {
-				offerSlotsLatch.trigger();
-				return offerResultFuture;
-			})
-			.build();
+		final TestingJobMasterGateway jobMasterGateway =
+			createJobMasterWithSlotOfferAndTaskTerminationHooks(offerSlotsLatch, taskInTerminalState, offerResultFuture);
 
 		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
 		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
@@ -853,10 +852,23 @@ public class TaskExecutorTest extends TestLogger {
 			final Tuple3<InstanceID, SlotID, AllocationID> expectedResult = Tuple3.of(registrationId, new SlotID(unresolvedTaskManagerLocation.getResourceID(), 1), allocationId2);
 
 			assertThat(instanceIDSlotIDAllocationIDTuple3, equalTo(expectedResult));
-
-			assertTrue(taskSlotTable.tryMarkSlotActive(jobId, allocationId1));
-			assertFalse(taskSlotTable.tryMarkSlotActive(jobId, allocationId2));
-			assertTrue(taskSlotTable.isSlotFree(1));
+			// the slot 1 can be activate for task submission
+			assertThat(submitNoOpInvokableTask(allocationId1, jobMasterGateway, tmGateway).isLeft(), is(true));
+			// wait for the task completion
+			taskInTerminalState.await();
+			// the slot 2 can NOT be activate for task submission
+			assertThat(submitNoOpInvokableTask(allocationId2, jobMasterGateway, tmGateway).right(), instanceOf(TaskSubmissionException.class));
+			// the slot 2 is free to request
+			tmGateway
+				.requestSlot(
+					new SlotID(unresolvedTaskManagerLocation.getResourceID(), 1),
+					jobId,
+					allocationId2,
+					ResourceProfile.UNKNOWN,
+					jobMasterGateway.getAddress(),
+					resourceManagerGateway.getFencingToken(),
+					timeout)
+				.join();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
@@ -881,18 +893,8 @@ public class TaskExecutorTest extends TestLogger {
 		final OneShotLatch offerSlotsLatch = new OneShotLatch();
 		final OneShotLatch taskInTerminalState = new OneShotLatch();
 		final CompletableFuture<Collection<SlotOffer>> offerResultFuture = new CompletableFuture<>();
-		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
-			.setOfferSlotsFunction((resourceID, slotOffers) -> {
-				offerSlotsLatch.trigger();
-				return offerResultFuture;
-			})
-			.setUpdateTaskExecutionStateFunction(taskExecutionState -> {
-				if (taskExecutionState.getExecutionState().isTerminal()) {
-					taskInTerminalState.trigger();
-				}
-				return CompletableFuture.completedFuture(Acknowledge.get());
-			})
-			.build();
+		final TestingJobMasterGateway jobMasterGateway =
+			createJobMasterWithSlotOfferAndTaskTerminationHooks(offerSlotsLatch, taskInTerminalState, offerResultFuture);
 
 		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
 		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
@@ -923,13 +925,7 @@ public class TaskExecutorTest extends TestLogger {
 			// wait until slots have been offered
 			offerSlotsLatch.await();
 
-			final TaskDeploymentDescriptor tdd = TaskDeploymentDescriptorBuilder
-				.newBuilder(jobId, NoOpInvokable.class)
-				.setAllocationId(allocationId1)
-				.build();
-
-			// submit the task without having acknowledge the offered slots
-			tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).get();
+			assertThat(submitNoOpInvokableTask(allocationId1, jobMasterGateway, tmGateway).isLeft(), is(true));
 
 			// acknowledge the offered slots
 			offerResultFuture.complete(Collections.singleton(offer1));
@@ -978,7 +974,25 @@ public class TaskExecutorTest extends TestLogger {
 				unresolvedTaskManagerLocation,
 				RetryingRegistrationConfiguration.defaultConfiguration()))
 			.setJobManagerTable(new JobManagerTable())
-			.setTaskStateManager( createTaskExecutorLocalStateStoresManager())
+			.setTaskStateManager(createTaskExecutorLocalStateStoresManager())
+			.build();
+	}
+
+	private static TestingJobMasterGateway createJobMasterWithSlotOfferAndTaskTerminationHooks(
+			OneShotLatch offerSlotsLatch,
+			OneShotLatch taskInTerminalState,
+			CompletableFuture<Collection<SlotOffer>> offerResultFuture) {
+		return new TestingJobMasterGatewayBuilder()
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				offerSlotsLatch.trigger();
+				return offerResultFuture;
+			})
+			.setUpdateTaskExecutionStateFunction(taskExecutionState -> {
+				if (taskExecutionState.getExecutionState().isTerminal()) {
+					taskInTerminalState.trigger();
+				}
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			})
 			.build();
 	}
 
@@ -996,6 +1010,23 @@ public class TaskExecutorTest extends TestLogger {
 				Time.seconds(10L)).join();
 
 			slotIndex++;
+		}
+	}
+
+	private Either<Acknowledge, Throwable> submitNoOpInvokableTask(
+			AllocationID allocationId,
+			TestingJobMasterGateway jobMasterGateway,
+			TaskExecutorGateway tmGateway) throws IOException {
+		final TaskDeploymentDescriptor tdd = TaskDeploymentDescriptorBuilder
+			.newBuilder(jobId, NoOpInvokable.class)
+			.setAllocationId(allocationId)
+			.build();
+
+		try {
+			// submit the task without having acknowledge the offered slots
+			return Either.Left(tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).join());
+		} catch (CompletionException e) {
+			return Either.Right(e.getCause());
 		}
 	}
 
