@@ -26,7 +26,7 @@ import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 
 import org.hamcrest.Matchers.containsString
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.Test
 
 class BatchTableEnvironmentTest extends TableTestBase {
@@ -71,10 +71,10 @@ class BatchTableEnvironmentTest extends TableTestBase {
 
 
   @Test
-  def testExecuteSqlWithCreateTable(): Unit = {
+  def testExecuteSqlWithCreateDropTable(): Unit = {
     val util = batchTestUtil()
 
-    val stmt =
+    val createTableStmt =
       """
         |CREATE TABLE tbl1 (
         |  a bigint,
@@ -85,9 +85,14 @@ class BatchTableEnvironmentTest extends TableTestBase {
         |  'is-bounded' = 'true'
         |)
       """.stripMargin
-    val tableResult = util.tableEnv.executeSql(stmt)
-    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")))
+
+    val tableResult2 = util.tableEnv.executeSql("DROP TABLE tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")))
   }
 

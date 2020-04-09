@@ -137,7 +137,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"DROP FUNCTION, ALTER FUNCTION";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-			"CREATE TABLE.";
+			"CREATE TABLE, DROP TABLE.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -606,7 +606,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 
 		Operation operation = operations.get(0);
-		if (operation instanceof CreateTableOperation) {
+		if (operation instanceof CreateTableOperation ||
+				operation instanceof DropTableOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -624,7 +625,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		Operation operation = operations.get(0);
 		if (operation instanceof ModifyOperation) {
 			buffer(Collections.singletonList((ModifyOperation) operation));
-		} else if (operation instanceof CreateTableOperation) {
+		} else if (operation instanceof CreateTableOperation ||
+				operation instanceof DropTableOperation) {
 			executeOperation(operation);
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
@@ -640,11 +642,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			} catch (Exception e) {
 				throw new TableException(exMsg, e);
 			}
-		} else if (operation instanceof DropTableOperation) {
-			DropTableOperation dropTableOperation = (DropTableOperation) operation;
-			catalogManager.dropTable(
-				dropTableOperation.getTableIdentifier(),
-				dropTableOperation.isIfExists());
 		} else if (operation instanceof AlterTableOperation) {
 			AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(alterTableOperation.getTableIdentifier().getCatalogName());
@@ -741,6 +738,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					createTableOperation.getCatalogTable(),
 					createTableOperation.getTableIdentifier(),
 					createTableOperation.isIgnoreIfExists());
+			return TableResultImpl.TABLE_RESULT_OK;
+		} else if (operation instanceof DropTableOperation) {
+			DropTableOperation dropTableOperation = (DropTableOperation) operation;
+			catalogManager.dropTable(
+					dropTableOperation.getTableIdentifier(),
+					dropTableOperation.isIfExists());
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else {
 			throw new TableException("Unsupported operation: " + operation);

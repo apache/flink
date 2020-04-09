@@ -30,7 +30,7 @@ import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.hamcrest.Matchers.containsString
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -100,8 +100,8 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteSqlWithCreateTable(): Unit = {
-    val stmt =
+  def testExecuteSqlWithCreateDropTable(): Unit = {
+    val createTableStmt =
       """
         |CREATE TABLE tbl1 (
         |  a bigint,
@@ -112,9 +112,14 @@ class TableEnvironmentTest {
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
-    val tableResult = tableEnv.executeSql(stmt)
-    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
+
+    val tableResult2 = tableEnv.executeSql("DROP TABLE tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertFalse(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
   }
 

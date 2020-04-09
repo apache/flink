@@ -130,7 +130,7 @@ abstract class TableEnvImpl(
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-      "CREATE TABLE."
+      "CREATE TABLE, DROP TABLE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -552,7 +552,7 @@ abstract class TableEnvImpl(
 
     val operation = operations.get(0)
     operation match {
-      case _: CreateTableOperation =>
+      case _: CreateTableOperation | _: DropTableOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -573,7 +573,7 @@ abstract class TableEnvImpl(
           createTable(op.getChild),
           InsertOptions(op.getStaticPartitions, op.isOverwrite),
           op.getTableIdentifier)
-      case _: CreateTableOperation =>
+      case _: CreateTableOperation | _: DropTableOperation =>
         executeOperation(operation)
       case createDatabaseOperation: CreateDatabaseOperation =>
         val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
@@ -587,10 +587,6 @@ abstract class TableEnvImpl(
           case ex: DatabaseAlreadyExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }
-      case dropTableOperation: DropTableOperation =>
-        catalogManager.dropTable(
-          dropTableOperation.getTableIdentifier,
-          dropTableOperation.isIfExists)
       case alterTableOperation: AlterTableOperation => {
         val catalog = getCatalogOrThrowException(
           alterTableOperation.getTableIdentifier.getCatalogName)
@@ -664,6 +660,11 @@ abstract class TableEnvImpl(
           createTableOperation.getCatalogTable,
           createTableOperation.getTableIdentifier,
           createTableOperation.isIgnoreIfExists)
+        TableResultImpl.TABLE_RESULT_OK
+      case dropTableOperation: DropTableOperation =>
+        catalogManager.dropTable(
+          dropTableOperation.getTableIdentifier,
+          dropTableOperation.isIfExists)
         TableResultImpl.TABLE_RESULT_OK
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
