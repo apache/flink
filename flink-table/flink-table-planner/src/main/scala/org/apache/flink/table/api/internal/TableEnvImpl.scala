@@ -128,6 +128,9 @@ abstract class TableEnvImpl(
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
       "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
+  private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
+    "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
+      "CREATE TABLE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -541,25 +544,37 @@ abstract class TableEnvImpl(
   }
 
   override def executeSql(statement: String): TableResult = {
-    throw new UnsupportedOperationException("To be implemented")
+    val operations = parser.parse(statement)
+
+    if (operations.size != 1) {
+      throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
+    }
+
+    val operation = operations.get(0)
+    operation match {
+      case _: CreateTableOperation =>
+        executeOperation(operation)
+      case _ =>
+        throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
+    }
   }
 
   override def sqlUpdate(stmt: String): Unit = {
     val operations = parser.parse(stmt)
 
-    if (operations.size != 1) throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
+    if (operations.size != 1) {
+      throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
+    }
 
-    operations.get(0) match {
+    val operation = operations.get(0)
+    operation match {
       case op: CatalogSinkModifyOperation =>
         insertInto(
           createTable(op.getChild),
           InsertOptions(op.getStaticPartitions, op.isOverwrite),
           op.getTableIdentifier)
-      case createTableOperation: CreateTableOperation =>
-        catalogManager.createTable(
-          createTableOperation.getCatalogTable,
-          createTableOperation.getTableIdentifier,
-          createTableOperation.isIgnoreIfExists)
+      case _: CreateTableOperation =>
+        executeOperation(operation)
       case createDatabaseOperation: CreateDatabaseOperation =>
         val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
         val exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString)
@@ -639,6 +654,18 @@ abstract class TableEnvImpl(
         catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
         catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
+    }
+  }
+
+  private def executeOperation(operation: Operation): TableResult = {
+    operation match {
+      case createTableOperation: CreateTableOperation =>
+        catalogManager.createTable(
+          createTableOperation.getCatalogTable,
+          createTableOperation.getTableIdentifier,
+          createTableOperation.isIgnoreIfExists)
+        TableResultImpl.TABLE_RESULT_OK
+      case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }
 

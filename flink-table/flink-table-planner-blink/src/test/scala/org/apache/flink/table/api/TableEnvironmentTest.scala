@@ -23,12 +23,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.catalog.ObjectPath
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.sinks.CsvTableSink
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-import org.junit.Assert.assertEquals
+import org.hamcrest.Matchers.containsString
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -95,6 +97,34 @@ class TableEnvironmentTest {
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
     val actual = tEnv.explain(false)
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExecuteSqlWithCreateTable(): Unit = {
+    val stmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult = tableEnv.executeSql(stmt)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
+  }
+
+  @Test
+  def testExecuteSqlWithUnsupportedStmt(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(containsString("Unsupported SQL query!"))
+    tableEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
+    // TODO supports select later
+    tableEnv.executeSql("select * from MyTable")
   }
 
 }

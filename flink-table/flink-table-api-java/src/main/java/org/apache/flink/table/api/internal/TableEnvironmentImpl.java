@@ -135,6 +135,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
 			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, " +
 			"DROP FUNCTION, ALTER FUNCTION";
+	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
+			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
+			"CREATE TABLE.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -596,7 +599,18 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public TableResult executeSql(String statement) {
-		throw new UnsupportedOperationException("To be implemented");
+		List<Operation> operations = parser.parse(statement);
+
+		if (operations.size() != 1) {
+			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
+		}
+
+		Operation operation = operations.get(0);
+		if (operation instanceof CreateTableOperation) {
+			return executeOperation(operation);
+		} else {
+			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
+		}
 	}
 
 	@Override
@@ -608,15 +622,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 
 		Operation operation = operations.get(0);
-
 		if (operation instanceof ModifyOperation) {
 			buffer(Collections.singletonList((ModifyOperation) operation));
 		} else if (operation instanceof CreateTableOperation) {
-			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			catalogManager.createTable(
-				createTableOperation.getCatalogTable(),
-				createTableOperation.getTableIdentifier(),
-				createTableOperation.isIgnoreIfExists());
+			executeOperation(operation);
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
@@ -722,6 +731,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
+		}
+	}
+
+	private TableResult executeOperation(Operation operation) {
+		if (operation instanceof CreateTableOperation) {
+			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
+			catalogManager.createTable(
+					createTableOperation.getCatalogTable(),
+					createTableOperation.getTableIdentifier(),
+					createTableOperation.isIgnoreIfExists());
+			return TableResultImpl.TABLE_RESULT_OK;
+		} else {
+			throw new TableException("Unsupported operation: " + operation);
 		}
 	}
 

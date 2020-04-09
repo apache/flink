@@ -20,6 +20,7 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
@@ -28,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +39,12 @@ import java.util.Optional;
  */
 @Internal
 public class TableResultImpl implements TableResult {
+	public static final TableResult TABLE_RESULT_OK = TableResultImpl.builder()
+			.resultKind(ResultKind.SUCCESS)
+			.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
+			.data(Collections.singletonList(Row.of("OK")))
+			.build();
+
 	private final JobClient jobClient;
 	private final TableSchema tableSchema;
 	private final ResultKind resultKind;

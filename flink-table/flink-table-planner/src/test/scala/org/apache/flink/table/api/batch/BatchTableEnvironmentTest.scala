@@ -20,8 +20,13 @@ package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.api.{ResultKind, TableException}
+import org.apache.flink.table.catalog.ObjectPath
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.TableTestUtil._
+
+import org.hamcrest.Matchers.containsString
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
 class BatchTableEnvironmentTest extends TableTestBase {
@@ -62,5 +67,38 @@ class BatchTableEnvironmentTest extends TableTestBase {
       term("select", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)
+  }
+
+
+  @Test
+  def testExecuteSqlWithCreateTable(): Unit = {
+    val util = batchTestUtil()
+
+    val stmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'true'
+        |)
+      """.stripMargin
+    val tableResult = util.tableEnv.executeSql(stmt)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")))
+  }
+
+  @Test
+  def testExecuteSqlWithUnsupportedStmt(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(containsString("Unsupported SQL query!"))
+    // TODO supports select later
+    util.tableEnv.executeSql("select * from MyTable")
   }
 }
