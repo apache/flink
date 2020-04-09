@@ -107,6 +107,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -615,10 +616,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 			throw new RuntimeException(e);
 		}
 
-		scheduleOrUpdateConsumersInternal(partitionId.getPartitionId());
+		notifyPartitionConsumable(Collections.singleton(partitionId.getPartitionId()));
 	}
 
-	protected void scheduleOrUpdateConsumersInternal(IntermediateResultPartitionID resultPartitionId) {
+	protected void notifyPartitionConsumable(Set<IntermediateResultPartitionID> resultPartitionIds) {
 	}
 
 	@Override

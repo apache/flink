@@ -65,7 +65,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	@Override
-	public void onPartitionConsumable(final IntermediateResultPartitionID resultPartitionId) {
+	public void onPartitionConsumable(final Set<IntermediateResultPartitionID> resultPartitionIds) {
 	}
 
 	public void schedule(final List<ExecutionVertexID> verticesToSchedule) {

@@ -269,8 +269,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	@Override
-	protected void scheduleOrUpdateConsumersInternal(final IntermediateResultPartitionID partitionId) {
-		schedulingStrategy.onPartitionConsumable(partitionId);
+	protected void notifyPartitionConsumable(final Set<IntermediateResultPartitionID> resultPartitionIds) {
+		if (resultPartitionIds.size() > 0) {
+			schedulingStrategy.onPartitionConsumable(resultPartitionIds);
+		}
 	}
 
 	// ------------------------------------------------------------------------

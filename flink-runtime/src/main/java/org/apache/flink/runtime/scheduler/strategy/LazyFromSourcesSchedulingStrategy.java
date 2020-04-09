@@ -111,15 +111,15 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	@Override
-	public void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId) {
-		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology
-			.getResultPartition(resultPartitionId);
+	public void onPartitionConsumable(Set<IntermediateResultPartitionID> resultPartitionIds) {
+		final Set<SchedulingExecutionVertex<?, ?>> verticesToSchedule = IterableUtils
+			.toStream(resultPartitionIds)
+			.map(schedulingTopology::getResultPartition)
+			.filter(partition -> partition.getResultType().isPipelined())
+			.flatMap(partition -> IterableUtils.toStream(partition.getConsumers()))
+			.collect(Collectors.toSet());
 
-		if (!resultPartition.getResultType().isPipelined()) {
-			return;
-		}
-
-		allocateSlotsAndDeployExecutionVertices(resultPartition.getConsumers());
+		allocateSlotsAndDeployExecutionVertices(verticesToSchedule);
 	}
 
 	private void allocateSlotsAndDeployExecutionVertices(
