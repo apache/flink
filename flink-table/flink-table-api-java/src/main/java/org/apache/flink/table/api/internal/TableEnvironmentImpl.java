@@ -134,11 +134,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
 			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
 			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, " +
-			"DROP FUNCTION, ALTER FUNCTION";
+			"DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG.";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION.";
+			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -617,7 +617,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof CreateTempSystemFunctionOperation ||
 				operation instanceof DropCatalogFunctionOperation ||
 				operation instanceof DropTempSystemFunctionOperation ||
-				operation instanceof AlterCatalogFunctionOperation) {
+				operation instanceof AlterCatalogFunctionOperation ||
+				operation instanceof CreateCatalogOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -645,17 +646,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof CreateTempSystemFunctionOperation ||
 				operation instanceof DropCatalogFunctionOperation ||
 				operation instanceof DropTempSystemFunctionOperation ||
-				operation instanceof AlterCatalogFunctionOperation) {
+				operation instanceof AlterCatalogFunctionOperation ||
+				operation instanceof CreateCatalogOperation) {
 			executeOperation(operation);
-		} else if (operation instanceof CreateCatalogOperation) {
-			CreateCatalogOperation createCatalogOperation = (CreateCatalogOperation) operation;
-			String exMsg = getDDLOpExecuteErrorMsg(createCatalogOperation.asSummaryString());
-			try {
-				catalogManager.registerCatalog(
-					createCatalogOperation.getCatalogName(), createCatalogOperation.getCatalog());
-			} catch (CatalogException e) {
-				throw new ValidationException(exMsg, e);
-			}
 		} else if (operation instanceof UseCatalogOperation) {
 			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
 			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
@@ -761,6 +754,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			return dropSystemFunction((DropTempSystemFunctionOperation) operation);
 		} else if (operation instanceof AlterCatalogFunctionOperation) {
 			return alterCatalogFunction((AlterCatalogFunctionOperation) operation);
+		} else if (operation instanceof CreateCatalogOperation) {
+			CreateCatalogOperation createCatalogOperation = (CreateCatalogOperation) operation;
+			String exMsg = getDDLOpExecuteErrorMsg(createCatalogOperation.asSummaryString());
+			try {
+				catalogManager.registerCatalog(
+						createCatalogOperation.getCatalogName(), createCatalogOperation.getCatalog());
+				return TableResultImpl.TABLE_RESULT_OK;
+			} catch (CatalogException e) {
+				throw new ValidationException(exMsg, e);
+			}
 		} else {
 			throw new TableException("Unsupported operation: " + operation);
 		}

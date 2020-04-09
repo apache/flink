@@ -182,6 +182,14 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithCreateCatalog(): Unit = {
+    val tableResult = tableEnv.executeSql(
+      "CREATE CATALOG my_catalog WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertTrue(tableEnv.getCatalog("my_catalog").isPresent)
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(containsString("Unsupported SQL query!"))
