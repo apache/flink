@@ -273,7 +273,7 @@ object AkkaUtils {
 
     val logLevel = getLogLevel
 
-    val supervisorStrategy = classOf[StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy]
+    val supervisorStrategy = classOf[EscalatingSupervisorStrategy]
       .getCanonicalName
 
     val config =

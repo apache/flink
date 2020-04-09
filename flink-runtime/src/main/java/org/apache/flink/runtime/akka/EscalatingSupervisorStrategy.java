@@ -18,36 +18,23 @@
 
 package org.apache.flink.runtime.akka;
 
-import akka.actor.ActorKilledException;
 import akka.actor.OneForOneStrategy;
 import akka.actor.SupervisorStrategy;
 import akka.actor.SupervisorStrategyConfigurator;
 import akka.japi.pf.PFBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Stopping supervisor strategy which logs {@link ActorKilledException} only on debug log level.
+ * Escalating supervisor strategy.
  */
-public class StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy implements SupervisorStrategyConfigurator {
-
-	private static final Logger LOG = LoggerFactory.getLogger(StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy.class);
+public class EscalatingSupervisorStrategy implements SupervisorStrategyConfigurator {
 
 	@Override
 	public SupervisorStrategy create() {
 		return new OneForOneStrategy(
 			false,
 			new PFBuilder<Throwable, SupervisorStrategy.Directive>()
-				.match(
-					Exception.class,
-					(Exception e) -> {
-						if (e instanceof ActorKilledException) {
-							LOG.debug("Actor was killed. Stopping it now.", e);
-						} else {
-							LOG.error("Actor failed with exception. Stopping it now.", e);
-						}
-						return SupervisorStrategy.Stop$.MODULE$;
-					})
+				.matchAny(
+					(ignored) -> SupervisorStrategy.escalate())
 				.build());
 	}
 }

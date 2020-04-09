@@ -57,6 +57,8 @@ public class AkkaRpcServiceUtils {
 	private static final String AKKA_TCP = "akka.tcp";
 	private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
 
+	static final String SUPERVISOR_NAME = "rpc";
+
 	private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
 		"akka {remote {netty.tcp {maximum-frame-size = %s}}}";
 
@@ -166,7 +168,7 @@ public class AkkaRpcServiceUtils {
 
 		final String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port);
 
-		return String.format("%s://flink@%s/user/%s", protocolPrefix, hostPort, endpointName);
+		return String.format("%s://flink@%s/user/%s/%s", protocolPrefix, hostPort, SUPERVISOR_NAME, endpointName);
 	}
 
 	/**
