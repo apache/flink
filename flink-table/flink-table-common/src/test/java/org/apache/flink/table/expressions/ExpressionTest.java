@@ -29,9 +29,19 @@ import org.junit.rules.ExpectedException;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.Period;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoField;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -158,7 +168,7 @@ public class ExpressionTest {
 	}
 
 	@Test
-	public void testSqlTimestampValueLiteralExtraction() {
+	public void testLocalDateTimeValueLiteralExtraction() {
 		final Timestamp sqlTimestamp = Timestamp.valueOf("2006-11-03 00:00:00.123456789");
 		final LocalDateTime localDateTime = LocalDateTime.of(2006, 11, 3, 0, 0, 0, 123456789);
 
@@ -166,10 +176,85 @@ public class ExpressionTest {
 			localDateTime,
 			new ValueLiteralExpression(sqlTimestamp).getValueAs(LocalDateTime.class)
 				.orElseThrow(AssertionError::new));
+	}
+
+	@Test
+	public void testLocalTimeValueLiteralExtraction() {
+		final LocalTime localTime = LocalTime.of(12, 12, 12, 123456789);
+
+		final long nanos = localTime.toNanoOfDay();
+
+		final int millis = localTime.get(ChronoField.MILLI_OF_DAY);
+
+		final Time sqlTime = Time.valueOf("12:12:12");
 
 		assertEquals(
-			sqlTimestamp,
-			new ValueLiteralExpression(localDateTime).getValueAs(Timestamp.class)
+			localTime.withNano(0),
+			new ValueLiteralExpression(sqlTime).getValueAs(LocalTime.class)
+				.orElseThrow(AssertionError::new));
+
+		assertEquals(
+			localTime,
+			new ValueLiteralExpression(nanos).getValueAs(LocalTime.class)
+				.orElseThrow(AssertionError::new));
+
+		assertEquals(
+			localTime.minusNanos(456789),
+			new ValueLiteralExpression(millis).getValueAs(LocalTime.class)
+				.orElseThrow(AssertionError::new));
+	}
+
+	@Test
+	public void testLocalDateValueLiteralExtraction() {
+		final LocalDate localDate = LocalDate.of(2012, 12, 12);
+
+		final int daysSinceEpoch = (int) localDate.toEpochDay();
+
+		final Date sqlDate = Date.valueOf("2012-12-12");
+
+		assertEquals(
+			localDate,
+			new ValueLiteralExpression(sqlDate).getValueAs(LocalDate.class)
+				.orElseThrow(AssertionError::new));
+
+		assertEquals(
+			localDate,
+			new ValueLiteralExpression(daysSinceEpoch).getValueAs(LocalDate.class)
+				.orElseThrow(AssertionError::new));
+	}
+
+	@Test
+	public void testInstantValueLiteralExtraction() {
+		final Instant instant = Instant.ofEpochMilli(100);
+
+		final long millis = instant.toEpochMilli();
+
+		final int seconds = (int) instant.toEpochMilli() / 1_000;
+
+		assertEquals(
+			instant,
+			new ValueLiteralExpression(millis).getValueAs(Instant.class)
+				.orElseThrow(AssertionError::new));
+
+		assertEquals(
+			instant.minusMillis(100),
+			new ValueLiteralExpression(seconds).getValueAs(Instant.class)
+				.orElseThrow(AssertionError::new));
+	}
+
+	@Test
+	public void testOffsetDateTimeValueLiteralExtraction() {
+		final OffsetDateTime offsetDateTime = OffsetDateTime.of(
+			LocalDateTime.parse("2012-12-12T12:12:12"),
+			ZoneOffset.ofHours(1)); // Europe/Berlin equals GMT+1 on 2012-12-12
+
+		final ZonedDateTime zonedDateTime = ZonedDateTime.of(
+			LocalDateTime.parse("2012-12-12T12:12:12"),
+			ZoneId.of("Europe/Berlin"));
+
+		assertEquals(
+			offsetDateTime,
+			new ValueLiteralExpression(zonedDateTime).getValueAs(OffsetDateTime.class)
 				.orElseThrow(AssertionError::new));
 	}
 
@@ -185,11 +270,11 @@ public class ExpressionTest {
 
 	@Test
 	public void testPeriodValueLiteralExtraction() {
-		final Period period = Period.ofMonths(10);
-		Integer expectedValue = 10;
+		Integer periodInInt = 10;
+		final Period expected = Period.ofMonths(10);
 		assertEquals(
-			expectedValue,
-			new ValueLiteralExpression(period).getValueAs(Integer.class)
+			expected,
+			new ValueLiteralExpression(periodInInt).getValueAs(Period.class)
 				.orElseThrow(AssertionError::new));
 	}
 

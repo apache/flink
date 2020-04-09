@@ -284,8 +284,8 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toMonthInterval(Expression e, int multiplier) {
-		return ExpressionUtils.extractValue(e, Integer.class)
-			.map((v) -> intervalOfMonths(v * multiplier))
+		return ExpressionUtils.extractValue(e, BigDecimal.class)
+			.map((v) -> intervalOfMonths(v.intValue() * multiplier))
 			.orElseThrow(() -> new ValidationException("Invalid constant for year-month interval: " + e));
 	}
 
@@ -296,8 +296,8 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toMilliInterval(Expression e, long multiplier) {
-		return ExpressionUtils.extractValue(e, Long.class)
-			.map((v) -> intervalOfMillis(v * multiplier))
+		return ExpressionUtils.extractValue(e, BigDecimal.class)
+			.map((v) -> intervalOfMillis(v.longValue() * multiplier))
 			.orElseThrow(() -> new ValidationException("Invalid constant for day-time interval: " + e));
 	}
 
@@ -308,8 +308,8 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toRowInterval(Expression e) {
-		return ExpressionUtils.extractValue(e, Long.class)
-			.map(ApiExpressionUtils::valueLiteral)
+		return ExpressionUtils.extractValue(e, BigDecimal.class)
+			.map(bd -> ApiExpressionUtils.valueLiteral(bd.longValue()))
 			.orElseThrow(() -> new ValidationException("Invalid constant for row interval: " + e));
 	}
 
