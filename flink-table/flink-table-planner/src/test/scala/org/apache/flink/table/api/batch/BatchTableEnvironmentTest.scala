@@ -106,6 +106,15 @@ class BatchTableEnvironmentTest extends TableTestBase {
   }
 
   @Test
+  def testExecuteSqlWithCreateDatabase(): Unit = {
+    val util = batchTestUtil()
+    val tableResult = util.tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .databaseExists("db1"))
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Long, Int, String)]("MyTable", 'a, 'b, 'c)

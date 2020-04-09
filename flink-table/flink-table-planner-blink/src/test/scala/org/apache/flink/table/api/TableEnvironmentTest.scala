@@ -133,6 +133,13 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithCreateDatabase(): Unit = {
+    val tableResult = tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().databaseExists("db1"))
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(containsString("Unsupported SQL query!"))

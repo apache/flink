@@ -130,7 +130,7 @@ abstract class TableEnvImpl(
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
-      "CREATE TABLE, DROP TABLE, ALTER TABLE."
+      "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -552,7 +552,8 @@ abstract class TableEnvImpl(
 
     val operation = operations.get(0)
     operation match {
-      case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation =>
+      case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
+           _: CreateDatabaseOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -573,20 +574,9 @@ abstract class TableEnvImpl(
           createTable(op.getChild),
           InsertOptions(op.getStaticPartitions, op.isOverwrite),
           op.getTableIdentifier)
-      case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation =>
+      case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
+           _: CreateDatabaseOperation =>
         executeOperation(operation)
-      case createDatabaseOperation: CreateDatabaseOperation =>
-        val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
-        val exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString)
-        try {
-          catalog.createDatabase(
-            createDatabaseOperation.getDatabaseName,
-            createDatabaseOperation.getCatalogDatabase,
-            createDatabaseOperation.isIgnoreIfExists)
-        } catch {
-          case ex: DatabaseAlreadyExistException => throw new ValidationException(exMsg, ex)
-          case ex: Exception => throw new TableException(exMsg, ex)
-        }
       case dropDatabaseOperation: DropDatabaseOperation =>
         val catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName)
         val exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString)
@@ -664,6 +654,19 @@ abstract class TableEnvImpl(
           TableResultImpl.TABLE_RESULT_OK
         } catch {
           case ex: TableNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
+      case createDatabaseOperation: CreateDatabaseOperation =>
+        val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString)
+        try {
+          catalog.createDatabase(
+            createDatabaseOperation.getDatabaseName,
+            createDatabaseOperation.getCatalogDatabase,
+            createDatabaseOperation.isIgnoreIfExists)
+          TableResultImpl.TABLE_RESULT_OK
+        } catch {
+          case ex: DatabaseAlreadyExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }
       case _ => throw new TableException("Unsupported operation: " + operation)
