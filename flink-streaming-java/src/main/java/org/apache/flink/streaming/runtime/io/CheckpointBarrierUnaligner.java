@@ -150,6 +150,10 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			int channelIndex,
 			long bufferedBytes) throws Exception {
 		long barrierId = receivedBarrier.getId();
+		if (currentConsumedCheckpointId > barrierId || (currentConsumedCheckpointId == barrierId && numBarrierConsumed == 0)) {
+			// ignore old and cancelled barriers
+			return false;
+		}
 		if (currentConsumedCheckpointId < barrierId) {
 			currentConsumedCheckpointId = barrierId;
 			numBarrierConsumed = 0;
