@@ -44,6 +44,7 @@ import org.apache.flink.runtime.webmonitor.history.HistoryServerUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
@@ -121,6 +122,8 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 	private final Resource resource;
 
+	private final WorkerSpecContainerResourceAdapter workerSpecContainerResourceAdapter;
+
 	public YarnResourceManager(
 			RpcService rpcService,
 			ResourceID resourceId,
@@ -168,6 +171,24 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 		this.webInterfaceUrl = webInterfaceUrl;
 		this.resource = Resource.newInstance(defaultMemoryMB, defaultTaskExecutorProcessSpec.getCpuCores().getValue().intValue());
+
+		this.workerSpecContainerResourceAdapter = new WorkerSpecContainerResourceAdapter(
+			flinkConfig,
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB),
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES),
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB),
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES),
+			flinkConfig.getBoolean(YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES) ?
+				WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE :
+				WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE);
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
