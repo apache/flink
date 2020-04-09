@@ -32,9 +32,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class RestartAllFailoverStrategy implements FailoverStrategy {
 
-	private final SchedulingTopology<?, ?> topology;
+	private final SchedulingTopology topology;
 
-	public RestartAllFailoverStrategy(final SchedulingTopology<?, ?> topology) {
+	public RestartAllFailoverStrategy(final SchedulingTopology topology) {
 		this.topology = checkNotNull(topology);
 	}
 
@@ -59,7 +59,7 @@ public class RestartAllFailoverStrategy implements FailoverStrategy {
 
 		@Override
 		public FailoverStrategy create(
-				final SchedulingTopology<?, ?> topology,
+				final SchedulingTopology topology,
 				final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
 			return new RestartAllFailoverStrategy(topology);

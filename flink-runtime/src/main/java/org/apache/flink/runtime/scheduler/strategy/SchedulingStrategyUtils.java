@@ -32,14 +32,14 @@ import java.util.stream.Collectors;
  */
 class SchedulingStrategyUtils {
 
-	static Set<ExecutionVertexID> getAllVertexIdsFromTopology(final SchedulingTopology<?, ?> topology) {
+	static Set<ExecutionVertexID> getAllVertexIdsFromTopology(final SchedulingTopology topology) {
 		return IterableUtils.toStream(topology.getVertices())
 			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());
 	}
 
-	static Set<SchedulingExecutionVertex<?, ?>> getVerticesFromIds(
-			final SchedulingTopology<?, ?> topology,
+	static Set<SchedulingExecutionVertex> getVerticesFromIds(
+			final SchedulingTopology topology,
 			final Set<ExecutionVertexID> vertexIds) {
 
 		return vertexIds.stream()
@@ -48,7 +48,7 @@ class SchedulingStrategyUtils {
 	}
 
 	static List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptionsInTopologicalOrder(
-			final SchedulingTopology<?, ?> topology,
+			final SchedulingTopology topology,
 			final Set<ExecutionVertexID> verticesToDeploy,
 			final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
 

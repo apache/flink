@@ -24,8 +24,8 @@ import org.apache.flink.runtime.topology.Topology;
 /**
  * Topology of {@link SchedulingExecutionVertex}.
  */
-public interface SchedulingTopology<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
-	extends Topology<ExecutionVertexID, IntermediateResultPartitionID, V, R, SchedulingPipelinedRegion<V, R>> {
+public interface SchedulingTopology
+	extends Topology<ExecutionVertexID, IntermediateResultPartitionID, SchedulingExecutionVertex, SchedulingResultPartition, SchedulingPipelinedRegion> {
 
 	/**
 	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
@@ -34,7 +34,7 @@ public interface SchedulingTopology<V extends SchedulingExecutionVertex<V, R>, R
 	 * @return The respective scheduling vertex
 	 * @throws IllegalArgumentException If the vertex does not exist
 	 */
-	V getVertex(ExecutionVertexID executionVertexId);
+	SchedulingExecutionVertex getVertex(ExecutionVertexID executionVertexId);
 
 	/**
 	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
@@ -43,5 +43,5 @@ public interface SchedulingTopology<V extends SchedulingExecutionVertex<V, R>, R
 	 * @return The respective scheduling result partition
 	 * @throws IllegalArgumentException If the partition does not exist
 	 */
-	R getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
+	SchedulingResultPartition getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
 }

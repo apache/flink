@@ -53,7 +53,7 @@ public interface FailoverStrategy {
 		 * @return The instantiated failover strategy.
 		 */
 		FailoverStrategy create(
-			SchedulingTopology<?, ?> topology,
+			SchedulingTopology topology,
 			ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker);
 	}
 }

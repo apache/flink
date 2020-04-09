@@ -45,7 +45,7 @@ public final class PipelinedRegionComputeUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
 
 	public static Set<PipelinedRegion> toPipelinedRegionsSet(
-			final Set<? extends Set<? extends SchedulingExecutionVertex<?, ?>>> distinctRegions) {
+			final Set<? extends Set<? extends SchedulingExecutionVertex>> distinctRegions) {
 
 		return distinctRegions.stream()
 			.map(toExecutionVertexIdSet())
@@ -53,7 +53,7 @@ public final class PipelinedRegionComputeUtil {
 			.collect(Collectors.toSet());
 	}
 
-	private static Function<Set<? extends SchedulingExecutionVertex<?, ?>>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
+	private static Function<Set<? extends SchedulingExecutionVertex>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
 		return failoverVertices -> failoverVertices.stream()
 			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());

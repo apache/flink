@@ -35,14 +35,14 @@ public class FailoverRegion {
 	private final Set<ExecutionVertexID> executionVertexIDs;
 
 	/** All vertices in this region. */
-	private final Set<? extends SchedulingExecutionVertex<?, ?>> executionVertices;
+	private final Set<? extends SchedulingExecutionVertex> executionVertices;
 
 	/**
 	 * Creates a new failover region containing a set of vertices.
 	 *
 	 * @param executionVertices to be contained in this region
 	 */
-	public FailoverRegion(Set<? extends SchedulingExecutionVertex<?, ?>> executionVertices) {
+	public FailoverRegion(Set<? extends SchedulingExecutionVertex> executionVertices) {
 		this.executionVertices = checkNotNull(executionVertices);
 		this.executionVertexIDs = new HashSet<>();
 		executionVertices.forEach(v -> this.executionVertexIDs.add(v.getId()));
@@ -62,7 +62,7 @@ public class FailoverRegion {
 	 *
 	 * @return all vertices in this region
 	 */
-	public Set<? extends SchedulingExecutionVertex<?, ?>> getAllExecutionVertices() {
+	public Set<? extends SchedulingExecutionVertex> getAllExecutionVertices() {
 		return executionVertices;
 	}
 }

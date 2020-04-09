@@ -30,8 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A simple implementation of {@link SchedulingResultPartition} for testing.
  */
-public class TestingSchedulingResultPartition
-	implements SchedulingResultPartition<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
+public class TestingSchedulingResultPartition implements SchedulingResultPartition {
 
 	private final IntermediateDataSetID intermediateDataSetID;
 

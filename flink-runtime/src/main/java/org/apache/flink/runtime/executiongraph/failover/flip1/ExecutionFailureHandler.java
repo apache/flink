@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutionFailureHandler {
 
-	private final SchedulingTopology<?, ?> schedulingTopology;
+	private final SchedulingTopology schedulingTopology;
 
 	/** Strategy to judge which tasks should be restarted. */
 	private final FailoverStrategy failoverStrategy;
@@ -57,7 +57,7 @@ public class ExecutionFailureHandler {
 	 * @param restartBackoffTimeStrategy helps to decide whether to restart failed tasks and the restarting delay
 	 */
 	public ExecutionFailureHandler(
-			final SchedulingTopology<?, ?> schedulingTopology,
+			final SchedulingTopology schedulingTopology,
 			final FailoverStrategy failoverStrategy,
 			final RestartBackoffTimeStrategy restartBackoffTimeStrategy) {
 
