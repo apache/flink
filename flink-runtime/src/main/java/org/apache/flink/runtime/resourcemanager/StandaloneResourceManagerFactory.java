@@ -61,7 +61,6 @@ public enum StandaloneResourceManagerFactory implements ResourceManagerFactory<R
 
 		return new StandaloneResourceManager(
 			rpcService,
-			getEndpointId(),
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

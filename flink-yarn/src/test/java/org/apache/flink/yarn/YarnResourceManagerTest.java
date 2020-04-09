@@ -185,7 +185,6 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		TestingYarnResourceManager(
 				RpcService rpcService,
-				String resourceManagerEndpointId,
 				ResourceID resourceId,
 				Configuration flinkConfig,
 				Map<String, String> env,
@@ -201,7 +200,6 @@ public class YarnResourceManagerTest extends TestLogger {
 				ResourceManagerMetricGroup resourceManagerMetricGroup) {
 			super(
 				rpcService,
-				resourceManagerEndpointId,
 				resourceId,
 				flinkConfig,
 				env,
@@ -248,7 +246,6 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		// RM
 		final ResourceID rmResourceID;
-		static final String RM_ADDRESS = "resourceManager";
 		final TestingYarnResourceManager resourceManager;
 
 		final int dataPort = 1234;
@@ -283,7 +280,6 @@ public class YarnResourceManagerTest extends TestLogger {
 			resourceManager =
 					new TestingYarnResourceManager(
 							rpcService,
-							RM_ADDRESS,
 							rmResourceID,
 							configuration,
 							env,

@@ -70,7 +70,6 @@ public class YarnResourceManagerFactory extends ActiveResourceManagerFactory<Yar
 
 		return new YarnResourceManager(
 			rpcService,
-			getEndpointId(),
 			resourceId,
 			configuration,
 			System.getenv(),
