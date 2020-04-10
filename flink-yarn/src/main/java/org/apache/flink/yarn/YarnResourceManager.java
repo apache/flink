@@ -74,6 +74,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -118,6 +119,10 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	private NMClientAsync nodeManagerClient;
 
 	private final WorkerSpecContainerResourceAdapter workerSpecContainerResourceAdapter;
+
+	private final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector;
+
+	private WorkerSpecContainerResourceAdapter.MatchingStrategy matchingStrategy;
 
 	public YarnResourceManager(
 			RpcService rpcService,
@@ -178,10 +183,12 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB),
 			yarnConfig.getInt(
 				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES),
-			flinkConfig.getBoolean(YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES) ?
-				WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE :
-				WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE);
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES));
+		this.registerApplicationMasterResponseReflector = new RegisterApplicationMasterResponseReflector(log);
+
+		this.matchingStrategy = flinkConfig.getBoolean(YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES) ?
+			WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE :
+			WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE;
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
@@ -215,19 +222,38 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		final RegisterApplicationMasterResponse registerApplicationMasterResponse =
 			resourceManagerClient.registerApplicationMaster(hostPort.f0, restPort, webInterfaceUrl);
 		getContainersFromPreviousAttempts(registerApplicationMasterResponse);
+		updateMatchingStrategy(registerApplicationMasterResponse);
 
 		return resourceManagerClient;
 	}
 
 	private void getContainersFromPreviousAttempts(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
 		final List<Container> containersFromPreviousAttempts =
-			new RegisterApplicationMasterResponseReflector(log).getContainersFromPreviousAttempts(registerApplicationMasterResponse);
+			registerApplicationMasterResponseReflector.getContainersFromPreviousAttempts(registerApplicationMasterResponse);
 
 		log.info("Recovered {} containers from previous attempts ({}).", containersFromPreviousAttempts.size(), containersFromPreviousAttempts);
 
 		for (final Container container : containersFromPreviousAttempts) {
 			workerNodeMap.put(new ResourceID(container.getId().toString()), new YarnWorkerNode(container));
 		}
+	}
+
+	private void updateMatchingStrategy(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
+		final Optional<Set<String>> schedulerResourceTypesOptional =
+			registerApplicationMasterResponseReflector.getSchedulerResourceTypeNames(registerApplicationMasterResponse);
+
+		final WorkerSpecContainerResourceAdapter.MatchingStrategy strategy;
+		if (schedulerResourceTypesOptional.isPresent()) {
+			Set<String> types = schedulerResourceTypesOptional.get();
+			log.info("Register application master response contains scheduler resource types: {}.", types);
+			matchingStrategy = types.contains("CPU") ?
+				WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE :
+				WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE;
+		} else {
+			log.info("Register application master response does not contain scheduler resource types, use '{}'.",
+				YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES.key());
+		}
+		log.info("Container matching strategy: {}.", matchingStrategy);
 	}
 
 	protected NMClientAsync createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
@@ -381,7 +407,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 	private void onContainersOfResourceAllocated(Resource resource, List<Container> containers) {
 		final List<WorkerResourceSpec> pendingWorkerResourceSpecs =
-			workerSpecContainerResourceAdapter.getWorkerSpecs(resource).stream()
+			workerSpecContainerResourceAdapter.getWorkerSpecs(resource, matchingStrategy).stream()
 				.flatMap(spec -> Collections.nCopies(getNumPendingWorkersFor(spec), spec).stream())
 				.collect(Collectors.toList());
 
@@ -463,7 +489,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	}
 
 	private Collection<AMRMClient.ContainerRequest> getPendingRequestsAndCheckConsistency(Resource resource, int expectedNum) {
-		final Collection<Resource> equivalentResources = workerSpecContainerResourceAdapter.getEquivalentContainerResource(resource);
+		final Collection<Resource> equivalentResources = workerSpecContainerResourceAdapter.getEquivalentContainerResource(resource, matchingStrategy);
 		final List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequests =
 			equivalentResources.stream()
 				.flatMap(equivalentResource -> resourceManagerClient.getMatchingRequests(
