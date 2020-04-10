@@ -79,6 +79,9 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	@GuardedBy("buffers")
 	private boolean flushRequested;
 
+	@GuardedBy("buffers")
+	private boolean dataAvailableNotified = false;
+
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
@@ -153,13 +156,16 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			handleAddingBarrier(bufferConsumer, insertAsHead);
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
-			notifyDataAvailable = insertAsHead || finish || shouldNotifyDataAvailable();
+
+			// Notify only when we added first finished buffer.
+			notifyDataAvailable = insertAsHead && readView != null || shouldNotifyDataAvailable() && getNumberOfFinishedBuffers() == 1;
+			dataAvailableNotified = dataAvailableNotified || notifyDataAvailable;
 
 			isFinished |= finish;
 		}
 
 		if (notifyDataAvailable) {
-			notifyDataAvailable();
+			readView.notifyDataAvailable();
 		}
 
 		return true;
@@ -265,6 +271,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			}
 
 			if (buffer == null) {
+				dataAvailableNotified = false;
 				return null;
 			}
 
@@ -272,13 +279,16 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				isBlockedByCheckpoint = true;
 			}
 
+			boolean isAvailable = isDataAvailableUnsafe();
+			dataAvailableNotified = isAvailable;
+
 			updateStatistics(buffer);
 			// Do not report last remaining buffer on buffers as available to read (assuming it's unfinished).
 			// It will be reported for reading either on flush or when the number of buffers in the queue
 			// will be 2 or more.
 			return new BufferAndBacklog(
 				buffer,
-				isDataAvailableUnsafe(),
+				isAvailable,
 				getBuffersInBacklog(),
 				isEventAvailableUnsafe());
 		}
@@ -319,10 +329,11 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				parent.getOwningTaskName(), getSubPartitionIndex(), parent.getPartitionId());
 
 			readView = new PipelinedSubpartitionView(this, availabilityListener);
-			notifyDataAvailable = !buffers.isEmpty();
+			notifyDataAvailable = isDataAvailableUnsafe();
+			dataAvailableNotified = notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
-			notifyDataAvailable();
+			readView.notifyDataAvailable();
 		}
 
 		return readView;
@@ -392,11 +403,12 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().isDataAvailable();
+			notifyDataAvailable = shouldNotifyDataAvailable() && buffers.peekFirst().isDataAvailable();
 			flushRequested = buffers.size() > 1 || notifyDataAvailable;
+			dataAvailableNotified = dataAvailableNotified || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
-			notifyDataAvailable();
+			readView.notifyDataAvailable();
 		}
 	}
 
@@ -460,14 +472,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	private boolean shouldNotifyDataAvailable() {
-		// Notify only when we added first finished buffer.
-		return readView != null && !flushRequested && !isBlockedByCheckpoint && getNumberOfFinishedBuffers() == 1;
-	}
-
-	private void notifyDataAvailable() {
-		if (readView != null) {
-			readView.notifyDataAvailable();
-		}
+		return readView != null && !isBlockedByCheckpoint && !dataAvailableNotified;
 	}
 
 	private int getNumberOfFinishedBuffers() {
@@ -482,5 +487,10 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 		// We assume that only last buffer is not finished.
 		return Math.max(0, buffers.size() - 1);
+	}
+
+	@VisibleForTesting
+	boolean isDataAvailableNotified() {
+		return dataAvailableNotified;
 	}
 }
