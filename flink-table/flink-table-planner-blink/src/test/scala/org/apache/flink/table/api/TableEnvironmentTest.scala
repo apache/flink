@@ -254,6 +254,15 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithShowFunctions(): Unit = {
+    val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(
+      tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
+      tableResult.collect())
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(containsString("Unsupported SQL query!"))

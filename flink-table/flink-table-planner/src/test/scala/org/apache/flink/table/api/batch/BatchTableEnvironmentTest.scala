@@ -237,6 +237,16 @@ class BatchTableEnvironmentTest extends TableTestBase {
   }
 
   @Test
+  def testExecuteSqlWithShowFunctions(): Unit = {
+    val util = batchTestUtil()
+    val tableResult = util.tableEnv.executeSql("SHOW FUNCTIONS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(
+      util.tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
+      tableResult.collect())
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Long, Int, String)]("MyTable", 'a, 'b, 'c)

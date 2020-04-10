@@ -37,6 +37,7 @@ import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
+import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -59,6 +60,7 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -175,6 +177,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertShowDatabases((SqlShowDatabases) validated));
 		} else if (validated instanceof SqlShowTables) {
 			return Optional.of(converter.convertShowTables((SqlShowTables) validated));
+		} else if (validated instanceof SqlShowFunctions) {
+			return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -492,6 +496,11 @@ public class SqlToOperationConverter {
 	/** Convert SHOW TABLES statement. */
 	private Operation convertShowTables(SqlShowTables sqlShowTables) {
 		return new ShowTablesOperation();
+	}
+
+	/** Convert SHOW FUNCTIONS statement. */
+	private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
+		return new ShowFunctionsOperation();
 	}
 
 	/** Fallback method for sql query. */
