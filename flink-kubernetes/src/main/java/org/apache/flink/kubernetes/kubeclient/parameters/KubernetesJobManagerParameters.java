@@ -101,6 +101,10 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 		return flinkConfig.getInteger(RestOptions.PORT);
 	}
 
+	public int getRestBindPort() {
+		return Integer.valueOf(flinkConfig.getString(RestOptions.BIND_PORT));
+	}
+
 	public int getRPCPort() {
 		return flinkConfig.getInteger(JobManagerOptions.PORT);
 	}

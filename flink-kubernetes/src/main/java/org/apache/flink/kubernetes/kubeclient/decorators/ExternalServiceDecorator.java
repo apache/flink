@@ -60,6 +60,7 @@ public class ExternalServiceDecorator extends AbstractKubernetesStepDecorator {
 				.addNewPort()
 					.withName(Constants.REST_PORT_NAME)
 					.withPort(kubernetesJobManagerParameters.getRestPort())
+					.withNewTargetPort(kubernetesJobManagerParameters.getRestBindPort())
 					.endPort()
 				.endSpec()
 			.build();

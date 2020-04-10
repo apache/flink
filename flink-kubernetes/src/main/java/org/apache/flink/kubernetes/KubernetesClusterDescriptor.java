@@ -163,10 +163,8 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
 		// Rpc, blob, rest, taskManagerRpc ports need to be exposed, so update them to fixed values.
 		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, BlobServerOptions.PORT, Constants.BLOB_SERVER_PORT);
-		KubernetesUtils.checkAndUpdatePortConfigOption(
-			flinkConfig,
-			TaskManagerOptions.RPC_PORT,
-			Constants.TASK_MANAGER_RPC_PORT);
+		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, TaskManagerOptions.RPC_PORT, Constants.TASK_MANAGER_RPC_PORT);
+		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, RestOptions.BIND_PORT, Constants.REST_PORT);
 
 		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
 			flinkConfig.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
