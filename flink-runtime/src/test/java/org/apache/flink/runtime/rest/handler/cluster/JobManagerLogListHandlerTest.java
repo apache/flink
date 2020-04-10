@@ -33,6 +33,7 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -41,7 +42,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -66,7 +66,7 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@BeforeClass
-	public static void initHandlerRequest() throws HandlerRequestException {
+	public static void setupClass() throws HandlerRequestException {
 		testRequest = new HandlerRequest<>(EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap());
 	}
 
@@ -77,16 +77,28 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 
 	@Test
 	public void testGetJobManagerLogsList() throws Exception {
-		LogInfo jobmanagerLog = new LogInfo("jobmanager.log", 0L);
-		LogInfo jobmanagerStdout = new LogInfo("jobmanager.out", 0L);
-		LogInfo customLog = new LogInfo("test.log", 0L);
+		String jobmanagerLogContent = "jobmanager log content";
+		String jobmanagerStdoutContent = "jobmanager stdout content";
+		String jobmanagerCustomLogContent = "jobmanager custom log content";
+
+		LogInfo jobmanagerLog = new LogInfo("jobmanager.log", jobmanagerLogContent.length());
+		LogInfo jobmanagerStdout = new LogInfo("jobmanager.out", jobmanagerStdoutContent.length());
+		LogInfo customLog = new LogInfo("test.log", jobmanagerCustomLogContent.length());
+
+		Map<LogInfo, String> logInfo2ContentMap = new HashMap<>(3);
+		logInfo2ContentMap.put(jobmanagerLog, jobmanagerLogContent);
+		logInfo2ContentMap.put(jobmanagerStdout, jobmanagerStdoutContent);
+		logInfo2ContentMap.put(customLog, jobmanagerCustomLogContent);
+
 		Map<String, LogInfo> fileNameAndLogInfoMap = new HashMap<>(3);
 		fileNameAndLogInfoMap.put(jobmanagerLog.getName(), jobmanagerLog);
 		fileNameAndLogInfoMap.put(jobmanagerStdout.getName(), jobmanagerStdout);
 		fileNameAndLogInfoMap.put(customLog.getName(), customLog);
-		JobManagerLogListHandler jobManagerLogListHandler = createHandler(fileNameAndLogInfoMap.values());
+
+		JobManagerLogListHandler jobManagerLogListHandler = createHandler(logInfo2ContentMap);
 		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(testRequest, mockRestfulGateway).get();
-		assertThat(logListInfo.getLogInfos(), hasSize(fileNameAndLogInfoMap.size()));
+
+		assertThat(logListInfo.getLogInfos(), hasSize(logInfo2ContentMap.size()));
 		for (LogInfo logInfo : logListInfo.getLogInfos()) {
 			assertEquals(logInfo, fileNameAndLogInfoMap.get(logInfo.getName()));
 		}
@@ -94,13 +106,13 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 
 	@Test
 	public void testGetJobManagerLogsListWhenLogDirIsNull() throws Exception {
-		JobManagerLogListHandler jobManagerLogListHandler = createHandler(Collections.emptyList());
+		JobManagerLogListHandler jobManagerLogListHandler = createHandler(Collections.emptyMap());
 		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(testRequest, mockRestfulGateway).get();
 		assertThat(logListInfo.getLogInfos(), is(empty()));
 	}
 
-	private JobManagerLogListHandler createHandler(Collection<LogInfo> logsList) {
-		WebMonitorUtils.LogFileLocation logFileLocation = createLogFileLocation(logsList);
+	private JobManagerLogListHandler createHandler(Map<LogInfo, String> logInfo2ContentMap) {
+		WebMonitorUtils.LogFileLocation logFileLocation = createLogFileLocation(logInfo2ContentMap);
 		return new JobManagerLogListHandler(
 			() -> CompletableFuture.completedFuture(null),
 			TestingUtils.TIMEOUT(),
@@ -109,11 +121,14 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 			logFileLocation.logDir);
 	}
 
-	private WebMonitorUtils.LogFileLocation createLogFileLocation(Collection<LogInfo> logsList) {
+	private WebMonitorUtils.LogFileLocation createLogFileLocation(Map<LogInfo, String> logInfo2ContentMap) {
 		Configuration config = new Configuration();
 		try {
-			for (LogInfo logInfo : logsList) {
+			for (Map.Entry<LogInfo, String> logInfo2Content : logInfo2ContentMap.entrySet()) {
+				LogInfo logInfo = logInfo2Content.getKey();
+				String content = logInfo2Content.getValue();
 				File file = temporaryFolder.newFile(logInfo.getName());
+				FileUtils.writeStringToFile(file, content);
 				if ("jobmanager.log".equals(logInfo.getName())){
 					config.setString(WebOptions.LOG_PATH, file.getAbsolutePath());
 				}
