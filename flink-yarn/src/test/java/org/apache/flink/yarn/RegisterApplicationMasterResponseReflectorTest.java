@@ -62,8 +62,7 @@ public class RegisterApplicationMasterResponseReflectorTest extends TestLogger {
 			new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
 
 		final List<Container> containersFromPreviousAttemptsUnsafe =
-			registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(new
-				HasMethod());
+			registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(new HasMethod());
 
 		assertThat(containersFromPreviousAttemptsUnsafe, hasSize(1));
 	}
@@ -74,8 +73,7 @@ public class RegisterApplicationMasterResponseReflectorTest extends TestLogger {
 			new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
 
 		final List<Container> containersFromPreviousAttemptsUnsafe =
-			registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(new
-				Object());
+			registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(new Object());
 
 		assertThat(containersFromPreviousAttemptsUnsafe, empty());
 	}
