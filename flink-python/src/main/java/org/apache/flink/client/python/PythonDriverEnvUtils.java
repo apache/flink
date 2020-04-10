@@ -55,10 +55,7 @@ public final class PythonDriverEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriverEnvUtils.class);
 
 	@VisibleForTesting
-	static Map<String, String> systemEnv = System.getenv();
-
-	@VisibleForTesting
-	static String pythonLibDir = systemEnv.get(ConfigConstants.ENV_FLINK_OPT_DIR) + File.separator + "python";
+	static String pythonLibDir = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR) + File.separator + "python";
 
 	static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
 
@@ -114,7 +111,7 @@ public final class PythonDriverEnvUtils {
 
 		// 1. set the path of python interpreter.
 		String pythonExec = config.getOptional(PYTHON_CLIENT_EXECUTABLE)
-			.orElse(systemEnv.get(PYFLINK_CLIENT_EXECUTABLE));
+			.orElse(System.getenv(PYFLINK_CLIENT_EXECUTABLE));
 		if (pythonExec != null) {
 			env.pythonExec = pythonExec;
 		}
@@ -196,23 +193,19 @@ public final class PythonDriverEnvUtils {
 			Path targetPath = new Path(
 				tmpDirPath,
 				String.join(File.separator, UUID.randomUUID().toString(), sourceFileName));
-			try {
-				if (!pythonFile.getFileSystem().isDistributedFS()) {
-					if (!pythonFile.getFileSystem().exists(pythonFile)) {
-						LOG.error(pythonFile + " not exists, skipping...");
-						continue;
-					}
-					// if the path is local file, try to create symbolic link.
-					new File(targetPath.getParent().toString()).mkdir();
-					createSymbolicLinkForPyflinkLib(
-						Paths.get(new File(pythonFile.getPath()).getAbsolutePath()),
-						Paths.get(targetPath.toString()));
-				} else {
+			if (!pythonFile.getFileSystem().isDistributedFS()) {
+				// if the path is local file, try to create symbolic link.
+				new File(targetPath.getParent().toString()).mkdir();
+				createSymbolicLinkForPyflinkLib(
+					Paths.get(new File(pythonFile.getPath()).getAbsolutePath()),
+					Paths.get(targetPath.toString()));
+			} else {
+				try {
 					FileUtils.copy(pythonFile, targetPath, true);
+				} catch (Exception e) {
+					LOG.error("Error occured when copying user python files from DFS, skipping...", e);
+					continue;
 				}
-			} catch (Exception e) {
-				LOG.error("Error occured when copying user python files, skipping...", e);
-				continue;
 			}
 			if (Files.isRegularFile(Paths.get(targetPath.toString()).toRealPath()) && sourceFileName.endsWith(".py")) {
 				// add the parent directory of .py file itself to PYTHONPATH

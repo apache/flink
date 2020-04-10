@@ -21,6 +21,7 @@ package org.apache.flink.client.python;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.After;
@@ -38,6 +39,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,7 +47,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.client.python.PythonDriverEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
 import static org.apache.flink.client.python.PythonDriverEnvUtils.preparePythonEnvironment;
 import static org.apache.flink.client.python.PythonDriverEnvUtils.pythonLibDir;
-import static org.apache.flink.client.python.PythonDriverEnvUtils.systemEnv;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
@@ -167,10 +168,16 @@ public class PythonDriverEnvUtilsTest {
 		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 		Assert.assertEquals("python", env.pythonExec);
 
-		systemEnv = new HashMap<>(systemEnv);
+		Map<String, String> systemEnv = new HashMap<>(System.getenv());
 		systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "python3");
-		env = preparePythonEnvironment(config, null, tmpDirPath);
-		Assert.assertEquals("python3", env.pythonExec);
+		CommonTestUtils.setEnv(systemEnv);
+		try {
+			env = preparePythonEnvironment(config, null, tmpDirPath);
+			Assert.assertEquals("python3", env.pythonExec);
+		} finally {
+			systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
+			CommonTestUtils.setEnv(systemEnv);
+		}
 
 		config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
 		env = preparePythonEnvironment(config, null, tmpDirPath);
@@ -199,7 +206,7 @@ public class PythonDriverEnvUtilsTest {
 	@After
 	public void cleanEnvironment() {
 		FileUtils.deleteDirectoryQuietly(new File(tmpDirPath));
-		pythonLibDir = systemEnv.get(ConfigConstants.ENV_FLINK_OPT_DIR) + File.separator + "python";
+		pythonLibDir = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR) + File.separator + "python";
 	}
 
 	private static String replaceUUID(String originPath) {

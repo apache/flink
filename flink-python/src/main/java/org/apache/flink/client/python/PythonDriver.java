@@ -19,7 +19,6 @@
 package org.apache.flink.client.python;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.program.ProgramAbortException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
