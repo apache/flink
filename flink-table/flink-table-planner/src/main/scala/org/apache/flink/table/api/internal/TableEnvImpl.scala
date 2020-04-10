@@ -134,7 +134,7 @@ abstract class TableEnvImpl(
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
       "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
-      "SHOW CATALOGS."
+      "SHOW CATALOGS, SHOW DATABASES."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -561,7 +561,7 @@ abstract class TableEnvImpl(
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
            _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation |
-           _: ShowCatalogsOperation =>
+           _: ShowCatalogsOperation | _: ShowDatabasesOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -686,6 +686,8 @@ abstract class TableEnvImpl(
         TableResultImpl.TABLE_RESULT_OK
       case _: ShowCatalogsOperation =>
         buildShowResult(listCatalogs())
+      case _: ShowDatabasesOperation =>
+        buildShowResult(listDatabases())
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }

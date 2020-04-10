@@ -82,6 +82,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -144,7 +145,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"SHOW CATALOGS.";
+			"SHOW CATALOGS, SHOW DATABASES.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -627,7 +628,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof CreateCatalogOperation ||
 				operation instanceof UseCatalogOperation ||
 				operation instanceof UseDatabaseOperation ||
-				operation instanceof ShowCatalogsOperation) {
+				operation instanceof ShowCatalogsOperation ||
+				operation instanceof ShowDatabasesOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -779,6 +781,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof ShowCatalogsOperation) {
 			return buildShowResult(listCatalogs());
+		} else if (operation instanceof ShowDatabasesOperation) {
+			return buildShowResult(listDatabases());
 		} else {
 			throw new TableException("Unsupported operation: " + operation);
 		}
