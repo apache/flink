@@ -98,7 +98,12 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> T getAccumulatorResult(String accumulatorName) {
-		return (T) this.accumulatorResults.get(accumulatorName).getUnchecked();
+		OptionalFailure<Object> result = this.accumulatorResults.get(accumulatorName);
+		if (result != null) {
+			return (T) result.getUnchecked();
+		} else {
+			return null;
+		}
 	}
 
 	/**
