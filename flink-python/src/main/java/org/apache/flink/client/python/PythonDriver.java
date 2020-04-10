@@ -41,9 +41,9 @@ public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
 	public static void main(String[] args) {
-		// the python job needs at least 2 args.
-		// e.g. py a.py ...
-		// e.g. pym a.b -pyfs a.zip ...
+		// The python job needs at least 2 args.
+		// e.g. py a.py [user args]
+		// e.g. pym a.b [user args]
 		if (args.length < 2) {
 			LOG.error("Required at least two arguments, only python file or python module is available.");
 			System.exit(1);
@@ -61,6 +61,9 @@ public final class PythonDriver {
 			System.exit(1);
 		}
 
+		// Get configuration from ContextEnvironment/OptimizerPlanEnvironment. As the configurations of
+		// streaming and batch environments are always set at the same time, for streaming jobs we can
+		// also get its configuration from batch environments.
 		Configuration config = ExecutionEnvironment.getExecutionEnvironment().getConfiguration();
 
 		// start gateway server

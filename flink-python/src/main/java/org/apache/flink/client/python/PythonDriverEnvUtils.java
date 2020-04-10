@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -53,9 +52,6 @@ import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
  */
 public final class PythonDriverEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriverEnvUtils.class);
-
-	@VisibleForTesting
-	static String pythonLibDir = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR) + File.separator + "python";
 
 	static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
 
@@ -123,10 +119,12 @@ public final class PythonDriverEnvUtils {
 		env.tempDirectory = tmpDir;
 
 		// 3. append the internal lib files to PYTHONPATH.
-		List<java.nio.file.Path> pythonLibs = getLibFiles(pythonLibDir);
-		env.pythonPath = pythonLibs.stream()
-			.map(p -> p.toFile().getAbsolutePath())
-			.collect(Collectors.joining(File.pathSeparator));
+		if (System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR) != null) {
+			String pythonLibDir = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR) + File.separator + "python";
+			env.pythonPath = getLibFiles(pythonLibDir).stream()
+				.map(p -> p.toFile().getAbsolutePath())
+				.collect(Collectors.joining(File.pathSeparator));
+		}
 
 		// 4. copy relevant python files to tmp dir and set them in PYTHONPATH.
 		if (config.getOptional(PYTHON_FILES).isPresent()) {

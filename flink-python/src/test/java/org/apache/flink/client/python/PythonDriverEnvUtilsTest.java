@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -46,7 +45,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.client.python.PythonDriverEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
 import static org.apache.flink.client.python.PythonDriverEnvUtils.preparePythonEnvironment;
-import static org.apache.flink.client.python.PythonDriverEnvUtils.pythonLibDir;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
@@ -57,18 +55,12 @@ import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 public class PythonDriverEnvUtilsTest {
 
 	private String tmpDirPath;
-	private static String workingDir = new File("").getAbsolutePath();
 
 	@Before
 	public void prepareTestEnvironment() {
 		File tmpDirFile = new File(System.getProperty("java.io.tmpdir"), "pyflink_" + UUID.randomUUID());
 		tmpDirFile.mkdirs();
 		this.tmpDirPath = tmpDirFile.getAbsolutePath();
-		if (new File("flink-python/lib").exists()) {
-			pythonLibDir = new File("flink-python/lib").getAbsolutePath();
-		} else if (new File("lib").exists()) {
-			pythonLibDir = new File("lib").getAbsolutePath();
-		}
 	}
 
 	@Test
@@ -87,9 +79,12 @@ public class PythonDriverEnvUtilsTest {
 		relativeFile.createNewFile();
 		schemeFile.createNewFile();
 
+		String workingDir = new File("").getAbsolutePath();
+		String absolutePath = relativeFile.getAbsolutePath();
+
 		Path zipPath = new Path(zipFile.getAbsolutePath());
 		Path dirPath = new Path(dirFile.getAbsolutePath());
-		Path relativePath = new Path(Paths.get(workingDir).relativize(Paths.get(relativeFile.getAbsolutePath())).toString());
+		Path relativePath = new Path(Paths.get(workingDir).relativize(Paths.get(absolutePath)).toString());
 		Path schemePath = new Path("file://" + schemeFile.getAbsolutePath());
 
 		List<Path> pyFilesList = new ArrayList<>();
@@ -108,7 +103,7 @@ public class PythonDriverEnvUtilsTest {
 		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 
 		String base = replaceUUID(env.tempDirectory);
-		Set<String> expectedPythonPaths = getBasicPythonPaths();
+		Set<String> expectedPythonPaths = new HashSet<>();
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a.zip"));
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "module_dir"));
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}"));
@@ -194,7 +189,7 @@ public class PythonDriverEnvUtilsTest {
 		Configuration config = new Configuration();
 		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, entryFilePath, tmpDirPath);
 
-		Set<String> expectedPythonPaths = getBasicPythonPaths();
+		Set<String> expectedPythonPaths = new HashSet<>();
 		expectedPythonPaths.add(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}"));
 
 		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
@@ -206,22 +201,9 @@ public class PythonDriverEnvUtilsTest {
 	@After
 	public void cleanEnvironment() {
 		FileUtils.deleteDirectoryQuietly(new File(tmpDirPath));
-		pythonLibDir = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR) + File.separator + "python";
 	}
 
 	private static String replaceUUID(String originPath) {
 		return originPath.replaceAll("[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "{uuid}");
-	}
-
-	private static Set<String> getBasicPythonPaths() {
-		String pyflinkPath = String.join(File.separator, pythonLibDir, "pyflink.zip");
-		String py4jPath = String.join(File.separator, pythonLibDir, "py4j-0.10.8.1-src.zip");
-		String cloudpicklePath = String.join(File.separator, pythonLibDir, "cloudpickle-1.2.2-src.zip");
-
-		Set<String> set = new HashSet<>();
-		set.add(pyflinkPath);
-		set.add(py4jPath);
-		set.add(cloudpicklePath);
-		return set;
 	}
 }
