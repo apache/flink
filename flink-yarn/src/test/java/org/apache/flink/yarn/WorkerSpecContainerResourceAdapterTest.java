@@ -41,6 +41,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 
 	@Test
 	public void testMatchVcores() {
+		final WorkerSpecContainerResourceAdapter.MatchingStrategy strategy =
+			WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE;
 		final int minMemMB = 100;
 		final int minVcore = 10;
 		final WorkerSpecContainerResourceAdapter adapter =
@@ -49,8 +51,7 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE,
-				WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE);
+				Integer.MAX_VALUE);
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(1.0)
@@ -85,21 +86,23 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 		final Resource containerResource2 = Resource.newInstance(200, 10);
 		final Resource containerResource3 = Resource.newInstance(100, 20);
 
-		assertThat(adapter.getWorkerSpecs(containerResource1), empty());
-		assertThat(adapter.getWorkerSpecs(containerResource2), empty());
+		assertThat(adapter.getWorkerSpecs(containerResource1, strategy), empty());
+		assertThat(adapter.getWorkerSpecs(containerResource2, strategy), empty());
 
 		assertThat(adapter.tryComputeContainerResource(workerSpec1).get(), is(containerResource1));
 		assertThat(adapter.tryComputeContainerResource(workerSpec2).get(), is(containerResource1));
 		assertThat(adapter.tryComputeContainerResource(workerSpec3).get(), is(containerResource2));
 		assertThat(adapter.tryComputeContainerResource(workerSpec4).get(), is(containerResource3));
 
-		assertThat(adapter.getWorkerSpecs(containerResource1), containsInAnyOrder(workerSpec1, workerSpec2));
-		assertThat(adapter.getWorkerSpecs(containerResource2), contains(workerSpec3));
-		assertThat(adapter.getWorkerSpecs(containerResource3), contains(workerSpec4));
+		assertThat(adapter.getWorkerSpecs(containerResource1, strategy), containsInAnyOrder(workerSpec1, workerSpec2));
+		assertThat(adapter.getWorkerSpecs(containerResource2, strategy), contains(workerSpec3));
+		assertThat(adapter.getWorkerSpecs(containerResource3, strategy), contains(workerSpec4));
 	}
 
 	@Test
 	public void testIgnoreVcores() {
+		final WorkerSpecContainerResourceAdapter.MatchingStrategy strategy =
+			WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE;
 		final int minMemMB = 100;
 		final int minVcore = 1;
 		final WorkerSpecContainerResourceAdapter adapter =
@@ -108,8 +111,7 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE,
-				WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE);
+				Integer.MAX_VALUE);
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)
@@ -152,11 +154,11 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 		assertThat(adapter.tryComputeContainerResource(workerSpec3).get(), is(containerResource1));
 		assertThat(adapter.tryComputeContainerResource(workerSpec4).get(), is(containerResource3));
 
-		assertThat(adapter.getEquivalentContainerResource(containerResource4), containsInAnyOrder(containerResource1, containerResource2));
-		assertThat(adapter.getEquivalentContainerResource(containerResource5), contains(containerResource3));
+		assertThat(adapter.getEquivalentContainerResource(containerResource4, strategy), containsInAnyOrder(containerResource1, containerResource2));
+		assertThat(adapter.getEquivalentContainerResource(containerResource5, strategy), contains(containerResource3));
 
-		assertThat(adapter.getWorkerSpecs(containerResource4), containsInAnyOrder(workerSpec1, workerSpec2, workerSpec3));
-		assertThat(adapter.getWorkerSpecs(containerResource5), contains(workerSpec4));
+		assertThat(adapter.getWorkerSpecs(containerResource4, strategy), containsInAnyOrder(workerSpec1, workerSpec2, workerSpec3));
+		assertThat(adapter.getWorkerSpecs(containerResource5, strategy), contains(workerSpec4));
 	}
 
 	@Test
@@ -171,8 +173,7 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				maxMemMB,
-				maxVcore,
-				WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE);
+				maxVcore);
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)

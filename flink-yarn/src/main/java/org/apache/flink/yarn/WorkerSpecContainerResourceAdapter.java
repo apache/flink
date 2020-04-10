@@ -51,7 +51,6 @@ public class WorkerSpecContainerResourceAdapter {
 	private final int maxMemMB;
 	private final int minVcore;
 	private final int maxVcore;
-	private final WorkerSpecContainerResourceAdapter.MatchingStrategy matchingStrategy;
 	private final Map<WorkerResourceSpec, Resource> workerSpecToContainerResource;
 	private final Map<Resource, Set<WorkerResourceSpec>> containerResourceToWorkerSpecs;
 	private final Map<Integer, Set<Resource>> containerMemoryToContainerResource;
@@ -61,14 +60,12 @@ public class WorkerSpecContainerResourceAdapter {
 		final int minMemMB,
 		final int minVcore,
 		final int maxMemMB,
-		final int maxVcore,
-		final WorkerSpecContainerResourceAdapter.MatchingStrategy matchingStrategy) {
+		final int maxVcore) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.minMemMB = minMemMB;
 		this.minVcore = minVcore;
 		this.maxMemMB = maxMemMB;
 		this.maxVcore = maxVcore;
-		this.matchingStrategy = matchingStrategy;
 		workerSpecToContainerResource = new HashMap<>();
 		containerResourceToWorkerSpecs = new HashMap<>();
 		containerMemoryToContainerResource = new HashMap<>();
@@ -82,14 +79,14 @@ public class WorkerSpecContainerResourceAdapter {
 	}
 
 	@VisibleForTesting
-	Set<WorkerResourceSpec> getWorkerSpecs(final Resource containerResource) {
-		return getEquivalentContainerResource(containerResource).stream()
+	Set<WorkerResourceSpec> getWorkerSpecs(final Resource containerResource, final MatchingStrategy matchingStrategy) {
+		return getEquivalentContainerResource(containerResource, matchingStrategy).stream()
 			.flatMap(resource -> containerResourceToWorkerSpecs.getOrDefault(resource, Collections.emptySet()).stream())
 			.collect(Collectors.toSet());
 	}
 
 	@VisibleForTesting
-	Set<Resource> getEquivalentContainerResource(final Resource containerResource) {
+	Set<Resource> getEquivalentContainerResource(final Resource containerResource, final MatchingStrategy matchingStrategy) {
 		// Yarn might ignore the requested vcores, depending on its configurations.
 		// In such cases, we should also not matching vcores.
 		final Set<Resource> equivalentContainerResources;
