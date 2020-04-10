@@ -54,13 +54,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the {@link CliClient}.
@@ -101,8 +99,11 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testUseNonExistingDB() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("mocked exception")).when(executor).useDatabase(any(), any());
+		TestingExecutor executor = new TestingExecutorBuilder()
+			.setUseDatabaseConsumer((ignored1, ignored2) -> {
+				throw new SqlExecutionException("mocked exception");
+			})
+			.build();
 		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
 		// don't care about the output
 		OutputStream outputStream = new OutputStream() {
@@ -117,7 +118,7 @@ public class CliClientTest extends TestLogger {
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
 			cliClient = new CliClient(terminal, sessionId, executor);
 			cliClient.open();
-			verify(executor).useDatabase(any(), any());
+			assertThat(executor.getNumUseDatabaseCalls(), is(1));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
@@ -127,8 +128,12 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testUseNonExistingCatalog() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("mocked exception")).when(executor).useCatalog(any(), any());
+		TestingExecutor executor = new TestingExecutorBuilder()
+			.setUseCatalogConsumer((ignored1, ignored2) -> {
+				throw new SqlExecutionException("mocked exception");
+			})
+			.build();
+
 		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
 		// don't care about the output
 		OutputStream outputStream = new OutputStream() {
@@ -143,7 +148,7 @@ public class CliClientTest extends TestLogger {
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
 			cliClient = new CliClient(terminal, sessionId, executor);
 			cliClient.open();
-			verify(executor).useCatalog(any(), any());
+			assertThat(executor.getNumUseCatalogCalls(), is(1));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
