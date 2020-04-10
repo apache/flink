@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.ttl.MockTtlTimeProvider;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.util.TestLogger;
 
@@ -75,8 +74,6 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
 			result.config.setStateKeySerializer(IntSerializer.INSTANCE);
 
 			Time timeToLive = Time.hours(1);
-			MockTtlTimeProvider mockTtlTimeProvider = new MockTtlTimeProvider();
-			result.setTtlTimeProvider(mockTtlTimeProvider);
 			result.initializeState(new OperatorSubtaskState());
 			result.open();
 
@@ -87,10 +84,10 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
 
 			int expectedValue = 42;
 			keyedStateBackend.setCurrentKey(1);
-			mockTtlTimeProvider.setCurrentTimeStamp(0L);
+			result.setStateTtlProcessingTime(0L);
 			state.update(expectedValue);
 			Assert.assertEquals(expectedValue, (int) state.value());
-			mockTtlTimeProvider.setCurrentTimeStamp(timeToLive.toMilliseconds() + 1);
+			result.setStateTtlProcessingTime(timeToLive.toMilliseconds() + 1);
 			Assert.assertNull(state.value());
 		}
 	}
