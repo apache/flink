@@ -24,13 +24,16 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -78,6 +81,7 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -100,6 +104,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -138,7 +143,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE.";
+			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
+			"SHOW CATALOGS.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -620,7 +626,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				operation instanceof AlterCatalogFunctionOperation ||
 				operation instanceof CreateCatalogOperation ||
 				operation instanceof UseCatalogOperation ||
-				operation instanceof UseDatabaseOperation) {
+				operation instanceof UseDatabaseOperation ||
+				operation instanceof ShowCatalogsOperation) {
 			return executeOperation(operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
@@ -770,9 +777,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
 			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 			return TableResultImpl.TABLE_RESULT_OK;
+		} else if (operation instanceof ShowCatalogsOperation) {
+			return buildShowResult(listCatalogs());
 		} else {
 			throw new TableException("Unsupported operation: " + operation);
 		}
+	}
+
+	private TableResult buildShowResult(String[] objects) {
+		return TableResultImpl.builder()
+				.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+				.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
+				.data(Arrays.stream(objects).map(Row::of).collect(Collectors.toList()))
+				.build();
 	}
 
 	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */

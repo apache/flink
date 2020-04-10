@@ -23,11 +23,12 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.catalog.ObjectPath
+import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.sinks.CsvTableSink
+import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
@@ -35,6 +36,8 @@ import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
+
+import _root_.java.util
 
 import _root_.scala.collection.JavaConverters._
 
@@ -207,12 +210,29 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithShowCatalogs(): Unit = {
+    tableEnv.registerCatalog("my_catalog", new GenericInMemoryCatalog("my_catalog"))
+    val tableResult = tableEnv.executeSql("SHOW CATALOGS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(
+      util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
+      tableResult.collect())
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(containsString("Unsupported SQL query!"))
     tableEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
     // TODO supports select later
     tableEnv.executeSql("select * from MyTable")
+  }
+
+  private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
+    while (expected.hasNext && actual.hasNext) {
+      assertEquals(expected.next(), actual.next())
+    }
+    assertEquals(expected.hasNext, actual.hasNext)
   }
 
 }

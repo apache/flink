@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dql.SqlShowCatalogs
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
 
@@ -122,7 +123,8 @@ class FlinkPlannerImpl(
         || sqlNode.getKind == SqlKind.INSERT
         || sqlNode.getKind == SqlKind.CREATE_FUNCTION
         || sqlNode.getKind == SqlKind.DROP_FUNCTION
-        || sqlNode.getKind == SqlKind.OTHER_DDL) {
+        || sqlNode.getKind == SqlKind.OTHER_DDL
+        || sqlNode.isInstanceOf[SqlShowCatalogs]) {
         return sqlNode
       }
       validator.validate(sqlNode)

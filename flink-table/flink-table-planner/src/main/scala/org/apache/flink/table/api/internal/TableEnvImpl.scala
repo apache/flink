@@ -38,6 +38,7 @@ import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSi
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.types.Row
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
@@ -132,7 +133,8 @@ abstract class TableEnvImpl(
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-      "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE."
+      "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
+      "SHOW CATALOGS."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -558,7 +560,8 @@ abstract class TableEnvImpl(
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
-           _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation =>
+           _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation |
+           _: ShowCatalogsOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -681,8 +684,18 @@ abstract class TableEnvImpl(
         catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
         catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
         TableResultImpl.TABLE_RESULT_OK
+      case _: ShowCatalogsOperation =>
+        buildShowResult(listCatalogs())
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
+  }
+
+  private def buildShowResult(objects: Array[String]): TableResult = {
+    TableResultImpl.builder()
+      .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+      .tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
+      .data(objects.map(Row.of(_)).toList)
+      .build()
   }
 
   /** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */

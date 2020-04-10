@@ -25,10 +25,13 @@ import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.types.Row
 
 import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.Test
+
+import java.util
 
 import scala.collection.JavaConverters._
 
@@ -186,6 +189,17 @@ class BatchTableEnvironmentTest extends TableTestBase {
   }
 
   @Test
+  def testExecuteSqlWithShowCatalogs(): Unit = {
+    val testUtil = batchTestUtil()
+    testUtil.tableEnv.registerCatalog("my_catalog", new GenericInMemoryCatalog("my_catalog"))
+    val tableResult = testUtil.tableEnv.executeSql("SHOW CATALOGS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(
+      util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
+      tableResult.collect())
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
@@ -194,5 +208,12 @@ class BatchTableEnvironmentTest extends TableTestBase {
     thrown.expectMessage(containsString("Unsupported SQL query!"))
     // TODO supports select later
     util.tableEnv.executeSql("select * from MyTable")
+  }
+
+  private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
+    while (expected.hasNext && actual.hasNext) {
+      assertEquals(expected.next(), actual.next())
+    }
+    assertEquals(expected.hasNext, actual.hasNext)
   }
 }
