@@ -26,11 +26,12 @@
     </nz-breadcrumb-item>
   </nz-breadcrumb>
   <flink-refresh-download
-    [isLoading]="isLoading"
-    [downloadHref]="downloadUrl"
-    [downloadName]="logName"
-    (reload)="reloadLog()"
-    (fullScreen)="toggleFullScreen($event)">
+      [searchAble]="true"
+      [isLoading]="isLoading"
+      [downloadHref]="downloadUrl"
+      [downloadName]="logName"
+      (reload)="reloadLog($event)"
+      (fullScreen)="toggleFullScreen($event)">
   </flink-refresh-download>
 </div>
 <flink-monaco-editor [value]="logs"></flink-monaco-editor>

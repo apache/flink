@@ -23,10 +23,18 @@
 </nz-button-group>
 
 <ng-template #defaultTemplate>
-  <span *ngIf="isLoading; else reloadTpl;">Loading...</span>
-  <ng-template #reloadTpl>
-    <a (click)="reload.emit()"><i nz-icon class="operate-icon" nzType="sync" nzTheme="outline"></i> Reload</a>
-  </ng-template>
+  <div *ngIf="searchAble" style="width:250px; display: flex; align-items: center;">
+    <input style="margin-right: 2px; width:120px;" nzSize="small" type="text" nz-input [(ngModel)]="search.word" placeholder="search word" />
+    <input style="margin-right: 2px; width:60px;" nzSize="small" type="text" nz-input [(ngModel)]="search.lines" placeholder="lines" />
+    <button (click)="toggleReload()" nz-button nzType="primary" nzSize="small" nzSearch>Search</button>
+  </div>
+  <nz-divider nzType="vertical"></nz-divider>
+  <div style="width: 80px; text-align: center;">
+    <span *ngIf="isLoading; else reloadTpl;">Loading...</span>
+    <ng-template #reloadTpl>
+      <a (click)="toggleReload()"><i nz-icon class="operate-icon" nzType="sync" nzTheme="outline"></i> Reload</a>
+    </ng-template>
+  </div>
   <nz-divider nzType="vertical"></nz-divider>
   <a [attr.download]="downloadName" [attr.href]="downloadHref"><i nz-icon class="operate-icon" nzType="download" nzTheme="outline"></i> Download</a>
   <nz-divider nzType="vertical"></nz-divider>

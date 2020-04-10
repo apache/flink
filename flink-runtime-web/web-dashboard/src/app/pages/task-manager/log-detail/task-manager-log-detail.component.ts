@@ -16,7 +16,7 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetailInterface, TaskManagerLogSearchInterface } from 'interfaces';
 import { TaskManagerService } from 'services';
 import { first } from 'rxjs/operators';
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
@@ -36,6 +36,7 @@ export class TaskManagerLogDetailComponent implements OnInit {
   downloadUrl = '';
   isLoading = false;
   taskManagerDetail: TaskManagerDetailInterface;
+  taskManagerLogSearch: TaskManagerLogSearchInterface;
   isFullScreen = false;
   hasLogName = false;
   @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
@@ -46,10 +47,10 @@ export class TaskManagerLogDetailComponent implements OnInit {
     private activatedRoute: ActivatedRoute
   ) {}
 
-  reloadLog() {
-    this.isLoading = true;
-    this.cdr.markForCheck();
-    this.taskManagerService.loadLog(this.taskManagerDetail.id, this.logName, this.hasLogName).subscribe(
+  reloadLog(taskManagerLogSearch: TaskManagerLogSearchInterface = {word: '', lines: ''}) {
+      this.isLoading = true;
+      this.cdr.markForCheck();
+      this.taskManagerService.loadLog(this.taskManagerDetail.id, this.logName, this.hasLogName, taskManagerLogSearch.word, taskManagerLogSearch.lines).subscribe(
       data => {
         this.logs = data.data;
         this.downloadUrl = data.url;

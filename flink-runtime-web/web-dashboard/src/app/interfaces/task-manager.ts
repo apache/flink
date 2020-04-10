@@ -75,3 +75,8 @@ interface GarbageCollectorsItem {
   count: number;
   time: number;
 }
+
+export interface TaskManagerLogSearchInterface {
+  word: string;
+  lines: string;
+}

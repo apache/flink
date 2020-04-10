@@ -17,6 +17,7 @@
  */
 
 import { NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { NgZorroAntdModule } from 'ng-zorro-antd';
 import { ResizeComponent } from 'share/common/resize/resize.component';
@@ -34,7 +35,7 @@ import { RefreshDownloadComponent } from 'share/customize/refresh-download/refre
 import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
 
 @NgModule({
-  imports: [CommonModule, NgZorroAntdModule, PipeModule, DagreModule],
+  imports: [CommonModule, NgZorroAntdModule, PipeModule, DagreModule, FormsModule],
   declarations: [
     JobBadgeComponent,
     TaskBadgeComponent,

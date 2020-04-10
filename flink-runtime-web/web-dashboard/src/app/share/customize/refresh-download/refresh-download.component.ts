@@ -17,6 +17,7 @@
  */
 
 import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from '@angular/core';
+import { TaskManagerLogSearchInterface } from 'interfaces';
 
 @Component({
   selector: 'flink-refresh-download',
@@ -24,15 +25,24 @@ import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from 
   styleUrls: ['./refresh-download.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
+
 export class RefreshDownloadComponent {
   @Input() downloadName: string;
   @Input() downloadHref: string;
   @Input() isLoading = false;
   @Input() compactMode = false;
-  @Output() reload = new EventEmitter<void>();
+  @Input() searchAble: boolean;
+  @Output() reload = new EventEmitter<any>();
   @Output() fullScreen = new EventEmitter<boolean>();
   isFullScreen = false;
+  search = {
+      word: '',
+      lines: '',
+    } as TaskManagerLogSearchInterface;
 
+  toggleReload() {
+    this.reload.emit(this.search);
+  }
   toggleFullScreen() {
     this.isFullScreen = !this.isFullScreen;
     this.fullScreen.emit(this.isFullScreen);

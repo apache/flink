@@ -64,11 +64,20 @@ export class TaskManagerService {
    * @param taskManagerId
    * @param logName
    * @param hasLogName
+   * @param word
+   * @param lines
    */
-  loadLog(taskManagerId: string, logName: string, hasLogName: boolean) {
+  loadLog(taskManagerId: string, logName: string, hasLogName: boolean, word: string, lines: String) {
     let url = '';
     if (hasLogName) {
       url = `${BASE_URL}/taskmanagers/${taskManagerId}/logs/${logName}`;
+      if(word) {
+        if(lines) {
+          url = `${url}/${word}/${lines}`
+        } else {
+           url = `${url}/${word}/0`
+        }
+      }
     } else {
       url = `${BASE_URL}/taskmanagers/${taskManagerId}/log`;
     }

@@ -300,11 +300,11 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 	/**
 	 * Testing implementation of {@link ChannelHandlerContext}.
 	 */
-	private static final class TestingChannelHandlerContext implements ChannelHandlerContext {
+	protected static final class TestingChannelHandlerContext implements ChannelHandlerContext {
 
 		final File outputFile;
 
-		private TestingChannelHandlerContext(File outputFile) {
+		TestingChannelHandlerContext(File outputFile) {
 			this.outputFile = Preconditions.checkNotNull(outputFile);
 		}
 
