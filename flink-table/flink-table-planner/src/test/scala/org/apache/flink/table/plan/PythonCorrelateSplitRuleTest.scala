@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
-import org.apache.flink.table.utils.{MockPythonTableFunction, TableTestBase}
+import org.apache.flink.table.utils.{MockPythonTableFunction, TableFunc1, TableTestBase}
 import org.junit.Test
 
 class PythonCorrelateSplitRuleTest extends TableTestBase {
@@ -58,5 +58,37 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
         )
 
     util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testJavaTableFunctionWithPythonCalc(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
+    val pyFunc = new PythonScalarFunction("pyFunc")
+    val tableFunc = new TableFunc1
+
+    val result = table.joinLateral(tableFunc(pyFunc('c)) as 'x)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        unaryNode(
+          "DataStreamPythonCalc",
+          streamTableNode(table),
+          term("select", "a", "b", "c", "pyFunc(c) AS f0")),
+        term("invocation",
+             s"${tableFunc.functionIdentifier}($$3)"),
+        term("correlate", s"table(TableFunc1(f0))"),
+        term("select", "a", "b", "c", "f0", "x"),
+        term("rowType",
+             "RecordType(INTEGER a, INTEGER b, VARCHAR(65536) c, VARCHAR(65536) f0, " +
+               "VARCHAR(65536) x)"),
+        term("joinType", "INNER")
+        ),
+      term("select", "a", "b", "c", "x")
+      )
+
+    util.verifyTable(result, expected)
   }
 }

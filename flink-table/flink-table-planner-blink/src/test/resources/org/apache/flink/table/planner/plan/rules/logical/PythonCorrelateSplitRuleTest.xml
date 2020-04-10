@@ -38,4 +38,26 @@ FlinkLogicalCalc(select=[a, b, c, f00 AS f0, f1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJavaTableFunctionWithPythonCalc">
+	<Resource name="sql">
+		<![CDATA[SELECT a, b, c, x FROM MyTable, LATERAL TABLE(javaFunc(pyFunc(c))) AS T(x)]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableFunctionScan(invocation=[javaFunc(pyFunc($cor0.c))], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+FlinkLogicalCalc(select=[a, b, c, f00 AS f0])
++- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- FlinkLogicalCalc(select=[a, b, c, pyFunc($cor0.c) AS f0])
+   :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- FlinkLogicalTableFunctionScan(invocation=[javaFunc($3)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+	</Resource>
+  </TestCase>
 </Root>
