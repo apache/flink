@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -79,7 +80,7 @@ public class CliTableauResultView implements AutoCloseable {
 		this.sqlExecutor = sqlExecutor;
 		this.sessionId = sessionId;
 		this.resultDescriptor = resultDescriptor;
-		this.displayResultExecutorService = Executors.newSingleThreadExecutor();
+		this.displayResultExecutorService = Executors.newSingleThreadExecutor(new ExecutorThreadFactory("CliTableauResultView"));
 	}
 
 	public void displayStreamResults() throws SqlExecutionException {
