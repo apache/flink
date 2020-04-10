@@ -141,11 +141,10 @@ public final class Utils {
 			// when the sink is up but not initialized and the job fails due to other operators,
 			// it is possible that close() is called when open() is not called,
 			// so we have to do this null check
-			if (accumulator == null) {
-				accumulator = new SerializedListAccumulator<>();
+			if (accumulator != null) {
+				// Important: should only be added in close method to minimize traffic of accumulators
+				getRuntimeContext().addAccumulator(id, accumulator);
 			}
-			// Important: should only be added in close method to minimize traffic of accumulators
-			getRuntimeContext().addAccumulator(id, accumulator);
 		}
 	}
 
