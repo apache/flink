@@ -27,7 +27,7 @@ public class MockTtlTimeProvider implements TtlTimeProvider {
 		return time;
 	}
 
-	public void setCurrentTimeStamp(long timeStamp) {
-		this.time = timeStamp;
+	public void setCurrentTimestamp(long timestamp) {
+		this.time = timestamp;
 	}
 }

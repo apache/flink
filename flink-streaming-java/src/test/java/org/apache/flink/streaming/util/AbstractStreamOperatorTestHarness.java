@@ -250,7 +250,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		processingTimeService.setCurrentTime(0);
 
 		ttlTimeProvider = new MockTtlTimeProvider();
-		ttlTimeProvider.setCurrentTimeStamp(0);
+		ttlTimeProvider.setCurrentTimestamp(0);
 
 		this.streamTaskStateInitializer = createStreamTaskStateManager(environment, stateBackend, ttlTimeProvider);
 
@@ -643,7 +643,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	public void setStateTtlProcessingTime(long timeStamp) {
-		ttlTimeProvider.setCurrentTimeStamp(timeStamp);
+		ttlTimeProvider.setCurrentTimestamp(timeStamp);
 	}
 
 	public long getProcessingTime() {
