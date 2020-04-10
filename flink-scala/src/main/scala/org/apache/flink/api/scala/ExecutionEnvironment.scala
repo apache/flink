@@ -17,8 +17,8 @@
  */
 package org.apache.flink.api.scala
 
-import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{Public, PublicEvolving}
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.cache.DistributedCache
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
@@ -34,6 +34,8 @@ import org.apache.flink.core.execution.{JobClient, JobListener, PipelineExecutor
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
+
+import com.esotericsoftware.kryo.Serializer
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -479,6 +481,14 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def registerCachedFile(filePath: String, name: String, executable: Boolean = false): Unit = {
     javaEnv.registerCachedFile(filePath, name, executable)
+  }
+
+  /**
+    * Get the registered cached files.
+    */
+  @Internal
+  def getCacheFile(): List[(String, DistributedCache.DistributedCacheEntry)] = {
+    javaEnv.getCacheFile.asScala.map(f => (f.f0, f.f1)).toList
   }
 
   /**
