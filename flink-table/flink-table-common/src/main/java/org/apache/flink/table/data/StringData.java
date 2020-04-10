@@ -24,8 +24,6 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 /**
  * An internal data structure representing data of {@link CharType} and {@link VarCharType}.
- *
- * <p>This data structure is immutable.
  */
 @PublicEvolving
 public interface StringData extends Comparable<StringData> {
