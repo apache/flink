@@ -19,20 +19,26 @@
 package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.RowKind;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link GenericRowData} can have arbitrary number of fields and contain a set of fields,
- * which may all be different types. The fields in {@link GenericRowData} can be null.
+ * An internal data structure representing data of {@link RowType} and other (possibly nested) structured
+ * types such as {@link StructuredType}.
  *
- * <p>The fields in the row can be accessed by position (zero-based) {@link #getInt},
- * and can be updated by {@link #setField(int, Object)}. All the fields should be in
- * internal data structures.
+ * <p>{@link GenericRowData} is a generic implementation of {@link RowData} which is backed by an
+ * array of Java {@link Object}. A {@link GenericRowData} can have an arbitrary number of fields of
+ * different types. The fields in a row can be accessed by position (0-based) using either the generic
+ * {@link #getField(int)} or type-specific getters (such as {@link #getInt(int)}). A field can be updated
+ * by the generic {@link #setField(int, Object)}.
  *
- * @see RowData for more information about the mapping of Table/SQL data types
- * 				and internal data structures.
+ * <p>Note: All fields of this data structure must be internal data structures. See {@link RowData} for
+ * more information about internal data structures.
+ *
+ * <p>The fields in {@link GenericRowData} can be null for representing nullability.
  */
 @PublicEvolving
 public final class GenericRowData implements RowData {
@@ -40,12 +46,18 @@ public final class GenericRowData implements RowData {
 	/** The array to store the actual internal format values. */
 	private final Object[] fields;
 
-	/** The changelog kind of this row. */
+	/** The kind of change that a row describes in a changelog. */
 	private RowKind kind;
 
 	/**
-	 * Create a new GenericRow instance.
-	 * @param arity The number of fields in the GenericRow
+	 * Creates an instance of {@link GenericRowData} with given number of fields.
+	 *
+	 * <p>Initially, all fields are set to null. By default, the row describes a {@link RowKind#INSERT}
+	 * in a changelog.
+	 *
+	 * <p>Note: All fields of the row must be internal data structures.
+	 *
+	 * @param arity number of fields
 	 */
 	public GenericRowData(int arity) {
 		this.fields = new Object[arity];
@@ -53,34 +65,28 @@ public final class GenericRowData implements RowData {
 	}
 
 	/**
-	 * Sets the field at the specified ordinal.
+	 * Sets the field value at the given position.
 	 *
-	 * <p>Note: the given field value must in internal data structures, otherwise the
-	 * {@link GenericRowData} is corrupted, and may throw exception when processing.
-	 * See the description of {@link RowData} for more information about internal data structures.
+	 * <p>Note: The given field value must be an internal data structures. Otherwise the {@link GenericRowData}
+	 * is corrupted and may throw exception when processing. See {@link RowData} for more information
+	 * about internal data structures.
 	 *
-	 * @param ordinal The ordinal of the field, 0-based.
-	 * @param value The internal data value to be assigned to the field at the specified ordinal.
-	 * @throws IndexOutOfBoundsException if the ordinal is negative, or equal to, or larger than
-	 * 									 the number of fields.
+	 * <p>The field value can be null for representing nullability.
 	 */
-	public void setField(int ordinal, Object value) {
-		this.fields[ordinal] = value;
+	public void setField(int pos, Object value) {
+		this.fields[pos] = value;
 	}
 
 	/**
-	 * Gets the field at the specified ordinal.
+	 * Returns the field value at the given position.
 	 *
-	 * <p>Note: the returned value is in internal data structure.
-	 * See the description of {@link RowData} for more information about internal data structures.
+	 * <p>Note: The returned value is in internal data structure. See {@link RowData} for more information
+	 * about internal data structures.
 	 *
-	 * @param ordinal The ordinal of the field, 0-based.
-	 * @return The field at the specified position.
-	 * @throws IndexOutOfBoundsException if the ordinal is negative, or equal to, or larger than
-	 * 									 the number of fields.
+	 * <p>The returned field value can be null for representing nullability.
 	 */
-	public Object getField(int ordinal) {
-		return this.fields[ordinal];
+	public Object getField(int pos) {
+		return this.fields[pos];
 	}
 
 	@Override
@@ -100,84 +106,84 @@ public final class GenericRowData implements RowData {
 	}
 
 	@Override
-	public boolean isNullAt(int ordinal) {
-		return this.fields[ordinal] == null;
+	public boolean isNullAt(int pos) {
+		return this.fields[pos] == null;
 	}
 
 	@Override
-	public boolean getBoolean(int ordinal) {
-		return (boolean) this.fields[ordinal];
+	public boolean getBoolean(int pos) {
+		return (boolean) this.fields[pos];
 	}
 
 	@Override
-	public byte getByte(int ordinal) {
-		return (byte) this.fields[ordinal];
+	public byte getByte(int pos) {
+		return (byte) this.fields[pos];
 	}
 
 	@Override
-	public short getShort(int ordinal) {
-		return (short) this.fields[ordinal];
+	public short getShort(int pos) {
+		return (short) this.fields[pos];
 	}
 
 	@Override
-	public int getInt(int ordinal) {
-		return (int) this.fields[ordinal];
+	public int getInt(int pos) {
+		return (int) this.fields[pos];
 	}
 
 	@Override
-	public long getLong(int ordinal) {
-		return (long) this.fields[ordinal];
+	public long getLong(int pos) {
+		return (long) this.fields[pos];
 	}
 
 	@Override
-	public float getFloat(int ordinal) {
-		return (float) this.fields[ordinal];
+	public float getFloat(int pos) {
+		return (float) this.fields[pos];
 	}
 
 	@Override
-	public double getDouble(int ordinal) {
-		return (double) this.fields[ordinal];
+	public double getDouble(int pos) {
+		return (double) this.fields[pos];
 	}
 
 	@Override
-	public StringData getString(int ordinal) {
-		return (StringData) this.fields[ordinal];
+	public StringData getString(int pos) {
+		return (StringData) this.fields[pos];
 	}
 
 	@Override
-	public DecimalData getDecimal(int ordinal, int precision, int scale) {
-		return (DecimalData) this.fields[ordinal];
+	public DecimalData getDecimal(int pos, int precision, int scale) {
+		return (DecimalData) this.fields[pos];
 	}
 
 	@Override
-	public TimestampData getTimestamp(int ordinal, int precision) {
-		return (TimestampData) this.fields[ordinal];
+	public TimestampData getTimestamp(int pos, int precision) {
+		return (TimestampData) this.fields[pos];
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T> RawValueData<T> getRawValue(int ordinal) {
-		return (RawValueData<T>) this.fields[ordinal];
+	public <T> RawValueData<T> getRawValue(int pos) {
+		return (RawValueData<T>) this.fields[pos];
 	}
 
 	@Override
-	public byte[] getBinary(int ordinal) {
-		return (byte[]) this.fields[ordinal];
+	public byte[] getBinary(int pos) {
+		return (byte[]) this.fields[pos];
 	}
 
 	@Override
-	public ArrayData getArray(int ordinal) {
-		return (ArrayData) this.fields[ordinal];
+	public ArrayData getArray(int pos) {
+		return (ArrayData) this.fields[pos];
 	}
 
 	@Override
-	public MapData getMap(int ordinal) {
-		return (MapData) this.fields[ordinal];
+	public MapData getMap(int pos) {
+		return (MapData) this.fields[pos];
 	}
 
 	@Override
-	public RowData getRow(int ordinal, int numFields) {
-		return (RowData) this.fields[ordinal];
+	public RowData getRow(int pos, int numFields) {
+		return (RowData) this.fields[pos];
 	}
 
 	// ----------------------------------------------------------------------------------------
@@ -185,10 +191,11 @@ public final class GenericRowData implements RowData {
 	// ----------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a GenericRow with the given internal format values and a default
-	 * {@link RowKind#INSERT} change kind.
+	 * Creates an instance of {@link GenericRowData} with given field values.
 	 *
-	 * @param values internal format values
+	 * <p>By default, the row describes a {@link RowKind#INSERT} in a changelog.
+	 *
+	 * <p>Note: All fields of the row must be internal data structures.
 	 */
 	public static GenericRowData of(Object... values) {
 		GenericRowData row = new GenericRowData(values.length);

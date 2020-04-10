@@ -19,35 +19,47 @@
 package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.RowKind;
 
 /**
- * {@link RowData} is an internal data structure representing data of {@link RowType}
- * in Flink Table/SQL, which only contains columns of the internal data structures.
+ * Base interface for an internal data structure representing data of {@link RowType} and other
+ * (possibly nested) structured types such as {@link StructuredType} in the table ecosystem.
  *
- * <p>A {@link RowData} also contains a {@link RowKind} which represents the kind of row in
- * a changelog. The {@link RowKind} is just a metadata information of row, not a column.
+ * <p>All top-level records that are travelling through Table API or SQL pipelines during runtime are
+ * instances of this interface. Each {@link RowData} contains a {@link RowKind} which represents the
+ * kind of change that a row describes in a changelog. The {@link RowKind} is just metadata information
+ * of row and thus not part of the table's schema, i.e., not a dedicated field.
  *
- * <p>{@link RowData} has different implementations which are designed for different scenarios.
- * For example, the binary-orient implementation {@code BinaryRowData} is backed by
- * {@code MemorySegment} instead of Java Object to reduce the serialization/deserialization cost.
- * The object-orient implementation {@code GenericRowData} is backed by an array of Java Object
- * which is easy to construct and efficient to update.
+ * <p>Note: All fields of this data structure must be internal data structures.
  *
- * <p>The mappings from Flink Table/SQL data types to the internal data structures are listed
- * in the following table.
+ * <p>The {@link RowData} interface has different implementations which are designed for different
+ * scenarios:
+ * <ul>
+ *     <li>The binary-oriented implementation {@code BinaryRowData} is backed by references to {@link MemorySegment}
+ *     instead of using Java objects to reduce the serialization/deserialization overhead.</li>
+ *     <li>The object-oriented implementation {@link GenericRowData} is backed by an array of Java {@link Object}
+ *     which is easy to construct and efficient to update.</li>
+ * </ul>
+ *
+ * <p>{@link GenericRowData} is intended for public use and has stable behavior. It is recommended to
+ * construct instances of {@link RowData} with this class if internal data structures are required.
+ *
+ * <p>The mappings from Flink's Table API and SQL data types to the internal data structures are listed
+ * in the following table:
  * <pre>
  * +--------------------------------+-----------------------------------------+
  * | SQL Data Types                 | Internal Data Structures                |
  * +--------------------------------+-----------------------------------------+
  * | BOOLEAN                        | boolean                                 |
  * +--------------------------------+-----------------------------------------+
- * | CHAR / VARCHAR / STRING        | StringData                              |
+ * | CHAR / VARCHAR / STRING        | {@link StringData}                      |
  * +--------------------------------+-----------------------------------------+
  * | BINARY / VARBINARY / BYTES     | byte[]                                  |
  * +--------------------------------+-----------------------------------------+
- * | DECIMAL                        | DecimalData                             |
+ * | DECIMAL                        | {@link DecimalData}                     |
  * +--------------------------------+-----------------------------------------+
  * | TINYINT                        | byte                                    |
  * +--------------------------------+-----------------------------------------+
@@ -65,36 +77,38 @@ import org.apache.flink.types.RowKind;
  * +--------------------------------+-----------------------------------------+
  * | TIME                           | int (number of milliseconds of the day) |
  * +--------------------------------+-----------------------------------------+
- * | TIMESTAMP                      | TimestampData                           |
+ * | TIMESTAMP                      | {@link TimestampData}                   |
  * +--------------------------------+-----------------------------------------+
- * | TIMESTAMP WITH LOCAL TIME ZONE | TimestampData                           |
+ * | TIMESTAMP WITH LOCAL TIME ZONE | {@link TimestampData}                   |
  * +--------------------------------+-----------------------------------------+
  * | INTERVAL YEAR TO MONTH         | int (number of months)                  |
  * +--------------------------------+-----------------------------------------+
  * | INTERVAL DAY TO MONTH          | long (number of milliseconds)           |
  * +--------------------------------+-----------------------------------------+
- * | ROW                            | RowData                                 |
+ * | ROW / structured types         | {@link RowData}                         |
  * +--------------------------------+-----------------------------------------+
- * | ARRAY                          | ArrayData                               |
+ * | ARRAY                          | {@link ArrayData}                       |
  * +--------------------------------+-----------------------------------------+
- * | MAP / MULTISET                 | MapData                                 |
+ * | MAP / MULTISET                 | {@link MapData}                         |
  * +--------------------------------+-----------------------------------------+
- * | RAW                            | RawValueData                            |
+ * | RAW                            | {@link RawValueData}                    |
  * +--------------------------------+-----------------------------------------+
  * </pre>
+ *
+ * <p>Nullability is always handled by the container data structure.
  */
 @PublicEvolving
 public interface RowData {
 
 	/**
-	 * Get the number of fields in the RowData.
+	 * Returns the number of fields in this row.
 	 *
-	 * @return The number of fields in the RowData.
+	 * <p>The number does not include {@link RowKind}. It is kept separately.
 	 */
 	int getArity();
 
 	/**
-	 * Gets the kind of change that this row describes in a changelog.
+	 * Returns the kind of change that this row describes in a changelog.
 	 *
 	 * @see RowKind
 	 */
@@ -108,84 +122,94 @@ public interface RowData {
 	void setRowKind(RowKind kind);
 
 	// ------------------------------------------------------------------------------------------
+	// Read-only accessor methods
+	// ------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns true if the specific ordinal field is null.
+	 * Returns true if the field is null at the given position.
 	 */
-	boolean isNullAt(int ordinal);
+	boolean isNullAt(int pos);
 
 	/**
-	 * Gets boolean value from the specific ordinal.
+	 * Returns the boolean value at the given position.
 	 */
-	boolean getBoolean(int ordinal);
+	boolean getBoolean(int pos);
 
 	/**
-	 * Gets byte value from the specific ordinal.
+	 * Returns the byte value at the given position.
 	 */
-	byte getByte(int ordinal);
+	byte getByte(int pos);
 
 	/**
-	 * Gets short value from the specific ordinal.
+	 * Returns the short value at the given position.
 	 */
-	short getShort(int ordinal);
+	short getShort(int pos);
 
 	/**
-	 * Get int value from the specific ordinal.
+	 * Returns the integer value at the given position.
 	 */
-	int getInt(int ordinal);
+	int getInt(int pos);
 
 	/**
-	 * Get long value from the specific ordinal.
+	 * Returns the long value at the given position.
 	 */
-	long getLong(int ordinal);
+	long getLong(int pos);
 
 	/**
-	 * Get float value from the specific ordinal.
+	 * Returns the float value at the given position.
 	 */
-	float getFloat(int ordinal);
+	float getFloat(int pos);
 
 	/**
-	 * Get double value from the specific ordinal.
+	 * Returns the double value at the given position.
 	 */
-	double getDouble(int ordinal);
+	double getDouble(int pos);
 
 	/**
-	 * Get string value from the specific ordinal.
+	 * Returns the string value at the given position.
 	 */
-	StringData getString(int ordinal);
+	StringData getString(int pos);
 
 	/**
-	 * Get decimal value from the specific ordinal.
+	 * Returns the decimal value at the given position.
+	 *
+	 * <p>The precision and scale are required to determine whether the decimal value was stored in a
+	 * compact representation (see {@link DecimalData}).
 	 */
-	DecimalData getDecimal(int ordinal, int precision, int scale);
+	DecimalData getDecimal(int pos, int precision, int scale);
 
 	/**
-	 * Get timestamp value from the specific ordinal.
+	 * Returns the timestamp value at the given position.
+	 *
+	 * <p>The precision is required to determine whether the timestamp value was stored in a compact
+	 * representation (see {@link TimestampData}).
 	 */
-	TimestampData getTimestamp(int ordinal, int precision);
+	TimestampData getTimestamp(int pos, int precision);
 
 	/**
-	 * Get raw value from the specific ordinal.
+	 * Returns the raw value at the given position.
 	 */
-	<T> RawValueData<T> getRawValue(int ordinal);
+	<T> RawValueData<T> getRawValue(int pos);
 
 	/**
-	 * Get binary value from the specific ordinal.
+	 * Returns the binary value at the given position.
 	 */
-	byte[] getBinary(int ordinal);
+	byte[] getBinary(int pos);
 
 	/**
-	 * Get array value from the specific ordinal.
+	 * Returns the array value at the given position.
 	 */
-	ArrayData getArray(int ordinal);
+	ArrayData getArray(int pos);
 
 	/**
-	 * Get map value from the specific ordinal.
+	 * Returns the map value at the given position.
 	 */
-	MapData getMap(int ordinal);
+	MapData getMap(int pos);
 
 	/**
-	 * Get row value from the specific ordinal.
+	 * Returns the row value at the given position.
+	 *
+	 * <p>The number of fields is required to correctly extract the row.
 	 */
-	RowData getRow(int ordinal, int numFields);
+	RowData getRow(int pos, int numFields);
 }

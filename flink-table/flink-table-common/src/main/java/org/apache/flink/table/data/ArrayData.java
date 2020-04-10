@@ -22,8 +22,12 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.ArrayType;
 
 /**
- * {@link ArrayData} is an internal data structure representing data of {@link ArrayType}
- * in Flink Table/SQL, which only contains elements of the internal data structures.
+ * Base interface of an internal data structure representing data of {@link ArrayType}.
+ *
+ * <p>Note: All elements of this data structure must be internal data structures and must be of the
+ * same type. See {@link RowData} for more information about internal data structures.
+ *
+ * <p>Use {@link GenericArrayData} to construct instances of this interface from regular Java arrays.
  */
 @PublicEvolving
 public interface ArrayData {
@@ -34,85 +38,95 @@ public interface ArrayData {
 	int size();
 
 	// ------------------------------------------------------------------------------------------
+	// Read-only accessor methods
+	// ------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns true if the specific ordinal field is null.
+	 * Returns true if the element is null at the given position.
 	 */
-	boolean isNullAt(int ordinal);
+	boolean isNullAt(int pos);
 
 	/**
-	 * Gets boolean value from the specific ordinal.
+	 * Returns the boolean value at the given position.
 	 */
-	boolean getBoolean(int ordinal);
+	boolean getBoolean(int pos);
 
 	/**
-	 * Gets byte value from the specific ordinal.
+	 * Returns the byte value at the given position.
 	 */
-	byte getByte(int ordinal);
+	byte getByte(int pos);
 
 	/**
-	 * Gets short value from the specific ordinal.
+	 * Returns the short value at the given position.
 	 */
-	short getShort(int ordinal);
+	short getShort(int pos);
 
 	/**
-	 * Get int value from the specific ordinal.
+	 * Returns the integer value at the given position.
 	 */
-	int getInt(int ordinal);
+	int getInt(int pos);
 
 	/**
-	 * Get long value from the specific ordinal.
+	 * Returns the long value at the given position.
 	 */
-	long getLong(int ordinal);
+	long getLong(int pos);
 
 	/**
-	 * Get float value from the specific ordinal.
+	 * Returns the float value at the given position.
 	 */
-	float getFloat(int ordinal);
+	float getFloat(int pos);
 
 	/**
-	 * Get double value from the specific ordinal.
+	 * Returns the double value at the given position.
 	 */
-	double getDouble(int ordinal);
+	double getDouble(int pos);
 
 	/**
-	 * Get string value from the specific ordinal.
+	 * Returns the string value at the given position.
 	 */
-	StringData getString(int ordinal);
+	StringData getString(int pos);
 
 	/**
-	 * Get decimal value from the specific ordinal.
+	 * Returns the decimal value at the given position.
+	 *
+	 * <p>The precision and scale are required to determine whether the decimal value was stored in a
+	 * compact representation (see {@link DecimalData}).
 	 */
-	DecimalData getDecimal(int ordinal, int precision, int scale);
+	DecimalData getDecimal(int pos, int precision, int scale);
 
 	/**
-	 * Get timestamp value from the specific ordinal.
+	 * Returns the timestamp value at the given position.
+	 *
+	 * <p>The precision is required to determine whether the timestamp value was stored in a compact
+	 * representation (see {@link TimestampData}).
 	 */
-	TimestampData getTimestamp(int ordinal, int precision);
+	TimestampData getTimestamp(int pos, int precision);
 
 	/**
-	 * Get raw value from the specific ordinal.
+	 * Returns the raw value at the given position.
 	 */
-	<T> RawValueData<T> getRawValue(int ordinal);
+	<T> RawValueData<T> getRawValue(int pos);
 
 	/**
-	 * Get binary value from the specific ordinal.
+	 * Returns the binary value at the given position.
 	 */
-	byte[] getBinary(int ordinal);
+	byte[] getBinary(int pos);
 
 	/**
-	 * Get array value from the specific ordinal.
+	 * Returns the array value at the given position.
 	 */
-	ArrayData getArray(int ordinal);
+	ArrayData getArray(int pos);
 
 	/**
-	 * Get map value from the specific ordinal.
+	 * Returns the map value at the given position.
 	 */
-	MapData getMap(int ordinal);
+	MapData getMap(int pos);
 
 	/**
-	 * Get row value from the specific ordinal.
+	 * Returns the row value at the given position.
+	 *
+	 * <p>The number of fields is required to correctly extract the row.
 	 */
-	RowData getRow(int ordinal, int numFields);
+	RowData getRow(int pos, int numFields);
 
 }

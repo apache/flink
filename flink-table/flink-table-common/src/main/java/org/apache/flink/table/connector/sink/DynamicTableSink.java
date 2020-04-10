@@ -86,7 +86,7 @@ public interface DynamicTableSink {
 	 * in other Flink modules.
 	 *
 	 * <p>Independent of the provider interface, the table runtime expects that a sink implementation
-	 * accepts internal data structures (see {@link org.apache.flink.table.data} for more information).
+	 * accepts internal data structures (see {@link org.apache.flink.table.data.RowData} for more information).
 	 *
 	 * <p>The given {@link Context} offers utilities by the planner for creating runtime implementation
 	 * with minimal dependencies to internal data structures.

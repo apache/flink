@@ -19,13 +19,22 @@
 package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 
 import java.util.Map;
 
 /**
- * {@link GenericMapData} is a generic implementation of {@link MapData} which
- * wraps generic Java {@link Map}. All the keys in the map should have the same type
- * and should be in internal data structures, the same to values in the map.
+ * An internal data structure representing data of {@link MapType} or {@link MultisetType}.
+ *
+ * <p>{@link GenericMapData} is a generic implementation of {@link MapData} which wraps regular
+ * Java maps.
+ *
+ * <p>Note: All keys and values of this data structure must be internal data structures. All keys must
+ * be of the same type; same for values. See {@link RowData} for more information about internal data
+ * structures.
+ *
+ * <p>Both keys and values can contain null for representing nullability.
  */
 @PublicEvolving
 public final class GenericMapData implements MapData {
@@ -33,10 +42,9 @@ public final class GenericMapData implements MapData {
 	private final Map<?, ?> map;
 
 	/**
-	 * Creates a {@link GenericMapData} using the given Java Map. The key-value in the map must
-	 * be internal data structures.
+	 * Creates an instance of {@link GenericMapData} using the given Java map.
 	 *
-	 * @see RowData for more information about internal data structures.
+	 * <p>Note: All keys and values of the map must be internal data structures.
 	 */
 	public GenericMapData(Map<?, ?> map) {
 		this.map = map;

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.DecimalType;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -30,10 +31,10 @@ import java.math.RoundingMode;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * {@link DecimalData} is an internal data structure represents data of {@link DecimalType}
- * in Flink Table/SQL.
+ * An internal data structure representing data of {@link DecimalType}.
  *
- * <p>It is an immutable implementation which can hold a long if values are small enough.
+ * <p>This data structure is immutable and might store decimal values in a compact representation (as
+ * a long value) if values are small enough.
  */
 @PublicEvolving
 public final class DecimalData implements Comparable<DecimalData> {
@@ -92,22 +93,23 @@ public final class DecimalData implements Comparable<DecimalData> {
 	// ------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the <i>precision</i> of this {@code DecimalData}.
-	 * The precision is the number of digits in the unscaled value.
+	 * Returns the <i>precision</i> of this {@link DecimalData}.
+	 *
+	 * <p>The precision is the number of digits in the unscaled value.
 	 */
 	public int precision() {
 		return precision;
 	}
 
 	/**
-	 * Returns the <i>scale</i> of this {@code DecimalData}.
+	 * Returns the <i>scale</i> of this {@link DecimalData}.
 	 */
 	public int scale() {
 		return scale;
 	}
 
 	/**
-	 * Converts this {@code DecimalData} object into {@code BigDecimal}.
+	 * Converts this {@link DecimalData} into an instance of {@link BigDecimal}.
 	 */
 	public BigDecimal toBigDecimal() {
 		BigDecimal bd = decimalVal;
@@ -118,10 +120,9 @@ public final class DecimalData implements Comparable<DecimalData> {
 	}
 
 	/**
-	 * Returns a long whose value is the <i>unscaled value</i> of this {@code DecimalData}.
+	 * Returns a long describing the <i>unscaled value</i> of this {@link DecimalData}.
 	 *
-	 * @return the unscaled value of this {@code DecimalData}.
-	 * @throws ArithmeticException if the value of {@code this} will not exactly fit in a {@code long}.
+	 * @throws ArithmeticException if this {@link DecimalData} does not exactly fit in a long.
 	 */
 	public long toUnscaledLong() {
 		if (isCompact()) {
@@ -132,9 +133,9 @@ public final class DecimalData implements Comparable<DecimalData> {
 	}
 
 	/**
-	 * Returns a byte array whose value is the <i>unscaled value</i> of this {@code DecimalData}.
+	 * Returns a byte array describing the <i>unscaled value</i> of this {@link DecimalData}.
 	 *
-	 * @return the unscaled byte array value of this {@code DecimalData}.
+	 * @return the unscaled byte array of this {@link DecimalData}.
 	 */
 	public byte[] toUnscaledBytes() {
 		if (!isCompact()) {
@@ -152,14 +153,14 @@ public final class DecimalData implements Comparable<DecimalData> {
 	}
 
 	/**
-	 * Returns whether the decimal data is small enough to be stored in a long.
+	 * Returns whether the decimal value is small enough to be stored in a long.
 	 */
 	public boolean isCompact() {
 		return precision <= MAX_COMPACT_PRECISION;
 	}
 
 	/**
-	 * Returns a copy of this {@code DecimalData} object.
+	 * Returns a copy of this {@link DecimalData} object.
 	 */
 	public DecimalData copy() {
 		return new DecimalData(precision, scale, longVal, decimalVal);
@@ -196,22 +197,14 @@ public final class DecimalData implements Comparable<DecimalData> {
 	// Constructor Utilities
 	// ------------------------------------------------------------------------------------------
 
-	// convert external BigDecimal to internal representation.
-	// first, value may be rounded to have the desired `scale`
-	// then `precision` is checked. if precision overflow, it will return `null`
-
 	/**
-	 * Creates a {@code DecimalData} object from a {@code BigDecimal} object and
-	 * the given precision and scale.
+	 * Creates an instance of {@link DecimalData} from a {@link BigDecimal} and the given precision
+	 * and scale.
 	 *
-	 * <p>The return decimal value may be rounded to have the desired {@code scale}.
-	 * The {@code precision} will be checked. If precision overflow, it will return null.
-	 *
-	 * @param bd the {@code BigDecimal} object.
-	 * @param precision the specific precision
-	 * @param scale the specific scale
+	 * <p>The returned decimal value may be rounded to have the desired scale. The precision will be
+	 * checked. If the precision overflows, null will be returned.
 	 */
-	public static DecimalData fromBigDecimal(BigDecimal bd, int precision, int scale) {
+	public static @Nullable DecimalData fromBigDecimal(BigDecimal bd, int precision, int scale) {
 		bd = bd.setScale(scale, RoundingMode.HALF_UP);
 		if (bd.precision() > precision) {
 			return null;
@@ -225,8 +218,8 @@ public final class DecimalData implements Comparable<DecimalData> {
 	}
 
 	/**
-	 * Creates a {@code DecimalData} object from an unscaled long value and
-	 * the given precision and scale.
+	 * Creates an instance of {@link DecimalData} from an unscaled long value and the given precision
+	 * and scale.
 	 */
 	public static DecimalData fromUnscaledLong(long unscaledLong, int precision, int scale) {
 		checkArgument(precision > 0 && precision <= MAX_LONG_DIGITS);
@@ -235,8 +228,8 @@ public final class DecimalData implements Comparable<DecimalData> {
 	}
 
 	/**
-	 * Creates a {@code DecimalData} object from an unscaled byte array value and
-	 * the given precision and scale.
+	 * Creates an instance of {@link DecimalData} from an unscaled byte array value and the given precision
+	 * and scale.
 	 */
 	public static DecimalData fromUnscaledBytes(byte[] unscaledBytes, int precision, int scale) {
 		if (precision > MAX_COMPACT_PRECISION) {
@@ -253,9 +246,11 @@ public final class DecimalData implements Comparable<DecimalData> {
 	}
 
 	/**
-	 * Creates a {@code DecimalData} for zero value with the given precision and scale.
+	 * Creates an instance of {@link DecimalData} for a zero value with the given precision and scale.
+	 *
+	 * <p>The precision will be checked. If the precision overflows, null will be returned.
 	 */
-	public static DecimalData zero(int precision, int scale) {
+	public static @Nullable DecimalData zero(int precision, int scale) {
 		if (precision <= MAX_COMPACT_PRECISION) {
 			return new DecimalData(precision, scale, 0, null);
 		} else {

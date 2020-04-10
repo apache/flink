@@ -19,13 +19,20 @@
 package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.logical.ArrayType;
 
 import org.apache.commons.lang3.ArrayUtils;
 
 /**
- * {@link GenericArrayData} is a generic implementation of {@link ArrayData} which
- * wraps generic Java arrays. All the elements in the array should have the same type
- * and should be in internal data structures.
+ * An internal data structure representing data of {@link ArrayType}.
+ *
+ * <p>{@link GenericArrayData} is a generic implementation of {@link ArrayData} which wraps regular
+ * Java arrays.
+ *
+ * <p>Note: All elements of this data structure must be internal data structures and must be of the
+ * same type. See {@link RowData} for more information about internal data structures.
+ *
+ * <p>For non-primitive arrays, elements can contain null for representing nullability.
  */
 @PublicEvolving
 public final class GenericArrayData implements ArrayData {
@@ -34,6 +41,11 @@ public final class GenericArrayData implements ArrayData {
 	private final int size;
 	private final boolean isPrimitiveArray;
 
+	/**
+	 * Creates an instance of {@link GenericArrayData} using the given Java array.
+	 *
+	 * <p>Note: All elements of the array must be internal data structures.
+	 */
 	public GenericArrayData(Object[] array) {
 		this(array, array.length, false);
 	}
@@ -72,18 +84,19 @@ public final class GenericArrayData implements ArrayData {
 	}
 
 	/**
-	 * Returns true if it is a primitive array.
-	 * A primitive array is an array whose element is primitive type.
+	 * Returns true if this is a primitive array.
+	 *
+	 * <p>A primitive array is an array whose elements are of primitive type.
 	 */
 	public boolean isPrimitiveArray() {
 		return isPrimitiveArray;
 	}
 
 	/**
-	 * Converts this {@code GenericArrayData} to an array of Java Object.
-	 * It will convert primitive array into generic object array.
-	 * But it will not convert internal data structures into external
-	 * data structures (e.g. {@link StringData} to {@link String}).
+	 * Converts this {@link GenericArrayData} into an array of Java {@link Object}.
+	 *
+	 * <p>The method will convert a primitive array into an object array. But it will not convert internal
+	 * data structures into external data structures (e.g. {@link StringData} to {@link String}).
 	 */
 	public Object[] toObjectArray() {
 		if (isPrimitiveArray) {
@@ -103,7 +116,7 @@ public final class GenericArrayData implements ArrayData {
 			} else if (boolean[].class.equals(arrayClass)) {
 				return ArrayUtils.toObject((boolean[]) array);
 			}
-			throw new RuntimeException("This is not a primary array: " + arrayClass);
+			throw new RuntimeException("Unsupported primitive array: " + arrayClass);
 		} else {
 			return (Object[]) array;
 		}

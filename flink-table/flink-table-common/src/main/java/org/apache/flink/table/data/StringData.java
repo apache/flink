@@ -23,27 +23,31 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 /**
- * {@link StringData} is an internal data structure represents data of {@link VarCharType}
- * and {@link CharType} in Flink Table/SQL.
+ * An internal data structure representing data of {@link CharType} and {@link VarCharType}.
+ *
+ * <p>This data structure is immutable.
  */
 @PublicEvolving
 public interface StringData extends Comparable<StringData> {
 
 	/**
-	 * Converts this {@link StringData} object to a UTF-8 byte array and returns the byte array.
-	 * The returned bytes may be reused.
+	 * Converts this {@link StringData} object to a UTF-8 byte array.
+	 *
+	 * <p>Note: The returned byte array may be reused.
 	 */
 	byte[] toBytes();
 
 	/**
-	 * Converts this {@link StringData} object to a {@link String} and returns the String.
+	 * Converts this {@link StringData} object to a {@link String}.
 	 */
 	String toString();
 
 	// ------------------------------------------------------------------------------------------
+	// Construction Utilities
+	// ------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a {@link StringData} from the given String.
+	 * Creates an instance of {@link StringData} from the given {@link String}.
 	 */
 	static StringData fromString(String str) {
 		// TODO
@@ -51,7 +55,7 @@ public interface StringData extends Comparable<StringData> {
 	}
 
 	/**
-	 * Creates a {@link StringData} from the given UTF-8 bytes.
+	 * Creates an instance of {@link StringData} from the given UTF-8 byte array.
 	 */
 	static StringData fromBytes(byte[] bytes) {
 		// TODO
@@ -59,7 +63,8 @@ public interface StringData extends Comparable<StringData> {
 	}
 
 	/**
-	 * Creates a {@link StringData} from the given UTF-8 bytes with offset and number of bytes.
+	 * Creates an instance of {@link StringData} from the given UTF-8 byte array with offset and number
+	 * of bytes.
 	 */
 	static StringData fromBytes(byte[] bytes, int offset, int numBytes) {
 		// TODO

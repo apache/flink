@@ -30,16 +30,14 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
- * {@link TimestampData} is an internal data structure represents data of {@link TimestampType}
- * and {@link LocalZonedTimestampType} in Flink Table/SQL.
+ * An internal data structure representing data of {@link TimestampType} and {@link LocalZonedTimestampType}.
  *
- * <p>It is an immutable implementation which is composite of a millisecond
- * and nanoOfMillisecond since {@code 1970-01-01 00:00:00}.
+ * <p>This data structure is immutable and consists of a milliseconds and nanos-of-millisecond since
+ * {@code 1970-01-01 00:00:00}. It might be stored in a compact representation (as a long value) if values
+ * are small enough.
  */
 @PublicEvolving
 public final class TimestampData implements Comparable<TimestampData> {
-
-	private static final long serialVersionUID = 1L;
 
 	// the number of milliseconds in a day
 	private static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
@@ -57,33 +55,30 @@ public final class TimestampData implements Comparable<TimestampData> {
 	}
 
 	/**
-	 * Gets the number of milli-seconds since {@code 1970-01-01 00:00:00}.
+	 * Returns the number of milliseconds since {@code 1970-01-01 00:00:00}.
 	 */
 	public long getMillisecond() {
 		return millisecond;
 	}
 
 	/**
-	 * Gets the number of nanoseconds the nanosecond within the millisecond.
-	 * The value range is from 0 to 999,999.
+	 * Returns the number of nanoseconds (the nanoseconds within the milliseconds).
+	 *
+	 * <p>The value range is from 0 to 999,999.
 	 */
 	public int getNanoOfMillisecond() {
 		return nanoOfMillisecond;
 	}
 
 	/**
-	 * Converts this {@code TimestampData} object to a {@link Timestamp}.
-	 *
-	 * @return An instance of {@link Timestamp}
+	 * Converts this {@link TimestampData} object to a {@link Timestamp}.
 	 */
 	public Timestamp toTimestamp() {
 		return Timestamp.valueOf(toLocalDateTime());
 	}
 
 	/**
-	 * Convert this {@code TimestampData} object to a {@link LocalDateTime}.
-	 *
-	 * @return An instance of {@link LocalDateTime}
+	 * Converts this {@link TimestampData} object to a {@link LocalDateTime}.
 	 */
 	public LocalDateTime toLocalDateTime() {
 		int date = (int) (millisecond / MILLIS_PER_DAY);
@@ -99,9 +94,7 @@ public final class TimestampData implements Comparable<TimestampData> {
 	}
 
 	/**
-	 * Convert this {@code TimestampData} object to a {@link Instant}.
-	 *
-	 * @return an instance of {@link Instant}
+	 * Converts this {@link TimestampData} object to a {@link Instant}.
 	 */
 	public Instant toInstant() {
 		long epochSecond = millisecond / 1000;
@@ -145,46 +138,36 @@ public final class TimestampData implements Comparable<TimestampData> {
 	}
 
 	// ------------------------------------------------------------------------------------------
-	// Construct Utilities
+	// Constructor Utilities
 	// ------------------------------------------------------------------------------------------
 
 	/**
-	 * Obtains an instance of {@code TimestampData} from a millisecond.
+	 * Creates an instance of {@link TimestampData} from milliseconds.
 	 *
-	 * <p>This returns a {@code TimestampData} with the specified millisecond.
-	 * The nanoOfMillisecond field will be set to zero.
+	 * <p>The nanos-of-millisecond field will be set to zero.
 	 *
-	 * @param millisecond the number of milliseconds since {@code 1970-01-01 00:00:00}
-	 *                    A negative number is the number of milliseconds before
-	 *                    {@code 1970-01-01 00:00:00}
-	 * @return an instance of {@code TimestampData}
+	 * @param milliseconds the number of milliseconds since {@code 1970-01-01 00:00:00}; a negative number
+	 *                    is the number of milliseconds before {@code 1970-01-01 00:00:00}
 	 */
-	public static TimestampData fromEpochMillis(long millisecond) {
-		return new TimestampData(millisecond, 0);
+	public static TimestampData fromEpochMillis(long milliseconds) {
+		return new TimestampData(milliseconds, 0);
 	}
 
 	/**
-	 * Obtains an instance of {@code TimestampData} from a millisecond and a nanoOfMillisecond.
+	 * Creates an instance of {@link TimestampData} from milliseconds and a nanos-of-millisecond.
 	 *
-	 * <p>This returns a {@code TimestampData} with the specified millisecond and nanoOfMillisecond.
-	 *
-	 * @param millisecond the number of milliseconds since {@code 1970-01-01 00:00:00}
-	 *                    A negative number is the number of milliseconds before
-	 *                    {@code 1970-01-01 00:00:00}
-	 * @param nanoOfMillisecond the nanosecond within the millisecond, from 0 to 999,999
-	 * @return an instance of {@code TimestampData}
+	 * @param milliseconds the number of milliseconds since {@code 1970-01-01 00:00:00}; a negative number
+	 *                     is the number of milliseconds before {@code 1970-01-01 00:00:00}
+	 * @param nanosOfMillisecond the nanoseconds within the millisecond, from 0 to 999,999
 	 */
-	public static TimestampData fromEpochMillis(long millisecond, int nanoOfMillisecond) {
-		return new TimestampData(millisecond, nanoOfMillisecond);
+	public static TimestampData fromEpochMillis(long milliseconds, int nanosOfMillisecond) {
+		return new TimestampData(milliseconds, nanosOfMillisecond);
 	}
 
 	/**
-	 * Obtains an instance of {@code TimestampData} from an instance of {@link LocalDateTime}.
-	 *
-	 * <p>This returns a {@code TimestampData} with the specified {@link LocalDateTime}.
+	 * Creates an instance of {@link TimestampData} from an instance of {@link LocalDateTime}.
 	 *
 	 * @param dateTime an instance of {@link LocalDateTime}
-	 * @return an instance of {@code TimestampData}
 	 */
 	public static TimestampData fromLocalDateTime(LocalDateTime dateTime) {
 		long epochDay = dateTime.toLocalDate().toEpochDay();
@@ -197,24 +180,18 @@ public final class TimestampData implements Comparable<TimestampData> {
 	}
 
 	/**
-	 * Obtains an instance of {@code TimestampData} from an instance of {@link Timestamp}.
+	 * Creates an instance of {@link TimestampData} from an instance of {@link Timestamp}.
 	 *
-	 * <p>This returns a {@code TimestampData} with the specified {@link Timestamp}.
-	 *
-	 * @param ts an instance of {@link Timestamp}
-	 * @return an instance of {@code TimestampData}
+	 * @param timestamp an instance of {@link Timestamp}
 	 */
-	public static TimestampData fromTimestamp(Timestamp ts) {
-		return fromLocalDateTime(ts.toLocalDateTime());
+	public static TimestampData fromTimestamp(Timestamp timestamp) {
+		return fromLocalDateTime(timestamp.toLocalDateTime());
 	}
 
 	/**
-	 * Obtains an instance of {@code TimestampData} from an instance of {@link Instant}.
-	 *
-	 * <p>This returns a {@code TimestampData} with the specified {@link Instant}.
+	 * Creates an instance of {@link TimestampData} from an instance of {@link Instant}.
 	 *
 	 * @param instant an instance of {@link Instant}
-	 * @return an instance of {@code TimestampData}
 	 */
 	public static TimestampData fromInstant(Instant instant) {
 		long epochSecond = instant.getEpochSecond();
@@ -227,7 +204,7 @@ public final class TimestampData implements Comparable<TimestampData> {
 	}
 
 	/**
-	 * Returns whether the timestamp data is small enough to be stored in a long of millisecond.
+	 * Returns whether the timestamp data is small enough to be stored in a long of milliseconds.
 	 */
 	public static boolean isCompact(int precision) {
 		return precision <= 3;
