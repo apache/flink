@@ -48,16 +48,22 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
  * General tests for the {@link KubernetesJobManagerFactory}.
  */
 public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
+
+	private static final double JOB_MANAGER_CPU = 1.2;
+	private static final double JOB_MANAGER_CPU_LIMIT = 2.3;
 
 	private static final String SERVICE_ACCOUNT_NAME = "service-test";
 	private static final String ENTRY_POINT_CLASS = KubernetesSessionClusterEntrypoint.class.getCanonicalName();
@@ -72,6 +78,9 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT, JOB_MANAGER_CPU_LIMIT);
 
 		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
 		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
@@ -130,6 +139,10 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		final Map<String, Quantity> requests = resultedMainContainer.getResources().getRequests();
 		assertEquals(Double.toString(JOB_MANAGER_CPU), requests.get("cpu").getAmount());
 		assertEquals(JOB_MANAGER_MEMORY + "Mi", requests.get("memory").getAmount());
+
+		final Map<String, Quantity> limits = resultedMainContainer.getResources().getLimits();
+		assertThat(limits.get("cpu").getAmount(), is(equalTo(Double.toString(JOB_MANAGER_CPU_LIMIT))));
+		assertThat(limits.get("memory").getAmount(), is(equalTo(JOB_MANAGER_MEMORY + "Mi")));
 
 		assertEquals(1, resultedMainContainer.getCommand().size());
 		assertEquals(3, resultedMainContainer.getArgs().size());

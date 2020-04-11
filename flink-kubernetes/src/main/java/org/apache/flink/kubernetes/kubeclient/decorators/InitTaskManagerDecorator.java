@@ -77,8 +77,9 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 
 	private Container decorateMainContainer(Container container) {
 		final ResourceRequirements resourceRequirements = KubernetesUtils.getResourceRequirements(
-				kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
-				kubernetesTaskManagerParameters.getTaskManagerCPU());
+			kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
+			kubernetesTaskManagerParameters.getCpuRequest(),
+			kubernetesTaskManagerParameters.getCpuLimit());
 
 		return new ContainerBuilder(container)
 				.withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())

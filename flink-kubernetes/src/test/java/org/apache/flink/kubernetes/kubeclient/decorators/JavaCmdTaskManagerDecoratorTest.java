@@ -39,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 /**
- * General tests for the{@link JavaCmdTaskManagerDecorator}.
+ * General tests for the {@link JavaCmdTaskManagerDecorator}.
  */
 public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
 

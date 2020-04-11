@@ -44,7 +44,6 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 	private static final String DYNAMIC_PROPERTIES = "";
 
 	protected static final int TOTAL_PROCESS_MEMORY = 1184;
-	protected static final double TASK_MANAGER_CPU = 2.0;
 
 	protected final Map<String, String> customizedEnvs = new HashMap<String, String>() {
 		{
@@ -80,7 +79,6 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		super.setup();
 
 		flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
-		flinkConfig.set(TaskManagerOptions.CPU_CORES, TASK_MANAGER_CPU);
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TOTAL_PROCESS_MEMORY + "m"));
 		customizedEnvs.forEach((k, v) ->
 				flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k, v));

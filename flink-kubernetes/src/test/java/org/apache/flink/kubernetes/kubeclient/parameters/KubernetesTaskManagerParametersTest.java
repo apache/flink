@@ -47,6 +47,7 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
 	private static final int TASK_MANAGER_MEMORY = 1024;
 	private static final double TASK_MANAGER_CPU = 1.2;
+	private static final double TASK_MANAGER_CPU_LIMIT = 2.5;
 	private static final int RPC_PORT = 13001;
 
 	private static final String POD_NAME = "task-manager-pod-1";
@@ -117,8 +118,20 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 	}
 
 	@Test
-	public void testGetTaskManagerCPU() {
-		assertEquals(TASK_MANAGER_CPU, kubernetesTaskManagerParameters.getTaskManagerCPU(), 0.000000000001);
+	public void testCpuRequest() {
+		assertEquals(TASK_MANAGER_CPU, kubernetesTaskManagerParameters.getCpuRequest(), 0.000000000001);
+	}
+
+	@Test
+	public void testCpuLimit() {
+		flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT, TASK_MANAGER_CPU_LIMIT);
+		assertEquals(TASK_MANAGER_CPU_LIMIT, kubernetesTaskManagerParameters.getCpuLimit(), 0.00001);
+	}
+
+	@Test
+	public void testCpuLimitFallback() {
+		flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_CPU, TASK_MANAGER_CPU);
+		assertEquals(TASK_MANAGER_CPU, kubernetesTaskManagerParameters.getCpuLimit(), 0.00001);
 	}
 
 	@Test

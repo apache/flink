@@ -68,6 +68,12 @@ public interface KubernetesParameters {
 	 */
 	Map<String, String> getAnnotations();
 
+	/** The CPU request for the container. **/
+	double getCpuRequest();
+
+	/** The CPU limit for the container. **/
+	double getCpuLimit();
+
 	/**
 	 * A collection of tolerations that are set to the JobManager and TaskManager Pod(s). Kubernetes taints and
 	 * tolerations work together to ensure that pods are not scheduled onto inappropriate nodes.

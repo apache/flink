@@ -37,7 +37,6 @@ import java.util.Map;
  */
 public class KubernetesJobManagerTestBase extends KubernetesTestBase {
 
-	protected static final double JOB_MANAGER_CPU = 2.0;
 	protected static final int JOB_MANAGER_MEMORY = 768;
 
 	protected static final int REST_PORT = 9081;
@@ -76,7 +75,6 @@ public class KubernetesJobManagerTestBase extends KubernetesTestBase {
 		this.flinkConfig.set(RestOptions.PORT, REST_PORT);
 		this.flinkConfig.set(JobManagerOptions.PORT, RPC_PORT);
 		this.flinkConfig.set(BlobServerOptions.PORT, Integer.toString(BLOB_SERVER_PORT));
-		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
 		this.customizedEnvs.forEach((k, v) ->
 				this.flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX + k, v));
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_LABELS, userLabels);

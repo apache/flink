@@ -49,6 +49,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
 	private static final int JOB_MANAGER_MEMORY = 768;
 	private static final double JOB_MANAGER_CPU = 2.0;
+	private static final double JOB_MANAGER_CPU_LIMIT = 3.0;
 
 	private final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 		.setMasterMemoryMB(JOB_MANAGER_MEMORY)
@@ -97,9 +98,21 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 	}
 
 	@Test
-	public void testGetJobManagerCPU() {
+	public void testCpuRequest() {
 		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
-		assertEquals(JOB_MANAGER_CPU, kubernetesJobManagerParameters.getJobManagerCPU(), 0.00001);
+		assertEquals(JOB_MANAGER_CPU, kubernetesJobManagerParameters.getCpuRequest(), 0.00001);
+	}
+
+	@Test
+	public void testCpuLimit() {
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT, JOB_MANAGER_CPU_LIMIT);
+		assertEquals(JOB_MANAGER_CPU_LIMIT, kubernetesJobManagerParameters.getCpuLimit(), 0.00001);
+	}
+
+	@Test
+	public void testCpuLimitFallback() {
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
+		assertEquals(JOB_MANAGER_CPU, kubernetesJobManagerParameters.getCpuLimit(), 0.00001);
 	}
 
 	@Test

@@ -30,8 +30,6 @@ import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -101,19 +99,6 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 	public void testMainContainerImage() {
 		assertEquals(CONTAINER_IMAGE, this.resultMainContainer.getImage());
 		assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), this.resultMainContainer.getImagePullPolicy());
-	}
-
-	@Test
-	public void testMainContainerResourceRequirements() {
-		final ResourceRequirements resourceRequirements = this.resultMainContainer.getResources();
-
-		final Map<String, Quantity> requests = resourceRequirements.getRequests();
-		assertEquals(Double.toString(JOB_MANAGER_CPU), requests.get("cpu").getAmount());
-		assertEquals(JOB_MANAGER_MEMORY + "Mi", requests.get("memory").getAmount());
-
-		final Map<String, Quantity> limits = resourceRequirements.getLimits();
-		assertEquals(Double.toString(JOB_MANAGER_CPU), limits.get("cpu").getAmount());
-		assertEquals(JOB_MANAGER_MEMORY + "Mi", limits.get("memory").getAmount());
 	}
 
 	@Test

@@ -83,8 +83,9 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
 
 	private Container decorateMainContainer(Container container) {
 		final ResourceRequirements requirements = KubernetesUtils.getResourceRequirements(
-				kubernetesJobManagerParameters.getJobManagerMemoryMB(),
-				kubernetesJobManagerParameters.getJobManagerCPU());
+			kubernetesJobManagerParameters.getJobManagerMemoryMB(),
+			kubernetesJobManagerParameters.getCpuRequest(),
+			kubernetesJobManagerParameters.getCpuLimit());
 
 		return new ContainerBuilder(container)
 				.withName(kubernetesJobManagerParameters.getJobManagerMainContainerName())

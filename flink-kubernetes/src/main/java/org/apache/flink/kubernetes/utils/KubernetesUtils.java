@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -119,22 +120,38 @@ public class KubernetesUtils {
 	}
 
 	/**
-	 * Get resource requirements from memory and cpu.
+	 * Get resource requirements from Memory and CPU.
 	 *
 	 * @param mem Memory in mb.
-	 * @param cpu cpu.
+	 * @param cpuRequest CPU request.
+	 * @param cpuLimit CPU limit.
 	 * @return KubernetesResource requirements.
 	 */
-	public static ResourceRequirements getResourceRequirements(int mem, double cpu) {
-		final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
-		final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
+	public static ResourceRequirements getResourceRequirements(int mem, double cpuRequest, double cpuLimit) {
+		checkArgument(mem > 0, "Memory size(" + mem + "mb) must be larger than 0");
+		checkArgument(cpuRequest >= 0.0, "CPU request(" + cpuRequest + ") must be no less than 0");
+		checkArgument(cpuLimit >= 0.0, "CPU limit(" + cpuLimit + ") must be no less than 0");
+		if (cpuLimit > 0.0) {
+			checkArgument(cpuRequest <= cpuLimit,
+				"CPU request(" + cpuRequest + ") must be less than or equal to CPU limit(" + cpuLimit + ")");
+		}
 
-		return new ResourceRequirementsBuilder()
+		final ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
+
+		final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
+		resourceRequirementsBuilder
 			.addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
-			.addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
-			.addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
-			.addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity)
-			.build();
+			.addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity);
+
+		final Quantity cpuRequestQuantity = new Quantity(String.valueOf(cpuRequest));
+		resourceRequirementsBuilder.addToRequests(Constants.RESOURCE_NAME_CPU, cpuRequestQuantity);
+
+		if (cpuLimit > 0.0) {
+			final Quantity cpuLimitQuantity = new Quantity(String.valueOf(cpuLimit));
+			resourceRequirementsBuilder.addToLimits(Constants.RESOURCE_NAME_CPU, cpuLimitQuantity);
+		}
+
+		return resourceRequirementsBuilder.build();
 	}
 
 	public static String getCommonStartCommand(

@@ -84,7 +84,13 @@
             <td><h5>kubernetes.jobmanager.cpu</h5></td>
             <td style="word-wrap: break-word;">1.0</td>
             <td>Double</td>
-            <td>The number of cpu used by job manager</td>
+            <td>Specify the CPU request for the JobManager</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.cpu.limit</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Specify the hard CPU limit for the JobManager</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.labels</h5></td>
@@ -132,7 +138,13 @@
             <td><h5>kubernetes.taskmanager.cpu</h5></td>
             <td style="word-wrap: break-word;">-1.0</td>
             <td>Double</td>
-            <td>The number of cpu used by task manager. By default, the cpu is set to the number of slots per TaskManager</td>
+            <td>Specify the CPU request for the TaskManagers. By default, the CPU is set to the number of slots per TaskManager</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.cpu.limit</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Specify the hard CPU limit for the TaskManagers</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.labels</h5></td>

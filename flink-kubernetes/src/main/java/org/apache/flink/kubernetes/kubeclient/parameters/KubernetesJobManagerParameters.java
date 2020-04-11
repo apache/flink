@@ -93,8 +93,18 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 		return clusterSpecification.getMasterMemoryMB();
 	}
 
-	public double getJobManagerCPU() {
+	@Override
+	public double getCpuRequest() {
 		return flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_CPU);
+	}
+
+	@Override
+	public double getCpuLimit() {
+		final double cpuLimit = flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT).orElse(getCpuRequest());
+		checkArgument(cpuLimit >= 0.0,
+			KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT.key() + " must be greater than or equal to 0");
+
+		return cpuLimit;
 	}
 
 	public int getRestPort() {

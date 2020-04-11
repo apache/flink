@@ -23,6 +23,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,6 +82,20 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	}
 
 	@Override
+	public double getCpuRequest() {
+		return TaskExecutorProcessUtils.getCpuCoresWithFallbackConfigOption(flinkConfig, KubernetesConfigOptions.TASK_MANAGER_CPU);
+	}
+
+	@Override
+	public double getCpuLimit() {
+		final double cpuLimit = flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT).orElse(getCpuRequest());
+		checkArgument(cpuLimit >= 0.0,
+			KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT.key() + " must be greater than or equal to 0");
+
+		return cpuLimit;
+	}
+
+	@Override
 	public Map<String, String> getAnnotations() {
 		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
 	}
@@ -100,10 +115,6 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
 	public int getTaskManagerMemoryMB() {
 		return taskManagerMemoryMB;
-	}
-
-	public double getTaskManagerCPU() {
-		return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getCpuCores().getValue().doubleValue();
 	}
 
 	public int getRPCPort() {
