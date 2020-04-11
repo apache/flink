@@ -20,6 +20,9 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Validator for {@link FileSystem}.
  */
@@ -28,11 +31,18 @@ public class FileSystemValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE = "filesystem";
 	public static final String CONNECTOR_PATH = "connector.path";
+	public static final String NUM_FILE = "num.file";
+	public static final String WRITE_MODE = "write.mode";
+	public static final String OVERWRITE = "OVERWRITE";
+	public static final String NO_OVERWRITE = "NO_OVERWRITE";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, false);
 		properties.validateString(CONNECTOR_PATH, false, 1);
+		properties.validateInt(NUM_FILE, false);
+		List<String> writeModeList = Arrays.asList(OVERWRITE, NO_OVERWRITE);
+		properties.validateEnumValues(WRITE_MODE, false, writeModeList);
 	}
 }

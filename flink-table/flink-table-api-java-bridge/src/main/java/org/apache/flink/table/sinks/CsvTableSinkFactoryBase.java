@@ -19,6 +19,7 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -43,6 +44,9 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
+import static org.apache.flink.table.descriptors.FileSystemValidator.NUM_FILE;
+import static org.apache.flink.table.descriptors.FileSystemValidator.WRITE_MODE;
+import static org.apache.flink.table.descriptors.FileSystemValidator.OVERWRITE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
@@ -130,11 +134,14 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 			})
 			.toArray(DataType[]::new);
 
+		int numFiles = params.getOptionalInt(NUM_FILE).orElse(-1);
+		FileSystem.WriteMode writeMode = FileSystem.WriteMode.valueOf(params.getOptionalString(WRITE_MODE).orElse(OVERWRITE));
+
 		return new CsvTableSink(
 			path,
 			fieldDelimiter,
-			-1,
-			null,
+			numFiles,
+			writeMode,
 			tableSchema.getFieldNames(),
 			dataTypes);
 	}
