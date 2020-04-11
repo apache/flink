@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -28,6 +29,7 @@ import org.apache.flink.table.types.utils.ValueDataTypeConverter;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -69,11 +71,11 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 
 	private final DataType dataType;
 
-	public ValueLiteralExpression(Object value) {
+	public ValueLiteralExpression(@Nonnull Object value) {
 		this(value, deriveDataTypeFromValue(value));
 	}
 
-	public ValueLiteralExpression(Object value, DataType dataType) {
+	public ValueLiteralExpression(@Nullable Object value, DataType dataType) {
 		validateValueDataType(value, Preconditions.checkNotNull(dataType, "Data type must not be null."));
 		this.value = value; // can be null
 		this.dataType = dataType;
@@ -266,6 +268,11 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 			}
 			return;
 		}
+
+		if (logicalType.isNullable()) {
+			throw new ValidationException("Literals that have a non-null value must not have a nullable data type.");
+		}
+
 		final Class<?> candidate = value.getClass();
 		// ensure value and data type match
 		if (!dataType.getConversionClass().isAssignableFrom(candidate)) {

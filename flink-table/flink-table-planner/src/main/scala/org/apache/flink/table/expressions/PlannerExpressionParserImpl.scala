@@ -235,7 +235,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   }
 
   lazy val nullLiteral: PackratParser[Expression] = (NULL | NULL_OF) ~ "(" ~> dataType <~ ")" ^^ {
-    dt => valueLiteral(null, fromLegacyInfoToDataType(dt))
+    dt => valueLiteral(null, fromLegacyInfoToDataType(dt).nullable())
   }
 
   lazy val literalExpr: PackratParser[Expression] =
