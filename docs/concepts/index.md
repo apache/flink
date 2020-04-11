@@ -63,12 +63,12 @@ Flink offers different levels of abstraction for developing streaming/batch appl
     programs declaratively define *what logical operation should be done*
     rather than specifying exactly *how the code for the operation looks*.
     Though the Table API is extensible by various types of user-defined
-    functions, it is less expressive than the *Core APIs*, but more concise to
+    functions, it is less expressive than the *Core APIs*, and more concise to
     use (less code to write).  In addition, Table API programs also go through
     an optimizer that applies optimization rules before execution.
 
     One can seamlessly convert between tables and *DataStream*/*DataSet*,
-    allowing programs to mix *Table API* and with the *DataStream* and
+    allowing programs to mix the *Table API* with the *DataStream* and
     *DataSet* APIs.
 
   - The highest level abstraction offered by Flink is **SQL**. This abstraction
