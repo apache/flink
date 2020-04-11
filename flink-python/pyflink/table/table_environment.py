@@ -22,6 +22,7 @@ from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink.common import JobExecutionResult
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.table_config import TableConfig
@@ -938,8 +939,9 @@ class TableEnvironment(object):
 
         :param job_name: Desired name of the job.
         :type job_name: str
+        :return: The result of the job execution, containing elapsed time and accumulators.
         """
-        self._j_tenv.execute(job_name)
+        return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements, schema=None, verify_schema=True):
         """
