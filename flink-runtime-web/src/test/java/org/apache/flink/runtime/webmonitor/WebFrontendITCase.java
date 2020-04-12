@@ -226,6 +226,33 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
+	public void getTaskManagerLogSearch() throws Exception {
+		String searchWord = "search";
+		String taskManagerFileName = "tm.log";
+
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+		final String logDir = logFiles.logFile.getParent();
+		FileUtils.writeStringToFile(new File(logDir, taskManagerFileName), "search taskmanager log");
+
+		String url = "http://localhost:" + getRestPort() + "/taskmanagers/";
+		String json = TestBaseUtils.getFromHTTP(url);
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode parsed = mapper.readTree(json);
+		ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+		JsonNode taskManager = taskManagers.get(0);
+		String id = taskManager.get("id").asText();
+
+		url = "http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/logs/" + taskManagerFileName + "/" + searchWord + "/0";
+		String logs = TestBaseUtils.getFromHTTP(url);
+		assertThat(logs, containsString("search taskmanager log"));
+
+		searchWord = "test";
+		url = "http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/logs/" + taskManagerFileName + "/" + searchWord + "/0";
+		logs = TestBaseUtils.getFromHTTP(url);
+		assertThat(logs, containsString("No content matching the search keywords"));
+	}
+
+	@Test
 	public void getConfiguration() throws Exception {
 		String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
 		Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
