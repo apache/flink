@@ -76,4 +76,6 @@ public class Constants {
 	public static final String POD_IP_FIELD_PATH = "status.podIP";
 
 	public static final String HEADLESS_SERVICE_CLUSTER_IP = "None";
+
+	public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
 }
