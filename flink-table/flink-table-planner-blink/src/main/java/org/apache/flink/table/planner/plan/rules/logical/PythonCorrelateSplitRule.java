@@ -31,6 +31,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
@@ -93,22 +94,36 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		RexNode rexNode = tableFunctionScan.getCall();
 		if (rexNode instanceof RexCall) {
 			return PythonUtil.isPythonCall(rexNode, null) && PythonUtil.containsNonPythonCall(rexNode)
-				|| PythonUtil.isNonPythonCall(rexNode) && PythonUtil.containsPythonCall(rexNode, null);
+				|| PythonUtil.isNonPythonCall(rexNode) && PythonUtil.containsPythonCall(rexNode, null)
+				|| (PythonUtil.isPythonCall(rexNode, null) && containsFieldAccessInputs(rexNode));
 		}
 		return false;
+	}
+
+	private boolean containsFieldAccessInputs(RexNode node) {
+		if (node instanceof RexCall) {
+			for (RexNode operand : ((RexCall) node).getOperands()) {
+				if (containsFieldAccessInputs(operand)) {
+					return true;
+				}
+			}
+			return false;
+		} else {
+			return node instanceof RexFieldAccess;
+		}
 	}
 
 	private List<String> createNewFieldNames(
 		RelDataType rowType,
 		RexBuilder rexBuilder,
 		int primitiveFieldCount,
-		ArrayBuffer<RexCall> extractedRexCalls,
+		ArrayBuffer<RexNode> extractedRexNodes,
 		List<RexNode> calcProjects) {
 		for (int i = 0; i < primitiveFieldCount; i++) {
 			calcProjects.add(RexInputRef.of(i, rowType));
 		}
 		// add the fields of the extracted rex calls.
-		Iterator<RexCall> iterator = extractedRexCalls.iterator();
+		Iterator<RexNode> iterator = extractedRexNodes.iterator();
 		while (iterator.hasNext()) {
 			calcProjects.add(iterator.next());
 		}
@@ -117,7 +132,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		for (int i = 0; i < primitiveFieldCount; i++) {
 			nameList.add(rowType.getFieldNames().get(i));
 		}
-		Iterator<Object> indicesIterator = extractedRexCalls.indices().iterator();
+		Iterator<Object> indicesIterator = extractedRexNodes.indices().iterator();
 		while (indicesIterator.hasNext()) {
 			nameList.add("f" + indicesIterator.next());
 		}
@@ -129,7 +144,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 	private FlinkLogicalCalc createNewLeftCalc(
 		RelNode left,
 		RexBuilder rexBuilder,
-		ArrayBuffer<RexCall> extractedRexCalls,
+		ArrayBuffer<RexNode> extractedRexNodes,
 		FlinkLogicalCorrelate correlate) {
 		// add the fields of the primitive left input.
 		List<RexNode> leftCalcProjects = new LinkedList<>();
@@ -138,7 +153,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 			leftRowType,
 			rexBuilder,
 			leftRowType.getFieldCount(),
-			extractedRexCalls,
+			extractedRexNodes,
 			leftCalcProjects);
 
 		// create a new calc
@@ -157,11 +172,11 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 	private FlinkLogicalCalc createTopCalc(
 		int primitiveLeftFieldCount,
 		RexBuilder rexBuilder,
-		ArrayBuffer<RexCall> extractedRexCalls,
+		ArrayBuffer<RexNode> extractedRexNodes,
 		RelDataType calcRowType,
 		FlinkLogicalCorrelate newCorrelate) {
 		RexProgram rexProgram = new RexProgramBuilder(newCorrelate.getRowType(), rexBuilder).getProgram();
-		int offset = extractedRexCalls.size() + primitiveLeftFieldCount;
+		int offset = extractedRexNodes.size() + primitiveLeftFieldCount;
 
 		// extract correlate output RexNode.
 		List<RexNode> newTopCalcProjects = rexProgram
@@ -188,12 +203,20 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 
 	private ScalarFunctionSplitter createScalarFunctionSplitter(
 		int primitiveLeftFieldCount,
-		ArrayBuffer<RexCall> extractedRexCalls,
-		boolean isJavaTableFunction) {
+		ArrayBuffer<RexNode> extractedRexNodes,
+		RexNode tableFunctionNode) {
 		return new ScalarFunctionSplitter(
 			primitiveLeftFieldCount,
-			extractedRexCalls,
-			isJavaTableFunction ? x -> PythonUtil.isPythonCall(x, null) : PythonUtil::isNonPythonCall
+			extractedRexNodes,
+			node -> {
+				if (PythonUtil.isNonPythonCall(tableFunctionNode)) {
+					return PythonUtil.isPythonCall(node, null);
+				} else if (PythonUtil.containsNonPythonCall(node)) {
+					return PythonUtil.isNonPythonCall(node);
+				} else {
+					return node instanceof RexFieldAccess;
+				}
+			}
 		);
 	}
 
@@ -204,7 +227,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		RelNode left = ((HepRelVertex) correlate.getLeft()).getCurrentRel();
 		RelNode right = ((HepRelVertex) correlate.getRight()).getCurrentRel();
 		int primitiveLeftFieldCount = left.getRowType().getFieldCount();
-		ArrayBuffer<RexCall> extractedRexCalls = new ArrayBuffer<>();
+		ArrayBuffer<RexNode> extractedRexNodes = new ArrayBuffer<>();
 
 		RelNode rightNewInput;
 		if (right instanceof FlinkLogicalTableFunctionScan) {
@@ -213,8 +236,8 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 				scan,
 				createScalarFunctionSplitter(
 					primitiveLeftFieldCount,
-					extractedRexCalls,
-					PythonUtil.isNonPythonCall(scan.getCall())));
+					extractedRexNodes,
+					scan.getCall()));
 		} else {
 			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
 			FlinkLogicalTableFunctionScan scan = StreamExecCorrelateRule.getTableScan(calc);
@@ -222,15 +245,15 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 			FlinkLogicalTableFunctionScan newScan = createNewScan(scan,
 				createScalarFunctionSplitter(
 					primitiveLeftFieldCount,
-					extractedRexCalls,
-					PythonUtil.isNonPythonCall(scan.getCall())));
+					extractedRexNodes,
+					scan.getCall()));
 			rightNewInput = mergedCalc.copy(mergedCalc.getTraitSet(), newScan, mergedCalc.getProgram());
 		}
 
 		FlinkLogicalCalc leftCalc = createNewLeftCalc(
 			left,
 			rexBuilder,
-			extractedRexCalls,
+			extractedRexNodes,
 			correlate);
 
 		FlinkLogicalCorrelate newCorrelate = new FlinkLogicalCorrelate(
@@ -245,7 +268,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		FlinkLogicalCalc newTopCalc = createTopCalc(
 			primitiveLeftFieldCount,
 			rexBuilder,
-			extractedRexCalls,
+			extractedRexNodes,
 			correlate.getRowType(),
 			newCorrelate);
 
