@@ -26,11 +26,12 @@ import org.apache.flink.formats.orc.vectorizer.Vectorizer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
-import org.apache.orc.TypeDescription;
+import org.apache.orc.OrcProto;
 import org.apache.orc.impl.WriterImpl;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -38,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A factory that creates an ORC {@link BulkWriter}. The factory takes a user
- * supplied{@link Vectorizer} implementation to convert the element into an
+ * supplied {@link Vectorizer} implementation to convert the element into an
  * {@link org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch}.
  *
  * @param <T> The type of element to write.
@@ -58,55 +59,59 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 	private final Vectorizer<T> vectorizer;
 	private final Properties writerProperties;
 	private final Map<String, String> confMap;
-	private final TypeDescription schema;
+
 	private OrcFile.WriterOptions writerOptions;
+	private List<OrcProto.UserMetadataItem> userMetadata;
 
 	/**
 	 * Creates a new OrcBulkWriterFactory using the provided Vectorizer
-	 * implementation and schema.
+	 * implementation.
 	 *
 	 * @param vectorizer The vectorizer implementation to convert input
 	 *                   record to a VectorizerRowBatch.
-	 * @param schema 	 The schema defining the types of the ORC file.
 	 */
-	public OrcBulkWriterFactory(Vectorizer<T> vectorizer, TypeDescription schema) {
-		this(vectorizer, new Configuration(), schema);
+	public OrcBulkWriterFactory(Vectorizer<T> vectorizer) {
+		this(vectorizer, new Configuration());
 	}
 
 	/**
 	 * Creates a new OrcBulkWriterFactory using the provided Vectorizer, Hadoop
-	 * Configuration and the schema.
+	 * Configuration.
 	 *
 	 * @param vectorizer The vectorizer implementation to convert input
 	 *                   record to a VectorizerRowBatch.
-	 * @param conf       Hadoop Configuration to be used when building the Orc Writer.
-	 * @param schema	 The schema defining the types of the ORC file.
 	 */
-	public OrcBulkWriterFactory(Vectorizer<T> vectorizer, Configuration conf, TypeDescription schema) {
-		this(vectorizer, null, conf, schema);
+	public OrcBulkWriterFactory(Vectorizer<T> vectorizer, Configuration configuration) {
+		this(vectorizer, null, configuration);
 	}
 
 	/**
 	 * Creates a new OrcBulkWriterFactory using the provided Vectorizer, Hadoop
-	 * Configuration, ORC writer properties and the schema.
+	 * Configuration, ORC writer properties.
 	 *
 	 * @param vectorizer 		The vectorizer implementation to convert input
 	 *                          record to a VectorizerRowBatch.
 	 * @param writerProperties  Properties that can be used in ORC WriterOptions.
-	 * @param conf				Hadoop Configuration to be used when building the Orc Writer.
-	 * @param schema            The schema defining the types of the ORC file.
 	 */
-	public OrcBulkWriterFactory(Vectorizer<T> vectorizer, Properties writerProperties,
-								Configuration conf, TypeDescription schema) {
+	public OrcBulkWriterFactory(Vectorizer<T> vectorizer, Properties writerProperties, Configuration configuration) {
 		this.vectorizer = checkNotNull(vectorizer);
-		this.schema = checkNotNull(schema);
 		this.writerProperties = writerProperties;
 		this.confMap = new HashMap<>();
 
 		// Todo: Replace the Map based approach with a better approach
-		for (Map.Entry<String, String> entry : conf) {
+		for (Map.Entry<String, String> entry : configuration) {
 			confMap.put(entry.getKey(), entry.getValue());
 		}
+	}
+
+	/**
+	 * Writes the provided user metadata to the
+	 * output ORC file.
+	 *
+	 * @param userMetadata a list of user metadata
+	 */
+	public void withUserMetadata(List<OrcProto.UserMetadataItem> userMetadata) {
+		this.userMetadata = userMetadata;
 	}
 
 	@Override
@@ -114,7 +119,7 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 		OrcFile.WriterOptions opts = getWriterOptions();
 		opts.physicalWriter(new PhysicalWriterImpl(out, opts));
 
-		return new OrcBulkWriter<>(vectorizer, new WriterImpl(null, FIXED_PATH, opts));
+		return new OrcBulkWriter<>(vectorizer, userMetadata, new WriterImpl(null, FIXED_PATH, opts));
 	}
 
 	private OrcFile.WriterOptions getWriterOptions() {
@@ -125,7 +130,7 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 			}
 
 			writerOptions = OrcFile.writerOptions(writerProperties, conf);
-			writerOptions.setSchema(this.schema);
+			writerOptions.setSchema(this.vectorizer.getSchema());
 		}
 
 		return writerOptions;

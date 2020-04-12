@@ -20,38 +20,33 @@ package org.apache.flink.formats.orc.vectorizer;
 
 import org.apache.flink.formats.orc.data.Record;
 
-import org.apache.orc.TypeDescription;
 import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
 import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
-import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 
 /**
- * An implementation of {@link Vectorizer} that is used for
- * testing the ORC BulkWriter.
+ * A Vectorizer implementation used for tests.
+ *
+ * <p>It transforms an input element which is of type {@link Record}
+ * to a VectorizedRowBatch.
  */
-public class RecordVectorizer implements Vectorizer<Record>, Serializable {
-
-	private final String schema;
+public class RecordVectorizer extends Vectorizer<Record> implements Serializable {
 
 	public RecordVectorizer(String schema) {
-		this.schema = schema;
+		super(schema);
 	}
 
 	@Override
-	public VectorizedRowBatch vectorize(Record element) {
-		VectorizedRowBatch batch = TypeDescription.fromString(schema).createRowBatch();
+	public void vectorize(Record element) throws IOException {
+		BytesColumnVector stringVector = (BytesColumnVector) rowBatch.cols[0];
+		LongColumnVector intColVector = (LongColumnVector) rowBatch.cols[1];
 
-		BytesColumnVector stringVector = (BytesColumnVector) batch.cols[0];
-		LongColumnVector intColVector = (LongColumnVector) batch.cols[1];
-
-		int row = batch.size++;
+		int row = rowBatch.size++;
 		stringVector.setVal(row, element.getName().getBytes(StandardCharsets.UTF_8));
 		intColVector.vector[row] = element.getAge();
-
-		return batch;
 	}
 
 }

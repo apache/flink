@@ -20,27 +20,74 @@ package org.apache.flink.formats.orc.vectorizer;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import org.apache.orc.TypeDescription;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import java.io.IOException;
 import java.io.Serializable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * Implementors of this interface provide the logic to transform their data to {@link VectorizedRowBatch}.
+ * This class provides an abstracted set of methods to handle the lifecycle of {@link VectorizedRowBatch}.
+ *
+ * <p>Developers have to extend this class and override the vectorize() method with the logic
+ * to transform the element to a {@link VectorizedRowBatch}.
  *
  * @param <T> The type of the element
  */
 @PublicEvolving
-public interface Vectorizer<T> extends Serializable {
+public abstract class Vectorizer<T> implements Serializable {
+
+	protected transient VectorizedRowBatch rowBatch;
+
+	private final TypeDescription schema;
+
+	public Vectorizer(final String schema) {
+		checkNotNull(schema);
+		this.schema = TypeDescription.fromString(schema);
+		this.rowBatch = this.schema.createRowBatch();
+	}
+
+	public void initBatch() {
+		this.rowBatch = this.schema.createRowBatch();
+	}
 
 	/**
-	 * Creates a VectorizedRowBatch containing an array of ColumnVectors
-	 * from the provided element.
+	 * Provides the ORC schema.
+	 *
+	 * @return the ORC schema
+	 */
+	public TypeDescription getSchema() {
+		return this.schema;
+	}
+
+	/**
+	 * Provides the VectorizedRowBatch containing the
+	 * ColumnVectors of the input elements.
+	 *
+	 * @return vectorized row batch
+	 */
+	public VectorizedRowBatch getRowBatch() {
+		return this.rowBatch;
+	}
+
+	/**
+	 * Calls reset on the VectorizedRowBatch instance.
+	 */
+	public void reset() {
+		if (this.rowBatch != null) {
+			this.rowBatch.reset();
+		}
+	}
+
+	/**
+	 * Transforms the provided element to ColumnVectors and
+	 * sets them in the exposed VectorizedRowBatch.
 	 *
 	 * @param element The input element
-	 * @return The VectorizedRowBatch containing the ColumnVectors of the input element
 	 * @throws IOException if there is an error while transforming the input.
 	 */
-	VectorizedRowBatch vectorize(T element) throws IOException;
+	public abstract void vectorize(T element) throws IOException;
 
 }

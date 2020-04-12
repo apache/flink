@@ -50,6 +50,9 @@ import static org.apache.orc.impl.WriterImpl.getEstimatedBufferSize;
  * <p>Whereas PhysicalFsWriter implementation works on the basis of a Path,
  * this implementation leverages Flink's {@link FSDataOutputStream} to write
  * the compressed data.
+ *
+ * <p>NOTE: If the ORC dependency version is updated, this file may have to be
+ * updated as well to be in sync with the new version's PhysicalFsWriter.
  */
 @Internal
 public class PhysicalWriterImpl implements PhysicalWriter {

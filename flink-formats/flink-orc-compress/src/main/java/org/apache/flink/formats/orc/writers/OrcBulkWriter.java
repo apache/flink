@@ -22,9 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.formats.orc.vectorizer.Vectorizer;
 
+import org.apache.orc.OrcProto;
 import org.apache.orc.Writer;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,23 +41,30 @@ public class OrcBulkWriter<T> implements BulkWriter<T> {
 	private final Writer writer;
 	private final Vectorizer<T> vectorizer;
 
-	public OrcBulkWriter(Vectorizer<T> vectorizer, Writer writer) {
+	private transient List<OrcProto.UserMetadataItem> userMetadata;
+
+	OrcBulkWriter(Vectorizer<T> vectorizer, List<OrcProto.UserMetadataItem> userMetadata, Writer writer) {
 		this.vectorizer = checkNotNull(vectorizer);
 		this.writer = checkNotNull(writer);
+		this.userMetadata = userMetadata;
+
+		this.vectorizer.initBatch();
 	}
 
 	@Override
 	public void addElement(T element) throws IOException {
-		writer.addRowBatch(vectorizer.vectorize(element));
+		vectorizer.vectorize(element);
 	}
 
 	@Override
 	public void flush() throws IOException {
-		// We can't do anything here
+		writer.addRowBatch(vectorizer.getRowBatch());
+		writer.appendUserMetadata(userMetadata);
 	}
 
 	@Override
 	public void finish() throws IOException {
+		vectorizer.reset();
 		writer.close();
 	}
 }
