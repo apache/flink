@@ -18,12 +18,11 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -126,19 +125,20 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	@Override
 	@Nullable
 	public Endpoint getRestEndpoint(String clusterId) {
-		int restPort = this.flinkConfig.getInteger(RestOptions.PORT);
-		final KubernetesConfigOptions.ServiceExposedType serviceExposedType = flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+		final KubernetesService restService = getRestService(clusterId);
+		if (restService == null) {
+			return null;
+		}
+		final Service service = restService.getInternalResource();
+		final int restPort = getRestPortFromExternalService(service);
+
+		final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
+			KubernetesConfigOptions.ServiceExposedType.valueOf(service.getSpec().getType());
 
 		// Return the service.namespace directly when use ClusterIP.
 		if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
 			return new Endpoint(KubernetesUtils.getInternalServiceName(clusterId) + "." + nameSpace, restPort);
 		}
-
-		KubernetesService restService = getRestService(clusterId);
-		if (restService == null) {
-			return null;
-		}
-		Service service = restService.getInternalResource();
 
 		String address = null;
 
@@ -151,7 +151,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 				}
 			} else {
 				address = this.internalClient.getMasterUrl().getHost();
-				restPort = getServiceNodePort(service, RestOptions.PORT);
 			}
 		} else if (service.getSpec().getExternalIPs() != null && service.getSpec().getExternalIPs().size() > 0) {
 			address = service.getSpec().getExternalIPs().get(0);
@@ -264,17 +263,32 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	}
 
 	/**
-	 * To get nodePort of configured ports.
+	 * Get rest port from the external Service.
 	 */
-	private int getServiceNodePort(Service service, ConfigOption<Integer> configPort) {
-		final int port = this.flinkConfig.getInteger(configPort);
-		if (service.getSpec() != null && service.getSpec().getPorts() != null) {
-			for (ServicePort p : service.getSpec().getPorts()) {
-				if (p.getPort() == port) {
-					return p.getNodePort();
-				}
-			}
+	private int getRestPortFromExternalService(Service externalService) {
+		final List<ServicePort> servicePortCandidates = externalService.getSpec().getPorts()
+			.stream()
+			.filter(x -> x.getName().equals(Constants.REST_PORT_NAME))
+			.collect(Collectors.toList());
+
+		if (servicePortCandidates.isEmpty()) {
+			throw new RuntimeException("Failed to find port \"" + Constants.REST_PORT_NAME + "\" in Service \"" +
+				KubernetesUtils.getRestServiceName(this.clusterId) + "\"");
 		}
-		return port;
+
+		final ServicePort externalServicePort = servicePortCandidates.get(0);
+
+		final KubernetesConfigOptions.ServiceExposedType externalServiceType =
+			KubernetesConfigOptions.ServiceExposedType.valueOf(externalService.getSpec().getType());
+
+		switch (externalServiceType) {
+			case ClusterIP:
+			case LoadBalancer:
+				return externalServicePort.getPort();
+			case NodePort:
+				return externalServicePort.getNodePort();
+			default:
+				throw new RuntimeException("Unrecognized Service type: " + externalServiceType);
+		}
 	}
 }
