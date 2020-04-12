@@ -18,10 +18,19 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -51,5 +60,35 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
 		result.setup();
 		result.open();
 		result.initializeState(new OperatorSubtaskState());
+	}
+
+	@Test
+	public void testSetTtlTimeProvider() throws Exception {
+		AbstractStreamOperator<Integer> operator = new AbstractStreamOperator<Integer>() {};
+		try (AbstractStreamOperatorTestHarness<Integer> result = new AbstractStreamOperatorTestHarness<>(
+				operator,
+				1,
+				1,
+				0)) {
+
+			result.config.setStateKeySerializer(IntSerializer.INSTANCE);
+
+			Time timeToLive = Time.hours(1);
+			result.initializeState(new OperatorSubtaskState());
+			result.open();
+
+			ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("test", IntSerializer.INSTANCE);
+			stateDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(timeToLive).build());
+			KeyedStateBackend<Integer> keyedStateBackend = operator.getKeyedStateBackend();
+			ValueState<Integer> state = keyedStateBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+
+			int expectedValue = 42;
+			keyedStateBackend.setCurrentKey(1);
+			result.setStateTtlProcessingTime(0L);
+			state.update(expectedValue);
+			Assert.assertEquals(expectedValue, (int) state.value());
+			result.setStateTtlProcessingTime(timeToLive.toMilliseconds() + 1);
+			Assert.assertNull(state.value());
+		}
 	}
 }
