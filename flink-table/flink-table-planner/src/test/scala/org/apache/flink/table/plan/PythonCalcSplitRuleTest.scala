@@ -23,6 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPythonScalarFunction, PythonScalarFunction}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class PythonCalcSplitRuleTest extends TableTestBase {
@@ -260,6 +261,57 @@ class PythonCalcSplitRuleTest extends TableTestBase {
         "DataStreamPythonCalc",
         streamTableNode(table),
         term("select", "a", "b", "pyFunc1(a, c) AS f0")
+      ),
+      term("select", "a", "f0 AS _c1", "b")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPythonFunctionWithCompositeInputs(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+
+    val resultTable = table.select('a, 'b, 'c.flatten()).select("a, pyFunc1(a, c$_1), b")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(table),
+          term("select", "a", "b", "c._1 AS f0")
+        ),
+        term("select", "a", "b", "pyFunc1(a, f0) AS f0")
+      ),
+      term("select", "a", "f0 AS _c1", "b")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testChainingPythonFunctionWithCompositeInputs(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+
+    val resultTable = table.select('a, 'b, 'c.flatten())
+      .select("a, pyFunc1(a, pyFunc1(b, c$_1)), b")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(table),
+          term("select", "a", "b", "c._1 AS f0")
+        ),
+        term("select", "a", "b", "pyFunc1(a, pyFunc1(b, f0)) AS f0")
       ),
       term("select", "a", "f0 AS _c1", "b")
     )
