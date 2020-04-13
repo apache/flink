@@ -2991,13 +2991,17 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.snapshot(0, 0, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
 			sharedStateRegistry);
 
-		List<KeyedStateHandle> firstHalfKeyGroupStates = StateAssignmentOperation.getKeyedStateHandles(
+		List<KeyedStateHandle> firstHalfKeyGroupStates = new ArrayList<>();
+		StateAssignmentOperation.extractIntersectingState(
 				Collections.singletonList(snapshot),
-				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 0));
+				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 0),
+				firstHalfKeyGroupStates);
 
-		List<KeyedStateHandle> secondHalfKeyGroupStates = StateAssignmentOperation.getKeyedStateHandles(
+		List<KeyedStateHandle> secondHalfKeyGroupStates = new ArrayList<>();
+		StateAssignmentOperation.extractIntersectingState(
 				Collections.singletonList(snapshot),
-				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 1));
+				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 1),
+				secondHalfKeyGroupStates);
 
 		backend.dispose();
 
