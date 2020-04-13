@@ -93,14 +93,8 @@ def get_j_env_configuration(t_env):
     return j_configuration
 
 
-def is_local_executor(j_env, j_configuration):
-    if is_instance_of(j_env, "org.apache.flink.api.java.ExecutionEnvironment"):
-        j_executor_service_loader = j_env.getExecutorServiceLoader()
-    else:
-        env_clazz = load_java_class(
-            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
-        field = env_clazz.getDeclaredField("executorServiceLoader")
-        field.setAccessible(True)
-        j_executor_service_loader = field.get(j_env)
-    return j_executor_service_loader.getExecutorFactory(j_configuration).getClass().getName() \
-        == "org.apache.flink.client.deployment.executors.LocalExecutorFactory"
+def is_local_executor(j_configuration):
+    jvm = get_gateway().jvm
+    JDeploymentOptions = jvm.org.apache.flink.configuration.DeploymentOptions
+    return j_configuration.containsKey(JDeploymentOptions.TARGET.key()) \
+        and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) == "local"

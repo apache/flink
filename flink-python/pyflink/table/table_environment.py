@@ -81,7 +81,9 @@ class TableEnvironment(object):
         self._j_tenv = j_tenv
         self._is_blink_planner = TableEnvironment._judge_blink_planner(j_tenv)
         self._serializer = serializer
-        # for local executor, use current sys.executable to launch UDF worker.
+        # When running in MiniCluster, launch the Python UDF worker using the Python executable
+        # specified by sys.executable if users have not specified it explicitly via configuration
+        # python.executable.
         self._set_python_executable_for_local_executor()
 
     @staticmethod
@@ -1090,7 +1092,7 @@ class TableEnvironment(object):
         jvm = get_gateway().jvm
         j_config = get_j_env_configuration(self)
         if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
-                and is_local_executor(self._get_j_env(), j_config):
+                and is_local_executor(j_config):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
 
     @abstractmethod
