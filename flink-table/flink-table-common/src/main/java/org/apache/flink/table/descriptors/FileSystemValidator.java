@@ -41,8 +41,8 @@ public class FileSystemValidator extends ConnectorDescriptorValidator {
 		super.validate(properties);
 		properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, false);
 		properties.validateString(CONNECTOR_PATH, false, 1);
-		properties.validateInt(NUM_FILE, false);
+		properties.validateInt(NUM_FILE, true);
 		List<String> writeModeList = Arrays.asList(OVERWRITE, NO_OVERWRITE);
-		properties.validateEnumValues(WRITE_MODE, false, writeModeList);
+		properties.validateEnumValues(WRITE_MODE, true, writeModeList);
 	}
 }
