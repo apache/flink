@@ -55,6 +55,10 @@ public class SqlDropView extends SqlDrop {
 		return viewName;
 	}
 
+	public boolean getIfExists() {
+		return this.ifExists;
+	}
+
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("DROP");
 		if (isTemporary) {

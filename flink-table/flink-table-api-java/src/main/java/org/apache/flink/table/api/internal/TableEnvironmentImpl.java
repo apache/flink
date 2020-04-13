@@ -92,10 +92,12 @@ import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -626,6 +628,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof CreateTableOperation ||
 				operation instanceof DropTableOperation ||
 				operation instanceof AlterTableOperation ||
+				operation instanceof CreateViewOperation ||
+				operation instanceof DropViewOperation ||
 				operation instanceof CreateDatabaseOperation ||
 				operation instanceof DropDatabaseOperation ||
 				operation instanceof AlterDatabaseOperation ||
@@ -680,6 +684,33 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				throw new ValidationException(exMsg, e);
 			} catch (Exception e) {
 				throw new TableException(exMsg, e);
+			}
+		} else if (operation instanceof CreateViewOperation) {
+			CreateViewOperation createViewOperation = (CreateViewOperation) operation;
+			if (createViewOperation.isTemporary()) {
+				catalogManager.createTemporaryTable(
+						createViewOperation.getCatalogView(),
+						createViewOperation.getViewIdentifier(),
+						createViewOperation.isIgnoreIfExists());
+			} else {
+				catalogManager.createTable(
+						createViewOperation.getCatalogView(),
+						createViewOperation.getViewIdentifier(),
+						createViewOperation.isIgnoreIfExists());
+			}
+		} else if (operation instanceof DropViewOperation) {
+			DropViewOperation dropViewOperation = (DropViewOperation) operation;
+			if (dropViewOperation.isTemporary()) {
+				boolean dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier());
+				if (!dropped && !dropViewOperation.isIfExists()) {
+					throw new ValidationException(String.format(
+							"Temporary views with identifier %s doesn't exist",
+							dropViewOperation.getViewIdentifier().asSummaryString()));
+				}
+			} else {
+				catalogManager.dropTable(
+						dropViewOperation.getViewIdentifier(),
+						dropViewOperation.isIfExists());
 			}
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;

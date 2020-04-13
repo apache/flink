@@ -135,4 +135,8 @@ public class SqlCreateView extends SqlCreate {
 	public boolean isIfNotExists() {
 		return ifNotExists;
 	}
+
+	public String[] fullViewName() {
+		return viewName.names.toArray(new String[0]);
+	}
 }
