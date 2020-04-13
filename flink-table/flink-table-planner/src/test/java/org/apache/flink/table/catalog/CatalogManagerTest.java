@@ -102,7 +102,7 @@ public class CatalogManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testReplaceTemporaryTable() throws Exception {
+	public void testIgnoreTemporaryTableExists() throws Exception {
 		ObjectIdentifier tempIdentifier = ObjectIdentifier.of(
 			BUILTIN_CATALOG_NAME,
 			BUILTIN_DEFAULT_DATABASE_NAME,
@@ -110,11 +110,12 @@ public class CatalogManagerTest extends TestLogger {
 		CatalogManager manager = root()
 			.builtin(
 				database(BUILTIN_DEFAULT_DATABASE_NAME))
-			.temporaryTable(tempIdentifier)
 			.build();
 
 		CatalogTest.TestTable table = new CatalogTest.TestTable();
 		manager.createTemporaryTable(table, tempIdentifier, true);
+		CatalogTest.TestTable anotherTable = new CatalogTest.TestTable();
+		manager.createTemporaryTable(anotherTable, tempIdentifier, true);
 		assertThat(manager.getTable(tempIdentifier).get().isTemporary(), equalTo(true));
 		assertThat(manager.getTable(tempIdentifier).get().getTable(), equalTo(table));
 	}

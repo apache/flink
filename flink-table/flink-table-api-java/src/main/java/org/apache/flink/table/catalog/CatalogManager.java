@@ -529,16 +529,18 @@ public final class CatalogManager {
 	 *
 	 * @param table The table to put in the given path.
 	 * @param objectIdentifier The fully qualified path where to put the table.
-	 * @param replace controls what happens if a table exists in the given path,
-	 *                if true the table is replaced, an exception will be thrown otherwise
+	 * @param ignoreIfExists if false exception will be thrown if a table exists in the given path.
 	 */
 	public void createTemporaryTable(
 			CatalogBaseTable table,
 			ObjectIdentifier objectIdentifier,
-			boolean replace) {
+			boolean ignoreIfExists) {
 		temporaryTables.compute(objectIdentifier, (k, v) -> {
-			if (v != null && !replace) {
-				throw new ValidationException(String.format("Temporary table %s already exists", objectIdentifier));
+			if (v != null) {
+				if (!ignoreIfExists) {
+					throw new ValidationException(String.format("Temporary table %s already exists", objectIdentifier));
+				}
+				return v;
 			} else {
 				return table;
 			}

@@ -387,10 +387,11 @@ abstract class TableEnvImpl(
             tableSource,
             table.getTableSink.get,
             isBatchTable)
+          catalogManager.dropTemporaryTable(objectIdentifier)
           catalogManager.createTemporaryTable(
             sourceAndSink,
             objectIdentifier,
-            true)
+            false)
         }
 
       // no table is registered
@@ -421,10 +422,11 @@ abstract class TableEnvImpl(
             table.getTableSource.get,
             tableSink,
             isBatchTable)
+          catalogManager.dropTemporaryTable(objectIdentifier)
           catalogManager.createTemporaryTable(
             sourceAndSink,
             objectIdentifier,
-            true)
+            false)
         }
 
       // no table is registered
