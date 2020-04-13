@@ -61,8 +61,9 @@ public class SlotManagerConfiguration {
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
 		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
-		this.slotMatchingStrategy = slotMatchingStrategy;
-		this.defaultWorkerResourceSpec = defaultWorkerResourceSpec;
+		this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
+		this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
+		Preconditions.checkState(numSlotsPerWorker > 0);
 		this.numSlotsPerWorker = numSlotsPerWorker;
 	}
 
