@@ -24,12 +24,12 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.table.planner.operations.SqlConversionException
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.types.Row
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.hamcrest.Matchers.containsString
@@ -72,7 +72,7 @@ class TableEnvironmentTest {
     // register on a conflict name
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "Temporary table `default_catalog`.`default_database`.`MyTable` already exists")
+      "Temporary table '`default_catalog`.`default_database`.`MyTable`' already exists")
     tableEnv.createTemporaryView("MyTable", env.fromElements[(Int, Long)]())
   }
 
@@ -269,6 +269,378 @@ class TableEnvironmentTest {
     tableEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
     // TODO supports select later
     tableEnv.executeSql("select * from MyTable")
+  }
+
+  @Test
+  def testExecuteSqlWithCreateDropView(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    val viewResult1 = tableEnv.executeSql("CREATE VIEW IF NOT EXISTS v1 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, viewResult1.getResultKind)
+    assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.v1")))
+
+    val viewResult2 = tableEnv.executeSql("DROP VIEW IF EXISTS v1")
+    assertEquals(ResultKind.SUCCESS, viewResult2.getResultKind)
+    assertFalse(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.v1")))
+  }
+
+  @Test
+  def testExecuteSqlWithCreateDropTemporaryView(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    val viewResult1 = tableEnv.executeSql(
+      "CREATE TEMPORARY VIEW IF NOT EXISTS v1 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, viewResult1.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1", "v1")))
+
+    val viewResult2 = tableEnv.executeSql("DROP TEMPORARY VIEW IF EXISTS v1")
+    assertEquals(ResultKind.SUCCESS, viewResult2.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+  }
+
+  @Test
+  def testCreateViewWithWrongFieldList(): Unit = {
+    thrown.expect(classOf[SqlConversionException])
+    thrown.expectMessage("VIEW definition and input fields not match:\n" +
+      "\tDef fields: [d].\n" +
+      "\tInput fields: [a, b, c].")
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T3(d) AS SELECT * FROM T1
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(viewDDL)
+  }
+
+  @Test
+  def testCreateViewTwice(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "Could not execute CreateTable in path `default_catalog`.`default_database`.`T3`")
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewWith3ColumnDDL =
+      """
+        |CREATE VIEW T3(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    val viewWith2ColumnDDL =
+      """
+        |CREATE VIEW T3(d, e) AS SELECT a, b FROM T1
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(viewWith3ColumnDDL)
+    tableEnv.executeSql(viewWith2ColumnDDL) // fail the case
+  }
+
+  @Test
+  def testDropViewWithFullPath(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val view1DDL =
+      """
+        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    val view2DDL =
+      """
+        |CREATE VIEW T3(x, y, z) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(view1DDL)
+    tableEnv.executeSql(view2DDL)
+
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
+
+    tableEnv.sqlUpdate("DROP VIEW default_catalog.default_database.T2")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
+
+    tableEnv.sqlUpdate("DROP VIEW default_catalog.default_database.T3")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+  }
+
+  @Test
+  def testDropViewWithPartialPath(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val view1DDL =
+      """
+        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    val view2DDL =
+      """
+        |CREATE VIEW T3(x, y, z) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(view1DDL)
+    tableEnv.executeSql(view2DDL)
+
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
+
+    tableEnv.executeSql("DROP VIEW T2")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
+
+    tableEnv.executeSql("DROP VIEW default_database.T3")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+  }
+
+  @Test
+  def testDropViewIfExistsTwice(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+
+    tableEnv.executeSql("DROP VIEW IF EXISTS default_catalog.default_database.T2")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+
+    tableEnv.executeSql("DROP VIEW IF EXISTS default_catalog.default_database.T2")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDropViewTwice(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+
+    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+
+    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDropViewWithInvalidPath(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    // failed since 'default_catalog1.default_database1.T2' is invalid path
+    tableEnv.executeSql("DROP VIEW default_catalog1.default_database1.T2")
+  }
+
+  @Test
+  def testDropViewWithInvalidPathIfExists(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    tableEnv.executeSql("DROP VIEW IF EXISTS default_catalog1.default_database1.T2")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+  }
+
+  @Test
+  def testDropTemporaryViewIfExistsTwice(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE TEMPORARY VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+
+    assert(tableEnv.listTemporaryViews().sameElements(Array[String]("T2")))
+
+    tableEnv.executeSql("DROP TEMPORARY VIEW IF EXISTS default_catalog.default_database.T2")
+    assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
+
+    tableEnv.executeSql("DROP TEMPORARY VIEW IF EXISTS default_catalog.default_database.T2")
+    assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDropTemporaryViewTwice(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE TEMPORARY VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+
+    assert(tableEnv.listTemporaryViews().sameElements(Array[String]("T2")))
+
+    tableEnv.executeSql("DROP TEMPORARY VIEW default_catalog.default_database.T2")
+    assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
+
+    // throws ValidationException since default_catalog.default_database.T2 is not exists
+    tableEnv.executeSql("DROP TEMPORARY VIEW default_catalog.default_database.T2")
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
