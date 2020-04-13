@@ -99,7 +99,8 @@ class ProcessFunctionWithCleanupStateTest extends HarnessTestBase {
 private class MockedProcessFunction[K](
     minRetentionTime: Long,
     maxRetentionTime: Long)
-    extends ProcessFunctionWithCleanupState[K, (String, String), String](minRetentionTime, maxRetentionTime) {
+    extends ProcessFunctionWithCleanupState[K, (String, String), String](
+      minRetentionTime, maxRetentionTime) {
 
   var state: ValueState[String] = _
 
