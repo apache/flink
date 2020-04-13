@@ -159,7 +159,7 @@ public class CatalogManagerTest extends TestLogger {
 				database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
+		boolean dropped = manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")));
 
 		assertThat(dropped, is(false));
 	}
@@ -173,7 +173,7 @@ public class CatalogManagerTest extends TestLogger {
 			.temporaryTable(identifier)
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
+		boolean dropped = manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")));
 
 		assertThat(dropped, is(true));
 	}

@@ -491,13 +491,15 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public boolean dropTemporaryTable(String path) {
 		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
-		return catalogManager.dropTemporaryTable(unresolvedIdentifier);
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		return catalogManager.dropTemporaryTable(identifier);
 	}
 
 	@Override
 	public boolean dropTemporaryView(String path) {
 		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
-		return catalogManager.dropTemporaryView(unresolvedIdentifier);
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		return catalogManager.dropTemporaryView(identifier);
 	}
 
 	@Override
