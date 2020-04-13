@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import os
+import sys
 import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
@@ -33,6 +34,7 @@ from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter
 from pyflink.util import utils
+from pyflink.util.utils import get_j_env_configuration, is_local_deployment
 
 __all__ = [
     'BatchTableEnvironment',
@@ -82,6 +84,10 @@ class TableEnvironment(object):
         self._dependency_manager = DependencyManager(self.get_config().get_configuration(),
                                                      self._get_j_env())
         self._dependency_manager.load_from_env(os.environ)
+        # When running in MiniCluster, launch the Python UDF worker using the Python executable
+        # specified by sys.executable if users have not specified it explicitly via configuration
+        # python.executable.
+        self._set_python_executable_for_local_executor()
 
     def from_table_source(self, table_source):
         """
@@ -1052,6 +1058,12 @@ class TableEnvironment(object):
             return Table(self._j_tenv.fromTableSource(j_table_source))
         finally:
             os.unlink(temp_file.name)
+
+    def _set_python_executable_for_local_executor(self):
+        config = self.get_config().get_configuration()
+        if not config.contains_key(DependencyManager.PYTHON_EXEC) \
+                and is_local_deployment(get_j_env_configuration(self)):
+            config.set_string(DependencyManager.PYTHON_EXEC, sys.executable)
 
     @abstractmethod
     def _get_j_env(self):

@@ -27,9 +27,9 @@ from copy import copy
 from functools import reduce
 from threading import RLock
 
-from py4j.java_gateway import JavaClass, JavaObject, get_java_class
+from py4j.java_gateway import get_java_class
 
-from pyflink.util.utils import to_jarray
+from pyflink.util.utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['DataTypes', 'UserDefinedType', 'Row']
@@ -824,7 +824,7 @@ def _from_java_interval_type(j_interval_type):
     :return: :class:`YearMonthIntervalType` or :class:`DayTimeIntervalType`.
     """
     gateway = get_gateway()
-    if _is_instance_of(j_interval_type, gateway.jvm.YearMonthIntervalType):
+    if is_instance_of(j_interval_type, gateway.jvm.YearMonthIntervalType):
         resolution = j_interval_type.getResolution()
         precision = j_interval_type.getYearPrecision()
 
@@ -1680,29 +1680,10 @@ def _to_java_type(data_type):
         raise TypeError("Not supported type: %s" % data_type)
 
 
-def _is_instance_of(java_data_type, java_class):
-    gateway = get_gateway()
-    if isinstance(java_class, str):
-        param = java_class
-    elif isinstance(java_class, JavaClass):
-        param = get_java_class(java_class)
-    elif isinstance(java_class, JavaObject):
-        if not _is_instance_of(java_class, gateway.jvm.Class):
-            param = java_class.getClass()
-        else:
-            param = java_class
-    else:
-        raise TypeError(
-            "java_class must be a string, a JavaClass, or a JavaObject")
-
-    return gateway.jvm.org.apache.flink.api.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
-        param, java_data_type)
-
-
 def _from_java_type(j_data_type):
     gateway = get_gateway()
 
-    if _is_instance_of(j_data_type, gateway.jvm.TypeInformation):
+    if is_instance_of(j_data_type, gateway.jvm.TypeInformation):
         # input is TypeInformation
         LegacyTypeInfoDataTypeConverter = \
             gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
@@ -1712,50 +1693,50 @@ def _from_java_type(j_data_type):
         java_data_type = j_data_type
 
     # Atomic Type with parameters.
-    if _is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
+    if is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
         logical_type = java_data_type.getLogicalType()
-        if _is_instance_of(logical_type, gateway.jvm.CharType):
+        if is_instance_of(logical_type, gateway.jvm.CharType):
             data_type = DataTypes.CHAR(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.VarCharType):
+        elif is_instance_of(logical_type, gateway.jvm.VarCharType):
             data_type = DataTypes.VARCHAR(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BinaryType):
+        elif is_instance_of(logical_type, gateway.jvm.BinaryType):
             data_type = DataTypes.BINARY(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.VarBinaryType):
+        elif is_instance_of(logical_type, gateway.jvm.VarBinaryType):
             data_type = DataTypes.VARBINARY(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DecimalType):
+        elif is_instance_of(logical_type, gateway.jvm.DecimalType):
             data_type = DataTypes.DECIMAL(logical_type.getPrecision(),
                                           logical_type.getScale(),
                                           logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DateType):
+        elif is_instance_of(logical_type, gateway.jvm.DateType):
             data_type = DataTypes.DATE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TimeType):
+        elif is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.TimestampType):
             data_type = DataTypes.TIMESTAMP(nullable=logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BooleanType):
+        elif is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TinyIntType):
+        elif is_instance_of(logical_type, gateway.jvm.TinyIntType):
             data_type = DataTypes.TINYINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.SmallIntType):
+        elif is_instance_of(logical_type, gateway.jvm.SmallIntType):
             data_type = DataTypes.SMALLINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.IntType):
+        elif is_instance_of(logical_type, gateway.jvm.IntType):
             data_type = DataTypes.INT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BigIntType):
+        elif is_instance_of(logical_type, gateway.jvm.BigIntType):
             data_type = DataTypes.BIGINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.FloatType):
+        elif is_instance_of(logical_type, gateway.jvm.FloatType):
             data_type = DataTypes.FLOAT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DoubleType):
+        elif is_instance_of(logical_type, gateway.jvm.DoubleType):
             data_type = DataTypes.DOUBLE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
             raise \
                 TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
                           % j_data_type)
-        elif _is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
             data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(nullable=logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
-                _is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
+        elif is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
+                is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
             data_type = _from_java_interval_type(logical_type)
-        elif _is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
+        elif is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
             type_info = logical_type.getTypeInformation()
             BasicArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.\
                 BasicArrayTypeInfo
@@ -1778,12 +1759,12 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Array Type, MultiSet Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
         logical_type = java_data_type.getLogicalType()
         element_type = java_data_type.getElementDataType()
-        if _is_instance_of(logical_type, gateway.jvm.ArrayType):
+        if is_instance_of(logical_type, gateway.jvm.ArrayType):
             data_type = DataTypes.ARRAY(_from_java_type(element_type), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.MultisetType):
+        elif is_instance_of(logical_type, gateway.jvm.MultisetType):
             data_type = DataTypes.MULTISET(_from_java_type(element_type),
                                            logical_type.isNullable())
         else:
@@ -1792,11 +1773,11 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Map Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
         logical_type = java_data_type.getLogicalType()
         key_type = java_data_type.getKeyDataType()
         value_type = java_data_type.getValueDataType()
-        if _is_instance_of(logical_type, gateway.jvm.MapType):
+        if is_instance_of(logical_type, gateway.jvm.MapType):
             data_type = DataTypes.MAP(
                 _from_java_type(key_type),
                 _from_java_type(value_type),
@@ -1807,10 +1788,10 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Row Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
         logical_type = java_data_type.getLogicalType()
         field_data_types = java_data_type.getFieldDataTypes()
-        if _is_instance_of(logical_type, gateway.jvm.RowType):
+        if is_instance_of(logical_type, gateway.jvm.RowType):
             fields = [DataTypes.FIELD(name, _from_java_type(field_data_types[name]))
                       for name in logical_type.getFieldNames()]
             data_type = DataTypes.ROW(fields, logical_type.isNullable())
