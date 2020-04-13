@@ -74,74 +74,6 @@ final class FlinkDistribution {
 
 	private final Configuration defaultConfig;
 
-<<<<<<< HEAD:flink-end-to-end-tests/flink-end-to-end-tests-common/src/main/java/org/apache/flink/tests/util/FlinkDistribution.java
-	private final Path originalFlinkDir;
-	private String slaves;
-	private String user;
-	private String passwd;
-	private Path flinkDir;
-	private int port;
-	private Path opt;
-	private Path lib;
-	private Path conf;
-	private Path log;
-	private Path bin;
-
-	private Configuration defaultConfig;
-
-	public FlinkDistribution() {
-		final String distDirProperty = System.getProperty("distDir");
-		if (distDirProperty == null) {
-			Assert.fail("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
-		}
-		final String backupDirProperty = System.getProperty("logBackupDir");
-		logBackupDir = backupDirProperty == null ? null : Paths.get(backupDirProperty);
-		originalFlinkDir = Paths.get(distDirProperty);
-		slaves = System.getProperty("slaveIps");
-		final String flinkDirProperty = System.getProperty("flinkDir");
-		if (slaves == null) {
-			LOG.info("The slaveIps property was not set. cluster can start in local");
-		} else {
-			LOG.info("The slaveIps property was set. cluster can start in machines: " + slaves);
-		}
-		final String portProperty = System.getProperty("port");
-		if (portProperty == null) {
-			port = 2020;
-		} else {
-			port = Integer.valueOf(portProperty);
-		}
-		if (flinkDirProperty == null) {
-			LOG.info("The flinkDir property was not set. You can set it when running maven via -DflinkDir=<path> .");
-		} else {
-			flinkDir = Paths.get(flinkDirProperty);
-		}
-		user = System.getProperty("user");
-		passwd = System.getProperty("passwd");
-		if (slaves != null) {
-			if (user == null || passwd == null){
-				Assert.fail("The user or passed property were not set. " +
-					"You can set it when running maven via -Duser=<user>, -Dpassed=<passwd> .");
-			}
-		}
-
-	}
-
-	@Override
-	public void before() throws IOException {
-		if (flinkDir == null) {
-			temporaryFolder.create();
-			flinkDir = temporaryFolder.newFolder().toPath();
-		}
-		LOG.info("Copying distribution to {}.", flinkDir);
-		TestUtils.copyDirectory(originalFlinkDir, flinkDir);
-
-		bin = flinkDir.resolve("bin");
-		opt = flinkDir.resolve("opt");
-		lib = flinkDir.resolve("lib");
-		conf = flinkDir.resolve("conf");
-		log = flinkDir.resolve("log");
-		updateSlaves(slaves);
-=======
 	FlinkDistribution(Path distributionDir) {
 		bin = distributionDir.resolve("bin");
 		opt = distributionDir.resolve("opt");
@@ -149,13 +81,7 @@ final class FlinkDistribution {
 		conf = distributionDir.resolve("conf");
 		log = distributionDir.resolve("log");
 
->>>>>>> upstream/master:flink-end-to-end-tests/flink-end-to-end-tests-common/src/main/java/org/apache/flink/tests/util/flink/FlinkDistribution.java
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
-		appendConfiguration(defaultConfig);
-		if (slaves != null){
-			TestUtils.remoteCopyDirectory(flinkDir.toAbsolutePath().toString(),
-				flinkDir.toAbsolutePath().toString(), slaves, port, user, passwd);
-		}
 	}
 
 	public void startJobManager() throws IOException {
@@ -168,41 +94,34 @@ final class FlinkDistribution {
 		AutoClosableProcess.runBlocking(bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
 	}
 
-	public Boolean checkTaskManagerNum(int numTaskManagers) throws IOException {
+	public void startFlinkCluster() throws IOException {
+		LOG.info("Starting Flink cluster.");
+		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
+
 		final OkHttpClient client = new OkHttpClient();
+
 		final Request request = new Request.Builder()
 			.get()
 			.url("http://localhost:8081/taskmanagers")
 			.build();
-		Exception reportedException = null;
-		try (Response response = client.newCall(request).execute()) {
-			if (response.isSuccessful()) {
-				final String json = response.body().string();
-				final JsonNode taskManagerList = OBJECT_MAPPER.readTree(json)
-					.get("taskmanagers");
-				if (numTaskManagers == 0 && taskManagerList != null && taskManagerList.size() > 0) {
-					LOG.info("Dispatcher REST endpoint is up.");
-					return true;
-				}
-				if (taskManagerList != null && taskManagerList.size() == numTaskManagers) {
-					LOG.info("Dispatcher REST endpoint is up.");
-					return true;
-				}
-			}
-		} catch (IOException ioe) {
-			reportedException = ExceptionUtils.firstOrSuppressed(ioe, reportedException);
-		}
-		return false;
-	}
 
-	public void startFlinkCluster(int numTaskManagers) throws IOException {
-		LOG.info("Starting Flink cluster.");
-		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
 		Exception reportedException = null;
 		for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
-			if (checkTaskManagerNum(numTaskManagers)){
-				return;
+			try (Response response = client.newCall(request).execute()) {
+				if (response.isSuccessful()) {
+					final String json = response.body().string();
+					final JsonNode taskManagerList = OBJECT_MAPPER.readTree(json)
+						.get("taskmanagers");
+
+					if (taskManagerList != null && taskManagerList.size() > 0) {
+						LOG.info("Dispatcher REST endpoint is up.");
+						return;
+					}
+				}
+			} catch (IOException ioe) {
+				reportedException = ExceptionUtils.firstOrSuppressed(ioe, reportedException);
 			}
+
 			LOG.info("Waiting for dispatcher REST endpoint to come up...");
 			try {
 				Thread.sleep(1000);
@@ -212,10 +131,6 @@ final class FlinkDistribution {
 			}
 		}
 		throw new AssertionError("Dispatcher REST endpoint did not start in time.", reportedException);
-	}
-
-	public void startFlinkCluster() throws IOException {
-		startFlinkCluster(0);
 	}
 
 	public void stopFlinkCluster() throws IOException {
@@ -304,7 +219,7 @@ final class FlinkDistribution {
 		if (jarOptional.isPresent()) {
 			final Path sourceJar = jarOptional.get();
 			final Path targetJar = target.resolve(sourceJar.getFileName());
-			Files.move(sourceJar, targetJar);
+			Files.copy(sourceJar, targetJar);
 		} else {
 			throw new FileNotFoundException("No jar could be found matching the pattern " + move.getJarNamePrefix() + ".");
 		}
@@ -333,21 +248,17 @@ final class FlinkDistribution {
 		Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
 	}
 
-<<<<<<< HEAD:flink-end-to-end-tests/flink-end-to-end-tests-common/src/main/java/org/apache/flink/tests/util/FlinkDistribution.java
-	public void updateSlaves(String slaves) throws IOException {
-		List<String> slaveLines = new ArrayList<>();
-		for (String slave:slaves.split(",")){
-			slaveLines.add(slave);
-		}
-		Files.write(conf.resolve("slaves"), slaveLines);
-=======
+	public void setJobMasterHosts(Collection<String> jobMasterHosts) throws IOException {
+		Files.write(conf.resolve("masters"), jobMasterHosts);
+	}
+
 	public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {
 		Files.write(conf.resolve("slaves"), taskExecutorHosts);
->>>>>>> upstream/master:flink-end-to-end-tests/flink-end-to-end-tests-common/src/main/java/org/apache/flink/tests/util/flink/FlinkDistribution.java
 	}
 
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
 		final List<String> matches = new ArrayList<>(2);
+
 		try (Stream<Path> logFilesStream = Files.list(log)) {
 			final Iterator<Path> logFiles = logFilesStream.iterator();
 			while (logFiles.hasNext()) {
@@ -370,18 +281,8 @@ final class FlinkDistribution {
 		return matches.stream();
 	}
 
-<<<<<<< HEAD:flink-end-to-end-tests/flink-end-to-end-tests-common/src/main/java/org/apache/flink/tests/util/FlinkDistribution.java
-	public Stream<String> searchAllLogs(
-		Pattern pattern, Function<Matcher, String> matchProcessor, String slaves) throws IOException {
-		if (slaves != null) {
-			TestUtils.remoteGetDirectory(log.toAbsolutePath().toString(),
-				log.toAbsolutePath().toString(), slaves, port, user, passwd);
-		}
-		return searchAllLogs(pattern, matchProcessor);
-=======
 	public void copyLogsTo(Path targetDirectory) throws IOException {
 		Files.createDirectories(targetDirectory);
 		TestUtils.copyDirectory(log, targetDirectory);
->>>>>>> upstream/master:flink-end-to-end-tests/flink-end-to-end-tests-common/src/main/java/org/apache/flink/tests/util/flink/FlinkDistribution.java
 	}
 }

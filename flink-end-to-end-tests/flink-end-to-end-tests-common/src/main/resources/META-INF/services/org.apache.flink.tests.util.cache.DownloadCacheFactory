@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.tests.util.cache.PersistingDownloadCacheFactory
-org.apache.flink.tests.util.cache.TravisDownloadCacheFactory
+org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory
+org.apache.flink.tests.util.flink.DistributedStandaloneFlinkResourceFactory

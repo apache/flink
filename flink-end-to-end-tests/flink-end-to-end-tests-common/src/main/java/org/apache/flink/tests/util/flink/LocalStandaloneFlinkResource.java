@@ -18,9 +18,7 @@
 
 package org.apache.flink.tests.util.flink;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
@@ -39,7 +37,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -48,6 +46,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -65,9 +65,9 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	private FlinkDistribution distribution;
 
-	LocalStandaloneFlinkResource(Path distributionDirectory, @Nullable Path logBackupDirectory, FlinkResourceSetup setup) {
+	LocalStandaloneFlinkResource(Path distributionDirectory, Optional<Path> logBackupDirectory, FlinkResourceSetup setup) {
 		this.distributionDirectory = distributionDirectory;
-		this.logBackupDirectory = logBackupDirectory;
+		this.logBackupDirectory = logBackupDirectory.orElse(null);
 		this.setup = setup;
 	}
 
@@ -97,7 +97,15 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 	public void afterTestFailure() {
 		if (distribution != null) {
 			shutdownCluster();
-			backupLogs();
+			if (logBackupDirectory != null) {
+				final Path targetDirectory = logBackupDirectory.resolve(UUID.randomUUID().toString());
+				try {
+					distribution.copyLogsTo(targetDirectory);
+					LOG.info("Backed up logs to {}.", targetDirectory);
+				} catch (IOException e) {
+					LOG.warn("An error has occurred while backing up logs to {}.", targetDirectory, e);
+				}
+			}
 		}
 		temporaryFolder.delete();
 	}
@@ -110,21 +118,9 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 		}
 	}
 
-	private void backupLogs() {
-		if (logBackupDirectory != null) {
-			final Path targetDirectory = logBackupDirectory.resolve(UUID.randomUUID().toString());
-			try {
-				distribution.copyLogsTo(targetDirectory);
-				LOG.info("Backed up logs to {}.", targetDirectory);
-			} catch (IOException e) {
-				LOG.warn("An error has occurred while backing up logs to {}.", targetDirectory, e);
-			}
-		}
-	}
-
 	@Override
 	public ClusterController startCluster(int numTaskManagers) throws IOException {
-		distribution.setTaskExecutorHosts(Collections.nCopies(numTaskManagers, "localhost"));
+		distribution.setTaskExecutorHosts(IntStream.range(0, numTaskManagers).mapToObj(i -> "localhost").collect(Collectors.toList()));
 		distribution.startFlinkCluster();
 
 		try (final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor())) {
@@ -168,57 +164,8 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 		throw new RuntimeException("Cluster did not start in expected time-frame.");
 	}
 
-<<<<<<< HEAD
-	/**
-	* StandaloneClusterController.
-	*/
-	public static class StandaloneClusterController implements ClusterController {
-=======
 	@Override
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
 		return distribution.searchAllLogs(pattern, matchProcessor);
-	}
-
-	private static class StandaloneClusterController implements ClusterController {
->>>>>>> upstream/master
-
-		private final FlinkDistribution distribution;
-
-		StandaloneClusterController(FlinkDistribution distribution) {
-			this.distribution = distribution;
-		}
-
-		@Override
-		public JobController submitJob(JobSubmission job) throws IOException {
-			final JobID run = distribution.submitJob(job);
-
-			return new StandaloneJobController(run);
-		}
-
-		@Override
-		public void submitSQLJob(SQLJobSubmission job) throws IOException {
-			distribution.submitSQLJob(job);
-		}
-
-		@Override
-		public CompletableFuture<Void> closeAsync() {
-			try {
-				distribution.stopFlinkCluster();
-				return CompletableFuture.completedFuture(null);
-			} catch (IOException e) {
-				return FutureUtils.getFailedFuture(e);
-			}
-		}
-	}
-
-	/**
-	 * StandaloneJobController.
-	 */
-	public static class StandaloneJobController implements JobController {
-		private final JobID jobId;
-
-		StandaloneJobController(JobID jobId) {
-			this.jobId = jobId;
-		}
 	}
 }

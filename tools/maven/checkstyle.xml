@@ -82,7 +82,7 @@ This file is based on the checkstyle file of Apache Beam.
   </module>
 
   <!-- All Java AST specific tests live under TreeWalker module. -->
-  <module name="TreeWalker">
+ <module name="TreeWalker"> 
 
     <!-- Allow use of comment to suppress javadocstyle -->
     <module name="SuppressionCommentFilter">
