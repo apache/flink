@@ -782,7 +782,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						tableSource,
 						sourceSinkTable.getTableSink().get(),
 						!IS_STREAM_TABLE);
-					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, true);
+					catalogManager.dropTemporaryTable(objectIdentifier);
+					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, false);
 				}
 			} else {
 				throw new ValidationException(String.format(
@@ -808,7 +809,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					// wrapper contains only sink (not source)
 					ConnectorCatalogTable sourceAndSink = ConnectorCatalogTable
 						.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, !IS_STREAM_TABLE);
-					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, true);
+					catalogManager.dropTemporaryTable(objectIdentifier);
+					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, false);
 				}
 			} else {
 				throw new ValidationException(String.format(
