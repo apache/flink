@@ -57,12 +57,10 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
-import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
 import org.junit.Before;
@@ -382,15 +380,10 @@ public class SqlToOperationConverterTest {
 		Operation operation = parse(sql, planner, parser);
 		assert operation instanceof CatalogSinkModifyOperation;
 		CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation) operation;
-		//noinspection unchecked
-		List<RelHint> hints = (List<RelHint>) sinkModifyOperation.getTableHints();
-		assertNotNull(hints);
-		assertThat(hints.size(), is(1));
-		RelHint expected = RelHint.builder(FlinkHints.HINT_NAME_OPTIONS)
-				.hintOption("k1", "v1")
-				.hintOption("k2", "v2")
-				.build();
-		assertThat(hints.get(0), is(expected));
+		Map<String, String> dynamicOptions = sinkModifyOperation.getDynamicOptions();
+		assertNotNull(dynamicOptions);
+		assertThat(dynamicOptions.size(), is(2));
+		assertThat(dynamicOptions.toString(), is("{k1=v1, k2=v2}"));
 	}
 
 	@Test

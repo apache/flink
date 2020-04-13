@@ -336,7 +336,7 @@ public class SqlToOperationConverter {
 			query,
 			insert.getStaticPartitionKVs(),
 			insert.isOverwrite(),
-			Collections.emptyList());
+			Collections.emptyMap());
 	}
 
 	/** Convert use catalog statement. */

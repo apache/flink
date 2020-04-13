@@ -25,7 +25,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * This class holds {@link org.apache.flink.configuration.ConfigOption}s used by
- * Flink's BLINK table planner.
+ * table planner.
  *
  * <p>NOTE: All option keys in this class must start with "table".
  */

@@ -71,6 +71,7 @@ import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.StringUtils;
@@ -352,6 +353,7 @@ public class SqlToOperationConverter {
 				.getSqlToRelConverterConfig()
 				.getHintStrategyTable();
 		List<RelHint> tableHints = SqlUtil.getRelHint(hintStrategyTable, insert.getTableHints());
+		Map<String, String> dynamicOptions = FlinkHints.getHintedOptions(tableHints);
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -368,7 +370,7 @@ public class SqlToOperationConverter {
 			query,
 			insert.getStaticPartitionKVs(),
 			insert.isOverwrite(),
-			tableHints);
+			dynamicOptions);
 	}
 
 	/** Convert use catalog statement. */
