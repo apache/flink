@@ -18,6 +18,8 @@
 
 from datetime import timedelta
 
+from py4j.java_gateway import JavaClass, get_java_class, JavaObject
+
 from pyflink.java_gateway import get_gateway
 
 
@@ -57,3 +59,48 @@ def load_java_class(class_name):
     gateway = get_gateway()
     context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
     return context_classloader.loadClass(class_name)
+
+
+def is_instance_of(java_object, java_class):
+    gateway = get_gateway()
+    if isinstance(java_class, str):
+        param = java_class
+    elif isinstance(java_class, JavaClass):
+        param = get_java_class(java_class)
+    elif isinstance(java_class, JavaObject):
+        if not is_instance_of(java_class, gateway.jvm.Class):
+            param = java_class.getClass()
+        else:
+            param = java_class
+    else:
+        raise TypeError(
+            "java_class must be a string, a JavaClass, or a JavaObject")
+
+    return gateway.jvm.org.apache.flink.api.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
+        param, java_object)
+
+
+def get_j_env_configuration(t_env):
+    if is_instance_of(t_env._get_j_env(), "org.apache.flink.api.java.ExecutionEnvironment"):
+        j_configuration = t_env._get_j_env().getConfiguration()
+    else:
+        env_clazz = load_java_class(
+            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+        method = env_clazz.getDeclaredMethod(
+            "getConfiguration", to_jarray(get_gateway().jvm.Class, []))
+        method.setAccessible(True)
+        j_configuration = method.invoke(t_env._get_j_env(), to_jarray(get_gateway().jvm.Object, []))
+    return j_configuration
+
+
+def is_local_executor(j_env, j_configuration):
+    if is_instance_of(j_env, "org.apache.flink.api.java.ExecutionEnvironment"):
+        j_executor_service_loader = j_env.getExecutorServiceLoader()
+    else:
+        env_clazz = load_java_class(
+            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+        field = env_clazz.getDeclaredField("executorServiceLoader")
+        field.setAccessible(True)
+        j_executor_service_loader = field.get(j_env)
+    return j_executor_service_loader.getExecutorFactory(j_configuration).getClass().getName() \
+        == "org.apache.flink.client.deployment.executors.LocalExecutorFactory"

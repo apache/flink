@@ -16,6 +16,9 @@
 # # limitations under the License.
 ################################################################################
 import os
+import sys
+
+from pyflink.java_gateway import get_gateway
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
@@ -28,6 +31,7 @@ from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
     PyFlinkBlinkBatchTableTestCase
 from pyflink.util.exceptions import TableException
+from pyflink.util.utils import get_j_env_configuration
 
 
 class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
@@ -316,6 +320,12 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
 
+    def test_set_sys_executable_for_local_mode(self):
+        jvm = get_gateway().jvm
+        actual_executable = get_j_env_configuration(self.t_env) \
+            .getString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), None)
+        self.assertEqual(sys.executable, actual_executable)
+
 
 class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
@@ -439,6 +449,12 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
                         line = f.readline()
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
+
+    def test_set_sys_executable_for_local_mode(self):
+        jvm = get_gateway().jvm
+        actual_executable = get_j_env_configuration(self.t_env) \
+            .getString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), None)
+        self.assertEqual(sys.executable, actual_executable)
 
 
 class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):

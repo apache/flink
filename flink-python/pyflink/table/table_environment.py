@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import os
+import sys
 import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
@@ -33,6 +34,7 @@ from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter
 from pyflink.util import utils
+from pyflink.util.utils import get_j_env_configuration, is_local_executor
 
 __all__ = [
     'BatchTableEnvironment',
@@ -79,6 +81,8 @@ class TableEnvironment(object):
         self._j_tenv = j_tenv
         self._is_blink_planner = TableEnvironment._judge_blink_planner(j_tenv)
         self._serializer = serializer
+        # for local executor, use current sys.executable to launch UDF worker.
+        self._set_python_executable_for_local_executor()
 
     @staticmethod
     def _judge_blink_planner(j_tenv):
@@ -1081,6 +1085,13 @@ class TableEnvironment(object):
             return Table(self._j_tenv.fromTableSource(j_table_source))
         finally:
             os.unlink(temp_file.name)
+
+    def _set_python_executable_for_local_executor(self):
+        jvm = get_gateway().jvm
+        j_config = get_j_env_configuration(self)
+        if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
+                and is_local_executor(self._get_j_env(), j_config):
+            j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
 
     @abstractmethod
     def _get_j_env(self):
