@@ -45,7 +45,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         2,
         minMaxAggregationStateType,
         minMaxCRowType,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -146,7 +147,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         4000,
         minMaxAggregationStateType,
         minMaxCRowType,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -272,7 +274,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
       new ProcTimeUnboundedOver[String](
         genMinMaxAggFunction,
         minMaxAggregationStateType,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -368,7 +371,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxCRowType,
         4000,
         0,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -519,7 +523,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxCRowType,
         3,
         0,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -667,7 +672,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -804,7 +810,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(

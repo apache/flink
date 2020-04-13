@@ -38,12 +38,13 @@ import org.apache.flink.util.Collector
   * @param aggregationStateType The row type info of aggregation
   */
 class GroupTableAggProcessFunction[K](
-    private val genTableAggregations: GeneratedTableAggregationsFunction,
-    private val aggregationStateType: RowTypeInfo,
-    private val generateRetraction: Boolean,
-    private val groupKeySize: Int,
-    private val config: TableConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](config)
+    genTableAggregations: GeneratedTableAggregationsFunction,
+    aggregationStateType: RowTypeInfo,
+    generateRetraction: Boolean,
+    groupKeySize: Int,
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedTableAggregations]
     with Logging {
 

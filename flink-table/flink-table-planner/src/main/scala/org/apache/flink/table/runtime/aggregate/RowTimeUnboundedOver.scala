@@ -46,8 +46,9 @@ abstract class RowTimeUnboundedOver[K](
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
-    config: TableConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](config)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -258,13 +259,15 @@ class RowTimeUnboundedRowsOver[K](
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
-    config: TableConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends RowTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
     rowTimeIdx,
-    config) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],
@@ -299,13 +302,15 @@ class RowTimeUnboundedRangeOver[K](
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
-    config: TableConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends RowTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
     rowTimeIdx,
-    config) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],

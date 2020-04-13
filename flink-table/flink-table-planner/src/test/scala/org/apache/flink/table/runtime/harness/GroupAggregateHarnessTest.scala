@@ -51,7 +51,8 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         false,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -110,7 +111,8 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         true,
-        config))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(

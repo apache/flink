@@ -45,8 +45,9 @@ class ProcTimeBoundedRowsOver[K](
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
     inputType: TypeInformation[CRow],
-    config: TableConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](config)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedAggregations]
     with Logging {
 

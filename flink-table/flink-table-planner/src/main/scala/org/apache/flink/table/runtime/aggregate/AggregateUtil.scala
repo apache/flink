@@ -138,7 +138,8 @@ object AggregateUtil {
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
           rowTimeIdx.get,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       } else {
         // RANGE unbounded over process function
         new RowTimeUnboundedRangeOver[K](
@@ -146,13 +147,15 @@ object AggregateUtil {
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
           rowTimeIdx.get,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       }
     } else {
       new ProcTimeUnboundedOver[K](
         genFunction,
         aggregationStateType,
-        config)
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime)
     }
   }
 
@@ -231,7 +234,8 @@ object AggregateUtil {
         aggregationStateType,
         generateRetraction,
         groupings.length,
-        config)
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime)
     } else {
       val genAggregations = generator
         .genAggregationsOrTableAggregations(outputType, groupings.length, namedAggregates, false)
@@ -239,7 +243,8 @@ object AggregateUtil {
         genAggregations,
         aggregationStateType,
         generateRetraction,
-        config)
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime)
     }
   }
 
@@ -326,7 +331,8 @@ object AggregateUtil {
           inputRowType,
           precedingOffset,
           rowTimeIdx.get,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       } else {
         new RowTimeBoundedRangeOver[K](
           genFunction,
@@ -334,7 +340,8 @@ object AggregateUtil {
           inputRowType,
           precedingOffset,
           rowTimeIdx.get,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       }
     } else {
       if (isRowsClause) {
@@ -343,14 +350,16 @@ object AggregateUtil {
           precedingOffset,
           aggregationStateType,
           inputRowType,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       } else {
         new ProcTimeBoundedRangeOver[K](
           genFunction,
           precedingOffset,
           aggregationStateType,
           inputRowType,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       }
     }
   }

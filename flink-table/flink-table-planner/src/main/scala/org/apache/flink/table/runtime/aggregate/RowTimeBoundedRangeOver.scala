@@ -46,8 +46,9 @@ class RowTimeBoundedRangeOver[K](
     inputRowType: CRowTypeInfo,
     precedingOffset: Long,
     rowTimeIdx: Int,
-    config: TableConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](config)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedAggregations]
     with Logging {
   Preconditions.checkNotNull(aggregationStateType)

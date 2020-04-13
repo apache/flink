@@ -37,8 +37,9 @@ import org.apache.flink.util.Collector
 class ProcTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
-    config: TableConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](config)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedAggregations]
     with Logging {
 
