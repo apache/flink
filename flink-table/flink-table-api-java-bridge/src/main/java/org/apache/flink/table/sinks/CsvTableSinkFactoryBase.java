@@ -45,8 +45,8 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.FileSystemValidator.NUM_FILE;
-import static org.apache.flink.table.descriptors.FileSystemValidator.WRITE_MODE;
 import static org.apache.flink.table.descriptors.FileSystemValidator.OVERWRITE;
+import static org.apache.flink.table.descriptors.FileSystemValidator.WRITE_MODE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
