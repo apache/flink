@@ -426,7 +426,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @param classLoader   a class loader to use when loading classes
    */
   @PublicEvolving
-  def configure(configuration: ReadableConfig, classLoader: ClassLoader): Unit = {
+  def configure(configuration: Configuration, classLoader: ClassLoader): Unit = {
     javaEnv.configure(configuration, classLoader)
   }
 

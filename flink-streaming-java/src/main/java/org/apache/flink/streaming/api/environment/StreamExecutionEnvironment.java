@@ -742,7 +742,7 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * Sets all relevant options contained in the {@link Configuration} such as e.g.
 	 * {@link StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure
 	 * {@link StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
 	 *
@@ -750,11 +750,14 @@ public class StreamExecutionEnvironment {
 	 * {@code configuration}. If a key is not present, the current value of a field will remain
 	 * untouched.
 	 *
+	 * <p>the {@code configuration} will be also merged into {@link StreamExecutionEnvironment#configuration},
+	 * which will be used to generate job graph and create cluster to run the job graph.
+	 *
 	 * @param configuration a configuration to read the values from
 	 * @param classLoader a class loader to use when loading classes
 	 */
 	@PublicEvolving
-	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+	public void configure(Configuration configuration, ClassLoader classLoader) {
 		configuration.getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
 			.ifPresent(this::setStreamTimeCharacteristic);
 		Optional.ofNullable(loadStateBackend(configuration, classLoader))
@@ -772,6 +775,8 @@ public class StreamExecutionEnvironment {
 			});
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
+
+		this.configuration.addAll(configuration);
 	}
 
 	private void registerCustomListeners(final ClassLoader classLoader, final List<String> listeners) {

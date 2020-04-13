@@ -29,7 +29,7 @@ import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
-import org.apache.flink.configuration.{Configuration, ReadableConfig}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.execution.{JobClient, JobListener, PipelineExecutor}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
@@ -193,7 +193,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
+   * Sets all relevant options contained in the [[Configuration]] such as e.g.
    * [[org.apache.flink.configuration.PipelineOptions#CACHED_FILES]]. It will reconfigure
    * [[ExecutionEnvironment]] and [[ExecutionConfig]].
    *
@@ -205,7 +205,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param classLoader   a class loader to use when loading classes
    */
   @PublicEvolving
-  def configure(configuration: ReadableConfig, classLoader: ClassLoader): Unit = {
+  def configure(configuration: Configuration, classLoader: ClassLoader): Unit = {
     javaEnv.configure(configuration, classLoader)
   }
 

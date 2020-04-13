@@ -23,13 +23,18 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.Collections;
 
 import static junit.framework.TestCase.fail;
+import static org.junit.Assert.assertEquals;
 
 
 /**
@@ -62,5 +67,23 @@ public class ExecutionEnvironmentTest extends TestLogger implements Serializable
 		} catch (Exception e) {
 			fail("Consecutive #getExecutionPlan calls caused an exception.");
 		}
+	}
+
+	/**
+	 * Tests that verifies that {@link ExecutionEnvironment#configure} will merge user configuration
+	 * to system configuration.
+	 */
+	@Test
+	public void testMergeConfiguration() {
+		ExecutionEnvironment envFromConfiguration = ExecutionEnvironment.getExecutionEnvironment();
+
+		Configuration configuration = new Configuration();
+		configuration.set(PipelineOptions.CLASSPATHS, Collections.singletonList("file:///test1.jar"));
+
+		// mutate config according to configuration
+		envFromConfiguration.configure(configuration, Thread.currentThread().getContextClassLoader());
+
+		assertEquals(envFromConfiguration.getConfiguration().get(PipelineOptions.CLASSPATHS), Collections.singletonList("file:///test1.jar"));
+
 	}
 }

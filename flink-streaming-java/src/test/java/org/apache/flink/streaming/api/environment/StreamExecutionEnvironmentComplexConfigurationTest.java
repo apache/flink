@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.runtime.state.StateBackend;
@@ -35,6 +35,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -44,7 +45,7 @@ import static org.junit.Assert.assertThat;
 
 /**
  * Tests for configuring {@link StreamExecutionEnvironment} via
- * {@link StreamExecutionEnvironment#configure(ReadableConfig, ClassLoader)} with complex types.
+ * {@link StreamExecutionEnvironment#configure(Configuration, ClassLoader)} with complex types.
  *
  * @see StreamExecutionEnvironmentConfigurationTest
  */
@@ -123,6 +124,20 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 		assertThat(envFromConfiguration.getJobListeners().get(1), instanceOf(BasicJobExecutedCounter.class));
 	}
 
+	@Test
+	public void testMergeConfiguration() {
+		StreamExecutionEnvironment envFromConfiguration = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		Configuration configuration = new Configuration();
+		configuration.set(PipelineOptions.CLASSPATHS, Collections.singletonList("file:///test1.jar"));
+
+		// mutate config according to configuration
+		envFromConfiguration.configure(configuration, Thread.currentThread().getContextClassLoader());
+
+		assertEquals(envFromConfiguration.getConfiguration().get(PipelineOptions.CLASSPATHS), Collections.singletonList("file:///test1.jar"));
+
+	}
+
 	/**
 	 * JobSubmitted counter listener for unit test.
 	 */
@@ -138,6 +153,7 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 		public void onJobExecuted(@Nullable JobExecutionResult jobExecutionResult, @Nullable Throwable throwable) {
 
 		}
+
 	}
 
 	/**

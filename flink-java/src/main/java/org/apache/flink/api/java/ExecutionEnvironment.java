@@ -51,7 +51,6 @@ import org.apache.flink.api.java.utils.PlanGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -380,7 +379,7 @@ public class ExecutionEnvironment {
 	}
 
 	/**
-	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * Sets all relevant options contained in the {@link Configuration} such as e.g.
 	 * {@link PipelineOptions#CACHED_FILES}. It will reconfigure
 	 * {@link ExecutionEnvironment} and {@link ExecutionConfig}.
 	 *
@@ -388,11 +387,14 @@ public class ExecutionEnvironment {
 	 * {@code configuration}. If a key is not present, the current value of a field will remain
 	 * untouched.
 	 *
+	 * <p>the {@code configuration} will be also merged into {@link ExecutionEnvironment#configuration},
+	 * which will be used to generate job graph and create cluster to run the job graph.
+	 *
 	 * @param configuration a configuration to read the values from
 	 * @param classLoader a class loader to use when loading classes
 	 */
 	@PublicEvolving
-	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+	public void configure(Configuration configuration, ClassLoader classLoader) {
 		configuration.getOptional(DeploymentOptions.JOB_LISTENERS)
 			.ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
 		configuration.getOptional(PipelineOptions.CACHED_FILES)
@@ -401,6 +403,8 @@ public class ExecutionEnvironment {
 				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
 			});
 		config.configure(configuration, classLoader);
+
+		this.configuration.addAll(configuration);
 	}
 
 	private void registerCustomListeners(final ClassLoader classLoader, final List<String> listeners) {

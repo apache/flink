@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 
 import org.junit.Test;
@@ -38,7 +37,7 @@ import static org.junit.Assert.assertThat;
 
 /**
  * Tests for configuring {@link StreamExecutionEnvironment} via
- * {@link StreamExecutionEnvironment#configure(ReadableConfig, ClassLoader)}.
+ * {@link StreamExecutionEnvironment#configure(Configuration, ClassLoader)}.
  *
  * @see StreamExecutionEnvironmentComplexConfigurationTest
  */
