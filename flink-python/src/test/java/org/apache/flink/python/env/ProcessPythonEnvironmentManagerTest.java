@@ -42,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYFLINK_GATEWAY_DISABLED;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_ARCHIVES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_FILES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_CACHE;
@@ -379,6 +380,7 @@ public class ProcessPythonEnvironmentManagerTest {
 		String tmpBase = environmentManager.getBaseDirectory();
 		map.put("python", "python");
 		map.put("BOOT_LOG_DIR", tmpBase);
+		map.put(PYFLINK_GATEWAY_DISABLED, "true");
 		return map;
 	}
 
