@@ -168,6 +168,21 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		}
 	}
 
+	@Override
+	public void notifyCheckpointComplete(long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning) throws Exception {
+		if (isRunning.get()) {
+			LOG.debug("Notification of complete checkpoint for task {}", taskName);
+
+			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+				operatorWrapper.getStreamOperator().notifyCheckpointComplete(checkpointId);
+			}
+		} else {
+			LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", taskName);
+		}
+		channelStateWriter.notifyCheckpointComplete(checkpointId);
+		env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
+	}
+
 	private void cleanup(
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData metadata,
