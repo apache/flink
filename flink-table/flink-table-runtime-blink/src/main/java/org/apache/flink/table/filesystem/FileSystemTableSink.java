@@ -235,9 +235,7 @@ public class FileSystemTableSink implements
 			}
 
 			@Override
-			public void createPartition(
-					LinkedHashMap<String, String> partitionSpec,
-					Path partitionPath) {
+			public void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
 			}
 
 			@Override
