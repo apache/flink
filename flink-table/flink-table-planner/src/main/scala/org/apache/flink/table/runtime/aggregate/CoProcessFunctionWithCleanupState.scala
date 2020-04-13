@@ -24,12 +24,12 @@ import org.apache.flink.streaming.api.TimeDomain
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{TableConfig, Types}
 
-abstract class CoProcessFunctionWithCleanupState[IN1, IN2, OUT](config: TableConfig)
+abstract class CoProcessFunctionWithCleanupState[IN1, IN2, OUT](
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends CoProcessFunction[IN1, IN2, OUT]
   with CleanupState {
 
-  protected val minRetentionTime: Long = config.getMinIdleStateRetentionTime
-  protected val maxRetentionTime: Long = config.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   // holds the latest registered cleanup timer

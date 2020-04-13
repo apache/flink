@@ -42,13 +42,15 @@ abstract class NonWindowOuterJoin(
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
-    config: TableConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends NonWindowJoin(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
-    config) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   // result row, all fields from right will be null. Used for output when there is no matched rows.
   protected var leftResultRow: Row = _

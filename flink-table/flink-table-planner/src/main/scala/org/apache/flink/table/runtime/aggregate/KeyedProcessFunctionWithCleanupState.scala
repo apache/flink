@@ -24,12 +24,12 @@ import org.apache.flink.streaming.api.TimeDomain
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{TableConfig, Types}
 
-abstract class KeyedProcessFunctionWithCleanupState[K, I, O](config: TableConfig)
+abstract class KeyedProcessFunctionWithCleanupState[K, I, O](
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends KeyedProcessFunction[K, I, O]
   with CleanupState {
 
-  protected val minRetentionTime: Long = config.getMinIdleStateRetentionTime
-  protected val maxRetentionTime: Long = config.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   // holds the latest registered cleanup timer

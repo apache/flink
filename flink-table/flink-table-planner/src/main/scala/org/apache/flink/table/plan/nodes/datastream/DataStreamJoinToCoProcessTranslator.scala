@@ -113,7 +113,8 @@ class DataStreamJoinToCoProcessTranslator(
           rightSchema.typeInfo,
           genFunction.name,
           genFunction.code,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.LEFT | JoinRelType.RIGHT if joinInfo.isEqui =>
         new NonWindowLeftRightJoin(
           leftSchema.typeInfo,
@@ -121,7 +122,8 @@ class DataStreamJoinToCoProcessTranslator(
           genFunction.name,
           genFunction.code,
           joinType == JoinRelType.LEFT,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.LEFT | JoinRelType.RIGHT =>
         new NonWindowLeftRightJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
@@ -129,21 +131,24 @@ class DataStreamJoinToCoProcessTranslator(
           genFunction.name,
           genFunction.code,
           joinType == JoinRelType.LEFT,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.FULL if joinInfo.isEqui =>
         new NonWindowFullJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
           genFunction.name,
           genFunction.code,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.FULL =>
         new NonWindowFullJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
           genFunction.name,
           genFunction.code,
-          config)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case _ => throw new ValidationException(s"$joinType is not supported.")
     }
     new LegacyKeyedCoProcessOperator(joinFunction)

@@ -44,14 +44,16 @@ class NonWindowLeftRightJoin(
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
-    config: TableConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends NonWindowOuterJoin(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,
-    config) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)

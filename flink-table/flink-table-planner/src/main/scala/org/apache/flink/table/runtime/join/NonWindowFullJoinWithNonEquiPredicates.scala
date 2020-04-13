@@ -44,14 +44,16 @@ class NonWindowFullJoinWithNonEquiPredicates(
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    config: TableConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends NonWindowOuterJoinWithNonEquiPredicates(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
     false,
-    config) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)

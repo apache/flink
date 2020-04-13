@@ -832,7 +832,8 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCode,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -923,7 +924,8 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCode,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1020,7 +1022,8 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCode,
       true,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1132,7 +1135,8 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCodeWithNonEqualPred,
       true,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1278,7 +1282,8 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCode,
       false,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1390,7 +1395,8 @@ class JoinHarnessTest extends HarnessTestBase {
       "TestJoinFunction",
       funcCodeWithNonEqualPred2,
       false,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1534,7 +1540,8 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCode,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -1698,7 +1705,8 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCodeWithNonEqualPred2,
-      config)
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
 
     val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)

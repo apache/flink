@@ -48,8 +48,9 @@ abstract class NonWindowJoin(
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    config: TableConfig)
-  extends CoProcessFunctionWithCleanupState[CRow, CRow, CRow](config)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends CoProcessFunctionWithCleanupState[CRow, CRow, CRow](minRetentionTime, maxRetentionTime)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 

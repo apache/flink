@@ -42,14 +42,16 @@ import org.apache.flink.types.Row
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
-    config: TableConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends NonWindowOuterJoin(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,
-    config) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   // how many matched rows from the right table for each left row. Index 0 is used for left
   // stream, index 1 is used for right stream.
