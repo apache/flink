@@ -31,6 +31,10 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -54,6 +58,8 @@ import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchU
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_MAX_SIZE;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.DISABLE_FLUSH_ON_CHECKPOINT;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.REST_PATH_PREFIX;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CREDENTIAL_USERNAME;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CREDENTIAL_PASSWORD;
 
 /**
  * Version-specific upsert table sink for Elasticsearch 7.
@@ -186,7 +192,10 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 			.ifPresent(v -> builder.setBulkFlushBackoffDelay(Long.valueOf(v)));
 
 		builder.setRestClientFactory(
-			new DefaultRestClientFactory(sinkOptions.get(REST_PATH_PREFIX)));
+			new DefaultRestClientFactory(
+				sinkOptions.get(REST_PATH_PREFIX),
+				sinkOptions.get(CREDENTIAL_USERNAME),
+				sinkOptions.get(CREDENTIAL_PASSWORD)));
 
 		final ElasticsearchSink<Tuple2<Boolean, Row>> sink = builder.build();
 
@@ -218,15 +227,36 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 	static class DefaultRestClientFactory implements RestClientFactory {
 
 		private String pathPrefix;
+		private final String username;
+		private final String password;
 
-		public DefaultRestClientFactory(@Nullable String pathPrefix) {
+		public DefaultRestClientFactory(
+			@Nullable String pathPrefix) {
 			this.pathPrefix = pathPrefix;
+			this.username = null;
+			this.password = null;
+		}
+
+		public DefaultRestClientFactory(
+			@Nullable String pathPrefix,
+			@Nullable String username,
+			@Nullable String password) {
+			this.pathPrefix = pathPrefix;
+			this.username = username;
+			this.password = password;
 		}
 
 		@Override
 		public void configureRestClientBuilder(RestClientBuilder restClientBuilder) {
 			if (pathPrefix != null) {
 				restClientBuilder.setPathPrefix(pathPrefix);
+			}
+			if (username != null) {
+				CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+				credentialsProvider.setCredentials(AuthScope.ANY,
+					new UsernamePasswordCredentials(username, password));
+				restClientBuilder.setHttpClientConfigCallback(
+					httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
 			}
 		}
 

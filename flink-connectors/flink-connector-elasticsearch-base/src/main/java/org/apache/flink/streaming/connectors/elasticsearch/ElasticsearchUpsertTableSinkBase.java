@@ -326,7 +326,9 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 		BULK_FLUSH_BACKOFF_RETRIES,
 		BULK_FLUSH_BACKOFF_DELAY,
 		REST_MAX_RETRY_TIMEOUT,
-		REST_PATH_PREFIX
+		REST_PATH_PREFIX,
+		CREDENTIAL_USERNAME,
+		CREDENTIAL_PASSWORD
 	}
 
 	/**

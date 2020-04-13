@@ -58,6 +58,8 @@ import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CREDENTIAL_USERNAME;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CREDENTIAL_PASSWORD;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_DELAY;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_MAX_RETRIES;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_TYPE;
@@ -143,6 +145,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(CONNECTOR_BULK_FLUSH_BACKOFF_DELAY);
 		properties.add(CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT);
 		properties.add(CONNECTOR_CONNECTION_PATH_PREFIX);
+		properties.add(CONNECTOR_CREDENTIAL_USERNAME);
+		properties.add(CONNECTOR_CREDENTIAL_PASSWORD);
 
 		// schema
 		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
@@ -303,6 +307,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		mapSinkOption(descriptorProperties, options, CONNECTOR_BULK_FLUSH_BACKOFF_DELAY, SinkOption.BULK_FLUSH_BACKOFF_DELAY);
 		mapSinkOption(descriptorProperties, options, CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT, SinkOption.REST_MAX_RETRY_TIMEOUT);
 		mapSinkOption(descriptorProperties, options, CONNECTOR_CONNECTION_PATH_PREFIX, SinkOption.REST_PATH_PREFIX);
+		mapSinkOption(descriptorProperties, options, CONNECTOR_CREDENTIAL_USERNAME, SinkOption.CREDENTIAL_USERNAME);
+		mapSinkOption(descriptorProperties, options, CONNECTOR_CREDENTIAL_PASSWORD, SinkOption.CREDENTIAL_PASSWORD);
 
 		return options;
 	}

@@ -31,6 +31,10 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -55,6 +59,8 @@ import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchU
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.DISABLE_FLUSH_ON_CHECKPOINT;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.REST_MAX_RETRY_TIMEOUT;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.REST_PATH_PREFIX;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CREDENTIAL_USERNAME;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CREDENTIAL_PASSWORD;
 
 /**
  * Version-specific upsert table sink for Elasticsearch 6.
@@ -164,7 +170,9 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 				Optional.ofNullable(sinkOptions.get(REST_MAX_RETRY_TIMEOUT))
 					.map(Integer::valueOf)
 					.orElse(null),
-				sinkOptions.get(REST_PATH_PREFIX)));
+				sinkOptions.get(REST_PATH_PREFIX),
+				sinkOptions.get(CREDENTIAL_USERNAME),
+				sinkOptions.get(CREDENTIAL_PASSWORD)));
 
 		final ElasticsearchSink<Tuple2<Boolean, Row>> sink = builder.build();
 
@@ -197,10 +205,27 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 
 		private Integer maxRetryTimeout;
 		private String pathPrefix;
+		private final String username;
+		private final String password;
 
-		public DefaultRestClientFactory(@Nullable Integer maxRetryTimeout, @Nullable String pathPrefix) {
+		public DefaultRestClientFactory(
+			@Nullable Integer maxRetryTimeout,
+			@Nullable String pathPrefix,
+			@Nullable String username,
+			@Nullable String password) {
 			this.maxRetryTimeout = maxRetryTimeout;
 			this.pathPrefix = pathPrefix;
+			this.username = username;
+			this.password = password;
+		}
+
+		public DefaultRestClientFactory(
+			@Nullable Integer maxRetryTimeout,
+			@Nullable String pathPrefix) {
+			this.maxRetryTimeout = maxRetryTimeout;
+			this.pathPrefix = pathPrefix;
+			this.username = null;
+			this.password = null;
 		}
 
 		@Override
@@ -210,6 +235,13 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 			}
 			if (pathPrefix != null) {
 				restClientBuilder.setPathPrefix(pathPrefix);
+			}
+			if (username != null) {
+				CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+				credentialsProvider.setCredentials(AuthScope.ANY,
+					new UsernamePasswordCredentials(username, password));
+				restClientBuilder.setHttpClientConfigCallback(
+					httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
 			}
 		}
 
