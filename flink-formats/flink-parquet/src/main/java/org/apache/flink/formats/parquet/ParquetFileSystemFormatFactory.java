@@ -66,7 +66,8 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 					" use UTC timezone");
 
 	/**
-	 * Parquet properties, start with "parquet", see more in {@link ParquetOutputFormat}.
+	 * Prefix for parquet-related properties, besides format, start with "parquet".
+	 * See more in {@link ParquetOutputFormat}.
 	 * - parquet.compression
 	 * - parquet.block.size
 	 * - parquet.page.size
@@ -181,8 +182,8 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 				long limit,
 				Configuration conf,
 				boolean utcTimestamp) {
-			this.limit = limit;
 			super.setFilePaths(paths);
+			this.limit = limit;
 			this.partDefaultName = partDefaultName;
 			this.fullFieldNames = fullFieldNames;
 			this.fullFieldTypes = fullFieldTypes;
