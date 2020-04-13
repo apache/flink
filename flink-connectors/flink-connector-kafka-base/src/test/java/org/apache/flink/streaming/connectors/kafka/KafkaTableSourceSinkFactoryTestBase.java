@@ -36,7 +36,9 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.Kafka;
+import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.TestTableDescriptor;
@@ -56,7 +58,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -103,6 +107,9 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		OFFSETS.put(PARTITION_0, OFFSET_0);
 		OFFSETS.put(PARTITION_1, OFFSET_1);
 	}
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -253,6 +260,85 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		assertTrue(getExpectedFlinkKafkaConsumer().isAssignableFrom(mock.sourceFunction.getClass()));
 	}
 
+	@Test
+	public void testTableSourceWithoutZookeeperProperty() {
+		// Create properties without zookeeper.connect
+		Properties kafkaPropertyWithoutZookeeper = new Properties();
+		kafkaPropertyWithoutZookeeper.putAll(KAFKA_PROPERTIES);
+		kafkaPropertyWithoutZookeeper.remove("zookeeper.connect");
+
+		// prepare parameters for Kafka table source
+		final TableSchema schema = TableSchema.builder()
+			.field(FRUIT_NAME, DataTypes.STRING())
+			.field(COUNT, DataTypes.DECIMAL(38, 18))
+			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
+			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
+			.build();
+
+		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors = Collections.singletonList(
+			new RowtimeAttributeDescriptor(EVENT_TIME, new ExistingField(TIME), new AscendingTimestamps()));
+
+		final Map<String, String> fieldMapping = new HashMap<>();
+		fieldMapping.put(FRUIT_NAME, NAME);
+		fieldMapping.put(NAME, NAME);
+		fieldMapping.put(COUNT, COUNT);
+		fieldMapping.put(TIME, TIME);
+
+		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
+		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+
+		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
+			TableSchema.builder()
+				.field(NAME, DataTypes.STRING())
+				.field(COUNT, DataTypes.DECIMAL(38, 18))
+				.field(TIME, DataTypes.TIMESTAMP(3))
+				.build().toRowType()
+		);
+
+		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
+			schema,
+			Optional.of(PROC_TIME),
+			rowtimeAttributeDescriptors,
+			fieldMapping,
+			TOPIC,
+			kafkaPropertyWithoutZookeeper,
+			deserializationSchema,
+			StartupMode.SPECIFIC_OFFSETS,
+			specificOffsets);
+
+		TableSourceValidation.validateTableSource(expected, schema);
+
+		// construct table source using descriptors and table source factory
+		final Map<String, String> propertiesMap = new HashMap<>();
+		propertiesMap.putAll(createKafkaSourceProperties());
+		// Remove zookeeper.connect property
+		propertiesMap.remove("connector.properties.zookeeper.connect");
+		propertiesMap.put("schema.watermark.0.rowtime", EVENT_TIME);
+		propertiesMap.put("schema.watermark.0.strategy.expr", WATERMARK_EXPRESSION);
+		propertiesMap.put("schema.watermark.0.strategy.data-type", WATERMARK_DATATYPE.toString());
+		propertiesMap.put("schema.4.name", COMPUTED_COLUMN_NAME);
+		propertiesMap.put("schema.4.data-type", COMPUTED_COLUMN_DATATYPE.toString());
+		propertiesMap.put("schema.4.expr", COMPUTED_COLUMN_EXPRESSION);
+
+		// 0.8 version connector cannot pass validation of properties
+		if (getKafkaVersion().equals(KafkaValidator.CONNECTOR_VERSION_VALUE_08)) {
+			thrown.expect(ValidationException.class);
+			thrown.expectMessage("Could not find required property 'connector.properties.zookeeper.connect'");
+		}
+
+		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, propertiesMap)
+			.createStreamTableSource(propertiesMap);
+
+		assertEquals(expected, actualSource);
+
+		// test Kafka consumer
+		final KafkaTableSourceBase actualKafkaSource = (KafkaTableSourceBase) actualSource;
+		final StreamExecutionEnvironmentMock mock = new StreamExecutionEnvironmentMock();
+		actualKafkaSource.getDataStream(mock);
+		assertTrue(getExpectedFlinkKafkaConsumer().isAssignableFrom(mock.sourceFunction.getClass()));
+	}
+
 	protected Map<String, String> createKafkaSourceProperties() {
 		return new TestTableDescriptor(
 				new Kafka()
@@ -349,6 +435,50 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, legacyPropertiesMap)
 			.createStreamTableSink(legacyPropertiesMap);
+
+		assertEquals(expected, actualSink);
+
+		// test Kafka producer
+		final KafkaTableSinkBase actualKafkaSink = (KafkaTableSinkBase) actualSink;
+		final DataStreamMock streamMock = new DataStreamMock(new StreamExecutionEnvironmentMock(), schema.toRowType());
+		actualKafkaSink.emitDataStream(streamMock);
+		assertTrue(getExpectedFlinkKafkaProducer().isAssignableFrom(streamMock.sinkFunction.getClass()));
+	}
+
+	@Test
+	public void testTableSinkWithoutZookeeperProperty() {
+		// Create properties without zookeeper.connect
+		Properties kafkaPropertyWithoutZookeeper = new Properties();
+		kafkaPropertyWithoutZookeeper.putAll(KAFKA_PROPERTIES);
+		kafkaPropertyWithoutZookeeper.remove("zookeeper.connect");
+
+		// prepare parameters for Kafka table sink
+		final TableSchema schema = TableSchema.builder()
+			.field(FRUIT_NAME, DataTypes.STRING())
+			.field(COUNT, DataTypes.DECIMAL(10, 4))
+			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
+			.build();
+
+		final KafkaTableSinkBase expected = getExpectedKafkaTableSink(
+			schema,
+			TOPIC,
+			kafkaPropertyWithoutZookeeper,
+			Optional.of(new FlinkFixedPartitioner<>()),
+			new TestSerializationSchema(schema.toRowType()));
+
+		// construct table sink using descriptors and table sink factory
+		final Map<String, String> propertiesMap = new HashMap<>();
+		propertiesMap.putAll(createKafkaSinkProperties());
+		propertiesMap.remove("connector.properties.zookeeper.connect");
+
+		// 0.8 version connector cannot pass validation of properties
+		if (getKafkaVersion().equals(KafkaValidator.CONNECTOR_VERSION_VALUE_08)) {
+			thrown.expect(ValidationException.class);
+			thrown.expectMessage("Could not find required property 'connector.properties.zookeeper.connect'");
+		}
+
+		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, propertiesMap)
+			.createStreamTableSink(propertiesMap);
 
 		assertEquals(expected, actualSink);
 
