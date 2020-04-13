@@ -51,13 +51,11 @@ import org.apache.flink.table.runtime.types.CRow
   */
 @Internal
 abstract class BaseTwoInputStreamOperatorWithStateRetention(
-    config: TableConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends AbstractStreamOperator[CRow]
   with TwoInputStreamOperator[CRow, CRow, CRow]
   with Triggerable[Any, VoidNamespace] {
-
-  private val minRetentionTime: Long = config.getMinIdleStateRetentionTime
-  private val maxRetentionTime: Long = config.getMaxIdleStateRetentionTime
 
   private val CLEANUP_TIMESTAMP = "cleanup-timestamp"
   private val TIMERS_STATE_NAME = "timers"

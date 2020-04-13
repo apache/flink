@@ -54,7 +54,9 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest extends HarnessTestBase {
 
   @Before
   def createTestHarness(): Unit = {
-    operatorUnderTest = new StubOperatorWithStateTTL(config)
+    operatorUnderTest = new StubOperatorWithStateTTL(
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
     testHarness = createTestHarness(operatorUnderTest)
     testHarness.open()
   }
@@ -149,8 +151,8 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest extends HarnessTestBase {
     * the timestamps of the clean-up timers that fired (not the registered
     * ones, which can be deleted without firing).
     */
-  class StubOperatorWithStateTTL(
-    tableConfig: TableConfig) extends BaseTwoInputStreamOperatorWithStateRetention(tableConfig) {
+  class StubOperatorWithStateTTL(minRetentionTime: Long, maxRetentionTime: Long)
+    extends BaseTwoInputStreamOperatorWithStateRetention(minRetentionTime, maxRetentionTime) {
 
     val firedCleanUpTimers: mutable.Buffer[JLong] = ArrayBuffer.empty
 

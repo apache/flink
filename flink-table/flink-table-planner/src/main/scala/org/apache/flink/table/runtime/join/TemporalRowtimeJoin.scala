@@ -65,10 +65,11 @@ class TemporalRowtimeJoin(
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    config: TableConfig,
+    minRetentionTime: Long,
+    maxRetentionTime: Long,
     leftTimeAttribute: Int,
     rightTimeAttribute: Int)
-  extends BaseTwoInputStreamOperatorWithStateRetention(config)
+  extends BaseTwoInputStreamOperatorWithStateRetention(minRetentionTime, maxRetentionTime)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 

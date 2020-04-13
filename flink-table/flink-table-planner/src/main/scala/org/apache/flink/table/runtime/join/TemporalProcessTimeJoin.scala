@@ -38,8 +38,9 @@ class TemporalProcessTimeJoin(
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    config: TableConfig)
-  extends BaseTwoInputStreamOperatorWithStateRetention(config)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends BaseTwoInputStreamOperatorWithStateRetention(minRetentionTime, maxRetentionTime)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 

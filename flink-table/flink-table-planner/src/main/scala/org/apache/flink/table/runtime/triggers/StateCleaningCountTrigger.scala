@@ -31,11 +31,12 @@ import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger.Sum
   * A [[Trigger]] that fires once the count of elements in a pane reaches the given count
   * or the cleanup timer is triggered.
   */
-class StateCleaningCountTrigger(config: TableConfig, maxCount: Long)
+class StateCleaningCountTrigger(
+    minRetentionTime: Long,
+    maxRetentionTime: Long,
+    maxCount: Long)
   extends Trigger[Any, GlobalWindow] {
 
-  protected val minRetentionTime: Long = config.getMinIdleStateRetentionTime
-  protected val maxRetentionTime: Long = config.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   private val stateDesc =
@@ -47,8 +48,8 @@ class StateCleaningCountTrigger(config: TableConfig, maxCount: Long)
   override def canMerge = false
 
   override def toString: String = "CountTriggerGlobalWindowithCleanupState(" +
-    "minIdleStateRetentionTime=" + config.getMinIdleStateRetentionTime + ", " +
-    "maxIdleStateRetentionTime=" + config.getMaxIdleStateRetentionTime + ", " +
+    "minIdleStateRetentionTime=" + minRetentionTime + ", " +
+    "maxIdleStateRetentionTime=" + maxRetentionTime + ", " +
     "maxCount=" + maxCount + ")"
 
   override def onElement(
@@ -124,7 +125,10 @@ object StateCleaningCountTrigger {
     * @param maxCount The count of elements at which to fire.
     */
   def of(config: TableConfig, maxCount: Long): StateCleaningCountTrigger =
-    new StateCleaningCountTrigger(config, maxCount)
+    new StateCleaningCountTrigger(
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime,
+      maxCount)
 
   class Sum extends ReduceFunction[JLong] {
     override def reduce(value1: JLong, value2: JLong): JLong = value1 + value2

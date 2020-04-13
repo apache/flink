@@ -72,7 +72,8 @@ class DataStreamTemporalJoinToCoProcessTranslator private (
             rightSchema.typeInfo,
             joinFunction.name,
             joinFunction.code,
-            config,
+            config.getMinIdleStateRetentionTime,
+            config.getMaxIdleStateRetentionTime,
             leftTimeAttributeInputReference,
             rightTimeAttributeInputReference.get)
         }
@@ -82,7 +83,8 @@ class DataStreamTemporalJoinToCoProcessTranslator private (
             rightSchema.typeInfo,
             joinFunction.name,
             joinFunction.code,
-            config)
+            config.getMinIdleStateRetentionTime,
+            config.getMaxIdleStateRetentionTime)
         }
       case _ =>
        throw new ValidationException(
