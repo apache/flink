@@ -42,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYFLINK_GATEWAY_DISABLED;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_ARCHIVES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_FILES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_CACHE;
@@ -388,6 +389,7 @@ public class ProcessPythonEnvironmentManagerTest {
 				String.join(File.separator, tmpBase, "py4j-0.10.8.1-src.zip"),
 				String.join(File.separator, tmpBase, "cloudpickle-1.2.2-src.zip")));
 		map.put("BOOT_LOG_DIR", tmpBase);
+		map.put(PYFLINK_GATEWAY_DISABLED, "true");
 		return map;
 	}
 

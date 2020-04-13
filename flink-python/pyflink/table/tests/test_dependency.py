@@ -153,7 +153,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
 
-    def test_set_python_exec(self):
+    def test_set_environment(self):
         if getattr(os, "symlink", None) is None:
             self.skipTest("Symbolic link is not supported, skip testing 'test_set_python_exec'...")
 
@@ -171,11 +171,27 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         self.t_env.register_function("check_python_exec",
                                      udf(check_python_exec, DataTypes.BIGINT(),
                                          DataTypes.BIGINT()))
+
+        def check_pyflink_gateway_disabled(i):
+            try:
+                from pyflink.java_gateway import get_gateway
+                get_gateway()
+            except Exception as e:
+                assert str(e).startswith("It's launching the PythonGatewayServer during Python UDF"
+                                         " execution which is unexpected.")
+            else:
+                raise Exception("The gateway server is not disabled!")
+            return i
+
+        self.t_env.register_function("check_pyflink_gateway_disabled",
+                                     udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
+                                         DataTypes.BIGINT()))
+
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("check_python_exec(a), a").insert_into("Results")
+        t.select("check_python_exec(a), check_pyflink_gateway_disabled(a)").insert_into("Results")
         self.t_env.execute("test")
 
         actual = source_sink_utils.results()
