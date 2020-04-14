@@ -1,5 +1,5 @@
 ---
-title: 'User Defined Functions'
+title: 'User-Defined Functions'
 nav-id: user_defined_function
 nav-parent_id: streaming
 nav-pos: 4
