@@ -88,7 +88,9 @@ public class PartitionPathUtils {
 			suffixBuf.append(escapePathName(e.getValue()));
 			i++;
 		}
-		suffixBuf.append(Path.SEPARATOR);
+		if (partitionSpec.size() > 0) {
+			suffixBuf.append(Path.SEPARATOR);
+		}
 		return suffixBuf.toString();
 	}
 
