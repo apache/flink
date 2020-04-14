@@ -98,6 +98,11 @@ public interface TableSinkFactory<T> extends TableFactory {
 		 * {@code TableEnvironment} session configurations.
 		 */
 		ReadableConfig getConfiguration();
+
+		/**
+		 * @return true if input of the sink is bounded, otherwise it is a unbounded input.
+		 */
+		boolean isBounded();
 	}
 
 }

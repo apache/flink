@@ -378,7 +378,8 @@ public class ExecutionContext<ClusterID> {
 							tableEnv.getCurrentDatabase(),
 							name),
 					CatalogTableImpl.fromProperties(sinkProperties),
-					tableEnv.getConfig().getConfiguration()));
+					tableEnv.getConfig().getConfiguration(),
+					!environment.getExecution().inStreamingMode()));
 		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
 				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
