@@ -74,7 +74,6 @@ import com.esotericsoftware.kryo.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1018,19 +1017,6 @@ public class ExecutionEnvironment {
 	}
 
 	/**
-	 * Registers all files that were registered at this execution environment's cache registry of the
-	 * given plan's cache registry.
-	 *
-	 * @param p The plan to register files at.
-	 * @throws IOException Thrown if checks for existence and sanity fail.
-	 */
-	protected void registerCachedFilesWithPlan(Plan p) throws IOException {
-		for (Tuple2<String, DistributedCacheEntry> entry : cacheFile) {
-			p.registerCachedFile(entry.f0, entry.f1);
-		}
-	}
-
-	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
 	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
@@ -1088,14 +1074,8 @@ public class ExecutionEnvironment {
 			}
 		}
 
-		final PlanGenerator generator = new PlanGenerator(sinks, config, jobName);
+		final PlanGenerator generator = new PlanGenerator(sinks, config, cacheFile, jobName);
 		final Plan plan = generator.generate();
-
-		try {
-			registerCachedFilesWithPlan(plan);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
-		}
 
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {
