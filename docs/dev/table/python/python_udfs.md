@@ -205,22 +205,22 @@ Like Python scalar functions, you can use the above five ways to define Python T
 <span class="label label-info">Note</span> The only difference is that the return type of Python Table Functions needs to be an iterable, iterator or generator.
 
 {% highlight python %}
-# option 1: return iterable
+# option 1: generator function
 @udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
-def iterable_func(x):
-      result = [1, 2, 3]
-      return result
+def generator_func(x):
+      yield 1
+      yield 2
 
 # option 2: return iterator
 @udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
 def iterator_func(x):
       return range(5)
 
-# option 3: generator function
+# option 3: return iterable
 @udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
-def generator_func(x):
-      yield 1
-      yield 2
+def iterable_func(x):
+      result = [1, 2, 3]
+      return result
 
 table_env.register_function("iterable_func", iterable_func)
 table_env.register_function("iterator_func", iterator_func)
