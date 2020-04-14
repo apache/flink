@@ -40,13 +40,8 @@ import scala.collection.mutable
 
 class GroupAggregateHarnessTest extends HarnessTestBase {
 
-  private val queryConfig =
-    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
-  private val tableConfig = new TableConfig {
-    override def getMinIdleStateRetentionTime: Long = Time.seconds(2).toMilliseconds
-
-    override def getMaxIdleStateRetentionTime: Long = Time.seconds(2).toMilliseconds
-  }
+  private val config = new TestTableConfig
+  config.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testAggregate(): Unit = {
@@ -56,7 +51,8 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         false,
-        queryConfig))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -115,7 +111,8 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         true,
-        queryConfig))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -191,7 +188,7 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
   @Test
   def testDistinctAggregateWithRetract(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, tableConfig)
+    val tEnv = StreamTableEnvironment.create(env, config)
 
     val data = new mutable.MutableList[(JLong, JInt)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
@@ -279,7 +276,7 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
   @Test
   def testDistinctAggregateWithDifferentArgumentOrder(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, tableConfig)
+    val tEnv = StreamTableEnvironment.create(env, config)
 
     val data = new mutable.MutableList[(JLong, JLong, JLong)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)

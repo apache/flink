@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.dataset
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.BatchQueryConfig
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
@@ -94,14 +93,12 @@ class DataSetCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvImpl,
-      queryConfig: BatchQueryConfig): DataSet[Row] = {
+  override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
 
     val config = tableEnv.getConfig
 
     // we do not need to specify input type
-    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]

@@ -105,20 +105,6 @@ class BatchTableEnvironmentImpl(
     translate[T](table)(typeInfo)
   }
 
-  override def toDataSet[T](
-      table: Table,
-      clazz: Class[T],
-      queryConfig: BatchQueryConfig): DataSet[T] = {
-    translate[T](table)(TypeExtractor.createTypeInfo(clazz))
-  }
-
-  override def toDataSet[T](
-      table: Table,
-      typeInfo: TypeInformation[T],
-      queryConfig: BatchQueryConfig): DataSet[T] = {
-    translate[T](table)(typeInfo)
-  }
-
   override def registerFunction[T](name: String, tf: TableFunction[T]): Unit = {
     implicit val typeInfo: TypeInformation[T] = TypeExtractor
       .createTypeInfo(tf, classOf[TableFunction[_]], tf.getClass, 0)
@@ -141,14 +127,4 @@ class BatchTableEnvironmentImpl(
 
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
-
-  override def sqlUpdate(
-    stmt: String,
-    config: BatchQueryConfig): Unit = sqlUpdate(stmt)
-
-  override def insertInto(
-    table: Table,
-    queryConfig: BatchQueryConfig,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit = insertInto(table, sinkPath, sinkPathContinued: _*)
 }

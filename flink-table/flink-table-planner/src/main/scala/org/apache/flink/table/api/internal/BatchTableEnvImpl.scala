@@ -296,7 +296,7 @@ abstract class BatchTableEnvImpl(
         execEnv.configure(
           config.getConfiguration,
           Thread.currentThread().getContextClassLoader)
-        val plan = node.translateToPlan(this, new BatchQueryConfig)
+        val plan = node.translateToPlan(this)
         val conversion =
           getConversionMapper(
             plan.getType,

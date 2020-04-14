@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
@@ -34,10 +33,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -243,18 +239,6 @@ public class ExecutionContext<ClusterID> {
 	void wrapClassLoader(Runnable runnable) {
 		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)){
 			runnable.run();
-		}
-	}
-
-	public QueryConfig getQueryConfig() {
-		if (streamExecEnv != null) {
-			final StreamQueryConfig config = new StreamQueryConfig();
-			final long minRetention = environment.getExecution().getMinStateRetention();
-			final long maxRetention = environment.getExecution().getMaxStateRetention();
-			config.withIdleStateRetentionTime(Time.milliseconds(minRetention), Time.milliseconds(maxRetention));
-			return config;
-		} else {
-			return new BatchQueryConfig();
 		}
 	}
 

@@ -26,8 +26,8 @@ import org.apache.flink.runtime.state.VoidNamespace
 import org.apache.flink.streaming.api.operators.InternalTimer
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
-import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{TestStreamQueryConfig, TupleRowKeySelector}
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{TestTableConfig, TupleRowKeySelector}
 import org.apache.flink.table.runtime.join.BaseTwoInputStreamOperatorWithStateRetention
 import org.apache.flink.table.runtime.types.CRow
 import org.hamcrest.{Description, TypeSafeMatcher}
@@ -45,10 +45,8 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest extends HarnessTestBase {
   private val recordAForFirstKey = new StreamRecord(CRow(1L: JLong, "hello"))
   private val recordBForFirstKey = new StreamRecord(CRow(1L: JLong, "world"))
 
-  private val streamQueryConfig = new TestStreamQueryConfig(
-    Time.milliseconds(2),
-    Time.milliseconds(4)
-  )
+  private val config = new TestTableConfig
+  config.setIdleStateRetentionTime(Time.milliseconds(2), Time.milliseconds(4))
 
   private var operatorUnderTest: StubOperatorWithStateTTL = _
 
@@ -56,7 +54,9 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest extends HarnessTestBase {
 
   @Before
   def createTestHarness(): Unit = {
-    operatorUnderTest = new StubOperatorWithStateTTL(streamQueryConfig)
+    operatorUnderTest = new StubOperatorWithStateTTL(
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
     testHarness = createTestHarness(operatorUnderTest)
     testHarness.open()
   }
@@ -151,9 +151,8 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest extends HarnessTestBase {
     * the timestamps of the clean-up timers that fired (not the registered
     * ones, which can be deleted without firing).
     */
-  class StubOperatorWithStateTTL(
-      queryConfig: StreamQueryConfig)
-    extends BaseTwoInputStreamOperatorWithStateRetention(queryConfig) {
+  class StubOperatorWithStateTTL(minRetentionTime: Long, maxRetentionTime: Long)
+    extends BaseTwoInputStreamOperatorWithStateRetention(minRetentionTime, maxRetentionTime) {
 
     val firedCleanUpTimers: mutable.Buffer[JLong] = ArrayBuffer.empty
 

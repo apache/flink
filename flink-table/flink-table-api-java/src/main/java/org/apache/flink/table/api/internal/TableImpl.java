@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.table.api.AggregatedTable;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
@@ -27,8 +26,6 @@ import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
@@ -407,23 +404,6 @@ public class TableImpl implements Table {
 	@Override
 	public void insertInto(String tablePath) {
 		tableEnvironment.insertInto(tablePath, this);
-	}
-
-	@Override
-	public void insertInto(String tableName, QueryConfig conf) {
-		insertInto(conf, tableName);
-	}
-
-	@Override
-	public void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued) {
-		if (conf instanceof StreamQueryConfig) {
-			StreamQueryConfig streamQueryConfig = (StreamQueryConfig) conf;
-			tableEnvironment.getConfig().setIdleStateRetentionTime(
-				Time.milliseconds(streamQueryConfig.getMinIdleStateRetentionTime()),
-				Time.milliseconds(streamQueryConfig.getMaxIdleStateRetentionTime())
-			);
-		}
-		tableEnvironment.insertInto(this, tablePath, tablePathContinued);
 	}
 
 	@Override
