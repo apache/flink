@@ -48,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -129,6 +130,12 @@ public class PendingCheckpoint {
 
 	private CheckpointException failureCause;
 
+	/**
+	 * The CAS flag for avoiding conflict of dispose and finalize operations.
+	 * Who grab this flag would avoid the other to enter its operation.
+	 */
+	private final AtomicBoolean statusFlag;
+
 	// --------------------------------------------------------------------------------------------
 
 	public PendingCheckpoint(
@@ -166,6 +173,7 @@ public class PendingCheckpoint {
 				? Collections.emptySet() : new HashSet<>(operatorCoordinatorsToConfirm);
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 		this.onCompletionPromise = checkNotNull(onCompletionPromise);
+		this.statusFlag = new AtomicBoolean(false);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -315,41 +323,43 @@ public class PendingCheckpoint {
 		// make sure we fulfill the promise with an exception if something fails
 		final CompletableFuture<CompletedCheckpoint> finalizingFuture =
 			CompletableFuture.supplyAsync(() -> {
-			try {
-				synchronized (operationLock) {
-					checkState(!isDiscarded(), "The checkpoint has been discarded");
-					// write out the metadata
-					final CheckpointMetadata savepoint = new CheckpointMetadata(checkpointId, operatorStates.values(), masterStates);
-					final CompletedCheckpointStorageLocation finalizedLocation;
-
-					try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
-						Checkpoints.storeCheckpointMetadata(savepoint, out);
-						finalizedLocation = out.closeAndFinalizeCheckpoint();
-					}
-
-					CompletedCheckpoint completed = new CompletedCheckpoint(
-						jobId,
-						checkpointId,
-						checkpointTimestamp,
-						System.currentTimeMillis(),
-						operatorStates,
-						masterStates,
-						props,
-						finalizedLocation);
-
+				if (grabStatusPriority()) {
 					try {
-						completedCheckpointStore.addCheckpoint(completed);
+						checkState(!isDiscarded(), "The checkpoint has been discarded");
+						// write out the metadata
+						final CheckpointMetadata savepoint = new CheckpointMetadata(checkpointId, operatorStates.values(), masterStates);
+						final CompletedCheckpointStorageLocation finalizedLocation;
+
+						try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
+							Checkpoints.storeCheckpointMetadata(savepoint, out);
+							finalizedLocation = out.closeAndFinalizeCheckpoint();
+						}
+
+						CompletedCheckpoint completed = new CompletedCheckpoint(
+							jobId,
+							checkpointId,
+							checkpointTimestamp,
+							System.currentTimeMillis(),
+							operatorStates,
+							masterStates,
+							props,
+							finalizedLocation);
+
+						try {
+							completedCheckpointStore.addCheckpoint(completed);
+						} catch (Throwable t) {
+							completed.discardOnFailedStoring();
+						}
+						return completed;
 					} catch (Throwable t) {
-						completed.discardOnFailedStoring();
+						LOG.warn("Could not finalize checkpoint {}.", checkpointId, t);
+						onCompletionPromise.completeExceptionally(t);
+						throw new CompletionException(t);
 					}
-					return completed;
+				} else {
+					throw new CompletionException(new IllegalStateException("The checkpoint has been stepped into discard stage"));
 				}
-			} catch (Throwable t) {
-				LOG.warn("Could not finalize checkpoint {}.", checkpointId, t);
-				onCompletionPromise.completeExceptionally(t);
-				throw new CompletionException(t);
-			}
-		}, executor);
+			}, executor);
 
 		return finalizingFuture.thenApplyAsync((completed) -> {
 
@@ -543,14 +553,14 @@ public class PendingCheckpoint {
 
 	private void dispose(boolean releaseState) {
 
-		try {
-			numAcknowledgedTasks = -1;
-			if (!discarded && releaseState) {
-				executor.execute(new Runnable() {
-					@Override
-					public void run() {
+		if (grabStatusPriority()) {
+			try {
+				numAcknowledgedTasks = -1;
+				if (!discarded && releaseState) {
+					executor.execute(new Runnable() {
+						@Override
+						public void run() {
 
-						synchronized (operationLock) {
 							// discard the private states.
 							// unregistered shared states are still considered private at this point.
 							try {
@@ -563,15 +573,19 @@ public class PendingCheckpoint {
 								operatorStates.clear();
 							}
 						}
-					}
-				});
+					});
 
+				}
+			} finally {
+				discarded = true;
+				notYetAcknowledgedTasks.clear();
+				acknowledgedTasks.clear();
+				cancelCanceller();
 			}
-		} finally {
-			discarded = true;
-			notYetAcknowledgedTasks.clear();
-			acknowledgedTasks.clear();
-			cancelCanceller();
+		} else {
+			// TODO this hot-fix could help FLINK-16770 to not remove checkpoint by mistake but would let checkpoint
+			//  could complete after job switched to cancelling status. However, this should not introduce harmful influence.
+			LOG.warn("{} has stepped into finalizeCheckpoint stage, would not dispose this pending checkpoint.", this);
 		}
 	}
 
@@ -600,6 +614,10 @@ public class PendingCheckpoint {
 			long failureTimestamp = System.currentTimeMillis();
 			statsCallback.reportFailedCheckpoint(failureTimestamp, cause);
 		}
+	}
+
+	private boolean grabStatusPriority() {
+		return statusFlag.compareAndSet(false, true);
 	}
 
 	// ------------------------------------------------------------------------

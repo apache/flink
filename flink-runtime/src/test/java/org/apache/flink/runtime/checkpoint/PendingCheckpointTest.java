@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -562,7 +561,7 @@ public class PendingCheckpointTest {
 	}
 
 	@Test
-	public void testAbortingAfterAsyncFinalization() throws Exception {
+	public void testAbortingDuringAsyncFinalization() throws Exception {
 		final CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 
 		final ManuallyTriggeredScheduledExecutor ioExecutor = new ManuallyTriggeredScheduledExecutor();
@@ -581,23 +580,25 @@ public class PendingCheckpointTest {
 		final CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture = checkpoint.finalizeCheckpoint();
 
 		assertFalse(checkpointCompletableFuture.isDone());
+		// PendingCheckpoint#finalizeCheckpoint would first grab the priority.
 		ioExecutor.triggerAll();
 
 		assertFalse(checkpointCompletableFuture.isDone());
 
-		checkpoint.abort(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
-		completedCheckpointStore.shutdown(JobStatus.CANCELED);
+		checkpoint.abort(CheckpointFailureReason.TASK_FAILURE);
 
 		mainThreadExecutor.triggerAll();
-		// trigger the async cleanup operations
 		ioExecutor.triggerAll();
-		assertTrue(checkpointCompletableFuture.isCompletedExceptionally());
+		// since PendingCheckpoint#finalizeCheckpoint grab the priority, it will finalize successfully.
+		assertFalse(checkpointCompletableFuture.isCompletedExceptionally());
 
-		assertEquals(0, completedCheckpointStore.getNumberOfRetainedCheckpoints());
+		// the checkpoint store would finally store the finalized checkpoint
+		assertEquals(1, completedCheckpointStore.getNumberOfRetainedCheckpoints());
 
 		final FsCheckpointStorageLocation location =
 			(FsCheckpointStorageLocation) checkpoint.getCheckpointStorageLocation();
-		assertFalse(LocalFileSystem.getSharedInstance().exists(location.getCheckpointDirectory()));
+		// the checkpoint directory would not be removed.
+		assertTrue(LocalFileSystem.getSharedInstance().exists(location.getCheckpointDirectory()));
 	}
 
 	@Test
@@ -620,8 +621,7 @@ public class PendingCheckpointTest {
 		final CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture = checkpoint.finalizeCheckpoint();
 
 		assertFalse(checkpointCompletableFuture.isDone());
-		checkpoint.abort(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
-		completedCheckpointStore.shutdown(JobStatus.CANCELED);
+		checkpoint.abort(CheckpointFailureReason.TASK_FAILURE);
 
 		ioExecutor.triggerAll();
 
