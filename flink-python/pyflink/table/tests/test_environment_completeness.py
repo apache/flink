@@ -41,6 +41,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
         # TODO add TableEnvironment#create method with EnvironmentSettings as a parameter
         return {
             'getCompletionHints',
+            'fromValues',
             'create',
             'loadModule',
             'unloadModule',

@@ -33,6 +33,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource}
 import org.apache.flink.table.types.DataType
@@ -175,7 +176,9 @@ object TestCollectionTableFactory {
     override def getTableSchema: TableSchema = schema
 
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
-      dataStream.addSink(new UnsafeMemorySinkFunction(schema.toRowType)).setParallelism(1)
+      dataStream.addSink(new UnsafeMemorySinkFunction(
+        TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(schema.toRowDataType)
+          .asInstanceOf[TypeInformation[Row]])).setParallelism(1)
     }
 
     override def configure(fieldNames: Array[String],

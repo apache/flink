@@ -23,12 +23,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.Catalog
 import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
+import org.apache.flink.table.module.Module
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
-import java.util.Optional
+import org.apache.flink.table.types.DataType
 
-import org.apache.flink.table.module.Module
+import java.lang.{Iterable => JIterable}
+import java.util.Optional
 
 class MockTableEnvironment extends TableEnvironment {
 
@@ -147,4 +150,12 @@ class MockTableEnvironment extends TableEnvironment {
     functionInstance: UserDefinedFunction): Unit = ???
 
   override def dropTemporaryFunction(path: String): Boolean = ???
+
+  override def fromValues(expression: Expression*): Table = ???
+
+  override def fromValues(rowType: DataType, values: Expression*): Table = ???
+
+  override def fromValues(values: JIterable[_]): Table = ???
+
+  override def fromValues(rowType: DataType, values: JIterable[_]): Table = ???
 }

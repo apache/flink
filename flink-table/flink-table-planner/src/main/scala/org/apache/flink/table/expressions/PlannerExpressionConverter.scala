@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions
 
+import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.{E => PlannerE, UUID => PlannerUUID}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
@@ -25,6 +26,8 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.types.logical.LogicalTypeRoot.SYMBOL
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks._
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+
+import java.time.{LocalDate, LocalDateTime}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -710,9 +713,24 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     if (literal.isNull) {
       Null(typeInfo)
     } else {
-      Literal(
-        literal.getValueAs(typeInfo.getTypeClass).get(),
-        typeInfo)
+      typeInfo match {
+        case LocalTimeTypeInfo.LOCAL_DATE =>
+          Literal(
+            java.sql.Date.valueOf(literal.getValueAs(classOf[LocalDate]).get()),
+            SqlTimeTypeInfo.DATE)
+        case LocalTimeTypeInfo.LOCAL_DATE_TIME =>
+          Literal(
+            java.sql.Timestamp.valueOf(literal.getValueAs(classOf[LocalDateTime]).get()),
+            SqlTimeTypeInfo.TIMESTAMP)
+        case LocalTimeTypeInfo.LOCAL_TIME =>
+          Literal(
+            java.sql.Time.valueOf(literal.getValueAs(classOf[java.time.LocalTime]).get()),
+            SqlTimeTypeInfo.TIME)
+        case _ =>
+          Literal(
+            literal.getValueAs(typeInfo.getTypeClass).get(),
+            typeInfo)
+      }
     }
   }
 
