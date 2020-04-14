@@ -16,5 +16,21 @@
   ~ limitations under the License.
   -->
 
-<flink-monaco-editor [value]="stdout"></flink-monaco-editor>
-<flink-refresh-download [compactMode]="true" [downloadHref]="'jobmanager/stdout'" [downloadName]="'jobmanager_stdout'" (reload)="reload()"></flink-refresh-download>
+<div class="breadcrumb">
+  <nz-breadcrumb>
+    <nz-breadcrumb-item>
+      <a [routerLink]="['../']"><i nz-icon type="rollback" theme="outline"></i> Log List</a>
+    </nz-breadcrumb-item>
+    <nz-breadcrumb-item>
+      {{ logName }}
+    </nz-breadcrumb-item>
+  </nz-breadcrumb>
+  <flink-refresh-download
+    [isLoading]="isLoading"
+    [downloadHref]="downloadUrl"
+    [downloadName]="logName"
+    (reload)="reload()"
+    (fullScreen)="toggleFullScreen($event)">
+  </flink-refresh-download>
+</div>
+<flink-monaco-editor [value]="logs"></flink-monaco-editor>

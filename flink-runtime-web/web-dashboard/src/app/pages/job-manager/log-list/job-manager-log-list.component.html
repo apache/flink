@@ -16,5 +16,26 @@
   ~ limitations under the License.
   -->
 
-<flink-monaco-editor [value]="logs"></flink-monaco-editor>
-<flink-refresh-download [compactMode]="true" [downloadHref]="'jobmanager/log'" [downloadName]="'jobmanager_log'" (reload)="reload()"></flink-refresh-download>
+<nz-card [nzBordered]="false">
+  <nz-table
+    [nzSize]="'small'"
+    [nzData]="listOfLog"
+    [nzLoading]="isLoading"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false">
+    <thead>
+      <tr>
+        <th>Log Name</th>
+        <th>Size (KB)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let log of listOfLog;">
+        <td>
+          <a [routerLink]="[log.name]">{{ log.name }}</a>
+        </td>
+        <td>{{ (log.size / 1024) | number : '1.0-2' }}</td>
+      </tr>
+    </tbody>
+  </nz-table>
+</nz-card>

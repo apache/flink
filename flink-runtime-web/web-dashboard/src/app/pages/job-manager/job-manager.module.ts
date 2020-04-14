@@ -23,16 +23,16 @@ import { ShareModule } from 'share/share.module';
 import { JobManagerRoutingModule } from './job-manager-routing.module';
 import { JobManagerComponent } from './job-manager.component';
 import { JobManagerConfigurationComponent } from './configuration/job-manager-configuration.component';
-import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
-import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
+import { JobManagerLogDetailComponent } from './log-detail/job-manager-log-detail.component';
+import { JobManagerLogListComponent } from './log-list/job-manager-log-list.component';
 
 @NgModule({
   imports: [CommonModule, ShareModule, JobManagerRoutingModule],
   declarations: [
     JobManagerComponent,
     JobManagerConfigurationComponent,
-    JobManagerLogsComponent,
-    JobManagerStdoutComponent
+    JobManagerLogListComponent,
+    JobManagerLogDetailComponent
   ]
 })
 export class JobManagerModule {}

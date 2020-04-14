@@ -16,11 +16,40 @@
  * limitations under the License.
  */
 
-flink-monaco-editor {
-  height: calc(~"100vh - 160px");
-}
+@import "theme";
 
 :host {
-  position: relative;
   display: block;
+  height: 100%;
+  &.full-screen {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    background: @component-background;
+    z-index: 99;
+    flink-monaco-editor {
+      height: calc(~"100vh - 65px");
+    }
+  }
+}
+
+flink-monaco-editor {
+  height: calc(~"100vh - 220px");
+}
+
+.breadcrumb {
+  background: @component-background;
+  border-bottom: 1px solid @border-color-split;
+  margin-bottom: 16px;
+  padding: 12px 24px;
+  position: relative;
+}
+
+flink-refresh-download {
+  position: absolute;
+  right: 12px;
+  top: 0;
+  line-height: 47px;
 }
