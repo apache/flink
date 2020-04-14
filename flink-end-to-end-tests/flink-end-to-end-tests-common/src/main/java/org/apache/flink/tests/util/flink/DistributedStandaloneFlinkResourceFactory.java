@@ -43,12 +43,12 @@ public final class DistributedStandaloneFlinkResourceFactory implements FlinkRes
 	@Override
 	public Optional<FlinkResource> create(FlinkResourceSetup setup) {
 		Optional<List<String>> jmHosts = JM_HOSTS.get();
-		if (jmHosts.isEmpty()) {
+		if (jmHosts.toString().isEmpty()) {
 			LOG.debug("Not loading {} because {} was not set.", DistributedStandaloneFlinkResource.class, JM_HOSTS.getPropertyName());
 			return Optional.empty();
 		}
 		Optional<List<String>> tmHosts = TM_HOSTS.get();
-		if (tmHosts.isEmpty()) {
+		if (tmHosts.toString().isEmpty()) {
 			LOG.debug("Not loading {} because {} was not set.", DistributedStandaloneFlinkResource.class, TM_HOSTS.getPropertyName());
 			return Optional.empty();
 		}
