@@ -1292,7 +1292,7 @@ val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myN
 
 #### POJO (Java and Scala)
 
-Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{ site.baseurl }}/dev/api_concepts.html#pojos).
+Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{ site.baseurl }}{% link dev/types_serialization.md %}#pojos).
 
 When converting a POJO `DataStream` or `DataSet` into a `Table` without specifying field names, the names of the original POJO fields are used. The name mapping requires the original names and cannot be done by positions. Fields can be renamed using an alias (with the `as` keyword), reordered, and projected.
 
