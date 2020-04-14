@@ -1,6 +1,6 @@
 ---
 title: "Flink DataStream API Programming Guide"
-nav-title: Streaming (DataStream API)
+nav-title: DataStream API
 nav-id: streaming
 nav-parent_id: dev
 nav-show_overview: true
