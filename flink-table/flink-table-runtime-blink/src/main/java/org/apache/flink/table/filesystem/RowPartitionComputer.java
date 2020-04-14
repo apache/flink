@@ -19,8 +19,12 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.Row;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -68,7 +72,51 @@ public class RowPartitionComputer implements PartitionComputer<Row> {
 	}
 
 	@Override
-	public Row projectColumnsToWrite(Row in) throws Exception {
+	public Row projectColumnsToWrite(Row in) {
 		return partitionIndexes.length == 0 ? in : Row.project(in, nonPartitionIndexes);
+	}
+
+	/**
+	 * Restore partition value from string and type.
+	 * This method is the opposite of method {@link #generatePartValues}.
+	 *
+	 * @param valStr string partition value.
+	 * @param type type of partition field.
+	 * @return partition value.
+	 */
+	public static Object restorePartValueFromType(String valStr, DataType type) {
+		if (valStr == null) {
+			return null;
+		}
+
+		LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+		switch (typeRoot) {
+			case CHAR:
+			case VARCHAR:
+				return valStr;
+			case BOOLEAN:
+				return Boolean.parseBoolean(valStr);
+			case TINYINT:
+				return Integer.valueOf(valStr).byteValue();
+			case SMALLINT:
+				return Short.valueOf(valStr);
+			case INTEGER:
+				return Integer.valueOf(valStr);
+			case BIGINT:
+				return Long.valueOf(valStr);
+			case FLOAT:
+				return Float.valueOf(valStr);
+			case DOUBLE:
+				return Double.valueOf(valStr);
+			case DATE:
+				return LocalDate.parse(valStr);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return LocalDateTime.parse(valStr);
+			default:
+				throw new RuntimeException(String.format(
+						"Can not convert %s to type %s for partition value",
+						valStr,
+						type));
+		}
 	}
 }
