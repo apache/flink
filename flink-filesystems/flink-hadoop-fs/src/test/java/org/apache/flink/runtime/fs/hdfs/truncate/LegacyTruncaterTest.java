@@ -1,0 +1,147 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.fs.hdfs.truncate;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+
+/**
+ * Tests that validate truncate logic and all recovery scenarios.
+ */
+public class LegacyTruncaterTest {
+
+	private static final String TEST_IN_PROGRESS_FILE_PREFIX = ".inprogress.foo.bar";
+
+	@Rule
+	public final TemporaryFolder tempFolder = new TemporaryFolder();
+
+	private Path createFileWithContent(String fileName, String content) throws IOException {
+		final File file = tempFolder.newFile(fileName);
+		try (PrintStream out = new PrintStream(new FileOutputStream(file))) {
+			out.print(content);
+		}
+		return new Path(file.getPath());
+	}
+
+	@Test
+	public void testTruncateFileHappyPath() throws IOException {
+		final String testContent = "Apache Flink - Stateful Computations over Data Streams";
+		final long truncateLength = 12;
+		final String expectedContent = "Apache Flink";
+
+		final Path testFilePath = createFileWithContent(TEST_IN_PROGRESS_FILE_PREFIX, testContent);
+		final Path truncatedFilePath = LegacyTruncater.truncatedFile(testFilePath);
+		final FileSystem fs = Mockito.spy(FileSystem.get(new Configuration()));
+		final LegacyTruncater truncater = Mockito.spy(new LegacyTruncater());
+		truncater.truncate(fs, testFilePath, truncateLength);
+
+		final String result = FileUtils.readFileToString(new File(testFilePath.toString()));
+		assertEquals(expectedContent, result);
+		// check internal logic and fs manipulation
+		verify(truncater).copyFileContent(fs, testFilePath, truncatedFilePath, truncateLength);
+		verify(fs).delete(testFilePath, false);
+		verify(fs).rename(truncatedFilePath, testFilePath);
+	}
+
+	@Test
+	public void testRecoveryAfterFailOnCopingStage() throws IOException {
+		final String originalFileContent = "Apache Flink - Stateful Computations over Data Streams";
+		final String brokenTruncatedFileContent = "Apache Fl";
+		final long truncateLength = 12;
+		final String expectedContent = "Apache Flink";
+
+		final Path originalFilePath = createFileWithContent(TEST_IN_PROGRESS_FILE_PREFIX, originalFileContent);
+		final Path truncatedFilePath = LegacyTruncater.truncatedFile(originalFilePath);
+		createFileWithContent(truncatedFilePath.getName(), brokenTruncatedFileContent);
+
+		final FileSystem fs = Mockito.spy(FileSystem.get(new Configuration()));
+		final LegacyTruncater truncater = Mockito.spy(new LegacyTruncater());
+		truncater.truncate(fs, originalFilePath, truncateLength);
+
+		final String result = FileUtils.readFileToString(new File(originalFilePath.toString()));
+		assertEquals(expectedContent, result);
+		// check internal logic and fs manipulation
+		verify(truncater).copyFileContent(fs, originalFilePath, truncatedFilePath, truncateLength);
+		verify(fs).delete(originalFilePath, false);
+		verify(fs).rename(truncatedFilePath, originalFilePath);
+	}
+
+	@Test
+	public void testRecoveryAfterFailRenamingStage() throws IOException {
+		final String truncatedFileContent = "Apache Flink";
+		final long truncateLength = 12;
+		final String expectedContent = "Apache Flink";
+
+		final FileSystem fs = Mockito.spy(FileSystem.get(new Configuration()));
+
+		final Path originalFilePath = new Path(tempFolder.getRoot().getPath(),
+			new Path(TEST_IN_PROGRESS_FILE_PREFIX));
+
+		final Path truncatedFilePath = LegacyTruncater.truncatedFile(originalFilePath);
+		createFileWithContent(truncatedFilePath.getName(), truncatedFileContent);
+		final LegacyTruncater truncater = Mockito.spy(new LegacyTruncater());
+
+		truncater.truncate(fs, originalFilePath, truncateLength);
+
+		final String result = FileUtils.readFileToString(new File(originalFilePath.toString()));
+		assertEquals(expectedContent, result);
+		// check internal logic and fs manipulation
+		verify(truncater, never()).copyFileContent(any(FileSystem.class), any(Path.class), any(Path.class), anyLong());
+		verify(fs, never()).delete(any(Path.class), anyBoolean());
+		verify(fs).rename(truncatedFilePath, originalFilePath);
+	}
+
+	@Test
+	public void testTruncateZeroLength() throws IOException {
+		final String originalFileContent = "Apache Flink";
+		final long truncateLength = 0;
+		final String expectedContent = "";
+		final FileSystem fs = Mockito.spy(FileSystem.get(new Configuration()));
+
+		final Path originalFilePath = createFileWithContent(TEST_IN_PROGRESS_FILE_PREFIX, originalFileContent);
+		final LegacyTruncater truncater = Mockito.spy(new LegacyTruncater());
+
+		truncater.truncate(fs, originalFilePath, truncateLength);
+
+		final String result = FileUtils.readFileToString(new File(originalFilePath.toString()));
+		assertEquals(expectedContent, result);
+		// Verify that empty file was recreated without intermediate copying stages
+		verify(truncater).touch(fs, originalFilePath);
+		verify(truncater, never()).copyFileContent(any(FileSystem.class), any(Path.class), any(Path.class), anyLong());
+	}
+}
