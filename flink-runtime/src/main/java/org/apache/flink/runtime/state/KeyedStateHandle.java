@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import javax.annotation.Nullable;
+
 /**
  * Base for the handles of the checkpointed states in keyed streams. When
  * recovering from failures, the handle will be passed to all tasks whose key
@@ -34,7 +36,9 @@ public interface KeyedStateHandle extends CompositeStateHandle {
 	 * Returns a state over a range that is the intersection between this
 	 * handle's key-group range and the provided key-group range.
 	 *
-	 * @param keyGroupRange The key group range to intersect with
+	 * @param keyGroupRange The key group range to intersect with,
+	 * will return null if the intersection of this handle's key-group and the provided key-group is empty.
 	 */
+	@Nullable
 	KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange);
 }

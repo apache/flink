@@ -83,8 +83,13 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
 	 * @return key-group state over a range that is the intersection between this handle's key-group range and the
 	 *          provided key-group range.
 	 */
+	@Override
 	public KeyGroupsStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-		return new KeyGroupsStateHandle(groupRangeOffsets.getIntersection(keyGroupRange), stateHandle);
+		KeyGroupRangeOffsets offsets = groupRangeOffsets.getIntersection(keyGroupRange);
+		if (offsets.getKeyGroupRange().getNumberOfKeyGroups() <= 0) {
+			return null;
+		}
+		return new KeyGroupsStateHandle(offsets, stateHandle);
 	}
 
 	@Override
