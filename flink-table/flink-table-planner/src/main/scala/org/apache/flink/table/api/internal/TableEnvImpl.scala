@@ -693,6 +693,31 @@ abstract class TableEnvImpl(
         buildShowResult(listTables())
       case _: ShowFunctionsOperation =>
         buildShowResult(listFunctions())
+      case createViewOperation: CreateViewOperation =>
+        if (createViewOperation.isTemporary) {
+          catalogManager.createTemporaryTable(
+            createViewOperation.getCatalogView,
+            createViewOperation.getViewIdentifier,
+            createViewOperation.isIgnoreIfExists)
+        } else {
+          catalogManager.createTable(
+            createViewOperation.getCatalogView,
+            createViewOperation.getViewIdentifier,
+            createViewOperation.isIgnoreIfExists)
+        }
+      case dropViewOperation: DropViewOperation =>
+        if (dropViewOperation.isTemporary) {
+          val dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier)
+          if (!dropped && !dropViewOperation.isIfExists) {
+            throw new ValidationException(String.format(
+              "Temporary views with identifier %s doesn't exist",
+              dropViewOperation.getViewIdentifier.asSummaryString()))
+          }
+        } else {
+          catalogManager.dropTable(
+            dropViewOperation.getViewIdentifier,
+            dropViewOperation.isIfExists)
+        }
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }
