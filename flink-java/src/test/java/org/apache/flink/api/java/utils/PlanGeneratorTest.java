@@ -38,7 +38,6 @@ public class PlanGeneratorTest {
 	public void testGenerate() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(10);
-		env.registerCachedFile("/tmp/cache", "my_cache");
 
 		DataSink<?> sink = env
 				.fromElements(1, 3, 5)
@@ -46,12 +45,11 @@ public class PlanGeneratorTest {
 				.writeAsText("/tmp/csv");
 
 		PlanGenerator generator = new PlanGenerator(
-				Collections.singletonList(sink), env.getConfig(), env.getCacheFile(), "test");
+				Collections.singletonList(sink), env.getConfig(), "test");
 		Plan plan = generator.generate();
 		assertEquals(1, plan.getDataSinks().size());
 		assertEquals(10, plan.getDefaultParallelism());
 		assertEquals(env.getConfig(), plan.getExecutionConfig());
 		assertEquals("test", plan.getJobName());
-		assertEquals(1, plan.getCachedFiles().size());
 	}
 }

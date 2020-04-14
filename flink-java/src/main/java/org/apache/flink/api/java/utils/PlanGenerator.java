@@ -20,19 +20,16 @@ package org.apache.flink.api.java.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.OperatorTranslation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.util.Visitor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,17 +42,14 @@ public class PlanGenerator {
 
 	private final List<DataSink<?>> sinks;
 	private final ExecutionConfig config;
-	private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile;
 	private final String jobName;
 
 	public PlanGenerator(
 			List<DataSink<?>> sinks,
 			ExecutionConfig config,
-			List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile,
 			String jobName) {
 		this.sinks = sinks;
 		this.config = config;
-		this.cacheFile = cacheFile;
 		this.jobName = jobName;
 	}
 
@@ -89,12 +83,6 @@ public class PlanGenerator {
 				public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
 				}
 			});
-		}
-
-		try {
-			registerCachedFilesWithPlan(plan);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
 		}
 
 		// All types are registered now. Print information.
@@ -134,11 +122,5 @@ public class PlanGenerator {
 		}
 
 		return plan;
-	}
-
-	private void registerCachedFilesWithPlan(Plan p) throws IOException {
-		for (Tuple2<String, DistributedCache.DistributedCacheEntry> entry : cacheFile) {
-			p.registerCachedFile(entry.f0, entry.f1);
-		}
 	}
 }

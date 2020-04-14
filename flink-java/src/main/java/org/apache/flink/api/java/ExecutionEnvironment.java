@@ -1031,14 +1031,6 @@ public class ExecutionEnvironment {
 	}
 
 	/**
-	 * Get the registered cached files.
-	 */
-	@Internal
-	public List<Tuple2<String, DistributedCacheEntry>> getCacheFile() {
-		return new ArrayList<>(cacheFile);
-	}
-
-	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
 	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
@@ -1096,8 +1088,14 @@ public class ExecutionEnvironment {
 			}
 		}
 
-		final PlanGenerator generator = new PlanGenerator(sinks, config, cacheFile, jobName);
+		final PlanGenerator generator = new PlanGenerator(sinks, config, jobName);
 		final Plan plan = generator.generate();
+
+		try {
+			registerCachedFilesWithPlan(plan);
+		} catch (Exception e) {
+			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
+		}
 
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {
