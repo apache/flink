@@ -28,6 +28,8 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -59,15 +62,19 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -420,6 +427,30 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		OutputFormat<?> sinkFormat2 = outputFormats.get(nameToOperatorIds.get("Sink: sink2")).getUserCodeObject();
 		assertTrue(sinkFormat2 instanceof DiscardingOutputFormat);
+	}
+
+	@Test
+	public void testCoordinatedOperator() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Integer> source =
+				env.addSource(new MockSource(Boundedness.BOUNDED, 1), "TestSource");
+		source.addSink(new DiscardingSink<>());
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+		// There should be only one job vertex.
+		assertEquals(1, jobGraph.getNumberOfVertices());
+
+		JobVertex jobVertex = jobGraph.getVerticesAsArray()[0];
+		List<SerializedValue<OperatorCoordinator.Provider>> coordinatorProviders = jobVertex.getOperatorCoordinators();
+		// There should be only one coordinator provider.
+		assertEquals(1, coordinatorProviders.size());
+		// The invokable class should be SourceOperatorStreamTask.
+		final ClassLoader classLoader = getClass().getClassLoader();
+		assertEquals(SourceOperatorStreamTask.class, jobVertex.getInvokableClass(classLoader));
+		StreamOperatorFactory operatorFactory =
+				new StreamConfig(jobVertex.getConfiguration()).getStreamOperatorFactory(classLoader);
+		assertTrue(operatorFactory instanceof SourceOperatorFactory);
 	}
 
 	/**
