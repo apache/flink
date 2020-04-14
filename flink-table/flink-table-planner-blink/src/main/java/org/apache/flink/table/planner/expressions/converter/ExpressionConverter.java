@@ -50,13 +50,14 @@ import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Period;
 import java.time.temporal.ChronoField;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
@@ -134,21 +135,26 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				break;
 			case INTERVAL_YEAR_MONTH:
 				// convert to total months
-				value = BigDecimal.valueOf(extractValue(valueLiteral, Integer.class));
+				value = BigDecimal.valueOf(extractValue(valueLiteral, Period.class).toTotalMonths());
 				break;
 			case INTERVAL_DAY_TIME:
+				// TODO planner supports only milliseconds precision
 				// convert to total millis
-				value = BigDecimal.valueOf(extractValue(valueLiteral, Long.class));
+				value = BigDecimal.valueOf(extractValue(valueLiteral, Duration.class).toMillis());
 				break;
 			case DATE:
-				value = DateString.fromCalendarFields(valueAsCalendar(extractValue(valueLiteral, LocalDate.class)));
+				value = DateString.fromDaysSinceEpoch((int) extractValue(valueLiteral, LocalDate.class).toEpochDay());
 				break;
 			case TIME_WITHOUT_TIME_ZONE:
 				// TODO type factory strips the precision, for literals we can be more lenient already
+				// Moreover conversion from long supports precision up to TIME(3) planner does not support higher
+				// precisions
 				TimeType timeType = (TimeType) type;
-				relDataType = typeFactory.createSqlType(SqlTypeName.TIME, timeType.getPrecision());
-				int millisOfDay = extractValue(valueLiteral, LocalTime.class).get(ChronoField.MILLI_OF_DAY);
-				value = TimeString.fromMillisOfDay(millisOfDay);
+				int precision = timeType.getPrecision();
+				relDataType = typeFactory.createSqlType(SqlTypeName.TIME, Math.min(precision, 3));
+				value = TimeString.fromMillisOfDay(
+					extractValue(valueLiteral, LocalTime.class).get(ChronoField.MILLI_OF_DAY)
+				);
 				break;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);
@@ -156,7 +162,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				break;
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				TimeZone timeZone = TimeZone.getTimeZone(
-					ShortcutUtils.unwrapContext(this.relBuilder.getCluster())
+					ShortcutUtils.unwrapContext(this.relBuilder)
 						.getTableConfig()
 						.getLocalTimeZone()
 				);
@@ -176,6 +182,9 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 		return rexBuilder.makeLiteral(
 			value,
 			relDataType,
+			// This flag ensures that the resulting RexNode will match the type of the literal.
+			// It might be wrapped with a CAST though, if the value requires adjusting. In majority of
+			// cases the type will be simply pushed down into the RexLiteral, see RexBuilder#makeCast.
 			true
 		);
 	}
@@ -325,18 +334,5 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 
 		return literal.getValueAs(clazz)
 			.orElseThrow(() -> new TableException("Unsupported literal class: " + clazz));
-	}
-
-	/**
-	 * Convert a Date value to a Calendar. Calcite's fromCalendarField functions use the
-	 * Calendar.get methods, so the raw values of the individual fields are preserved when
-	 * converted to the String formats.
-	 *
-	 * @return get the Calendar value
-	 */
-	private static Calendar valueAsCalendar(LocalDate value) {
-		Calendar cal = Calendar.getInstance();
-		cal.set(value.getYear(), value.getMonthValue() - 1, value.getDayOfMonth());
-		return cal;
 	}
 }

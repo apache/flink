@@ -132,7 +132,20 @@ public class ExpressionConverterTest {
 	public void testTimeLiteral() {
 		RexNode rex = converter.visit(valueLiteral(
 			LocalTime.parse("12:12:12.12345"),
-			DataTypes.TIME(3).notNull()));
+			DataTypes.TIME(2).notNull()));
+		assertThat(
+			((RexLiteral) rex).getValueAs(TimeString.class),
+			equalTo(new TimeString("12:12:12.12")));
+		assertThat(rex.getType().getSqlTypeName(), equalTo(SqlTypeName.TIME));
+		assertThat(rex.getType().getPrecision(), equalTo(2));
+	}
+
+	@Test
+	public void testTimeLiteralBiggerPrecision() {
+		RexNode rex = converter.visit(valueLiteral(
+			LocalTime.parse("12:12:12.12345"),
+			DataTypes.TIME(5).notNull()));
+		// TODO planner supports up to TIME(3)
 		assertThat(
 			((RexLiteral) rex).getValueAs(TimeString.class),
 			equalTo(new TimeString("12:12:12.123")));
