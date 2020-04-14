@@ -1221,6 +1221,11 @@ class DecimalTypeTest extends ExpressionTestBase {
       "true")
   }
 
+  @Test
+  def testCompareDecimalColWithNull(): Unit = {
+    testSqlApi("f35>cast(1234567890123.123 as decimal(20,16))", "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
