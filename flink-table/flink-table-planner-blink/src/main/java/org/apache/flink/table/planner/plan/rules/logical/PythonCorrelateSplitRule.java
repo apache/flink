@@ -36,6 +36,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
 import java.util.LinkedList;
@@ -95,22 +96,9 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		if (rexNode instanceof RexCall) {
 			return PythonUtil.isPythonCall(rexNode, null) && PythonUtil.containsNonPythonCall(rexNode)
 				|| PythonUtil.isNonPythonCall(rexNode) && PythonUtil.containsPythonCall(rexNode, null)
-				|| (PythonUtil.isPythonCall(rexNode, null) && containsFieldAccessInputs(rexNode));
+				|| (PythonUtil.isPythonCall(rexNode, null) && RexUtil.containsFieldAccess(rexNode));
 		}
 		return false;
-	}
-
-	private boolean containsFieldAccessInputs(RexNode node) {
-		if (node instanceof RexCall) {
-			for (RexNode operand : ((RexCall) node).getOperands()) {
-				if (containsFieldAccessInputs(operand)) {
-					return true;
-				}
-			}
-			return false;
-		} else {
-			return node instanceof RexFieldAccess;
-		}
 	}
 
 	private List<String> createNewFieldNames(
@@ -210,10 +198,13 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 			extractedRexNodes,
 			node -> {
 				if (PythonUtil.isNonPythonCall(tableFunctionNode)) {
+					// splits the RexCalls which contain Python functions into separate node
 					return PythonUtil.isPythonCall(node, null);
 				} else if (PythonUtil.containsNonPythonCall(node)) {
+					// splits the RexCalls which contain non-Python functions into separate node
 					return PythonUtil.isNonPythonCall(node);
 				} else {
+					// splits the RexFieldAccesses which contain non-Python functions into separate node
 					return node instanceof RexFieldAccess;
 				}
 			}
