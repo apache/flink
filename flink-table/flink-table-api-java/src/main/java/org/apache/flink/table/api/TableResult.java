@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.types.Row;
 
@@ -27,6 +28,7 @@ import java.util.Optional;
 /**
  * A TableResult is the representation of the statement execution result.
  */
+@PublicEvolving
 public interface TableResult {
 
 	/**
@@ -52,7 +54,7 @@ public interface TableResult {
 	Iterator<Row> collect();
 
 	/**
-	 * Print the result contents to client console.
+	 * Print the result contents as tableau form to client console.
 	 */
 	void print();
 }

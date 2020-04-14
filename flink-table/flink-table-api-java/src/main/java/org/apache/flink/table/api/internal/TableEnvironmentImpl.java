@@ -615,29 +615,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
 		}
 
-		Operation operation = operations.get(0);
-		if (operation instanceof CreateTableOperation ||
-				operation instanceof DropTableOperation ||
-				operation instanceof AlterTableOperation ||
-				operation instanceof CreateDatabaseOperation ||
-				operation instanceof DropDatabaseOperation ||
-				operation instanceof AlterDatabaseOperation ||
-				operation instanceof CreateCatalogFunctionOperation ||
-				operation instanceof CreateTempSystemFunctionOperation ||
-				operation instanceof DropCatalogFunctionOperation ||
-				operation instanceof DropTempSystemFunctionOperation ||
-				operation instanceof AlterCatalogFunctionOperation ||
-				operation instanceof CreateCatalogOperation ||
-				operation instanceof UseCatalogOperation ||
-				operation instanceof UseDatabaseOperation ||
-				operation instanceof ShowCatalogsOperation ||
-				operation instanceof ShowDatabasesOperation ||
-				operation instanceof ShowTablesOperation ||
-				operation instanceof ShowFunctionsOperation) {
-			return executeOperation(operation);
-		} else {
-			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
-		}
+		return executeOperation(operations.get(0));
 	}
 
 	@Override
@@ -792,7 +770,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof ShowFunctionsOperation) {
 			return buildShowResult(listFunctions());
 		} else {
-			throw new TableException("Unsupported operation: " + operation);
+			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
 		}
 	}
 
