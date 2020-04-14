@@ -59,7 +59,7 @@ import java.util.stream.Collectors;
  *
  * <p>Built-in functions that use the Flink's type inference stack:
  * <ul>
- *     <li>BuiltinFunctionDefinitions.ROW<</li>
+ *     <li>BuiltinFunctionDefinitions.ROW</li>
  * </ul>
  *
  * <p>This class supports only a simplified identifier parsing logic. It does not support escaping.

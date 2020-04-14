@@ -16,11 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -36,7 +41,7 @@ import java.util.stream.Collectors;
  * <p>It expects at least one argument. All the arguments must have a common super type.
  */
 @Internal
-class ArrayInputTypeStrategy implements InputTypeStrategy {
+public class ArrayInputTypeStrategy implements InputTypeStrategy {
 	@Override
 	public ArgumentCount getArgumentCount() {
 		return ConstantArgumentCount.from(1);

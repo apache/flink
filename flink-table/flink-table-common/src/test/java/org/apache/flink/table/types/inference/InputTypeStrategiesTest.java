@@ -612,7 +612,7 @@ public class InputTypeStrategiesTest {
 
 		@Override
 		public String toString() {
-			return description != null ? description : "";
+			return description != null ? description : strategy.getClass().getSimpleName();
 		}
 	}
 }

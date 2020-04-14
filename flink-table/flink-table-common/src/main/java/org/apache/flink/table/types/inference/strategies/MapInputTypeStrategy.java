@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -39,7 +43,7 @@ import java.util.stream.IntStream;
  * All the keys and values must have a common super type respectively.
  */
 @Internal
-class MapInputTypeStrategy implements InputTypeStrategy {
+public class MapInputTypeStrategy implements InputTypeStrategy {
 
 	private static final ArgumentCount AT_LEAST_TWO_EVEN = new ArgumentCount() {
 		@Override
