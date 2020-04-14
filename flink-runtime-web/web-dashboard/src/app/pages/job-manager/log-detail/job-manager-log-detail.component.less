@@ -16,19 +16,39 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+@import "theme";
 
-@Component({
-  selector: 'flink-job-manager',
-  templateUrl: './job-manager.component.html',
-  styleUrls: ['./job-manager.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class JobManagerComponent {
-  listOfNavigation = [
-    { path: 'config', title: 'Configuration' },
-    { path: 'logs', title: 'Logs' },
-    { path: 'stdout', title: 'Stdout' },
-    { path: 'log', title: 'Log List' }
-  ];
+:host {
+  display: block;
+  height: 100%;
+  &.full-screen {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    background: @component-background;
+    z-index: 99;
+    flink-monaco-editor {
+      height: calc(~"100vh - 46px");
+    }
+  }
+}
+
+flink-monaco-editor {
+  height: calc(~"100vh - 205px");
+}
+
+.breadcrumb {
+  background: @component-background;
+  border-bottom: 1px solid @border-color-split;
+  padding: 12px 24px;
+  position: relative;
+}
+
+flink-refresh-download {
+  position: absolute;
+  right: 12px;
+  top: 0;
+  line-height: 47px;
 }

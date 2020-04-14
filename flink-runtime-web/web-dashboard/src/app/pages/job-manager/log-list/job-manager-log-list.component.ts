@@ -16,19 +16,32 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { finalize } from 'rxjs/operators';
+import { JobManagerService } from 'services';
 
 @Component({
-  selector: 'flink-job-manager',
-  templateUrl: './job-manager.component.html',
-  styleUrls: ['./job-manager.component.less'],
+  selector: 'flink-job-manager-log-list',
+  templateUrl: './job-manager-log-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobManagerComponent {
-  listOfNavigation = [
-    { path: 'config', title: 'Configuration' },
-    { path: 'logs', title: 'Logs' },
-    { path: 'stdout', title: 'Stdout' },
-    { path: 'log', title: 'Log List' }
-  ];
+export class JobManagerLogListComponent implements OnInit {
+  listOfLog: { name: string; size: number }[] = [];
+  isLoading = true;
+
+  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
+
+  ngOnInit() {
+    this.jobManagerService
+      .loadLogList()
+      .pipe(
+        finalize(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe(data => {
+        this.listOfLog = data;
+      });
+  }
 }
