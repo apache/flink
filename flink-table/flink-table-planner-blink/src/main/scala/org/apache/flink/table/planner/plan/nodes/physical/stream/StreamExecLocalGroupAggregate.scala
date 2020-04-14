@@ -42,7 +42,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for unbounded global group aggregate.
+  * Stream physical RelNode for unbounded local group aggregate.
   *
   * @see [[StreamExecGroupAggregateBase]] for more info.
   */
