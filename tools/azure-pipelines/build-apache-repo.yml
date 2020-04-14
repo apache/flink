@@ -126,3 +126,8 @@ stages:
             versionSpec: '= 2.4'
             addToPath: true
         - script: ./tools/travis/docs.sh
+      - template: build-python-wheels.yml
+        parameters:
+          stage_name: cron_python_wheels
+          environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          container: flink-build-container
