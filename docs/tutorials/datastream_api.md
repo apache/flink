@@ -229,7 +229,7 @@ instructions in the README, do the first exercise:
 ## Further Reading
 
 - [Flink Serialization Tuning Vol. 1: Choosing your Serializer — if you can](https://flink.apache.org/news/2020/04/15/flink-serialization-tuning-vol-1.html)
-- [Anatomy of a Flink Program]({% link dev/api_concepts.md %}#anatomy-of-a-flink-program)
+- [Anatomy of a Flink Program]({% link dev/datastream_api.md %}#anatomy-of-a-flink-program)
 - [Data Sources]({% link dev/datastream_api.md %}#data-sources)
 - [Data Sinks]({% link dev/datastream_api.md %}#data-sinks)
 - [DataStream Connectors]({% link dev/connectors/index.md %})

@@ -2,7 +2,7 @@
 title: "Basic API Concepts"
 layout: redirect
 redirect: /dev/datastream_api.html
-permalink: /apis/common/index.html
+permalink: /dev/api_concepts.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
