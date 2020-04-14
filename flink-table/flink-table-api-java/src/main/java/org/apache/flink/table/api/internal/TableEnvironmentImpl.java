@@ -58,6 +58,7 @@ import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -97,6 +98,7 @@ import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
+import org.apache.flink.table.types.DataType;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -105,6 +107,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces.
@@ -227,6 +230,42 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			planner,
 			settings.isStreamingMode()
 		);
+	}
+
+	@Override
+	public Table fromValues(Object... values) {
+		return fromValues(Arrays.asList(values));
+	}
+
+	@Override
+	public Table fromValues(DataType rowType, Object... values) {
+		return fromValues(rowType, Arrays.asList(values));
+	}
+
+	@Override
+	public Table fromValues(Expression... values) {
+		return createTable(operationTreeBuilder.values(values));
+	}
+
+	@Override
+	public Table fromValues(DataType rowType, Expression... values) {
+		return createTable(operationTreeBuilder.values(rowType, values));
+	}
+
+	@Override
+	public Table fromValues(Iterable<?> values) {
+		Expression[] exprs = StreamSupport.stream(values.spliterator(), false)
+			.map(ApiExpressionUtils::objectToExpression)
+			.toArray(Expression[]::new);
+		return fromValues(exprs);
+	}
+
+	@Override
+	public Table fromValues(DataType rowType, Iterable<?> values) {
+		Expression[] exprs = StreamSupport.stream(values.spliterator(), false)
+			.map(ApiExpressionUtils::objectToExpression)
+			.toArray(Expression[]::new);
+		return fromValues(rowType, exprs);
 	}
 
 	@VisibleForTesting

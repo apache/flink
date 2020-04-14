@@ -36,12 +36,14 @@ import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQuer
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 
+import _root_.java.lang.{Iterable => JIterable}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
@@ -947,8 +949,30 @@ abstract class TableEnvImpl(
     }
   }
 
+  override def fromValues(values: Expression*): Table = {
+    createTable(operationTreeBuilder.values(values: _*))
+  }
+
+  override def fromValues(rowType: DataType, values: Expression*): Table = {
+    createTable(operationTreeBuilder.values(rowType, values: _*))
+  }
+
+  override def fromValues(values: JIterable[_]): Table = {
+    val exprs = values.asScala
+      .map(ApiExpressionUtils.objectToExpression)
+      .toArray
+    fromValues(exprs)
+  }
+
+  override def fromValues(rowType: DataType, values: JIterable[_]): Table = {
+    val exprs = values.asScala
+      .map(ApiExpressionUtils.objectToExpression)
+      .toArray
+    fromValues(rowType, exprs)
+  }
+
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
-  private[flink] def getRelBuilder: FlinkRelBuilder = {
+  private[flink] def getRelBuilder = {
     val currentCatalogName = catalogManager.getCurrentCatalog
     val currentDatabase = catalogManager.getCurrentDatabase
 
