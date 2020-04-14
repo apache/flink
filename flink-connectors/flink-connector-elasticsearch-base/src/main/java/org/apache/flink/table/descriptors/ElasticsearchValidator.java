@@ -143,7 +143,7 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 	}
 
 	private void validateAuthProperties(DescriptorProperties properties) {
-		properties.validateInt(CONNECTOR_CREDENTIAL_USERNAME, true, 1);
+		properties.validateString(CONNECTOR_CREDENTIAL_USERNAME, true, 1);
 		properties.validateString(CONNECTOR_CREDENTIAL_PASSWORD, true);
 	}
 
