@@ -747,7 +747,7 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporter.stsd.class: org.apache.flink.metrics.statsd.StatsDReporter
+metrics.reporter.stsd.factory.class: org.apache.flink.metrics.statsd.StatsDReporterFactory
 metrics.reporter.stsd.host: localhost
 metrics.reporter.stsd.port: 8125
 
