@@ -127,7 +127,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 	public void testSnapshot() throws Exception {
 		ValidatingSourceOutput output = new ValidatingSourceOutput();
 		// Add a split to start the fetcher.
-		List<SplitT> splits = getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED);
+		List<SplitT> splits = getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED);
 		// Poll 5 records. That means split 0 and 1 will at index 2, split 1 will at index 1.
 		try (SourceReader<Integer, SplitT> reader =
 				consumeRecords(splits, output, NUM_SPLITS * NUM_RECORDS_PER_SPLIT)) {

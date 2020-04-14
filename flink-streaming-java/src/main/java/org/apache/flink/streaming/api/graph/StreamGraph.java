@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -47,6 +48,7 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
@@ -234,24 +236,46 @@ public class StreamGraph implements Pipeline {
 		return !vertexIDtoLoopTimeout.isEmpty();
 	}
 
-	public <IN, OUT> void addSource(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<OUT> operatorFactory,
-		TypeInformation<IN> inTypeInfo,
-		TypeInformation<OUT> outTypeInfo,
-		String operatorName) {
+	public <IN, OUT> void addSource(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			SourceOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
+		addOperator(
+				vertexID,
+				slotSharingGroup,
+				coLocationGroup,
+				operatorFactory,
+				inTypeInfo,
+				outTypeInfo,
+				operatorName,
+				SourceOperatorStreamTask.class);
+		sources.add(vertexID);
+	}
+
+	public <IN, OUT> void addLegacySource(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
 	}
 
-	public <IN, OUT> void addSink(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<OUT> operatorFactory,
-		TypeInformation<IN> inTypeInfo,
-		TypeInformation<OUT> outTypeInfo,
-		String operatorName) {
+	public <IN, OUT> void addSink(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sinks.add(vertexID);
 	}
@@ -264,13 +288,23 @@ public class StreamGraph implements Pipeline {
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
+		Class<? extends AbstractInvokable> invokableClass =
+				operatorFactory.isStreamSource() ? SourceStreamTask.class : OneInputStreamTask.class;
+		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo,
+				outTypeInfo, operatorName, invokableClass);
+	}
 
-		if (operatorFactory.isStreamSource()) {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorFactory, operatorName);
-		} else {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorFactory, operatorName);
-		}
+	private <IN, OUT> void addOperator(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName,
+			Class<? extends AbstractInvokable> invokableClass) {
 
+		addNode(vertexID, slotSharingGroup, coLocationGroup, invokableClass, operatorFactory, operatorName);
 		setSerializers(vertexID, createSerializer(inTypeInfo), null, createSerializer(outTypeInfo));
 
 		if (operatorFactory.isOutputTypeConfigurable() && outTypeInfo != null) {
@@ -340,25 +374,26 @@ public class StreamGraph implements Pipeline {
 		}
 	}
 
-	protected StreamNode addNode(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		Class<? extends AbstractInvokable> vertexClass,
-		StreamOperatorFactory<?> operatorFactory,
-		String operatorName) {
+	protected StreamNode addNode(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			Class<? extends AbstractInvokable> vertexClass,
+			StreamOperatorFactory<?> operatorFactory,
+			String operatorName) {
 
 		if (streamNodes.containsKey(vertexID)) {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
 		StreamNode vertex = new StreamNode(
-			vertexID,
-			slotSharingGroup,
-			coLocationGroup,
-			operatorFactory,
-			operatorName,
-			new ArrayList<OutputSelector<?>>(),
-			vertexClass);
+				vertexID,
+				slotSharingGroup,
+				coLocationGroup,
+				operatorFactory,
+				operatorName,
+				new ArrayList<OutputSelector<?>>(),
+				vertexClass);
 
 		streamNodes.put(vertexID, vertex);
 

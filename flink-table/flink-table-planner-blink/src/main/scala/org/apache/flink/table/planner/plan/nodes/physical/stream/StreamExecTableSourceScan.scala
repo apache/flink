@@ -79,7 +79,7 @@ class StreamExecTableSourceScan(
       name: String,
       outTypeInfo: RowDataTypeInfo): Transformation[RowData] = {
     // It's better to use StreamExecutionEnvironment.createInput()
-    // rather than addSource() for streaming, because it take care of checkpoint.
+    // rather than addLegacySource() for streaming, because it take care of checkpoint.
     env
       .createInput(inputFormat, outTypeInfo)
       .name(name)

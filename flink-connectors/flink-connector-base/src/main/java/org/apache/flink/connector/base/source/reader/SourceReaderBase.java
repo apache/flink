@@ -24,6 +24,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -81,6 +82,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	/** The last element to ensure it is fully handled. */
 	private SplitsRecordIterator<E> splitIter;
 
+	/** Indicating whether the SourceReader will be assigned more splits or not.*/
+	private boolean noMoreSplitsAssignment;
+
 	public SourceReaderBase(
 			FutureNotifier futureNotifier,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -97,6 +101,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		this.options = new SourceReaderOptions(config);
 		this.config = config;
 		this.context = context;
+		this.noMoreSplitsAssignment = false;
 	}
 
 	@Override
@@ -118,25 +123,33 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		Status status;
 		if (newFetch && recordsWithSplitId == null) {
 			// No element available, set to available later if needed.
-			status = Status.AVAILABLE_LATER;
+			status = finishedOrAvailableLater();
 		} else {
 			// Update the record iterator if it is a new fetch.
 			if (newFetch) {
 				splitIter = new SplitsRecordIterator<>(recordsWithSplitId);
 			}
-
+			// Process one record.
 			if (splitIter.hasNext()) {
 				// emit the record.
-				recordEmitter.emitRecord(splitIter.next(), sourceOutput, splitStates.get(splitIter.currentSplitId()));
-			} else {
+				E record = splitIter.next();
+				recordEmitter.emitRecord(record, sourceOutput, splitStates.get(splitIter.currentSplitId()));
+				LOG.trace("Emitted record: {}", record);
+			}
+			// Do some cleanup if the all the records in the current splitIter have been processed.
+			if (!splitIter.hasNext()) {
 				// First remove the state of the split.
 				splitIter.finishedSplitIds().forEach(splitStates::remove);
 				// Handle the finished splits.
 				onSplitFinished(splitIter.finishedSplitIds());
+				// Prepare the return status based on the availability of the next element.
+				status = finishedOrAvailableLater();
+			} else {
+				// There are more records from the current splitIter.
+				status = Status.AVAILABLE_NOW;
 			}
-			// Prepare the return status based on the availability of the next element.
-			status = elementsQueue.isEmpty() ? Status.AVAILABLE_LATER : Status.AVAILABLE_NOW;
 		}
+		LOG.trace("Source reader status: {}", status);
 		return status;
 	}
 
@@ -174,11 +187,16 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	@Override
 	public void handleSourceEvents(SourceEvent sourceEvent) {
-		// Default action is do nothing.
+		LOG.trace("Handling source event: {}", sourceEvent);
+		if (sourceEvent instanceof NoMoreSplitsEvent) {
+			noMoreSplitsAssignment = true;
+			futureNotifier.notifyComplete();
+		}
 	}
 
 	@Override
 	public void close() throws Exception {
+		LOG.info("Closing Source Reader.");
 		splitFetcherManager.close(options.sourceReaderCloseTimeout);
 	}
 
@@ -202,4 +220,16 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	 * @return an immutable Split state.
 	 */
 	protected abstract SplitT toSplitType(String splitId, SplitStateT splitState);
+
+	// ------------------ private helper methods ---------------------
+
+	private Status finishedOrAvailableLater() {
+		boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
+		boolean allElementsEmitted = elementsQueue.isEmpty() && (splitIter == null || !splitIter.hasNext());
+		if (noMoreSplitsAssignment && allFetchersHaveShutdown && allElementsEmitted) {
+			return Status.FINISHED;
+		} else {
+			return Status.AVAILABLE_LATER;
+		}
+	}
 }
