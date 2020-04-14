@@ -34,7 +34,7 @@ _gateway = None
 _lock = RLock()
 
 
-def is_launch_java_gateway_disabled():
+def is_launch_gateway_disabled():
     if "PYFLINK_GATEWAY_DISABLED" in os.environ \
             and os.environ["PYFLINK_GATEWAY_DISABLED"].lower() not in ["0", "false", ""]:
         return True
@@ -67,10 +67,11 @@ def launch_gateway():
     """
     launch jvm gateway
     """
-    if is_launch_java_gateway_disabled():
-        raise Exception("Launching java gateway is disabled in current environment. "
-                        "This exception is usually caused by the job code is executed "
-                        "unexpectedly in UDF worker.")
+    if is_launch_gateway_disabled():
+        raise Exception("It's launching the PythonGatewayServer during Python UDF execution "
+                        "which is unexpected. It usually occurs in the cases that the job codes are"
+                        "in the top level of the Python script file and are not enclosed in a "
+                        "if name == 'main' statement.")
     FLINK_HOME = _find_flink_home()
     # TODO windows support
     on_windows = platform.system() == "Windows"

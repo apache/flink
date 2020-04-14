@@ -202,9 +202,8 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
                 from pyflink.java_gateway import get_gateway
                 get_gateway()
             except Exception as e:
-                assert str(e) == "Launching java gateway is disabled in current environment. " \
-                                 "This exception is usually caused by the job code is executed " \
-                                 "unexpectedly in UDF worker."
+                assert str(e).startswith("It's launching the PythonGatewayServer during Python UDF"
+                                         " execution which is unexpected.")
             else:
                 raise Exception("The gateway server is not disabled!")
             return i

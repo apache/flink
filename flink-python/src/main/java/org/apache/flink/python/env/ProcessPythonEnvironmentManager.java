@@ -194,7 +194,8 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
 		// disable the launching of gateway server to prevent from this dead loop:
 		// launch UDF worker -> import udf -> import job code
-		//        ^                                    | (If the job code is executed unexpectedly)
+		//        ^                                    | (If the job code is not enclosed in a
+		//        									   |  if name == 'main' statement)
 		//        |                                    V
 		// execute job in local mode <- launch gateway server and submit job to local executor
 		env.put(PYFLINK_GATEWAY_DISABLED, "true");
