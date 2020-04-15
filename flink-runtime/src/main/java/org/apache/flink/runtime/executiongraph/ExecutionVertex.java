@@ -318,6 +318,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
+	@Override
+	public EvictingBoundedList<ArchivedExecution> getPriorExecutionAttempts() {
+		return priorExecutions;
+	}
+
 	public ArchivedExecution getLatestPriorExecution() {
 		synchronized (priorExecutions) {
 			final int size = priorExecutions.size();

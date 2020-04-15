@@ -104,4 +104,10 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
+
+	@Override
+	public EvictingBoundedList<ArchivedExecution> getPriorExecutionAttempts() {
+		return priorExecutions;
+	}
+
 }
