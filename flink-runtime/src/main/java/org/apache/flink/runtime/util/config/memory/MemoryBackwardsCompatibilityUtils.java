@@ -49,7 +49,7 @@ public class MemoryBackwardsCompatibilityUtils {
 		if (configuration.contains(configOption)) {
 			return configuration;
 		}
-		return getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(configuration)
+		return getLegacyHeapMemoryIfExplicitlyConfigured(configuration)
 			.map(legacyHeapSize -> {
 				Configuration copiedConfig = new Configuration(configuration);
 				copiedConfig.set(configOption, legacyHeapSize);
@@ -61,7 +61,7 @@ public class MemoryBackwardsCompatibilityUtils {
 			}).orElse(configuration);
 	}
 
-	private Optional<MemorySize> getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(Configuration configuration) {
+	private Optional<MemorySize> getLegacyHeapMemoryIfExplicitlyConfigured(Configuration configuration) {
 		@SuppressWarnings("CallToSystemGetenv")
 		String totalProcessEnv = System.getenv(legacyMemoryOptions.getEnvVar());
 		if (totalProcessEnv != null) {
