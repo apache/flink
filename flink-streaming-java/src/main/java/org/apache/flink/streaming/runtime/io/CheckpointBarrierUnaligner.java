@@ -117,11 +117,13 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	@Override
 	public void releaseBlocksAndResetBarriers() {
-		// make sure no additional data is persisted
-		Arrays.fill(hasInflightBuffers, false);
+		if (numBarrierConsumed > 0) {
+			// make sure no additional data is persisted
+			Arrays.fill(hasInflightBuffers, false);
+			// the next barrier that comes must assume it is the first
+			numBarrierConsumed = 0;
+		}
 		threadSafeUnaligner.resetReceivedBarriers(currentConsumedCheckpointId);
-		// the next barrier that comes must assume it is the first
-		numBarrierConsumed = 0;
 	}
 
 	/**
@@ -168,56 +170,24 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	public boolean processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
 		final long barrierId = cancelBarrier.getCheckpointId();
 
+		if (currentConsumedCheckpointId >= barrierId && numBarrierConsumed == 0) {
+			return false;
+		}
+
 		if (numBarrierConsumed > 0) {
-			// this is only true if some alignment is in progress and nothing was canceled
-
-			if (barrierId == currentConsumedCheckpointId) {
-				// cancel this alignment
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("{}: Checkpoint {} canceled, aborting alignment.", taskName, barrierId);
-				}
-
-				releaseBlocksAndResetBarriers();
-				notifyAbortOnCancellationBarrier(barrierId);
-			}
-			else if (barrierId > currentConsumedCheckpointId) {
-				// we canceled the next which also cancels the current
-				LOG.warn("{}: Received cancellation barrier for checkpoint {} before completing current checkpoint {}. " +
-						"Skipping current checkpoint.",
+			LOG.warn("{}: Received cancellation barrier for checkpoint {} before completing current checkpoint {}. " +
+							"Skipping current checkpoint.",
 					taskName,
 					barrierId,
 					currentConsumedCheckpointId);
-
-				// this stops the current alignment
-				releaseBlocksAndResetBarriers();
-
-				// the next checkpoint starts as canceled
-				currentConsumedCheckpointId = barrierId;
-				threadSafeUnaligner.setCurrentReceivedCheckpointId(currentConsumedCheckpointId);
-				notifyAbortOnCancellationBarrier(barrierId);
-			}
-
-			// else: ignore trailing (cancellation) barrier from an earlier checkpoint (obsolete now)
-
+		} else if (LOG.isDebugEnabled()) {
+			LOG.debug("{}: Checkpoint {} canceled, aborting alignment.", taskName, barrierId);
 		}
-		else if (barrierId > currentConsumedCheckpointId) {
-			// first barrier of a new checkpoint is directly a cancellation
+		releaseBlocksAndResetBarriers();
+		currentConsumedCheckpointId = barrierId;
+		threadSafeUnaligner.setCurrentReceivedCheckpointId(currentConsumedCheckpointId);
+		notifyAbortOnCancellationBarrier(barrierId);
 
-			// by setting the currentCheckpointId to this checkpoint while keeping the numBarriers
-			// at zero means that no checkpoint barrier can start a new alignment
-			currentConsumedCheckpointId = barrierId;
-			threadSafeUnaligner.setCurrentReceivedCheckpointId(currentConsumedCheckpointId);
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{}: Checkpoint {} canceled, skipping alignment.", taskName, barrierId);
-			}
-
-			notifyAbortOnCancellationBarrier(barrierId);
-		}
-
-		// else: trailing barrier from either
-		//   - a previous (subsumed) checkpoint
-		//   - the current checkpoint if it was already canceled
 		return false;
 	}
 
@@ -402,7 +372,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		}
 
 		public synchronized void resetReceivedBarriers(long checkpointId) {
-			if (checkpointId >= currentReceivedCheckpointId) {
+			if (checkpointId >= currentReceivedCheckpointId && numBarriersReceived > 0) {
 				// avoid more data being serialized after abortion
 				Arrays.fill(storeNewBuffers, false);
 				// the next barrier that comes must assume it is the first
