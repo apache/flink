@@ -30,12 +30,15 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
-import java.math.{BigDecimal => JBigDecimal}
 
+import java.math.{BigDecimal => JBigDecimal}
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
+
+import java.time.ZoneOffset
 
 import scala.collection.mutable
 
@@ -385,7 +388,8 @@ object GenerateUtils {
         val fieldTerm = newName("timestampWithLocalZone")
         val ins =
           toLocalDateTime(literalValue.asInstanceOf[TimestampString])
-          .atZone(ctx.tableConfig.getLocalTimeZone).toInstant
+            .atOffset(ZoneOffset.UTC)
+            .toInstant
         val ts = SqlTimestamp.fromInstant(ins)
         val fieldTimestampWithLocalZone =
           s"""

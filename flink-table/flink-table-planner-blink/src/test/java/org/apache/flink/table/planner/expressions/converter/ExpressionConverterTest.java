@@ -44,6 +44,7 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -125,6 +126,18 @@ public class ExpressionConverterTest {
 			((RexLiteral) rex).getValueAs(TimestampString.class),
 			equalTo(new TimestampString("2012-12-12 12:12:12.123")));
 		assertThat(rex.getType().getSqlTypeName(), equalTo(SqlTypeName.TIMESTAMP));
+		assertThat(rex.getType().getPrecision(), equalTo(3));
+	}
+
+	@Test
+	public void testTimestampWithLocalZoneLiteral() {
+		RexNode rex = converter.visit(valueLiteral(
+			Instant.ofEpochMilli(100),
+			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull()));
+		assertThat(
+			((RexLiteral) rex).getValueAs(TimestampString.class),
+			equalTo(TimestampString.fromMillisSinceEpoch(100)));
+		assertThat(rex.getType().getSqlTypeName(), equalTo(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE));
 		assertThat(rex.getType().getPrecision(), equalTo(3));
 	}
 

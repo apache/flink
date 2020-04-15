@@ -46,7 +46,7 @@ class MethodCallGen(method: Method) extends CallGenerator {
         val call = if (terms.length + 1 == method.getParameterCount &&
           method.getParameterTypes()(terms.length) == classOf[TimeZone]) {
           // insert the zoneID parameters for timestamp functions
-          val timeZone = ctx.addReusableTimeZone()
+          val timeZone = ctx.addReusableSessionTimeZone()
           s"""
              |${qualifyMethod(method)}(${terms.mkString(", ")}, $timeZone)
            """.stripMargin

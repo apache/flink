@@ -30,12 +30,12 @@ import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunc
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
+
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.commons.lang3.StringEscapeUtils
+
 import java.io.File
-import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -154,8 +154,7 @@ class ExpressionReducer(
           case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              val ins = reducedValue.asInstanceOf[SqlTimestamp].toInstant
-              val dt = LocalDateTime.ofInstant(ins, config.getLocalTimeZone)
+              val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
               fromLocalDateTime(dt)
             } else {
               reducedValue

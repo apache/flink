@@ -30,6 +30,7 @@ import org.apache.calcite.util.TimestampString;
 
 import java.time.Duration;
 import java.time.Period;
+import java.time.ZoneOffset;
 
 /**
  * A {@link CallContext} backed by {@link SqlOperatorBinding}.
@@ -108,6 +109,14 @@ public abstract class AbstractSqlCallContext implements CallContext {
 		else if (clazz == java.time.LocalDateTime.class) {
 			final TimestampString timestampString = accessor.getValueAs(TimestampString.class);
 			convertedValue = java.time.LocalDateTime.parse(timestampString.toString().replace(' ', 'T'));
+		}
+
+		else if (clazz == java.time.Instant.class) {
+			// timestamp string is in UTC, convert back to an instant
+			final TimestampString timestampString = accessor.getValueAs(TimestampString.class);
+			convertedValue = java.time.LocalDateTime.parse(timestampString.toString().replace(' ', 'T'))
+				.atOffset(ZoneOffset.UTC)
+				.toInstant();
 		}
 
 		if (convertedValue != null) {
