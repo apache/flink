@@ -301,7 +301,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     val query =
       """
-        |INSERT INTO T2 /*+ OPTIONS('format.field-delimiter' = ',') */
+        |INSERT INTO T2 /*+ OPTIONS('format.field-delimiter' = '|') */
         |SELECT
         |  TUMBLE_END(ts, INTERVAL '5' SECOND),
         |  MAX(ts6),
@@ -314,8 +314,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     execJob("testJob")
 
     val expected =
-      "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
-        "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
+      "2019-12-12 00:00:05.0|2019-12-12 00:00:04.004001|3|50.00\n" +
+        "2019-12-12 00:00:10.0|2019-12-12 00:00:06.006001|2|5.33\n"
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 
