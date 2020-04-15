@@ -749,7 +749,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public void triggerCheckpointOnBarrier(
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,
-			CheckpointMetrics checkpointMetrics) throws Exception {
+			CheckpointMetrics checkpointMetrics) throws IOException {
 
 		try {
 			if (performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, false)) {
@@ -764,13 +764,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			throw e;
 		}
 		catch (Exception e) {
-			throw new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() + " for operator " +
+			throw new IOException("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() + " for operator " +
 				getName() + '.', e);
 		}
 	}
 
 	@Override
-	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
 		subtaskCheckpointCoordinator.abortCheckpointOnBarrier(checkpointId, cause, operatorChain);
 	}
 

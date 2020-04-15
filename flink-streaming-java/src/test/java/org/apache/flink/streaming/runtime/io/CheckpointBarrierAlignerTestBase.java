@@ -1320,7 +1320,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		public void triggerCheckpointOnBarrier(
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) throws Exception {
+				CheckpointMetrics checkpointMetrics) {
 			assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L ||
 				nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
 
