@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -243,7 +244,8 @@ public class LocalExecutor implements Executor {
 	/**
 	 * Get the existed {@link ExecutionContext} from contextMap, or thrown exception if does not exist.
 	 */
-	private ExecutionContext<?> getExecutionContext(String sessionId) throws SqlExecutionException {
+	@VisibleForTesting
+	protected ExecutionContext<?> getExecutionContext(String sessionId) throws SqlExecutionException {
 		ExecutionContext<?> context = this.contextMap.get(sessionId);
 		if (context == null) {
 			throw new SqlExecutionException("Invalid session identifier: " + sessionId);
@@ -279,6 +281,7 @@ public class LocalExecutor implements Executor {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
+
 		// Renew the ExecutionContext by new environment.
 		// Book keep all the session states of current ExecutionContext then
 		// re-register them into the new one.
