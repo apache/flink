@@ -21,7 +21,7 @@ package org.apache.flink.dist;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.util.BashJavaUtils;
+import org.apache.flink.runtime.util.bash.BashJavaUtils;
 
 import org.junit.Test;
 

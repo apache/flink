@@ -708,7 +708,7 @@ under the License.
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
-										<exclude>org/apache/flink/runtime/util/BashJavaUtils.class</exclude>
+										<exclude>org/apache/flink/runtime/util/bash/BashJavaUtils.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -769,7 +769,7 @@ under the License.
 								<filter>
 									<artifact>org.apache.flink:*</artifact>
 									<includes>
-										<include>org/apache/flink/runtime/util/BashJavaUtils.class</include>
+										<include>org/apache/flink/runtime/util/bash/BashJavaUtils.class</include>
 									</includes>
 								</filter>
 							</filters>
