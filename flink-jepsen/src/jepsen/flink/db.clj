@@ -41,7 +41,7 @@
   {:high-availability                     "zookeeper"
    :high-availability.zookeeper.quorum    (zookeeper-quorum test)
    :high-availability.storageDir          "hdfs:///flink/ha"
-   :jobmanager.heap.size                  "2048m"
+   :jobmanager.memory.process.size        "2048m"
    :jobmanager.rpc.address                node
    :state.savepoints.dir                  "hdfs:///flink/savepoints"
    :rest.address                          node

@@ -143,7 +143,7 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    jobmanager.heap.size: 1024m
+    jobmanager.memory.process.size: 1472m
     taskmanager.memory.process.size: 1024m
   log4j.properties: |+
     rootLogger.level = INFO
