@@ -522,6 +522,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public String[] listViews() {
+		return catalogManager.listViews()
+			.stream()
+			.sorted()
+			.toArray(String[]::new);
+	}
+
+	@Override
 	public String[] listTemporaryTables() {
 		return catalogManager.listTemporaryTables()
 			.stream()

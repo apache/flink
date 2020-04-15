@@ -416,6 +416,37 @@ public final class CatalogManager {
 	}
 
 	/**
+	 * Returns an array of names of all views(both temporary and permanent) registered in
+	 * the namespace of the current catalog and database.
+	 *
+	 * @return names of all registered views
+	 */
+	public Set<String> listViews() {
+		return listViews(getCurrentCatalog(), getCurrentDatabase());
+	}
+
+	/**
+	 * Returns an array of names of all views(both temporary and permanent) registered in
+	 * the namespace of the current catalog and database.
+	 *
+	 * @return names of registered views
+	 */
+	public Set<String> listViews(String catalogName, String databaseName) {
+		Catalog currentCatalog = catalogs.get(getCurrentCatalog());
+
+		try {
+			return Stream.concat(
+				currentCatalog.listViews(getCurrentDatabase()).stream(),
+				listTemporaryTablesInternal(catalogName, databaseName)
+					.filter(e -> e.getValue() instanceof CatalogView)
+					.map(e -> e.getKey().getObjectName())
+			).collect(Collectors.toSet());
+		} catch (DatabaseNotExistException e) {
+			throw new ValidationException("Current database does not exist", e);
+		}
+	}
+
+	/**
 	 * Lists all available schemas in the root of the catalog manager. It is not equivalent to listing all catalogs
 	 * as it includes also different catalog parts of the temporary objects.
 	 *

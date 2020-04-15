@@ -495,6 +495,12 @@ abstract class TableEnvImpl(
       .sorted
   }
 
+  override def listViews(): Array[String] = {
+    catalogManager.listViews().asScala
+      .toArray
+      .sorted
+  }
+
   override def listTemporaryTables(): Array[String] = {
     catalogManager.listTemporaryTables().asScala
       .toArray
