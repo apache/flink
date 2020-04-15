@@ -18,13 +18,15 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link SubtaskCheckpointCoordinator}.
@@ -39,15 +41,19 @@ public class SubtaskCheckpointCoordinatorTest {
 			.setEnvironment(mockEnvironment)
 			.build();
 
+		final OperatorChain<?, ?> operatorChain = new OperatorChain<>(
+			new MockStreamTaskBuilder(new DummyEnvironment()).build(),
+			new NonRecordWriter<>());
+
 		long checkpointId = 42L;
 		{
-			subtaskCheckpointCoordinator.notifyCheckpointComplete(checkpointId, mock(OperatorChain.class), () -> true);
+			subtaskCheckpointCoordinator.notifyCheckpointComplete(checkpointId, operatorChain, () -> true);
 			assertEquals(checkpointId, stateManager.getNotifiedCompletedCheckpointId());
 		}
 
 		long newCheckpointId = checkpointId + 1;
 		{
-			subtaskCheckpointCoordinator.notifyCheckpointComplete(newCheckpointId, mock(OperatorChain.class), () -> false);
+			subtaskCheckpointCoordinator.notifyCheckpointComplete(newCheckpointId, operatorChain, () -> false);
 			// even task is not running, state manager could still receive the notification.
 			assertEquals(newCheckpointId, stateManager.getNotifiedCompletedCheckpointId());
 		}
