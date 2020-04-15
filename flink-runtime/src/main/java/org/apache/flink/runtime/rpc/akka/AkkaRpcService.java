@@ -36,6 +36,9 @@ import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcRuntimeException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExecutorUtils;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorIdentity;
@@ -67,6 +70,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -107,7 +112,7 @@ public class AkkaRpcService implements RpcService {
 
 	private final CompletableFuture<Void> terminationFuture;
 
-	private final ActorRef supervisor;
+	private final Supervisor supervisor;
 
 	private volatile boolean stopped;
 
@@ -141,8 +146,11 @@ public class AkkaRpcService implements RpcService {
 		supervisor = startSupervisorActor();
 	}
 
-	private ActorRef startSupervisorActor() {
-		return SupervisorActor.startSupervisorActor(actorSystem);
+	private Supervisor startSupervisorActor() {
+		final ExecutorService terminationFutureExecutor = Executors.newSingleThreadExecutor(new ExecutorThreadFactory("AkkaRpcService-Supervisor-Termination-Future-Executor"));
+		final ActorRef actorRef = SupervisorActor.startSupervisorActor(actorSystem, terminationFutureExecutor);
+
+		return Supervisor.create(actorRef, terminationFutureExecutor);
 	}
 
 	public ActorSystem getActorSystem() {
@@ -284,7 +292,7 @@ public class AkkaRpcService implements RpcService {
 			checkState(!stopped, "RpcService is stopped");
 
 			final SupervisorActor.StartAkkaRpcActorResponse startAkkaRpcActorResponse = SupervisorActor.startAkkaRpcActor(
-				supervisor,
+				supervisor.getActor(),
 				actorTerminationFuture -> Props.create(
 					akkaRpcActorType,
 					rpcEndpoint,
@@ -371,8 +379,12 @@ public class AkkaRpcService implements RpcService {
 			akkaRpcActorsTerminationFuture = terminateAkkaRpcActors();
 		}
 
-		final CompletableFuture<Void> actorSystemTerminationFuture = FutureUtils.composeAfterwards(
+		final CompletableFuture<Void> supervisorTerminationFuture = FutureUtils.composeAfterwards(
 			akkaRpcActorsTerminationFuture,
+			supervisor::closeAsync);
+
+		final CompletableFuture<Void> actorSystemTerminationFuture = FutureUtils.composeAfterwards(
+			supervisorTerminationFuture,
 			() -> FutureUtils.toJava(actorSystem.terminate()));
 
 		actorSystemTerminationFuture.whenComplete(
@@ -512,5 +524,34 @@ public class AkkaRpcService implements RpcService {
 				return proxy;
 			},
 			actorSystem.dispatcher());
+	}
+
+	// ---------------------------------------------------------------------------------------
+	// Private inner classes
+	// ---------------------------------------------------------------------------------------
+
+	private static final class Supervisor implements AutoCloseableAsync {
+
+		private final ActorRef actor;
+
+		private final ExecutorService terminationFutureExecutor;
+
+		private Supervisor(ActorRef actor, ExecutorService terminationFutureExecutor) {
+			this.actor = actor;
+			this.terminationFutureExecutor = terminationFutureExecutor;
+		}
+
+		private static Supervisor create(ActorRef actorRef, ExecutorService terminationFutureExecutor) {
+			return new Supervisor(actorRef, terminationFutureExecutor);
+		}
+
+		public ActorRef getActor() {
+			return actor;
+		}
+
+		@Override
+		public CompletableFuture<Void> closeAsync() {
+			return ExecutorUtils.nonBlockingShutdown(30L, TimeUnit.SECONDS, terminationFutureExecutor);
+		}
 	}
 }

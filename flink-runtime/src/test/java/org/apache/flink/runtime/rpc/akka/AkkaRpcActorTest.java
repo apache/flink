@@ -450,6 +450,22 @@ public class AkkaRpcActorTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void terminationFutureDoesNotBlockRpcEndpointCreation() throws Exception {
+		try (final SimpleRpcEndpoint simpleRpcEndpoint = new SimpleRpcEndpoint(akkaRpcService, "foobar")) {
+			final CompletableFuture<Void> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+
+			// Creating a new RpcEndpoint within the termination future ensures that
+			// completing the termination future won't block the RpcService
+			final CompletableFuture<SimpleRpcEndpoint> foobar2 = terminationFuture.thenApply(ignored -> new SimpleRpcEndpoint(akkaRpcService, "foobar2"));
+
+			simpleRpcEndpoint.closeAsync();
+
+			final SimpleRpcEndpoint simpleRpcEndpoint2 = foobar2.join();
+			simpleRpcEndpoint2.close();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Actors and Interfaces
 	// ------------------------------------------------------------------------

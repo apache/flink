@@ -52,7 +52,7 @@ public class SupervisorActorTest extends TestLogger {
 	public void completesTerminationFutureIfActorStops() {
 		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem);
+		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
 		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
 
@@ -68,7 +68,7 @@ public class SupervisorActorTest extends TestLogger {
 	public void completesTerminationFutureExceptionallyIfActorStopsExceptionally() throws Exception {
 		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem);
+		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
 		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
 
@@ -91,7 +91,7 @@ public class SupervisorActorTest extends TestLogger {
 	public void completesTerminationFutureExceptionallyIfActorStopsWithoutReason() throws InterruptedException {
 		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem);
+		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
 		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
 
@@ -110,7 +110,7 @@ public class SupervisorActorTest extends TestLogger {
 	public void completesTerminationFutureExceptionallyIfActorFails() throws Exception {
 		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem);
+		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
 		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
 
@@ -138,7 +138,7 @@ public class SupervisorActorTest extends TestLogger {
 	public void completesTerminationFutureOfSiblingsIfActorFails() throws Exception {
 		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem);
+		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
 		final SupervisorActor.ActorRegistration actorRegistration1 = startAkkaRpcActor(supervisor, "foobar1");
 		final SupervisorActor.ActorRegistration actorRegistration2 = startAkkaRpcActor(supervisor, "foobar2");
