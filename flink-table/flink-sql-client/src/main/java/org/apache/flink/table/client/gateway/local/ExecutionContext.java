@@ -789,7 +789,7 @@ public class ExecutionContext<ClusterID> {
 				CatalogManager catalogManager,
 				ModuleManager moduleManager,
 				FunctionCatalog functionCatalog) {
-			return new SessionState( catalogManager, moduleManager, functionCatalog);
+			return new SessionState(catalogManager, moduleManager, functionCatalog);
 		}
 	}
 }

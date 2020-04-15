@@ -283,7 +283,6 @@ public class LocalExecutor implements Executor {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
-		ExecutionContext.SessionState sessionState = context.getSessionState();
 
 		// Renew the ExecutionContext by new environment.
 		// Book keep all the session states of current ExecutionContext then
@@ -291,7 +290,7 @@ public class LocalExecutor implements Executor {
 		ExecutionContext<?> newContext = createExecutionContextBuilder(
 				context.getOriginalSessionContext())
 				.env(newEnv)
-				.sessionState(sessionState)
+				.sessionState(context.getSessionState())
 				.build();
 		this.contextMap.put(sessionId, newContext);
 	}
