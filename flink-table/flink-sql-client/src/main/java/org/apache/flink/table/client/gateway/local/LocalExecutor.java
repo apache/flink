@@ -39,6 +39,7 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
@@ -76,6 +77,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -236,8 +238,20 @@ public class LocalExecutor implements Executor {
 				// ignore any throwable to keep the clean up running
 			}
 		});
+		// Close all loaded Catalogs
+		closeCatalogs(sessionId);
 		// Remove the session's ExecutionContext from contextMap.
 		this.contextMap.remove(sessionId);
+	}
+
+	private void closeCatalogs(String sessionId) {
+		ExecutionContext<?> context = getExecutionContext(sessionId);
+		TableEnvironment tableEnv = context.getTableEnvironment();
+		listCatalogs(sessionId).forEach(catName -> context.wrapClassLoader(() -> {
+			Optional<Catalog> catalog = tableEnv.getCatalog(catName);
+			catalog.ifPresent(Catalog::close);
+			return null;
+		}));
 	}
 
 	/**
