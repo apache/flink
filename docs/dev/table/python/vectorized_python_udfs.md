@@ -24,7 +24,7 @@ under the License.
 
 Vectorized Python user-defined functions are functions which are executed by transferring a batch of elements between JVM and Python VM in Arrow columnar format.
 The performance of vectorized Python user-defined functions are usually much higher than non-vectorized Python user-defined functions as the serialization/deserialization
-overhead is much reduced. Besides, users could leverage the popular Python libraries such as Pandas, Numpy, etc for the vectorized Python user-defined functions implementation.
+overhead and invocation overhead are much reduced. Besides, users could leverage the popular Python libraries such as Pandas, Numpy, etc for the vectorized Python user-defined functions implementation.
 These Python libraries are highly optimized and provide high-performance data structures and functions. It shares the similar way as the
 [non-vectorized user-defined functions]({{ site.baseurl }}/dev/table/python/python_udfs.html) on how to define vectorized user-defined functions.
 Users only need to add an extra parameter `udf_type="pandas"` in the decorator `udf` to mark it as a vectorized user-defined function.
@@ -36,8 +36,8 @@ Users only need to add an extra parameter `udf_type="pandas"` in the decorator `
 
 ## Vectorized Scalar Functions
 
-Vectorized Python scalar functions take pandas.Series as the inputs and return a pandas.Series of the same length as the output.
-Internally, Flink will split the input elements into batches, convert a batch of input elements into Pandas.Series
+Vectorized Python scalar functions take `pandas.Series` as the inputs and return a `pandas.Series` of the same length as the output.
+Internally, Flink will split the input elements into batches, convert a batch of input elements into `Pandas.Series`
 and then call user-defined vectorized Python scalar functions for each batch of input elements. Please refer to the config option
 [python.fn-execution.arrow.batch.size]({{ site.baseurl }}/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size) for more details
 on how to configure the batch size.
