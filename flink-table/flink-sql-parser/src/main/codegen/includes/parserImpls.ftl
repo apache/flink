@@ -323,6 +323,20 @@ SqlShowFunctions SqlShowFunctions() :
 }
 
 /**
+ * Parse a "Show Views" metadata query command.
+ */
+SqlShowViews SqlShowViews() :
+{
+    SqlParserPos pos;
+}
+{
+    <SHOW> <VIEWS> { pos = getPos(); }
+    {
+        return new SqlShowViews(pos);
+    }
+}
+
+/**
 * Parse a "Show Tables" metadata query command.
 */
 SqlShowTables SqlShowTables() :
