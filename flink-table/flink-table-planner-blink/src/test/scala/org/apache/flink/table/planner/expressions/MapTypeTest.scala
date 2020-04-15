@@ -31,6 +31,15 @@ import org.junit.Test
 class MapTypeTest extends MapTypeTestBase {
 
   @Test
+  def testInputTypeGeneralization(): Unit = {
+    testAllApis(
+      map(1, "ABC", 2.0, "D"),
+      "map(1, 'ABC', 2.0, 'D')",
+      "MAP[1, 'ABC', cast(2.0 AS DOUBLE), 'D']",
+      "{1.0=ABC, 2.0=D}")
+  }
+
+  @Test
   def testItem(): Unit = {
     testSqlApi("f0['map is null']", "null")
     testSqlApi("f1['map is empty']", "null")

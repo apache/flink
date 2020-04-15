@@ -41,11 +41,15 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     translateCall(
       definition, call.getChildren.asScala,
       () =>
-        if (definition.getKind == FunctionKind.AGGREGATE ||
-            definition.getKind == FunctionKind.TABLE_AGGREGATE) {
-          ApiResolvedAggregateCallExpression(call)
-        } else {
-          ApiResolvedCallExpression(call)
+        definition match {
+          case ROW | ARRAY | MAP => ApiResolvedCallExpression(call)
+          case _ =>
+            if (definition.getKind == FunctionKind.AGGREGATE ||
+              definition.getKind == FunctionKind.TABLE_AGGREGATE) {
+              ApiResolvedAggregateCallExpression(call)
+            } else {
+              ApiResolvedCallExpression(call)
+            }
         })
   }
 
@@ -643,18 +647,9 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             Cardinality(args.head)
 
-          case ARRAY =>
-            ArrayConstructor(args)
-
           case ARRAY_ELEMENT =>
             assert(args.size == 1)
             ArrayElement(args.head)
-
-          case MAP =>
-            MapConstructor(args)
-
-          case ROW =>
-            RowConstructor(args)
 
           case ORDER_ASC =>
             assert(args.size == 1)

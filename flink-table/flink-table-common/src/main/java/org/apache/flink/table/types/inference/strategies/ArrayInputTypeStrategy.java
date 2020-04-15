@@ -26,51 +26,50 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
-import org.apache.flink.table.types.inference.Signature.Argument;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
- * Strategy that does not perform any modification or validation of the input.
+ * {@link InputTypeStrategy} specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#ARRAY}.
+ *
+ * <p>It expects at least one argument. All the arguments must have a common super type.
  */
 @Internal
-public final class WildcardInputTypeStrategy implements InputTypeStrategy {
-
-	private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
-	private final ArgumentCount argumentCount;
-
-	public WildcardInputTypeStrategy(ArgumentCount argumentCount) {
-		this.argumentCount = argumentCount;
-	}
-
-	public WildcardInputTypeStrategy() {
-		this(PASSING_ARGUMENT_COUNT);
-	}
-
+public class ArrayInputTypeStrategy implements InputTypeStrategy {
 	@Override
 	public ArgumentCount getArgumentCount() {
-		return argumentCount;
+		return ConstantArgumentCount.from(1);
 	}
 
 	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		return Optional.of(callContext.getArgumentDataTypes());
+	public Optional<List<DataType>> inferInputTypes(
+		CallContext callContext,
+		boolean throwOnFailure) {
+		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		if (argumentDataTypes.size() == 0) {
+			return Optional.empty();
+		}
+
+		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(
+			argumentDataTypes
+				.stream()
+				.map(DataType::getLogicalType)
+				.collect(Collectors.toList())
+		);
+
+		return commonType.map(type -> Collections.nCopies(
+			argumentDataTypes.size(),
+			TypeConversions.fromLogicalToDataType(type)));
 	}
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Argument.of("*")));
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o instanceof WildcardInputTypeStrategy;
-	}
-
-	@Override
-	public int hashCode() {
-		return WildcardInputTypeStrategy.class.hashCode();
+		return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
 	}
 }

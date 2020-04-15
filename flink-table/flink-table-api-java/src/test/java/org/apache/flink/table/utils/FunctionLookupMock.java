@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * A test implementation for a {@link FunctionLookup}. It mocks away a few features of a
@@ -48,7 +47,6 @@ import java.util.stream.IntStream;
  * <ul>
  *     <li>BuiltinFunctionDefinitions.EQUALS</li>
  *     <li>BuiltinFunctionDefinitions.IS_NULL</li>
- *     <li>BuiltinFunctionDefinitions.ROW</li>
  * </ul>
  *
  * <p>Pseudo functions that are executed during expression resolution e.g.:
@@ -57,6 +55,11 @@ import java.util.stream.IntStream;
  *      <li>BuiltinFunctionDefinitions.WITHOUT_COLUMNS</li>
  *      <li>BuiltinFunctionDefinitions.RANGE_TO</li>
  *      <li>BuiltinFunctionDefinitions.FLATTEN</li>
+ * </ul>
+ *
+ * <p>Built-in functions that use the Flink's type inference stack:
+ * <ul>
+ *     <li>BuiltinFunctionDefinitions.ROW</li>
  * </ul>
  *
  * <p>This class supports only a simplified identifier parsing logic. It does not support escaping.
@@ -120,16 +123,6 @@ public final class FunctionLookupMock implements FunctionLookup {
 					argumentTypes,
 					null,
 					DataTypes.BOOLEAN()
-				);
-			} else if (functionDefinition.equals(BuiltInFunctionDefinitions.ROW)) {
-				DataTypes.Field[] fields = IntStream.range(0, argumentTypes.size())
-					.mapToObj(idx -> DataTypes.FIELD("f" + idx, argumentTypes.get(idx)))
-					.toArray(DataTypes.Field[]::new);
-
-				return new TypeInferenceUtil.Result(
-					argumentTypes,
-					null,
-					DataTypes.ROW(fields)
 				);
 			} else if (functionDefinition instanceof ScalarFunctionDefinition) {
 				return new TypeInferenceUtil.Result(
