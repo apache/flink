@@ -56,11 +56,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
@@ -161,13 +161,9 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				value = fromLocalDateTime(datetime);
 				break;
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				TimeZone timeZone = TimeZone.getTimeZone(
-					ShortcutUtils.unwrapContext(this.relBuilder)
-						.getTableConfig()
-						.getLocalTimeZone()
-				);
+				// normalize to UTC
 				Instant instant = extractValue(valueLiteral, Instant.class);
-				value = fromLocalDateTime(LocalDateTime.ofInstant(instant, timeZone.toZoneId()));
+				value = fromLocalDateTime(instant.atOffset(ZoneOffset.UTC).toLocalDateTime());
 				break;
 			default:
 				value = extractValue(valueLiteral, Object.class);
