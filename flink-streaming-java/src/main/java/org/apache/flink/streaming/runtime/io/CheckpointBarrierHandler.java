@@ -26,6 +26,8 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
+import java.io.IOException;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -79,7 +81,7 @@ public abstract class CheckpointBarrierHandler {
 
 	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
 
-	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws Exception {
+	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws IOException {
 		CheckpointMetaData checkpointMetaData =
 			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
@@ -94,12 +96,12 @@ public abstract class CheckpointBarrierHandler {
 			checkpointMetrics);
 	}
 
-	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws Exception {
+	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws IOException {
 		notifyAbort(checkpointId,
 			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
 	}
 
-	protected void notifyAbort(long checkpointId, CheckpointException cause) throws Exception {
+	protected void notifyAbort(long checkpointId, CheckpointException cause) throws IOException {
 		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
 	}
 

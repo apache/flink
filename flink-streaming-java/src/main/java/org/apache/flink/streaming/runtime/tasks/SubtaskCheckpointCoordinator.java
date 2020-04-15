@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
@@ -43,7 +44,7 @@ interface SubtaskCheckpointCoordinator extends Closeable {
 
 	CheckpointStorageWorkerView getCheckpointStorage();
 
-	void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws Exception;
+	void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws IOException;
 
 	void checkpointState(
 		CheckpointMetaData checkpointMetaData,

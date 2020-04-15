@@ -88,7 +88,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	}
 
 	@Override
-	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws Exception {
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws IOException {
 		LOG.debug("Aborting checkpoint via cancel-barrier {} for task {}", checkpointId, taskName);
 
 		checkpointStorage.clearCacheFor(checkpointId);

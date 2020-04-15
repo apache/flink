@@ -353,10 +353,10 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		}
 
 		@Override
-		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
 			try {
 				if (expectedAbortCheckpointId != checkpointId || !matchesExpectedCause(cause)) {
-					throw new Exception(cause);
+					throw new IOException(cause);
 				}
 			}
 			finally {
@@ -388,7 +388,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		public void triggerCheckpointOnBarrier(
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) throws Exception {
+				CheckpointMetrics checkpointMetrics) {
 			triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
 		}
 

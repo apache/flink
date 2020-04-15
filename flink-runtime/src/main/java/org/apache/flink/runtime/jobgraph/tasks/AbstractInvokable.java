@@ -29,6 +29,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
+import java.io.IOException;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -231,7 +232,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @throws Exception Exceptions thrown as the result of triggering a checkpoint are forwarded.
 	 */
-	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
+	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws IOException {
 		throw new UnsupportedOperationException(String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass().getName()));
 	}
 
@@ -245,7 +246,7 @@ public abstract class AbstractInvokable {
 	 * @param checkpointId The ID of the checkpoint to be aborted.
 	 * @param cause The reason why the checkpoint was aborted during alignment
 	 */
-	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
 		throw new UnsupportedOperationException(String.format("abortCheckpointOnBarrier not supported by %s", this.getClass().getName()));
 	}
 
