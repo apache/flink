@@ -126,9 +126,9 @@ if [ -n "${FROM_RELEASE}" ]; then
 
   FLINK_BASE_URL="$(curl -s https://www.apache.org/dyn/closer.cgi\?preferred\=true)flink/flink-${FLINK_VERSION}/"
 
-  FLINK_MAJOR_VERSION=$(echo "$FLINK_VERSION" | sed -e 's/\.//;s/\(..\).*/\1/')
+  FLINK_MAJOR_VERSION=$(echo "$FLINK_VERSION" | sed -e 's/\.//g')
 
-  if [[ $FLINK_MAJOR_VERSION -ge 18 ]]; then
+  if [[ $FLINK_MAJOR_VERSION -ge 180 ]]; then
 
   # After Flink-1.8 we would let release pre-built package with hadoop
     if [[ -n "${HADOOP_VERSION}" ]]; then
