@@ -22,9 +22,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Vectorized user-defined functions are functions which are executed by transferring a batch of elements between JVM and Python VM in Arrow columnar format.
-It shares the similar way as the [non-vectorized user-defined functions]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html) on how to
-define vectorized user-defined functions. Users only need to add an extra parameter udf_type="pandas" in the decorator `udf` to mark it as a vectorized user-defined function.
+Vectorized Python user-defined functions are functions which are executed by transferring a batch of elements between JVM and Python VM in Arrow columnar format.
+The performance of vectorized Python user-defined functions are usually much higher than non-vectorized Python user-defined functions as the serialization/deserialization
+overhead is much reduced. Besides, users could leverage the popular Python libraries such as Pandas, Numpy, etc for the vectorized Python user-defined functions implementation.
+These Python libraries are highly optimized and provide high-performance data structures and functions. It shares the similar way as the
+[non-vectorized user-defined functions]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html) on how to define vectorized user-defined functions.
+Users only need to add an extra parameter `udf_type="pandas"` in the decorator `udf` to mark it as a vectorized user-defined function.
 
 **NOTE:** Python UDF execution requires Python version (3.5, 3.6 or 3.7) with PyFlink installed. It's required on both the client side and the cluster side. 
 
