@@ -24,7 +24,7 @@ import org.apache.flink.annotation.Public;
  * A {@link TimestampAssigner} that simply forwards the internal timestamp.
  */
 @Public
-public final class DefaultTimestampAssigner<E> implements TimestampAssigner<E> {
+public final class RecordTimestampAssigner<E> implements TimestampAssigner<E> {
 
 	private static final long serialVersionUID = 1L;
 
