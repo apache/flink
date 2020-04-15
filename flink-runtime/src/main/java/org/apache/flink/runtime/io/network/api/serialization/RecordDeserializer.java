@@ -71,5 +71,5 @@ public interface RecordDeserializer<T extends IOReadableWritable> {
 	 * <p>Note that the unconsumed buffer might be null if the whole buffer was already consumed
 	 * before and there are no partial length or data remained in the end of buffer.
 	 */
-	Optional<Buffer> getUnconsumedBuffer();
+	Optional<Buffer> getUnconsumedBuffer() throws IOException;
 }
