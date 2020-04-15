@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.runtime.util.bash;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -34,9 +34,9 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
- * Tests for {@link BashJavaUtils}.
+ * Tests for {@link FlinkConfigLoader}.
  */
-public class BashJavaUtilsTest extends TestLogger {
+public class FlinkConfigLoaderTest extends TestLogger {
 
 	private static final String TEST_CONFIG_KEY = "test.key";
 	private static final String TEST_CONFIG_VALUE = "test_value";
@@ -56,35 +56,35 @@ public class BashJavaUtilsTest extends TestLogger {
 	@Test
 	public void testLoadConfigurationConfigDirLongOpt() throws Exception {
 		String[] args = {"--configDir", confDir.getRoot().getAbsolutePath()};
-		Configuration configuration = BashJavaUtils.loadConfiguration(args);
+		Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
 		verifyConfiguration(configuration, TEST_CONFIG_KEY, TEST_CONFIG_VALUE);
 	}
 
 	@Test
 	public void testLoadConfigurationConfigDirShortOpt() throws Exception {
 		String[] args = {"-c", confDir.getRoot().getAbsolutePath()};
-		Configuration configuration = BashJavaUtils.loadConfiguration(args);
+		Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
 		verifyConfiguration(configuration, TEST_CONFIG_KEY, TEST_CONFIG_VALUE);
 	}
 
 	@Test
 	public void testLoadConfigurationDynamicPropertyWithSpace() throws Exception {
 		String[] args = {"--configDir", confDir.getRoot().getAbsolutePath(), "-D", "key=value"};
-		Configuration configuration = BashJavaUtils.loadConfiguration(args);
+		Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
 		verifyConfiguration(configuration, "key", "value");
 	}
 
 	@Test
 	public void testLoadConfigurationDynamicPropertyWithoutSpace() throws Exception {
 		String[] args = {"--configDir", confDir.getRoot().getAbsolutePath(), "-Dkey=value"};
-		Configuration configuration = BashJavaUtils.loadConfiguration(args);
+		Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
 		verifyConfiguration(configuration, "key", "value");
 	}
 
 	@Test
 	public void testLoadConfigurationIgnoreUnknownToken() throws Exception {
 		String [] args = {"unknown", "-u", "--configDir", confDir.getRoot().getAbsolutePath(), "--unknown", "-Dkey=value"};
-		Configuration configuration = BashJavaUtils.loadConfiguration(args);
+		Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
 		verifyConfiguration(configuration, TEST_CONFIG_KEY, TEST_CONFIG_VALUE);
 		verifyConfiguration(configuration, "key", "value");
 	}
