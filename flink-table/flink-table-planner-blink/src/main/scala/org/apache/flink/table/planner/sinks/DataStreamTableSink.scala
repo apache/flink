@@ -28,7 +28,7 @@ import org.apache.flink.table.sinks.TableSink
   * A [[DataStreamTableSink]] specifies how to emit a [[Table]] to an DataStream[T]
   *
   * @param outputType The [[TypeInformation]] that specifies the type of the [[DataStream]].
-  * @param updatesAsRetraction Set to true to encode updates as retraction messages.
+  * @param needUpdateBefore Set to true to if need UPDATE_BEFORE messages when receiving updates
   * @param withChangeFlag Set to true to emit records with change flags.
   * @tparam T The type of the resulting [[DataStream]].
   */
@@ -36,7 +36,7 @@ import org.apache.flink.table.sinks.TableSink
 class DataStreamTableSink[T](
     tableSchema: TableSchema,
     outputType: TypeInformation[T],
-    val updatesAsRetraction: Boolean,
+    val needUpdateBefore: Boolean,
     val withChangeFlag: Boolean) extends TableSink[T] {
 
   /**

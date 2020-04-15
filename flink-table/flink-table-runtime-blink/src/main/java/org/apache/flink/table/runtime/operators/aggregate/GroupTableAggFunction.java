@@ -55,9 +55,9 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 	private final RecordCounter recordCounter;
 
 	/**
-	 * Whether this operator will generate retraction.
+	 * Whether this operator will generate UPDATE_BEFORE messages.
 	 */
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	// function used to handle all table aggregates
 	private transient TableAggsHandleFunction function = null;
@@ -75,7 +75,7 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
-	 * @param generateRetraction Whether this operator will generate retraction.
+	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
 	 */
 	public GroupTableAggFunction(
 			long minRetentionTime,
@@ -83,12 +83,12 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 			GeneratedTableAggsHandleFunction genAggsHandler,
 			LogicalType[] accTypes,
 			int indexOfCountStar,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		super(minRetentionTime, maxRetentionTime);
 		this.genAggsHandler = genAggsHandler;
 		this.accTypes = accTypes;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
@@ -125,7 +125,7 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 		// set accumulators to handler first
 		function.setAccumulators(accumulators);
 
-		if (!firstRow && generateRetraction) {
+		if (!firstRow && generateUpdateBefore) {
 			function.emitValue(out, currentKey, true);
 		}
 

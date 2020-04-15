@@ -22,22 +22,36 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{AggMode, LocalGlobalOff, LocalGlobalOn}
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
-
 import org.junit.{Before, Test}
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class RetractionRulesWithTwoStageAggTest extends TableTestBase {
+import java.util
+
+import scala.collection.JavaConversions._
+
+@RunWith(classOf[Parameterized])
+class ChangelogModeInferenceTest(aggMode: AggMode) extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addTableSource[(String, Int)]("MyTable", 'word, 'number)
 
   @Before
   def before(): Unit = {
-    util.enableMiniBatch()
-    util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-    util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      AggregatePhaseStrategy.TWO_PHASE.toString)
+    if (aggMode.isLocalAggEnabled) {
+      util.enableMiniBatch()
+      util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+      util.tableEnv.getConfig.getConfiguration.setString(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE.toString)
+    }
+  }
+
+  @Test
+  def testSelect(): Unit = {
+    util.verifyPlanWithTrait("SELECT word, number FROM MyTable")
   }
 
   @Test
@@ -73,4 +87,14 @@ class RetractionRulesWithTwoStageAggTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
+}
+
+object ChangelogModeInferenceTest {
+
+  @Parameterized.Parameters(name = "LocalGlobal={0}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(LocalGlobalOff),
+      Array(LocalGlobalOn))
+  }
 }

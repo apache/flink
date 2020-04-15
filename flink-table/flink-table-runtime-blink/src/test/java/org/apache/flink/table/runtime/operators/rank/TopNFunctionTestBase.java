@@ -137,9 +137,12 @@ abstract class TopNFunctionTestBase {
 	}
 
 	@Test
-	public void testDisableGenerateRetraction() throws Exception {
-		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
-				false);
+	public void testDisableGenerateUpdateBefore() throws Exception {
+		AbstractTopNFunction func = createFunction(
+			RankType.ROW_NUMBER,
+			new ConstantRankRange(1, 2),
+			false,
+			false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 1L, 12));
@@ -169,7 +172,7 @@ abstract class TopNFunctionTestBase {
 	}
 
 	@Test
-	public void testDisableGenerateRetractionAndOutputRankNumber() throws Exception {
+	public void testDisableGenerateUpdateBeforeAndOutputRankNumber() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
@@ -336,7 +339,10 @@ abstract class TopNFunctionTestBase {
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
 	}
 
-	abstract AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
-			boolean generateRetraction, boolean outputRankNumber);
+	abstract AbstractTopNFunction createFunction(
+		RankType rankType,
+		RankRange rankRange,
+		boolean generateUpdateBefore,
+		boolean outputRankNumber);
 
 }

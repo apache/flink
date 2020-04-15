@@ -215,7 +215,7 @@ abstract class PlannerBase(
 
       case outputConversion: OutputConversionModifyOperation =>
         val input = getRelBuilder.queryOperation(outputConversion.getChild).build()
-        val (updatesAsRetraction, withChangeFlag) = outputConversion.getUpdateMode match {
+        val (needUpdateBefore, withChangeFlag) = outputConversion.getUpdateMode match {
           case UpdateMode.RETRACT => (true, true)
           case UpdateMode.APPEND => (false, false)
           case UpdateMode.UPSERT => (false, true)
@@ -231,7 +231,7 @@ abstract class PlannerBase(
         val tableSink = new DataStreamTableSink(
           FlinkTypeFactory.toTableSchema(query.getRowType),
           typeInfo,
-          updatesAsRetraction,
+          needUpdateBefore,
           withChangeFlag)
         LogicalSink.create(
           query,

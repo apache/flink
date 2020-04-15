@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import java.util
-
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
@@ -27,10 +26,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, KeySelectorUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, ChangelogPlanUtils, KeySelectorUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -55,27 +52,10 @@ class StreamExecGroupTableAggregate(
     with StreamPhysicalRel
     with StreamExecNode[BaseRow] {
 
-  val aggInfoList: AggregateInfoList = {
-    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery)
-    val monotonicity = fmq.getRelModifiedMonotonicity(this)
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
-      grouping.length, needRetraction, monotonicity, aggCalls)
-    AggregateUtil.transformToStreamAggregateInfoList(
-      aggCalls,
-      getInput.getRowType,
-      needRetractionArray,
-      needInputCount = needRetraction,
-      isStateBackendDataViews = true)
-  }
-
-  override def producesUpdates = true
-
-  override def needsUpdatesAsRetraction(input: RelNode) = true
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
+  val aggInfoList: AggregateInfoList = AggregateUtil.deriveAggregateInfoList(
+    this,
+    aggCalls,
+    grouping)
 
   override def requireWatermark: Boolean = false
 
@@ -132,8 +112,8 @@ class StreamExecGroupTableAggregate(
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
     val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
 
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
-    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
+    val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
 
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(tableConfig),
@@ -161,7 +141,7 @@ class StreamExecGroupTableAggregate(
       aggsHandler,
       accTypes,
       inputCountIndex,
-      generateRetraction)
+      generateUpdateBefore)
     val operator = new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](aggFunction)
 
     val selector = KeySelectorUtil.getBaseRowSelector(

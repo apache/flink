@@ -42,16 +42,18 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 	private static final long serialVersionUID = -8981813609115029119L;
 
 	private final BaseRowTypeInfo rowTypeInfo;
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 	private final TypeSerializer<BaseRow> typeSerializer;
 
 	// state stores complete row.
 	private ValueState<BaseRow> state;
 
-	public MiniBatchDeduplicateKeepLastRowFunction(BaseRowTypeInfo rowTypeInfo, boolean generateRetraction,
+	public MiniBatchDeduplicateKeepLastRowFunction(
+			BaseRowTypeInfo rowTypeInfo,
+			boolean generateUpdateBefore,
 			TypeSerializer<BaseRow> typeSerializer) {
 		this.rowTypeInfo = rowTypeInfo;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 		this.typeSerializer = typeSerializer;
 	}
 
@@ -75,7 +77,7 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 			BaseRow currentKey = entry.getKey();
 			BaseRow currentRow = entry.getValue();
 			ctx.setCurrentKey(currentKey);
-			processLastRow(currentRow, generateRetraction, state, out);
+			processLastRow(currentRow, generateUpdateBefore, state, out);
 		}
 	}
 }
