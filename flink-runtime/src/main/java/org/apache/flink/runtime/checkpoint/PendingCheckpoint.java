@@ -115,9 +115,6 @@ public class PendingCheckpoint {
 
 	private final CompletedCheckpointStore completedCheckpointStore;
 
-	/** The lock for avoiding conflict between I/O operations. */
-	private final Object operationLock = new Object();
-
 	private int numAcknowledgedTasks;
 
 	private boolean discarded;
@@ -348,12 +345,14 @@ public class PendingCheckpoint {
 						try {
 							completedCheckpointStore.addCheckpoint(completed);
 						} catch (Throwable t) {
+							resetStatusPriority();
 							completed.discardOnFailedStoring();
 						}
 						return completed;
 					} catch (Throwable t) {
 						LOG.warn("Could not finalize checkpoint {}.", checkpointId, t);
 						onCompletionPromise.completeExceptionally(t);
+						resetStatusPriority();
 						throw new CompletionException(t);
 					}
 				} else {
@@ -553,40 +552,49 @@ public class PendingCheckpoint {
 
 	private void dispose(boolean releaseState) {
 
-		if (grabStatusPriority()) {
-			try {
-				numAcknowledgedTasks = -1;
-				if (!discarded && releaseState) {
-					executor.execute(new Runnable() {
-						@Override
-						public void run() {
+		if (releaseState) {
+			// we only need to grab status priority when releasing state.
+			if (grabStatusPriority()) {
+				try {
+					if (!discarded) {
+						executor.execute(new Runnable() {
+							@Override
+							public void run() {
 
-							// discard the private states.
-							// unregistered shared states are still considered private at this point.
-							try {
-								StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
-								targetLocation.disposeOnFailure();
-							} catch (Throwable t) {
-								LOG.warn("Could not properly dispose the private states in the pending checkpoint {} of job {}.",
-									checkpointId, jobId, t);
-							} finally {
-								operatorStates.clear();
+								// discard the private states.
+								// unregistered shared states are still considered private at this point.
+								try {
+									StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+									targetLocation.disposeOnFailure();
+								} catch (Throwable t) {
+									LOG.warn("Could not properly dispose the private states in the pending checkpoint {} of job {}.",
+										checkpointId, jobId, t);
+								} finally {
+									operatorStates.clear();
+								}
 							}
-						}
-					});
+						});
 
+					}
+				} finally {
+					reachDiscardedStatus();
 				}
-			} finally {
-				discarded = true;
-				notYetAcknowledgedTasks.clear();
-				acknowledgedTasks.clear();
-				cancelCanceller();
+			} else {
+				// TODO this hot-fix could help FLINK-16770 to not remove checkpoint by mistake but would let checkpoint
+				//  could complete after job switched to cancelling status. However, this should not introduce harmful influence.
+				LOG.warn("{} has stepped into finalizeCheckpoint stage, would not dispose this pending checkpoint.", this);
 			}
 		} else {
-			// TODO this hot-fix could help FLINK-16770 to not remove checkpoint by mistake but would let checkpoint
-			//  could complete after job switched to cancelling status. However, this should not introduce harmful influence.
-			LOG.warn("{} has stepped into finalizeCheckpoint stage, would not dispose this pending checkpoint.", this);
+			reachDiscardedStatus();
 		}
+	}
+
+	private void reachDiscardedStatus() {
+		numAcknowledgedTasks = -1;
+		discarded = true;
+		notYetAcknowledgedTasks.clear();
+		acknowledgedTasks.clear();
+		cancelCanceller();
 	}
 
 	private void cancelCanceller() {
@@ -618,6 +626,13 @@ public class PendingCheckpoint {
 
 	private boolean grabStatusPriority() {
 		return statusFlag.compareAndSet(false, true);
+	}
+
+	/**
+	 * Should only be called after finalization failed.
+	 */
+	private boolean resetStatusPriority() {
+		return statusFlag.compareAndSet(true, false);
 	}
 
 	// ------------------------------------------------------------------------
