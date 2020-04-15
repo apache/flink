@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 import scala.PartialFunction;
@@ -56,9 +57,12 @@ class SupervisorActor extends AbstractActor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SupervisorActor.class);
 
+	private final Executor terminationFutureExecutor;
+
 	private final Map<ActorRef, AkkaRpcActorRegistration> registeredAkkaRpcActors;
 
-	SupervisorActor() {
+	SupervisorActor(Executor terminationFutureExecutor) {
+		this.terminationFutureExecutor = terminationFutureExecutor;
 		this.registeredAkkaRpcActors = new HashMap<>();
 	}
 
@@ -89,8 +93,10 @@ class SupervisorActor extends AbstractActor {
 	}
 
 	private void terminateAkkaRpcActorOnStop(AkkaRpcActorRegistration akkaRpcActorRegistration) {
-		akkaRpcActorRegistration.terminateExceptionally(new AkkaRpcException(
-			String.format("Unexpected closing of %s with name %s.", getClass().getSimpleName(), akkaRpcActorRegistration.getEndpointId())));
+		akkaRpcActorRegistration.terminateExceptionally(
+			new AkkaRpcException(
+				String.format("Unexpected closing of %s with name %s.", getClass().getSimpleName(), akkaRpcActorRegistration.getEndpointId())),
+			terminationFutureExecutor);
 	}
 
 	private void createStartAkkaRpcActorMessage(StartAkkaRpcActor startAkkaRpcActor) {
@@ -120,7 +126,7 @@ class SupervisorActor extends AbstractActor {
 		final AkkaRpcActorRegistration actorRegistration = removeAkkaRpcActor(actorRef);
 
 		LOG.debug("AkkaRpcActor {} has terminated.", actorRef.path());
-		actorRegistration.terminate();
+		actorRegistration.terminate(terminationFutureExecutor);
 	}
 
 	private void akkaRpcActorFailed(ActorRef actorRef, Throwable cause) {
@@ -155,8 +161,8 @@ class SupervisorActor extends AbstractActor {
 		return AkkaRpcServiceUtils.SUPERVISOR_NAME;
 	}
 
-	public static ActorRef startSupervisorActor(ActorSystem actorSystem) {
-		final Props supervisorProps = Props.create(SupervisorActor.class).withDispatcher("akka.actor.supervisor-dispatcher");
+	public static ActorRef startSupervisorActor(ActorSystem actorSystem, Executor terminationFutureExecutor) {
+		final Props supervisorProps = Props.create(SupervisorActor.class, terminationFutureExecutor).withDispatcher("akka.actor.supervisor-dispatcher");
 		return actorSystem.actorOf(supervisorProps, getActorName());
 	}
 
@@ -240,7 +246,7 @@ class SupervisorActor extends AbstractActor {
 			return endpointId;
 		}
 
-		private void terminate() {
+		private void terminate(Executor terminationFutureExecutor) {
 			CompletableFuture<Void> terminationFuture = internalTerminationFuture;
 
 			if (errorCause != null) {
@@ -261,11 +267,11 @@ class SupervisorActor extends AbstractActor {
 						String.format("RpcEndpoint %s did not complete the internal termination future.", endpointId)));
 			}
 
-			FutureUtils.forward(terminationFuture, externalTerminationFuture);
+			FutureUtils.forwardAsync(terminationFuture, externalTerminationFuture, terminationFutureExecutor);
 		}
 
-		private void terminateExceptionally(Throwable cause) {
-			externalTerminationFuture.completeExceptionally(cause);
+		private void terminateExceptionally(Throwable cause, Executor terminationFutureExecutor) {
+			terminationFutureExecutor.execute(() -> externalTerminationFuture.completeExceptionally(cause));
 		}
 
 		public void markFailed(Throwable cause) {
