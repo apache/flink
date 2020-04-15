@@ -26,7 +26,7 @@ Usage:
   build.sh --help
 
   If the --image-name flag is not used the built image name will be 'flink-job'.
-  Before Flink-1.8, the hadoop-version is required. And from Flink-1.8, the hadoop-version is optional and would download pre-bundled shaded Hadoop jar package if provided.
+  Before Flink 1.8.x, the hadoop-version is required. And from Flink 1.8.x, the hadoop-version is optional and would download pre-bundled shaded Hadoop jar package if provided.
 HERE
   exit 1
 }
@@ -130,9 +130,9 @@ if [ -n "${FROM_RELEASE}" ]; then
 
   if [[ $FLINK_MAJOR_VERSION -ge 180 ]]; then
 
-  # After Flink-1.8 we would let release pre-built package with hadoop
+  # After Flink 1.8.x we would let release pre-built package with hadoop
     if [[ -n "${HADOOP_VERSION}" ]]; then
-        echo "After Flink-1.8, we would download pre-bundle hadoop jar package."
+        echo "After Flink 1.8.x, we would download pre-bundle hadoop jar package."
         # list to get target pre-bundle package
         SHADED_HADOOP_BASE_URL="https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop2-uber/"
         SHADED_HADOOP_VERSION="$(curl -s ${SHADED_HADOOP_BASE_URL} | grep -o "title=\"[0-9.-]*/\"" | sed 's/title=\"//g; s/\/"//g' | grep ${HADOOP_VERSION} | head -1)"

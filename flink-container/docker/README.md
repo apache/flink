@@ -29,7 +29,7 @@ If you want to build the Flink image for a specific version of Flink/Hadoop/Scal
 
     build.sh --from-release --flink-version 1.6.0 --hadoop-version 2.8 --scala-version 2.11 --job-artifacts <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> [--with-python2|--with-python3] --image-name <IMAGE_NAME>
 
-Please note that from Flink-1.8, hadoop version is optional and you could build the Flink image without providing any hadoop version.
+Please note that from Flink 1.8.x, hadoop version is optional and you could build the Flink image without providing any hadoop version.
     
 The script will try to download the released version from the Apache archive.
 
