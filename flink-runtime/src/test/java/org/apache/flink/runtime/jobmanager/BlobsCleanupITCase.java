@@ -244,7 +244,7 @@ public class BlobsCleanupITCase extends TestLogger {
 		}
 		source.setParallelism(numTasks);
 
-		return new JobGraph("BlobCleanupTest", source);
+		return new JobGraph(new JobID(0, testCase.ordinal()), "BlobCleanupTest", source);
 	}
 
 	/**
