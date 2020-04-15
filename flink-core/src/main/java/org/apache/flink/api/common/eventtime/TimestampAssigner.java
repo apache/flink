@@ -41,9 +41,8 @@ public interface TimestampAssigner<T> extends Function {
 	 * any particular time zone or calendar.
 	 *
 	 * <p>The method is passed the previously assigned timestamp of the element.
-	 * That previous timestamp may have been assigned from a previous assigner,
-	 * by ingestion time. If the element did not carry a timestamp before, this value is
-	 * {@code Long.MIN_VALUE}.
+	 * That previous timestamp may have been assigned from a previous assigner. If the element did
+	 * not carry a timestamp before, this value is {@code Long.MIN_VALUE}.
 	 *
 	 * @param element The element that the timestamp will be assigned to.
 	 * @param recordTimestamp The current internal timestamp of the element,
