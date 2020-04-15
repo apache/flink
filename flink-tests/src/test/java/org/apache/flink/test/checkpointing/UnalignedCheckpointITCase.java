@@ -38,11 +38,28 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
+import org.junit.runners.model.Statement;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.management.LockInfo;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MonitorInfo;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertThat;
 
@@ -56,9 +73,70 @@ public class UnalignedCheckpointITCase extends TestLogger {
 	public final TemporaryFolder temp = new TemporaryFolder();
 
 	@Rule
-	public final Timeout timeout = Timeout.builder()
-		.withTimeout(240, TimeUnit.SECONDS)
-		.build();
+	public final Timeout timeout = new Timeout(90, TimeUnit.SECONDS) {
+		@Override
+		protected Statement createFailOnTimeoutStatement(Statement statement) throws Exception {
+
+			class CallableStatement implements Callable<Throwable> {
+				private final CountDownLatch startLatch = new CountDownLatch(1);
+
+				public Throwable call() throws Exception {
+					try {
+						startLatch.countDown();
+						statement.evaluate();
+					} catch (Exception e) {
+						throw e;
+					} catch (Throwable e) {
+						return e;
+					}
+					return null;
+				}
+
+				public void awaitStarted() throws InterruptedException {
+					startLatch.await();
+				}
+			}
+
+			return new Statement() {
+				@Override
+				public void evaluate() throws Throwable {
+					CallableStatement callable = new CallableStatement();
+					FutureTask<Throwable> task = new FutureTask<Throwable>(callable);
+					final ThreadGroup threadGroup = new ThreadGroup("FailOnTimeoutGroup");
+					Thread thread = new Thread(threadGroup, task, "Time-limited test");
+					thread.setDaemon(true);
+					thread.start();
+					callable.awaitStarted();
+					Throwable throwable = getResult(task);
+					if (throwable != null) {
+						throw throwable;
+					}
+				}
+
+				/**
+				 * Wait for the test task, returning the exception thrown by the test if the test
+				 * failed, an exception indicating a timeout if the test timed out, or {@code null}
+				 * if the test passed.
+				 */
+				private Throwable getResult(FutureTask<Throwable> task) {
+					try {
+						if (getTimeout(TimeUnit.MILLISECONDS) > 0) {
+							return task.get(getTimeout(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+						} else {
+							return task.get();
+						}
+					} catch (InterruptedException e) {
+						return e; // caller will re-throw; no need to call Thread.interrupt()
+					} catch (ExecutionException e) {
+						// test failed; have caller re-throw the exception thrown by the test
+						return e.getCause();
+					} catch (TimeoutException e) {
+						return new AssertionError(buildThreadDiagnosticString());
+					}
+				}
+			};
+		}
+	};
 
 	@Test
 	public void shouldPerformUnalignedCheckpointOnNonparallelTopology() throws Exception {
@@ -93,7 +171,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 	@Nonnull
 	private LocalStreamEnvironment createEnv(final int parallelism) throws IOException {
 		Configuration conf = new Configuration();
-		final int numSlots = Math.min(3, Runtime.getRuntime().availableProcessors());
+		final int numSlots = 5;
 		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
 		conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, .9f);
 		conf.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, (parallelism + numSlots - 1) / numSlots);
@@ -111,6 +189,119 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		final SingleOutputStreamOperator<Integer> source = env.addSource(new IntegerSource(minCheckpoints));
 		final SingleOutputStreamOperator<Integer> transform = source.shuffle().map(i -> 2 * i);
 		transform.shuffle().addSink(new CountingSink<>());
+	}
+
+	private final static String INDENT = "    ";
+
+	public static String buildThreadDiagnosticString() {
+		StringWriter sw = new StringWriter();
+		PrintWriter output = new PrintWriter(sw);
+
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+		output.println(String.format("Timestamp: %s", dateFormat.format(new Date())));
+		output.println();
+		output.println(buildThreadDump());
+
+		String deadlocksInfo = buildDeadlockInfo();
+		if (deadlocksInfo != null) {
+			output.println("====> DEADLOCKS DETECTED <====");
+			output.println();
+			output.println(deadlocksInfo);
+		}
+
+		return sw.toString();
+	}
+
+	static String buildThreadDump() {
+		StringBuilder dump = new StringBuilder();
+		Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
+		for (Map.Entry<Thread, StackTraceElement[]> e : stackTraces.entrySet()) {
+			Thread thread = e.getKey();
+			dump.append(String.format(
+				"\"%s\" %s prio=%d tid=%d %s\njava.lang.Thread.State: %s",
+				thread.getName(),
+				thread.isDaemon() ? "daemon" : "",
+				thread.getPriority(),
+				thread.getId(),
+				Thread.State.WAITING.equals(thread.getState()) ?
+					"in Object.wait()" :
+					thread.getState().name().toLowerCase(),
+				Thread.State.WAITING.equals(thread.getState()) ?
+					"WAITING (on object monitor)" : thread.getState()));
+			for (StackTraceElement stackTraceElement : e.getValue()) {
+				dump.append("\n        at ");
+				dump.append(stackTraceElement);
+			}
+			dump.append("\n");
+		}
+		return dump.toString();
+	}
+
+	static String buildDeadlockInfo() {
+		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+		long[] threadIds = threadBean.findMonitorDeadlockedThreads();
+		if (threadIds != null && threadIds.length > 0) {
+			StringWriter stringWriter = new StringWriter();
+			PrintWriter out = new PrintWriter(stringWriter);
+
+			ThreadInfo[] infos = threadBean.getThreadInfo(threadIds, true, true);
+			for (ThreadInfo ti : infos) {
+				printThreadInfo(ti, out);
+				printLockInfo(ti.getLockedSynchronizers(), out);
+				out.println();
+			}
+
+			out.close();
+			return stringWriter.toString();
+		} else {
+			return null;
+		}
+	}
+
+	private static void printThreadInfo(ThreadInfo ti, PrintWriter out) {
+		// print thread information
+		printThread(ti, out);
+
+		// print stack trace with locks
+		StackTraceElement[] stacktrace = ti.getStackTrace();
+		MonitorInfo[] monitors = ti.getLockedMonitors();
+		for (int i = 0; i < stacktrace.length; i++) {
+			StackTraceElement ste = stacktrace[i];
+			out.println(INDENT + "at " + ste.toString());
+			for (MonitorInfo mi : monitors) {
+				if (mi.getLockedStackDepth() == i) {
+					out.println(INDENT + "  - locked " + mi);
+				}
+			}
+		}
+		out.println();
+	}
+
+	private static void printThread(ThreadInfo ti, PrintWriter out) {
+		out.print("\"" + ti.getThreadName() + "\"" + " Id="
+			+ ti.getThreadId() + " in " + ti.getThreadState());
+		if (ti.getLockName() != null) {
+			out.print(" on lock=" + ti.getLockName());
+		}
+		if (ti.isSuspended()) {
+			out.print(" (suspended)");
+		}
+		if (ti.isInNative()) {
+			out.print(" (running in native)");
+		}
+		out.println();
+		if (ti.getLockOwnerName() != null) {
+			out.println(INDENT + " owned by " + ti.getLockOwnerName() + " Id="
+				+ ti.getLockOwnerId());
+		}
+	}
+
+	private static void printLockInfo(LockInfo[] locks, PrintWriter out) {
+		out.println(INDENT + "Locked synchronizers: count = " + locks.length);
+		for (LockInfo li : locks) {
+			out.println(INDENT + "  - " + li);
+		}
+		out.println();
 	}
 
 	private static class IntegerSource extends RichParallelSourceFunction<Integer> implements CheckpointListener {
