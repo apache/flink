@@ -20,11 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.EncodingUtils;
-import org.apache.flink.types.Row;
 
-import com.ibm.icu.lang.UCharacter;
-import com.ibm.icu.lang.UProperty;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -95,54 +91,12 @@ public final class CliUtils {
 		return Arrays.asList(line1.toAttributedString(), line2.toAttributedString());
 	}
 
-	public static String[] rowToString(Row row) {
-		final String[] fields = new String[row.getArity()];
-		for (int i = 0; i < row.getArity(); i++) {
-			final Object field = row.getField(i);
-			if (field == null) {
-				fields[i] = CliStrings.NULL_COLUMN;
-			} else {
-				fields[i] = EncodingUtils.objectToString(field);
-			}
-		}
-		return fields;
-	}
-
 	public static String[] typesToString(DataType[] types) {
 		final String[] typesAsString = new String[types.length];
 		for (int i = 0; i < types.length; i++) {
 			typesAsString[i] = types[i].toString();
 		}
 		return typesAsString;
-	}
-
-	public static int getStringDisplayWidth(String str) {
-		int numOfFullWidthCh = (int) str.codePoints().filter(codePoint -> isFullWidth(codePoint)).count();
-		return str.length() + numOfFullWidthCh;
-	}
-
-	/**
-	 * Check codePoint is FullWidth or not according to Unicode Standard version 12.0.0.
-	 * See http://unicode.org/reports/tr11/
-	 */
-	public static boolean isFullWidth(int codePoint) {
-		int value = UCharacter.getIntPropertyValue(codePoint, UProperty.EAST_ASIAN_WIDTH);
-		switch (value) {
-			case UCharacter.EastAsianWidth.NEUTRAL:
-				return false;
-			case UCharacter.EastAsianWidth.AMBIGUOUS:
-				return false;
-			case UCharacter.EastAsianWidth.HALFWIDTH:
-				return false;
-			case UCharacter.EastAsianWidth.FULLWIDTH:
-				return true;
-			case UCharacter.EastAsianWidth.NARROW:
-				return false;
-			case UCharacter.EastAsianWidth.WIDE:
-				return true;
-			default:
-				throw new RuntimeException("unknown UProperty.EAST_ASIAN_WIDTH: " + value);
-		}
 	}
 
 	/**

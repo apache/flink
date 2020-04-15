@@ -16,81 +16,88 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.internal;
+package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link TableResultImpl}.
+ * Tests for {@link PrintUtils}.
  */
-public class TableResultImplTest {
-
+public class PrintUtilsTest {
 	private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-	private final PrintStream originalOut = System.out;
 
-	private TableSchema tableSchema = TableSchema.builder()
-			.field("boolean", DataTypes.BOOLEAN())
-			.field("int", DataTypes.INT())
-			.field("bigint", DataTypes.BIGINT())
-			.field("varchar", DataTypes.STRING())
-			.field("decimal(10, 5)", DataTypes.DECIMAL(10, 5))
-			.field("timestamp", DataTypes.TIMESTAMP(6))
-			.build();
-
-	@Before
-	public void setUp() {
-		System.setOut(new PrintStream(outContent));
+	@Test
+	public void testArrayToString() {
+		Row row = new Row(4);
+		row.setField(0, new int[] { 1, 2 });
+		row.setField(1, new Integer[] { 3, 4 });
+		row.setField(2, new Object[] { new int[] { 5, 6 }, new int[] { 7, 8 } });
+		row.setField(3, new Integer[][] { new Integer[] { 9, 10 }, new Integer[] { 11, 12 } });
+		assertEquals("[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]]]",
+				Arrays.toString(PrintUtils.rowToString(row)));
 	}
 
-	@After
-	public void restoreStreams() {
-		System.setOut(originalOut);
+	@Test
+	public void testCharFullWidth() {
+		char[] chars = new char[] { 'A', 'a', ',', '中', '，', 'こ' };
+		boolean[] expected = new boolean[] { false, false, false, true, true, true };
+
+		for (int i = 0; i < chars.length; i++) {
+			assertEquals(expected[i], PrintUtils.isFullWidth(Character.codePointAt(chars, i)));
+		}
+	}
+
+	@Test
+	public void testStringDisplayWidth() {
+		List<String> data = Arrays.asList(
+				"abcdefg,12345,ABC",
+				"to be or not to be that's a question.",
+				"这是一段中文",
+				"これは日本語をテストするための文です");
+		int[] expected = new int[] { 17, 37, 12, 36 };
+
+		for (int i = 0; i < data.size(); i++) {
+			assertEquals(expected[i], PrintUtils.getStringDisplayWidth(data.get(i)));
+		}
 	}
 
 	@Test
 	public void testPrintWithEmptyResult() {
-		TableResult tableResult = TableResultImpl.builder()
-				.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-				.tableSchema(tableSchema)
-				.data(Collections.emptyList())
-				.build();
+		PrintUtils.printAsTableauForm(
+				getSchema(),
+				Collections.<Row>emptyList().iterator(),
+				new PrintWriter(outContent));
 
-		tableResult.print();
 		assertEquals(
 				"+---------+-----+--------+---------+----------------+-----------+\n" +
 				"| boolean | int | bigint | varchar | decimal(10, 5) | timestamp |\n" +
 				"+---------+-----+--------+---------+----------------+-----------+\n" +
-				"0 row(s) in result\n",
+				"0 row in set" + System.lineSeparator(),
 				outContent.toString());
 	}
 
 	@Test
 	public void testPrintWithMultipleRows() {
-		TableResult tableResult = TableResultImpl.builder()
-				.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-				.tableSchema(tableSchema)
-				.data(getData())
-				.build();
+		PrintUtils.printAsTableauForm(
+				getSchema(),
+				getData().iterator(),
+				new PrintWriter(outContent));
 
-		tableResult.print();
 		// note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean) character's
 		// width < 2 in IDE by default, every CJK character usually's width is 2, you can open this source file
 		// by vim or just cat the file to check the regular result.
@@ -107,8 +114,19 @@ public class TableResultImplTest {
 				"|  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
 				"|  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
 				"+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
-				"8 row(s) in result\n",
+				"8 rows in set" + System.lineSeparator(),
 				outContent.toString());
+	}
+
+	private TableSchema getSchema() {
+		return TableSchema.builder()
+				.field("boolean", DataTypes.BOOLEAN())
+				.field("int", DataTypes.INT())
+				.field("bigint", DataTypes.BIGINT())
+				.field("varchar", DataTypes.STRING())
+				.field("decimal(10, 5)", DataTypes.DECIMAL(10, 5))
+				.field("timestamp", DataTypes.TIMESTAMP(6))
+				.build();
 	}
 
 	private List<Row> getData() {
