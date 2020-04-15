@@ -22,6 +22,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -29,8 +30,6 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
-
-import javax.annotation.Nullable;
 
 import java.io.BufferedInputStream;
 import java.io.EOFException;
@@ -95,13 +94,14 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	}
 
 	@Override
-	public Optional<Buffer> getUnconsumedBuffer() {
+	public Optional<Buffer> getUnconsumedBuffer() throws IOException {
+		Optional<MemorySegment> target;
 		if (nonSpanningWrapper.remaining() > 0) {
-			return Optional.of(new NetworkBuffer(nonSpanningWrapper.copyToTargetSegment(), FreeingBufferRecycler.INSTANCE));
+			target = nonSpanningWrapper.getUnconsumedSegment();
 		} else {
-			MemorySegment target = spanningWrapper.copyToTargetSegment();
-			return target != null ? Optional.of(new NetworkBuffer(target, FreeingBufferRecycler.INSTANCE)) : Optional.empty();
+			target = spanningWrapper.getUnconsumedSegment();
 		}
+		return target.map(memorySegment -> new NetworkBuffer(memorySegment, FreeingBufferRecycler.INSTANCE, true, memorySegment.size()));
 	}
 
 	@Override
@@ -210,10 +210,13 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			this.limit = leftOverLimit;
 		}
 
-		MemorySegment copyToTargetSegment() {
+		Optional<MemorySegment> getUnconsumedSegment() {
+			if (remaining() == 0) {
+				return Optional.empty();
+			}
 			MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(remaining());
 			segment.copyTo(position, target, 0, remaining());
-			return target;
+			return Optional.of(target);
 		}
 
 		// -------------------------------------------------------------------------------------------------------------
@@ -579,15 +582,14 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			}
 		}
 
-		@Nullable
-		MemorySegment copyToTargetSegment() {
+		Optional<MemorySegment> getUnconsumedSegment() throws IOException {
 			// for the case of only partial length, no data
 			final int position = lengthBuffer.position();
 			if (position > 0) {
-				MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(lengthBuffer.remaining());
-				segment.put(0, lengthBuffer, lengthBuffer.remaining());
-				lengthBuffer.position(position);
-				return segment;
+				MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(position);
+				lengthBuffer.position(0);
+				segment.put(0, lengthBuffer, position);
+				return Optional.of(segment);
 			}
 
 			// for the case of full length, partial data in buffer
@@ -595,11 +597,21 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 				throw new UnsupportedOperationException("Unaligned checkpoint currently do not support spilled " +
 					"records.");
 			} else if (recordLength != -1) {
-				return MemorySegmentFactory.wrap(buffer);
+				int leftOverSize = leftOverLimit - leftOverStart;
+				int unconsumedSize = Integer.BYTES + accumulatedRecordBytes + leftOverSize;
+				DataOutputSerializer serializer = new DataOutputSerializer(unconsumedSize);
+				serializer.writeInt(recordLength);
+				serializer.write(buffer, 0, accumulatedRecordBytes);
+				if (leftOverData != null) {
+					serializer.write(leftOverData, leftOverStart, leftOverSize);
+				}
+				MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(unconsumedSize);
+				segment.put(0, serializer.getSharedBuffer(), 0, segment.size());
+				return Optional.of(segment);
 			}
 
 			// for the case of no remaining partial length or data
-			return null;
+			return Optional.empty();
 		}
 
 		private void moveRemainderToNonSpanningDeserializer(NonSpanningWrapper deserializer) {
