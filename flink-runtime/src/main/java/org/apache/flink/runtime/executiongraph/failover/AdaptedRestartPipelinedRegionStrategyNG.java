@@ -202,7 +202,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 			final Map<JobVertexID, ExecutionJobVertex> involvedExecutionJobVertices =
 				getInvolvedExecutionJobVertices(vertices);
 			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
-				involvedExecutionJobVertices, false, true);
+				involvedExecutionJobVertices, false, true).get();
 		}
 	}
 

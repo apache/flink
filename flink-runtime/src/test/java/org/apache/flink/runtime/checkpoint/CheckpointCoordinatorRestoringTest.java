@@ -208,7 +208,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		tasks.add(jobVertex1);
 		tasks.add(jobVertex2);
 
-		coord.restoreLatestCheckpointedState(tasks, true, false);
+		coord.restoreLatestCheckpointedState(tasks, true, false).get();
 
 		// validate that all shared states are registered again after the recovery.
 		for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
@@ -343,7 +343,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			assertNotNull(savepointFuture.get());
 
 			//restore and jump the latest savepoint
-			coord.restoreLatestCheckpointedState(tasks, true, false);
+			coord.restoreLatestCheckpointedState(tasks, true, false).get();
 
 			//compare and see if it used the checkpoint's subtaskStates
 			BaseMatcher<JobManagerTaskRestore> matcher = new BaseMatcher<JobManagerTaskRestore>() {
@@ -506,7 +506,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		tasks.add(newJobVertex1);
 		tasks.add(newJobVertex2);
-		coord.restoreLatestCheckpointedState(tasks, true, false);
+		coord.restoreLatestCheckpointedState(tasks, true, false).get();
 
 		// verify the restored state
 		verifyStateRestore(jobVertexID1, newJobVertex1, keyGroupPartitions1);
@@ -655,7 +655,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		tasks.add(newJobVertex1);
 		tasks.add(newJobVertex2);
 
-		coord.restoreLatestCheckpointedState(tasks, true, false);
+		coord.restoreLatestCheckpointedState(tasks, true, false).get();
 
 		fail("The restoration should have failed because the max parallelism changed.");
 	}
@@ -833,7 +833,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.setMainThreadExecutor(mainThreadExecutor)
 				.build();
 
-		coord.restoreLatestCheckpointedState(tasks, false, true);
+		coord.restoreLatestCheckpointedState(tasks, false, true).get();
 
 		for (int i = 0; i < newJobVertex1.getParallelism(); i++) {
 

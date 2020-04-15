@@ -1180,7 +1180,7 @@ public class CheckpointCoordinator {
 	 *                               checkpoint.
 	 */
 	@Deprecated
-	public boolean restoreLatestCheckpointedState(
+	public CompletableFuture<Boolean> restoreLatestCheckpointedState(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			boolean errorIfNoCheckpoint,
 			boolean allowNonRestoredState) throws Exception {
@@ -1210,7 +1210,7 @@ public class CheckpointCoordinator {
 	 *                               that restores <i>non-partitioned</i> state from this
 	 *                               checkpoint.
 	 */
-	public boolean restoreLatestCheckpointedState(
+	public CompletableFuture<Boolean> restoreLatestCheckpointedState(
 			final Set<ExecutionJobVertex> tasks,
 			final boolean errorIfNoCheckpoint,
 			final boolean allowNonRestoredState) throws Exception {
@@ -1247,7 +1247,7 @@ public class CheckpointCoordinator {
 				LOG.debug("Resetting the master hooks.");
 				MasterHooks.reset(masterHooks.values(), LOG);
 
-				return false;
+				return CompletableFuture.completedFuture(false);
 			}
 		}
 
@@ -1283,7 +1283,7 @@ public class CheckpointCoordinator {
 			statsTracker.reportRestoredCheckpoint(restored);
 		}
 
-		return true;
+		return CompletableFuture.completedFuture(true);
 	}
 
 	/**
@@ -1323,7 +1323,7 @@ public class CheckpointCoordinator {
 
 		LOG.info("Reset the checkpoint ID of job {} to {}.", job, nextCheckpointId);
 
-		return restoreLatestCheckpointedState(new HashSet<>(tasks.values()), true, allowNonRestored);
+		return restoreLatestCheckpointedState(new HashSet<>(tasks.values()), true, allowNonRestored).get();
 	}
 
 	// ------------------------------------------------------------------------

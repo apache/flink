@@ -238,7 +238,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 			if (!checkpointCoordinator.restoreLatestCheckpointedState(
 				new HashSet<>(newExecutionGraph.getAllVertices().values()),
 				false,
-				false)) {
+				false).get()) {
 
 				// check whether we can restore from a savepoint
 				tryRestoreExecutionGraphFromSavepoint(newExecutionGraph, jobGraph.getSavepointRestoreSettings());
@@ -344,7 +344,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
 				getInvolvedExecutionJobVertices(vertices),
 				false,
-				true);
+				true)
+				.get();
 		}
 	}
 

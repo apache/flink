@@ -2008,7 +2008,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 		coord.setCheckpointStatsTracker(tracker);
 
-		assertTrue(coord.restoreLatestCheckpointedState(Collections.emptySet(), false, true));
+		assertTrue(coord.restoreLatestCheckpointedState(Collections.emptySet(), false, true).get());
 
 		verify(tracker, times(1))
 			.reportRestoredCheckpoint(any(RestoredCheckpointStats.class));
@@ -2125,7 +2125,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// restore the store
 		Set<ExecutionJobVertex> tasks = new HashSet<>();
 		tasks.add(jobVertex1);
-		coord.restoreLatestCheckpointedState(tasks, true, false);
+		coord.restoreLatestCheckpointedState(tasks, true, false).get();
 
 		// validate that all shared states are registered again after the recovery.
 		cp = 0;

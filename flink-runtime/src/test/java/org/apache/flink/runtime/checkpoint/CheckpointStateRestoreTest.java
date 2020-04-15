@@ -140,7 +140,7 @@ public class CheckpointStateRestoreTest {
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 
 			// let the coordinator inject the state
-			coord.restoreLatestCheckpointedState(tasks, true, false);
+			coord.restoreLatestCheckpointedState(tasks, true, false).get();
 
 			// verify that each stateful vertex got the state
 
@@ -180,7 +180,7 @@ public class CheckpointStateRestoreTest {
 					.build();
 
 			try {
-				coord.restoreLatestCheckpointedState(Collections.emptySet(), true, false);
+				coord.restoreLatestCheckpointedState(Collections.emptySet(), true, false).get();
 				fail("this should throw an exception");
 			}
 			catch (IllegalStateException e) {
@@ -247,8 +247,8 @@ public class CheckpointStateRestoreTest {
 
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
-		coord.restoreLatestCheckpointedState(tasks, true, false);
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		coord.restoreLatestCheckpointedState(tasks, true, false).get();
+		coord.restoreLatestCheckpointedState(tasks, true, true).get();
 
 		// --- (3) JobVertex missing for task state that is part of the checkpoint ---
 		JobVertexID newJobVertexID = new JobVertexID();
@@ -275,11 +275,11 @@ public class CheckpointStateRestoreTest {
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
 		// (i) Allow non restored state (should succeed)
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		coord.restoreLatestCheckpointedState(tasks, true, true).get();
 
 		// (ii) Don't allow non restored state (should fail)
 		try {
-			coord.restoreLatestCheckpointedState(tasks, true, false);
+			coord.restoreLatestCheckpointedState(tasks, true, false).get();
 			fail("Did not throw the expected Exception.");
 		} catch (IllegalStateException ignored) {
 		}
