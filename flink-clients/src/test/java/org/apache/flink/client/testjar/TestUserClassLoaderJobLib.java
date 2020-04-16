@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint.testjar;
+package org.apache.flink.client.testjar;
 
 /**
  * This class is depended by {@link TestUserClassLoaderJob}.

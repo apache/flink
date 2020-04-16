@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint;
+package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.container.entrypoint.JarManifestParser.JarFileWithEntryClass;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -56,7 +55,7 @@ import static java.util.Objects.requireNonNull;
  * which creates the {@link org.apache.flink.client.program.PackagedProgram PackagedProgram} containing
  * the user's {@code main()} from a class on the class path.
  */
-class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
+public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClassPathPackagedProgramRetriever.class);
 
@@ -178,7 +177,7 @@ class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 				.collect(Collectors.toList());
 		}
 
-		final JarFileWithEntryClass jobJar = JarManifestParser.findOnlyEntryClass(jars);
+		final JarManifestParser.JarFileWithEntryClass jobJar = JarManifestParser.findOnlyEntryClass(jars);
 		LOG.info("Using {} as job jar", jobJar);
 		return jobJar.getEntryClass();
 	}
@@ -208,7 +207,10 @@ class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 		}
 	}
 
-	static class Builder {
+	/**
+	 * A builder for the {@link ClassPathPackagedProgramRetriever}.
+	 */
+	public static class Builder {
 
 		private final String[] programArguments;
 
@@ -224,22 +226,22 @@ class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 			this.programArguments = requireNonNull(programArguments);
 		}
 
-		Builder setJobClassName(@Nullable String jobClassName) {
+		public Builder setJobClassName(@Nullable String jobClassName) {
 			this.jobClassName = jobClassName;
 			return this;
 		}
 
-		Builder setUserLibDirectory(File userLibDirectory) {
+		public Builder setUserLibDirectory(File userLibDirectory) {
 			this.userLibDirectory = userLibDirectory;
 			return this;
 		}
 
-		Builder setJarsOnClassPath(Supplier<Iterable<File>> jarsOnClassPath) {
+		public Builder setJarsOnClassPath(Supplier<Iterable<File>> jarsOnClassPath) {
 			this.jarsOnClassPath = jarsOnClassPath;
 			return this;
 		}
 
-		ClassPathPackagedProgramRetriever build() throws IOException {
+		public ClassPathPackagedProgramRetriever build() throws IOException {
 			return new ClassPathPackagedProgramRetriever(
 				programArguments,
 				jobClassName,
@@ -248,7 +250,7 @@ class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 		}
 	}
 
-	static Builder newBuilder(String[] programArguments) {
+	public static Builder newBuilder(String[] programArguments) {
 		return new Builder(programArguments);
 	}
 }

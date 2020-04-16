@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint;
+package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.program.PackagedProgram;

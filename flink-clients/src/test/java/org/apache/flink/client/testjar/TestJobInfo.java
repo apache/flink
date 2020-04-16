@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint.testjar;
+package org.apache.flink.client.testjar;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,8 +26,8 @@ import java.nio.file.Paths;
  */
 public class TestJobInfo {
 
-	public static final String JOB_CLASS = "org.apache.flink.container.entrypoint.testjar.TestUserClassLoaderJob";
-	public static final String JOB_LIB_CLASS = "org.apache.flink.container.entrypoint.testjar.TestUserClassLoaderJobLib";
+	public static final String JOB_CLASS = "org.apache.flink.client.testjar.TestUserClassLoaderJob";
+	public static final String JOB_LIB_CLASS = "org.apache.flink.client.testjar.TestUserClassLoaderJobLib";
 	public static final Path JOB_JAR_PATH = Paths.get("target", "maven-test-user-classloader-job-jar.jar");
 	public static final Path JOB_LIB_JAR_PATH = Paths.get("target", "maven-test-user-classloader-job-lib-jar.jar");
 }
