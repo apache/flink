@@ -72,7 +72,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -445,11 +444,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		final CountDownLatch checkpointTriggeredLatch = getCheckpointTriggeredLatch();
 
-		// use a direct io executor for checkpoint relevant case
-		// otherwise the requirement of main thread executor could not be satisfied here
-		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(
-			jobGraph,
-			org.apache.flink.runtime.concurrent.Executors.directExecutor());
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
 		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
 		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
@@ -473,11 +468,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		final CountDownLatch checkpointTriggeredLatch = getCheckpointTriggeredLatch();
 
-		// use a direct io executor for checkpoint relevant case
-		// otherwise the requirement of main thread executor could not be satisfied here
-		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(
-			jobGraph,
-			org.apache.flink.runtime.concurrent.Executors.directExecutor());
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
 		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
 		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
@@ -508,11 +499,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		final CountDownLatch checkpointTriggeredLatch = getCheckpointTriggeredLatch();
 
-		// use a direct io executor for checkpoint relevant case
-		// otherwise the requirement of main thread executor could not be satisfied here
-		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(
-			jobGraph,
-			org.apache.flink.runtime.concurrent.Executors.directExecutor());
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
 		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
 		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
@@ -526,7 +513,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		checkpointCoordinator.addMasterHook(masterHook);
 
 		// complete one checkpoint for state restore
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(), false);
+		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
 		checkpointTriggeredLatch.await();
 		final long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
 		acknowledgePendingCheckpoint(scheduler, checkpointId);
@@ -767,23 +754,13 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	private DefaultScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
-		return createSchedulerAndStartScheduling(jobGraph, executor);
-	}
-
-	private DefaultScheduler createSchedulerAndStartScheduling(
-		final JobGraph jobGraph,
-		Executor ioExecutor) {
-
 		final SchedulingStrategyFactory schedulingStrategyFactory =
 			jobGraph.getScheduleMode() == ScheduleMode.LAZY_FROM_SOURCES ?
 				new LazyFromSourcesSchedulingStrategy.Factory() :
 				new EagerSchedulingStrategy.Factory();
 
 		try {
-			final DefaultScheduler scheduler = createScheduler(
-				jobGraph,
-				schedulingStrategyFactory,
-				ioExecutor != null ? ioExecutor : executor);
+			final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
 			startScheduling(scheduler);
 			return scheduler;
 		} catch (Exception e) {
@@ -792,20 +769,12 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	private DefaultScheduler createScheduler(
-		final JobGraph jobGraph,
-		final SchedulingStrategyFactory schedulingStrategyFactory) throws Exception {
-
-		return createScheduler(jobGraph, schedulingStrategyFactory, executor);
-	}
-
-	private DefaultScheduler createScheduler(
 			final JobGraph jobGraph,
-			final SchedulingStrategyFactory schedulingStrategyFactory,
-			final Executor ioExecutor) throws Exception {
+			final SchedulingStrategyFactory schedulingStrategyFactory) throws Exception {
 
 		return SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
 			.setLogger(log)
-			.setIoExecutor(ioExecutor)
+			.setIoExecutor(executor)
 			.setJobMasterConfiguration(configuration)
 			.setFutureExecutor(scheduledExecutorService)
 			.setDelayExecutor(taskRestartExecutor)

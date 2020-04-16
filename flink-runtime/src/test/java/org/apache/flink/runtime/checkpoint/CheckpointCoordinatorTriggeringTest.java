@@ -65,13 +65,11 @@ import static org.mockito.Mockito.doAnswer;
 public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
-	private ManuallyTriggeredScheduledExecutor timer;
-	private ManuallyTriggeredScheduledExecutor mainThreadExecutor;
+	private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
 
 	@Before
 	public void setUp() throws Exception {
-		timer = new ManuallyTriggeredScheduledExecutor();
-		mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+		manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
 
 	@Test
@@ -128,15 +126,14 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 					.setTasksToWaitFor(new ExecutionVertex[] { ackVertex })
 					.setTasksToCommitTo(new ExecutionVertex[] { commitVertex })
 					.setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
-					.setTimer(timer)
-					.setMainThreadExecutor(mainThreadExecutor)
+					.setTimer(manuallyTriggeredScheduledExecutor)
 					.build();
 
 			checkpointCoordinator.startCheckpointScheduler();
 
 			do {
-				timer.triggerPeriodicScheduledTasks();
-				mainThreadExecutor.triggerAll();
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+				manuallyTriggeredScheduledExecutor.triggerAll();
 			}
 			while (numCalls.get() < 5);
 			assertEquals(5, numCalls.get());
@@ -144,8 +141,8 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			checkpointCoordinator.stopCheckpointScheduler();
 
 			// no further calls may come.
-			timer.triggerPeriodicScheduledTasks();
-			mainThreadExecutor.triggerAll();
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			manuallyTriggeredScheduledExecutor.triggerAll();
 			assertEquals(5, numCalls.get());
 
 			// start another sequence of periodic scheduling
@@ -153,8 +150,8 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			checkpointCoordinator.startCheckpointScheduler();
 
 			do {
-				timer.triggerPeriodicScheduledTasks();
-				mainThreadExecutor.triggerAll();
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+				manuallyTriggeredScheduledExecutor.triggerAll();
 			}
 			while (numCalls.get() < 5);
 			assertEquals(5, numCalls.get());
@@ -162,8 +159,8 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			checkpointCoordinator.stopCheckpointScheduler();
 
 			// no further calls may come
-			timer.triggerPeriodicScheduledTasks();
-			mainThreadExecutor.triggerAll();
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			manuallyTriggeredScheduledExecutor.triggerAll();
 			assertEquals(5, numCalls.get());
 
 			checkpointCoordinator.shutdown(JobStatus.FINISHED);
@@ -210,14 +207,13 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 				.setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
 				.setTasks(new ExecutionVertex[] { vertex })
 				.setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
-				.setTimer(timer)
-				.setMainThreadExecutor(mainThreadExecutor)
+				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 
 		try {
 			checkpointCoordinator.startCheckpointScheduler();
-			timer.triggerPeriodicScheduledTasks();
-			mainThreadExecutor.triggerAll();
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			// wait until the first checkpoint was triggered
 			Long firstCallId = triggerCalls.take();
@@ -229,13 +225,13 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			final long ackTime = System.nanoTime();
 			checkpointCoordinator.receiveAcknowledgeMessage(ackMsg, TASK_MANAGER_LOCATION_INFO);
 
-			timer.triggerPeriodicScheduledTasks();
-			mainThreadExecutor.triggerAll();
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			manuallyTriggeredScheduledExecutor.triggerAll();
 			while (triggerCalls.isEmpty()) {
 				// sleeps for a while to simulate periodic scheduling
 				Thread.sleep(checkpointInterval);
-				timer.triggerPeriodicScheduledTasks();
-				mainThreadExecutor.triggerAll();
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+				manuallyTriggeredScheduledExecutor.triggerAll();
 			}
 			// wait until the next checkpoint is triggered
 			Long nextCallId = triggerCalls.take();
@@ -262,7 +258,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
 		final CompletableFuture<CompletedCheckpoint> onCompletionPromise1 =
 			triggerPeriodicCheckpoint(checkpointCoordinator);
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		try {
 			onCompletionPromise1.get();
 			fail("The triggerCheckpoint call expected an exception");
@@ -281,7 +277,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			null,
 			false,
 			false);
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(onCompletionPromise2.isCompletedExceptionally());
 	}
 
@@ -294,7 +290,7 @@ checkpointCoordinator.startCheckpointScheduler();
 			triggerPeriodicCheckpoint(checkpointCoordinator);
 
 		checkpointCoordinator.shutdown(JobStatus.FAILED);
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		try {
 			onCompletionPromise.get();
 			fail("Should not reach here");
@@ -336,7 +332,7 @@ checkpointCoordinator.startCheckpointScheduler();
 		assertTrue(checkpointCoordinator.isTriggering());
 		assertEquals(1, checkpointCoordinator.getTriggerRequestQueue().size());
 
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(onCompletionPromise1.isCompletedExceptionally());
 		assertFalse(onCompletionPromise2.isCompletedExceptionally());
 		assertFalse(checkpointCoordinator.isTriggering());
@@ -362,7 +358,7 @@ checkpointCoordinator.startCheckpointScheduler();
 			new CheckpointCoordinatorBuilder()
 				.setTasks(new ExecutionVertex[] { vertex })
 				.setCheckpointIDCounter(new UnstableCheckpointIDCounter(id -> id == 0))
-				.setMainThreadExecutor(mainThreadExecutor)
+				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 
 		checkpointCoordinator.startCheckpointScheduler();
@@ -382,7 +378,7 @@ checkpointCoordinator.startCheckpointScheduler();
 		assertTrue(checkpointCoordinator.isTriggering());
 		assertEquals(2, checkpointCoordinator.getTriggerRequestQueue().size());
 
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		// the first triggered checkpoint fails by design through UnstableCheckpointIDCounter
 		assertTrue(onCompletionPromise1.isCompletedExceptionally());
 		assertFalse(onCompletionPromise2.isCompletedExceptionally());
@@ -415,11 +411,11 @@ checkpointCoordinator.startCheckpointScheduler();
 			triggerPeriodicCheckpoint(checkpointCoordinator);
 
 		// checkpoint trigger will not finish since master hook checkpoint is not finished yet
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertTrue(checkpointCoordinator.isTriggering());
 
 		// trigger cancellation
-		mainThreadExecutor.triggerNonPeriodicScheduledTasks();
+		manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks();
 		assertTrue(checkpointCoordinator.isTriggering());
 
 		try {
@@ -436,7 +432,7 @@ checkpointCoordinator.startCheckpointScheduler();
 		// continue triggering
 		masterHookCheckpointFuture.complete("finish master hook");
 
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(checkpointCoordinator.isTriggering());
 		// it doesn't really trigger task manager to do checkpoint
 		assertEquals(0, taskManagerCheckpointTriggeredTimes.get());
@@ -454,7 +450,7 @@ checkpointCoordinator.startCheckpointScheduler();
 			new CheckpointCoordinatorBuilder()
 				.setTasks(new ExecutionVertex[] { vertex })
 				.setCheckpointIDCounter(new UnstableCheckpointIDCounter(id -> id == 0))
-				.setMainThreadExecutor(mainThreadExecutor)
+				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 
 		checkpointCoordinator.startCheckpointScheduler();
@@ -463,7 +459,7 @@ checkpointCoordinator.startCheckpointScheduler();
 		assertTrue(checkpointCoordinator.isTriggering());
 		assertEquals(0, checkpointCoordinator.getTriggerRequestQueue().size());
 
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		try {
 			onCompletionPromise1.get();
 			fail("This checkpoint should fail through UnstableCheckpointIDCounter");
@@ -480,7 +476,7 @@ checkpointCoordinator.startCheckpointScheduler();
 		final CompletableFuture<CompletedCheckpoint> onCompletionPromise2 =
 			triggerPeriodicCheckpoint(checkpointCoordinator);
 		assertTrue(checkpointCoordinator.isTriggering());
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(onCompletionPromise2.isCompletedExceptionally());
 		assertFalse(checkpointCoordinator.isTriggering());
 		assertEquals(0, checkpointCoordinator.getTriggerRequestQueue().size());
@@ -509,13 +505,13 @@ checkpointCoordinator.startCheckpointScheduler();
 			triggerPeriodicCheckpoint(checkpointCoordinator);
 
 		// checkpoint trigger will not finish since master hook checkpoint is not finished yet
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertTrue(checkpointCoordinator.isTriggering());
 
 		// continue triggering
 		masterHookCheckpointFuture.completeExceptionally(new Exception("by design"));
 
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(checkpointCoordinator.isTriggering());
 
 		try {
@@ -535,16 +531,14 @@ checkpointCoordinator.startCheckpointScheduler();
 
 	private CheckpointCoordinator createCheckpointCoordinator() {
 		return new CheckpointCoordinatorBuilder()
-			.setTimer(timer)
-			.setMainThreadExecutor(mainThreadExecutor)
+			.setTimer(manuallyTriggeredScheduledExecutor)
 			.build();
 	}
 
 	private CheckpointCoordinator createCheckpointCoordinator(ExecutionVertex executionVertex) {
 		return new CheckpointCoordinatorBuilder()
 			.setTasks(new ExecutionVertex[] { executionVertex })
-			.setTimer(timer)
-			.setMainThreadExecutor(mainThreadExecutor)
+			.setTimer(manuallyTriggeredScheduledExecutor)
 			.build();
 	}
 

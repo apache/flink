@@ -58,7 +58,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 	public void testFailingCompletedCheckpointStoreAdd() throws Exception {
 		JobID jid = new JobID();
 
-		final ManuallyTriggeredScheduledExecutor mainThreadExecutor =
+		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
 			new ManuallyTriggeredScheduledExecutor();
 
 		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
@@ -72,12 +72,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 				.setJobId(jid)
 				.setTasks(new ExecutionVertex[] { vertex })
 				.setCompletedCheckpointStore(new FailingCompletedCheckpointStore())
-				.setMainThreadExecutor(mainThreadExecutor)
+				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
 
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
@@ -111,7 +111,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		coord.receiveAcknowledgeMessage(acknowledgeMessage, "Unknown location");
 		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		// make sure that the pending checkpoint has been discarded after we could not complete it
 		assertTrue(pendingCheckpoint.isDiscarded());
