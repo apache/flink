@@ -23,16 +23,12 @@ import org.apache.flink.api.common.JobStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.ThreadSafe;
-
 import java.util.List;
 import java.util.ListIterator;
 
 /**
  * A bounded LIFO-queue of {@link CompletedCheckpoint} instances.
- * Note that it might be visited by multiple threads. So implementation should keep it thread-safe.
  */
-@ThreadSafe
 public interface CompletedCheckpointStore {
 
 	Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
