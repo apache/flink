@@ -30,6 +30,7 @@ import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 
@@ -132,6 +133,10 @@ public class StreamRecordUtils {
 				BaseArray array = (BaseArray) ((Tuple2) value).f0;
 				BaseArraySerializer serializer = (BaseArraySerializer) ((Tuple2) value).f1;
 				writer.writeArray(j, array, serializer);
+			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof BaseRow) {
+				BaseRow baseRow = (BaseRow) ((Tuple2) value).f0;
+				BaseRowSerializer baseRowSerializer = (BaseRowSerializer) ((Tuple2) value).f1;
+				writer.writeRow(j, baseRow, baseRowSerializer);
 			} else {
 				throw new RuntimeException("Not support yet!");
 			}

@@ -19,6 +19,7 @@
 package org.apache.flink.table.dataformat.vector;
 
 import org.apache.flink.table.dataformat.BaseArray;
+import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
@@ -120,5 +121,9 @@ public class VectorizedColumnBatch implements Serializable {
 
 	public BaseArray getArray(int rowId, int colId) {
 		return ((ArrayColumnVector) columns[colId]).getArray(rowId);
+	}
+
+	public BaseRow getRow(int rowId, int colId) {
+		return ((RowColumnVector) columns[colId]).getRow(rowId);
 	}
 }

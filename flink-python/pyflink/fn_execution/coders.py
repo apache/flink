@@ -457,6 +457,10 @@ class ArrowCoder(DeterministicCoder):
             elif field_type.type_name == flink_fn_execution_pb2.Schema.ARRAY:
                 return ArrayType(_to_data_type(field_type.collection_element_type),
                                  field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
+                return RowType(
+                    [RowField(f.name, _to_data_type(f.type), f.description)
+                     for f in field_type.row_schema.fields], field_type.nullable)
             else:
                 raise ValueError("field_type %s is not supported." % field_type)
 

@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.arrow.readers.DoubleFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.FloatFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.IntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.RowArrowReader;
+import org.apache.flink.table.runtime.arrow.readers.RowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.SmallIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TimeFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TimestampFieldReader;
@@ -45,6 +46,7 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowDecimalColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDoubleColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowRowColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowSmallIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTimeColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTimestampColumnVector;
@@ -69,12 +71,14 @@ import org.apache.flink.table.runtime.arrow.writers.RowDecimalWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowDoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowFloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowRowWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowSmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowTimeWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowTimestampWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowTinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowVarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowVarCharWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.TimeWriter;
 import org.apache.flink.table.runtime.arrow.writers.TimestampWriter;
@@ -112,6 +116,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -177,6 +182,17 @@ public class ArrowUtilsTest {
 			RowTimestampWriter.class, TimestampWriter.class, TimestampFieldReader.class, ArrowTimestampColumnVector.class));
 		testFields.add(Tuple7.of("f25", new ArrayType(new VarCharType()), ArrowType.List.INSTANCE,
 			RowArrayWriter.class, ArrayWriter.class, ArrayFieldReader.class, ArrowArrayColumnVector.class));
+
+		RowType rowFieldType = new RowType(Arrays.asList(
+			new RowType.RowField("a", new IntType()),
+			new RowType.RowField("b", new VarCharType()),
+			new RowType.RowField("c", new ArrayType(new VarCharType())),
+			new RowType.RowField("d", new TimestampType(2)),
+			new RowType.RowField("e", new RowType((Arrays.asList(
+				new RowType.RowField("e1", new IntType()),
+				new RowType.RowField("e2", new VarCharType())))))));
+		testFields.add(Tuple7.of("f26", rowFieldType, ArrowType.Struct.INSTANCE,
+			RowRowWriter.class, RowWriter.class, RowFieldReader.class, ArrowRowColumnVector.class));
 
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		for (Tuple7<String, LogicalType, ArrowType, Class<?>, Class<?>, Class<?>, Class<?>> field : testFields) {

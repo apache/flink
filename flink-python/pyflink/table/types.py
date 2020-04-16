@@ -2314,10 +2314,18 @@ def to_arrow_type(data_type):
         else:
             return pa.timestamp('ns')
     elif type(data_type) == ArrayType:
-        if type(data_type.element_type) == LocalZonedTimestampType:
+        if type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
             raise ValueError("%s is not supported to be used as the element type of ArrayType." %
                              data_type.element_type)
         return pa.list_(to_arrow_type(data_type.element_type))
+    elif type(data_type) == RowType:
+        for field in data_type:
+            if type(field.data_type) in [LocalZonedTimestampType, RowType]:
+                raise TypeError("%s is not supported to be used as the field type of RowType" %
+                                field.data_type)
+        fields = [pa.field(field.name, to_arrow_type(field.data_type), field.data_type._nullable)
+                  for field in data_type]
+        return pa.struct(fields)
     else:
         raise ValueError("field_type %s is not supported." % data_type)
 
