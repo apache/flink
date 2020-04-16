@@ -107,6 +107,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -1153,11 +1154,22 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
 
 			// if we have checkpointed state, reload it into the executions
+			CompletableFuture<Boolean> reloadState;
 			if (checkpointCoordinator != null) {
-				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
+				reloadState = checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
+			} else {
+				reloadState = CompletableFuture.completedFuture(true);
 			}
 
-			scheduleForExecution();
+			reloadState.thenRunAsync(() -> {
+				try {
+					scheduleForExecution();
+				} catch (Throwable t) {
+					LOG.warn("Failed to restart the job.", t);
+					failGlobal(t);
+				}
+			}, jobMasterMainThreadExecutor);
+
 		}
 		// TODO remove the catch block if we align the schematics to not fail global within the restarter.
 		catch (Throwable t) {
