@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics.slf4j;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -39,6 +41,8 @@ import java.util.Map;
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via SLF4J {@link Logger}.
  */
+@PublicEvolving
+@InstantiateViaFactory(factoryClassName ="org.apache.flink.metrics.slf4j.Slf4jReporterFactory")
 public class Slf4jReporter extends AbstractReporter implements Scheduled {
 	private static final Logger LOG = LoggerFactory.getLogger(Slf4jReporter.class);
 	private static final String lineSeparator = System.lineSeparator();
