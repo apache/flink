@@ -16,27 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.executors;
+package org.apache.flink.client.cli;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.executors.AbstractJobClusterExecutor;
-import org.apache.flink.core.execution.PipelineExecutor;
-import org.apache.flink.yarn.YarnClusterClientFactory;
-import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
-
-import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
+import org.apache.flink.configuration.Configuration;
 
 /**
- * The {@link PipelineExecutor} to be used when executing a job in isolation.
- * This executor will start a cluster specifically for the job at hand and
- * tear it down when the job is finished either successfully or due to an error.
+ * An interface to be used by the {@link CliFrontend}
+ * to submit user programs for execution.
  */
 @Internal
-public class YarnJobClusterExecutor extends AbstractJobClusterExecutor<ApplicationId, YarnClusterClientFactory> {
+public interface ApplicationDeployer {
 
-	public static final String NAME = YarnDeploymentTarget.PER_JOB.getName();
-
-	public YarnJobClusterExecutor() {
-		super(new YarnClusterClientFactory());
-	}
+	/**
+	 * Submits a user program for execution and runs the main user method on the cluster.
+	 *
+	 * @param configuration the configuration containing all the necessary
+	 *                        information about submitting the user program.
+	 * @param applicationConfiguration an {@link ApplicationConfiguration} specific to
+	 *                                   the application to be executed.
+	 */
+	<ClusterID> void run(
+			final Configuration configuration,
+			final ApplicationConfiguration applicationConfiguration) throws Exception;
 }
