@@ -18,7 +18,6 @@
 
 package org.apache.flink.metrics.slf4j;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
