@@ -554,9 +554,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			// acknowledge the other task.
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId, new CheckpointMetrics(), taskOperatorSubtaskStates1), TASK_MANAGER_LOCATION_INFO);
 
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			manuallyTriggeredScheduledExecutor.triggerAll();
-
 			// the checkpoint is internally converted to a successful checkpoint and the
 			// pending checkpoint object is disposed
 			assertTrue(checkpoint.isDiscarded());
@@ -596,8 +593,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointIdNew), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointIdNew), TASK_MANAGER_LOCATION_INFO);
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -715,8 +710,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID1, checkpointId2), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID1, checkpointId1), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID2, checkpointId2), TASK_MANAGER_LOCATION_INFO);
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			// now, the first checkpoint should be confirmed
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
@@ -728,8 +721,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			// send the last remaining ack for the second checkpoint
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID3, checkpointId2), TASK_MANAGER_LOCATION_INFO);
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			// now, the second checkpoint should be confirmed
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -881,9 +872,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID1, checkpointId1, new CheckpointMetrics(), taskOperatorSubtaskStates11), TASK_MANAGER_LOCATION_INFO);
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID2, checkpointId2, new CheckpointMetrics(), taskOperatorSubtaskStates22), TASK_MANAGER_LOCATION_INFO);
-
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			// now, the second checkpoint should be confirmed, and the first discarded
 			// actually both pending checkpoints are discarded, and the second has been transformed
@@ -1256,8 +1244,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// acknowledge the other task.
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId, new CheckpointMetrics(), taskOperatorSubtaskStates1), TASK_MANAGER_LOCATION_INFO);
-		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		// the checkpoint is internally converted to a successful checkpoint and the
 		// pending checkpoint object is disposed
@@ -1297,8 +1283,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointIdNew), TASK_MANAGER_LOCATION_INFO);
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointIdNew), TASK_MANAGER_LOCATION_INFO);
-		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 		assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1380,8 +1364,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// 2nd checkpoint should subsume the 1st checkpoint, but not the savepoint
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId2), TASK_MANAGER_LOCATION_INFO);
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId2), TASK_MANAGER_LOCATION_INFO);
-		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 		assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1404,8 +1386,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// 2nd savepoint should subsume the last checkpoint, but not the 1st savepoint
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, savepointId2), TASK_MANAGER_LOCATION_INFO);
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, savepointId2), TASK_MANAGER_LOCATION_INFO);
-		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 		assertEquals(2, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1417,8 +1397,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// Ack first savepoint
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, savepointId1), TASK_MANAGER_LOCATION_INFO);
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, savepointId1), TASK_MANAGER_LOCATION_INFO);
-		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 		assertEquals(3, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1484,12 +1462,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			// now, once we acknowledge one checkpoint, it should trigger the next one
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID, 1L), TASK_MANAGER_LOCATION_INFO);
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			final Collection<ScheduledFuture<?>> periodicScheduledTasks =
 				manuallyTriggeredScheduledExecutor.getPeriodicScheduledTask();
 			assertEquals(1, periodicScheduledTasks.size());
+			final ScheduledFuture scheduledFuture = periodicScheduledTasks.iterator().next();
 
 			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			manuallyTriggeredScheduledExecutor.triggerAll();
@@ -1686,7 +1663,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, attemptID1, checkpointId), TASK_MANAGER_LOCATION_INFO);
 		}
 
-		manuallyTriggeredScheduledExecutor.triggerAll();
 		// After ACKs, all should be completed
 		for (CompletableFuture<CompletedCheckpoint> savepointFuture : savepointFutures) {
 			assertNotNull(savepointFuture.get());
@@ -2399,8 +2375,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				taskStateSnapshot);
 
 			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			manuallyTriggeredScheduledExecutor.triggerAll();
 		}
 	}
 

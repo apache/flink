@@ -210,8 +210,6 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		final long checkpointId = cc.getPendingCheckpoints().values().iterator().next().getCheckpointId();
 		cc.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, execId, checkpointId), "Unknown location");
-		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertEquals(0, cc.getNumberOfPendingCheckpoints());
 
 		assertEquals(1, cc.getNumberOfRetainedSuccessfulCheckpoints());
