@@ -26,7 +26,8 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for BashJavaUtils.
@@ -42,8 +43,8 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString()};
 		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-		assertEquals(2, lines.size());
-		ConfigurationUtils.parseJvmArgString(lines.get(lines.size() - 2));
-		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(lines.size() - 1));
+		assertThat(lines.size(), is(2));
+		ConfigurationUtils.parseJvmArgString(lines.get(0));
+		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
 	}
 }
