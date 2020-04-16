@@ -293,8 +293,14 @@ public class SchemaValidator implements DescriptorValidator {
 					.containsKey(SCHEMA + "." + i + "." + ROWTIME_TIMESTAMPS_TYPE);
 				boolean isGeneratedColumn = properties
 					.containsKey(SCHEMA + "." + i + "." + TABLE_SCHEMA_EXPR);
-				// remove proctime/rowtime from mapping
-				if (isProctime || isRowtime || isGeneratedColumn) {
+				if (isRowtime) {
+					Optional<String> timestampSource = properties.getOptionalString(SCHEMA + "." + i + "." + ROWTIME_TIMESTAMPS_FROM);
+					if (!timestampSource.isPresent()) {
+						mapping.remove(name);
+					}
+				}
+				// remove proctime and generatedColumn from mapping
+				if (isProctime || isGeneratedColumn) {
 					mapping.remove(name);
 				}
 				// check for invalid fields

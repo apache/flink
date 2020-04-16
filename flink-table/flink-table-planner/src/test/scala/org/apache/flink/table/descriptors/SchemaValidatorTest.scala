@@ -201,4 +201,25 @@ class SchemaValidatorTest {
     val schema = SchemaValidator.deriveTableSinkSchema(properties)
     assertEquals(expectd, schema)
    }
+
+  @Test
+  def testDeriveFieldMappingWithRowtimeFromField(): Unit = {
+    val descriptor = new Schema()
+      .field("f1", Types.STRING)
+      .field("f2", Types.STRING)
+      .field("f3", Types.SQL_TIMESTAMP)
+      .field("rt", Types.SQL_TIMESTAMP).rowtime(
+      new Rowtime().timestampsFromField("rt")
+        .watermarksPeriodicBounded(1000L))
+    val properties = new DescriptorProperties()
+    properties.putProperties(descriptor.toProperties)
+
+    val rowtime = SchemaValidator.deriveRowtimeAttributes(properties).get(0)
+    assertEquals("rt", rowtime.getAttributeName)
+    val extractor = rowtime.getTimestampExtractor
+    assertTrue(extractor.equals(new ExistingField("rt")))
+    assertTrue(rowtime.getWatermarkStrategy.isInstanceOf[BoundedOutOfOrderTimestamps])
+    val fieldMapping = SchemaValidator.deriveFieldMapping(properties, Optional.of(properties.getTableSchema(Schema.SCHEMA).toRowType))
+    assertTrue(fieldMapping.containsKey("rt"))
+  }
 }
