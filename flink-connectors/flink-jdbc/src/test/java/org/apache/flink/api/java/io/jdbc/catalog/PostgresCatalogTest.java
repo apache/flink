@@ -71,7 +71,7 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 	public void testListTables() throws DatabaseNotExistException {
 		List<String> actual = catalog.listTables(DEFAULT_DATABASE);
 
-		assertEquals(Arrays.asList("public.dt", "public.t1", "public.t4", "public.t5"), actual);
+		assertEquals(Arrays.asList("public.dt", "public.dt2", "public.t1", "public.t4", "public.t5"), actual);
 
 		actual = catalog.listTables(TEST_DB);
 
@@ -145,5 +145,12 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 		CatalogBaseTable table = catalog.getTable(new ObjectPath(DEFAULT_DATABASE, TABLE_PRIMITIVE_TYPE));
 
 		assertEquals(getPrimitiveTable().schema, table.getSchema());
+	}
+
+	@Test
+	public void tesArrayDataTypes() throws TableNotExistException {
+		CatalogBaseTable table = catalog.getTable(new ObjectPath(DEFAULT_DATABASE, TABLE_ARRAY_TYPE));
+
+		assertEquals(getArrayTable().schema, table.getSchema());
 	}
 }

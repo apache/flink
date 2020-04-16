@@ -54,7 +54,10 @@ public abstract class AbstractJDBCRowConverter implements JDBCRowConverter {
 		return reuse;
 	}
 
-	private JDBCFieldConverter createConverter(LogicalType type) {
+	/**
+	 * Create a runtime JDBC field converter from given {@link LogicalType}.
+	 */
+	public JDBCFieldConverter createConverter(LogicalType type) {
 		LogicalTypeRoot root = type.getTypeRoot();
 
 		if (root == LogicalTypeRoot.SMALLINT) {
