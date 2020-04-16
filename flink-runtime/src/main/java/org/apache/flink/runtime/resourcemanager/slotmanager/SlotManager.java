@@ -33,7 +33,7 @@ import java.util.concurrent.Executor;
 
 /**
  * The slot manager is responsible for maintaining a view on all registered task manager slots,
- * their allocation and all pending slot requests. Whenever a new slot is registered or and
+ * their allocation and all pending slot requests. Whenever a new slot is registered or an
  * allocated slot is freed, then it tries to fulfill another pending slot request. Whenever there
  * are not enough slots available the slot manager will notify the resource manager about it via
  * {@link ResourceActions#allocateResource(ResourceProfile)}.
