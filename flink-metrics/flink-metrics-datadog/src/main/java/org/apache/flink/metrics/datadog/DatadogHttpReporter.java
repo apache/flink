@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics.datadog;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -43,6 +45,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Variables in metrics scope will be sent to Datadog as tags.
  */
+@PublicEvolving
+@InstantiateViaFactory(factoryClassName ="org.apache.flink.metrics.datadog.DatadogHttpReporterFactory")
 public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
 	private static final String HOST_VARIABLE = "<host>";
