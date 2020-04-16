@@ -139,9 +139,6 @@ public final class StringUtils {
 		if (array instanceof long[]) {
 			return Arrays.toString((long[]) array);
 		}
-		if (array instanceof Object[]) {
-			return Arrays.toString((Object[]) array);
-		}
 		// for array of byte array
 		if (array instanceof byte[][]) {
 			byte[][] b = (byte[][]) array;
@@ -170,6 +167,9 @@ public final class StringUtils {
 		}
 		if (array instanceof short[]) {
 			return Arrays.toString((short[]) array);
+		}
+		if (array instanceof Object[]) {
+			return Arrays.toString((Object[]) array);
 		}
 
 		if (array.getClass().isArray()) {
