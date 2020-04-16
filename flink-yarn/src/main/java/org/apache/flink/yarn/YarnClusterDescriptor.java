@@ -25,6 +25,7 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -35,6 +36,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -53,6 +55,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
@@ -97,6 +100,7 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.nio.file.FileVisitResult;
@@ -384,6 +388,27 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					false);
 		} catch (Exception e) {
 			throw new ClusterDeploymentException("Couldn't deploy Yarn session cluster", e);
+		}
+	}
+
+	@Override
+	public ClusterClientProvider<ApplicationId> deployApplicationCluster(
+			final ClusterSpecification clusterSpecification,
+			final ApplicationConfiguration applicationConfiguration) throws ClusterDeploymentException {
+		checkNotNull(clusterSpecification);
+		checkNotNull(applicationConfiguration);
+
+		applicationConfiguration.applyToConfiguration(flinkConfiguration);
+
+		try {
+			return deployInternal(
+					clusterSpecification,
+					"Flink Application Cluster",
+					YarnApplicationClusterEntryPoint.class.getName(),
+					null,
+					false);
+		} catch (Exception e) {
+			throw new ClusterDeploymentException("Couldn't deploy Yarn Application Cluster", e);
 		}
 	}
 
@@ -691,11 +716,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 							1));
 		}
 
-		final Set<File> userJarFiles = (jobGraph == null)
-				// not per-job submission
-				? Collections.emptySet()
-				// add user code jars from the provided JobGraph
-				: jobGraph.getUserJars().stream().map(f -> f.toUri()).map(File::new).collect(Collectors.toSet());
+		final Set<File> userJarFiles = new HashSet<>();
+		if (jobGraph != null) {
+			userJarFiles.addAll(jobGraph.getUserJars().stream().map(f -> f.toUri()).map(File::new).collect(Collectors.toSet()));
+		}
+
+		final List<URI> jarUrls = ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URI::create);
+		if (jarUrls != null && YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
+			userJarFiles.addAll(jarUrls.stream().map(File::new).collect(Collectors.toSet()));
+		}
 
 		int yarnFileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 		int fileReplication = configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
