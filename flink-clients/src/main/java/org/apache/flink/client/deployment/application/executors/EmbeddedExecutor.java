@@ -110,6 +110,10 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		this.submittedJobIds.add(actualJobId);
 		LOG.info("Job {} is submitted.", actualJobId);
 
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Effective Configuration: {}", configuration);
+		}
+
 		final CompletableFuture<JobID> jobSubmissionFuture = submitJob(
 				configuration,
 				dispatcherGateway,
