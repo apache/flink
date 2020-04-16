@@ -18,8 +18,6 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.configuration.Configuration;
-
 import io.fabric8.kubernetes.api.model.Pod;
 
 /**
@@ -27,12 +25,8 @@ import io.fabric8.kubernetes.api.model.Pod;
  */
 public class KubernetesPod extends KubernetesResource<Pod> {
 
-	public KubernetesPod(Configuration flinkConfig) {
-		this(flinkConfig, new Pod());
-	}
-
-	public KubernetesPod(Configuration flinkConfig, Pod pod) {
-		super(flinkConfig, pod);
+	public KubernetesPod(Pod pod) {
+		super(pod);
 	}
 
 	public String getName() {

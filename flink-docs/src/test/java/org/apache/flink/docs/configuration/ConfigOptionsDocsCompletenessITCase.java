@@ -19,6 +19,7 @@
 package org.apache.flink.docs.configuration;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
@@ -36,10 +37,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -63,59 +66,64 @@ public class ConfigOptionsDocsCompletenessITCase {
 	private static final Formatter htmlFormatter = new HtmlFormatter();
 
 	@Test
-	public void testCommonSectionCompleteness() throws IOException, ClassNotFoundException {
-		Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedCommonOptions();
-		Map<String, List<ExistingOption>> existingOptions = findExistingOptions(
-			optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.CommonOption.class) != null);
+	public void testCompleteness() throws IOException, ClassNotFoundException {
+		final Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedOptions();
+		final Map<String, List<ExistingOption>> existingOptions = findExistingOptions(ignored -> true);
 
-		assertExistingOptionsAreWellDefined(existingOptions);
+		final Map<String, List<ExistingOption>> existingDeduplicated = checkWellDefinedAndDeduplicate(existingOptions);
 
-		compareDocumentedAndExistingOptions(documentedOptions, existingOptions);
+		compareDocumentedAndExistingOptions(documentedOptions, existingDeduplicated);
 	}
 
-	@Test
-	public void testFullReferenceCompleteness() throws IOException, ClassNotFoundException {
-		Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedOptions();
-		Map<String, List<ExistingOption>> existingOptions = findExistingOptions(ignored -> true);
+	private static Map<String, List<ExistingOption>> checkWellDefinedAndDeduplicate(Map<String, List<ExistingOption>> allOptions) {
+		return allOptions.entrySet().stream()
+			.map((entry) -> {
+				final List<ExistingOption> existingOptions = entry.getValue();
+				final List<ExistingOption> consolidated;
 
-		assertExistingOptionsAreWellDefined(existingOptions);
+				if (existingOptions.stream().allMatch(option -> option.isSuffixOption)) {
+					consolidated = existingOptions;
+				}
+				else {
+					Optional<ExistingOption> deduped = existingOptions.stream()
+						.reduce((option1, option2) -> {
+							if (option1.equals(option2)) {
+								// we allow multiple instances of ConfigOptions with the same key if they are identical
+								return option1;
+							} else {
+								// found a ConfigOption pair with the same key that aren't equal
+								// we fail here outright as this is not a documentation-completeness problem
+								if (!option1.defaultValue.equals(option2.defaultValue)) {
+									String errorMessage = String.format(
+										"Ambiguous option %s due to distinct default values (%s (in %s) vs %s (in %s)).",
+										option1.key,
+										option1.defaultValue,
+										option1.containingClass.getSimpleName(),
+										option2.defaultValue,
+										option2.containingClass.getSimpleName());
+									throw new AssertionError(errorMessage);
+								} else {
+									String errorMessage = String.format(
+										"Ambiguous option %s due to distinct descriptions (%s vs %s).",
+										option1.key,
+										option1.containingClass.getSimpleName(),
+										option2.containingClass.getSimpleName());
+									throw new AssertionError(errorMessage);
+								}
+							}
+						});
+					consolidated = Collections.singletonList(deduped.get());
+				}
 
-		compareDocumentedAndExistingOptions(documentedOptions, existingOptions);
+				return new Tuple2<>(entry.getKey(), consolidated);
+			})
+			.collect(Collectors.toMap((t) -> t.f0, (t) -> t.f1));
 	}
 
-	private static void assertExistingOptionsAreWellDefined(Map<String, List<ExistingOption>> allOptions) {
-		allOptions.values().stream()
-			.filter(options -> !options.stream().allMatch(option -> option.isSuffixOption))
-			.forEach(options -> options.stream()
-				.reduce((option1, option2) -> {
-					if (option1.equals(option2)) {
-						// we allow multiple instances of ConfigOptions with the same key if they are identical
-						return option1;
-					} else {
-						// found a ConfigOption pair with the same key that aren't equal
-						// we fail here outright as this is not a documentation-completeness problem
-						if (!option1.defaultValue.equals(option2.defaultValue)) {
-							String errorMessage = String.format(
-								"Ambiguous option %s due to distinct default values (%s (in %s) vs %s (in %s)).",
-								option1.key,
-								option1.defaultValue,
-								option1.containingClass.getSimpleName(),
-								option2.defaultValue,
-								option2.containingClass.getSimpleName());
-							throw new AssertionError(errorMessage);
-						} else {
-							String errorMessage = String.format(
-								"Ambiguous option %s due to distinct descriptions (%s vs %s).",
-								option1.key,
-								option1.containingClass.getSimpleName(),
-								option2.containingClass.getSimpleName());
-							throw new AssertionError(errorMessage);
-						}
-					}
-				}));
-	}
+	private static void compareDocumentedAndExistingOptions(
+			Map<String, List<DocumentedOption>> documentedOptions,
+			Map<String, List<ExistingOption>> existingOptions) {
 
-	private static void compareDocumentedAndExistingOptions(Map<String, List<DocumentedOption>> documentedOptions, Map<String, List<ExistingOption>> existingOptions) {
 		final Collection<String> problems = new ArrayList<>(0);
 
 		// first check that all existing options are properly documented
@@ -130,12 +138,16 @@ public class ConfigOptionsDocsCompletenessITCase {
 					final Iterator<DocumentedOption> candidates = documentedState.iterator();
 
 					boolean matchFound = false;
-					while (candidates.hasNext() && !matchFound) {
+					while (candidates.hasNext()) {
 						DocumentedOption candidate = candidates.next();
 						if (supposedState.defaultValue.equals(candidate.defaultValue) && supposedState.description.equals(candidate.description)) {
 							matchFound = true;
 							candidates.remove();
 						}
+					}
+
+					if (documentedState.isEmpty()) {
+						documentedOptions.remove(key);
 					}
 
 					if (!matchFound) {
@@ -169,15 +181,22 @@ public class ConfigOptionsDocsCompletenessITCase {
 	}
 
 	private static Map<String, List<DocumentedOption>> parseDocumentedCommonOptions() throws IOException {
-		Path commonSection = Paths.get(System.getProperty("rootDir"), "docs", "_includes", "generated", COMMON_SECTION_FILE_NAME);
+		final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+
+		Path commonSection = Paths.get(rootDir, "docs", "_includes", "generated", COMMON_SECTION_FILE_NAME);
 		return parseDocumentedOptionsFromFile(commonSection).stream()
 			.collect(Collectors.groupingBy(option -> option.key, Collectors.toList()));
 	}
 
 	private static Map<String, List<DocumentedOption>> parseDocumentedOptions() throws IOException {
-		Path includeFolder = Paths.get(System.getProperty("rootDir"), "docs", "_includes", "generated").toAbsolutePath();
+		final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+
+		Path includeFolder = Paths.get(rootDir, "docs", "_includes", "generated").toAbsolutePath();
 		return Files.list(includeFolder)
-			.filter(path -> path.getFileName().toString().contains("configuration"))
+			.filter((path) -> {
+				final String filename = path.getFileName().toString();
+				return filename.endsWith("configuration.html") || filename.endsWith("_section.html");
+			})
 			.flatMap(file -> {
 				try {
 					return parseDocumentedOptionsFromFile(file).stream();
@@ -216,10 +235,11 @@ public class ConfigOptionsDocsCompletenessITCase {
 	}
 
 	private static Map<String, List<ExistingOption>> findExistingOptions(Predicate<ConfigOptionsDocGenerator.OptionWithMetaInfo> predicate) throws IOException, ClassNotFoundException {
+		final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
 		final Collection<ExistingOption> existingOptions = new ArrayList<>();
 
 		for (OptionsClassLocation location : LOCATIONS) {
-			processConfigOptions(System.getProperty("rootDir"), location.getModule(), location.getPackage(), DEFAULT_PATH_PREFIX, optionsClass ->
+			processConfigOptions(rootDir, location.getModule(), location.getPackage(), DEFAULT_PATH_PREFIX, optionsClass ->
 				extractConfigOptions(optionsClass)
 					.stream()
 					.filter(predicate)

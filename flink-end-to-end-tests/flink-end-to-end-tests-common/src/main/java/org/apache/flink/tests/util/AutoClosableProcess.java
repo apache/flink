@@ -46,7 +46,7 @@ public class AutoClosableProcess implements AutoCloseable {
 
 	private final Process process;
 
-	public AutoClosableProcess(final Process process) {
+	private AutoClosableProcess(final Process process) {
 		Preconditions.checkNotNull(process);
 		this.process = process;
 	}
@@ -128,7 +128,7 @@ public class AutoClosableProcess implements AutoCloseable {
 					if (++retries > maxRetries || !globalDeadline.hasTimeLeft()) {
 						String errMsg = String.format(
 							"Process (%s) exceeded timeout (%s) or number of retries (%s).",
-							Arrays.toString(commands), maxRetries, globalTimeout.toMillis());
+							Arrays.toString(commands), globalTimeout.toMillis(), maxRetries);
 						throw new IOException(errMsg, e);
 					}
 				}

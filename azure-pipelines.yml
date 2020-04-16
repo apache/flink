@@ -13,23 +13,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#
+# This file defines an Azure Pipeline build for testing Flink. It is intended to be used
+# with a free Azure Pipelines account.
+# It has the following features:
+#  - default builds for pushes / pull requests
+#  - end-to-end tests
+#
+#
+# For the "apache/flink" repository, we are using the pipeline definition located in
+#   tools/azure-pipelines/build-apache-repo.yml
+# That file points to custom, self-hosted build agents for faster pull request build processing and 
+# integration with Flinkbot.
+# The custom pipeline definition file is configured in the "Pipeline settings" screen
+# of the Azure Pipelines web ui.
+#
 
 trigger:
   branches:
     include:
-    - '*' 
+    - '*'  # must quote since "*" is a YAML reserved character; we want a string
 
 resources:
   containers:
-  # Container with Maven 3.2.5 to have the same environment everywhere.
+  # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:3
-  repositories:
-    - repository: templates
-      type: github
-      name: flink-ci/flink-azure-builds
-      endpoint: flink-ci
+    image: rmetzger/flink-ci:ubuntu-amd64-3528acd
+    # On AZP provided machines, set this flag to allow writing coredumps in docker
+    options: --privileged
+
+# Define variables:
+# - See tools/azure-pipelines/jobs-template.yml for a short summary of the caching
+# - See https://stackoverflow.com/questions/60742105/how-can-i-access-a-secret-value-from-an-azure-pipelines-expression
+#   to understand why the secrets are handled like this
+variables:
+  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
+  CACHE_FALLBACK_KEY: maven | $(Agent.OS)
+  CACHE_FLINK_DIR: $(Pipeline.Workspace)/flink_cache
+  SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
+  SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
+  SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
+
 
 jobs:
-- template: flink-build-jobs.yml@templates
-
+  - template: tools/azure-pipelines/jobs-template.yml
+    parameters: # see template file for a definition of the parameters.
+      stage_name: ci_build
+      test_pool_definition:
+        vmImage: 'ubuntu-latest'
+      e2e_pool_definition:
+        vmImage: 'ubuntu-16.04'
+      environment: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Pe2e-hadoop"
+      run_end_to_end: false
+      container: flink-build-container
+      jdk: jdk8

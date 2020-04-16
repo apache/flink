@@ -18,13 +18,16 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
 
 import javax.annotation.Nullable;
 
 import java.util.Optional;
 
+/**
+ * A simple ConnectionState listener that remembers the last state.
+ */
 public class DefaultLastStateConnectionStateListener implements LastStateConnectionStateListener {
 
 	@Nullable

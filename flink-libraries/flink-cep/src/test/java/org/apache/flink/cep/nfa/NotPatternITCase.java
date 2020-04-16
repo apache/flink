@@ -31,7 +31,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
@@ -92,7 +92,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a1, c1, d),
 			Lists.newArrayList(a1, c2, d)
 		));
@@ -254,7 +254,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a1, c1, d)
 		));
 	}
@@ -309,7 +309,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a1, c1, d)
 		));
 	}
@@ -364,7 +364,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList());
+		comparePatterns(matches, Lists.<List<Event>>newArrayList());
 	}
 
 	@Test
@@ -421,7 +421,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a1, d1)
 		));
 	}
@@ -480,7 +480,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList());
+		comparePatterns(matches, Lists.<List<Event>>newArrayList());
 	}
 
 	@Test
@@ -524,7 +524,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a1, c1),
 			Lists.newArrayList(a1)
 		));
@@ -580,7 +580,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a1, c1, c2, d)
 		));
 	}
@@ -637,7 +637,7 @@ public class NotPatternITCase extends TestLogger {
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a2, c2, d)
 		));
 	}
@@ -666,7 +666,7 @@ public class NotPatternITCase extends TestLogger {
 	@Test
 	public void testNotNextAfterOneOrMoreSkipTillAny() throws Exception {
 		final List<List<Event>> matches = testNotNextAfterOneOrMore(true);
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_2, NotFollowByData.D_1)
 		));
 	}
@@ -730,7 +730,7 @@ public class NotPatternITCase extends TestLogger {
 	@Test
 	public void testNotFollowedByAnyAfterOneOrMoreEager() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(true, true);
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.D_1),
@@ -749,7 +749,7 @@ public class NotPatternITCase extends TestLogger {
 	@Test
 	public void testNotFollowedByAnyAfterOneOrMoreCombinations() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(false, true);
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -821,7 +821,7 @@ public class NotPatternITCase extends TestLogger {
 	public void testNotFollowedByAnyBeforeOneOrMoreEager() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(true, true);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.D_1),
@@ -833,7 +833,7 @@ public class NotPatternITCase extends TestLogger {
 	public void testNotFollowedByAnyBeforeOneOrMoreCombinations() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(false, true);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
@@ -849,7 +849,7 @@ public class NotPatternITCase extends TestLogger {
 	public void testNotFollowedByBeforeOneOrMoreEager() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(true, false);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.D_1),
@@ -861,7 +861,7 @@ public class NotPatternITCase extends TestLogger {
 	public void testNotFollowedByBeforeOneOrMoreCombinations() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(false, false);
 
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
@@ -931,7 +931,7 @@ public class NotPatternITCase extends TestLogger {
 	@Test
 	public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillNext() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(true, false);
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.D_1),
@@ -942,7 +942,7 @@ public class NotPatternITCase extends TestLogger {
 	@Test
 	public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillNext() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(false, false);
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -957,7 +957,7 @@ public class NotPatternITCase extends TestLogger {
 	@Test
 	public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillAny() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(true, true);
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.D_1),
@@ -968,7 +968,7 @@ public class NotPatternITCase extends TestLogger {
 	@Test
 	public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillAny() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(false, true);
-		compareMaps(matches, Lists.<List<Event>>newArrayList(
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.D_1),
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_6, NotFollowByData.D_1),

@@ -20,16 +20,12 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link MiniClusterConfiguration}.
@@ -77,16 +73,5 @@ public class MiniClusterConfigurationTest extends TestLogger {
 		Assert.assertEquals(
 			JobManagerOptions.SCHEDULER.defaultValue(),
 			miniClusterConfiguration.getConfiguration().getString(JobManagerOptions.SCHEDULER));
-	}
-
-	@Test
-	public void testDefaultTaskExecutorMemoryConfiguration() {
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder().build();
-		final Configuration actualConfiguration = miniClusterConfiguration.getConfiguration();
-		final Configuration expectedConfiguration = MiniClusterConfiguration.adjustTaskManagerMemoryConfigurations(new Configuration());
-
-		assertThat(actualConfiguration.get(TaskManagerOptions.NETWORK_MEMORY_MIN), is(MiniClusterConfiguration.DEFAULT_SHUFFLE_MEMORY_SIZE));
-		assertThat(actualConfiguration.get(TaskManagerOptions.NETWORK_MEMORY_MAX), is(MiniClusterConfiguration.DEFAULT_SHUFFLE_MEMORY_SIZE));
-		assertThat(actualConfiguration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE), is(MiniClusterConfiguration.DEFAULT_MANAGED_MEMORY_SIZE));
 	}
 }

@@ -36,23 +36,6 @@ import java.util.List;
  */
 public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggFunctionTestBase<T, GenericRow> {
 
-	/**
-	 * An AggFunctionTestSpec with input order.
-	 */
-	protected static class AggFunctionWithOrderTestSpec<T> extends AggFunctionTestSpec<T, GenericRow> {
-
-		final List<List<Long>> inputOrderSets;
-
-		public AggFunctionWithOrderTestSpec(
-				AggregateFunction<T, GenericRow> aggregator,
-				List<List<Long>> inputOrderSets,
-				List<List<T>> inputValueSets,
-				List<T> expectedResults) {
-			super(aggregator, inputValueSets, expectedResults);
-			this.inputOrderSets = inputOrderSets;
-		}
-	}
-
 	protected Method getAccumulateFunc() throws NoSuchMethodException {
 		return getAggregator().getClass().getMethod("accumulate", getAccClass(), Object.class, Long.class);
 	}

@@ -103,7 +103,8 @@ class PythonBootTests(PyFlinkTestCase):
         # assume that this file is in flink-python source code directory.
         flink_python_source_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        self.runner_path = os.path.join(flink_python_source_root, "bin", "pyflink-udf-runner.sh")
+        self.runner_path = os.path.join(
+            flink_python_source_root, "src", "main", "resources", "pyflink-udf-runner.sh")
 
     def run_boot_py(self):
         args = [self.runner_path, "--id", "1",

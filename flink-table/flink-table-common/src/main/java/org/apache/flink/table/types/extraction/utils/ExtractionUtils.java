@@ -21,7 +21,7 @@ package org.apache.flink.table.types.extraction.utils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 
@@ -134,13 +134,13 @@ public final class ExtractionUtils {
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static DataType createRawType(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			@Nullable Class<? extends TypeSerializer<?>> rawSerializer,
 			@Nullable Class<?> conversionClass) {
 		if (rawSerializer != null) {
 			return DataTypes.RAW((Class) createConversionClass(conversionClass), instantiateRawSerializer(rawSerializer));
 		}
-		return lookup.resolveRawDataType(createConversionClass(conversionClass));
+		return typeFactory.createRawDataType(createConversionClass(conversionClass));
 	}
 
 	private static Class<?> createConversionClass(@Nullable Class<?> conversionClass) {
@@ -463,6 +463,33 @@ public final class ExtractionUtils {
 		}
 		// check if all classes have been consumed
 		return currentClass == classCount;
+	}
+
+	/**
+	 * Creates a method signature string like {@code int eval(Integer, String)}.
+	 */
+	public static String createMethodSignatureString(
+			String methodName,
+			Class<?>[] parameters,
+			@Nullable Class<?> returnType) {
+		final StringBuilder builder = new StringBuilder();
+		if (returnType != null) {
+			builder.append(returnType.getCanonicalName()).append(" ");
+		}
+		builder
+			.append(methodName)
+			.append(
+				Stream.of(parameters)
+					.map(parameter -> {
+						// in case we don't know the parameter at this location (i.e. for accumulators)
+						if (parameter == null) {
+							return "_";
+						} else {
+							return parameter.getCanonicalName();
+						}
+					})
+					.collect(Collectors.joining(", ", "(", ")")));
+		return builder.toString();
 	}
 
 	// --------------------------------------------------------------------------------------------

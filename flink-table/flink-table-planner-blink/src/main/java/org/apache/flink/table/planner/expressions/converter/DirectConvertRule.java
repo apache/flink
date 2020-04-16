@@ -67,9 +67,11 @@ public class DirectConvertRule implements CallExpressionConvertRule {
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.INIT_CAP, FlinkSqlOperatorTable.INITCAP);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LIKE, FlinkSqlOperatorTable.LIKE);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOWER, FlinkSqlOperatorTable.LOWER);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOWERCASE, FlinkSqlOperatorTable.LOWER);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SIMILAR, FlinkSqlOperatorTable.SIMILAR_TO);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SUBSTRING, FlinkSqlOperatorTable.SUBSTRING);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UPPER, FlinkSqlOperatorTable.UPPER);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UPPERCASE, FlinkSqlOperatorTable.UPPER);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.POSITION, FlinkSqlOperatorTable.POSITION);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.OVERLAY, FlinkSqlOperatorTable.OVERLAY);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.CONCAT, FlinkSqlOperatorTable.CONCAT_FUNCTION);

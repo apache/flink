@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.dataformat.vector;
 
+import org.apache.flink.table.dataformat.BaseArray;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
@@ -45,16 +46,6 @@ public class VectorizedColumnBatch implements Serializable {
 
 	public VectorizedColumnBatch(ColumnVector[] vectors) {
 		this.columns = vectors;
-	}
-
-	/**
-	 * Resets the batch for writing.
-	 */
-	public void reset() {
-		for (ColumnVector column : columns) {
-			column.reset();
-		}
-		this.numRows = 0;
 	}
 
 	public void setNumRows(int numRows) {
@@ -125,5 +116,9 @@ public class VectorizedColumnBatch implements Serializable {
 
 	public SqlTimestamp getTimestamp(int rowId, int colId, int precision) {
 		return ((TimestampColumnVector) (columns[colId])).getTimestamp(rowId, precision);
+	}
+
+	public BaseArray getArray(int rowId, int colId) {
+		return ((ArrayColumnVector) columns[colId]).getArray(rowId);
 	}
 }

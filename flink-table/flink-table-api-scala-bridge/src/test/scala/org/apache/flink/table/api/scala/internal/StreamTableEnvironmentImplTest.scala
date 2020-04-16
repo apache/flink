@@ -18,21 +18,20 @@
 
 package org.apache.flink.table.api.scala.internal
 
+import java.util.{Collections, List => JList}
+
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.ModifyOperation
-import org.apache.flink.table.utils.{ExecutorMock, PlannerMock}
+import org.apache.flink.table.utils.{CatalogManagerMocks, ExecutorMock, PlannerMock}
 import org.apache.flink.types.Row
-
 import org.hamcrest.CoreMatchers.equalTo
 import org.junit.Assert.assertThat
 import org.junit.Test
-
-import java.util.{Collections, List => JList}
 
 /**
  * Tests for [[StreamTableEnvironmentImpl]].
@@ -82,9 +81,7 @@ class StreamTableEnvironmentImplTest {
       env: StreamExecutionEnvironment,
       elements: DataStream[Int]) = {
     val config = new TableConfig
-    val catalogManager = new CatalogManager(
-      "cat",
-      new GenericInMemoryCatalog("cat", "db"))
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = new ModuleManager
     new StreamTableEnvironmentImpl(
       catalogManager,

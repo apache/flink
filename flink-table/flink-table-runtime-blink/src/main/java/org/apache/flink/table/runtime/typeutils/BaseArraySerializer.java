@@ -32,6 +32,7 @@ import org.apache.flink.table.dataformat.BaseArray;
 import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryWriter;
+import org.apache.flink.table.dataformat.ColumnarArray;
 import org.apache.flink.table.dataformat.GenericArray;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.runtime.types.InternalSerializers;
@@ -83,9 +84,13 @@ public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 
 	@Override
 	public BaseArray copy(BaseArray from) {
-		return from instanceof GenericArray ?
-				copyGenericArray((GenericArray) from) :
-				((BinaryArray) from).copy();
+		if (from instanceof GenericArray) {
+			return copyGenericArray((GenericArray) from);
+		} else if (from instanceof BinaryArray) {
+			return ((BinaryArray) from).copy();
+		} else {
+			return copyColumnarArray((ColumnarArray) from);
+		}
 	}
 
 	@Override
@@ -132,6 +137,53 @@ public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 			arr = newArray;
 		}
 		return new GenericArray(arr, array.numElements(), array.isPrimitiveArray());
+	}
+
+	private GenericArray copyColumnarArray(ColumnarArray from) {
+		Object arr = null;
+		boolean isPrimitiveArray = true;
+		if (!eleType.isNullable()) {
+			switch (eleType.getTypeRoot()) {
+				case BOOLEAN:
+					arr = from.toBooleanArray();
+					break;
+				case TINYINT:
+					arr = from.toByteArray();
+					break;
+				case SMALLINT:
+					arr = from.toShortArray();
+					break;
+				case INTEGER:
+				case DATE:
+				case TIME_WITHOUT_TIME_ZONE:
+					arr = from.toIntArray();
+					break;
+				case BIGINT:
+					arr = from.toLongArray();
+					break;
+				case FLOAT:
+					arr = from.toFloatArray();
+					break;
+				case DOUBLE:
+					arr = from.toDoubleArray();
+					break;
+			}
+		}
+
+		if (arr == null) {
+			Object[] newArray = new Object[from.numElements()];
+			for (int i = 0; i < newArray.length; i++) {
+				if (!from.isNullAt(i)) {
+					newArray[i] = eleSer.copy(TypeGetterSetters.get(from, i, eleType));
+				} else {
+					newArray[i] = null;
+				}
+			}
+			arr = newArray;
+			isPrimitiveArray = false;
+		}
+
+		return new GenericArray(arr, from.numElements(), isPrimitiveArray);
 	}
 
 	@Override

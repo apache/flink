@@ -22,7 +22,7 @@ constructFlinkClassPath() {
     local FLINK_CLASSPATH
 
     while read -d '' -r jarfile ; do
-        if [[ "$jarfile" =~ .*flink-dist.*.jar ]]; then
+        if [[ "$jarfile" =~ .*/flink-dist[^/]*.jar$ ]]; then
             FLINK_DIST="$FLINK_DIST":"$jarfile"
         elif [[ "$FLINK_CLASSPATH" == "" ]]; then
             FLINK_CLASSPATH="$jarfile";
@@ -40,6 +40,20 @@ constructFlinkClassPath() {
     fi
 
     echo "$FLINK_CLASSPATH""$FLINK_DIST"
+}
+
+findFlinkDistJar() {
+    local FLINK_DIST="`find "$FLINK_LIB_DIR" -name 'flink-dist*.jar'`"
+
+    if [[ "$FLINK_DIST" == "" ]]; then
+        # write error message to stderr since stdout is stored as the classpath
+        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_LIB_DIR.")
+
+        # exit function with empty classpath to force process failure
+        exit 1
+    fi
+
+    echo "$FLINK_DIST"
 }
 
 # These are used to mangle paths that are passed to java when using
@@ -96,6 +110,7 @@ DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_JAVA_OPTS_JM=""                         # Optional JVM args (JobManager)
 DEFAULT_ENV_JAVA_OPTS_TM=""                         # Optional JVM args (TaskManager)
 DEFAULT_ENV_JAVA_OPTS_HS=""                         # Optional JVM args (HistoryServer)
+DEFAULT_ENV_JAVA_OPTS_CLI=""                        # Optional JVM args (Client)
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
 DEFAULT_YARN_CONF_DIR=""                            # YARN Configuration Directory, if necessary
 DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Directory, if necessary
@@ -119,6 +134,7 @@ KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_JAVA_OPTS_HS="env.java.opts.historyserver"
+KEY_ENV_JAVA_OPTS_CLI="env.java.opts.client"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
@@ -416,6 +432,12 @@ if [ -z "${FLINK_ENV_JAVA_OPTS_HS}" ]; then
     FLINK_ENV_JAVA_OPTS_HS="$( echo "${FLINK_ENV_JAVA_OPTS_HS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
+if [ -z "${FLINK_ENV_JAVA_OPTS_CLI}" ]; then
+    FLINK_ENV_JAVA_OPTS_CLI=$(readFromConfig ${KEY_ENV_JAVA_OPTS_CLI} "${DEFAULT_ENV_JAVA_OPTS_CLI}" "${YAML_CONF}")
+    # Remove leading and ending double quotes (if present) of value
+    FLINK_ENV_JAVA_OPTS_CLI="$( echo "${FLINK_ENV_JAVA_OPTS_CLI}" | sed -e 's/^"//'  -e 's/"$//' )"
+fi
+
 if [ -z "${FLINK_SSH_OPTS}" ]; then
     FLINK_SSH_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
 fi
@@ -603,38 +625,31 @@ TMSlaves() {
 
 runBashJavaUtilsCmd() {
     local cmd=$1
-    local class_path=$2
-    local conf_dir=$3
-    local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
+    local conf_dir=$2
+    local class_path="${3:-$FLINK_BIN_DIR/bash-java-utils.jar:`findFlinkDistJar`}"
+    class_path=`manglePathList ${class_path}`
 
-    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} | tail -n 1`
+    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} 2>&1 | tail -n 1000`
     if [[ $? -ne 0 ]]; then
         echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
         # Print the output in case the user redirect the log to console.
-        echo $output 1>&2
+        echo "$output" 1>&2
         exit 1
     fi
 
-    if ! [[ $output =~ ^${EXECUTION_PREFIX}.* ]]; then
-        echo "[ERROR] Unexpected result: $output" 1>&2
+    echo "$output"
+}
+
+extractExecutionParams() {
+    local execution_config=$1
+    local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
+
+    if ! [[ $execution_config =~ ^${EXECUTION_PREFIX}.* ]]; then
+        echo "[ERROR] Unexpected result: $execution_config" 1>&2
         echo "[ERROR] The last line of the BashJavaUtils outputs is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
-        echo $output 1>&2
+        echo "$output" 1>&2
         exit 1
     fi
 
-    echo ${output} | sed "s/$EXECUTION_PREFIX//g"
-}
-
-getTmResourceJvmParams() {
-    local class_path=`constructFlinkClassPath`
-    class_path=`manglePathList ${class_path}`
-
-    runBashJavaUtilsCmd GET_TM_RESOURCE_JVM_PARAMS ${class_path} ${FLINK_CONF_DIR}
-}
-
-getTmResourceDynamicConfigs() {
-    local class_path=`constructFlinkClassPath`
-    class_path=`manglePathList ${class_path}`
-
-    runBashJavaUtilsCmd GET_TM_RESOURCE_DYNAMIC_CONFIGS ${class_path} ${FLINK_CONF_DIR}
+    echo ${execution_config} | sed "s/$EXECUTION_PREFIX//"
 }

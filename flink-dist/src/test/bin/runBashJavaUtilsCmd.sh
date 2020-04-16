@@ -30,9 +30,12 @@ fi
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-FLINK_CLASSPATH=`find . -name 'flink-dist*.jar' | grep lib`
 FLINK_CONF_DIR=${bin}/../../main/resources
+FLINK_TARGET_DIR=${bin}/../../../target
+FLINK_DIST_JAR=`find $FLINK_TARGET_DIR -name 'flink-dist*.jar'`
 
 . ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
 
-runBashJavaUtilsCmd ${COMMAND} ${FLINK_CLASSPATH} ${FLINK_CONF_DIR}
+output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_PARAMS ${FLINK_CONF_DIR} "$FLINK_TARGET_DIR/bash-java-utils.jar:$FLINK_DIST_JAR}" | tail -n 2)
+extractExecutionParams "$(echo "$output" | head -n 1)"
+extractExecutionParams "$(echo "$output" | tail -n 1)"

@@ -26,6 +26,8 @@ import org.apache.calcite.tools.RuleSets
 import org.junit.Assert._
 import org.junit.Test
 
+import java.util.Collections
+
 import scala.collection.JavaConversions._
 
 /**
@@ -49,10 +51,7 @@ class FlinkChainedProgramTest {
       .addRuleInstance(SubQueryRemoveRule.JOIN)
       .addMatchLimit(100)
       .addMatchOrder(HepMatchOrder.BOTTOM_UP)
-      .addRuleCollection(Array(
-        TableScanRule.INSTANCE,
-        ValuesReduceRule.FILTER_INSTANCE
-      ).toList)
+      .addRuleCollection(Collections.singletonList(ValuesReduceRule.FILTER_INSTANCE))
     val program1 = FlinkHepProgram(builder.build())
     assertTrue(programs.addFirst("o2", program1))
     assertEquals(List("o2"), programs.getProgramNames.toList)

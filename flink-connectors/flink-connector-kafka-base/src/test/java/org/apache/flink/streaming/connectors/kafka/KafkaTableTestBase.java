@@ -66,7 +66,6 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 
 		// ---------- Produce an event time stream into Kafka -------------------
 		String groupId = standardProps.getProperty("group.id");
-		String zk = standardProps.getProperty("zookeeper.connect");
 		String bootstraps = standardProps.getProperty("bootstrap.servers");
 
 		// TODO: use DDL to register Kafka once FLINK-15282 is fixed.
@@ -83,7 +82,6 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		properties.put("connector.type", "kafka");
 		properties.put("connector.topic", topic);
 		properties.put("connector.version", kafkaVersion());
-		properties.put("connector.properties.zookeeper.connect", zk);
 		properties.put("connector.properties.bootstrap.servers", bootstraps);
 		properties.put("connector.properties.group.id", groupId);
 		properties.put("connector.startup-mode", "earliest-offset");
@@ -112,7 +110,6 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 //			"  'connector.type' = 'kafka',\n" +
 //			"  'connector.topic' = '" + topic + "',\n" +
 //			"  'connector.version' = 'universal',\n" +
-//			"  'connector.properties.zookeeper.connect' = '" + zk + "',\n" +
 //			"  'connector.properties.bootstrap.servers' = '" + bootstraps + "',\n" +
 //			"  'connector.properties.group.id' = '" + groupId + "', \n" +
 //			"  'connector.startup-mode' = 'earliest-offset',  \n" +
@@ -149,7 +146,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		result.addSink(sink).setParallelism(1);
 
 		try {
-			tEnv.execute("Job_2");
+			env.execute("Job_2");
 		} catch (Throwable e) {
 			// we have to use a specific exception to indicate the job is finished,
 			// because the registered Kafka source is infinite.
@@ -160,8 +157,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		}
 
 		List<String> expected = Arrays.asList(
-			"2019-12-12 00:00:05,2019-12-12 00:00:04.004,3,50.00",
-			"2019-12-12 00:00:10,2019-12-12 00:00:06.006,2,5.33");
+			"2019-12-12 00:00:05.000,2019-12-12 00:00:04.004,3,50.00",
+			"2019-12-12 00:00:10.000,2019-12-12 00:00:06.006,2,5.33");
 
 		assertEquals(expected, TestingSinkFunction.rows);
 

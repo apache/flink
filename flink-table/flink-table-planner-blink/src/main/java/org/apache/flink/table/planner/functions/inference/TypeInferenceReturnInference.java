@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.inference.CallContext;
@@ -31,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidCallException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUnexpectedException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.inferOutputType;
@@ -43,23 +45,29 @@ import static org.apache.flink.table.types.inference.TypeInferenceUtil.inferOutp
 @Internal
 public final class TypeInferenceReturnInference implements SqlReturnTypeInference {
 
+	private final DataTypeFactory dataTypeFactory;
+
 	private final FunctionDefinition definition;
 
 	private final TypeInference typeInference;
 
 	public TypeInferenceReturnInference(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
+		this.dataTypeFactory = dataTypeFactory;
 		this.definition = definition;
 		this.typeInference = typeInference;
 	}
 
 	@Override
 	public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-		final FlinkTypeFactory typeFactory = (FlinkTypeFactory) opBinding.getTypeFactory();
-		final CallContext callContext = new OperatorBindingCallContext(definition, opBinding);
+		final CallContext callContext = new OperatorBindingCallContext(
+			dataTypeFactory,
+			definition,
+			opBinding);
 		try {
-			return inferReturnTypeOrError(typeFactory, callContext);
+			return inferReturnTypeOrError(unwrapTypeFactory(opBinding), callContext);
 		}
 		catch (ValidationException e) {
 			throw createInvalidCallException(callContext, e);

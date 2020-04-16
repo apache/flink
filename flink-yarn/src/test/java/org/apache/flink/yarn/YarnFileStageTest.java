@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -199,7 +200,8 @@ public class YarnFileStageTest extends TestLogger {
 				remotePaths,
 				localResources,
 				localResourceDirectory,
-				new StringBuilder());
+				new StringBuilder(),
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			final Path basePath = new Path(localResourceDirectory, srcDir.getName());
 			final Path nestedPath = new Path(basePath, "nested");
@@ -261,7 +263,8 @@ public class YarnFileStageTest extends TestLogger {
 				remotePaths,
 				localResources,
 				localResourceDirectory,
-				new StringBuilder());
+				new StringBuilder(),
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			assertThat(classpath, containsInAnyOrder(new Path(localResourceDirectory, localFile).toString()));
 

@@ -20,12 +20,14 @@ package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.Func0
 import org.apache.flink.table.utils.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 class TableAggregateTest extends TableTestBase {
@@ -152,7 +154,7 @@ class TableAggregateTest extends TableTestBase {
   def testJavaRegisterFunction(): Unit = {
     val util = streamTestUtil()
     val typeInfo = new RowTypeInfo(Types.INT, Types.LONG, Types.STRING)
-    val table = util.addJavaTable[Row](typeInfo, "sourceTable", "a, b, c")
+    val table = util.addJavaTable[Row](typeInfo, "sourceTable", $("a"), $("b"), $("c"))
 
     val func = new EmptyTableAggFunc
     util.javaTableEnv.registerFunction("func", func)

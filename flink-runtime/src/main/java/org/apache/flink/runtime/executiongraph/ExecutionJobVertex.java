@@ -46,6 +46,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorUtil;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.OptionalFailure;
@@ -133,6 +135,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * the serialized task information.
 	 */
 	private Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = null;
+
+	private final Map<OperatorID, OperatorCoordinator> operatorCoordinators;
 
 	private InputSplitAssigner splitAssigner;
 
@@ -242,6 +246,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			if (ir.getNumberOfAssignedPartitions() != parallelism) {
 				throw new RuntimeException("The intermediate result's partitions were not correctly assigned.");
 			}
+		}
+
+		try {
+			final Map<OperatorID, OperatorCoordinator> coordinators = OperatorCoordinatorUtil.instantiateCoordinators(
+					jobVertex.getOperatorCoordinators(),
+					graph.getUserClassLoader(),
+					(opId) -> new ExecutionJobVertexCoordinatorContext(opId, this));
+
+			this.operatorCoordinators = Collections.unmodifiableMap(coordinators);
+		}
+		catch (IOException | ClassNotFoundException e) {
+			throw new JobException("Cannot instantiate the coordinator for operator " + getName(), e);
 		}
 
 		// set up the input splits, if the vertex has any
@@ -383,6 +399,19 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return getJobVertex().getInputDependencyConstraint();
 	}
 
+	@Nullable
+	public OperatorCoordinator getOperatorCoordinator(OperatorID operatorId) {
+		return operatorCoordinators.get(operatorId);
+	}
+
+	public Map<OperatorID, OperatorCoordinator> getOperatorCoordinatorMap() {
+		return operatorCoordinators;
+	}
+
+	public Collection<OperatorCoordinator> getOperatorCoordinators() {
+		return operatorCoordinators.values();
+	}
+
 	public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey() throws IOException {
 		// only one thread should offload the task information, so let's also let only one thread
 		// serialize the task information!
@@ -417,18 +446,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		return getAggregateJobVertexState(num, parallelism);
 	}
-
-	private String generateDebugString() {
-
-		return "ExecutionJobVertex" +
-				"(" + jobVertex.getName() + " | " + jobVertex.getID() + ")" +
-				"{" +
-				"parallelism=" + parallelism +
-				", maxParallelism=" + getMaxParallelism() +
-				", maxParallelismConfigured=" + maxParallelismConfigured +
-				'}';
-	}
-
 
 	//---------------------------------------------------------------------------------------------
 

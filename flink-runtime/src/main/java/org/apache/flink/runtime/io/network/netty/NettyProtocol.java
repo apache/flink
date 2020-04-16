@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
@@ -120,10 +121,12 @@ public class NettyProtocol {
 	 * @return channel handlers
 	 */
 	public ChannelHandler[] getClientChannelHandlers() {
-		return new ChannelHandler[] {
+		NetworkClientHandler networkClientHandler = new CreditBasedPartitionRequestClientHandler();
+
+		return new ChannelHandler[]{
 			messageEncoder,
-			new NettyMessage.NettyMessageDecoder(),
-			new CreditBasedPartitionRequestClientHandler()};
+			new NettyMessageClientDecoderDelegate(networkClientHandler),
+			networkClientHandler};
 	}
 
 }

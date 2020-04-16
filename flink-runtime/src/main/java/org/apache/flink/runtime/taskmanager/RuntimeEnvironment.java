@@ -35,14 +35,15 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 
 import java.util.Map;
 import java.util.concurrent.Future;
-import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,9 +55,9 @@ public class RuntimeEnvironment implements Environment {
 	private final JobID jobId;
 	private final JobVertexID jobVertexId;
 	private final ExecutionAttemptID executionId;
-	
+
 	private final TaskInfo taskInfo;
-	
+
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
 	private final ExecutionConfig executionConfig;
@@ -69,15 +70,16 @@ public class RuntimeEnvironment implements Environment {
 	private final TaskStateManager taskStateManager;
 	private final GlobalAggregateManager aggregateManager;
 	private final InputSplitProvider splitProvider;
-	
+
 	private final Map<String, Future<Path>> distCacheEntries;
 
 	private final ResultPartitionWriter[] writers;
 	private final InputGate[] inputGates;
 
 	private final TaskEventDispatcher taskEventDispatcher;
-	
+
 	private final CheckpointResponder checkpointResponder;
+	private final TaskOperatorEventGateway operatorEventGateway;
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
@@ -112,6 +114,7 @@ public class RuntimeEnvironment implements Environment {
 			InputGate[] inputGates,
 			TaskEventDispatcher taskEventDispatcher,
 			CheckpointResponder checkpointResponder,
+			TaskOperatorEventGateway operatorEventGateway,
 			TaskManagerRuntimeInfo taskManagerInfo,
 			TaskMetricGroup metrics,
 			Task containingTask) {
@@ -137,6 +140,7 @@ public class RuntimeEnvironment implements Environment {
 		this.inputGates = checkNotNull(inputGates);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
 		this.checkpointResponder = checkNotNull(checkpointResponder);
+		this.operatorEventGateway = checkNotNull(operatorEventGateway);
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 		this.containingTask = containingTask;
 		this.metrics = metrics;
@@ -283,6 +287,11 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public void declineCheckpoint(long checkpointId, Throwable cause) {
 		checkpointResponder.declineCheckpoint(jobId, executionId, checkpointId, cause);
+	}
+
+	@Override
+	public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
+		return operatorEventGateway;
 	}
 
 	@Override

@@ -23,12 +23,16 @@ import org.apache.flink.api.common.JobStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.util.List;
 import java.util.ListIterator;
 
 /**
  * A bounded LIFO-queue of {@link CompletedCheckpoint} instances.
+ * Note that it might be visited by multiple threads. So implementation should keep it thread-safe.
  */
+@ThreadSafe
 public interface CompletedCheckpointStore {
 
 	Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
@@ -107,7 +111,7 @@ public interface CompletedCheckpointStore {
 	 * This method returns whether the completed checkpoint store requires checkpoints to be
 	 * externalized. Externalized checkpoints have their meta data persisted, which the checkpoint
 	 * store can exploit (for example by simply pointing the persisted metadata).
-	 * 
+	 *
 	 * @return True, if the store requires that checkpoints are externalized before being added, false
 	 *         if the store stores the metadata itself.
 	 */

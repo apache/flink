@@ -1,5 +1,5 @@
 flink-s3-fs-presto
-Copyright 2014-2019 The Apache Software Foundation
+Copyright 2014-2020 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -22,7 +22,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-annotations:2.10.1
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.6.7
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
 - com.fasterxml.woodstox:woodstox-core:5.0.3
 - com.google.guava:guava:21.0
 - io.airlift:configuration:0.153

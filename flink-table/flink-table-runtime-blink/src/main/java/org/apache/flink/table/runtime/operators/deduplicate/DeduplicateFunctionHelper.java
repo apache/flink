@@ -34,17 +34,19 @@ class DeduplicateFunctionHelper {
 	 * needed.
 	 *
 	 * @param currentRow latest row received by deduplicate function
-	 * @param generateRetraction whether need to send retract message to downstream
+	 * @param generateUpdateBefore whether need to send UPDATE_BEFORE message for updates
 	 * @param state state of function
 	 * @param out underlying collector
-	 * @throws Exception
 	 */
-	static void processLastRow(BaseRow currentRow, boolean generateRetraction, ValueState<BaseRow> state,
+	static void processLastRow(
+			BaseRow currentRow,
+			boolean generateUpdateBefore,
+			ValueState<BaseRow> state,
 			Collector<BaseRow> out) throws Exception {
 		// Check message should be accumulate
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
-		if (generateRetraction) {
-			// state stores complete row if generateRetraction is true
+		if (generateUpdateBefore) {
+			// state stores complete row if generateUpdateBefore is true
 			BaseRow preRow = state.value();
 			state.update(currentRow);
 			if (preRow != null) {

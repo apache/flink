@@ -3,5 +3,6 @@
 .jekyll-cache/
 .rubydeps/
 content/
+content_*/
 ruby2/.bundle/
 ruby2/.rubydeps/

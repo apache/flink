@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -33,15 +34,14 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingRes
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ThrowingRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -90,13 +90,14 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private final ExecutionVertexOperations executionVertexOperations;
 
-	public DefaultScheduler(
+	private final Set<ExecutionVertexID> verticesWaitingForRestart;
+
+	DefaultScheduler(
 		final Logger log,
 		final JobGraph jobGraph,
 		final BackPressureStatsTracker backPressureStatsTracker,
 		final Executor ioExecutor,
 		final Configuration jobMasterConfiguration,
-		final SlotProvider slotProvider,
 		final ScheduledExecutorService futureExecutor,
 		final ScheduledExecutor delayExecutor,
 		final ClassLoader userCodeLoader,
@@ -104,7 +105,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Time rpcTimeout,
 		final BlobWriter blobWriter,
 		final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-		final Time slotRequestTimeout,
 		final ShuffleMaster<?> shuffleMaster,
 		final JobMasterPartitionTracker partitionTracker,
 		final SchedulingStrategyFactory schedulingStrategyFactory,
@@ -120,7 +120,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			backPressureStatsTracker,
 			ioExecutor,
 			jobMasterConfiguration,
-			slotProvider,
+			new ThrowingSlotProvider(), // this is not used any more in the new scheduler
 			futureExecutor,
 			userCodeLoader,
 			checkpointRecoveryFactory,
@@ -128,7 +128,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			new ThrowingRestartStrategy.ThrowingRestartStrategyFactory(),
 			blobWriter,
 			jobManagerJobMetricGroup,
-			slotRequestTimeout,
+			Time.seconds(0), // this is not used any more in the new scheduler
 			shuffleMaster,
 			partitionTracker,
 			executionVertexVersioner,
@@ -141,16 +141,18 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		this.executionVertexOperations = checkNotNull(executionVertexOperations);
 
 		final FailoverStrategy failoverStrategy = failoverStrategyFactory.create(
-			getFailoverTopology(),
+			getSchedulingTopology(),
 			getResultPartitionAvailabilityChecker());
 		log.info("Using failover strategy {} for {} ({}).", failoverStrategy, jobGraph.getName(), jobGraph.getJobID());
 
 		this.executionFailureHandler = new ExecutionFailureHandler(
-			getFailoverTopology(),
+			getSchedulingTopology(),
 			failoverStrategy,
 			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology());
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());
+
+		this.verticesWaitingForRestart = new HashSet<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -182,7 +184,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		}
 	}
 
-	private void handleTaskFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
+	private void handleTaskFailure(final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
+		setGlobalFailureCause(error);
 		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getFailureHandlingResult(executionVertexId, error);
 		maybeRestartTasks(failureHandlingResult);
 	}
@@ -210,6 +213,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Set<ExecutionVertexVersion> executionVertexVersions =
 			new HashSet<>(executionVertexVersioner.recordVertexModifications(verticesToRestart).values());
 
+		addVerticesToRestartPending(verticesToRestart);
+
 		final CompletableFuture<?> cancelFuture = cancelTasksAsync(verticesToRestart);
 
 		delayExecutor.schedule(
@@ -219,9 +224,23 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			TimeUnit.MILLISECONDS);
 	}
 
+	private void addVerticesToRestartPending(final Set<ExecutionVertexID> verticesToRestart) {
+		verticesWaitingForRestart.addAll(verticesToRestart);
+		transitionExecutionGraphState(JobStatus.RUNNING, JobStatus.RESTARTING);
+	}
+
+	private void removeVerticesFromRestartPending(final Set<ExecutionVertexID> verticesToRestart) {
+		verticesWaitingForRestart.removeAll(verticesToRestart);
+		if (verticesWaitingForRestart.isEmpty()) {
+			transitionExecutionGraphState(JobStatus.RESTARTING, JobStatus.RUNNING);
+		}
+	}
+
 	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions) {
 		return () -> {
 			final Set<ExecutionVertexID> verticesToRestart = executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
+
+			removeVerticesFromRestartPending(verticesToRestart);
 
 			resetForNewExecutions(verticesToRestart);
 
@@ -250,8 +269,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	@Override
-	protected void scheduleOrUpdateConsumersInternal(final ExecutionVertexID producerVertexId, final ResultPartitionID partitionId) {
-		schedulingStrategy.onPartitionConsumable(producerVertexId, partitionId);
+	protected void scheduleOrUpdateConsumersInternal(final IntermediateResultPartitionID partitionId) {
+		schedulingStrategy.onPartitionConsumable(partitionId);
 	}
 
 	// ------------------------------------------------------------------------
@@ -282,11 +301,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			deploymentOptionsByVertex,
 			slotExecutionVertexAssignments);
 
-		if (isDeployIndividually()) {
-			deployIndividually(deploymentHandles);
-		} else {
-			waitForAllSlotsAndDeploy(deploymentHandles);
-		}
+		waitForAllSlotsAndDeploy(deploymentHandles);
 	}
 
 	private void validateDeploymentOptions(final Collection<ExecutionVertexDeploymentOption> deploymentOptions) {
@@ -329,25 +344,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 					slotExecutionVertexAssignment);
 			})
 			.collect(Collectors.toList());
-	}
-
-	/**
-	 * <b>HACK:</b> See <a href="https://issues.apache.org/jira/browse/FLINK-14162">FLINK-14162</a>
-	 * for details.
-	 */
-	private boolean isDeployIndividually() {
-		return schedulingStrategy instanceof LazyFromSourcesSchedulingStrategy;
-	}
-
-	private void deployIndividually(final List<DeploymentHandle> deploymentHandles) {
-		for (final DeploymentHandle deploymentHandle : deploymentHandles) {
-			FutureUtils.assertNoException(
-				deploymentHandle
-					.getSlotExecutionVertexAssignment()
-					.getLogicalSlotFuture()
-					.handle(assignResourceOrHandleError(deploymentHandle))
-					.handle(deployOrHandleError(deploymentHandle)));
-		}
 	}
 
 	private void waitForAllSlotsAndDeploy(final List<DeploymentHandle> deploymentHandles) {

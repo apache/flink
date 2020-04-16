@@ -303,7 +303,7 @@
     "-Djobmanager.rpc.address=$(hostname -f)"
     "-Djobmanager.rpc.port=6123"
     "-Dmesos.resourcemanager.tasks.cpus=1"
-    "-Dmesos.resourcemanager.tasks.mem=2048" ;; FLINK-15082: this option must be set instead of taskmanager.memory.process.size
+    "-Dtaskmanager.memory.process.size=2048m"
     "-Drest.bind-address=$(hostname -f)"))
 
 (defn- start-mesos-session!

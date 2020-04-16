@@ -38,14 +38,22 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 
 	@Override
 	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
-			boolean generateRetraction, boolean outputRankNumber) {
-		return new RetractableTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
-				inputRowType, sortKeyComparator, sortKeySelector, rankType, rankRange, generatedEqualiser,
-				generateRetraction, outputRankNumber);
+			boolean generateUpdateBefore, boolean outputRankNumber) {
+		return new RetractableTopNFunction(
+			minTime.toMilliseconds(),
+			maxTime.toMilliseconds(),
+			inputRowType,
+			sortKeyComparator,
+			sortKeySelector,
+			rankType,
+			rankRange,
+			generatedEqualiser,
+			generateUpdateBefore,
+			outputRankNumber);
 	}
 
 	@Test
-	public void testProcessRetractMessageWithNotGenerateRetraction() throws Exception {
+	public void testProcessRetractMessageWithNotGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
@@ -76,9 +84,12 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 	}
 
 	@Test
-	public void testProcessRetractMessageWithGenerateRetraction() throws Exception {
-		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
-				true);
+	public void testProcessRetractMessageWithGenerateUpdateBefore() throws Exception {
+		AbstractTopNFunction func = createFunction(
+			RankType.ROW_NUMBER,
+			new ConstantRankRange(1, 2),
+			true,
+			true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 1L, 12));
@@ -258,7 +269,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 	}
 
 	@Test
-	public void testDisableGenerateRetractionWithRowNumber() throws Exception {
+	public void testDisableGenerateUpdateBeforeWithRowNumber() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
@@ -285,7 +296,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 	}
 
 	@Test
-	public void testDisableGenerateRetractionWithoutRowNumber() throws Exception {
+	public void testDisableGenerateUpdateBeforeWithoutRowNumber() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);

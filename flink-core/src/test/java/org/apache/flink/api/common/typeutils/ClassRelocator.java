@@ -148,6 +148,7 @@ public final class ClassRelocator {
 
 			return renaming.getDefinedClassesUnderRoot()
 				.stream()
+				.filter(klass -> klass.getClassLoader() != null)
 				.collect(Collectors.toMap(renaming::newNameFor, classToTransform -> {
 					ClassReader providerClassReader = classReaderFor(classToTransform);
 					ClassWriter transformedProvider = remap(renames, providerClassReader);

@@ -19,9 +19,11 @@
 package org.apache.flink.table.types.extraction.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -31,9 +33,11 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -41,6 +45,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectMethods;
+import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createMethodSignatureString;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isAssignable;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isMethodInvokable;
@@ -60,7 +65,7 @@ import static org.apache.flink.table.types.extraction.utils.TemplateUtils.findRe
 @Internal
 public final class FunctionMappingExtractor {
 
-	private final DataTypeLookup lookup;
+	private final DataTypeFactory typeFactory;
 
 	private final Class<? extends UserDefinedFunction> function;
 
@@ -75,14 +80,14 @@ public final class FunctionMappingExtractor {
 	private final MethodVerification verification;
 
 	public FunctionMappingExtractor(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<? extends UserDefinedFunction> function,
 			String methodName,
 			SignatureExtraction signatureExtraction,
 			@Nullable ResultExtraction accumulatorExtraction,
 			ResultExtraction outputExtraction,
 			MethodVerification verification) {
-		this.lookup = lookup;
+		this.typeFactory = typeFactory;
 		this.function = function;
 		this.methodName = methodName;
 		this.signatureExtraction = signatureExtraction;
@@ -139,7 +144,7 @@ public final class FunctionMappingExtractor {
 			ResultExtraction resultExtraction,
 			Function<FunctionTemplate, FunctionResultTemplate> accessor,
 			MethodVerification verification) {
-		final Set<FunctionTemplate> global = extractGlobalFunctionTemplates(lookup, function);
+		final Set<FunctionTemplate> global = extractGlobalFunctionTemplates(typeFactory, function);
 		final Set<FunctionResultTemplate> globalResultOnly = findResultOnlyTemplates(global, accessor);
 
 		// for each method find a signature that maps to results
@@ -184,7 +189,7 @@ public final class FunctionMappingExtractor {
 			ResultExtraction resultExtraction,
 			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
 		final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod = new HashMap<>();
-		final Set<FunctionTemplate> local = extractLocalFunctionTemplates(lookup, method);
+		final Set<FunctionTemplate> local = extractLocalFunctionTemplates(typeFactory, method);
 
 		final Set<FunctionResultTemplate> localResultOnly = findResultOnlyTemplates(
 			local,
@@ -311,7 +316,7 @@ public final class FunctionMappingExtractor {
 	public static SignatureExtraction createParameterSignatureExtraction(int offset) {
 		return (extractor, method) -> {
 			final List<FunctionArgumentTemplate> parameterTypes = extractArgumentTemplates(
-				extractor.lookup,
+				extractor.typeFactory,
 				extractor.function,
 				method,
 				offset);
@@ -323,22 +328,52 @@ public final class FunctionMappingExtractor {
 	}
 
 	private static List<FunctionArgumentTemplate> extractArgumentTemplates(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<? extends UserDefinedFunction> function,
 			Method method,
 			int offset) {
 		return IntStream.range(offset, method.getParameterCount())
-			.mapToObj(i -> {
-				final DataType type = DataTypeExtractor.extractFromMethodParameter(lookup, function, method, i);
-				// unwrap from ARRAY data type in case of varargs
-				if (method.isVarArgs() && i == method.getParameterCount() - 1 && type instanceof CollectionDataType) {
-					return ((CollectionDataType) type).getElementDataType();
-				} else {
-					return type;
-				}
-			})
-			.map(FunctionArgumentTemplate::of)
+			.mapToObj(i ->
+				// check for input group before start extracting a data type
+				tryExtractInputGroupArgument(method, i)
+					.orElseGet(() -> extractDataTypeArgument(typeFactory, function, method, i)))
 			.collect(Collectors.toList());
+	}
+
+	private static Optional<FunctionArgumentTemplate> tryExtractInputGroupArgument(Method method, int paramPos) {
+		final Parameter parameter = method.getParameters()[paramPos];
+		final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
+		if (hint != null) {
+			final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(hint, null);
+			if (template.inputGroup != null) {
+				return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));
+			}
+		}
+		return Optional.empty();
+	}
+
+	private static FunctionArgumentTemplate extractDataTypeArgument(
+			DataTypeFactory typeFactory,
+			Class<? extends UserDefinedFunction> function,
+			Method method,
+			int paramPos) {
+		final DataType type = DataTypeExtractor.extractFromMethodParameter(
+			typeFactory,
+			function,
+			method,
+			paramPos);
+		// unwrap data type in case of varargs
+		if (method.isVarArgs() && paramPos == method.getParameterCount() - 1) {
+			// for ARRAY
+			if (type instanceof CollectionDataType) {
+				return FunctionArgumentTemplate.of(((CollectionDataType) type).getElementDataType());
+			}
+			// special case for varargs that have been misinterpreted as BYTES
+			else {
+				return FunctionArgumentTemplate.of(DataTypes.TINYINT().notNull().bridgedTo(byte.class));
+			}
+		}
+		return FunctionArgumentTemplate.of(type);
 	}
 
 	private static @Nullable String[] extractArgumentNames(Method method, int offset) {
@@ -357,7 +392,7 @@ public final class FunctionMappingExtractor {
 	public static ResultExtraction createReturnTypeResultExtraction() {
 		return (extractor, method) -> {
 			final DataType dataType = DataTypeExtractor.extractFromMethodOutput(
-				extractor.lookup,
+				extractor.typeFactory,
 				extractor.function,
 				method);
 			return FunctionResultTemplate.of(dataType);
@@ -370,7 +405,7 @@ public final class FunctionMappingExtractor {
 	public static ResultExtraction createGenericResultExtraction(Class<? extends UserDefinedFunction> baseClass, int genericPos) {
 		return (extractor, method) -> {
 			final DataType dataType = DataTypeExtractor.extractFromGeneric(
-				extractor.lookup,
+				extractor.typeFactory,
 				baseClass,
 				genericPos,
 				extractor.function);
@@ -437,26 +472,9 @@ public final class FunctionMappingExtractor {
 			String methodName,
 			Class<?>[] parameters,
 			@Nullable Class<?> returnType) {
-		final StringBuilder builder = new StringBuilder();
-		if (returnType != null) {
-			builder.append(returnType.getName()).append(" ");
-		}
-		builder
-			.append(methodName)
-			.append(
-				Stream.of(parameters)
-					.map(parameter -> {
-						// in case we don't know the parameter at this location (i.e. for accumulators)
-						if (parameter == null) {
-							return "_";
-						} else {
-							return parameter.getName();
-						}
-					})
-					.collect(Collectors.joining(", ", "(", ")")));
 		return extractionError(
 			"Considering all hints, the method should comply with the signature:\n%s",
-			builder.toString());
+			createMethodSignatureString(methodName, parameters, returnType));
 	}
 
 	// --------------------------------------------------------------------------------------------

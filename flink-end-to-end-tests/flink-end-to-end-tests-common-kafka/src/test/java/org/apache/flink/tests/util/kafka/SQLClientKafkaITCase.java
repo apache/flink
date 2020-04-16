@@ -19,10 +19,12 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.tests.util.categories.Hadoop;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
-import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceSetup;
+import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.FileUtils;
@@ -42,7 +44,6 @@ import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -50,19 +51,19 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.util.StringUtils.byteToHexString;
+import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.junit.Assert.assertThat;
 
 /**
  * End-to-end test for the kafka SQL connectors.
  */
 @RunWith(Parameterized.class)
-@Category(value = {TravisGroup1.class, FailsOnJava11.class})
+@Category(value = {TravisGroup1.class, FailsOnJava11.class, Hadoop.class})
 public class SQLClientKafkaITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SQLClientKafkaITCase.class);
@@ -79,7 +80,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 	}
 
 	@Rule
-	public final FlinkResource flink = new LocalStandaloneFlinkResource();
+	public final FlinkResource flink = new LocalStandaloneFlinkResourceFactory()
+		.create(FlinkResourceSetup.builder().build());
 
 	@Rule
 	public final KafkaResource kafka;
@@ -219,17 +221,18 @@ public class SQLClientKafkaITCase extends TestLogger {
 		for (int i = 0; i < maxRetries; i++) {
 			if (Files.exists(result)) {
 				byte[] bytes = Files.readAllBytes(result);
-				String lines = new String(bytes, Charsets.UTF_8);
-				if (lines.split("\n").length == 4) {
+				String[] lines = new String(bytes, Charsets.UTF_8).split("\n");
+				if (lines.length == 4) {
 					success = true;
-					// Check the MD5SUM of the result file.
-					// Expected results:
-					//
-					// 2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.
-					// 2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.
-					// 2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.
-					// 2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding.
-					Assert.assertEquals("MD5 checksum mismatch", "9b06d1f8c8b8dd4ce3341786897c8993", getMd5Sum(bytes));
+					assertThat(
+						lines,
+						arrayContainingInAnyOrder(
+							"2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.",
+							"2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.",
+							"2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.",
+							"2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding."
+						)
+					);
 					break;
 				}
 			} else {
@@ -238,16 +241,5 @@ public class SQLClientKafkaITCase extends TestLogger {
 			Thread.sleep(duration);
 		}
 		Assert.assertTrue("Timeout(" + (maxRetries * duration) + " sec) to read the correct CSV results.", success);
-	}
-
-	private static String getMd5Sum(byte[] bytes) throws Exception {
-		MessageDigest md = MessageDigest.getInstance("MD5");
-		try (ByteArrayInputStream is = new ByteArrayInputStream(bytes)) {
-			byte[] buf = new byte[1024];
-			for (int len = 0; (len = is.read(buf)) > 0; ) {
-				md.update(buf, 0, len);
-			}
-		}
-		return byteToHexString(md.digest());
 	}
 }

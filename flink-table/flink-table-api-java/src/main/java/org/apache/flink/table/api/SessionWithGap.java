@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
@@ -36,7 +37,7 @@ public final class SessionWithGap {
 	private final Expression gap;
 
 	SessionWithGap(Expression gap) {
-		this.gap = gap;
+		this.gap = ApiExpressionUtils.unwrapFromApi(gap);
 	}
 
 	/**

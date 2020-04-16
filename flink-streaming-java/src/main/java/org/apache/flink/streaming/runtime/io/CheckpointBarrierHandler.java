@@ -38,6 +38,8 @@ public abstract class CheckpointBarrierHandler {
 	/** The listener to be notified on complete checkpoints. */
 	private final AbstractInvokable toNotifyOnCheckpoint;
 
+	private long latestCheckpointStartDelayNanos;
+
 	public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
 		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
 	}
@@ -71,6 +73,10 @@ public abstract class CheckpointBarrierHandler {
 
 	public abstract long getAlignmentDurationNanos();
 
+	public long getCheckpointStartDelayNanos() {
+		return latestCheckpointStartDelayNanos;
+	}
+
 	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
 
 	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws Exception {
@@ -79,7 +85,8 @@ public abstract class CheckpointBarrierHandler {
 
 		CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
 			.setBytesBufferedInAlignment(bufferedBytes)
-			.setAlignmentDurationNanos(alignmentDurationNanos);
+			.setAlignmentDurationNanos(alignmentDurationNanos)
+			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
 
 		toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
 			checkpointMetaData,
@@ -94,5 +101,11 @@ public abstract class CheckpointBarrierHandler {
 
 	protected void notifyAbort(long checkpointId, CheckpointException cause) throws Exception {
 		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
+	}
+
+	protected void markCheckpointStart(long checkpointCreationTimestamp) {
+		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
+			0,
+			System.currentTimeMillis() - checkpointCreationTimestamp);
 	}
 }

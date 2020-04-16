@@ -21,6 +21,7 @@ package org.apache.flink.orc.shim;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.orc.OrcSplitReader.Predicate;
+import org.apache.flink.orc.vector.HiveOrcBatchWrapper;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -45,7 +46,7 @@ import static org.apache.commons.lang3.reflect.MethodUtils.invokeStaticMethod;
 /**
  * Shim orc for Hive version 2.0.0 and upper versions.
  */
-public class OrcShimV200 implements OrcShim {
+public class OrcShimV200 implements OrcShim<VectorizedRowBatch> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -129,6 +130,11 @@ public class OrcShimV200 implements OrcShim {
 	}
 
 	@Override
+	public HiveOrcBatchWrapper createBatchWrapper(TypeDescription schema, int batchSize) {
+		return new HiveOrcBatchWrapper(schema.createRowBatch(batchSize));
+	}
+
+	@Override
 	public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
 		try {
 			if (hasNextMethod == null) {
@@ -183,7 +189,7 @@ public class OrcShimV200 implements OrcShim {
 	 *
 	 * @return The ORC projection mask.
 	 */
-	private static boolean[] computeProjectionMask(TypeDescription schema, int[] selectedFields) {
+	public static boolean[] computeProjectionMask(TypeDescription schema, int[] selectedFields) {
 		// mask with all fields of the schema
 		boolean[] projectionMask = new boolean[schema.getMaximumId() + 1];
 		// for each selected field

@@ -45,7 +45,7 @@ The following table compares traditional relational algebra and stream processin
 	</tr>
 	<tr>
 		<td>A query that is executed on batch data (e.g., a table in a relational database) has access to the complete input data.</td>
-		<td>A streaming query cannot access all data when is started and has to "wait" for data to be streamed in.</td>
+		<td>A streaming query cannot access all data when it is started and has to "wait" for data to be streamed in.</td>
 	</tr>
 	<tr>
 		<td>A batch query terminates after it produced a fixed sized result.</td>

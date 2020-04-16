@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
+import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -53,7 +54,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 @RunWith(Parameterized.class)
 public class TypeStrategiesTest {
 
-	@Parameters
+	@Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
 			// missing strategy with arbitrary argument
@@ -68,6 +69,18 @@ public class TypeStrategiesTest {
 				.inputTypes()
 				.expectDataType(DataTypes.BIGINT()),
 
+			// infer from input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes(DataTypes.INT(), DataTypes.STRING())
+				.expectDataType(DataTypes.INT()),
+
+			// infer from not existing input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes()
+				.expectErrorMessage("Could not infer an output type for the given arguments."),
+
 			// (INT, BOOLEAN) -> STRING
 			TestSpec
 				.forStrategy(createMappingTypeStrategy())
@@ -80,6 +93,13 @@ public class TypeStrategiesTest {
 				.inputTypes(DataTypes.INT(), DataTypes.STRING())
 				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
 
+			// (INT, CHAR(10)) -> BOOLEAN
+			// but avoiding casts (mapping actually expects STRING)
+			TestSpec
+				.forStrategy(createMappingTypeStrategy())
+				.inputTypes(DataTypes.INT(), DataTypes.CHAR(10))
+				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
+
 			// invalid mapping strategy
 			TestSpec
 				.forStrategy(createMappingTypeStrategy())
@@ -90,7 +110,27 @@ public class TypeStrategiesTest {
 			TestSpec
 				.forStrategy(TypeStrategies.explicit(DataTypes.NULL()))
 				.inputTypes()
-				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received.")
+				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received."),
+
+			TestSpec.forStrategy(
+				"Infer a row type",
+				TypeStrategies.ROW)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING())
+				.expectDataType(DataTypes.ROW(
+					DataTypes.FIELD("f0", DataTypes.BIGINT()),
+					DataTypes.FIELD("f1", DataTypes.STRING()))),
+
+			TestSpec.forStrategy(
+				"Infer an array type",
+				TypeStrategies.ARRAY)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
+				.expectDataType(DataTypes.ARRAY(DataTypes.BIGINT())),
+
+			TestSpec.forStrategy(
+				"Infer a map type",
+				TypeStrategies.MAP)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
+				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()))
 		);
 	}
 
@@ -134,6 +174,8 @@ public class TypeStrategiesTest {
 
 	private static class TestSpec {
 
+		private @Nullable final String description;
+
 		private final TypeStrategy strategy;
 
 		private List<DataType> inputTypes;
@@ -142,12 +184,17 @@ public class TypeStrategiesTest {
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(TypeStrategy strategy) {
+		private TestSpec(@Nullable String description, TypeStrategy strategy) {
+			this.description = description;
 			this.strategy = strategy;
 		}
 
 		static TestSpec forStrategy(TypeStrategy strategy) {
-			return new TestSpec(strategy);
+			return new TestSpec(null, strategy);
+		}
+
+		static TestSpec forStrategy(String description, TypeStrategy strategy) {
+			return new TestSpec(description, strategy);
 		}
 
 		TestSpec inputTypes(DataType... dataTypes) {
@@ -163,6 +210,11 @@ public class TypeStrategiesTest {
 		TestSpec expectErrorMessage(String expectedErrorMessage) {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
+		}
+
+		@Override
+		public String toString() {
+			return description != null ? description : "";
 		}
 	}
 

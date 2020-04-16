@@ -52,7 +52,7 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
 @PublicEvolving
 public final class RowType extends LogicalType {
 
-	private static final String FORMAT = "ROW<%s>";
+	public static final String FORMAT = "ROW<%s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		Row.class.getName(),
@@ -65,9 +65,9 @@ public final class RowType extends LogicalType {
 	 */
 	public static final class RowField implements Serializable {
 
-		private static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
+		public static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
 
-		private static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
+		public static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
 
 		private final String name;
 

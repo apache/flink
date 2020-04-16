@@ -141,6 +141,29 @@ class WindowAggregateITCase extends BatchTestBase {
   }
 
   @Test
+  def testCascadingTumbleWindow(): Unit = {
+    checkResult(
+      s"""
+         |SELECT b, SUM(cnt)
+         |FROM (
+         |  SELECT b, COUNT(1) AS cnt, TUMBLE_ROWTIME(ts, INTERVAL '30' SECOND) AS ts
+         |  FROM Table3WithTimestamp
+         |  GROUP BY a, b, TUMBLE(ts, INTERVAL '30' SECOND)
+         |)
+         |GROUP BY b, TUMBLE(ts, INTERVAL '30' SECOND)
+         |""".stripMargin,
+      Seq(
+        row(1, 1),
+        row(2, 2),
+        row(3, 3),
+        row(4, 4),
+        row(5, 5),
+        row(6, 6)
+      )
+    )
+  }
+
+  @Test
   def testSlidingWindow(): Unit = {
     // keyed; 2-phase; pre-accumulate with paned optimization;
     checkResult(

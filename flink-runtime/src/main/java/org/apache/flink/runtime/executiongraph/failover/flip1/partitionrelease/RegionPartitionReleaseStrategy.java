@@ -88,7 +88,7 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 		final Set<SchedulingResultPartition<?, ?>> allConsumedPartitionsInRegion = pipelinedRegion
 			.getExecutionVertexIds()
 			.stream()
-			.map(schedulingTopology::getVertexOrThrow)
+			.map(schedulingTopology::getVertex)
 			.flatMap(vertex -> IterableUtils.toStream(vertex.getConsumedResults()))
 			.collect(Collectors.toSet());
 
@@ -157,7 +157,7 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 	}
 
 	private boolean areConsumerRegionsFinished(final IntermediateResultPartitionID resultPartitionId) {
-		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology.getResultPartitionOrThrow(resultPartitionId);
+		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology.getResultPartition(resultPartitionId);
 		return IterableUtils.toStream(resultPartition.getConsumers())
 			.map(SchedulingExecutionVertex::getId)
 			.allMatch(this::isRegionOfVertexFinished);

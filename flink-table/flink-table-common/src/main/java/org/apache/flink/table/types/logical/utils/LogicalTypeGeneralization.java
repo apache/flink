@@ -300,7 +300,7 @@ public final class LogicalTypeGeneralization {
 			}
 			// for APPROXIMATE_NUMERIC types
 			else if (hasFamily(type, APPROXIMATE_NUMERIC)) {
-				if (hasFamily(type, APPROXIMATE_NUMERIC)) {
+				if (hasFamily(resultType, APPROXIMATE_NUMERIC)) {
 					resultType = createCommonApproximateNumericType(resultType, type);
 				} else if (hasFamily(resultType, EXACT_NUMERIC)) {
 					// the result was exact so far

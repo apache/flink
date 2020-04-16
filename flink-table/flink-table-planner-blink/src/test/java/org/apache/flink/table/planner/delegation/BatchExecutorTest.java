@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -45,7 +46,6 @@ public class BatchExecutorTest extends TestLogger {
 
 	public BatchExecutorTest() {
 		batchExecutor = new BatchExecutor(LocalStreamEnvironment.getExecutionEnvironment());
-		batchExecutor.setTableConfig(new TableConfig());
 
 		final Transformation testTransform = new SourceTransformation<>(
 			"MockTransform",
@@ -60,8 +60,9 @@ public class BatchExecutorTest extends TestLogger {
 			}),
 			BasicTypeInfo.STRING_TYPE_INFO,
 			1);
-		batchExecutor.apply(Collections.singletonList(testTransform));
-		streamGraph = batchExecutor.getStreamGraph("Test Job");
+		Pipeline pipeline = batchExecutor.createPipeline(
+			Collections.singletonList(testTransform), new TableConfig(), "Test Job");
+		streamGraph = (StreamGraph) pipeline;
 	}
 
 	@Test

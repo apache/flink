@@ -19,6 +19,10 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.ExceptionUtils;
@@ -62,10 +66,10 @@ public class MailboxProcessor implements Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(MailboxProcessor.class);
 
 	/** The mailbox data-structure that manages request for special actions, like timers, checkpoints, ... */
-	private final TaskMailbox mailbox;
+	protected final TaskMailbox mailbox;
 
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
-	private final MailboxDefaultAction mailboxDefaultAction;
+	protected final MailboxDefaultAction mailboxDefaultAction;
 
 	/** A pre-created instance of mailbox executor that executes all mails. */
 	private final MailboxExecutor mainMailboxExecutor;
@@ -81,6 +85,8 @@ public class MailboxProcessor implements Closeable {
 	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
 	private final StreamTaskActionExecutor actionExecutor;
+
+	private Meter idleTime = new MeterView(new SimpleCounter());
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this(mailboxDefaultAction, StreamTaskActionExecutor.IMMEDIATE);
@@ -126,6 +132,10 @@ public class MailboxProcessor implements Closeable {
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
 		return new MailboxExecutorImpl(mailbox, priority, actionExecutor);
+	}
+
+	public void initMetric(TaskMetricGroup metricGroup) {
+		idleTime = metricGroup.getIOMetricGroup().getIdleTimeMsPerSecond();
 	}
 
 	/**
@@ -183,9 +193,20 @@ public class MailboxProcessor implements Closeable {
 
 		final MailboxController defaultActionContext = new MailboxController(this);
 
-		while (processMail(localMailbox)) {
-			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+		while (runMailboxStep(localMailbox, defaultActionContext)) {
 		}
+	}
+
+	public boolean runMailboxStep() throws Exception {
+		return runMailboxStep(mailbox, new MailboxController(this));
+	}
+
+	private boolean runMailboxStep(TaskMailbox localMailbox, MailboxController defaultActionContext) throws Exception {
+		if (processMail(localMailbox)) {
+			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -258,7 +279,13 @@ public class MailboxProcessor implements Closeable {
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			mailbox.take(MIN_PRIORITY).run();
+			maybeMail = mailbox.tryTake(MIN_PRIORITY);
+			if (!maybeMail.isPresent()) {
+				long start = System.currentTimeMillis();
+				maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
+				idleTime.markEvent(System.currentTimeMillis() - start);
+			}
+			maybeMail.get().run();
 		}
 
 		return isMailboxLoopRunning();
@@ -285,8 +312,14 @@ public class MailboxProcessor implements Closeable {
 		return suspendedDefaultAction != null;
 	}
 
-	private boolean isMailboxLoopRunning() {
+	@VisibleForTesting
+	public boolean isMailboxLoopRunning() {
 		return mailboxLoopRunning;
+	}
+
+	@VisibleForTesting
+	public Meter getIdleTime() {
+		return idleTime;
 	}
 
 	/**
@@ -303,11 +336,11 @@ public class MailboxProcessor implements Closeable {
 	 * Implementation of {@link MailboxDefaultAction.Controller} that is connected to a {@link MailboxProcessor}
 	 * instance.
 	 */
-	private static final class MailboxController implements MailboxDefaultAction.Controller {
+	protected static final class MailboxController implements MailboxDefaultAction.Controller {
 
 		private final MailboxProcessor mailboxProcessor;
 
-		private MailboxController(MailboxProcessor mailboxProcessor) {
+		protected MailboxController(MailboxProcessor mailboxProcessor) {
 			this.mailboxProcessor = mailboxProcessor;
 		}
 

@@ -81,9 +81,9 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 	private final RecordCounter recordCounter;
 
 	/**
-	 * Whether this operator will generate retraction.
+	 * Whether this operator will generate UPDATE_BEFORE messages.
 	 */
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	/**
 	 * Reused output row.
@@ -112,7 +112,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
-	 * @param generateRetraction Whether this operator will generate retraction.
+	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
 	 */
 	public MiniBatchGroupAggFunction(
 			GeneratedAggsHandleFunction genAggsHandler,
@@ -120,13 +120,13 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 			LogicalType[] accTypes,
 			RowType inputType,
 			int indexOfCountStar,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		this.genAggsHandler = genAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
 		this.accTypes = accTypes;
 		this.inputType = inputType;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
@@ -208,7 +208,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 				if (!firstRow) {
 					if (!equaliser.equalsWithoutHeader(prevAggValue, newAggValue)) {
 						// new row is not same with prev row
-						if (generateRetraction) {
+						if (generateUpdateBefore) {
 							// prepare retraction message for previous row
 							resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
 							out.collect(resultRow);

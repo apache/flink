@@ -33,6 +33,9 @@ import {
 } from '@angular/core';
 import { Chart } from '@antv/g2';
 import * as G2 from '@antv/g2';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { JobChartService } from 'share/customize/job-chart/job-chart.service';
 
 @Component({
   selector: 'flink-job-chart',
@@ -49,6 +52,7 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
   chartInstance: Chart;
   data: Array<{ time: number; value: number; type: string }> = [];
   latestValue: number;
+  destroy$ = new Subject();
 
   @HostBinding('class.big')
   get isBig() {
@@ -89,7 +93,7 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     this.closed.emit(this.title);
   }
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  constructor(private cdr: ChangeDetectorRef, private jobChartService: JobChartService) {}
 
   ngAfterViewInit() {
     this.cdr.detach();
@@ -124,9 +128,18 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
         }
       });
     this.chartInstance.render();
+    this.jobChartService.resize$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.chartInstance) {
+        setTimeout(() => {
+          this.chartInstance.forceFit();
+        });
+      }
+    });
   }
 
   ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
     if (this.chartInstance) {
       this.chartInstance.destroy();
     }

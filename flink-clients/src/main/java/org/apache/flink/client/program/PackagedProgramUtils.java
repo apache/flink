@@ -27,10 +27,16 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import javax.annotation.Nullable;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Utility class for {@link PackagedProgram} related operations.
  */
-public class PackagedProgramUtils {
+public enum PackagedProgramUtils {
+	;
 
 	private static final String PYTHON_DRIVER_CLASS_NAME = "org.apache.flink.client.python.PythonDriver";
 
@@ -40,10 +46,10 @@ public class PackagedProgramUtils {
 	 * Creates a {@link JobGraph} with a specified {@link JobID}
 	 * from the given {@link PackagedProgram}.
 	 *
-	 * @param packagedProgram to extract the JobGraph from
-	 * @param configuration to use for the optimizer and job graph generator
+	 * @param packagedProgram    to extract the JobGraph from
+	 * @param configuration      to use for the optimizer and job graph generator
 	 * @param defaultParallelism for the JobGraph
-	 * @param jobID the pre-generated job id
+	 * @param jobID              the pre-generated job id
 	 * @return JobGraph extracted from the PackagedProgram
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
@@ -53,7 +59,7 @@ public class PackagedProgramUtils {
 			int defaultParallelism,
 			@Nullable JobID jobID,
 			boolean suppressOutput) throws ProgramInvocationException {
-		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, defaultParallelism, suppressOutput);
+		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, configuration,  defaultParallelism, suppressOutput);
 		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
 
 		if (jobID != null) {
@@ -70,10 +76,10 @@ public class PackagedProgramUtils {
 	 * Creates a {@link JobGraph} with a random {@link JobID}
 	 * from the given {@link PackagedProgram}.
 	 *
-	 * @param packagedProgram to extract the JobGraph from
-	 * @param configuration to use for the optimizer and job graph generator
+	 * @param packagedProgram    to extract the JobGraph from
+	 * @param configuration      to use for the optimizer and job graph generator
 	 * @param defaultParallelism for the JobGraph
-	 * @param suppressOutput Whether to suppress stdout/stderr during interactive JobGraph creation.
+	 * @param suppressOutput     Whether to suppress stdout/stderr during interactive JobGraph creation.
 	 * @return JobGraph extracted from the PackagedProgram
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
@@ -86,22 +92,73 @@ public class PackagedProgramUtils {
 	}
 
 	public static Pipeline getPipelineFromProgram(
-			PackagedProgram prog,
+			PackagedProgram program,
+			Configuration configuration,
 			int parallelism,
 			boolean suppressOutput) throws CompilerException, ProgramInvocationException {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		try {
-			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 
-			// temporary hack to support the optimizer plan preview
-			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment();
-			if (parallelism > 0) {
-				env.setParallelism(parallelism);
+		Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
+
+		final PrintStream originalOut = System.out;
+		final PrintStream originalErr = System.err;
+		final ByteArrayOutputStream stdOutBuffer;
+		final ByteArrayOutputStream stdErrBuffer;
+
+		if (suppressOutput) {
+			// temporarily write STDERR and STDOUT to a byte array.
+			stdOutBuffer = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stdOutBuffer));
+			stdErrBuffer = new ByteArrayOutputStream();
+			System.setErr(new PrintStream(stdErrBuffer));
+		} else {
+			stdOutBuffer = null;
+			stdErrBuffer = null;
+		}
+
+		// temporary hack to support the optimizer plan preview
+		OptimizerPlanEnvironment benv = new OptimizerPlanEnvironment(configuration, parallelism);
+		benv.setAsContext();
+		StreamPlanEnvironment senv = new StreamPlanEnvironment(configuration, parallelism);
+		senv.setAsContext();
+
+		try {
+			program.invokeInteractiveModeForExecution();
+		} catch (Throwable t) {
+			if (benv.getPipeline() != null) {
+				return benv.getPipeline();
 			}
-			return env.getPipeline(prog, suppressOutput);
+
+			if (senv.getPipeline() != null) {
+				return senv.getPipeline();
+			}
+
+			if (t instanceof ProgramInvocationException) {
+				throw t;
+			}
+
+			throw generateException(
+				program,
+				"The program caused an error: ",
+				t,
+				stdOutBuffer,
+				stdErrBuffer);
 		} finally {
+			benv.unsetAsContext();
+			senv.unsetAsContext();
+			if (suppressOutput) {
+				System.setOut(originalOut);
+				System.setErr(originalErr);
+			}
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
+
+		throw generateException(
+			program,
+			"The program plan could not be fetched - the program aborted pre-maturely.",
+			null,
+			stdOutBuffer,
+			stdErrBuffer);
 	}
 
 	public static Boolean isPython(String entryPointClassName) {
@@ -109,5 +166,25 @@ public class PackagedProgramUtils {
 			(entryPointClassName.equals(PYTHON_DRIVER_CLASS_NAME) || entryPointClassName.equals(PYTHON_GATEWAY_CLASS_NAME));
 	}
 
-	private PackagedProgramUtils() {}
+	private static ProgramInvocationException generateException(
+			PackagedProgram program,
+			String msg,
+			@Nullable Throwable cause,
+			@Nullable ByteArrayOutputStream stdoutBuffer,
+			@Nullable ByteArrayOutputStream stderrBuffer) {
+		checkState(
+			(stdoutBuffer != null) == (stderrBuffer != null),
+			"Stderr/Stdout should either both be set or both be null.");
+
+		final String stdout = (stdoutBuffer != null) ? stdoutBuffer.toString() : "";
+		final String stderr = (stderrBuffer != null) ? stderrBuffer.toString() : "";
+
+		return new ProgramInvocationException(
+			String.format("%s\n\nClasspath: %s\n\nSystem.out: %s\n\nSystem.err: %s",
+				msg,
+				program.getJobJarAndDependencies(),
+				stdout.length() == 0 ? "(none)" : stdout,
+				stderr.length() == 0 ? "(none)" : stderr),
+			cause);
+	}
 }

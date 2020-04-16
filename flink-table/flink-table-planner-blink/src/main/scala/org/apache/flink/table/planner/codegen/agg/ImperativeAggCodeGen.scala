@@ -103,7 +103,7 @@ class ImperativeAggCodeGen(
   } else {
     boxedTypeTermForType(fromDataTypeToLogicalType(externalAccType))
   }
-  val accTypeExternalTerm: String = boxedTypeTermForExternalType(externalAccType)
+  val accTypeExternalTerm: String = typeTerm(externalAccType.getConversionClass)
 
   val argTypes: Array[LogicalType] = {
     val types = inputTypes ++ constantExprs.map(_.resultType)
@@ -250,7 +250,7 @@ class ImperativeAggCodeGen(
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression = {
     val valueExternalTerm = newName("value_external")
-    val valueExternalTypeTerm = boxedTypeTermForExternalType(externalResultType)
+    val valueExternalTypeTerm = typeTerm(externalResultType.getConversionClass)
     val valueInternalTerm = newName("value_internal")
     val valueInternalTypeTerm = boxedTypeTermForType(internalResultType)
     val nullTerm = newName("valueIsNull")
@@ -277,8 +277,7 @@ class ImperativeAggCodeGen(
       if (f >= inputTypes.length) {
         // index to constant
         val expr = constantExprs(f - inputTypes.length)
-        s"${expr.nullTerm} ? null : ${
-          genToExternal(ctx, externalInputTypes(index), expr.resultTerm)}"
+        genToExternalIfNeeded(ctx, externalInputTypes(index), expr)
       } else {
         // index to input field
         val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
@@ -297,8 +296,7 @@ class ImperativeAggCodeGen(
         var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
         if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)
         codes += inputExpr.code
-        val term = s"${genToExternal(ctx, externalInputTypes(index), inputExpr.resultTerm)}"
-        s"${inputExpr.nullTerm} ? null : $term"
+        genToExternalIfNeeded(ctx, externalInputTypes(index), inputExpr)
       }
     }
 

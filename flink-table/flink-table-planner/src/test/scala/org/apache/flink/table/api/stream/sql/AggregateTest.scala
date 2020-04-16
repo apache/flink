@@ -26,13 +26,14 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{TableConfig, Types}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{FunctionCatalog, UnresolvedIdentifier}
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.functions.{AggregateFunction, AggregateFunctionDefinition}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
-import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.utils.{CatalogManagerMocks, PlannerMock, StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 import org.mockito.Mockito
@@ -67,10 +68,8 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testUserDefinedAggregateFunctionWithScalaAccumulator(): Unit = {
-    val defaultCatalog = "default_catalog"
     val config = new TableConfig
-    val catalogManager = new CatalogManager(
-      defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = new ModuleManager
     val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
     val tablEnv = new StreamTableEnvironmentImpl(
@@ -79,7 +78,7 @@ class AggregateTest extends TableTestBase {
       functionCatalog,
       config,
       Mockito.mock(classOf[StreamExecutionEnvironment]),
-      Mockito.mock(classOf[Planner]),
+      new PlannerMock,
       Mockito.mock(classOf[Executor]),
       true
     )

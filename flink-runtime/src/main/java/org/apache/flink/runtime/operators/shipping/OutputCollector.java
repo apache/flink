@@ -73,7 +73,7 @@ public class OutputCollector<T> implements Collector<T> {
 			}
 		}
 		else {
-			throw new NullPointerException("The system does not support records that are null."
+			throw new NullPointerException("The system does not support records that are null. "
 								+ "Null values are only supported as fields inside other objects.");
 		}
 	}

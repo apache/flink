@@ -461,7 +461,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		DataStreamSource<Row> source = env.fromCollection(rowCollection);
 
-		tEnv.registerDataStream("testFlinkTable", source);
+		tEnv.createTemporaryView("testFlinkTable", source);
 		tEnv.registerTableSink(
 			"cassandraTable",
 			new CassandraAppendTableSink(builder, injectTableName(INSERT_DATA_QUERY)).configure(
@@ -471,7 +471,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		tEnv.sqlQuery("select * from testFlinkTable").insertInto("cassandraTable");
 
-		env.execute();
+		tEnv.execute("job name");
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 
 		// validate that all input was correctly written to Cassandra

@@ -105,9 +105,13 @@ import java.util.List;
  * }
  * }</pre>
  *
+ * @deprecated If you need to do non-keyed state snapshots of your operator, use {@link
+ *        CheckpointedFunction}. This should only be needed in rare cases, though.
+ *
  * @param <T> The type of the operator state.
  */
 @PublicEvolving
+@Deprecated
 public interface ListCheckpointed<T extends Serializable> {
 
 	/**

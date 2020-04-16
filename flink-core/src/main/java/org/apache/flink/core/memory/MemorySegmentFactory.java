@@ -19,6 +19,10 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.ExceptionUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
@@ -32,6 +36,7 @@ import java.nio.ByteBuffer;
  */
 @Internal
 public final class MemorySegmentFactory {
+	private static final Logger LOG = LoggerFactory.getLogger(MemorySegmentFactory.class);
 
 	/**
 	 * Creates a new memory segment that targets the given heap memory region.
@@ -94,8 +99,26 @@ public final class MemorySegmentFactory {
 	 * @return A new memory segment, backed by unpooled off-heap memory.
 	 */
 	public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
-		ByteBuffer memory = ByteBuffer.allocateDirect(size);
+		ByteBuffer memory = allocateDirectMemory(size);
 		return new HybridMemorySegment(memory, owner, null);
+	}
+
+	private static ByteBuffer allocateDirectMemory(int size) {
+		//noinspection ErrorNotRethrown
+		try {
+			return ByteBuffer.allocateDirect(size);
+		} catch (OutOfMemoryError outOfMemoryError) {
+			// TODO: this error handling can be removed in future,
+			// once we find a common way to handle OOM errors in netty threads.
+			// Here we enrich it to propagate better OOM message to the receiver
+			// if it happens in a netty thread.
+			OutOfMemoryError enrichedOutOfMemoryError = (OutOfMemoryError) ExceptionUtils
+				.enrichTaskManagerOutOfMemoryError(outOfMemoryError);
+			if (ExceptionUtils.isDirectOutOfMemoryError(outOfMemoryError)) {
+				LOG.error("Cannot allocate direct memory segment", enrichedOutOfMemoryError);
+			}
+			throw enrichedOutOfMemoryError;
+		}
 	}
 
 	/**

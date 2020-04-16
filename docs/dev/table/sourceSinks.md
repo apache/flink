@@ -452,7 +452,7 @@ The interface looks as follows:
 {% highlight java %}
 AppendStreamTableSink<T> implements TableSink<T> {
 
-  public void emitDataStream(DataStream<T> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -461,7 +461,7 @@ AppendStreamTableSink<T> implements TableSink<T> {
 {% highlight scala %}
 AppendStreamTableSink[T] extends TableSink[T] {
 
-  def emitDataStream(dataStream: DataStream[T]): Unit
+  def consumeDataStream(dataStream: DataStream[T]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>
@@ -484,7 +484,7 @@ RetractStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
-  public void emitDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -495,7 +495,7 @@ RetractStreamTableSink[T] extends TableSink[Tuple2[Boolean, T]] {
 
   def getRecordType: TypeInformation[T]
 
-  def emitDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): Unit
+  def consumeDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>
@@ -522,7 +522,7 @@ UpsertStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
-  public void emitDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -537,7 +537,7 @@ UpsertStreamTableSink[T] extends TableSink[Tuple2[Boolean, T]] {
 
   def getRecordType: TypeInformation[T]
 
-  def emitDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): Unit
+  def consumeDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>

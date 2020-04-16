@@ -106,7 +106,8 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Retraction on windowed GroupBy Aggregate is not supported yet")
+    thrown.expectMessage("GroupWindowAggregate doesn't support consuming update " +
+      "and delete changes which is produced by node Rank(")
     util.verifyExplain(windowSql)
   }
 

@@ -259,14 +259,19 @@ public abstract class CatalogTest {
 		assertEquals(path1.getObjectName(), tables.get(0));
 
 		catalog.dropTable(path1, false);
+	}
+
+	@Test
+	public void testCreatePartitionedTable_Batch() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
 
 		// Partitioned table
-		table = createPartitionedTable();
+		CatalogTable table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
-		tables = catalog.listTables(db1);
+		List<String> tables = catalog.listTables(db1);
 
 		assertEquals(1, tables.size());
 		assertEquals(path1.getObjectName(), tables.get(0));
@@ -364,17 +369,6 @@ public abstract class CatalogTest {
 
 		catalog.dropTable(path1, false);
 
-		// Partitioned table
-		table = createPartitionedTable();
-		catalog.createTable(path1, table, false);
-
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
-
-		newTable = createAnotherPartitionedTable();
-		catalog.alterTable(path1, newTable, false);
-
-		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
-
 		// View
 		CatalogView view = createView();
 		catalog.createTable(path3, view, false);
@@ -386,6 +380,22 @@ public abstract class CatalogTest {
 
 		assertNotEquals(view, catalog.getTable(path3));
 		CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path3));
+	}
+
+	@Test
+	public void testAlterPartitionedTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		// Partitioned table
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+
+		CatalogTable newTable = createAnotherPartitionedTable();
+		catalog.alterTable(path1, newTable, false);
+
+		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test

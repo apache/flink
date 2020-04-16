@@ -82,7 +82,7 @@ class TableDescriptorTest extends TableTestBase {
     }
 
     // tests the table factory discovery and thus validates the result automatically
-    descriptor.registerTableSourceAndSink("MyTable")
+    descriptor.createTemporaryTable("MyTable")
 
     val personArrayString = "ARRAY<LEGACY('STRUCTURED_TYPE', " +
       "'POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>')>"

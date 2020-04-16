@@ -30,6 +30,7 @@ KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-$KAFKA_VERSION
 CONFLUENT_DIR=$TEST_DATA_DIR/confluent-$CONFLUENT_VERSION
 SCHEMA_REGISTRY_PORT=8082
 SCHEMA_REGISTRY_URL=http://localhost:${SCHEMA_REGISTRY_PORT}
+MAX_RETRY_SECONDS=120
 
 function setup_kafka_dist {
   # download Kafka
@@ -67,10 +68,23 @@ function start_kafka_cluster {
   $KAFKA_DIR/bin/zookeeper-server-start.sh -daemon $KAFKA_DIR/config/zookeeper.properties
   $KAFKA_DIR/bin/kafka-server-start.sh -daemon $KAFKA_DIR/config/server.properties
 
-  # zookeeper outputs the "Node does not exist" bit to stderr
-  while [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*Node\ does\ not\ exist.* ]]; do
-    echo "Waiting for broker..."
-    sleep 1
+  start_time=$(date +%s)
+  #
+  # Wait for the broker info to appear in ZK. We assume propery registration once an entry
+  # similar to this is in ZK: {"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://my-host:9092"],"jmx_port":-1,"host":"honorary-pig","timestamp":"1583157804932","port":9092,"version":4}
+  #
+  while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*listener_security_protocol_map.* ]]; do
+    current_time=$(date +%s)
+    time_diff=$((current_time - start_time))
+
+    if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+        echo "Kafka cluster did not start after $MAX_RETRY_SECONDS seconds. Printing Kafka logs:"
+        debug_error
+        exit 1
+    else
+        echo "Waiting for broker..."
+        sleep 1
+    fi
   done
 }
 
@@ -155,6 +169,7 @@ function start_confluent_schema_registry {
 
   if ! get_and_verify_schema_subjects_exist; then
       echo "Could not start confluent schema registry"
+      debug_error
       return 1
   fi
 }
@@ -171,4 +186,14 @@ function get_and_verify_schema_subjects_exist {
 
 function stop_confluent_schema_registry {
     $CONFLUENT_DIR/bin/schema-registry-stop
+}
+
+function debug_error {
+    echo "Debugging test failure. Currently running JVMs:"
+    jps -v
+    echo "Kafka logs:"
+    find $KAFKA_DIR/logs/ -type f -exec printf "\n===\ncontents of {}:\n===\n" \; -exec cat {} \;
+
+    echo "Kafka config:"
+    find $KAFKA_DIR/config/ -type f -exec printf "\n===\ncontents of {}:\n===\n" \; -exec cat {} \;
 }

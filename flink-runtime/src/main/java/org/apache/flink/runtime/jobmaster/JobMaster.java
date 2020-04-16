@@ -47,6 +47,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
@@ -61,6 +62,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
@@ -85,9 +87,11 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
@@ -457,6 +461,21 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
+	public CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
+			final ExecutionAttemptID task,
+			final OperatorID operatorID,
+			final SerializedValue<OperatorEvent> serializedEvent) {
+
+		try {
+			final OperatorEvent evt = serializedEvent.deserializeValue(userCodeLoader);
+			schedulerNG.deliverOperatorEventToCoordinator(task, operatorID, evt);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		} catch (Exception e) {
+			return FutureUtils.completedExceptionally(e);
+		}
+	}
+
+	@Override
 	public CompletableFuture<KvStateLocation> requestKvStateLocation(final JobID jobId, final String registrationName) {
 		try {
 			return CompletableFuture.completedFuture(schedulerNG.requestKvStateLocation(jobId, registrationName));
@@ -553,8 +572,20 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	@Override
 	public CompletableFuture<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
-			final TaskManagerLocation taskManagerLocation,
+			final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
 			final Time timeout) {
+
+		final TaskManagerLocation taskManagerLocation;
+		try {
+			taskManagerLocation = TaskManagerLocation.fromUnresolvedLocation(unresolvedTaskManagerLocation);
+		} catch (Throwable throwable) {
+			final String errMsg = String.format(
+				"Could not accept TaskManager registration. TaskManager address %s cannot be resolved. %s",
+				unresolvedTaskManagerLocation.getExternalAddress(),
+				throwable.getMessage());
+			log.error(errMsg);
+			return CompletableFuture.completedFuture(new RegistrationResponse.Decline(errMsg));
+		}
 
 		final ResourceID taskManagerId = taskManagerLocation.getResourceID();
 
@@ -679,7 +710,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		Object accumulator = accumulators.get(aggregateName);
-		if(null == accumulator) {
+		if (null == accumulator) {
 			accumulator = aggregateFunction.createAccumulator();
 		}
 		accumulator = aggregateFunction.add(aggregand, accumulator);

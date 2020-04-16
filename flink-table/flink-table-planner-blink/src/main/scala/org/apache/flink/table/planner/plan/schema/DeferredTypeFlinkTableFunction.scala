@@ -54,11 +54,8 @@ class DeferredTypeFlinkTableFunction(
     }
   }
 
-  override def getRowType(
-      typeFactory: RelDataTypeFactory,
-      arguments: Array[AnyRef],
-      argTypes: Array[Class[_]]): RelDataType = {
-    val resultType = getExternalResultType(tableFunction, arguments, argTypes)
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    val resultType = getExternalResultType(tableFunction, null, null)
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
     UserDefinedFunctionUtils.buildRelDataType(
       typeFactory, fromDataTypeToLogicalType(resultType), fieldNames, fieldIndexes)

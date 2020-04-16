@@ -803,7 +803,7 @@ val result: Table = orders
       </td>
     	<td>
        <p>Similar to a SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
-       {% highlight scala %}
+{% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
 val result: Table = orders
     // define window
@@ -1215,7 +1215,7 @@ val result = left.join(right)
     	<td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
         </p>
-        {% highlight scala %}
+{% highlight scala %}
 // instantiate User-Defined Table Function
 val split: TableFunction[_] = new MySplitUDTF()
 

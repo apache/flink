@@ -953,6 +953,11 @@ public class TypeExtractor {
 				break;
 			}
 		}
+
+		if (inputTypeHierarchy.size() == 0) {
+			return null;
+		}
+
 		ParameterizedType baseClass = (ParameterizedType) inputTypeHierarchy.get(inputTypeHierarchy.size() - 1);
 
 		TypeInformation<?> info = null;

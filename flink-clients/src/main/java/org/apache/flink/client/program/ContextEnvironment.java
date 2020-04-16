@@ -21,12 +21,14 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.client.deployment.DetachedOnlyJobClientAdapter;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -42,16 +44,23 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	ContextEnvironment(
+	private final boolean forbidBlockingJobClient;
+
+	private final boolean enforceSingleJobExecution;
+
+	private int jobCounter;
+
+	public ContextEnvironment(
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader) {
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean forbidBlockingJobClient) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.forbidBlockingJobClient = forbidBlockingJobClient;
+		this.enforceSingleJobExecution = enforceSingleJobExecution;
 
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
+		this.jobCounter = 0;
 	}
 
 	@Override
@@ -87,11 +96,22 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobClient executeAsync(String jobName) throws Exception {
+		validateAllowedExecution();
+
 		final JobClient jobClient = super.executeAsync(jobName);
 
 		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
 
-		return jobClient;
+		return forbidBlockingJobClient
+				? new DetachedOnlyJobClientAdapter(jobClient)
+				: jobClient;
+	}
+
+	private void validateAllowedExecution() {
+		if (enforceSingleJobExecution && jobCounter > 0) {
+			throw new FlinkRuntimeException("Cannot have more than one execute() or executeAsync() call in a single environment.");
+		}
+		jobCounter++;
 	}
 
 	@Override
@@ -101,11 +121,22 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean disallowBlockingJobClient) {
+		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
+			executorServiceLoader,
+			configuration,
+			userCodeClassLoader,
+			enforceSingleJobExecution,
+			disallowBlockingJobClient);
 		initializeContextEnvironment(factory);
 	}
 
-	public static void unsetContext() {
+	public static void unsetAsContext() {
 		resetContextEnvironment();
 	}
 }

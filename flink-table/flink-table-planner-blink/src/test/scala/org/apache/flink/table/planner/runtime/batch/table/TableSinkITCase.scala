@@ -20,13 +20,16 @@ package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema}
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase
+import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.{DataTypeAppendStreamTableSink, DataTypeOutputFormatTableSink}
 import org.apache.flink.test.util.TestBaseUtils
 
+import org.junit.Assert._
 import org.junit._
+
+import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 
@@ -115,5 +118,87 @@ class TableSinkITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results, expected)
   }
 
+  private def prepareForUpsertSink(): TestingUpsertTableSink = {
+    val schema = TableSchema.builder()
+        .field("a", DataTypes.INT())
+        .field("b", DataTypes.DOUBLE())
+        .build()
+    val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
+    tEnv.registerTableSink("testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
+    registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
+    sink
+  }
 
+  @Test
+  def testUpsertSink(): Unit = {
+    val sink = prepareForUpsertSink()
+    sink.expectedKeys = Some(Array("a"))
+    sink.expectedIsAppendOnly = Some(false)
+
+    tEnv.from("MyTable")
+        .groupBy('a)
+        .select('a, 'b.sum())
+        .insertInto("testSink")
+    tEnv.execute("")
+
+    val result = sink.getUpsertResults.sorted
+    val expected = List(
+      "1,0.1",
+      "2,0.4",
+      "3,1.0",
+      "4,2.2",
+      "5,3.9").sorted
+    assertEquals(expected, result)
+  }
+
+  @Test
+  def testUpsertSinkWithAppend(): Unit = {
+    val sink = prepareForUpsertSink()
+    sink.expectedKeys = None
+    sink.expectedIsAppendOnly = Some(true)
+
+    tEnv.from("MyTable")
+        .select('a, 'b)
+        .where('a < 3)
+        .insertInto("testSink")
+    tEnv.execute("")
+
+    val result = sink.getRawResults.sorted
+    val expected = List(
+      "(true,1,0.1)",
+      "(true,2,0.2)",
+      "(true,2,0.2)").sorted
+    assertEquals(expected, result)
+  }
+
+  private def prepareForRetractSink(): TestingRetractTableSink = {
+    val schema = TableSchema.builder()
+        .field("a", DataTypes.INT())
+        .field("b", DataTypes.DOUBLE())
+        .build()
+    val sink = new TestingRetractTableSink(TimeZone.getDefault)
+    tEnv.registerTableSink("testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
+    registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
+    sink
+  }
+
+  @Test
+  def testRetractSink(): Unit = {
+    val sink = prepareForRetractSink()
+
+    tEnv.from("MyTable")
+        .groupBy('a)
+        .select('a, 'b.sum())
+        .insertInto("testSink")
+    tEnv.execute("")
+
+    val result = sink.getRawResults.sorted
+    val expected = List(
+      "(true,1,0.1)",
+      "(true,2,0.4)",
+      "(true,3,1.0)",
+      "(true,4,2.2)",
+      "(true,5,3.9)").sorted
+    assertEquals(expected, result)
+  }
 }

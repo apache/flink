@@ -72,6 +72,7 @@ public class TaskManagerOptions {
 	/**
 	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
 			key("taskmanager.jvm-exit-on-oom")
 			.booleanType()
@@ -93,34 +94,59 @@ public class TaskManagerOptions {
 				" or if it has been quarantined by another actor system.");
 
 	/**
-	 * The config parameter defining the task manager's hostname.
+	 * The external address of the network interface where the TaskManager is exposed.
 	 * Overrides {@link #HOST_BIND_POLICY} automatic address binding.
 	 */
+	@Documentation.Section({Documentation.Sections.COMMON_HOST_PORT, Documentation.Sections.ALL_TASK_MANAGER})
 	public static final ConfigOption<String> HOST =
 		key("taskmanager.host")
 			.stringType()
 			.noDefaultValue()
-			.withDescription("The address of the network interface that the TaskManager binds to." +
-				" This option can be used to define explicitly a binding address. Because" +
-				" different TaskManagers need different values for this option, usually it is specified in an" +
+			.withDescription("The external address of the network interface where the TaskManager is exposed." +
+				" Because different TaskManagers need different values for this option, usually it is specified in an" +
 				" additional non-shared TaskManager-specific config file.");
+
+	/**
+	 * The local address of the network interface that the task manager binds to.
+	 */
+	public static final ConfigOption<String> BIND_HOST =
+		key("taskmanager.bind-host")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The local address of the network interface that the task manager binds to. If not" +
+				" configured, '0.0.0.0' will be used.");
 
 	/**
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
 	 * the TaskManager searches for a free port.
 	 */
+	@Documentation.Section({Documentation.Sections.COMMON_HOST_PORT, Documentation.Sections.ALL_TASK_MANAGER})
 	public static final ConfigOption<String> RPC_PORT =
 		key("taskmanager.rpc.port")
 			.stringType()
 			.defaultValue("0")
-			.withDescription("The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
-				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
-				" collisions when multiple TaskManagers are running on the same machine.");
+			.withDescription("The external RPC port where the TaskManager is exposed. Accepts a list of ports" +
+				" (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a" +
+				" range of ports to avoid collisions when multiple TaskManagers are running on the same machine.");
+
+
+	/**
+	 * The local port that the task manager binds to.
+	 */
+	public static final ConfigOption<Integer> RPC_BIND_PORT =
+		key("taskmanager.rpc.bind-port")
+			.intType()
+			.noDefaultValue()
+			.withDescription("The local RPC port that the TaskManager binds to. If not configured, the external port" +
+				" (configured by '" + RPC_PORT.key() + "') will be used.");
 
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
 	 * is doubled for each new registration attempt until it reaches the maximum registration backoff.
+	 *
+	 * @deprecated use {@link ClusterOptions#INITIAL_REGISTRATION_TIMEOUT} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Duration> INITIAL_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.initial-backoff")
 			.durationType()
@@ -131,7 +157,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The maximum registration backoff between two consecutive registration attempts.
+	 *
+	 * @deprecated use {@link ClusterOptions#MAX_REGISTRATION_TIMEOUT} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Duration> REGISTRATION_MAX_BACKOFF =
 		key("taskmanager.registration.max-backoff")
 			.durationType()
@@ -142,7 +171,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The backoff after a registration has been refused by the job manager before retrying to connect.
+	 *
+	 * @deprecated use {@link ClusterOptions#REFUSED_REGISTRATION_DELAY} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Duration> REFUSED_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.refused-backoff")
 			.durationType()
@@ -154,6 +186,7 @@ public class TaskManagerOptions {
 	 * Defines the timeout it can take for the TaskManager registration. If the duration is
 	 * exceeded without a successful registration, then the TaskManager terminates.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Duration> REGISTRATION_TIMEOUT =
 		key("taskmanager.registration.timeout")
 			.durationType()
@@ -165,7 +198,7 @@ public class TaskManagerOptions {
 	/**
 	 * The config parameter defining the number of task slots of a task manager.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
 		key("taskmanager.numberOfTaskSlots")
 			.intType()
@@ -177,6 +210,7 @@ public class TaskManagerOptions {
 				" is typically proportional to the number of physical CPU cores that the TaskManager's machine has" +
 				" (e.g., equal to the number of cores, or half the number of cores).");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
 		key("taskmanager.debug.memory.log")
 			.booleanType()
@@ -184,6 +218,7 @@ public class TaskManagerOptions {
 			.withDeprecatedKeys("taskmanager.debug.memory.startLogThread")
 			.withDescription("Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
 		key("taskmanager.debug.memory.log-interval")
 			.longType()
@@ -198,6 +233,7 @@ public class TaskManagerOptions {
 	/**
 	 * Size of memory buffers used by the network stack and the memory manager.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<MemorySize> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")
 			.memoryType()
@@ -208,6 +244,7 @@ public class TaskManagerOptions {
 	 * The config parameter for automatically defining the TaskManager's binding address,
 	 * if {@link #HOST} configuration option is not set.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<String> HOST_BIND_POLICY =
 		key("taskmanager.network.bind-policy")
 			.stringType()
@@ -252,29 +289,35 @@ public class TaskManagerOptions {
 	/**
 	 * Total Process Memory size for the TaskExecutors.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> TOTAL_PROCESS_MEMORY =
 		key("taskmanager.memory.process.size")
 			.memoryType()
 			.noDefaultValue()
-			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
-				+ " TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On"
-				+ " containerized setups, this should be set to the container memory.");
+			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a "
+				+ "TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On "
+				+ "containerized setups, this should be set to the container memory. See also "
+				+ "'taskmanager.memory.flink.size' for total Flink memory size configuration."
+			);
 
 	/**
 	 * Total Flink Memory size for the TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> TOTAL_FLINK_MEMORY =
 		key("taskmanager.memory.flink.size")
-		.memoryType()
-		.noDefaultValue()
-		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
-			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
-			+ " Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Network Memory.");
+			.memoryType()
+			.noDefaultValue()
+			.withDescription(String.format("Total Flink Memory size for the TaskExecutors. This includes all the "
+					+ "memory that a TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of "
+					+ "Framework Heap Memory, Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Network "
+					+ "Memory. See also '%s' for total process memory size configuration.",
+				TOTAL_PROCESS_MEMORY.key()));
 
 	/**
 	 * Framework Heap Memory size for TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> FRAMEWORK_HEAP_MEMORY =
 		key("taskmanager.memory.framework.heap.size")
 			.memoryType()
@@ -285,6 +328,7 @@ public class TaskManagerOptions {
 	/**
 	 * Framework Off-Heap Memory size for TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> FRAMEWORK_OFF_HEAP_MEMORY =
 		key("taskmanager.memory.framework.off-heap.size")
 			.memoryType()
@@ -297,6 +341,7 @@ public class TaskManagerOptions {
 	/**
 	 * Task Heap Memory size for TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> TASK_HEAP_MEMORY =
 		key("taskmanager.memory.task.heap.size")
 			.memoryType()
@@ -308,6 +353,7 @@ public class TaskManagerOptions {
 	/**
 	 * Task Off-Heap Memory size for TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> TASK_OFF_HEAP_MEMORY =
 		key("taskmanager.memory.task.off-heap.size")
 			.memoryType()
@@ -319,6 +365,7 @@ public class TaskManagerOptions {
 	/**
 	 * Managed Memory size for TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> MANAGED_MEMORY_SIZE =
 		key("taskmanager.memory.managed.size")
 			.memoryType()
@@ -334,6 +381,7 @@ public class TaskManagerOptions {
 	/**
 	 * Fraction of Total Flink Memory to be used as Managed Memory, if {@link #MANAGED_MEMORY_SIZE} is not specified.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
 		key("taskmanager.memory.managed.fraction")
 			.floatType()
@@ -344,6 +392,7 @@ public class TaskManagerOptions {
 	/**
 	 * Min Network Memory size for TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> NETWORK_MEMORY_MIN =
 		key("taskmanager.memory.network.min")
 			.memoryType()
@@ -358,6 +407,7 @@ public class TaskManagerOptions {
 	/**
 	 * Max Network Memory size for TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> NETWORK_MEMORY_MAX =
 		key("taskmanager.memory.network.max")
 			.memoryType()
@@ -372,6 +422,7 @@ public class TaskManagerOptions {
 	/**
 	 * Fraction of Total Flink Memory to be used as Network Memory.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<Float> NETWORK_MEMORY_FRACTION =
 		key("taskmanager.memory.network.fraction")
 			.floatType()
@@ -386,15 +437,17 @@ public class TaskManagerOptions {
 	/**
 	 * JVM Metaspace Size for the TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> JVM_METASPACE =
 		key("taskmanager.memory.jvm-metaspace.size")
 			.memoryType()
-			.defaultValue(MemorySize.parse("96m"))
+			.defaultValue(MemorySize.parse("256m"))
 			.withDescription("JVM Metaspace Size for the TaskExecutors.");
 
 	/**
 	 * Min JVM Overhead size for the TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MIN =
 		key("taskmanager.memory.jvm-overhead.min")
 			.memoryType()
@@ -409,6 +462,7 @@ public class TaskManagerOptions {
 	/**
 	 * Max JVM Overhead size for the TaskExecutors.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MAX =
 		key("taskmanager.memory.jvm-overhead.max")
 			.memoryType()
@@ -423,6 +477,7 @@ public class TaskManagerOptions {
 	/**
 	 * Fraction of Total Process Memory to be reserved for JVM Overhead.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<Float> JVM_OVERHEAD_FRACTION =
 		key("taskmanager.memory.jvm-overhead.fraction")
 			.floatType()
@@ -443,6 +498,7 @@ public class TaskManagerOptions {
 	 * Time interval in milliseconds between two successive task cancellation
 	 * attempts.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Long> TASK_CANCELLATION_INTERVAL =
 			key("task.cancellation.interval")
 			.longType()
@@ -455,6 +511,7 @@ public class TaskManagerOptions {
 	 * leads to a fatal TaskManager error. A value of <code>0</code> deactivates
 	 * the watch dog.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
 			key("task.cancellation.timeout")
 			.longType()
@@ -466,6 +523,7 @@ public class TaskManagerOptions {
 	 * This configures how long we wait for the timers in milliseconds to finish all pending timer threads
 	 * when the stream task is cancelled.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT_TIMERS = ConfigOptions
 			.key("task.cancellation.timers.timeout")
 			.longType()
@@ -481,6 +539,7 @@ public class TaskManagerOptions {
 	 *
 	 * <p>The default value of {@code -1} indicates that there is no limit.
 	 */
+	@Documentation.ExcludeFromDocumentation("With flow control, there is no alignment spilling any more")
 	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
 			key("task.checkpoint.alignment.max-size")
 			.longType()

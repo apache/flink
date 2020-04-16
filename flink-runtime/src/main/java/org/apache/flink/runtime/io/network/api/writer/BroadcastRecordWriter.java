@@ -84,7 +84,7 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 		if (bufferBuilder != null) {
 			for (int index = 0; index < numberOfChannels; index++) {
 				if (index != targetChannelIndex) {
-					targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), index);
+					addBufferConsumer(bufferBuilder.createBufferConsumer(), index);
 				}
 			}
 		}
@@ -128,13 +128,13 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkState(bufferBuilder == null || bufferBuilder.isFinished());
 
-		BufferBuilder builder = targetPartition.getBufferBuilder();
+		BufferBuilder builder = getBufferBuilder();
 		if (randomTriggered) {
-			targetPartition.addBufferConsumer(builder.createBufferConsumer(), targetChannel);
+			addBufferConsumer(builder.createBufferConsumer(), targetChannel);
 		} else {
 			try (BufferConsumer bufferConsumer = builder.createBufferConsumer()) {
 				for (int channel = 0; channel < numberOfChannels; channel++) {
-					targetPartition.addBufferConsumer(bufferConsumer.copy(), channel);
+					addBufferConsumer(bufferConsumer.copy(), channel);
 				}
 			}
 		}

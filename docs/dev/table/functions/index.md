@@ -55,14 +55,14 @@ Referencing Functions
 
 There are two ways users can reference a function in Flink - referencing function precisely or ambiguously.
 
-## Precise Function Reference
+### Precise Function Reference
 
 Precise function reference empowers users to use catalog functions specifically, and across catalog and across database, 
 e.g. `select mycatalog.mydb.myfunc(x) from mytable` and `select mydb.myfunc(x) from mytable`.
 
 This is only supported starting from Flink 1.10.
 
-## Ambiguous Function Reference
+### Ambiguous Function Reference
 
 In ambiguous function reference, users just specify the function's name in SQL query, e.g. `select myfunc(x) from mytable`.
 
@@ -74,7 +74,7 @@ The resolution order only matters when there are functions of different types bu
 e.g. when there’re three functions all named “myfunc” but are of temporary catalog, catalog, and system function respectively. 
 If there’s no function name collision, functions will just be resolved to the sole one.
 
-## Precise Function Reference
+### Precise Function Reference
 
 Because system functions don’t have namespaces, a precise function reference in Flink must be pointing to either a temporary catalog 
 function or a catalog function.
@@ -84,7 +84,7 @@ The resolution order is:
 1. Temporary catalog function
 2. Catalog function
 
-## Ambiguous Function Reference
+### Ambiguous Function Reference
 
 The resolution order is:
 

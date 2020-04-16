@@ -31,6 +31,11 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 public class RemoteExecutorFactory implements PipelineExecutorFactory {
 
 	@Override
+	public String getName() {
+		return RemoteExecutor.NAME;
+	}
+
+	@Override
 	public boolean isCompatibleWith(final Configuration configuration) {
 		return RemoteExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}

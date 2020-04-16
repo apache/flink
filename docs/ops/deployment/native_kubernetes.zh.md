@@ -1,5 +1,5 @@
 ---
-title:  "Native Kubernetes 安装"
+title:  "原生 Kubernetes 设置"
 nav-title: Native Kubernetes
 nav-parent_id: deployment
 is_beta: true
@@ -57,12 +57,18 @@ All the Kubernetes configuration options can be found in our [configuration guid
 
 **Example**: Issue the following command to start a session cluster with 4 GB of memory and 2 CPUs with 4 slots per TaskManager:
 
+In this example we override the `resourcemanager.taskmanager-timeout` setting to make
+the pods with task managers remain for a longer period than the default of 30 seconds.
+Although this setting may cause more cloud cost it has the effect that starting new jobs is in some scenarios
+faster and during development you have more time to inspect the logfiles of your job.
+
 {% highlight bash %}
 ./bin/kubernetes-session.sh \
   -Dkubernetes.cluster-id=<ClusterId> \
   -Dtaskmanager.memory.process.size=4096m \
   -Dkubernetes.taskmanager.cpu=2 \
-  -Dtaskmanager.numberOfTaskSlots=4
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000
 {% endhighlight %}
 
 The system will use the configuration in `conf/flink-conf.yaml`.
@@ -120,12 +126,12 @@ $ echo 'stop' | ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=<ClusterId> 
 
 #### Manual Resource Cleanup
 
-Flink uses [Kubernetes ownerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to cleanup all cluster components.
-All the Flink created resources, including `ConfigMap`, `Service`, `Deployment`, `Pod`, have been set the ownerReference to `service/<ClusterId>`. 
-When the service is deleted, all other resource will be deleted automatically. 
+Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to cleanup all cluster components.
+All the Flink created resources, including `ConfigMap`, `Service`, `Pod`, have been set the OwnerReference to `deployment/<ClusterId>`. 
+When the deployment is deleted, all other resources will be deleted automatically. 
 
 {% highlight bash %}
-$ kubectl delete service/<ClusterID>
+$ kubectl delete deployment/<ClusterID>
 {% endhighlight %}
 
 ## Log Files
@@ -134,18 +140,45 @@ By default, the JobManager and TaskManager only store logs under `/opt/flink/log
 If you want to use `kubectl logs <PodName>` to view the logs, you must perform the following:
 
 1. Add a new appender to the log4j.properties in the Flink client.
-2. Update the rootLogger in log4j.properties to `log4j.rootLogger=INFO, file, console`.
+2. Add the following 'appenderRef' the rootLogger in log4j.properties `rootLogger.appenderRef.console.ref = ConsoleAppender`.
 3. Remove the redirect args by adding config option `-Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"`.
 4. Stop and start your session again. Now you could use `kubectl logs` to view your logs.
 
 {% highlight bash %}
 # Log all infos to the console
-log4j.appender.console=org.apache.log4j.ConsoleAppender
-log4j.appender.console.layout=org.apache.log4j.PatternLayout
-log4j.appender.console.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+appender.console.name = ConsoleAppender
+appender.console.type = CONSOLE
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
 {% endhighlight %}
 
 If the pod is running, you can use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process. 
+
+## Using plugins
+
+As described in the [plugins]({{ site.baseurl }}/zh/ops/plugins.html) documentation page: in order to use plugins they must be
+copied to the correct location in the flink installation for them to work.
+
+The simplest way to enable plugins for use on Kubernetes is to modify the provided official Flink docker images by adding
+an additional layer. This does however assume you have a docker registry available where you can push images to and
+that is accessible by your Kubernetes cluster.
+
+How this can be done is described on the [Docker Setup]({{ site.baseurl }}/zh/ops/deployment/docker.html#using-plugins) page.
+
+With such an image created you can now start your Kubernetes based Flink session cluster with the additional parameter
+`kubernetes.container.image` which must specify the image that was created: `docker.example.nl/flink:{{ site.version }}-2.12-s3`
+
+Extending the above example command to start the session cluster makes it this:
+
+{% highlight bash %}
+./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000 \
+  -Dkubernetes.container.image=docker.example.nl/flink:{{ site.version }}-2.12-s3
+{% endhighlight %}
 
 ## Kubernetes concepts
 

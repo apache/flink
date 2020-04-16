@@ -26,6 +26,7 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -96,14 +97,15 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 	}
 
 	@Override
-	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
+	public StreamTableSource<Row> createTableSource(TableSourceFactory.Context context) {
+		TableSchema schema = context.getTable().getSchema();
 		final DescriptorProperties params = new DescriptorProperties(true);
-		params.putProperties(properties);
+		params.putProperties(context.getTable().toProperties());
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
 		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
-			TableSchemaUtils.getPhysicalSchema(params.getTableSchema(SCHEMA)),
-			properties.get(testProperty),
+			schema,
+			context.getTable().getProperties().get(testProperty),
 			proctime.orElse(null),
 			rowtime);
 	}

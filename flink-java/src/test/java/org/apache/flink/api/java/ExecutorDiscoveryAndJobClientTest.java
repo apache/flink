@@ -75,6 +75,11 @@ public class ExecutorDiscoveryAndJobClientTest {
 	public static class IDReportingExecutorFactory implements PipelineExecutorFactory {
 
 		@Override
+		public String getName() {
+			return EXEC_NAME;
+		}
+
+		@Override
 		public boolean isCompatibleWith(Configuration configuration) {
 			return EXEC_NAME.equals(configuration.get(DeploymentOptions.TARGET));
 		}

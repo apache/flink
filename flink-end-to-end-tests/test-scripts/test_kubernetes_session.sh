@@ -26,29 +26,54 @@ LOCAL_OUTPUT_PATH="${TEST_DATA_DIR}/out/wc_out"
 OUTPUT_PATH="/tmp/wc_out"
 ARGS="--output ${OUTPUT_PATH}"
 
+SUCCEEDED=1
+
 function cleanup {
-    kubectl delete service ${CLUSTER_ID}
+    if [ $SUCCEEDED != 0 ];then
+      debug_and_show_logs
+    fi
+    kubectl delete deployment ${CLUSTER_ID}
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
     stop_kubernetes
 }
+
+function setConsoleLogging {
+    cat >> $FLINK_DIR/conf/log4j.properties <<END
+rootLogger.appenderRef.console.ref = ConsoleAppender
+
+# Log all infos to the console
+appender.console.name = ConsoleAppender
+appender.console.type = CONSOLE
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
+END
+}
+
+setConsoleLogging
 
 start_kubernetes
 
 cd "$DOCKER_MODULE_DIR"
 # Build a Flink image without any user jars
-./build.sh --from-local-dist --job-artifacts ${TEST_INFRA_DIR}/test-data/words --image-name ${FLINK_IMAGE_NAME}
+build_image_with_jar ${TEST_INFRA_DIR}/test-data/words ${FLINK_IMAGE_NAME}
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
 mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
-"$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
+OUTPUT=`"$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
     -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
     -Djobmanager.heap.size=512m \
     -Dcontainerized.heap-cutoff-min=100 \
     -Dkubernetes.jobmanager.cpu=0.5 \
-    -Dkubernetes.taskmanager.cpu=0.5
+    -Dkubernetes.taskmanager.cpu=0.5 \
+    -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"`
+
+echo "$OUTPUT"
+
+JOBMANAGER_URL=$(echo "$OUTPUT" | grep 'JobManager Web Interface: ' | awk -F'JobManager Web Interface: ' '{print $2}')
+wait_rest_endpoint_up "${JOBMANAGER_URL}/taskmanagers" "Dispatcher" "\{\"taskmanagers\":\[.*\]\}"
 
 "$FLINK_DIR"/bin/flink run -e kubernetes-session \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
@@ -57,3 +82,4 @@ mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
 
 check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"
+SUCCEEDED=$?

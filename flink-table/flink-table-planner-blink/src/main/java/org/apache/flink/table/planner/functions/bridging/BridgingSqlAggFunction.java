@@ -19,11 +19,13 @@
 package org.apache.flink.table.planner.functions.bridging;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -31,7 +33,10 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Optionality;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
@@ -49,7 +54,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public final class BridgingSqlAggFunction extends SqlAggFunction {
 
-	private final FunctionIdentifier identifier;
+	private final DataTypeFactory dataTypeFactory;
+
+	private final FlinkTypeFactory typeFactory;
+
+	private final @Nullable FunctionIdentifier identifier;
 
 	private final FunctionDefinition definition;
 
@@ -58,23 +67,26 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 	private final List<RelDataType> paramTypes;
 
 	private BridgingSqlAggFunction(
+			DataTypeFactory dataTypeFactory,
 			FlinkTypeFactory typeFactory,
 			SqlKind kind,
-			FunctionIdentifier identifier,
+			@Nullable FunctionIdentifier identifier,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
 		super(
-			createName(identifier),
+			createName(identifier, definition),
 			createSqlIdentifier(identifier),
 			kind,
-			createSqlReturnTypeInference(definition, typeInference),
-			createSqlOperandTypeInference(definition, typeInference),
-			createSqlOperandTypeChecker(definition, typeInference),
+			createSqlReturnTypeInference(dataTypeFactory, definition, typeInference),
+			createSqlOperandTypeInference(dataTypeFactory, definition, typeInference),
+			createSqlOperandTypeChecker(dataTypeFactory, definition, typeInference),
 			createSqlFunctionCategory(identifier),
 			createOrderRequirement(),
 			createOverWindowRequirement(definition),
 			createGroupOrderRequirement());
 
+		this.dataTypeFactory = dataTypeFactory;
+		this.typeFactory = typeFactory;
 		this.identifier = identifier;
 		this.definition = definition;
 		this.typeInference = typeInference;
@@ -84,7 +96,8 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 	/**
 	 * Creates an instance of a aggregating function (either a system or user-defined function).
 	 *
-	 * @param typeFactory used for resolving typed arguments
+	 * @param dataTypeFactory used for creating {@link DataType}
+	 * @param typeFactory used for bridging to {@link RelDataType}
 	 * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this function
 	 *             cannot be mapped to a common function kind.
 	 * @param identifier catalog identifier
@@ -92,6 +105,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 	 * @param typeInference type inference logic
 	 */
 	public static BridgingSqlAggFunction of(
+			DataTypeFactory dataTypeFactory,
 			FlinkTypeFactory typeFactory,
 			SqlKind kind,
 			FunctionIdentifier identifier,
@@ -103,6 +117,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 			"Aggregating function kind expected.");
 
 		return new BridgingSqlAggFunction(
+			dataTypeFactory,
 			typeFactory,
 			kind,
 			identifier,
@@ -110,8 +125,16 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 			typeInference);
 	}
 
-	public FunctionIdentifier getIdentifier() {
-		return identifier;
+	public DataTypeFactory getDataTypeFactory() {
+		return dataTypeFactory;
+	}
+
+	public FlinkTypeFactory getTypeFactory() {
+		return typeFactory;
+	}
+
+	public Optional<FunctionIdentifier> getIdentifier() {
+		return Optional.ofNullable(identifier);
 	}
 
 	public FunctionDefinition getDefinition() {

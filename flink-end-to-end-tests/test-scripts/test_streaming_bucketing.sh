@@ -93,7 +93,8 @@ set_config_key "heartbeat.timeout" "20000"
 
 # enable DEBUG logging level for the BucketingSink to retrieve truncate length later
 echo "" >> $FLINK_DIR/conf/log4j.properties
-echo "log4j.logger.org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink=DEBUG" >> $FLINK_DIR/conf/log4j.properties
+echo "logger.bucketingsink.name = org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink" >> $FLINK_DIR/conf/log4j.properties
+echo "logger.bucketingsink.level = DEBUG" >> $FLINK_DIR/conf/log4j.properties
 
 # Start the experiment.
 

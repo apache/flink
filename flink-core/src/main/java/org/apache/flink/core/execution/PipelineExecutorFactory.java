@@ -29,6 +29,11 @@ import org.apache.flink.configuration.Configuration;
 public interface PipelineExecutorFactory {
 
 	/**
+	 * Returns the name of the executor that this factory creates.
+	 */
+	String getName();
+
+	/**
 	 * Returns {@code true} if this factory is compatible with the options in the
 	 * provided configuration, {@code false} otherwise.
 	 */

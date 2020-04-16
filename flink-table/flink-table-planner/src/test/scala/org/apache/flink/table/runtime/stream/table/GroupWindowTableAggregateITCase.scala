@@ -41,8 +41,6 @@ import _root_.scala.collection.mutable
   * programs is possible.
   */
 class GroupWindowTableAggregateITCase extends AbstractTestBase {
-  private val queryConfig = new StreamQueryConfig()
-  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
   val data = List(
     (1L, 1, "Hi"),
@@ -78,7 +76,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       .flatAggregate(top3('int) as ('x, 'y))
       .select('long, 'x, 'y)
 
-    val results = windowedTable.toAppendStream[Row](queryConfig)
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -145,7 +143,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       .flatAggregate(top3('int))
       .select('f0, 'f1)
 
-    val results = windowedTable.toAppendStream[Row](queryConfig)
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 

@@ -138,6 +138,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 			// if it is not newer than the latest checkpoint ID, then there cannot be a
 			// successful checkpoint for that ID anyways
 			if (barrierId > latestPendingCheckpointID) {
+				markCheckpointStart(receivedBarrier.getTimestamp());
 				latestPendingCheckpointID = barrierId;
 				pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
 

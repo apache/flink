@@ -18,6 +18,7 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_docker.sh
 
 DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
 KUBERNETES_MODULE_DIR=${END_TO_END_DIR}/../flink-container/kubernetes
@@ -26,17 +27,21 @@ MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
 
+NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
+
 # If running tests on non-linux os, the kubectl and minikube should be installed manually
 function setup_kubernetes_for_linux {
     # Download kubectl, which is a requirement for using minikube.
     if ! [ -x "$(command -v kubectl)" ]; then
+        echo "Installing kubectl ..."
         local version=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
         curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/amd64/kubectl && \
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
     # Download minikube.
     if ! [ -x "$(command -v minikube)" ]; then
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && \
+        echo "Installing minikube ..."
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/v1.8.2/minikube-linux-amd64 && \
             chmod +x minikube && sudo mv minikube /usr/local/bin/
     fi
 }
@@ -48,10 +53,30 @@ function check_kubernetes_status {
 
 function start_kubernetes_if_not_running {
     if ! check_kubernetes_status; then
-        start_command="minikube start"
+        echo "Starting minikube ..."
         # We need sudo permission to set vm-driver to none in linux os.
-        [[ "${OS_TYPE}" = "linux" ]] && start_command="sudo ${start_command} --vm-driver=none"
-        ${start_command}
+        # tl;dr: Configure minikube for a low disk space environment
+        #
+        # The VMs provided by azure have ~100GB of disk space, out of which
+        # 85% are allocated, only 15GB are free. That's enough space
+        # for our purposes. However, the kubernetes nodes running during
+        # the k8s tests believe that 85% are not enough free disk space,
+        # so they start garbage collecting their host. During GCing, they
+        # are deleting all docker images currently not in use.
+        # However, the k8s test is first building a flink image, then launching
+        # stuff on k8s. Sometimes, k8s deletes the new Flink images,
+        # thus it can not find them anymore, letting the test fail /
+        # timeout. That's why we have set the GC threshold to 98% and 99%
+        # here.
+        # Similarly, the kubelets are marking themself as "low disk space",
+        # causing Flink to avoid this node (again, failing the test)
+        sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
+            --extra-config=kubelet.image-gc-high-threshold=99 \
+            --extra-config=kubelet.image-gc-low-threshold=98 \
+            --extra-config=kubelet.minimum-container-ttl-duration=120m \
+            --extra-config=kubelet.eviction-hard="memory.available<5Mi,nodefs.available<1Mi,imagefs.available<1Mi" \
+            --extra-config=kubelet.eviction-soft="memory.available<5Mi,nodefs.available<2Mi,imagefs.available<2Mi" \
+            --extra-config=kubelet.eviction-soft-grace-period="memory.available=2h,nodefs.available=2h,imagefs.available=2h"
         # Fix the kubectl context, as it's often stale.
         minikube update-context
     fi
@@ -61,21 +86,44 @@ function start_kubernetes_if_not_running {
 }
 
 function start_kubernetes {
-    [[ "${OS_TYPE}" = "linux" ]] && setup_kubernetes_for_linux
-    if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
-        echo "Could not start minikube. Aborting..."
-        exit 1
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        if ! check_kubernetes_status; then
+            echo "$NON_LINUX_ENV_NOTE"
+            exit 1
+        fi
+    else
+        setup_kubernetes_for_linux
+        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
+            echo "Could not start minikube. Aborting..."
+            exit 1
+        fi
     fi
     eval $(minikube docker-env)
 }
 
 function stop_kubernetes {
-    stop_command="minikube stop"
-    [[ "${OS_TYPE}" = "linux" ]] && stop_command="sudo ${stop_command}"
-    if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
-        echo "Could not stop minikube. Aborting..."
-        exit 1
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        echo "$NON_LINUX_ENV_NOTE"
+    else
+        echo "Stopping minikube ..."
+        stop_command="sudo minikube stop"
+        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
+            echo "Could not stop minikube. Aborting..."
+            exit 1
+        fi
     fi
+}
+
+function debug_and_show_logs {
+    echo "Debugging failed Kubernetes test:"
+    echo "Currently existing Kubernetes resources"
+    kubectl get all
+    kubectl describe all
+
+    echo "Flink logs:"
+    kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read pod;do
+        kubectl logs $pod;
+    done
 }
 
 on_exit cleanup

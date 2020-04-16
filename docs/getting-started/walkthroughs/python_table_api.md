@@ -25,26 +25,14 @@ under the License.
 
 This walkthrough will quickly get you started building a pure Python Flink project.
 
-<span class="label label-info">Note</span> Python 3.5 or higher is required to run PyFlink. Run the following command to confirm that the command “python” in current environment points to Python 3.5+:
-
-{% highlight bash %}
-$ python --version
-# the version printed here must be 3.5+
-{% endhighlight %}
+Please refer to the Python Table API [installation guide]({{ site.baseurl }}/dev/table/python/installation.html) on how to set up the Python execution environments.
 
 * This will be replaced by the TOC
 {:toc}
 
 ## Setting up a Python Project
 
-You can begin by creating a Python project and installing the PyFlink package.
-PyFlink is available via PyPi and can be easily installed using `pip`.
-
-{% highlight bash %}
-$ python -m pip install apache-flink
-{% endhighlight %}
-
-You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).
+You can begin by creating a Python project and installing the PyFlink package following the [installation guide]({{ site.baseurl }}/dev/table/python/installation.html#installation-of-pyflink).
 
 ## Writing a Flink Python Table API Program
 
@@ -143,7 +131,7 @@ t_env.execute("tutorial_job")
 Firstly, you need to prepare input data in the "/tmp/input" file. You can choose the following command line to prepare the input data:
 
 {% highlight bash %}
-$ echo "flink\npyflink\nflink" > /tmp/input
+$ echo -e  "flink\npyflink\nflink" > /tmp/input
 {% endhighlight %}
 
 Next, you can run this example on the command line (Note: if the result file "/tmp/output" has already existed, you need to remove the file before running the example):

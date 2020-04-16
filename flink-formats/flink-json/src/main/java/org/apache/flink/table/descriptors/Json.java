@@ -27,6 +27,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_IGNORE_PARSE_ERRORS;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_JSON_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_TYPE_VALUE;
@@ -38,6 +39,7 @@ public class Json extends FormatDescriptor {
 
 	private Boolean failOnMissingField;
 	private Boolean deriveSchema;
+	private Boolean ignoreParseErrors;
 	private String jsonSchema;
 	private String schema;
 
@@ -56,6 +58,17 @@ public class Json extends FormatDescriptor {
 	 */
 	public Json failOnMissingField(boolean failOnMissingField) {
 		this.failOnMissingField = failOnMissingField;
+		return this;
+	}
+
+	/**
+	 * Sets flag whether to fail when parsing json fails.
+	 *
+	 * @param ignoreParseErrors If set to true, the operation will ignore parse errors.
+	 *                          If set to false, the operation fails when parsing json fails.
+	 */
+	public Json ignoreParseErrors(boolean ignoreParseErrors) {
+		this.ignoreParseErrors = ignoreParseErrors;
 		return this;
 	}
 
@@ -138,6 +151,10 @@ public class Json extends FormatDescriptor {
 
 		if (failOnMissingField != null) {
 			properties.putBoolean(FORMAT_FAIL_ON_MISSING_FIELD, failOnMissingField);
+		}
+
+		if (ignoreParseErrors != null) {
+			properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, ignoreParseErrors);
 		}
 
 		return properties.asMap();

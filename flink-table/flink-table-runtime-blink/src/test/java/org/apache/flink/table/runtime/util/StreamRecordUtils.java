@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.runtime.util;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.dataformat.BaseArray;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 
@@ -99,6 +104,10 @@ public class StreamRecordUtils {
 			Object value = fields[j];
 			if (value == null) {
 				writer.setNullAt(j);
+			} else if (value instanceof Byte) {
+				writer.writeByte(j, (Byte) value);
+			} else if (value instanceof Short) {
+				writer.writeShort(j, (Short) value);
 			} else if (value instanceof Integer) {
 				writer.writeInt(j, (Integer) value);
 			} else if (value instanceof String) {
@@ -111,6 +120,18 @@ public class StreamRecordUtils {
 				writer.writeLong(j, (Long) value);
 			} else if (value instanceof Boolean) {
 				writer.writeBoolean(j, (Boolean) value);
+			} else if (value instanceof byte[]) {
+				writer.writeBinary(j, (byte[]) value);
+			} else if (value instanceof Decimal) {
+				Decimal decimal = (Decimal) value;
+				writer.writeDecimal(j, decimal, decimal.getPrecision());
+			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof SqlTimestamp) {
+				SqlTimestamp timestamp = (SqlTimestamp) ((Tuple2) value).f0;
+				writer.writeTimestamp(j, timestamp, (int) ((Tuple2) value).f1);
+			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof BaseArray) {
+				BaseArray array = (BaseArray) ((Tuple2) value).f0;
+				BaseArraySerializer serializer = (BaseArraySerializer) ((Tuple2) value).f1;
+				writer.writeArray(j, array, serializer);
 			} else {
 				throw new RuntimeException("Not support yet!");
 			}
@@ -118,6 +139,15 @@ public class StreamRecordUtils {
 
 		writer.complete();
 		return row;
+	}
+
+	/**
+	 * Generate a retraction BinaryRow based on the given object fields.
+	 */
+	public static BinaryRow retractBinaryRow(Object... fields) {
+		BinaryRow br = binaryrow(fields);
+		BaseRowUtil.setRetract(br);
+		return br;
 	}
 
 	private StreamRecordUtils() {

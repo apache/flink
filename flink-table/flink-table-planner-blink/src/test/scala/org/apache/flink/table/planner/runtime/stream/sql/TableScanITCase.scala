@@ -134,7 +134,7 @@ class TableScanITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq("1970-01-01 00:00:00.01,4")
+    val expected = Seq("1970-01-01 00:00:00.010,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

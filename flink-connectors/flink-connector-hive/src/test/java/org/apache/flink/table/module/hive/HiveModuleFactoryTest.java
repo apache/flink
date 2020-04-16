@@ -35,11 +35,9 @@ import static org.junit.Assert.assertEquals;
 public class HiveModuleFactoryTest {
 	@Test
 	public void test() {
-		final String hiveVersion = "2.3.4";
+		final HiveModule expected = new HiveModule();
 
-		final HiveModule expected = new HiveModule(hiveVersion);
-
-		final ModuleDescriptor moduleDescriptor = new HiveModuleDescriptor(hiveVersion);
+		final ModuleDescriptor moduleDescriptor = new HiveModuleDescriptor();
 
 		final Map<String, String> properties = moduleDescriptor.toProperties();
 

@@ -143,7 +143,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 				checkpointAborted = true;
 
 				// begin a new checkpoint
-				beginNewAlignment(barrierId, channelIndex);
+				beginNewAlignment(barrierId, channelIndex, receivedBarrier.getTimestamp());
 			}
 			else {
 				// ignore trailing barrier from an earlier checkpoint (obsolete now)
@@ -152,7 +152,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 		}
 		else if (barrierId > currentCheckpointId) {
 			// first barrier of a new checkpoint
-			beginNewAlignment(barrierId, channelIndex);
+			beginNewAlignment(barrierId, channelIndex, receivedBarrier.getTimestamp());
 		}
 		else {
 			// either the current checkpoint was canceled (numBarriers == 0) or
@@ -178,7 +178,11 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 		return checkpointAborted;
 	}
 
-	protected void beginNewAlignment(long checkpointId, int channelIndex) throws IOException {
+	protected void beginNewAlignment(
+			long checkpointId,
+			int channelIndex,
+			long checkpointTimestamp) throws IOException {
+		markCheckpointStart(checkpointTimestamp);
 		currentCheckpointId = checkpointId;
 		onBarrier(channelIndex);
 

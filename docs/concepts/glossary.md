@@ -1,6 +1,6 @@
 ---
 title: Glossary
-nav-pos: 3
+nav-pos: 10
 nav-title: Glossary
 nav-parent_id: concepts
 ---
@@ -25,11 +25,16 @@ under the License.
 
 #### Flink Application Cluster
 
-A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
+A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that
+only executes [Flink Jobs](#flink-job) from one [Flink
+Application](#flink-application). The lifetime of the [Flink
+Cluster](#flink-cluster) is bound to the lifetime of the Flink Application.
+
+#### Flink Job Cluster
+
+A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
 executes a single [Flink Job](#flink-job). The lifetime of the
-[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job. Formerly
-Flink Application Clusters were also known as Flink Clusters in *job mode*. Compare to
-[Flink Session Cluster](#flink-session-cluster).
+[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job.
 
 #### Flink Cluster
 
@@ -60,11 +65,22 @@ Java, this corresponds to the definition of *Instance* or *Object* in Java. In t
 Flink, the term *parallel instance* is also frequently used to emphasize that multiple instances of
 the same [Operator](#operator) or [Function](#function) type are running in parallel.
 
+#### Flink Application
+
+A Flink application is a Java Application that submits one or multiple [Flink
+Jobs](#flink-job) from the `main()` method (or by some other means). Submitting
+jobs is usually done by calling `execute()` on an execution environment.
+
+The jobs of an application can either be submitted to a long running [Flink
+Session Cluster](#flink-session-cluster), to a dedicated [Flink Application
+Cluster](#flink-application-cluster), or to a [Flink Job
+Cluster](#flink-job-cluster).
+
 #### Flink Job
 
-A Flink Job is the runtime representation of a Flink program. A Flink Job can either be submitted
-to a long running [Flink Session Cluster](#flink-session-cluster) or it can be started as a
-self-contained [Flink Application Cluster](#flink-application-cluster).
+A Flink Job is the runtime representation of a [logical graph](#logical-graph)
+(also often called dataflow graph) that is created and submitted by calling
+`execute()` in a [Flink Application](#flink-application).
 
 #### JobGraph
 
@@ -78,9 +94,12 @@ whole [Flink Master](#flink-master) was called JobManager.
 
 #### Logical Graph
 
-A logical graph is a directed graph describing the high-level logic of a stream processing program.
-The nodes are [Operators](#operator) and the edges indicate input/output-relationships or
-data streams or data sets.
+A logical graph is a directed graph where the nodes are  [Operators](#operator)
+and the edges define input/output-relationships of the operators and correspond
+to data streams or data sets. A logical graph is created by submitting jobs
+from a [Flink Application](#flink-application).
+
+Logical graphs are also often referred to as *dataflow graphs*.
 
 #### Managed State
 
@@ -161,6 +180,6 @@ subsequent Tasks.
 A Transformation is applied on one or more data streams or data sets and results in one or more
 output data streams or data sets. A transformation might change a data stream or data set on a
 per-record basis, but might also only change its partitioning or perform an aggregation. While
-[Operators](#operator) and [Functions](#function)) are the "physical" parts of Flink's API,
-Transformations are only an API concept. Specifically, most - but not all - transformations are
+[Operators](#operator) and [Functions](#function) are the "physical" parts of Flink's API,
+Transformations are only an API concept. Specifically, most transformations are
 implemented by certain [Operators](#operator).

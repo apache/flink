@@ -205,13 +205,37 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[AVG_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[b], select=[b, AVG(a) AS a], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[Acc])
-            +- Calc(select=[b, a], updateAsRetraction=[true], accMode=[Acc])
-               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(select=[AVG_RETRACT(a) AS EXPR$0], changelogMode=[I,UA,D])
++- Exchange(distribution=[single], changelogMode=[I,UB,UA])
+   +- Calc(select=[a], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[b], select=[b, AVG(a) AS a], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[b]], changelogMode=[I])
+            +- Calc(select=[b, a], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupByWithConstantKey">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM T) t GROUP BY a, c
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)])
+   +- LogicalProject(a=[$0], c=[_UTF-16LE'test'], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
++- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -350,13 +374,13 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[MAX(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[Acc])
-            +- Calc(select=[b, a], updateAsRetraction=[true], accMode=[Acc])
-               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(select=[MAX(a) AS EXPR$0], changelogMode=[I,UA,D])
++- Exchange(distribution=[single], changelogMode=[I,UB,UA])
+   +- Calc(select=[a], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[b]], changelogMode=[I])
+            +- Calc(select=[b, a], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -409,13 +433,13 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[MIN(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[b], select=[b, MIN(a) AS a], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[Acc])
-            +- Calc(select=[b, a], updateAsRetraction=[true], accMode=[Acc])
-               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(select=[MIN(a) AS EXPR$0], changelogMode=[I,UA,D])
++- Exchange(distribution=[single], changelogMode=[I,UB,UA])
+   +- Calc(select=[a], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[b], select=[b, MIN(a) AS a], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[b]], changelogMode=[I])
+            +- Calc(select=[b, a], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -434,13 +458,13 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[SUM_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS a], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[Acc])
-            +- Calc(select=[b, a], updateAsRetraction=[true], accMode=[Acc])
-               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(select=[SUM_RETRACT(a) AS EXPR$0], changelogMode=[I,UA,D])
++- Exchange(distribution=[single], changelogMode=[I,UB,UA])
+   +- Calc(select=[a], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS a], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[b]], changelogMode=[I])
+            +- Calc(select=[b, a], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

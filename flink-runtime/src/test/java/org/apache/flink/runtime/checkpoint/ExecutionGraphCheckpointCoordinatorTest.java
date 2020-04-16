@@ -20,16 +20,24 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
@@ -37,11 +45,14 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -131,9 +142,82 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		assertThat(storeShutdownFuture.get(), is(JobStatus.FINISHED));
 	}
 
+	/**
+	 * The case is designed to check the race condition between {@link ExecutionGraph} and
+	 * {@link CheckpointCoordinator}. There should be no checkpoint accepted after
+	 * {@link CheckpointFailureManager} decides to fail the {@link ExecutionGraph}.
+	 */
+	@Test
+	public void testNoCheckpointAcceptedWhileFailingExecutionGraph() throws Exception {
+		CheckpointIDCounter counter = new TestingCheckpointIDCounter(new CompletableFuture<>());
+
+		TestingCompletedCheckpointStore store = new TestingCompletedCheckpointStore(new CompletableFuture<>());
+
+		final ManuallyTriggeredScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(
+			counter,
+			store,
+			new ComponentMainThreadExecutorServiceAdapter(mainThreadExecutor, Thread.currentThread()));
+
+		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
+
+		assertThat(checkpointCoordinator, Matchers.notNullValue());
+		assertThat(checkpointCoordinator.isShutdown(), is(false));
+
+		graph.scheduleForExecution();
+		ExecutionGraphTestUtils.switchToRunning(graph);
+
+		// trigger a normal checkpoint which we will fail/decline later
+		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(), true);
+		mainThreadExecutor.triggerAll();
+		final long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
+
+		// trigger a forced checkpoint which could avoid failing the pre-checking
+		// this checkpoint would be acknowledged after the first one declined
+		checkpointCoordinator.triggerCheckpoint(
+			System.currentTimeMillis(),
+			new CheckpointProperties(
+				true,
+				CheckpointType.CHECKPOINT,
+				true,
+				true,
+				true,
+				true,
+				true),
+			null,
+			false,
+			false);
+		mainThreadExecutor.triggerAll();
+
+		// now we decline the first checkpoint and acknowledge the second checkpoint
+		// the first declined message should fail the execution graph and abort all pending checkpoints
+		// so the second acknowledged checkpoint should be abandoned when the ack arrived
+		final ExecutionAttemptID attemptId =
+			graph.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().getAttemptId();
+		final DeclineCheckpoint decline = new DeclineCheckpoint(graph.getJobID(), attemptId, checkpointId);
+		final AcknowledgeCheckpoint ack = new AcknowledgeCheckpoint(graph.getJobID(), attemptId, checkpointId + 1);
+		checkpointCoordinator.receiveDeclineMessage(decline, "localhost");
+		checkpointCoordinator.receiveAcknowledgeMessage(ack, "localhost");
+
+		mainThreadExecutor.triggerAll();
+
+		assertEquals(0, store.completedCheckpoints.size());
+	}
+
+	private ExecutionGraph createExecutionGraphAndEnableCheckpointing(
+		CheckpointIDCounter counter,
+		CompletedCheckpointStore store) throws Exception {
+
+		return createExecutionGraphAndEnableCheckpointing(
+			counter,
+			store,
+			ComponentMainThreadExecutorServiceAdapter.forMainThread());
+	}
+
 	private ExecutionGraph createExecutionGraphAndEnableCheckpointing(
 			CheckpointIDCounter counter,
-			CompletedCheckpointStore store) throws Exception {
+			CompletedCheckpointStore store,
+			ComponentMainThreadExecutor mainThreadExecutor) throws Exception {
 		final Time timeout = Time.days(1L);
 
 		JobVertex jobVertex = new JobVertex("MockVertex");
@@ -144,13 +228,14 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 			.setJobGraph(new JobGraph(jobVertex))
 			.setRpcTimeout(timeout)
 			.setAllocationTimeout(timeout)
+			.setIoExecutor(Executors.directExecutor())
 			.build();
 
-		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		final ExecutionJobVertex executionJobVertex = executionGraph.getVerticesTopologically().iterator().next();
 
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
-			100,
-			100,
+			1000000,
+			1000000,
 			100,
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
@@ -160,19 +245,23 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		executionGraph.enableCheckpointing(
 				chkConfig,
-				Collections.emptyList(),
-				Collections.emptyList(),
-				Collections.emptyList(),
+				Collections.singletonList(executionJobVertex),
+				Collections.singletonList(executionJobVertex),
+				Collections.singletonList(executionJobVertex),
 				Collections.emptyList(),
 				counter,
 				store,
 				new MemoryStateBackend(),
 				CheckpointStatsTrackerTest.createTestTracker());
 
+		executionGraph.start(mainThreadExecutor);
+
 		return executionGraph;
 	}
 
 	private static final class TestingCheckpointIDCounter implements CheckpointIDCounter {
+
+		private final AtomicLong counter = new AtomicLong(0);
 
 		private final CompletableFuture<JobStatus> shutdownStatus;
 
@@ -190,23 +279,25 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		@Override
 		public long getAndIncrement() {
-			throw new UnsupportedOperationException("Not implemented.");
+			return counter.getAndIncrement();
 		}
 
 		@Override
 		public long get() {
-			throw new UnsupportedOperationException("Not implemented.");
+			return counter.get();
 		}
 
 		@Override
 		public void setCount(long newId) {
-			throw new UnsupportedOperationException("Not implemented.");
+			counter.set(newId);
 		}
 	}
 
 	private static final class TestingCompletedCheckpointStore implements CompletedCheckpointStore {
 
 		private final CompletableFuture<JobStatus> shutdownStatus;
+
+		private final List<CompletedCheckpoint> completedCheckpoints = new ArrayList<>();
 
 		private TestingCompletedCheckpointStore(CompletableFuture<JobStatus> shutdownStatus) {
 			this.shutdownStatus = shutdownStatus;
@@ -219,12 +310,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		@Override
 		public void addCheckpoint(CompletedCheckpoint checkpoint) {
-			throw new UnsupportedOperationException("Not implemented.");
-		}
-
-		@Override
-		public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
-			throw new UnsupportedOperationException("Not implemented.");
+			completedCheckpoints.add(checkpoint);
 		}
 
 		@Override
@@ -234,12 +320,12 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		@Override
 		public List<CompletedCheckpoint> getAllCheckpoints() {
-			throw new UnsupportedOperationException("Not implemented.");
+			return completedCheckpoints;
 		}
 
 		@Override
 		public int getNumberOfRetainedCheckpoints() {
-			throw new UnsupportedOperationException("Not implemented.");
+			return completedCheckpoints.size();
 		}
 
 		@Override

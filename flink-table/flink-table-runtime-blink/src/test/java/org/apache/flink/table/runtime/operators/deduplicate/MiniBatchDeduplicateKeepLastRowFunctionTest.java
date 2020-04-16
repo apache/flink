@@ -43,8 +43,8 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 	private TypeSerializer<BaseRow> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
 
-	private MiniBatchDeduplicateKeepLastRowFunction createFunction(boolean generateRetraction) {
-		return new MiniBatchDeduplicateKeepLastRowFunction(inputRowType, generateRetraction, typeSerializer);
+	private MiniBatchDeduplicateKeepLastRowFunction createFunction(boolean generateUpdateBefore) {
+		return new MiniBatchDeduplicateKeepLastRowFunction(inputRowType, generateUpdateBefore, typeSerializer);
 	}
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
@@ -56,7 +56,7 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 	}
 
 	@Test
-	public void testWithoutGenerateRetraction() throws Exception {
+	public void testWithoutGenerateUpdateBefore() throws Exception {
 		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -84,7 +84,7 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 	}
 
 	@Test
-	public void testWithGenerateRetraction() throws Exception {
+	public void testWithGenerateUpdateBefore() throws Exception {
 		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();

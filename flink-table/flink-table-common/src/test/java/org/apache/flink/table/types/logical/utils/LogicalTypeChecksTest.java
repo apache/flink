@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.DistinctType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -45,6 +46,22 @@ import static org.junit.Assert.assertThat;
  * Tests for {@link LogicalTypeChecks}.
  */
 public class LogicalTypeChecksTest {
+
+	@Test
+	public void testHasNestedRoot() {
+		final DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
+		assertThat(
+			LogicalTypeChecks.hasNestedRoot(dataType.getLogicalType(), LogicalTypeRoot.VARCHAR),
+			is(true));
+
+		assertThat(
+			LogicalTypeChecks.hasNestedRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
+			is(true));
+
+		assertThat(
+			LogicalTypeChecks.hasNestedRoot(dataType.getLogicalType(), LogicalTypeRoot.BOOLEAN),
+			is(false));
+	}
 
 	@Test
 	public void testIsCompositeTypeRowType() {

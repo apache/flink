@@ -84,7 +84,11 @@ public class TableUtils {
 			tEnv.insertInto(sinkName, table);
 			JobExecutionResult executionResult = tEnv.execute(jobName);
 			ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
-			deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
+			if (accResult != null) {
+				deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
+			} else {
+				throw new RuntimeException("Could not retrieve table result. It is very likely that the job fails.");
+			}
 		} finally {
 			tEnv.dropTemporaryTable(sinkName);
 		}
@@ -151,11 +155,6 @@ public class TableUtils {
 		public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 			throw new UnsupportedOperationException(
 				"This sink is configured by passing a static schema when initiating");
-		}
-
-		@Override
-		public void emitDataStream(DataStream<Row> dataStream) {
-			throw new UnsupportedOperationException("Deprecated method, use consumeDataStream instead");
 		}
 
 		@Override

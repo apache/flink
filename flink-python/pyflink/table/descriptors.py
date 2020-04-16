@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 from abc import ABCMeta
 
 from py4j.java_gateway import get_method
@@ -1284,50 +1283,6 @@ class ConnectTableDescriptor(Descriptor):
         """
         self._j_connect_table_descriptor = \
             self._j_connect_table_descriptor.withSchema(schema._j_schema)
-        return self
-
-    def register_table_sink(self, name):
-        """
-        Searches for the specified table sink, configures it accordingly, and registers it as
-        a table under the given name.
-
-        :param name: Table name to be registered in the table environment.
-        :return: This object.
-
-        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
-        self._j_connect_table_descriptor = self._j_connect_table_descriptor.registerTableSink(name)
-        return self
-
-    def register_table_source(self, name):
-        """
-        Searches for the specified table source, configures it accordingly, and registers it as
-        a table under the given name.
-
-        :param name: Table name to be registered in the table environment.
-        :return: This object.
-
-        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
-        self._j_connect_table_descriptor = \
-            self._j_connect_table_descriptor.registerTableSource(name)
-        return self
-
-    def register_table_source_and_sink(self, name):
-        """
-        Searches for the specified table source and sink, configures them accordingly, and
-        registers them as a table under the given name.
-
-        :param name: Table name to be registered in the table environment.
-        :return: This object.
-
-        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
-        self._j_connect_table_descriptor = \
-            self._j_connect_table_descriptor.registerTableSourceAndSink(name)
         return self
 
     def create_temporary_table(self, path):

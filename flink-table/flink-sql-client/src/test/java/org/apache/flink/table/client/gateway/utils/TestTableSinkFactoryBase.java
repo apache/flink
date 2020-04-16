@@ -20,11 +20,11 @@ package org.apache.flink.table.client.gateway.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
+import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
@@ -93,12 +93,10 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 	}
 
 	@Override
-	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
-		final DescriptorProperties params = new DescriptorProperties(true);
-		params.putProperties(properties);
+	public StreamTableSink<Row> createTableSink(TableSinkFactory.Context context) {
 		return new TestTableSink(
-				SchemaValidator.deriveTableSinkSchema(params),
-				properties.get(testProperty));
+				context.getTable().getSchema(),
+				context.getTable().getProperties().get(testProperty));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -141,8 +139,8 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		}
 
 		@Override
-		public void emitDataStream(DataStream<Row> dataStream) {
-			// do nothing
+		public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+			return null;
 		}
 	}
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.`trait`.{AccModeTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
@@ -37,7 +36,7 @@ class RelTreeWriterImpl(
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withIdPrefix: Boolean = false,
-    withRetractTraits: Boolean = false,
+    withChangelogTraits: Boolean = false,
     withRowType: Boolean = false,
     withTreeStyle: Boolean = true)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
@@ -80,14 +79,11 @@ class RelTreeWriterImpl(
       printValues.addAll(values)
     }
 
-    if (withRetractTraits) rel match {
+    if (withChangelogTraits) rel match {
       case streamRel: StreamPhysicalRel =>
-        val traitSet = streamRel.getTraitSet
+        val changelogMode = ChangelogPlanUtils.getChangelogMode(streamRel)
         printValues.add(
-          Pair.of("updateAsRetraction",
-            traitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)))
-        printValues.add(
-          Pair.of("accMode", traitSet.getTrait(AccModeTraitDef.INSTANCE)))
+          Pair.of("changelogMode", ChangelogPlanUtils.stringifyChangelogMode(changelogMode)))
       case _ => // ignore
     }
 

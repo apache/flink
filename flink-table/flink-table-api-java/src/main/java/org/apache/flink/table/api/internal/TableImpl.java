@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.table.api.AggregatedTable;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
@@ -27,8 +26,6 @@ import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
@@ -119,9 +116,7 @@ public class TableImpl implements Table {
 
 	@Override
 	public Table select(Expression... fields) {
-		List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-			.map(f -> f.accept(lookupResolver))
-			.collect(Collectors.toList());
+		List<Expression> expressionsWithResolvedCalls = preprocessExpressions(fields);
 		CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 			expressionsWithResolvedCalls
 		);
@@ -412,23 +407,6 @@ public class TableImpl implements Table {
 	}
 
 	@Override
-	public void insertInto(String tableName, QueryConfig conf) {
-		insertInto(conf, tableName);
-	}
-
-	@Override
-	public void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued) {
-		if (conf instanceof StreamQueryConfig) {
-			StreamQueryConfig streamQueryConfig = (StreamQueryConfig) conf;
-			tableEnvironment.getConfig().setIdleStateRetentionTime(
-				Time.milliseconds(streamQueryConfig.getMinIdleStateRetentionTime()),
-				Time.milliseconds(streamQueryConfig.getMaxIdleStateRetentionTime())
-			);
-		}
-		tableEnvironment.insertInto(this, tablePath, tablePathContinued);
-	}
-
-	@Override
 	public GroupWindowedTable window(GroupWindow groupWindow) {
 		return new GroupWindowedTableImpl(this, groupWindow);
 	}
@@ -464,9 +442,7 @@ public class TableImpl implements Table {
 	}
 
 	private Table addColumnsOperation(boolean replaceIfExist, List<Expression> fields) {
-		List<Expression> expressionsWithResolvedCalls = fields.stream()
-			.map(f -> f.accept(lookupResolver))
-			.collect(Collectors.toList());
+		List<Expression> expressionsWithResolvedCalls = preprocessExpressions(fields);
 		CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 			expressionsWithResolvedCalls
 		);
@@ -563,6 +539,16 @@ public class TableImpl implements Table {
 		return new TableImpl(tableEnvironment, operation, operationTreeBuilder, lookupResolver);
 	}
 
+	private List<Expression> preprocessExpressions(List<Expression> expressions) {
+		return preprocessExpressions(expressions.toArray(new Expression[0]));
+	}
+
+	private List<Expression> preprocessExpressions(Expression[] expressions) {
+		return Arrays.stream(expressions)
+			.map(f -> f.accept(lookupResolver))
+			.collect(Collectors.toList());
+	}
+
 	private static final class GroupedTableImpl implements GroupedTable {
 
 		private final TableImpl table;
@@ -582,9 +568,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -716,7 +700,8 @@ public class TableImpl implements Table {
 
 		@Override
 		public WindowGroupedTable groupBy(Expression... fields) {
-			List<Expression> fieldsWithoutWindow = Arrays.stream(fields)
+			List<Expression> fieldsWithoutWindow = table.preprocessExpressions(fields)
+				.stream()
 				.filter(f -> !window.getAlias().equals(f))
 				.collect(Collectors.toList());
 			if (fields.length != fieldsWithoutWindow.size() + 1) {
@@ -749,9 +734,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -816,9 +799,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);
@@ -873,9 +854,7 @@ public class TableImpl implements Table {
 
 		@Override
 		public Table select(Expression... fields) {
-			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
-				.map(f -> f.accept(table.lookupResolver))
-				.collect(Collectors.toList());
+			List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
 			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
 				expressionsWithResolvedCalls
 			);

@@ -33,6 +33,11 @@ import javax.annotation.Nonnull;
 public class YarnSessionClusterExecutorFactory implements PipelineExecutorFactory {
 
 	@Override
+	public String getName() {
+		return YarnSessionClusterExecutor.NAME;
+	}
+
+	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
 		return YarnSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}

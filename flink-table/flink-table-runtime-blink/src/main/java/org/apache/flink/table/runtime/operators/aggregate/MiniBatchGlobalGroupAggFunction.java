@@ -74,9 +74,9 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	private final RecordCounter recordCounter;
 
 	/**
-	 * Whether this operator will generate retraction.
+	 * Whether this operator will generate UPDATE_BEFORE messages.
 	 */
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	/**
 	 * Reused output row.
@@ -106,7 +106,7 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
-	 * @param generateRetraction Whether this operator will generate retraction.
+	 * @param generateUpdateBefore Whether this operator will generate retraction.
 	 */
 	public MiniBatchGlobalGroupAggFunction(
 			GeneratedAggsHandleFunction genLocalAggsHandler,
@@ -114,13 +114,13 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 			GeneratedRecordEqualiser genRecordEqualiser,
 			LogicalType[] accTypes,
 			int indexOfCountStar,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		this.genLocalAggsHandler = genLocalAggsHandler;
 		this.genGlobalAggsHandler = genGlobalAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.accTypes = accTypes;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
@@ -197,7 +197,7 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 				if (!firstRow) {
 					if (!equaliser.equalsWithoutHeader(prevAggValue, newAggValue)) {
 						// new row is not same with prev row
-						if (generateRetraction) {
+						if (generateUpdateBefore) {
 							// prepare retraction message for previous row
 							resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
 							out.collect(resultRow);

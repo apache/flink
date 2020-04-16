@@ -24,10 +24,11 @@ import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSources}
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSourceSinks}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
+
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
@@ -156,6 +157,23 @@ class TableSourceITCase extends BatchTestBase {
   }
 
   @Test
+  def testTableSourceWithFunctionFilterable(): Unit = {
+    tEnv.registerTableSource(
+      "FilterableTable",
+      TestFilterableTableSource(
+        true,
+        TestFilterableTableSource.defaultTypeInfo,
+        TestFilterableTableSource.defaultRows,
+        Set("amount", "name")))
+    checkResult(
+      "SELECT id, name FROM FilterableTable " +
+        "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",
+      Seq(
+        row(5, "Record_5"))
+    )
+  }
+
+  @Test
   def testTableSourceWithPartitionable(): Unit = {
     TestPartitionableSourceFactory.registerTableSource(tEnv, "PartitionableTable", true)
     checkResult(
@@ -166,7 +184,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testCsvTableSource(): Unit = {
-    val csvTable = TestTableSources.getPersonCsvTableSource
+    val csvTable = TestTableSourceSinks.getPersonCsvTableSource
     tEnv.registerTableSource("csvTable", csvTable)
     checkResult(
       "SELECT id, `first`, `last`, score FROM csvTable",
@@ -185,8 +203,8 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testLookupJoinCsvTemporalTable(): Unit = {
-    val orders = TestTableSources.getOrdersCsvTableSource
-    val rates = TestTableSources.getRatesCsvTableSource
+    val orders = TestTableSourceSinks.getOrdersCsvTableSource
+    val rates = TestTableSourceSinks.getRatesCsvTableSource
     tEnv.registerTableSource("orders", orders)
     tEnv.registerTableSource("rates", rates)
 

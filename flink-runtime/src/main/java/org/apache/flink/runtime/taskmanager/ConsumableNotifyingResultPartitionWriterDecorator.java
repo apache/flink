@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -69,6 +70,11 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
+	public BufferBuilder tryGetBufferBuilder() throws IOException {
+		return partitionWriter.tryGetBufferBuilder();
+	}
+
+	@Override
 	public ResultPartitionID getPartitionId() {
 		return partitionWriter.getPartitionId();
 	}
@@ -86,6 +92,11 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	@Override
 	public void setup() throws IOException {
 		partitionWriter.setup();
+	}
+
+	@Override
+	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		partitionWriter.initializeState(stateReader);
 	}
 
 	@Override

@@ -43,6 +43,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.StructuredOptionsSplitter.escapeWithSingleQuote;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -769,7 +770,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		synchronized (this.confData){
 			Map<String, String> ret = new HashMap<>(this.confData.size());
 			for (Map.Entry<String, Object> entry : confData.entrySet()) {
-				ret.put(entry.getKey(), entry.getValue().toString());
+				ret.put(entry.getKey(), convertToString(entry.getValue()));
 			}
 			return ret;
 		}
@@ -958,6 +959,19 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		} else if (o.getClass() == Duration.class) {
 			Duration duration = (Duration) o;
 			return String.format("%d ns", duration.toNanos());
+		} else if (o instanceof List) {
+			return ((List<?>) o).stream()
+				.map(e -> escapeWithSingleQuote(convertToString(e), ";"))
+				.collect(Collectors.joining(";"));
+		} else if (o instanceof Map) {
+			return ((Map<?, ?>) o).entrySet().stream()
+				.map(e -> {
+					String escapedKey = escapeWithSingleQuote(e.getKey().toString(), ":");
+					String escapedValue = escapeWithSingleQuote(e.getValue().toString(), ":");
+
+					return escapeWithSingleQuote(escapedKey + ":" + escapedValue, ",");
+				})
+				.collect(Collectors.joining(","));
 		}
 
 		return o.toString();

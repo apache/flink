@@ -133,10 +133,6 @@ under the License.
 									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.elasticsearch</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>org.apache.logging</pattern>
-									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.logging</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch6.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>

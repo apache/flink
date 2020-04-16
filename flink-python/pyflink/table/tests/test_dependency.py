@@ -27,7 +27,8 @@ from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
                                              PyFlinkBlinkBatchTableTestCase,
-                                             PyFlinkStreamTableTestCase)
+                                             PyFlinkStreamTableTestCase,
+                                             PyFlinkBatchTableTestCase)
 
 
 class DependencyTests(object):
@@ -60,6 +61,30 @@ class DependencyTests(object):
 class FlinkStreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
     pass
+
+
+class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
+
+    def test_add_python_file(self):
+        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir)
+        python_file_path = os.path.join(python_file_dir, "test_dependency_manage_lib.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
+        self.t_env.add_python_file(python_file_path)
+
+        def plus_two(i):
+            from test_dependency_manage_lib import add_two
+            return add_two(i)
+
+        self.t_env.register_function("add_two", udf(plus_two, DataTypes.BIGINT(),
+                                                    DataTypes.BIGINT()))
+
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])\
+            .select("add_two(a), a")
+
+        result = self.collect(t)
+        self.assertEqual(result, ["3,1", "4,2", "5,3"])
 
 
 class BlinkBatchDependencyTests(DependencyTests, PyFlinkBlinkBatchTableTestCase):
@@ -153,7 +178,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
 
-    def test_set_python_exec(self):
+    def test_set_environment(self):
         if getattr(os, "symlink", None) is None:
             self.skipTest("Symbolic link is not supported, skip testing 'test_set_python_exec'...")
 
@@ -171,11 +196,27 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         self.t_env.register_function("check_python_exec",
                                      udf(check_python_exec, DataTypes.BIGINT(),
                                          DataTypes.BIGINT()))
+
+        def check_pyflink_gateway_disabled(i):
+            try:
+                from pyflink.java_gateway import get_gateway
+                get_gateway()
+            except Exception as e:
+                assert str(e).startswith("It's launching the PythonGatewayServer during Python UDF"
+                                         " execution which is unexpected.")
+            else:
+                raise Exception("The gateway server is not disabled!")
+            return i
+
+        self.t_env.register_function("check_pyflink_gateway_disabled",
+                                     udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
+                                         DataTypes.BIGINT()))
+
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("check_python_exec(a), a").insert_into("Results")
+        t.select("check_python_exec(a), check_pyflink_gateway_disabled(a)").insert_into("Results")
         self.t_env.execute("test")
 
         actual = source_sink_utils.results()

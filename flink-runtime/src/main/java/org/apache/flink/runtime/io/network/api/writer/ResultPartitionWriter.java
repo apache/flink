@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -42,6 +43,12 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 */
 	void setup() throws IOException;
 
+	/**
+	 * Loads the previous output states with the given reader for unaligned checkpoint.
+	 * It should be done before task processing the inputs.
+	 */
+	void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException;
+
 	ResultPartitionID getPartitionId();
 
 	int getNumberOfSubpartitions();
@@ -52,6 +59,14 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 * Requests a {@link BufferBuilder} from this partition for writing data.
 	 */
 	BufferBuilder getBufferBuilder() throws IOException, InterruptedException;
+
+
+	/**
+	 * Try to request a {@link BufferBuilder} from this partition for writing data.
+	 *
+	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
+	 */
+	BufferBuilder tryGetBufferBuilder() throws IOException;
 
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.

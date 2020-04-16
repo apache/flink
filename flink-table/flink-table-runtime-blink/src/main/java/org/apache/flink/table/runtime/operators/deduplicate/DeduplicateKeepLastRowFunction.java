@@ -36,7 +36,7 @@ public class DeduplicateKeepLastRowFunction
 
 	private static final long serialVersionUID = -291348892087180350L;
 	private final BaseRowTypeInfo rowTypeInfo;
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	// state stores complete row.
 	private ValueState<BaseRow> state;
@@ -45,16 +45,16 @@ public class DeduplicateKeepLastRowFunction
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo rowTypeInfo,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		super(minRetentionTime, maxRetentionTime);
 		this.rowTypeInfo = rowTypeInfo;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
 	public void open(Configuration configure) throws Exception {
 		super.open(configure);
-		if (generateRetraction) {
+		if (generateUpdateBefore) {
 			// state stores complete row if need generate retraction, otherwise do not need a state
 			initCleanupTimeState("DeduplicateFunctionKeepLastRow");
 			ValueStateDescriptor<BaseRow> stateDesc = new ValueStateDescriptor<>("preRowState", rowTypeInfo);
@@ -64,12 +64,12 @@ public class DeduplicateKeepLastRowFunction
 
 	@Override
 	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
-		if (generateRetraction) {
+		if (generateUpdateBefore) {
 			long currentTime = ctx.timerService().currentProcessingTime();
 			// register state-cleanup timer
 			registerProcessingCleanupTimer(ctx, currentTime);
 		}
-		processLastRow(input, generateRetraction, state, out);
+		processLastRow(input, generateUpdateBefore, state, out);
 	}
 
 	@Override

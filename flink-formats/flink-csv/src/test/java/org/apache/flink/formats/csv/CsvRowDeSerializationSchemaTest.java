@@ -172,6 +172,18 @@ public class CsvRowDeSerializationSchemaTest {
 		assertArrayEquals(
 			"Test,12,Hello\r".getBytes(),
 			serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
+
+		serSchemaBuilder.setQuoteCharacter('#');
+
+		assertArrayEquals(
+			"Test,12,#2019-12-26 12:12:12#\r".getBytes(),
+			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
+
+		serSchemaBuilder.disableQuoteCharacter();
+
+		assertArrayEquals(
+			"Test,12,2019-12-26 12:12:12\r".getBytes(),
+			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
 	}
 
 	@Test

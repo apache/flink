@@ -20,8 +20,12 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -34,13 +38,19 @@ import org.apache.flink.util.function.CheckedSupplier;
 
 import akka.actor.ActorSystem;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +62,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -65,6 +77,9 @@ import static org.junit.Assert.fail;
 public class BootstrapToolsTest extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapToolsTest.class);
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
 	public void testSubstituteConfigKey() {
@@ -149,7 +164,7 @@ public class BootstrapToolsTest extends TestLogger {
 	@Test
 	public void testGetTaskManagerShellCommand() {
 		final Configuration cfg = new Configuration();
-		final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = new TaskExecutorProcessSpec(
 			new CPUResource(1.0),
 			new MemorySize(0), // frameworkHeapSize
 			new MemorySize(0), // frameworkOffHeapSize
@@ -160,7 +175,7 @@ public class BootstrapToolsTest extends TestLogger {
 			new MemorySize(333), // jvmMetaspaceSize
 			new MemorySize(0)); // jvmOverheadSize
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(taskExecutorResourceSpec, 4, new HashMap<String, String>());
+			new ContaineredTaskManagerParameters(taskExecutorProcessSpec, 4, new HashMap<String, String>());
 
 		// no logging, with/out krb5
 		final String java = "$JAVA_HOME/bin/java";
@@ -171,10 +186,11 @@ public class BootstrapToolsTest extends TestLogger {
 		final String logback =
 			"-Dlogback.configurationFile=file:./conf/logback.xml"; // if set
 		final String log4j =
-			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
+			"-Dlog4j.configuration=file:./conf/log4j.properties" +
+				" -Dlog4j.configurationFile=file:./conf/log4j.properties" ; // if set
 		final String mainClass =
 			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
-		final String dynamicConfigs = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
+		final String dynamicConfigs = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec).trim();
 		final String basicArgs = "--configDir ./conf";
 		final String mainArgs = "-Djobmanager.rpc.address=host1 -Dkey.a=v1";
 		final String args = dynamicConfigs + " " + basicArgs + " " + mainArgs;
@@ -377,7 +393,7 @@ public class BootstrapToolsTest extends TestLogger {
 							CheckedSupplier.unchecked(() -> {
 								cyclicBarrier.await();
 
-								return BootstrapTools.startActorSystem(
+								return BootstrapTools.startRemoteActorSystem(
 									new Configuration(),
 									"localhost",
 									"0",
@@ -405,7 +421,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		try {
 			final int port = portOccupier.getLocalPort();
-			BootstrapTools.startActorSystem(new Configuration(), "0.0.0.0", port, LOG);
+			BootstrapTools.startRemoteActorSystem(new Configuration(), "0.0.0.0", String.valueOf(port), LOG);
 			fail("Expected to fail with a BindException");
 		} catch (Exception e) {
 			assertThat(ExceptionUtils.findThrowable(e, BindException.class).isPresent(), is(true));
@@ -516,7 +532,7 @@ public class BootstrapToolsTest extends TestLogger {
 		Configuration testConf = new Configuration();
 		testConf.setString("containerized.master.env.LD_LIBRARY_PATH", "/usr/lib/native");
 
-		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+		Map<String, String> res = ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
 		Assert.assertEquals(1, res.size());
 		Map.Entry<String, String> entry = res.entrySet().iterator().next();
@@ -529,8 +545,60 @@ public class BootstrapToolsTest extends TestLogger {
 		Configuration testConf = new Configuration();
 		testConf.setString("containerized.master.env.", "/usr/lib/native");
 
-		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+		Map<String, String> res = ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
 		Assert.assertEquals(0, res.size());
+	}
+
+	@Test
+	public void testWriteConfigurationAndReload() throws IOException {
+		final File flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
+		final Configuration flinkConfig = new Configuration();
+
+		final ConfigOption<List<String>> listStringConfigOption = ConfigOptions
+			.key("test-list-string-key")
+			.stringType()
+			.asList()
+			.noDefaultValue();
+		final List<String> list = Arrays.asList("A,B,C,D", "A'B'C'D", "A;BCD", "AB\"C\"D", "AB'\"D:B");
+		flinkConfig.set(listStringConfigOption, list);
+		assertThat(flinkConfig.get(listStringConfigOption), containsInAnyOrder(list.toArray()));
+
+		final ConfigOption<List<Duration>> listDurationConfigOption = ConfigOptions
+			.key("test-list-duration-key")
+			.durationType()
+			.asList()
+			.noDefaultValue();
+		final List<Duration> durationList = Arrays.asList(Duration.ofSeconds(3), Duration.ofMinutes(1));
+		flinkConfig.set(listDurationConfigOption, durationList);
+		assertThat(flinkConfig.get(listDurationConfigOption), containsInAnyOrder(durationList.toArray()));
+
+		final ConfigOption<Map<String, String>> mapConfigOption = ConfigOptions
+			.key("test-map-key")
+			.mapType()
+			.noDefaultValue();
+		final Map<String, String> map = new HashMap<>();
+		map.put("key1", "A,B,C,D");
+		map.put("key2", "A;BCD");
+		map.put("key3", "A'B'C'D");
+		map.put("key4", "AB\"C\"D");
+		map.put("key5", "AB'\"D:B");
+		flinkConfig.set(mapConfigOption, map);
+		assertThat(flinkConfig.get(mapConfigOption).entrySet(), containsInAnyOrder(map.entrySet().toArray()));
+
+		final ConfigOption<Duration> durationConfigOption = ConfigOptions
+			.key("test-duration-key")
+			.durationType()
+			.noDefaultValue();
+		final Duration duration = Duration.ofMillis(3000);
+		flinkConfig.set(durationConfigOption, duration);
+		assertEquals(duration, flinkConfig.get(durationConfigOption));
+
+		BootstrapTools.writeConfiguration(flinkConfig, new File(flinkConfDir, FLINK_CONF_FILENAME));
+		final Configuration loadedFlinkConfig = GlobalConfiguration.loadConfiguration(flinkConfDir.getAbsolutePath());
+		assertThat(loadedFlinkConfig.get(listStringConfigOption), containsInAnyOrder(list.toArray()));
+		assertThat(loadedFlinkConfig.get(listDurationConfigOption), containsInAnyOrder(durationList.toArray()));
+		assertThat(loadedFlinkConfig.get(mapConfigOption).entrySet(), containsInAnyOrder(map.entrySet().toArray()));
+		assertEquals(duration, loadedFlinkConfig.get(durationConfigOption));
 	}
 }

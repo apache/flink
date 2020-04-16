@@ -66,10 +66,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.commons.lang3.SystemUtils
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
-import org.junit.rules.{ExpectedException, TestName}
+import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
@@ -87,6 +86,11 @@ abstract class TableTestBase {
 
   // used for get test case method name
   val testName: TestName = new TestName
+
+  val _tempFolder = new TemporaryFolder
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
 
   @Rule
   def thrown: ExpectedException = expectedException
@@ -169,7 +173,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
     val dataStream = env.fromElements[T]().javaStream
     val tableEnv = getTableEnv
-    TableTestUtil.registerDataStream(tableEnv, name, dataStream, Some(fields.toArray))
+    TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
     tableEnv.scan(name)
   }
 
@@ -257,7 +261,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlan(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -265,7 +269,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlan(table: Table): Unit = {
     doVerifyPlan(
       table,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -273,7 +277,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlanWithType(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = true,
       printPlanBefore = true)
   }
@@ -281,7 +285,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlanWithType(table: Table): Unit = {
     doVerifyPlan(
       table,
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = true,
       printPlanBefore = true)
   }
@@ -295,8 +299,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
-      withRetractTraits = false,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withChangelogTraits = false,
       withRowType = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
     val message = s"\nactual plan:\n$optimizedPlan\nnot expected:\n${notExpected.mkString(", ")}"
@@ -328,7 +332,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     doVerifyPlan(
       sql = sql,
       explainLevel = explainLevel,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       withRowType = withRowType,
       printPlanBefore = printPlanBefore)
   }
@@ -336,7 +340,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def doVerifyPlan(
       sql: String,
       explainLevel: SqlExplainLevel,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(sql)
@@ -344,7 +348,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withRowType = withRowType)
 
     assertEqualsOrExpand("sql", sql)
@@ -353,7 +357,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val planBefore = SystemUtils.LINE_SEPARATOR +
         FlinkRelOptUtil.toString(
           relNode,
-          SqlExplainLevel.DIGEST_ATTRIBUTES,
+          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
           withRowType = withRowType)
       assertEqualsOrExpand("planBefore", planBefore)
     }
@@ -367,9 +371,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val table = getTableEnv.sqlQuery(sql)
     doVerifyPlan(
       table,
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       printResource = true,
       printPlanBefore = false)
   }
@@ -382,7 +386,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     doVerifyPlan(
       table = table,
       explainLevel = explainLevel,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       withRowType = withRowType,
       printPlanBefore = printPlanBefore)
   }
@@ -391,14 +395,14 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       table: Table,
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       printPlanBefore: Boolean,
       printResource: Boolean = false): Unit = {
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withRowType = withRowType,
       withResource = printResource)
 
@@ -406,7 +410,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val planBefore = SystemUtils.LINE_SEPARATOR +
         FlinkRelOptUtil.toString(
           relNode,
-          SqlExplainLevel.DIGEST_ATTRIBUTES,
+          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
           withRowType = withRowType)
       assertEqualsOrExpand("planBefore", planBefore)
     }
@@ -431,7 +435,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   protected def getOptimizedPlan(
       relNodes: Array[RelNode],
       explainLevel: SqlExplainLevel,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       withRowType: Boolean,
       withResource: Boolean = false): String = {
     require(relNodes.nonEmpty)
@@ -444,7 +448,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
         ExecNodePlanDumper.dagToString(
           optimizedNodes,
           detailLevel = explainLevel,
-          withRetractTraits = withRetractTraits,
+          withChangelogTraits = withChangelogTraits,
           withOutputType = withRowType,
           withResource = withResource)
       case _ =>
@@ -452,7 +456,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
           FlinkRelOptUtil.toString(
             rel,
             detailLevel = explainLevel,
-            withRetractTraits = withRetractTraits,
+            withChangelogTraits = withChangelogTraits,
             withRowType = withRowType)
         }.mkString("\n")
     }
@@ -559,6 +563,13 @@ abstract class TableTestUtil(
   }
 
   /**
+   * Registers a [[UserDefinedFunction]] according to FLIP-65.
+   */
+  def addTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = {
+    testingTableEnv.createTemporarySystemFunction(name, function)
+  }
+
+  /**
     * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
     */
   def addFunction[T: TypeInformation](
@@ -584,17 +595,17 @@ abstract class TableTestUtil(
   def verifySqlUpdate(sql: String): Unit = {
     doVerifySqlUpdate(
       sql,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       printPlanBefore = true)
   }
 
   def verifyPlan(): Unit = {
     doVerifyPlan(
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = false,
-      withRetractTraits = false,
+      withChangelogTraits = false,
       printPlanBefore = true)
   }
 
@@ -602,17 +613,17 @@ abstract class TableTestUtil(
       sql: String,
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       printPlanBefore: Boolean): Unit = {
     tableEnv.sqlUpdate(sql)
     assertEqualsOrExpand("sql", sql)
-    doVerifyPlan(explainLevel, withRowType, withRetractTraits, printPlanBefore)
+    doVerifyPlan(explainLevel, withRowType, withChangelogTraits, printPlanBefore)
   }
 
   def doVerifyPlan(
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
-      withRetractTraits: Boolean,
+      withChangelogTraits: Boolean,
       printPlanBefore: Boolean): Unit = {
     val testTableEnv = tableEnv.asInstanceOf[TestingTableEnvironment]
     val relNodes = testTableEnv.getBufferedOperations.map(getPlanner.translateToRel)
@@ -625,7 +636,7 @@ abstract class TableTestUtil(
     val optimizedPlan = getOptimizedPlan(
       relNodes.toArray,
       explainLevel,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withRowType = withRowType)
     testTableEnv.clearBufferedOperations()
 
@@ -633,7 +644,7 @@ abstract class TableTestUtil(
       val planBefore = new StringBuilder
       relNodes.foreach { sink =>
         planBefore.append(System.lineSeparator)
-        planBefore.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.DIGEST_ATTRIBUTES))
+        planBefore.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
       }
       assertEqualsOrExpand("planBefore", planBefore.toString())
     }
@@ -759,8 +770,8 @@ case class StreamTableTestUtil(
 
   def verifyPlanWithTrait(): Unit = {
     doVerifyPlan(
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
-      withRetractTraits = true,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withChangelogTraits = true,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -768,8 +779,8 @@ case class StreamTableTestUtil(
   def verifyPlanWithTrait(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
-      withRetractTraits = true,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withChangelogTraits = true,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -777,8 +788,8 @@ case class StreamTableTestUtil(
   def verifyPlanWithTrait(table: Table): Unit = {
     doVerifyPlan(
       table,
-      SqlExplainLevel.DIGEST_ATTRIBUTES,
-      withRetractTraits = true,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withChangelogTraits = true,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -1008,13 +1019,7 @@ class TestingTableEnvironment private(
   override def insertInto(path: String, table: Table): Unit = {
     val unresolvedIdentifier = parser.parseIdentifier(path)
     val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
-
-    val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))
-    if (isEagerOperationTranslation) {
-      translate(modifyOperations)
-    } else {
-      buffer(modifyOperations)
-    }
+    buffer(List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation)))
   }
 
   override def sqlUpdate(stmt: String): Unit = {
@@ -1026,12 +1031,7 @@ class TestingTableEnvironment private(
     val operation = operations.get(0)
     operation match {
       case modifyOperation: ModifyOperation =>
-        val modifyOperations = List(modifyOperation)
-        if (isEagerOperationTranslation) {
-          translate(modifyOperations)
-        } else {
-          buffer(modifyOperations)
-        }
+        buffer(List(modifyOperation))
       case createOperation: CreateTableOperation =>
         catalogManager.createTable(
           createOperation.getCatalogTable,
@@ -1048,23 +1048,14 @@ class TestingTableEnvironment private(
 
   @throws[Exception]
   override def execute(jobName: String): JobExecutionResult = {
-    translate(bufferedOperations.toList)
+    val transformations = planner.translate(bufferedOperations)
     bufferedOperations.clear()
-    execEnv.execute(jobName)
-  }
-
-  // for test
-  def translate(): Unit = {
-    translate(bufferedOperations.toList)
+    val pipeline = executor.createPipeline(transformations, tableConfig, jobName)
+    execEnv.execute(pipeline)
   }
 
   override def createTable(tableOperation: QueryOperation): TableImpl = {
     super.createTable(tableOperation)
-  }
-
-  private def translate(modifyOperations: List[ModifyOperation]): Unit = {
-    val transformations = planner.translate(modifyOperations)
-    execEnv.apply(transformations)
   }
 
   private def buffer(modifyOperations: List[ModifyOperation]): Unit = {
@@ -1079,22 +1070,37 @@ object TestingTableEnvironment {
       settings: EnvironmentSettings,
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
+
+    // temporary solution until FLINK-15635 is fixed
+    val classLoader = Thread.currentThread.getContextClassLoader
+
+    val moduleManager = new ModuleManager
+
     val catalogMgr = catalogManager match {
       case Some(c) => c
       case _ =>
-        new CatalogManager(settings.getBuiltInCatalogName,
-          new GenericInMemoryCatalog(
-            settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
+        CatalogManager.newBuilder
+          .classLoader(classLoader)
+          .config(tableConfig.getConfiguration)
+          .defaultCatalog(
+            settings.getBuiltInCatalogName,
+            new GenericInMemoryCatalog(
+              settings.getBuiltInCatalogName,
+              settings.getBuiltInDatabaseName))
+          .build
     }
-    val moduleManager = new ModuleManager
+
     val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
-    val plannerProperties = settings.toPlannerProperties
+
     val executorProperties = settings.toExecutorProperties
     val executor = ComponentFactoryService.find(classOf[ExecutorFactory],
       executorProperties).create(executorProperties)
+
+    val plannerProperties = settings.toPlannerProperties
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
       .create(plannerProperties, executor, tableConfig, functionCatalog, catalogMgr)
       .asInstanceOf[PlannerBase]
+
     new TestingTableEnvironment(
       catalogMgr,
       moduleManager,
@@ -1124,7 +1130,7 @@ object TableTestUtil {
       .getRelBuilder.queryOperation(table.getQueryOperation).build()
   }
 
-  def registerDataStream[T](
+  def createTemporaryView[T](
       tEnv: TableEnvironment,
       name: String,
       dataStream: DataStream[T],
@@ -1155,8 +1161,6 @@ object TableTestUtil {
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema,
       fieldNullables.getOrElse(Array.fill(fieldCnt)(true)),
-      false,
-      false,
       statistic.getOrElse(FlinkStatistic.UNKNOWN)
     )
     val table = createTable(tEnv, dataStreamQueryOperation)

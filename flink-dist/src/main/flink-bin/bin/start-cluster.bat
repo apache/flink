@@ -39,8 +39,8 @@ SET outname_tm=flink-%username%-taskmanager.out
 SET out_jm=%FLINK_LOG_DIR%\%outname_jm%
 SET out_tm=%FLINK_LOG_DIR%\%outname_tm%
 
-SET log_setting_jm=-Dlog.file="%log_jm%" -Dlogback.configurationFile=file:"%FLINK_CONF_DIR%/logback.xml" -Dlog4j.configuration=file:"%FLINK_CONF_DIR%/log4j.properties"
-SET log_setting_tm=-Dlog.file="%log_tm%" -Dlogback.configurationFile=file:"%FLINK_CONF_DIR%/logback.xml" -Dlog4j.configuration=file:"%FLINK_CONF_DIR%/log4j.properties"
+SET log_setting_jm=-Dlog.file="%log_jm%" -Dlogback.configurationFile=file:"%FLINK_CONF_DIR%/logback.xml" -Dlog4j.configuration=file:"%FLINK_CONF_DIR%/log4j.properties" -Dlog4j.configurationFile=file:"%FLINK_CONF_DIR%/log4j.properties"
+SET log_setting_tm=-Dlog.file="%log_tm%" -Dlogback.configurationFile=file:"%FLINK_CONF_DIR%/logback.xml" -Dlog4j.configuration=file:"%FLINK_CONF_DIR%/log4j.properties" -Dlog4j.configurationFile=file:"%FLINK_CONF_DIR%/log4j.properties"
 
 :: Log rotation (quick and dirty)
 CD "%FLINK_LOG_DIR%"

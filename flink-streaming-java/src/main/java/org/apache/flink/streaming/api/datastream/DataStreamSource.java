@@ -52,7 +52,7 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
 	@Override
 	public DataStreamSource<T> setParallelism(int parallelism) {
-		OperatorValidationUtils.validateMaxParallelism(parallelism, isParallel);
+		OperatorValidationUtils.validateParallelism(parallelism, isParallel);
 		super.setParallelism(parallelism);
 		return this;
 	}

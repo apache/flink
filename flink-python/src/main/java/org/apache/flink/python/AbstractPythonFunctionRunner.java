@@ -20,14 +20,13 @@ package org.apache.flink.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -40,27 +39,23 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.util.List;
+import javax.annotation.Nullable;
+
+import java.util.Map;
 
 /**
  * An base class for {@link PythonFunctionRunner}.
  *
  * @param <IN> Type of the input elements.
- * @param <OUT> Type of the execution results.
  */
 @Internal
-public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFunctionRunner<IN> {
-
-	/** The logger used by the runner class and its subclasses. */
-	protected static final Logger LOG = LoggerFactory.getLogger(AbstractPythonFunctionRunner.class);
+public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunctionRunner<IN> {
 
 	private static final String MAIN_INPUT_ID = "input";
 
@@ -69,12 +64,17 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	/**
 	 * The Python function execution result receiver.
 	 */
-	private final FnDataReceiver<OUT> resultReceiver;
+	protected final FnDataReceiver<byte[]> resultReceiver;
 
 	/**
 	 * The Python execution environment manager.
 	 */
 	private final PythonEnvironmentManager environmentManager;
+
+	/**
+	 * The options used to configure the Python worker process.
+	 */
+	private final Map<String, String> jobOptions;
 
 	/**
 	 * The bundle factory which has all job-scoped information and can be used to create a {@link StageBundleFactory}.
@@ -108,63 +108,42 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	/**
 	 * The receiver which forwards the input elements to a remote environment for processing.
 	 */
-	private transient FnDataReceiver<WindowedValue<?>> mainInputReceiver;
-
-	/**
-	 * The TypeSerializer for input elements.
-	 */
-	private transient TypeSerializer<IN> inputTypeSerializer;
-
-	/**
-	 * The TypeSerializer for execution results.
-	 */
-	private transient TypeSerializer<OUT> outputTypeSerializer;
-
-	/**
-	 * Reusable InputStream used to holding the execution results to be deserialized.
-	 */
-	private transient ByteArrayInputStreamWithPos bais;
-
-	/**
-	 * InputStream Wrapper.
-	 */
-	private transient DataInputViewStreamWrapper baisWrapper;
+	protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
 
 	/**
 	 * Reusable OutputStream used to holding the serialized input elements.
 	 */
-	private transient ByteArrayOutputStreamWithPos baos;
+	protected transient ByteArrayOutputStreamWithPos baos;
 
 	/**
 	 * OutputStream Wrapper.
 	 */
-	private transient DataOutputViewStreamWrapper baosWrapper;
+	protected transient DataOutputViewStreamWrapper baosWrapper;
 
 	/**
-	 * Python libraries and shell script extracted from resource of flink-python jar.
-	 * They are used to support running python udf worker in process mode.
+	 * The flinkMetricContainer will be set to null if metric is configured to be turned off.
 	 */
-	private transient List<File> pythonInternalLibs;
+	@Nullable protected FlinkMetricContainer flinkMetricContainer;
 
 	public AbstractPythonFunctionRunner(
 		String taskName,
-		FnDataReceiver<OUT> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonEnvironmentManager environmentManager,
-		StateRequestHandler stateRequestHandler) {
+		StateRequestHandler stateRequestHandler,
+		Map<String, String> jobOptions,
+		@Nullable FlinkMetricContainer flinkMetricContainer) {
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
 		this.environmentManager = Preconditions.checkNotNull(environmentManager);
 		this.stateRequestHandler = Preconditions.checkNotNull(stateRequestHandler);
+		this.jobOptions = Preconditions.checkNotNull(jobOptions);
+		this.flinkMetricContainer = flinkMetricContainer;
 	}
 
 	@Override
 	public void open() throws Exception {
-		bais = new ByteArrayInputStreamWithPos();
-		baisWrapper = new DataInputViewStreamWrapper(bais);
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
-		inputTypeSerializer = getInputTypeSerializer();
-		outputTypeSerializer = getOutputTypeSerializer();
 
 		// The creation of stageBundleFactory depends on the initialized environment manager.
 		environmentManager.open();
@@ -173,11 +152,39 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 			PipelineOptionsFactory.as(PortablePipelineOptions.class);
 		// one operator has one Python SDK harness
 		portableOptions.setSdkWorkerParallelism(1);
+		ExperimentalOptions experimentalOptions = portableOptions.as(ExperimentalOptions.class);
+		for (Map.Entry<String, String> entry : jobOptions.entrySet()) {
+			ExperimentalOptions.addExperiment(experimentalOptions,
+				String.join("=", entry.getKey(), entry.getValue()));
+		}
+
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
 		jobBundleFactory = createJobBundleFactory(pipelineOptions);
 		stageBundleFactory = createStageBundleFactory();
-		progressHandler = BundleProgressHandler.ignored();
+		progressHandler = getProgressHandler(flinkMetricContainer);
+	}
+
+	/**
+	 * Ignore bundle progress if flinkMetricContainer is null. The flinkMetricContainer will be set
+	 * to null if metric is configured to be turned off.
+	 */
+	private BundleProgressHandler getProgressHandler(FlinkMetricContainer flinkMetricContainer) {
+		if (flinkMetricContainer == null) {
+			return BundleProgressHandler.ignored();
+		} else {
+			return new BundleProgressHandler() {
+				@Override
+				public void onProgress(BeamFnApi.ProcessBundleProgressResponse progress) {
+					flinkMetricContainer.updateMetrics(taskName, progress.getMonitoringInfosList());
+				}
+
+				@Override
+				public void onCompleted(BeamFnApi.ProcessBundleResponse response) {
+					flinkMetricContainer.updateMetrics(taskName, response.getMonitoringInfosList());
+				}
+			};
+		}
 	}
 
 	/**
@@ -193,15 +200,6 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 
 	@Override
 	public void close() throws Exception {
-
-		try {
-			if (pythonInternalLibs != null) {
-				pythonInternalLibs.forEach(File::delete);
-			}
-		} finally {
-			pythonInternalLibs = null;
-		}
-
 		try {
 			if (jobBundleFactory != null) {
 				jobBundleFactory.close();
@@ -215,22 +213,8 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 
 	@Override
 	public void startBundle() {
-		OutputReceiverFactory receiverFactory =
-			new OutputReceiverFactory() {
-
-				// the input value type is always byte array
-				@SuppressWarnings("unchecked")
-				@Override
-				public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-					return input -> {
-						bais.setBuffer(input.getValue(), 0, input.getValue().length);
-						resultReceiver.accept(outputTypeSerializer.deserialize(baisWrapper));
-					};
-				}
-			};
-
 		try {
-			remoteBundle = stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
+			remoteBundle = stageBundleFactory.getBundle(createOutputReceiverFactory(), stateRequestHandler, progressHandler);
 			mainInputReceiver =
 				Preconditions.checkNotNull(
 					remoteBundle.getInputReceivers().get(MAIN_INPUT_ID),
@@ -241,26 +225,13 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	}
 
 	@Override
-	public void finishBundle() {
+	public void finishBundle() throws Exception {
 		try {
 			remoteBundle.close();
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to close remote bundle", t);
 		} finally {
 			remoteBundle = null;
-		}
-	}
-
-	@Override
-	public void processElement(IN element) {
-		try {
-			baos.reset();
-			inputTypeSerializer.serialize(element, baosWrapper);
-			// TODO: support to use ValueOnlyWindowedValueCoder for better performance.
-			// Currently, FullWindowedValueCoder has to be used in Beam's portability framework.
-			mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
-		} catch (Throwable t) {
-			throw new RuntimeException("Failed to process element when sending data to Python SDK harness.", t);
 		}
 	}
 
@@ -285,14 +256,5 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	 */
 	public abstract ExecutableStage createExecutableStage() throws Exception;
 
-	/**
-	 * Returns the TypeSerializer for input elements.
-	 */
-	public abstract TypeSerializer<IN> getInputTypeSerializer();
-
-	/**
-	 * Returns the TypeSerializer for execution results.
-	 */
-	public abstract TypeSerializer<OUT> getOutputTypeSerializer();
-
+	public abstract OutputReceiverFactory createOutputReceiverFactory();
 }

@@ -18,9 +18,7 @@
 
 package org.apache.flink.kubernetes.entrypoint;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -28,7 +26,6 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Entry point for a Kubernetes session cluster.
@@ -51,14 +48,8 @@ public class KubernetesSessionClusterEntrypoint extends SessionClusterEntrypoint
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		Preconditions.checkNotNull(
-			configDir,
-			"Flink configuration directory (%s) in environment should not be null!",
-			ConfigConstants.ENV_FLINK_CONF_DIR);
-		final Configuration configuration = GlobalConfiguration.loadConfiguration(configDir);
-
-		ClusterEntrypoint entrypoint = new KubernetesSessionClusterEntrypoint(configuration);
+		final ClusterEntrypoint entrypoint = new KubernetesSessionClusterEntrypoint(
+			KubernetesEntrypointUtils.loadConfiguration());
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 	}
 }

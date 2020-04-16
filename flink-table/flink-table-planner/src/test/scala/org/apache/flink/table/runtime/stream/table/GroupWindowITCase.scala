@@ -20,14 +20,13 @@ package org.apache.flink.table.runtime.stream.table
 
 import java.math.BigDecimal
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, StreamQueryConfig, Tumble}
+import org.apache.flink.table.api.{Session, Slide, Tumble}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.stream.table.GroupWindowITCase._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, CountDistinctWithMerge, WeightedAvg, WeightedAvgWithMerge}
@@ -45,8 +44,6 @@ import scala.collection.mutable
   * programs is possible.
   */
 class GroupWindowITCase extends AbstractTestBase {
-  private val queryConfig = new StreamQueryConfig()
-  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
   val data = List(
     (1L, 1, "Hi"),
@@ -86,7 +83,7 @@ class GroupWindowITCase extends AbstractTestBase {
         weightAvgFun('long, 'int), weightAvgFun('int, 'int),
         countDistinct('long))
 
-    val results = windowedTable.toAppendStream[Row](queryConfig)
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -159,7 +156,7 @@ class GroupWindowITCase extends AbstractTestBase {
         countDistinct('long)
       )
 
-    val results = windowedTable.toAppendStream[Row](queryConfig)
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 

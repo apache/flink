@@ -37,383 +37,600 @@ import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.TimestampMaxWithRetractAggFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.Time;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * Test case for built-in Max with retraction aggregate function.
  */
-@RunWith(Parameterized.class)
-public class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
+@RunWith(Enclosed.class)
+public final class MaxWithRetractAggFunctionTest {
 
-	@Parameterized.Parameter
-	public AggFunctionTestSpec<T, MaxWithRetractAccumulator<T>> aggFunctionTestSpec;
+	// --------------------------------------------------------------------------------------------
+	// Test sets for a particular type being aggregated
+	//
+	// Actual tests are implemented in:
+	//  - AggFunctionTestBase
+	// --------------------------------------------------------------------------------------------
 
-	private static final int DECIMAL_PRECISION = 20;
-	private static final int DECIMAL_SCALE = 6;
+	/**
+	 * Test for ByteMaxWithRetractAggFunction.
+	 */
+	public static final class ByteMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Byte> {
 
-	@Override
-	protected List<List<T>> getInputValueSets() {
-		return aggFunctionTestSpec.inputValueSets;
+		@Override
+		protected Byte getMinValue() {
+			return Byte.MIN_VALUE + 1;
+		}
+
+		@Override
+		protected Byte getMaxValue() {
+			return Byte.MAX_VALUE - 1;
+		}
+
+		@Override
+		protected Byte getValue(String v) {
+			return Byte.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Byte, MaxWithRetractAccumulator<Byte>> getAggregator() {
+			return new ByteMaxWithRetractAggFunction();
+		}
 	}
 
-	@Override
-	protected List<T> getExpectedResults() {
-		return aggFunctionTestSpec.expectedResults;
+	/**
+	 * Test for ShortMaxWithRetractAggFunction.
+	 */
+	public static final class ShortMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Short> {
+
+		@Override
+		protected Short getMinValue() {
+			return Short.MIN_VALUE + 1;
+		}
+
+		@Override
+		protected Short getMaxValue() {
+			return Short.MAX_VALUE - 1;
+		}
+
+		@Override
+		protected Short getValue(String v) {
+			return Short.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Short, MaxWithRetractAccumulator<Short>> getAggregator() {
+			return new ShortMaxWithRetractAggFunction();
+		}
 	}
 
-	@Override
-	protected AggregateFunction<T, MaxWithRetractAccumulator<T>> getAggregator() {
-		return aggFunctionTestSpec.aggregator;
+	/**
+	 * Test for IntMaxWithRetractAggFunction.
+	 */
+	public static final class IntMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Integer> {
+
+		@Override
+		protected Integer getMinValue() {
+			return Integer.MIN_VALUE + 1;
+		}
+
+		@Override
+		protected Integer getMaxValue() {
+			return Integer.MAX_VALUE - 1;
+		}
+
+		@Override
+		protected Integer getValue(String v) {
+			return Integer.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Integer, MaxWithRetractAccumulator<Integer>> getAggregator() {
+			return new IntMaxWithRetractAggFunction();
+		}
 	}
 
-	@Override
-	protected Class<?> getAccClass() {
-		return MaxWithRetractAccumulator.class;
+	/**
+	 * Test for LongMaxWithRetractAggFunction.
+	 */
+	public static final class LongMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Long> {
+
+		@Override
+		protected Long getMinValue() {
+			return Long.MIN_VALUE + 1;
+		}
+
+		@Override
+		protected Long getMaxValue() {
+			return Long.MAX_VALUE - 1;
+		}
+
+		@Override
+		protected Long getValue(String v) {
+			return Long.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Long, MaxWithRetractAccumulator<Long>> getAggregator() {
+			return new LongMaxWithRetractAggFunction();
+		}
 	}
 
-	@Override
-	protected Method getRetractFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+	/**
+	 * Test for FloatMaxWithRetractAggFunction.
+	 */
+	public static final class FloatMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Float> {
+
+		@Override
+		protected Float getMinValue() {
+			return -Float.MAX_VALUE / 2;
+		}
+
+		@Override
+		protected Float getMaxValue() {
+			return Float.MAX_VALUE / 2;
+		}
+
+		@Override
+		protected Float getValue(String v) {
+			return Float.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Float, MaxWithRetractAccumulator<Float>> getAggregator() {
+			return new FloatMaxWithRetractAggFunction();
+		}
 	}
 
-	@Parameterized.Parameters(name = "{index}: {0}")
-	public static List<AggFunctionTestSpec> testData() {
-		return Arrays.asList(
-				/**
-				 * Test for ByteMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new ByteMaxWithRetractAggFunction(),
-						numberInputValueSets((byte) (Byte.MIN_VALUE + 1), (byte) (Byte.MAX_VALUE - 1), Byte::valueOf),
-						numberExpectedResults((byte) (Byte.MAX_VALUE - 1), Byte::valueOf)
+	/**
+	 * Test for DoubleMaxWithRetractAggFunction.
+	 */
+	public static final class DoubleMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Double> {
+
+		@Override
+		protected Double getMinValue() {
+			return -Double.MAX_VALUE / 2;
+		}
+
+		@Override
+		protected Double getMaxValue() {
+			return Double.MAX_VALUE / 2;
+		}
+
+		@Override
+		protected Double getValue(String v) {
+			return Double.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Double, MaxWithRetractAccumulator<Double>> getAggregator() {
+			return new DoubleMaxWithRetractAggFunction();
+		}
+	}
+
+	/**
+	 * Test for BooleanMaxWithRetractAggFunction.
+	 */
+	public static final class BooleanMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Boolean> {
+
+		@Override
+		protected List<List<Boolean>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							false,
+							false,
+							false
+					),
+					Arrays.asList(
+							true,
+							true,
+							true
+					),
+					Arrays.asList(
+							true,
+							false,
+							null,
+							true,
+							false,
+							true,
+							null
+					),
+					Arrays.asList(
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							true
+					));
+		}
+
+		@Override
+		protected List<Boolean> getExpectedResults() {
+			return Arrays.asList(
+					false,
+					true,
+					true,
+					null,
+					true
+			);
+		}
+
+		@Override
+		protected AggregateFunction<Boolean, MaxWithRetractAccumulator<Boolean>> getAggregator() {
+			return new BooleanMaxWithRetractAggFunction();
+		}
+
+		@Override
+		protected Class<?> getAccClass() {
+			return MaxWithRetractAccumulator.class;
+		}
+
+		@Override
+		protected Method getRetractFunc() throws NoSuchMethodException {
+			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+		}
+	}
+
+	/**
+	 * Test for DecimalMaxWithRetractAggFunction.
+	 */
+	public static final class DecimalMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Decimal> {
+
+		private int precision = 20;
+		private int scale = 6;
+
+		@Override
+		protected List<List<Decimal>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							Decimal.castFrom("1", precision, scale),
+							Decimal.castFrom("1000.000001", precision, scale),
+							Decimal.castFrom("-1", precision, scale),
+							Decimal.castFrom("-999.998999", precision, scale),
+							null,
+							Decimal.castFrom("0", precision, scale),
+							Decimal.castFrom("-999.999", precision, scale),
+							null,
+							Decimal.castFrom("999.999", precision, scale)
+					),
+					Arrays.asList(
+							null,
+							null,
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							Decimal.castFrom("0", precision, scale)
+					)
+			);
+		}
+
+		@Override
+		protected List<Decimal> getExpectedResults() {
+			return Arrays.asList(
+					Decimal.castFrom("1000.000001", precision, scale),
+					null,
+					Decimal.castFrom("0", precision, scale)
+			);
+		}
+
+		@Override
+		protected AggregateFunction<Decimal, MaxWithRetractAccumulator<Decimal>> getAggregator() {
+			return new DecimalMaxWithRetractAggFunction(DecimalTypeInfo.of(precision, scale));
+		}
+	}
+
+	/**
+	 * Test for StringMaxWithRetractAggFunction.
+	 */
+	public static final class StringMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<BinaryString> {
+
+		@Override
+		protected List<List<BinaryString>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							BinaryString.fromString("abc"),
+							BinaryString.fromString("def"),
+							BinaryString.fromString("ghi"),
+							null,
+							BinaryString.fromString("jkl"),
+							null,
+							BinaryString.fromString("zzz")
+					),
+					Arrays.asList(
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							BinaryString.fromString("a")
+					),
+					Arrays.asList(
+							BinaryString.fromString("x"),
+							null,
+							BinaryString.fromString("e")
+					)
+			);
+		}
+
+		@Override
+		protected List<BinaryString> getExpectedResults() {
+			return Arrays.asList(
+					BinaryString.fromString("zzz"),
+					null,
+					BinaryString.fromString("a"),
+					BinaryString.fromString("x")
+			);
+		}
+
+		@Override
+		protected AggregateFunction<BinaryString, MaxWithRetractAccumulator<BinaryString>> getAggregator() {
+			return new StringMaxWithRetractAggFunction();
+		}
+	}
+
+	/**
+	 * Test for TimestampMaxWithRetractAggFunction.
+	 */
+	public static final class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
+
+		@Override
+		protected List<List<SqlTimestamp>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							SqlTimestamp.fromEpochMillis(0),
+							SqlTimestamp.fromEpochMillis(1000),
+							SqlTimestamp.fromEpochMillis(100),
+							null,
+							SqlTimestamp.fromEpochMillis(10)
+					),
+					Arrays.asList(
+							null,
+							null,
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							SqlTimestamp.fromEpochMillis(1)
+					)
+			);
+		}
+
+		@Override
+		protected List<SqlTimestamp> getExpectedResults() {
+			return Arrays.asList(
+					SqlTimestamp.fromEpochMillis(1000),
+					null,
+					SqlTimestamp.fromEpochMillis(1)
+			);
+		}
+
+		@Override
+		protected AggregateFunction<SqlTimestamp, MaxWithRetractAccumulator<SqlTimestamp>> getAggregator() {
+			return new TimestampMaxWithRetractAggFunction(3);
+		}
+	}
+
+	/**
+	 * Test for TimestampMaxWithRetractAggFunction, precision is 9.
+	 */
+	public static final class Timestamp9MaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
+
+		@Override
+		protected List<List<SqlTimestamp>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							SqlTimestamp.fromEpochMillis(0, 0),
+							SqlTimestamp.fromEpochMillis(1000, 0),
+							SqlTimestamp.fromEpochMillis(1000, 1),
+							SqlTimestamp.fromEpochMillis(100, 0),
+							null,
+							SqlTimestamp.fromEpochMillis(10, 0)
+					),
+					Arrays.asList(
+							null,
+							null,
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							SqlTimestamp.fromEpochMillis(1, 0),
+							SqlTimestamp.fromEpochMillis(1, 1)
+					)
+			);
+		}
+
+		@Override
+		protected List<SqlTimestamp> getExpectedResults() {
+			return Arrays.asList(
+					SqlTimestamp.fromEpochMillis(1000, 1),
+					null,
+					SqlTimestamp.fromEpochMillis(1, 1)
+			);
+		}
+
+		@Override
+		protected AggregateFunction<SqlTimestamp, MaxWithRetractAccumulator<SqlTimestamp>> getAggregator() {
+			return new TimestampMaxWithRetractAggFunction(9);
+		}
+	}
+
+	/**
+	 * Test for DateMaxWithRetractAggFunction.
+	 */
+	public static final class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Date> {
+
+		@Override
+		protected List<List<Date>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							new Date(0),
+							new Date(1000),
+							new Date(100),
+							null,
+							new Date(10)
+					),
+					Arrays.asList(
+							null,
+							null,
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							new Date(1)
+					)
+			);
+		}
+
+		@Override
+		protected List<Date> getExpectedResults() {
+			return Arrays.asList(
+					new Date(1000),
+					null,
+					new Date(1)
+			);
+		}
+
+		@Override
+		protected AggregateFunction<Date, MaxWithRetractAccumulator<Date>> getAggregator() {
+			return new DateMaxWithRetractAggFunction();
+		}
+	}
+
+	/**
+	 * Test for TimeMaxWithRetractAggFunction.
+	 */
+	public static final class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Time> {
+
+		@Override
+		protected List<List<Time>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							new Time(0),
+							new Time(1000),
+							new Time(100),
+							null,
+							new Time(10)
+					),
+					Arrays.asList(
+							null,
+							null,
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							new Time(1)
+					)
+			);
+		}
+
+		@Override
+		protected List<Time> getExpectedResults() {
+			return Arrays.asList(
+					new Time(1000),
+					null,
+					new Time(1)
+			);
+		}
+
+		@Override
+		protected AggregateFunction<Time, MaxWithRetractAccumulator<Time>> getAggregator() {
+			return new TimeMaxWithRetractAggFunction();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// This section contain base classes that provide:
+	//  - common inputs
+	//  - declare the accumulator class
+	//  - accessor for retract function
+	//  for tests declared above.
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * The base test class for MaxWithRetractAggFunction.
+	 */
+	public abstract static class MaxWithRetractAggFunctionTestBase<T>
+		extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
+
+		@Override
+		protected Class<?> getAccClass() {
+			return MaxWithRetractAccumulator.class;
+		}
+
+		@Override
+		protected Method getRetractFunc() throws NoSuchMethodException {
+			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+		}
+	}
+
+	/**
+	 * Test MaxWithRetractAggFunction for number type.
+	 */
+	public abstract static class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTestBase<T> {
+		protected abstract T getMinValue();
+
+		protected abstract T getMaxValue();
+
+		protected abstract T getValue(String v);
+
+		@Override
+		protected List<List<T>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					getValue("1"),
+					null,
+					getMaxValue(),
+					getValue("-99"),
+					getValue("3"),
+					getValue("56"),
+					getValue("0"),
+					getMinValue(),
+					getValue("-20"),
+					getValue("17"),
+					null
 				),
-				/**
-				 * Test for ShortMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new ShortMaxWithRetractAggFunction(),
-						numberInputValueSets(
-								(short) (Short.MIN_VALUE + 1), (short) (Short.MAX_VALUE - 1), Short::valueOf),
-						numberExpectedResults((short) (Short.MAX_VALUE - 1), Short::valueOf)
+				Arrays.asList(
+					null,
+					null,
+					null,
+					null,
+					null,
+					null
 				),
-				/**
-				 * Test for IntMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new IntMaxWithRetractAggFunction(),
-						numberInputValueSets(Integer.MIN_VALUE + 1, Integer.MAX_VALUE - 1, Integer::valueOf),
-						numberExpectedResults(Integer.MAX_VALUE - 1, Integer::valueOf)
-				),
-				/**
-				 * Test for LongMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new LongMaxWithRetractAggFunction(),
-						numberInputValueSets(Long.MIN_VALUE + 1L, Long.MAX_VALUE - 1L, Long::valueOf),
-						numberExpectedResults(Long.MAX_VALUE - 1L, Long::valueOf)
-				),
-				/**
-				 * Test for FloatMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new FloatMaxWithRetractAggFunction(),
-						numberInputValueSets((-Float.MAX_VALUE / 2), (Float.MAX_VALUE / 2), Float::valueOf),
-						numberExpectedResults((Float.MAX_VALUE / 2), Float::valueOf)
-				),
-				/**
-				 * Test for DoubleMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new DoubleMaxWithRetractAggFunction(),
-						numberInputValueSets((-Double.MAX_VALUE / 2), (Double.MAX_VALUE / 2), Double::valueOf),
-						numberExpectedResults((Double.MAX_VALUE / 2), Double::valueOf)
-				),
-				/**
-				 * Test for BooleanMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new BooleanMaxWithRetractAggFunction(),
-						Arrays.asList(
-								Arrays.asList(
-										false,
-										false,
-										false
-								),
-								Arrays.asList(
-										true,
-										true,
-										true
-								),
-								Arrays.asList(
-										true,
-										false,
-										null,
-										true,
-										false,
-										true,
-										null
-								),
-								Arrays.asList(
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										true
-								)
-						),
-						Arrays.asList(
-								false,
-								true,
-								true,
-								null,
-								true
-						)
-				),
-				/**
-				 * Test for DecimalMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new DecimalMaxWithRetractAggFunction(DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
-						Arrays.asList(
-								Arrays.asList(
-										Decimal.castFrom("1", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("1000.000001", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("-1", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("-999.998999", DECIMAL_PRECISION, DECIMAL_SCALE),
-										null,
-										Decimal.castFrom("0", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("-999.999", DECIMAL_PRECISION, DECIMAL_SCALE),
-										null,
-										Decimal.castFrom("999.999", DECIMAL_PRECISION, DECIMAL_SCALE)
-								),
-								Arrays.asList(
-										null,
-										null,
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										Decimal.castFrom("0", DECIMAL_PRECISION, DECIMAL_SCALE)
-								)
-						),
-						Arrays.asList(
-								Decimal.castFrom("1000.000001", DECIMAL_PRECISION, DECIMAL_SCALE),
-								null,
-								Decimal.castFrom("0", DECIMAL_PRECISION, DECIMAL_SCALE)
-						)
-				),
-				/**
-				 * Test for StringMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new StringMaxWithRetractAggFunction(),
-						Arrays.asList(
-								Arrays.asList(
-										BinaryString.fromString("abc"),
-										BinaryString.fromString("def"),
-										BinaryString.fromString("ghi"),
-										null,
-										BinaryString.fromString("jkl"),
-										null,
-										BinaryString.fromString("zzz")
-								),
-								Arrays.asList(
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										BinaryString.fromString("a")
-								),
-								Arrays.asList(
-										BinaryString.fromString("x"),
-										null,
-										BinaryString.fromString("e")
-								)
-						),
-						Arrays.asList(
-								BinaryString.fromString("zzz"),
-								null,
-								BinaryString.fromString("a"),
-								BinaryString.fromString("x")
-						)
-				),
-				/**
-				 * Test for TimestampMaxWithRetractAggFunction with millisecond's precision.
-				 */
-				new AggFunctionTestSpec<>(
-						new TimestampMaxWithRetractAggFunction(3),
-						Arrays.asList(
-								Arrays.asList(
-										SqlTimestamp.fromEpochMillis(0),
-										SqlTimestamp.fromEpochMillis(1000),
-										SqlTimestamp.fromEpochMillis(100),
-										null,
-										SqlTimestamp.fromEpochMillis(10)
-								),
-								Arrays.asList(
-										null,
-										null,
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										SqlTimestamp.fromEpochMillis(1)
-								)
-						),
-						Arrays.asList(
-								SqlTimestamp.fromEpochMillis(1000),
-								null,
-								SqlTimestamp.fromEpochMillis(1)
-						)
-				),
-				/**
-				 * Test for TimestampMaxWithRetractAggFunction with nanosecond's precision.
-				 */
-				new AggFunctionTestSpec<>(
-						new TimestampMaxWithRetractAggFunction(9),
-						Arrays.asList(
-								Arrays.asList(
-										SqlTimestamp.fromEpochMillis(0, 0),
-										SqlTimestamp.fromEpochMillis(1000, 0),
-										SqlTimestamp.fromEpochMillis(1000, 1),
-										SqlTimestamp.fromEpochMillis(100, 0),
-										null,
-										SqlTimestamp.fromEpochMillis(10, 0)
-								),
-								Arrays.asList(
-										null,
-										null,
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										SqlTimestamp.fromEpochMillis(1, 0),
-										SqlTimestamp.fromEpochMillis(1, 1)
-								)
-						),
-						Arrays.asList(
-								SqlTimestamp.fromEpochMillis(1000, 1),
-								null,
-								SqlTimestamp.fromEpochMillis(1, 1)
-						)
-				),
-				/**
-				 * Test for DateMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new DateMaxWithRetractAggFunction(),
-						Arrays.asList(
-								Arrays.asList(
-										new Date(0),
-										new Date(1000),
-										new Date(100),
-										null,
-										new Date(10)
-								),
-								Arrays.asList(
-										null,
-										null,
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										new Date(1)
-								)
-						),
-						Arrays.asList(
-								new Date(1000),
-								null,
-								new Date(1)
-						)
-				),
-				/**
-				 * Test for TimeMaxWithRetractAggFunction.
-				 */
-				new AggFunctionTestSpec<>(
-						new TimeMaxWithRetractAggFunction(),
-						Arrays.asList(
-								Arrays.asList(
-										new Time(0),
-										new Time(1000),
-										new Time(100),
-										null,
-										new Time(10)
-								),
-								Arrays.asList(
-										null,
-										null,
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										new Time(1)
-								)
-						),
-						Arrays.asList(
-								new Time(1000),
-								null,
-								new Time(1)
-						)
+				Arrays.asList(
+					null,
+					getValue("10")
 				)
-		);
-	}
+			);
+		}
 
-	private static <N> List<List<N>> numberInputValueSets(N minValue, N maxValue, Function<String, N> strToValueFun) {
-		return Arrays.asList(
-				Arrays.asList(
-						strToValueFun.apply("1"),
-						null,
-						maxValue,
-						strToValueFun.apply("-99"),
-						strToValueFun.apply("3"),
-						strToValueFun.apply("56"),
-						strToValueFun.apply("0"),
-						minValue,
-						strToValueFun.apply("-20"),
-						strToValueFun.apply("17"),
-						null
-				),
-				Arrays.asList(
-						null,
-						null,
-						null,
-						null,
-						null,
-						null
-				),
-				Arrays.asList(
-						null,
-						strToValueFun.apply("10")
-				)
-		);
-	}
-
-	private static <N> List<N> numberExpectedResults(N maxValue, Function<String, N> strToValueFun) {
-		return Arrays.asList(
-				maxValue,
+		@Override
+		protected List<T> getExpectedResults() {
+			return Arrays.asList(
+				getMaxValue(),
 				null,
-				strToValueFun.apply("10")
-		);
+				getValue("10")
+			);
+		}
 	}
 }

@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.plan.utils.ExplodeFunctionUtil
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.RowType
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -38,8 +37,9 @@ import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType, Struc
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.sql.`type`.{AbstractSqlType, ArraySqlType, MapSqlType, MultisetSqlType}
-
 import java.util.Collections
+
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 
 /**
   * Planner rule that rewrites UNNEST to explode function.
@@ -131,7 +131,9 @@ class LogicalUnnestRule(
             cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
 
           // create table function call
+          // TODO use BridgingSqlFunction once we remove TableSqlFunction
           val rexCall = cluster.getRexBuilder.makeCall(
+            explodeSqlFunc.getRowType(unwrapTypeFactory(cluster), Collections.emptyList()),
             explodeSqlFunc,
             getRel(uc.getInput).asInstanceOf[LogicalProject].getChildExps
           )

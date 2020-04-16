@@ -100,13 +100,17 @@ public class CommonTestUtils {
 
 	public static void printLog4jDebugConfig(File file) throws IOException {
 		try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-			writer.println("log4j.rootLogger=DEBUG, console");
-			writer.println("log4j.appender.console=org.apache.log4j.ConsoleAppender");
-			writer.println("log4j.appender.console.target = System.err");
-			writer.println("log4j.appender.console.layout=org.apache.log4j.PatternLayout");
-			writer.println("log4j.appender.console.layout.ConversionPattern=%d{HH:mm:ss,SSS} %-4r [%t] %-5p %c %x - %m%n");
-			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
-			writer.println("log4j.logger.org.apache.zookeeper=OFF");
+			writer.println("rootLogger.level = INFO");
+			writer.println("rootLogger.appenderRef.console.ref = ConsoleAppender");
+			writer.println("appender.console.name = ConsoleAppender");
+			writer.println("appender.console.type = CONSOLE");
+			writer.println("appender.console.target = SYSTEM_ERR");
+			writer.println("appender.console.layout.type = PatternLayout");
+			writer.println("appender.console.layout.pattern = %d{HH:mm:ss,SSS} %-4r [%t] %-5p %c %x - %m%n");
+			writer.println("logger.jetty.name = org.eclipse.jetty.util.log");
+			writer.println("logger.jetty.level = OFF");
+			writer.println("logger.zookeeper.name = org.apache.zookeeper");
+			writer.println("logger.zookeeper.level = OFF");
 			writer.flush();
 		}
 	}

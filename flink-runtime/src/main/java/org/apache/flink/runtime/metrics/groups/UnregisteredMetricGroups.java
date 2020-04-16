@@ -146,7 +146,7 @@ public class UnregisteredMetricGroups {
 		private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
 		private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
 
-		protected UnregisteredTaskManagerJobMetricGroup() {
+		public UnregisteredTaskManagerJobMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskManagerMetricGroup(), DEFAULT_JOB_ID, DEFAULT_JOB_NAME);
 		}
 

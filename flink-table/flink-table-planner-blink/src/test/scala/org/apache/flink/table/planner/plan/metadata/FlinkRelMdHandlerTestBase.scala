@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
+import ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
@@ -49,7 +49,6 @@ import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankTyp
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
-
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -58,7 +57,7 @@ import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinInfo, JoinRelType, Project, Window}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
@@ -69,9 +68,10 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
-
 import java.math.BigDecimal
 import java.util
+
+import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConversions._
 
@@ -80,10 +80,7 @@ class FlinkRelMdHandlerTestBase {
   val tableConfig = new TableConfig()
   val rootSchema: SchemaPlus = MetadataTestUtil.initRootSchema()
 
-  val builtinCatalog = "default_catalog"
-  val builtinDatabase = "default_database"
-  val catalogManager = new CatalogManager(
-    builtinCatalog, new GenericInMemoryCatalog(builtinCatalog, builtinDatabase))
+  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val moduleManager = new ModuleManager
 
   // TODO batch RelNode and stream RelNode should have different PlannerContext
@@ -385,7 +382,7 @@ class FlinkRelMdHandlerTestBase {
       collection, offset, fetch, true)
 
     val streamSort = new StreamExecSortLimit(cluster, streamPhysicalTraits.replace(collection),
-      studentStreamScan, collection, offset, fetch)
+      studentStreamScan, collection, offset, fetch, UndefinedStrategy)
 
     (logicalSortLimit, flinkLogicalSortLimit,
       batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
@@ -466,7 +463,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new ConstantRankRange(1, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -547,7 +545,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new ConstantRankRange(3, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -595,7 +594,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.ROW_NUMBER,
       new ConstantRankRange(3, 6),
       new RelDataTypeFieldImpl("rn", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
@@ -705,7 +705,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new VariableRankRange(3),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)
@@ -2449,7 +2450,7 @@ class TestRel(
 object FlinkRelMdHandlerTestBase {
   @BeforeClass
   def beforeAll(): Unit = {
-    RelMetadataQuery
+    RelMetadataQueryBase
       .THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
   }

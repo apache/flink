@@ -142,7 +142,7 @@ public class CheckpointFailureManager {
 	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
 	 *                     checkpoint id sequence.
 	 */
-	public void handleCheckpointSuccess(long checkpointId) {
+	public void handleCheckpointSuccess(@SuppressWarnings("unused") long checkpointId) {
 		clearCount();
 	}
 

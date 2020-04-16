@@ -46,6 +46,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 
 /**
@@ -247,7 +248,7 @@ public final class TypeMappingUtils {
 			LogicalType physicalFieldType,
 			LogicalType logicalFieldType,
 			Function<Throwable, ValidationException> exceptionSupplier) {
-		if (LogicalTypeChecks.areTypesCompatible(physicalFieldType, logicalFieldType)) {
+		if (supportsAvoidingCast(physicalFieldType, logicalFieldType)) {
 			return;
 		}
 

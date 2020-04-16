@@ -32,6 +32,7 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.exec.FunctionUtils;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.thrift.TException;
 
@@ -139,7 +140,7 @@ public class HiveShimV120 extends HiveShimV111 {
 			Set<String> names = (Set<String>) method.invoke(null);
 
 			return names.stream()
-				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n).get()))
+				.filter(n -> getBuiltInFunctionInfo(n).isPresent())
 				.collect(Collectors.toSet());
 		} catch (Exception ex) {
 			throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
@@ -148,24 +149,27 @@ public class HiveShimV120 extends HiveShimV111 {
 
 	@Override
 	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
-		Optional<FunctionInfo> functionInfo = getFunctionInfo(name);
-
-		if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
-			return functionInfo;
-		} else {
+		// filter out catalog functions since they're not built-in functions and can cause problems for tests
+		if (isCatalogFunctionName(name)) {
+			return Optional.empty();
+		}
+		try {
+			Optional<FunctionInfo> functionInfo = Optional.ofNullable(FunctionRegistry.getFunctionInfo(name));
+			if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
+				return functionInfo;
+			} else {
+				return Optional.empty();
+			}
+		} catch (SemanticException e) {
+			throw new FlinkHiveException(
+					String.format("Failed getting function info for %s", name), e);
+		} catch (NullPointerException e) {
 			return Optional.empty();
 		}
 	}
 
-	private Optional<FunctionInfo> getFunctionInfo(String name) {
-		try {
-			return Optional.of(FunctionRegistry.getFunctionInfo(name));
-		} catch (SemanticException e) {
-			throw new FlinkHiveException(
-				String.format("Failed getting function info for %s", name), e);
-		} catch (NullPointerException e) {
-			return Optional.empty();
-		}
+	private static boolean isCatalogFunctionName(String funcName) {
+		return FunctionUtils.isQualifiedFunctionName(funcName);
 	}
 
 	private boolean isBuiltInFunctionInfo(FunctionInfo info) {

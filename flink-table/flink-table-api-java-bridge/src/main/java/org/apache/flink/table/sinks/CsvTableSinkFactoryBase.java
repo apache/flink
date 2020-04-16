@@ -49,6 +49,7 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.sources.CsvTableSourceFactoryBase.getFieldLogicalTypes;
 
 /**
  * Factory base for creating configured instances of {@link CsvTableSink}.
@@ -105,9 +106,12 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
 		if (hasSchema) {
 			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
-			if (!formatSchema.equals(tableSchema)) {
-				throw new TableException(
-					"Encodings that differ from the schema are not supported yet for CsvTableSink.");
+			if (!getFieldLogicalTypes(formatSchema).equals(getFieldLogicalTypes(tableSchema))) {
+				throw new TableException(String.format(
+						"Encodings that differ from the schema are not supported yet for" +
+								" CsvTableSink, format schema is '%s', but table schema is '%s'.",
+						formatSchema,
+						tableSchema));
 			}
 		}
 

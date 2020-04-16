@@ -25,18 +25,16 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.sinks.TableSink;
 
 /**
  * This table environment is the entry point and central context for creating Table and SQL
@@ -194,21 +192,108 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	/**
 	 * Converts the given {@link DataStream} into a {@link Table} with specified field names.
 	 *
+	 * <p>There are two modes for mapping original fields to the fields of the {@link Table}:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+	 * attributes at arbitrary positions using arbitrary names (except those that exist in the
+	 * result schema). In this mode, fields can be reordered and projected out. This mode can
+	 * be used for any input type, including POJOs.
+	 *
 	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   DataStream<Tuple2<String, Long>> stream = ...
-	 *   Table tab = tableEnv.fromDataStream(stream, "a, b");
+	 *   // reorder the fields, rename the original 'f0' field to 'name' and add event-time
+	 *   // attribute named 'rowtime'
+	 *   Table table = tableEnv.fromDataStream(stream, "f1, rowtime.rowtime, f0 as 'name'");
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. Event-time attributes can
+	 * replace the field on their position in the input data (if it is of correct type) or be
+	 * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   // rename the original fields to 'a' and 'b' and extract the internally attached timestamp into an event-time
+	 *   // attribute named 'rowtime'
+	 *   Table table = tableEnv.fromDataStream(stream, "a, b, rowtime.rowtime");
 	 * }
 	 * </pre>
 	 *
 	 * @param dataStream The {@link DataStream} to be converted.
-	 * @param fields The field names of the resulting {@link Table}.
+	 * @param fields The fields expressions to map original fields of the DataStream to the fields of the {@link Table}.
+	 * @param <T> The type of the {@link DataStream}.
+	 * @return The converted {@link Table}.
+	 * @deprecated use {@link #fromDataStream(DataStream, Expression...)}
+	 */
+	@Deprecated
+	<T> Table fromDataStream(DataStream<T> dataStream, String fields);
+
+	/**
+	 * Converts the given {@link DataStream} into a {@link Table} with specified field names.
+	 *
+	 * <p>There are two modes for mapping original fields to the fields of the {@link Table}:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+	 * attributes at arbitrary positions using arbitrary names (except those that exist in the
+	 * result schema). In this mode, fields can be reordered and projected out. This mode can
+	 * be used for any input type, including POJOs.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   Table table = tableEnv.fromDataStream(
+	 *      stream,
+	 *      $("f1"), // reorder and use the original field
+	 *      $("rowtime").rowtime(), // extract the internally attached timestamp into an event-time
+	 *                              // attribute named 'rowtime'
+	 *      $("f0").as("name") // reorder and give the original field a better name
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. Event-time attributes can
+	 * replace the field on their position in the input data (if it is of correct type) or be
+	 * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   Table table = tableEnv.fromDataStream(
+	 *      stream,
+	 *      $("a"), // rename the first field to 'a'
+	 *      $("b"), // rename the second field to 'b'
+	 *      $("rowtime").rowtime() // extract the internally attached timestamp into an event-time
+	 *                             // attribute named 'rowtime'
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * @param dataStream The {@link DataStream} to be converted.
+	 * @param fields The fields expressions to map original fields of the DataStream to the fields of the {@code Table}.
 	 * @param <T> The type of the {@link DataStream}.
 	 * @return The converted {@link Table}.
 	 */
-	<T> Table fromDataStream(DataStream<T> dataStream, String fields);
+	<T> Table fromDataStream(DataStream<T> dataStream, Expression... fields);
 
 	/**
 	 * Creates a view from the given {@link DataStream}.
@@ -254,12 +339,41 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * Creates a view from the given {@link DataStream} in a given path with specified field names.
 	 * Registered views can be referenced in SQL queries.
 	 *
+	 * <p>There are two modes for mapping original fields to the fields of the View:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+	 * attributes at arbitrary positions using arbitrary names (except those that exist in the
+	 * result schema). In this mode, fields can be reordered and projected out. This mode can
+	 * be used for any input type, including POJOs.
+	 *
 	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   DataStream<Tuple2<String, Long>> stream = ...
-	 *   tableEnv.registerDataStream("myTable", stream, "a, b")
+	 *   // reorder the fields, rename the original 'f0' field to 'name' and add event-time
+	 *   // attribute named 'rowtime'
+	 *   tableEnv.registerDataStream("myTable", stream, "f1, rowtime.rowtime, f0 as 'name'");
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. Event-time attributes can
+	 * replace the field on their position in the input data (if it is of correct type) or be
+	 * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   // rename the original fields to 'a' and 'b' and extract the internally attached timestamp into an event-time
+	 *   // attribute named 'rowtime'
+	 *   tableEnv.registerDataStream("myTable", stream, "a, b, rowtime.rowtime");
 	 * }
 	 * </pre>
 	 *
@@ -272,9 +386,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 *
 	 * @param name The name under which the {@link DataStream} is registered in the catalog.
 	 * @param dataStream The {@link DataStream} to register.
-	 * @param fields The field names of the registered view.
+	 * @param fields The fields expressions to map original fields of the DataStream to the fields of the View.
 	 * @param <T> The type of the {@link DataStream} to register.
-	 * @deprecated use {@link #createTemporaryView(String, DataStream, String)}
+	 * @deprecated use {@link #createTemporaryView(String, DataStream, Expression...)}
 	 */
 	@Deprecated
 	<T> void registerDataStream(String name, DataStream<T> dataStream, String fields);
@@ -283,12 +397,41 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * Creates a view from the given {@link DataStream} in a given path with specified field names.
 	 * Registered views can be referenced in SQL queries.
 	 *
+	 * <p>There are two modes for mapping original fields to the fields of the View:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+	 * attributes at arbitrary positions using arbitrary names (except those that exist in the
+	 * result schema). In this mode, fields can be reordered and projected out. This mode can
+	 * be used for any input type, including POJOs.
+	 *
 	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   DataStream<Tuple2<String, Long>> stream = ...
-	 *   tableEnv.createTemporaryView("cat.db.myTable", stream, "a, b")
+	 *   // reorder the fields, rename the original 'f0' field to 'name' and add event-time
+	 *   // attribute named 'rowtime'
+	 *   tableEnv.createTemporaryView("cat.db.myTable", stream, "f1, rowtime.rowtime, f0 as 'name'");
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. Event-time attributes can
+	 * replace the field on their position in the input data (if it is of correct type) or be
+	 * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   // rename the original fields to 'a' and 'b' and extract the internally attached timestamp into an event-time
+	 *   // attribute named 'rowtime'
+	 *   tableEnv.createTemporaryView("cat.db.myTable", stream, "a, b, rowtime.rowtime");
 	 * }
 	 * </pre>
 	 *
@@ -299,10 +442,75 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param path The path under which the {@link DataStream} is created.
 	 *             See also the {@link TableEnvironment} class description for the format of the path.
 	 * @param dataStream The {@link DataStream} out of which to create the view.
-	 * @param fields The field names of the created view.
+	 * @param fields The fields expressions to map original fields of the DataStream to the fields of the View.
+	 * @param <T> The type of the {@link DataStream}.
+	 * @deprecated use {@link #createTemporaryView(String, DataStream, Expression...)}
+	 */
+	@Deprecated
+	<T> void createTemporaryView(String path, DataStream<T> dataStream, String fields);
+
+	/**
+	 * Creates a view from the given {@link DataStream} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>There are two modes for mapping original fields to the fields of the View:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
+	 * attributes at arbitrary positions using arbitrary names (except those that exist in the
+	 * result schema). In this mode, fields can be reordered and projected out. This mode can
+	 * be used for any input type, including POJOs.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   tableEnv.createTemporaryView(
+	 *      "cat.db.myTable",
+	 *      stream,
+	 *      $("f1"), // reorder and use the original field
+	 *      $("rowtime").rowtime(), // extract the internally attached timestamp into an event-time
+	 *                              // attribute named 'rowtime'
+	 *      $("f0").as("name") // reorder and give the original field a better name
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. Event-time attributes can
+	 * replace the field on their position in the input data (if it is of correct type) or be
+	 * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataStream<Tuple2<String, Long>> stream = ...
+	 *   tableEnv.createTemporaryView(
+	 *      "cat.db.myTable",
+	 *      stream,
+	 *      $("a"), // rename the first field to 'a'
+	 *      $("b"), // rename the second field to 'b'
+	 *      $("rowtime").rowtime() // adds an event-time attribute named 'rowtime'
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the {@link DataStream} is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataStream The {@link DataStream} out of which to create the view.
+	 * @param fields The fields expressions to map original fields of the DataStream to the fields of the View.
 	 * @param <T> The type of the {@link DataStream}.
 	 */
-	<T> void createTemporaryView(String path, DataStream<T> dataStream, String fields);
+	<T> void createTemporaryView(String path, DataStream<T> dataStream, Expression... fields);
 
 	/**
 	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
@@ -343,48 +551,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @return The converted {@link DataStream}.
 	 */
 	<T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo);
-
-	/**
-	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
-	 *
-	 * The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
-	 * by update or delete changes, the conversion will fail.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param clazz The class of the type of the resulting {@link DataStream}.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the resulting {@link DataStream}.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<T> toAppendStream(Table table, Class<T> clazz, StreamQueryConfig queryConfig);
-
-	/**
-	 * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
-	 *
-	 * The {@link Table} must only have insert (append) changes. If the {@link Table} is also modified
-	 * by update or delete changes, the conversion will fail.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param typeInfo The {@link TypeInformation} that specifies the type of the {@link DataStream}.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the resulting {@link DataStream}.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo, StreamQueryConfig queryConfig);
 
 	/**
 	 * Converts the given {@link Table} into a {@link DataStream} of add and retract messages.
@@ -429,50 +595,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	<T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo);
 
 	/**
-	 * Converts the given {@link Table} into a {@link DataStream} of add and retract messages.
-	 * The message will be encoded as {@link Tuple2}. The first field is a {@link Boolean} flag,
-	 * the second field holds the record of the specified type {@link T}.
-	 *
-	 * A true {@link Boolean} flag indicates an add message, a false flag indicates a retract message.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param clazz The class of the requested record type.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the requested record type.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz, StreamQueryConfig queryConfig);
-
-	/**
-	 * Converts the given {@link Table} into a {@link DataStream} of add and retract messages.
-	 * The message will be encoded as {@link Tuple2}. The first field is a {@link Boolean} flag,
-	 * the second field holds the record of the specified type {@link T}.
-	 *
-	 * A true {@link Boolean} flag indicates an add message, a false flag indicates a retract message.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param typeInfo The {@link TypeInformation} of the requested record type.
-	 * @param queryConfig The configuration of the query to generate.
-	 * @param <T> The type of the requested record type.
-	 * @return The converted {@link DataStream}.
-	 */
-	<T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo, StreamQueryConfig queryConfig);
-
-	/**
 	 * Creates a table source and/or table sink from a descriptor.
 	 *
 	 * <p>Descriptors allow for declaring the communication to external systems in an
@@ -490,7 +612,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 *     new Kafka()
 	 *       .version("0.11")
 	 *       .topic("clicks")
-	 *       .property("zookeeper.connect", "localhost")
 	 *       .property("group.id", "click-group")
 	 *       .startFromEarliest())
 	 *   .withFormat(
@@ -513,48 +634,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-	 * NOTE: Currently only SQL INSERT statements are supported.
-	 *
-	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
-	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
-	 * called, for example when it is embedded into a String.
-	 * Hence, SQL queries can directly reference a {@link Table} as follows:
-	 *
-	 * <pre>
-	 * {@code
-	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
-	 *   Table sourceTable = ...
-	 *   String tableName = sourceTable.toString();
-	 *   // sourceTable is not registered to the table environment
-	 *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
-	 * }
-	 * </pre>
-	 *
-	 * @param stmt The SQL statement to evaluate.
-	 * @param config The {@link QueryConfig} to use.
-	 */
-	void sqlUpdate(String stmt, StreamQueryConfig config);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
-	 *
-	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
-	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-	 *
-	 * @param table The Table to write to the sink.
-	 * @param queryConfig The {@link StreamQueryConfig} to use.
-	 * @param sinkPath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
-	 * @deprecated use {@link #insertInto(String, Table)}
-	 */
-	@Deprecated
-	void insertInto(Table table, StreamQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
-
-	/**
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program.
 	 *
@@ -562,8 +641,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 *
 	 * <p>It calls the {@link StreamExecutionEnvironment#execute(String)} on the underlying
 	 * {@link StreamExecutionEnvironment}. In contrast to the {@link TableEnvironment} this
-	 * environment translates queries eagerly. Therefore the values in {@link QueryConfig}
-	 * parameter are ignored.
+	 * environment translates queries eagerly.
 	 *
 	 * @param jobName Desired name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.

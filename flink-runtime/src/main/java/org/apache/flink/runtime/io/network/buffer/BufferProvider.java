@@ -40,6 +40,13 @@ public interface BufferProvider extends AvailabilityProvider {
 	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider.
 	 *
+	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
+	 */
+	BufferBuilder requestBufferBuilder() throws IOException;
+
+	/**
+	 * Returns a {@link BufferBuilder} instance from the buffer provider.
+	 *
 	 * <p>If there is no buffer available, the call will block until one becomes available again or the
 	 * buffer provider has been destroyed.
 	 */

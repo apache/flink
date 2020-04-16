@@ -24,7 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.api.java.BatchTableEnvironment
 import org.apache.flink.table.catalog.CatalogManager
-import org.apache.flink.table.expressions.ExpressionParser
+import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import org.apache.flink.table.module.ModuleManager
 
@@ -58,7 +58,13 @@ class BatchTableEnvironmentImpl(
       .parseExpressionList(fields).asScala
       .toArray
 
-    createTable(asQueryOperation(dataSet, Some(exprs)))
+    fromDataSet(dataSet, exprs: _*)
+  }
+
+  override def fromDataSet[T](
+      dataSet: DataSet[T],
+      fields: Expression*): Table = {
+    createTable(asQueryOperation(dataSet, Some(fields.toArray)))
   }
 
   override def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit = {
@@ -82,6 +88,13 @@ class BatchTableEnvironmentImpl(
     createTemporaryView(path, fromDataSet(dataSet, fields))
   }
 
+  override def createTemporaryView[T](
+      path: String,
+      dataSet: DataSet[T],
+      fields: Expression*): Unit = {
+    createTemporaryView(path, fromDataSet(dataSet, fields: _*))
+  }
+
   override def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
     // Use the default query config.
     translate[T](table)(TypeExtractor.createTypeInfo(clazz))
@@ -89,20 +102,6 @@ class BatchTableEnvironmentImpl(
 
   override def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
     // Use the default batch query config.
-    translate[T](table)(typeInfo)
-  }
-
-  override def toDataSet[T](
-      table: Table,
-      clazz: Class[T],
-      queryConfig: BatchQueryConfig): DataSet[T] = {
-    translate[T](table)(TypeExtractor.createTypeInfo(clazz))
-  }
-
-  override def toDataSet[T](
-      table: Table,
-      typeInfo: TypeInformation[T],
-      queryConfig: BatchQueryConfig): DataSet[T] = {
     translate[T](table)(typeInfo)
   }
 
@@ -128,14 +127,4 @@ class BatchTableEnvironmentImpl(
 
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
-
-  override def sqlUpdate(
-    stmt: String,
-    config: BatchQueryConfig): Unit = sqlUpdate(stmt)
-
-  override def insertInto(
-    table: Table,
-    queryConfig: BatchQueryConfig,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit = insertInto(table, sinkPath, sinkPathContinued: _*)
 }

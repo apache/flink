@@ -24,9 +24,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
-
 
 /**
  * A test harness for testing a {@link CoBroadcastWithKeyedOperator}.
@@ -37,8 +35,6 @@ import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
  */
 public class KeyedBroadcastOperatorTestHarness<K, IN1, IN2, OUT>
 	extends AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT> {
-
-	private final CoBroadcastWithKeyedOperator<K, IN1, IN2, OUT> twoInputOperator;
 
 	public KeyedBroadcastOperatorTestHarness(
 		CoBroadcastWithKeyedOperator<K, IN1, IN2, OUT> operator,
@@ -53,18 +49,11 @@ public class KeyedBroadcastOperatorTestHarness<K, IN1, IN2, OUT>
 		ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-
-		this.twoInputOperator = operator;
-	}
-
-	@Override
-	TwoInputStreamOperator<IN1, IN2, OUT> getOperator() {
-		return twoInputOperator;
 	}
 
 	public <KS, V> BroadcastState<KS, V> getBroadcastState(MapStateDescriptor<KS, V> stateDescriptor)
 		throws Exception {
-		return twoInputOperator.getOperatorStateBackend().getBroadcastState(stateDescriptor);
+		return getOperator().getOperatorStateBackend().getBroadcastState(stateDescriptor);
 	}
 
 }

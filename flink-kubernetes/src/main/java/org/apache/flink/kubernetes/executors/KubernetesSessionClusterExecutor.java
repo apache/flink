@@ -19,7 +19,7 @@
 package org.apache.flink.kubernetes.executors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractSessionClusterExecutor;
+import org.apache.flink.client.deployment.executors.AbstractSessionClusterExecutor;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.kubernetes.KubernetesClusterClientFactory;
 

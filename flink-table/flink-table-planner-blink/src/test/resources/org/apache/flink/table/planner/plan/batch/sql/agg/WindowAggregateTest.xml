@@ -33,7 +33,7 @@ FROM MyTable1
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
-   +- LogicalProject($f0=[TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
+   +- LogicalProject($f0=[$TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -65,7 +65,7 @@ FROM MyTable1
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
-   +- LogicalProject($f0=[TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
+   +- LogicalProject($f0=[$TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -96,7 +96,7 @@ FROM MyTable1
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
-   +- LogicalProject($f0=[TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
+   +- LogicalProject($f0=[$TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -108,154 +108,6 @@ Calc(select=[CAST(/(-($f0, /(*($f1, $f1), $f2)), $f2)) AS EXPR$0, CAST(/(-($f0, 
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(b) AS sum$1, Partial_COUNT(b) AS count$2])
          +- Calc(select=[ts, b, *(b, b) AS $f2])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWindowAggregateWithDifferentWindows[aggStrategy=AUTO]">
-    <Resource name="sql">
-      <![CDATA[
-WITH window_1h AS (
-    SELECT 1
-    FROM MyTable2
-    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
-),
-
-window_2h AS (
-    SELECT 1
-    FROM MyTable2
-    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
-)
-
-(SELECT * FROM window_1h)
-UNION ALL
-(SELECT * FROM window_2h)
-]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(EXPR$0=[1])
-:  +- LogicalAggregate(group=[{0}])
-:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
-:        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-+- LogicalProject(EXPR$0=[1])
-   +- LogicalAggregate(group=[{0}])
-      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[EXPR$0])
-:- Calc(select=[1 AS EXPR$0])
-:  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:     +- Exchange(distribution=[single])
-:        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:           +- Calc(select=[ts], reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
-+- Calc(select=[1 AS EXPR$0])
-   +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
-      +- Exchange(distribution=[single])
-         +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
-            +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWindowAggregateWithDifferentWindows[aggStrategy=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[
-WITH window_1h AS (
-    SELECT 1
-    FROM MyTable2
-    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
-),
-
-window_2h AS (
-    SELECT 1
-    FROM MyTable2
-    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
-)
-
-(SELECT * FROM window_1h)
-UNION ALL
-(SELECT * FROM window_2h)
-]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(EXPR$0=[1])
-:  +- LogicalAggregate(group=[{0}])
-:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
-:        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-+- LogicalProject(EXPR$0=[1])
-   +- LogicalAggregate(group=[{0}])
-      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[EXPR$0])
-:- Calc(select=[1 AS EXPR$0])
-:  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:     +- Exchange(distribution=[single], reuse_id=[1])
-:        +- Calc(select=[ts])
-:           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
-+- Calc(select=[1 AS EXPR$0])
-   +- SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
-      +- Sort(orderBy=[ts ASC])
-         +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWindowAggregateWithDifferentWindows[aggStrategy=TWO_PHASE]">
-    <Resource name="sql">
-      <![CDATA[
-WITH window_1h AS (
-    SELECT 1
-    FROM MyTable2
-    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
-),
-
-window_2h AS (
-    SELECT 1
-    FROM MyTable2
-    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
-)
-
-(SELECT * FROM window_1h)
-UNION ALL
-(SELECT * FROM window_2h)
-]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(EXPR$0=[1])
-:  +- LogicalAggregate(group=[{0}])
-:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
-:        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-+- LogicalProject(EXPR$0=[1])
-   +- LogicalAggregate(group=[{0}])
-      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[EXPR$0])
-:- Calc(select=[1 AS EXPR$0])
-:  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:     +- Exchange(distribution=[single])
-:        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:           +- Calc(select=[ts], reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
-+- Calc(select=[1 AS EXPR$0])
-   +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
-      +- Exchange(distribution=[single])
-         +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
-            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -471,7 +323,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
-   +- LogicalProject($f0=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
+   +- LogicalProject($f0=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -493,7 +345,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
-   +- LogicalProject($f0=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
+   +- LogicalProject($f0=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -514,7 +366,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[AVG(c) A
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
-   +- LogicalProject($f0=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
+   +- LogicalProject($f0=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -580,7 +432,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
@@ -602,7 +454,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Fina
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
@@ -623,7 +475,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[SUM(
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
@@ -742,7 +594,7 @@ FROM MyTable2
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
@@ -774,7 +626,7 @@ FROM MyTable2
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
@@ -805,7 +657,7 @@ FROM MyTable2
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
@@ -841,7 +693,7 @@ GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       <![CDATA[
 LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
-   +- LogicalProject($f0=[TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[CASE(=($0, 1), 1, 99)])
+   +- LogicalProject($f0=[$TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[CASE(=($0, 1), 1, 99)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -877,7 +729,7 @@ GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       <![CDATA[
 LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
-   +- LogicalProject($f0=[TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[CASE(=($0, 1), 1, 99)])
+   +- LogicalProject($f0=[$TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[CASE(=($0, 1), 1, 99)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -912,7 +764,7 @@ GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       <![CDATA[
 LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
-   +- LogicalProject($f0=[TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[CASE(=($0, 1), 1, 99)])
+   +- LogicalProject($f0=[$TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[CASE(=($0, 1), 1, 99)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -1260,7 +1112,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(a=[$1], $f1=[TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -1283,7 +1135,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(a=[$1], $f1=[TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -1305,7 +1157,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(a=[$1], $f1=[TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -1328,7 +1180,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -1350,7 +1202,7 @@ Calc(select=[EXPR$0, EXPR$1])
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -1371,7 +1223,7 @@ Calc(select=[EXPR$0, EXPR$1])
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -1385,30 +1237,6 @@ Calc(select=[EXPR$0, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=AUTO]">
-    <Resource name="sql">
-      <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(wAvg=[$1])
-+- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final_weightedAvg(wAvg) AS wAvg])
-+- Sort(orderBy=[assignedWindow$ ASC])
-   +- Exchange(distribution=[single])
-      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Partial_weightedAvg(b, a) AS wAvg])
-         +- Sort(orderBy=[ts ASC])
-            +- Calc(select=[ts, b, a])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testTumblingWindowSortAgg1[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
@@ -1417,7 +1245,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(a=[$1], $f1=[TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -1442,7 +1270,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(a=[$1], $f1=[TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -1465,7 +1293,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(a=[$1], $f1=[TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
@@ -1490,7 +1318,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -1512,7 +1340,7 @@ Calc(select=[EXPR$0, EXPR$1])
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -1534,7 +1362,7 @@ Calc(select=[EXPR$0, EXPR$1])
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
@@ -1550,30 +1378,7 @@ Calc(select=[EXPR$0, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWindowEndOnly[aggStrategy=AUTO]">
-    <Resource name="sql">
-      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(EXPR$0=[TUMBLE_END($0)])
-+- LogicalAggregate(group=[{0, 1}])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[w$end AS EXPR$0])
-+- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
-   +- Exchange(distribution=[hash[c]])
-      +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
-         +- Calc(select=[ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=ONE_PHASE]">
+  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
     </Resource>
@@ -1581,51 +1386,7 @@ Calc(select=[w$end AS EXPR$0])
       <![CDATA[
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[weightedAvg(b, a) AS wAvg])
-+- Sort(orderBy=[ts ASC])
-   +- Exchange(distribution=[single])
-      +- Calc(select=[ts, b, a])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWindowEndOnly[aggStrategy=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(EXPR$0=[TUMBLE_END($0)])
-+- LogicalAggregate(group=[{0, 1}])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[w$end AS EXPR$0])
-+- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
-   +- Exchange(distribution=[hash[c]])
-      +- Calc(select=[ts, c])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=TWO_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(wAvg=[$1])
-+- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
@@ -1641,6 +1402,245 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(wAvg=[$1])
++- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[weightedAvg(b, a) AS wAvg])
++- Sort(orderBy=[ts ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[ts, b, a])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(wAvg=[$1])
++- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final_weightedAvg(wAvg) AS wAvg])
++- Sort(orderBy=[assignedWindow$ ASC])
+   +- Exchange(distribution=[single])
+      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Partial_weightedAvg(b, a) AS wAvg])
+         +- Sort(orderBy=[ts ASC])
+            +- Calc(select=[ts, b, a])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregateWithDifferentWindows[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+WITH window_1h AS (
+    SELECT 1
+    FROM MyTable2
+    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+),
+
+window_2h AS (
+    SELECT 1
+    FROM MyTable2
+    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+)
+
+(SELECT * FROM window_1h)
+UNION ALL
+(SELECT * FROM window_2h)
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(EXPR$0=[1])
+:  +- LogicalAggregate(group=[{0}])
+:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
++- LogicalProject(EXPR$0=[1])
+   +- LogicalAggregate(group=[{0}])
+      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[EXPR$0])
+:- Calc(select=[1 AS EXPR$0])
+:  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
+:           +- Calc(select=[ts], reuse_id=[1])
+:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
++- Calc(select=[1 AS EXPR$0])
+   +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
+      +- Exchange(distribution=[single])
+         +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowEndOnly[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_END($0)])
++- LogicalAggregate(group=[{0, 1}])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[w$end AS EXPR$0])
++- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
+         +- Calc(select=[ts, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregateWithDifferentWindows[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+WITH window_1h AS (
+    SELECT 1
+    FROM MyTable2
+    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+),
+
+window_2h AS (
+    SELECT 1
+    FROM MyTable2
+    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+)
+
+(SELECT * FROM window_1h)
+UNION ALL
+(SELECT * FROM window_2h)
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(EXPR$0=[1])
+:  +- LogicalAggregate(group=[{0}])
+:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
++- LogicalProject(EXPR$0=[1])
+   +- LogicalAggregate(group=[{0}])
+      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[EXPR$0])
+:- Calc(select=[1 AS EXPR$0])
+:  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
+:     +- Exchange(distribution=[single], reuse_id=[1])
+:        +- Calc(select=[ts])
+:           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
++- Calc(select=[1 AS EXPR$0])
+   +- SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
+      +- Sort(orderBy=[ts ASC])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowEndOnly[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_END($0)])
++- LogicalAggregate(group=[{0, 1}])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[w$end AS EXPR$0])
++- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[ts, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregateWithDifferentWindows[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+WITH window_1h AS (
+    SELECT 1
+    FROM MyTable2
+    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+),
+
+window_2h AS (
+    SELECT 1
+    FROM MyTable2
+    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+)
+
+(SELECT * FROM window_1h)
+UNION ALL
+(SELECT * FROM window_2h)
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(EXPR$0=[1])
+:  +- LogicalAggregate(group=[{0}])
+:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
++- LogicalProject(EXPR$0=[1])
+   +- LogicalAggregate(group=[{0}])
+      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[EXPR$0])
+:- Calc(select=[1 AS EXPR$0])
+:  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
+:     +- Exchange(distribution=[single])
+:        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
+:           +- Calc(select=[ts], reuse_id=[1])
+:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
++- Calc(select=[1 AS EXPR$0])
+   +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
+      +- Exchange(distribution=[single])
+         +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWindowEndOnly[aggStrategy=TWO_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
@@ -1649,7 +1649,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
-   +- LogicalProject($f0=[TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>

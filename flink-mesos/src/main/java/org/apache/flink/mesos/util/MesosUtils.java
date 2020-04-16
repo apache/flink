@@ -26,7 +26,7 @@ import org.apache.flink.mesos.runtime.clusterframework.MesosConfigKeys;
 import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.HadoopConfOverlay;
@@ -107,15 +107,15 @@ public class MesosUtils {
 	public static MesosTaskManagerParameters createTmParameters(Configuration configuration, Logger log) {
 		// TM configuration
 		final MesosTaskManagerParameters taskManagerParameters = MesosTaskManagerParameters.create(configuration);
-		final TaskExecutorResourceSpec taskExecutorResourceSpec = taskManagerParameters.containeredParameters().getTaskExecutorResourceSpec();
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = taskManagerParameters.containeredParameters().getTaskExecutorProcessSpec();
 
 		log.info("TaskManagers will be created with {} task slots",
 			taskManagerParameters.containeredParameters().numSlots());
 		log.info("TaskManagers will be started with container size {} MB, JVM heap size {} MB, " +
 				"JVM direct memory limit {} MB, {} cpus, {} gpus, disk space {} MB",
-			taskExecutorResourceSpec.getTotalProcessMemorySize().getMebiBytes(),
-			taskExecutorResourceSpec.getJvmHeapMemorySize().getMebiBytes(),
-			taskExecutorResourceSpec.getJvmDirectMemorySize().getMebiBytes(),
+			taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(),
+			taskExecutorProcessSpec.getJvmHeapMemorySize().getMebiBytes(),
+			taskExecutorProcessSpec.getJvmDirectMemorySize().getMebiBytes(),
 			taskManagerParameters.cpus(),
 			taskManagerParameters.gpus(),
 			taskManagerParameters.disk());

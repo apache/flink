@@ -41,72 +41,86 @@ public class LinkedBufferStorageTest {
 
 	private CachedBufferStorage mainStorage;
 
-	private CachedBufferStorage linkedStorage;
+	private CachedBufferStorage linkedStorage1;
+
+	private CachedBufferStorage linkedStorage2;
 
 	private LinkedBufferStorage bufferStorage;
 
 	@Before
 	public void setUp() {
 		mainStorage = new CachedBufferStorage(PAGE_SIZE);
-		linkedStorage = new CachedBufferStorage(PAGE_SIZE);
+		linkedStorage1 = new CachedBufferStorage(PAGE_SIZE);
+		linkedStorage2 = new CachedBufferStorage(PAGE_SIZE);
 		bufferStorage = new LinkedBufferStorage(
 			mainStorage,
-			linkedStorage,
-			700);
+			700,
+			linkedStorage1,
+			linkedStorage2);
 	}
 
 	@After
 	public void tearDown() throws IOException {
 		bufferStorage.close();
 		mainStorage.close();
-		linkedStorage.close();
+		linkedStorage1.close();
+		linkedStorage2.close();
 	}
 
 	@Test
 	public void testBasicUsage() throws IOException {
-		linkedStorage.add(generateRandomBuffer(PAGE_SIZE + 0));
+		linkedStorage1.add(generateRandomBuffer(PAGE_SIZE + 0));
 		assertEquals(PAGE_SIZE, bufferStorage.getPendingBytes());
+		linkedStorage2.add(generateRandomBuffer(PAGE_SIZE + 1));
+		assertEquals(PAGE_SIZE * 2, bufferStorage.getPendingBytes());
+
 		assertTrue(bufferStorage.isEmpty());
 
-		bufferStorage.add(generateRandomBuffer(PAGE_SIZE + 1));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE + 2));
+		bufferStorage.add(generateRandomBuffer(PAGE_SIZE + 3));
 
 		assertTrue(bufferStorage.isEmpty());
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
+		assertPendingBytes();
+		assertRolledBytes();
 
 		assertTrue(bufferStorage.isEmpty());
-		assertTrue(linkedStorage.isEmpty());
+		assertTrue(linkedStorage1.isEmpty());
+		assertTrue(linkedStorage2.isEmpty());
 
 		bufferStorage.rollOver();
 
 		assertFalse(bufferStorage.isEmpty());
-		assertFalse(linkedStorage.isEmpty());
+		assertFalse(linkedStorage1.isEmpty());
+		assertFalse(linkedStorage2.isEmpty());
 
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
+		assertPendingBytes();
+		assertRolledBytes();
 
-		linkedStorage.add(generateRandomBuffer(PAGE_SIZE + 3));
-		bufferStorage.add(generateRandomBuffer(PAGE_SIZE + 4));
+		linkedStorage1.add(generateRandomBuffer(PAGE_SIZE + 4));
+		bufferStorage.add(generateRandomBuffer(PAGE_SIZE + 5));
 
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
+		assertPendingBytes();
+		assertRolledBytes();
 
 		bufferStorage.rollOver();
 
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
+		assertPendingBytes();
+		assertRolledBytes();
 
 		ArrayList<Integer> bufferSizes = drain(bufferStorage);
 
+		assertEquals(PAGE_SIZE + 5, (long) bufferSizes.get(0));
+		assertEquals(PAGE_SIZE + 2, (long) bufferSizes.get(1));
+		assertEquals(PAGE_SIZE + 3, (long) bufferSizes.get(2));
+
+		bufferSizes = drain(linkedStorage1);
+
 		assertEquals(PAGE_SIZE + 4, (long) bufferSizes.get(0));
-		assertEquals(PAGE_SIZE + 1, (long) bufferSizes.get(1));
-		assertEquals(PAGE_SIZE + 2, (long) bufferSizes.get(2));
-
-		bufferSizes = drain(linkedStorage);
-
-		assertEquals(PAGE_SIZE + 3, (long) bufferSizes.get(0));
 		assertEquals(PAGE_SIZE + 0, (long) bufferSizes.get(1));
+
+		bufferSizes = drain(linkedStorage2);
+
+		assertEquals(PAGE_SIZE + 1, (long) bufferSizes.get(0));
 
 		assertEquals(0, bufferStorage.getRolledBytes());
 		assertEquals(0, bufferStorage.getPendingBytes());
@@ -114,8 +128,8 @@ public class LinkedBufferStorageTest {
 
 	@Test
 	public void testPendingIsFull() throws IOException {
-		linkedStorage.add(generateRandomBuffer(PAGE_SIZE));
-		linkedStorage.add(generateRandomBuffer(PAGE_SIZE));
+		linkedStorage1.add(generateRandomBuffer(PAGE_SIZE));
+		linkedStorage1.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
@@ -135,14 +149,14 @@ public class LinkedBufferStorageTest {
 	 */
 	//@Test
 	public void testRolledIsFull() throws IOException {
-		linkedStorage.add(generateRandomBuffer(PAGE_SIZE));
-		linkedStorage.add(generateRandomBuffer(PAGE_SIZE));
+		linkedStorage1.add(generateRandomBuffer(PAGE_SIZE));
+		linkedStorage1.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.rollOver();
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.rollOver();
-		linkedStorage.add(generateRandomBuffer(PAGE_SIZE));
+		linkedStorage1.add(generateRandomBuffer(PAGE_SIZE));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 
 		assertFalse(bufferStorage.isFull());
@@ -150,6 +164,18 @@ public class LinkedBufferStorageTest {
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 
 		assertTrue(bufferStorage.isFull());
+	}
+
+	private void assertPendingBytes() {
+		assertEquals(
+			mainStorage.getPendingBytes() + linkedStorage1.getPendingBytes() + linkedStorage2.getPendingBytes(),
+			bufferStorage.getPendingBytes());
+	}
+
+	private void assertRolledBytes() {
+		assertEquals(
+			mainStorage.getRolledBytes() + linkedStorage1.getRolledBytes() + linkedStorage2.getRolledBytes(),
+			bufferStorage.getRolledBytes());
 	}
 
 	private ArrayList<Integer> drain(BufferStorage bufferStorage) throws IOException {

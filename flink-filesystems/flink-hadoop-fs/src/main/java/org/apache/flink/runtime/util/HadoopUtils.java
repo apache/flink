@@ -112,6 +112,23 @@ public class HadoopUtils {
 		return result;
 	}
 
+	public static boolean isCredentialsConfigured(UserGroupInformation ugi, boolean useTicketCache) throws Exception {
+		if (UserGroupInformation.isSecurityEnabled()) {
+			if (useTicketCache && !ugi.hasKerberosCredentials()) {
+				// a delegation token is an adequate substitute in most cases
+				if (!HadoopUtils.hasHDFSDelegationToken()) {
+					LOG.error("Hadoop security is enabled, but current login user has neither Kerberos credentials " +
+						"nor delegation tokens!");
+					return false;
+				} else {
+					LOG.warn("Hadoop security is enabled but current login user does not have Kerberos credentials, " +
+						"use delegation token instead. Flink application will terminate after token expires.");
+				}
+			}
+		}
+		return true;
+	}
+
 	/**
 	 * Indicates whether the current user has an HDFS delegation token.
 	 */

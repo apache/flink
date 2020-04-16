@@ -22,19 +22,19 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.operators.windowing.TriggerTestHarness
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.runtime.harness.HarnessTestBase.TestStreamQueryConfig
+import org.apache.flink.table.runtime.harness.HarnessTestBase.TestTableConfig
 import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class StateCleaningCountTriggerHarnessTest {
-  protected var queryConfig =
-    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
+  protected var config = new TestTableConfig
+  config.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testFiringAndFiringWithPurging(): Unit = {
     val testHarness = new TriggerTestHarness[Any, GlobalWindow](
-      StateCleaningCountTrigger.of(queryConfig, 10), new GlobalWindow.Serializer)
+      StateCleaningCountTrigger.of(config, 10), new GlobalWindow.Serializer)
 
     // try to trigger onProcessingTime method via 1, but there is non timer is triggered
     assertEquals(0, testHarness.advanceProcessingTime(1).size())
@@ -130,7 +130,7 @@ class StateCleaningCountTriggerHarnessTest {
   @Test
   def testClear() {
     val testHarness = new TriggerTestHarness[Any, GlobalWindow](
-      StateCleaningCountTrigger.of(queryConfig, 3),
+      StateCleaningCountTrigger.of(config, 3),
       new GlobalWindow.Serializer)
     assertEquals(
       TriggerResult.CONTINUE,

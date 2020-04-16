@@ -16,13 +16,14 @@
 # limitations under the License.
 ################################################################################
 import os
+import sys
 import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class, get_method
 
-from pyflink.common.dependency_manager import DependencyManager
+from pyflink.common import JobExecutionResult
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.table_config import TableConfig
@@ -33,6 +34,7 @@ from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter
 from pyflink.util import utils
+from pyflink.util.utils import get_j_env_configuration, is_local_deployment
 
 __all__ = [
     'BatchTableEnvironment',
@@ -75,13 +77,24 @@ class TableEnvironment(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, j_tenv, is_blink_planner, serializer=PickleSerializer()):
+    def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
-        self._is_blink_planner = is_blink_planner
+        self._is_blink_planner = TableEnvironment._judge_blink_planner(j_tenv)
         self._serializer = serializer
-        self._dependency_manager = DependencyManager(self.get_config().get_configuration(),
-                                                     self._get_j_env())
-        self._dependency_manager.load_from_env(os.environ)
+        # When running in MiniCluster, launch the Python UDF worker using the Python executable
+        # specified by sys.executable if users have not specified it explicitly via configuration
+        # python.executable.
+        self._set_python_executable_for_local_executor()
+
+    @staticmethod
+    def _judge_blink_planner(j_tenv):
+        if "getPlanner" not in dir(j_tenv):
+            return False
+        else:
+            j_planner_class = j_tenv.getPlanner().getClass()
+            j_blink_planner_class = get_java_class(
+                get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
+            return j_blink_planner_class.isAssignableFrom(j_planner_class)
 
     def from_table_source(self, table_source):
         """
@@ -269,6 +282,7 @@ class TableEnvironment(object):
 
         .. seealso:: :func:`use_catalog`
         .. seealso:: :func:`use_database`
+        .. versionadded:: 1.10.0
         """
         return Table(get_method(self._j_tenv, "from")(path))
 
@@ -288,8 +302,12 @@ class TableEnvironment(object):
         :param target_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                             the :class:`~pyflink.table.Table` is written.
         :type target_path: str
-        :param table: table The Table to write to the sink.
+        :param table: The Table to write to the sink.
         :type table: pyflink.table.Table
+
+        .. versionchanged:: 1.10.0
+            The signature is changed, e.g. the parameter *table_path_continued* was removed and
+            the parameter *target_path* is moved before the parameter *table*.
         """
         self._j_tenv.insertInto(target_path, table._j_table)
 
@@ -309,6 +327,8 @@ class TableEnvironment(object):
 
         :return: List of module names.
         :rtype: list[str]
+
+        .. versionadded:: 1.10.0
         """
         j_module_name_array = self._j_tenv.listModules()
         return [item for item in j_module_name_array]
@@ -349,6 +369,8 @@ class TableEnvironment(object):
 
         :return: List of the names of all functions in this environment.
         :rtype: list[str]
+
+        .. versionadded:: 1.10.0
         """
         j_function_name_array = self._j_tenv.listFunctions()
         return [item for item in j_function_name_array]
@@ -363,6 +385,7 @@ class TableEnvironment(object):
         :rtype: list[str]
 
         .. seealso:: :func:`list_tables`
+        .. versionadded:: 1.10.0
         """
         j_table_name_array = self._j_tenv.listTemporaryTables()
         return [item for item in j_table_name_array]
@@ -377,6 +400,7 @@ class TableEnvironment(object):
         :rtype: list[str]
 
         .. seealso:: :func:`list_tables`
+        .. versionadded:: 1.10.0
         """
         j_view_name_array = self._j_tenv.listTemporaryViews()
         return [item for item in j_view_name_array]
@@ -392,6 +416,8 @@ class TableEnvironment(object):
         :type table_path: str
         :return: True if a table existed in the given path and was removed.
         :rtype: bool
+
+        .. versionadded:: 1.10.0
         """
         return self._j_tenv.dropTemporaryTable(table_path)
 
@@ -404,6 +430,8 @@ class TableEnvironment(object):
 
         :return: True if a view existed in the given path and was removed.
         :rtype: bool
+
+        .. versionadded:: 1.10.0
         """
         return self._j_tenv.dropTemporaryView(view_path)
 
@@ -497,7 +525,6 @@ class TableEnvironment(object):
             ...     'connector.type' = 'kafka',
             ...     'update-mode' = 'append',
             ...     'connector.topic' = 'xxx',
-            ...     'connector.properties.zookeeper.connect' = 'localhost:2181',
             ...     'connector.properties.bootstrap.servers' = 'localhost:9092'
             ... )
             ... '''
@@ -660,14 +687,14 @@ class TableEnvironment(object):
     @abstractmethod
     def connect(self, connector_descriptor):
         """
-        Creates a table source and/or table sink from a descriptor.
+        Creates a temporary table from a descriptor.
 
         Descriptors allow for declaring the communication to external systems in an
         implementation-agnostic way. The classpath is scanned for suitable table factories that
         match the desired configuration.
 
         The following example shows how to read from a connector using a JSON format and
-        registering a table source as "MyTable":
+        registering a temporary table as "MyTable":
 
         Example:
         ::
@@ -682,12 +709,12 @@ class TableEnvironment(object):
             ...                  .field("user-name", "VARCHAR")
             ...                  .from_origin_field("u_name")
             ...                  .field("count", "DECIMAL")) \\
-            ...     .register_table_source("MyTable")
+            ...     .create_temporary_table("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
         :return: A :class:`~pyflink.table.descriptors.ConnectTableDescriptor` used to build the
-                 table source/sink.
+                 temporary table.
         :rtype: pyflink.table.descriptors.ConnectTableDescriptor
         """
         pass
@@ -742,11 +769,10 @@ class TableEnvironment(object):
         :type name: str
         :param function: The python user-defined function to register.
         :type function: pyflink.table.udf.UserDefinedFunctionWrapper
+
+        .. versionadded:: 1.10.0
         """
-        if not self._is_blink_planner and isinstance(self, BatchTableEnvironment):
-            raise Exception("Python UDF is not supported in old planner under batch mode!")
-        self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
-                                                           self.get_config()._j_table_config))
+        self._j_tenv.registerFunction(name, function.java_user_defined_function())
 
     def create_temporary_view(self, view_path, table):
         """
@@ -763,6 +789,8 @@ class TableEnvironment(object):
         :type view_path: str
         :param table: The view to register.
         :type table: pyflink.table.Table
+
+        .. versionadded:: 1.10.0
         """
         self._j_tenv.createTemporaryView(view_path, table._j_table)
 
@@ -774,8 +802,18 @@ class TableEnvironment(object):
 
         :param file_path: The path of the python dependency.
         :type file_path: str
+
+        .. versionadded:: 1.10.0
         """
-        self._dependency_manager.add_python_file(file_path)
+        jvm = get_gateway().jvm
+        python_files = self.get_config().get_configuration().get_string(
+            jvm.PythonOptions.PYTHON_FILES.key(), None)
+        if python_files is not None:
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([python_files, file_path])
+        else:
+            python_files = file_path
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
     def set_python_requirements(self, requirements_file_path, requirements_cache_dir=None):
         """
@@ -810,9 +848,16 @@ class TableEnvironment(object):
         :param requirements_cache_dir: The path of the local directory which contains the
                                        installation packages.
         :type requirements_cache_dir: str
+
+        .. versionadded:: 1.10.0
         """
-        self._dependency_manager.set_python_requirements(requirements_file_path,
-                                                         requirements_cache_dir)
+        jvm = get_gateway().jvm
+        python_requirements = requirements_file_path
+        if requirements_cache_dir is not None:
+            python_requirements = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
+                [python_requirements, requirements_cache_dir])
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
     def add_python_archive(self, archive_path, target_dir=None):
         """
@@ -864,8 +909,22 @@ class TableEnvironment(object):
         :type archive_path: str
         :param target_dir: Optional, the target dir name that the archive file extracted to.
         :type target_dir: str
+
+        .. versionadded:: 1.10.0
         """
-        self._dependency_manager.add_python_archive(archive_path, target_dir)
+        jvm = get_gateway().jvm
+        if target_dir is not None:
+            archive_path = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
+                [archive_path, target_dir])
+        python_archives = self.get_config().get_configuration().get_string(
+            jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
+        if python_archives is not None:
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join(
+                [python_archives, archive_path])
+        else:
+            python_files = archive_path
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
 
     def execute(self, job_name):
         """
@@ -886,8 +945,9 @@ class TableEnvironment(object):
 
         :param job_name: Desired name of the job.
         :type job_name: str
+        :return: The result of the job execution, containing elapsed time and accumulators.
         """
-        self._j_tenv.execute(job_name)
+        return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements, schema=None, verify_schema=True):
         """
@@ -1028,6 +1088,13 @@ class TableEnvironment(object):
         finally:
             os.unlink(temp_file.name)
 
+    def _set_python_executable_for_local_executor(self):
+        jvm = get_gateway().jvm
+        j_config = get_j_env_configuration(self)
+        if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
+                and is_local_deployment(j_config):
+            j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
+
     @abstractmethod
     def _get_j_env(self):
         pass
@@ -1035,9 +1102,9 @@ class TableEnvironment(object):
 
 class StreamTableEnvironment(TableEnvironment):
 
-    def __init__(self, j_tenv, is_blink_planner):
+    def __init__(self, j_tenv):
         self._j_tenv = j_tenv
-        super(StreamTableEnvironment, self).__init__(j_tenv, is_blink_planner)
+        super(StreamTableEnvironment, self).__init__(j_tenv)
 
     def _get_j_env(self):
         return self._j_tenv.execEnv()
@@ -1055,14 +1122,14 @@ class StreamTableEnvironment(TableEnvironment):
 
     def connect(self, connector_descriptor):
         """
-        Creates a table source and/or table sink from a descriptor.
+        Creates a temporary table from a descriptor.
 
         Descriptors allow for declaring the communication to external systems in an
         implementation-agnostic way. The classpath is scanned for suitable table factories that
         match the desired configuration.
 
         The following example shows how to read from a connector using a JSON format and
-        registering a table source as "MyTable":
+        registering a temporary table as "MyTable":
         ::
 
             >>> table_env \\
@@ -1075,12 +1142,12 @@ class StreamTableEnvironment(TableEnvironment):
             ...                  .field("user-name", "VARCHAR")
             ...                  .from_origin_field("u_name")
             ...                  .field("count", "DECIMAL")) \\
-            ...     .register_table_source("MyTable")
+            ...     .create_temporary_table("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
-        :return: A :class:`~pyflink.table.descriptors.StreamTableDescriptor` used to build the table
-                 source/sink.
+        :return: A :class:`~pyflink.table.descriptors.StreamTableDescriptor` used to build the
+                 temporary table.
         :rtype: pyflink.table.descriptors.StreamTableDescriptor
         """
         return StreamTableDescriptor(
@@ -1142,18 +1209,14 @@ class StreamTableEnvironment(TableEnvironment):
         else:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment)
-        j_planner_class = j_tenv.getPlanner().getClass()
-        j_blink_planner_class = get_java_class(
-            get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
-        is_blink_planner = j_blink_planner_class.isAssignableFrom(j_planner_class)
-        return StreamTableEnvironment(j_tenv, is_blink_planner)
+        return StreamTableEnvironment(j_tenv)
 
 
 class BatchTableEnvironment(TableEnvironment):
 
-    def __init__(self, j_tenv, is_blink_planner):
+    def __init__(self, j_tenv):
         self._j_tenv = j_tenv
-        super(BatchTableEnvironment, self).__init__(j_tenv, is_blink_planner)
+        super(BatchTableEnvironment, self).__init__(j_tenv)
 
     def _get_j_env(self):
         if self._is_blink_planner:
@@ -1174,14 +1237,14 @@ class BatchTableEnvironment(TableEnvironment):
 
     def connect(self, connector_descriptor):
         """
-        Creates a table source and/or table sink from a descriptor.
+        Creates a temporary table from a descriptor.
 
         Descriptors allow for declaring the communication to external systems in an
         implementation-agnostic way. The classpath is scanned for suitable table factories that
         match the desired configuration.
 
         The following example shows how to read from a connector using a JSON format and
-        registering a table source as "MyTable":
+        registering a temporary table as "MyTable":
         ::
 
             >>> table_env \\
@@ -1194,13 +1257,13 @@ class BatchTableEnvironment(TableEnvironment):
             ...                  .field("user-name", "VARCHAR")
             ...                  .from_origin_field("u_name")
             ...                  .field("count", "DECIMAL")) \\
-            ...     .register_table_source("MyTable")
+            ...     .create_temporary_table("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
         :return: A :class:`~pyflink.table.descriptors.BatchTableDescriptor` or a
                  :class:`~pyflink.table.descriptors.StreamTableDescriptor` (for blink planner) used
-                 to build the table source/sink.
+                 to build the temporary table.
         :rtype: pyflink.table.descriptors.BatchTableDescriptor or
                 pyflink.table.descriptors.StreamTableDescriptor
         """
@@ -1275,7 +1338,7 @@ class BatchTableEnvironment(TableEnvironment):
             else:
                 j_tenv = gateway.jvm.BatchTableEnvironment.create(
                     execution_environment._j_execution_environment)
-            return BatchTableEnvironment(j_tenv, False)
+            return BatchTableEnvironment(j_tenv)
         elif environment_settings is not None and \
                 execution_environment is None and \
                 table_config is None:
@@ -1284,8 +1347,4 @@ class BatchTableEnvironment(TableEnvironment):
                                  "set to batch mode.")
             j_tenv = gateway.jvm.TableEnvironment.create(
                 environment_settings._j_environment_settings)
-            j_planner_class = j_tenv.getPlanner().getClass()
-            j_blink_planner_class = get_java_class(
-                get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
-            is_blink_planner = j_blink_planner_class.isAssignableFrom(j_planner_class)
-            return BatchTableEnvironment(j_tenv, is_blink_planner)
+            return BatchTableEnvironment(j_tenv)

@@ -12,7 +12,7 @@
             <td><h5>taskmanager.memory.flink.size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
-            <td>Total Flink Memory size for the TaskExecutors. This includes all the memory that a TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory, Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Network Memory.</td>
+            <td>Total Flink Memory size for the TaskExecutors. This includes all the memory that a TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory, Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Network Memory. See also 'taskmanager.memory.process.size' for total process memory size configuration.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.framework.heap.size</h5></td>
@@ -28,7 +28,7 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.jvm-metaspace.size</h5></td>
-            <td style="word-wrap: break-word;">96 mb</td>
+            <td style="word-wrap: break-word;">256 mb</td>
             <td>MemorySize</td>
             <td>JVM Metaspace Size for the TaskExecutors.</td>
         </tr>
@@ -84,7 +84,7 @@
             <td><h5>taskmanager.memory.process.size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
-            <td>Total Process Memory size for the TaskExecutors. This includes all the memory that a TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On containerized setups, this should be set to the container memory.</td>
+            <td>Total Process Memory size for the TaskExecutors. This includes all the memory that a TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On containerized setups, this should be set to the container memory. See also 'taskmanager.memory.flink.size' for total Flink memory size configuration.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.segment-size</h5></td>

@@ -63,16 +63,6 @@ class StreamExecDataStreamScan(
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
-  def isAccRetract: Boolean = dataStreamTable.isAccRetract
-
-  override def producesUpdates: Boolean = dataStreamTable.producesUpdates
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = producesUpdates && isAccRetract
-
   override def requireWatermark: Boolean = false
 
   override def deriveRowType(): RelDataType = outputRowType

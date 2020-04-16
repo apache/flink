@@ -191,8 +191,13 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 	//  Helper methods.
 	// ------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	public static <T extends StateObject> StateObjectCollection<T> empty() {
 		return (StateObjectCollection<T>) EMPTY;
+	}
+
+	public static <T extends StateObject> StateObjectCollection<T> emptyIfNull(StateObjectCollection<T> collection) {
+		return collection == null ? empty() : collection;
 	}
 
 	public static <T extends StateObject> StateObjectCollection<T> singleton(T stateObject) {

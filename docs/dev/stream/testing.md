@@ -578,7 +578,7 @@ A few remarks on integration testing with `MiniClusterWithClientResource`:
 Communicating with operators instantiated by a local Flink mini cluster via static variables is one way around this issue.
 Alternatively, you could write the data to files in a temporary directory with your test sink.
 
-* You can implement a custom *parallel* source function for emitting watermarks if your job uses event timer timers.
+* You can implement a custom *parallel* source function for emitting watermarks if your job uses event time timers.
 
 * It is recommended to always test your pipelines locally with a parallelism > 1 to identify bugs which only surface for the pipelines executed in parallel.
 

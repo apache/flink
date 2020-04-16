@@ -24,6 +24,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.concurrent.Future;
 
@@ -134,7 +138,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return The environment of this task.
 	 */
-	public Environment getEnvironment() {
+	public final Environment getEnvironment() {
 		return this.environment;
 	}
 
@@ -143,7 +147,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return user code class loader of this invokable.
 	 */
-	public ClassLoader getUserCodeClassLoader() {
+	public final ClassLoader getUserCodeClassLoader() {
 		return getEnvironment().getUserClassLoader();
 	}
 
@@ -170,7 +174,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}
 	 */
-	public Configuration getTaskConfiguration() {
+	public final Configuration getTaskConfiguration() {
 		return this.environment.getTaskConfiguration();
 	}
 
@@ -255,5 +259,9 @@ public abstract class AbstractInvokable {
 	 */
 	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 		throw new UnsupportedOperationException(String.format("notifyCheckpointCompleteAsync not supported by %s", this.getClass().getName()));
+	}
+
+	public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event) throws FlinkException {
+		throw new UnsupportedOperationException("dispatchOperatorEvent not supported by " + getClass().getName());
 	}
 }

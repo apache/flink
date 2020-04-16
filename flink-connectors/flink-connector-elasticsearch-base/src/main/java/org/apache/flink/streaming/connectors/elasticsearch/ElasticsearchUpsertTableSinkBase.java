@@ -192,11 +192,6 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-		consumeDataStream(dataStream);
-	}
-
-	@Override
 	public TypeInformation<Tuple2<Boolean, Row>> getOutputType() {
 		return Types.TUPLE(Types.BOOLEAN, getRecordType());
 	}
