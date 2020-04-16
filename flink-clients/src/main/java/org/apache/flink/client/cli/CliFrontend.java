@@ -29,6 +29,8 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
+import org.apache.flink.client.deployment.application.cli.ApplicationClusterDeployer;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
@@ -89,6 +91,7 @@ public class CliFrontend {
 
 	// actions
 	private static final String ACTION_RUN = "run";
+	private static final String ACTION_RUN_APPLICATION = "run-application";
 	private static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
@@ -165,6 +168,41 @@ public class CliFrontend {
 	//  Execute Actions
 	// --------------------------------------------------------------------------------------------
 
+	protected void runApplication(String[] args) throws Exception {
+		LOG.info("Running 'run-application' command.");
+
+		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
+		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
+
+		final ProgramOptions programOptions = new ProgramOptions(commandLine);
+
+		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
+			CliFrontendParser.printHelpForRun(customCommandLines);
+			return;
+		}
+
+		final ApplicationDeployer deployer =
+				new ApplicationClusterDeployer(clusterClientServiceLoader);
+
+		final PackagedProgram program =
+				getPackagedProgram(programOptions);
+
+		final ApplicationConfiguration applicationConfiguration =
+				new ApplicationConfiguration(program.getArguments(), program.getMainClassName());
+
+		try {
+			final List<URL> jobJars = program.getJobJarAndDependencies();
+			final Configuration effectiveConfiguration =
+					getEffectiveConfiguration(commandLine, programOptions, jobJars);
+
+			LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+
+			deployer.run(effectiveConfiguration, applicationConfiguration);
+		} finally {
+			program.deleteExtractedLibraries();
+		}
+	}
+
 	/**
 	 * Executions the run action.
 	 *
@@ -184,14 +222,8 @@ public class CliFrontend {
 			return;
 		}
 
-		final PackagedProgram program;
-		try {
-			LOG.info("Building program from JAR file");
-			program = buildProgram(programOptions);
-		}
-		catch (FileNotFoundException e) {
-			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
-		}
+		final PackagedProgram program =
+				getPackagedProgram(programOptions);
 
 		final List<URL> jobJars = program.getJobJarAndDependencies();
 		final Configuration effectiveConfiguration =
@@ -204,6 +236,17 @@ public class CliFrontend {
 		} finally {
 			program.deleteExtractedLibraries();
 		}
+	}
+
+	private PackagedProgram getPackagedProgram(ProgramOptions programOptions) throws ProgramInvocationException, CliArgsException {
+		PackagedProgram program;
+		try {
+			LOG.info("Building program from JAR file");
+			program = buildProgram(programOptions);
+		} catch (FileNotFoundException e) {
+			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
+		}
+		return program;
 	}
 
 	private Configuration getEffectiveConfiguration(
@@ -866,6 +909,9 @@ public class CliFrontend {
 			switch (action) {
 				case ACTION_RUN:
 					run(params);
+					return 0;
+				case ACTION_RUN_APPLICATION:
+					runApplication(params);
 					return 0;
 				case ACTION_LIST:
 					list(params);
