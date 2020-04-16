@@ -43,6 +43,6 @@ public interface JDBCRowConverter extends Serializable {
 	 */
 	@FunctionalInterface
 	interface JDBCFieldConverter extends Serializable {
-		Object convert(Object value);
+		Object convert(Object value) throws SQLException;
 	}
 }
