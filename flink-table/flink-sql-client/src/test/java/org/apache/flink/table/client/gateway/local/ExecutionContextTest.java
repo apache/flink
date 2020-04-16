@@ -68,7 +68,7 @@ public class ExecutionContextTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 	private static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
-	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
+	public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 	private static final String CONFIGURATION_ENVIRONMENT_FILE = "test-sql-client-configuration.yaml";
 
@@ -148,6 +148,8 @@ public class ExecutionContextTest {
 			),
 			allCatalogs
 		);
+
+		closeCatalogs(tableEnv);
 	}
 
 	@Test
@@ -179,6 +181,8 @@ public class ExecutionContextTest {
 		tableEnv.useDatabase(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
 
 		assertEquals(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, tableEnv.getCurrentDatabase());
+
+		closeCatalogs(tableEnv);
 	}
 
 	@Test
@@ -333,6 +337,10 @@ public class ExecutionContextTest {
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 		return createExecutionContext(CATALOGS_ENVIRONMENT_FILE, replaceVars);
+	}
+
+	private static void closeCatalogs(TableEnvironment tableEnv) {
+		Arrays.stream(tableEnv.listCatalogs()).forEach(catName -> tableEnv.getCatalog(catName).ifPresent(Catalog::close));
 	}
 
 	private <T> ExecutionContext<T> createStreamingExecutionContext() throws Exception {
