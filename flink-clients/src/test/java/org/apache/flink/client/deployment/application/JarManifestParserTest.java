@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint;
+package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.container.entrypoint.JarManifestParser.JarFileWithEntryClass;
+import org.apache.flink.client.testjar.TestJob;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
@@ -124,7 +124,7 @@ public class JarManifestParserTest extends TestLogger {
 	public void testFindOnlyEntryClassSingleJar() throws IOException {
 		File jarFile = TestJob.getTestJobJar();
 
-		JarFileWithEntryClass jarFileWithEntryClass = JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarFile));
+		JarManifestParser.JarFileWithEntryClass jarFileWithEntryClass = JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarFile));
 
 		assertThat(jarFileWithEntryClass.getEntryClass(), is(equalTo(TestJob.class.getCanonicalName())));
 	}
@@ -141,7 +141,7 @@ public class JarManifestParserTest extends TestLogger {
 		File jarWithNoManifest = createJarFileWithManifest(ImmutableMap.of());
 		File jarFile = TestJob.getTestJobJar();
 
-		JarFileWithEntryClass jarFileWithEntryClass = JarManifestParser
+		JarManifestParser.JarFileWithEntryClass jarFileWithEntryClass = JarManifestParser
 			.findOnlyEntryClass(ImmutableList.of(jarWithNoManifest, jarFile));
 
 		assertThat(jarFileWithEntryClass.getEntryClass(), is(equalTo(TestJob.class.getCanonicalName())));

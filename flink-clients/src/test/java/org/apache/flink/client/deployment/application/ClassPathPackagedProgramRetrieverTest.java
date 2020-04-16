@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint;
+package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
@@ -24,13 +24,13 @@ import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.testjar.TestJob;
+import org.apache.flink.client.testjar.TestJobInfo;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
-import org.apache.flink.container.entrypoint.ClassPathPackagedProgramRetriever.JarsOnClassPath;
-import org.apache.flink.container.entrypoint.testjar.TestJobInfo;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.ExceptionUtils;
@@ -202,7 +202,7 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
 
 	@Test
 	public void testJarFromClassPathSupplierSanityCheck() {
-		Iterable<File> jarFiles = JarsOnClassPath.INSTANCE.get();
+		Iterable<File> jarFiles = ClassPathPackagedProgramRetriever.JarsOnClassPath.INSTANCE.get();
 
 		// Junit executes this test, so it should be returned as part of JARs on the class path
 		assertThat(jarFiles, hasItem(hasProperty("name", containsString("junit"))));
@@ -312,18 +312,18 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
 	}
 
 	private static String javaClassPath(String... entries) {
-		String pathSeparator = System.getProperty(JarsOnClassPath.PATH_SEPARATOR);
+		String pathSeparator = System.getProperty(ClassPathPackagedProgramRetriever.JarsOnClassPath.PATH_SEPARATOR);
 		return String.join(pathSeparator, entries);
 	}
 
 	private static Iterable<File> setClassPathAndGetJarsOnClassPath(String classPath) {
-		final String originalClassPath = System.getProperty(JarsOnClassPath.JAVA_CLASS_PATH);
+		final String originalClassPath = System.getProperty(ClassPathPackagedProgramRetriever.JarsOnClassPath.JAVA_CLASS_PATH);
 		try {
-			System.setProperty(JarsOnClassPath.JAVA_CLASS_PATH, classPath);
-			return JarsOnClassPath.INSTANCE.get();
+			System.setProperty(ClassPathPackagedProgramRetriever.JarsOnClassPath.JAVA_CLASS_PATH, classPath);
+			return ClassPathPackagedProgramRetriever.JarsOnClassPath.INSTANCE.get();
 		} finally {
 			// Reset property
-			System.setProperty(JarsOnClassPath.JAVA_CLASS_PATH, originalClassPath);
+			System.setProperty(ClassPathPackagedProgramRetriever.JarsOnClassPath.JAVA_CLASS_PATH, originalClassPath);
 		}
 	}
 }
