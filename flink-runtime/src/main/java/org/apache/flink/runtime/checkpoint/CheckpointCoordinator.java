@@ -1370,7 +1370,6 @@ public class CheckpointCoordinator {
 		return this.pendingCheckpoints.size();
 	}
 
-	@VisibleForTesting
 	public int getNumberOfRetainedSuccessfulCheckpoints() {
 		synchronized (lock) {
 			return completedCheckpointStore.getNumberOfRetainedCheckpoints();
@@ -1383,7 +1382,6 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	@VisibleForTesting
 	public List<CompletedCheckpoint> getSuccessfulCheckpoints() throws Exception {
 		synchronized (lock) {
 			return completedCheckpointStore.getAllCheckpoints();
@@ -1394,7 +1392,6 @@ public class CheckpointCoordinator {
 		return checkpointStorage;
 	}
 
-	@VisibleForTesting
 	public CompletedCheckpointStore getCheckpointStore() {
 		return completedCheckpointStore;
 	}
