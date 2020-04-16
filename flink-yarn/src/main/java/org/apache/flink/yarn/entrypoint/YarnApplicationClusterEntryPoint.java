@@ -20,8 +20,8 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.deployment.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -31,16 +31,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
-import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -59,52 +51,21 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * {@link ClusterEntrypoint} whose lifecycle is bound to a specific application,
- * and runs the main method of the application on the cluster -- Application Mode.
- *
- * <p>NOTE TO SELF: We have to create a base ApplicationClusterEntryPoint as soon as
- * we are sure about the correctness of the abstractions. This class shares a lot
- * of code with the StandaloneJobClusterEntryPoint.
+ * An {@link ApplicationClusterEntryPoint} for Yarn.
  */
 @Internal
-public class YarnApplicationClusterEntryPoint extends ClusterEntrypoint {
+public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEntryPoint {
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
-	private final PackagedProgram program;
-
-	public YarnApplicationClusterEntryPoint(
+	private YarnApplicationClusterEntryPoint(
 			final Configuration configuration,
 			final PackagedProgram program) {
-		super(configuration);
-		this.program = checkNotNull(program);
+		super(configuration, program, YarnResourceManagerFactory.getInstance());
 	}
-
-	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(final Configuration configuration) {
-		return new DefaultDispatcherResourceManagerComponentFactory(
-				new DefaultDispatcherRunnerFactory(
-						ApplicationDispatcherLeaderProcessFactoryFactory
-								.create(configuration, SessionDispatcherFactory.INSTANCE, program)),
-				YarnResourceManagerFactory.getInstance(),
-				JobRestEndpointFactory.INSTANCE);
-	}
-
-	@Override
-	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
-			final Configuration configuration,
-			final ScheduledExecutor scheduledExecutor) {
-		return new MemoryArchivedExecutionGraphStore();
-	}
-
-	// ------------------------------------------------------------------------
-	//  The executable entry point for the Yarn Application Master Process
-	//  for a single Flink Application.
-	// ------------------------------------------------------------------------
 
 	public static void main(final String[] args) {
 		// startup checks and logging
@@ -127,11 +88,10 @@ public class YarnApplicationClusterEntryPoint extends ClusterEntrypoint {
 		}
 
 		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
-		final ApplicationConfiguration applicationConfiguration = ApplicationConfiguration.fromConfiguration(configuration);
 
 		PackagedProgram program = null;
 		try {
-			program = getPackagedProgram(configuration, applicationConfiguration);
+			program = getPackagedProgram(configuration);
 		} catch (Exception e) {
 			LOG.error("Could not create application program.", e);
 			System.exit(1);
@@ -150,9 +110,11 @@ public class YarnApplicationClusterEntryPoint extends ClusterEntrypoint {
 		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
 	}
 
-	private static PackagedProgram getPackagedProgram(
-			final Configuration configuration,
-			final ApplicationConfiguration applicationConfiguration) throws IOException, FlinkException {
+	private static PackagedProgram getPackagedProgram(final Configuration configuration) throws IOException, FlinkException {
+
+		final ApplicationConfiguration applicationConfiguration =
+				ApplicationConfiguration.fromConfiguration(configuration);
+
 		final PackagedProgramRetriever programRetriever = getPackagedProgramRetriever(
 				configuration,
 				applicationConfiguration.getProgramArguments(),
