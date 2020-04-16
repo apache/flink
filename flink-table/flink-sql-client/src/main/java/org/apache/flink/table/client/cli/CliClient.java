@@ -83,7 +83,7 @@ public class CliClient {
 	 * afterwards using {@link #close()}.
 	 */
 	@VisibleForTesting
-	public CliClient(Terminal terminal, String sessionId, Executor executor) {
+	public CliClient(Terminal terminal, String sessionId, Executor executor, Path historyFilePath) {
 		this.terminal = terminal;
 		this.sessionId = sessionId;
 		this.executor = executor;
@@ -106,6 +106,18 @@ public class CliClient {
 		lineReader.setVariable(LineReader.ERRORS, 1);
 		// perform code completion case insensitive
 		lineReader.option(LineReader.Option.CASE_INSENSITIVE, true);
+		// set history file path
+		if (Files.exists(historyFilePath) || CliUtils.createFile(historyFilePath)) {
+			String msg = "Command history file path: " + historyFilePath;
+			// print it in the command line as well as log file
+			System.out.println(msg);
+			LOG.info(msg);
+			lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
+		} else {
+			String msg = "Unable to create history file: " + historyFilePath;
+			System.out.println(msg);
+			LOG.warn(msg);
+		}
 
 		// create prompt
 		prompt = new AttributedStringBuilder()
@@ -120,8 +132,8 @@ public class CliClient {
 	 * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
 	 * afterwards using {@link #close()}.
 	 */
-	public CliClient(String sessionId, Executor executor) {
-		this(createDefaultTerminal(), sessionId, executor);
+	public CliClient(String sessionId, Executor executor, Path historyFilePath) {
+		this(createDefaultTerminal(), sessionId, executor, historyFilePath);
 	}
 
 	public Terminal getTerminal() {

@@ -43,9 +43,12 @@ import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -70,13 +73,13 @@ public class CliClientTest extends TestLogger {
 	private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
 
 	@Test
-	public void testUpdateSubmission() {
+	public void testUpdateSubmission() throws Exception {
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, false, false);
 		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, false, false);
 	}
 
 	@Test
-	public void testFailedUpdateSubmission() {
+	public void testFailedUpdateSubmission() throws Exception {
 		// fail at executor
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
 		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, true, true);
@@ -116,7 +119,8 @@ public class CliClientTest extends TestLogger {
 
 		CliClient cliClient = null;
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor);
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
+
 			cliClient.open();
 			assertThat(executor.getNumUseDatabaseCalls(), is(1));
 		} finally {
@@ -146,7 +150,7 @@ public class CliClientTest extends TestLogger {
 		String sessionId = executor.openSession(sessionContext);
 
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor);
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
 			assertThat(executor.getNumUseCatalogCalls(), is(1));
 		} finally {
@@ -156,9 +160,39 @@ public class CliClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testHistoryFile() throws Exception {
+		final SessionContext context = new SessionContext("test-session", new Environment());
+		final MockExecutor mockExecutor = new MockExecutor();
+		String sessionId = mockExecutor.openSession(context);
+
+		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
+		// don't care about the output
+		OutputStream outputStream = new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {
+			}
+		};
+
+		CliClient cliClient = null;
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			Path historyFilePath = File.createTempFile("history", "tmp").toPath();
+			cliClient = new CliClient(terminal, sessionId, mockExecutor, historyFilePath);
+			cliClient.open();
+			List<String> content = Files.readAllLines(historyFilePath);
+			assertEquals(2, content.size());
+			assertTrue(content.get(0).contains("help"));
+			assertTrue(content.get(1).contains("use catalog cat"));
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
-	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) {
+	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) throws Exception {
 		final SessionContext context = new SessionContext("test-session", new Environment());
 
 		final MockExecutor mockExecutor = new MockExecutor();
@@ -167,7 +201,11 @@ public class CliClientTest extends TestLogger {
 
 		CliClient cli = null;
 		try {
-			cli = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, mockExecutor);
+			cli = new CliClient(
+					TerminalUtils.createDummyTerminal(),
+					sessionId,
+					mockExecutor,
+					File.createTempFile("history", "tmp").toPath());
 			if (testFailure) {
 				assertFalse(cli.submitUpdate(statement));
 			} else {
