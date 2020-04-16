@@ -22,6 +22,7 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
@@ -143,11 +144,18 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	}
 
 	@Override
+	public ClusterClientProvider<String> deployApplicationCluster(
+			final ClusterSpecification clusterSpecification,
+			final ApplicationConfiguration applicationConfiguration) {
+		throw new UnsupportedOperationException("Application Mode not supported by Active Kubernetes deployments.");
+	}
+
+	@Override
 	public ClusterClientProvider<String> deployJobCluster(
 			ClusterSpecification clusterSpecification,
 			JobGraph jobGraph,
 			boolean detached) throws ClusterDeploymentException {
-		throw new ClusterDeploymentException("Per job could not be supported now.");
+		throw new ClusterDeploymentException("Per-Job Mode not supported by Active Kubernetes deployments.");
 	}
 
 	private ClusterClientProvider<String> deployClusterInternal(
