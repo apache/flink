@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.functions.Function;
 
 /**
  * A {@code TimestampAssigner} assigns event time timestamps to elements.
@@ -34,7 +33,7 @@ import org.apache.flink.api.common.functions.Function;
  */
 @Public
 @FunctionalInterface
-public interface TimestampAssigner<T> extends Function {
+public interface TimestampAssigner<T> {
 
 	/**
 	 * Assigns a timestamp to an element, in milliseconds since the Epoch. This is independent of

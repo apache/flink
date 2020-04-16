@@ -53,7 +53,7 @@ public class TimestampsAndWatermarksOperator<T>
 	private final WatermarkStrategy<T> watermarkStrategy;
 
 	/** The timestamp assigner. */
-	private final TimestampAssigner<T> timestampAssigner;
+	private transient TimestampAssigner<T> timestampAssigner;
 
 	/** The watermark generator, initialized during runtime. */
 	private transient WatermarkGenerator<T> watermarkGenerator;
@@ -65,10 +65,8 @@ public class TimestampsAndWatermarksOperator<T>
 	private transient long watermarkInterval;
 
 	public TimestampsAndWatermarksOperator(
-			TimestampAssigner<T> timestampAssigner,
 			WatermarkStrategy<T> watermarkStrategy) {
 
-		this.timestampAssigner = checkNotNull(timestampAssigner);
 		this.watermarkStrategy = checkNotNull(watermarkStrategy);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
@@ -77,7 +75,8 @@ public class TimestampsAndWatermarksOperator<T>
 	public void open() throws Exception {
 		super.open();
 
-		watermarkGenerator = watermarkStrategy.createWatermarkGenerator();
+		timestampAssigner = watermarkStrategy.createTimestampAssigner(this::getMetricGroup);
+		watermarkGenerator = watermarkStrategy.createWatermarkGenerator(this::getMetricGroup);
 
 		wmOutput = new WatermarkEmitter(output, getContainingTask().getStreamStatusMaintainer());
 

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.api.common.functions.Function;
+
 /**
  * A {@code TimestampAssigner} assigns event time timestamps to elements.
  * These timestamps are used by all functions that operate on event time,
@@ -31,7 +33,7 @@ package org.apache.flink.streaming.api.functions;
  * @deprecated use {@link org.apache.flink.api.common.eventtime.TimestampAssigner}
  */
 @Deprecated
-public interface TimestampAssigner<T> extends org.apache.flink.api.common.eventtime.TimestampAssigner<T> {
+public interface TimestampAssigner<T> extends org.apache.flink.api.common.eventtime.TimestampAssigner<T>, Function {
 
 	/**
 	 * Assigns a timestamp to an element, in milliseconds since the Epoch.
