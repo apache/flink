@@ -396,9 +396,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {
 		this.jobMasterMainThreadExecutor = jobMasterMainThreadExecutor;
-		if (checkpointCoordinator != null) {
-			checkpointCoordinator.start(this.jobMasterMainThreadExecutor);
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------
