@@ -755,6 +755,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTableWithIfNotExists() {
+		String sql = "CREATE TABLE IF NOT EXISTS tbl1";
+		sql(sql).node(new ValidationMatcher());
+	}
+
+	@Test
 	public void testCreateViewWithEmptyFields() {
 		String sql = "CREATE VIEW v1 AS SELECT 1";
 		sql(sql).node(new ValidationMatcher());

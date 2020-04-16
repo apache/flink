@@ -568,6 +568,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
+    boolean ifNotExists = false;
     SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
     List<SqlNodeList> uniqueKeysList = new ArrayList<SqlNodeList>();
     SqlWatermark watermark = null;
@@ -580,6 +581,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
 }
 {
     <TABLE>
+
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
 
     tableName = CompoundIdentifier()
     [
@@ -612,6 +615,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     {
         return new SqlCreateTable(startPos.plus(getPos()),
                 tableName,
+                ifNotExists,
                 columnList,
                 primaryKeyList,
                 uniqueKeysList,

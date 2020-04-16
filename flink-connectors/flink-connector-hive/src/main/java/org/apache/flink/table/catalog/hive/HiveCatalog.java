@@ -371,16 +371,21 @@ public class HiveCatalog extends AbstractCatalog {
 			throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
 		}
 
-		Table hiveTable = instantiateHiveTable(tablePath, table);
-
-		try {
-			client.createTable(hiveTable);
-		} catch (AlreadyExistsException e) {
+		if (tableExists(tablePath)) {
 			if (!ignoreIfExists) {
-				throw new TableAlreadyExistException(getName(), tablePath, e);
+				throw new TableAlreadyExistException(getName(), tablePath);
 			}
-		} catch (TException e) {
-			throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
+		} else {
+			Table hiveTable = instantiateHiveTable(tablePath, table);
+			try {
+				client.createTable(hiveTable);
+			} catch (AlreadyExistsException e) {
+				if (!ignoreIfExists) {
+					throw new TableAlreadyExistException(getName(), tablePath, e);
+				}
+			} catch (TException e) {
+				throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
+			}
 		}
 	}
 
