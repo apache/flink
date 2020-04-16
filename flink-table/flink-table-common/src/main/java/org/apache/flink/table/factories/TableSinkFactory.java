@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -100,7 +101,10 @@ public interface TableSinkFactory<T> extends TableFactory {
 		ReadableConfig getConfiguration();
 
 		/**
-		 * @return true if input of the sink is bounded, otherwise it is a unbounded input.
+		 * It depends on whether the {@code TableEnvironment} execution mode is batch.
+		 *
+		 * <p>In the future, the new sink interface will infer from input to source.
+		 * See {@link Source#getBoundedness}.
 		 */
 		boolean isBounded();
 	}
