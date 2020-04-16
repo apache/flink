@@ -785,14 +785,14 @@ metrics.reporter.dhhttp.dataCenter: US
 
 ### Slf4j (org.apache.flink.metrics.slf4j.Slf4jReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-slf4j-{{site.version}}.jar` into the `/lib` folder
+In order to use this reporter you must copy `/opt/flink-metrics-slf4j-{{site.version}}.jar` into the `/plugins/slf4j` folder
 of your Flink distribution.
 
 Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporter.slf4j.class: org.apache.flink.metrics.slf4j.Slf4jReporter
+metrics.reporter.slf4j.factory.class: org.apache.flink.metrics.slf4j.Slf4jReporterFactory
 metrics.reporter.slf4j.interval: 60 SECONDS
 
 {% endhighlight %}
