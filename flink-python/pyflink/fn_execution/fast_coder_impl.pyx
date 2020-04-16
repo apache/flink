@@ -488,7 +488,6 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
                 else:
                     self._encode_byte(True)
                     self._encode_field(value_coder_type, value_type, value_coder, value)
-
         elif field_type == MAP:
             # Map
             length = len(item)
@@ -748,7 +747,7 @@ cdef class DecimalCoderImpl(BaseCoder):
         return DECIMAL
 
 cdef class TimestampCoderImpl(BaseCoder):
-    def __cinit__(self, precision):
+    def __init__(self, precision):
         self.is_compact = precision <= 3
 
     cpdef CoderType coder_type(self):
@@ -757,9 +756,9 @@ cdef class TimestampCoderImpl(BaseCoder):
     cpdef TypeName type_name(self):
         return TIMESTAMP
 
-cdef class LocalZonedTimestampCoderImpl(BaseCoder):
-    def __cinit__(self, precision, timezone):
-        self.is_compact = precision <= 3
+cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
+    def __init__(self, precision, timezone):
+        super(LocalZonedTimestampCoderImpl, self).__init__(precision)
         self.timezone = timezone
 
     cpdef CoderType coder_type(self):

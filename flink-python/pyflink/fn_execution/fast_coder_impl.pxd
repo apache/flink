@@ -203,8 +203,7 @@ cdef class DecimalCoderImpl(BaseCoder):
 cdef class TimestampCoderImpl(BaseCoder):
     cdef readonly bint is_compact
 
-cdef class LocalZonedTimestampCoderImpl(BaseCoder):
-    cdef readonly bint is_compact
+cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef readonly object timezone
 
 cdef class ArrayCoderImpl(BaseCoder):
