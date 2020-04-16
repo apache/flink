@@ -1107,7 +1107,10 @@ class StreamTableEnvironment(TableEnvironment):
         super(StreamTableEnvironment, self).__init__(j_tenv)
 
     def _get_j_env(self):
-        return self._j_tenv.execEnv()
+        if self._is_blink_planner:
+            return self._j_tenv.getPlanner().getExecEnv()
+        else:
+            return self._j_tenv.execEnv()
 
     def get_config(self):
         """
@@ -1154,26 +1157,27 @@ class StreamTableEnvironment(TableEnvironment):
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     @staticmethod
-    def create(stream_execution_environment, table_config=None, environment_settings=None):
+    def create(stream_execution_environment=None, table_config=None, environment_settings=None):
         """
-        Creates a :class:`~pyflink.table.TableEnvironment` for a
-        :class:`~pyflink.datastream.StreamExecutionEnvironment`.
+        Creates a :class:`~pyflink.table.StreamTableEnvironment`.
 
         Example:
         ::
 
+            # create with StreamExecutionEnvironment.
             >>> env = StreamExecutionEnvironment.get_execution_environment()
-            # create without optional parameters.
             >>> table_env = StreamTableEnvironment.create(env)
-            # create with TableConfig
+            # create with StreamExecutionEnvironment and TableConfig.
             >>> table_config = TableConfig()
             >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)
-            # create with EnvrionmentSettings
+            # create with StreamExecutionEnvironment and EnvironmentSettings.
             >>> environment_settings = EnvironmentSettings.new_instance().use_blink_planner() \\
             ...     .build()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
+            # create with EnvironmentSettings.
+            >>> table_env = StreamTableEnvironment.create(environment_settings=environment_settings)
 
 
         :param stream_execution_environment: The
@@ -1190,7 +1194,18 @@ class StreamTableEnvironment(TableEnvironment):
                  configuration.
         :rtype: pyflink.table.StreamTableEnvironment
         """
-        if table_config is not None and environment_settings is not None:
+        if stream_execution_environment is None and \
+                table_config is None and \
+                environment_settings is None:
+            raise ValueError("No argument found, the param 'stream_execution_environment' "
+                             "or 'environment_settings' is required.")
+        elif stream_execution_environment is None and \
+                table_config is not None and \
+                environment_settings is None:
+            raise ValueError("Only the param 'table_config' is found, "
+                             "the param 'stream_execution_environment' is also required.")
+        if table_config is not None and \
+                environment_settings is not None:
             raise ValueError("The param 'table_config' and "
                              "'environment_settings' cannot be used at the same time")
 
@@ -1203,9 +1218,13 @@ class StreamTableEnvironment(TableEnvironment):
             if not environment_settings.is_streaming_mode():
                 raise ValueError("The environment settings for StreamTableEnvironment must be "
                                  "set to streaming mode.")
-            j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                stream_execution_environment._j_stream_execution_environment,
-                environment_settings._j_environment_settings)
+            if stream_execution_environment is None:
+                j_tenv = gateway.jvm.TableEnvironment.create(
+                    environment_settings._j_environment_settings)
+            else:
+                j_tenv = gateway.jvm.StreamTableEnvironment.create(
+                    stream_execution_environment._j_stream_execution_environment,
+                    environment_settings._j_environment_settings)
         else:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment)
