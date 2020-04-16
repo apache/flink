@@ -31,5 +31,6 @@ Apache Flink has provided Python Table API support since 1.9.0.
 
 - [环境安装]({{ site.baseurl }}/zh/dev/table/python/installation.html): Introduction of how to set up the Python Table API execution environment.
 - [自定义函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html): Explanation of how to define Python user-defined functions.
+- [自定义向量化函数]({{ site.baseurl }}/zh/dev/table/python/vectorized_python_udfs.html): Explanation of how to define vectorized Python user-defined functions.
 - [依赖管理]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html): Specification of how to use third-part dependencies in a Python Table API program.
 - [配置]({{ site.baseurl }}/zh/dev/table/python/python_config.html): Description of the config options available for Python Table API programs.
