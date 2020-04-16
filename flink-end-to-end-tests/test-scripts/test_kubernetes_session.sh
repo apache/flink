@@ -68,7 +68,8 @@ mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
     -Dcontainerized.heap-cutoff-min=100 \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
-    -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"
+    -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%" \
+    -Dkubernetes.rest-service.exposed.type=NodePort
 
 kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
