@@ -23,7 +23,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.BatchQueryConfig
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonPythonCorrelate
@@ -71,10 +70,8 @@ class DataSetPythonCorrelate(
       ruleDescription)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvImpl,
-      queryConfig: BatchQueryConfig): DataSet[Row] = {
-    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+  override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
+    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val pythonTableFuncRexCall = scan.getCall.asInstanceOf[RexCall]
 
@@ -90,7 +87,7 @@ class DataSetPythonCorrelate(
     val sqlFunction = pythonTableFuncRexCall.getOperator.asInstanceOf[TableSqlFunction]
 
     val flatMapFunction = getPythonTableFunctionFlatMap(
-      getConfig(tableEnv.getConfig),
+      getConfig(tableEnv.execEnv, tableEnv.getConfig),
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       pythonFunctionInfo,

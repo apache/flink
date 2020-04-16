@@ -75,8 +75,8 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		RowTypeInfo forwardedInputTypeInfo = new RowTypeInfo(TypeConversions.fromDataTypeToLegacyInfo(
-			TypeConversions.fromLogicalToDataType(inputType)));
+		RowTypeInfo forwardedInputTypeInfo = (RowTypeInfo) TypeConversions.fromDataTypeToLegacyInfo(
+			TypeConversions.fromLogicalToDataType(inputType));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 
 		List<RowType.RowField> udtfOutputDataFields = new ArrayList<>(
@@ -111,9 +111,8 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 
 	@Override
 	public void bufferInput(Row input) {
-		if (getRuntimeContext().getExecutionConfig().isObjectReuseEnabled()) {
-			input = forwardedInputSerializer.copy(input);
-		}
+		// always copy the input Row
+		input = forwardedInputSerializer.copy(input);
 		forwardedInputQueue.add(input);
 	}
 
