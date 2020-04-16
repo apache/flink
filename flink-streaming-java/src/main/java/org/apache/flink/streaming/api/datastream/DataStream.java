@@ -875,14 +875,15 @@ public class DataStream<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Assigns timestamps to the elements in the data stream and generates watermarks to
-	 * signal event time progress.
+	 * Assigns timestamps to the elements in the data stream and generates watermarks to signal
+	 * event time progress. The given {@link WatermarkStrategy} is used to create a {@link
+	 * TimestampAssigner} and {@link WatermarkGenerator}.
 	 *
-	 * <p>For each event in the data stream, the {@link TimestampAssigner#extractTimestamp(Object, long)}
-	 * method is called to assign an event timestamp.
+	 * <p>For each event in the data stream, the {@link TimestampAssigner#extractTimestamp(Object,
+	 * long)} method is called to assign an event timestamp.
 	 *
-	 * <p>For each event in the data stream, the {@link WatermarkGenerator#onEvent(Object, long, WatermarkOutput)}
-	 * will be called.
+	 * <p>For each event in the data stream, the {@link WatermarkGenerator#onEvent(Object, long,
+	 * WatermarkOutput)} will be called.
 	 *
 	 * <p>Periodically (defined by the {@link ExecutionConfig#getAutoWatermarkInterval()}), the
 	 * {@link WatermarkGenerator#onPeriodicEmit(WatermarkOutput)} method will be called.
@@ -890,18 +891,16 @@ public class DataStream<T> {
 	 * <p>Common watermark generation patterns can be found in the
 	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategies} class.
 	 *
-	 * @param timestampAssigner The function to assign timestamps to events.
 	 * @param watermarkStrategy The strategy to generate watermarks based on event timestamps.
 	 * @return The stream after the transformation, with assigned timestamps and watermarks.
 	 */
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
-			TimestampAssigner<T> timestampAssigner,
 			WatermarkStrategy<T> watermarkStrategy) {
 
-		final TimestampAssigner<T> cleanedAssigner = clean(timestampAssigner);
+		final WatermarkStrategy<T> cleanedStrategy = clean(watermarkStrategy);
 
 		final TimestampsAndWatermarksOperator<T> operator =
-			new TimestampsAndWatermarksOperator<>(cleanedAssigner, watermarkStrategy);
+			new TimestampsAndWatermarksOperator<>(cleanedStrategy);
 
 		// match parallelism to input, to have a 1:1 source -> timestamps/watermarks relationship and chain
 		final int inputParallelism = getTransformation().getParallelism();
@@ -915,11 +914,11 @@ public class DataStream<T> {
 	 * watermarks to signal event time progress.
 	 *
 	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
-	 * {@link #assignTimestampsAndWatermarks(TimestampAssigner, WatermarkStrategy)} to use the
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
 	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
 	 * to differentiate between "periodic" and "punctuated" watermarks.
 	 *
-	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(TimestampAssigner, WatermarkStrategy)} instead.
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
 	 */
 	@Deprecated
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
@@ -928,7 +927,7 @@ public class DataStream<T> {
 		final AssignerWithPeriodicWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
 		final WatermarkStrategy<T> wms = new AssignerWithPeriodicWatermarksAdapter.Strategy<>(cleanedAssigner);
 
-		return assignTimestampsAndWatermarks(cleanedAssigner, wms);
+		return assignTimestampsAndWatermarks(wms);
 	}
 
 	/**
@@ -936,11 +935,11 @@ public class DataStream<T> {
 	 * to signal event time progress.
 	 *
 	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
-	 * {@link #assignTimestampsAndWatermarks(TimestampAssigner, WatermarkStrategy)} to use the
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
 	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
 	 * to differentiate between "periodic" and "punctuated" watermarks.
 	 *
-	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(TimestampAssigner, WatermarkStrategy)} instead.
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
 	 */
 	@Deprecated
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
@@ -949,7 +948,7 @@ public class DataStream<T> {
 		final AssignerWithPunctuatedWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
 		final WatermarkStrategy<T> wms = new AssignerWithPunctuatedWatermarksAdapter.Strategy<>(cleanedAssigner);
 
-		return assignTimestampsAndWatermarks(cleanedAssigner, wms);
+		return assignTimestampsAndWatermarks(wms);
 	}
 
 	// ------------------------------------------------------------------------
