@@ -21,6 +21,7 @@ package org.apache.flink.container.entrypoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.application.ApplicationDispatcherLeaderProcessFactoryFactory;
+import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;

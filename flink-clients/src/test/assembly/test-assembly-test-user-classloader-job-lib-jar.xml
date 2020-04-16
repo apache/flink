@@ -28,7 +28,7 @@ under the License.
 			<directory>${project.build.testOutputDirectory}</directory>
 			<outputDirectory>/</outputDirectory>
 			<includes>
-				<include>org/apache/flink/container/entrypoint/testjar/TestUserClassLoaderJobLib.class</include>
+				<include>org/apache/flink/client/testjar/TestUserClassLoaderJobLib.class</include>
 			</includes>
 		</fileSet>
 	</fileSets>
