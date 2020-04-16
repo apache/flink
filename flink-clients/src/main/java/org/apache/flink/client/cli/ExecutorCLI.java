@@ -47,12 +47,15 @@ public class ExecutorCLI implements CustomCommandLine {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutorCLI.class);
 
-	private static final String ID = "executor";
+	private static final String ID = "Generic CLI";
 
 	private final Option executorOption = new Option("e", "executor", true,
 			"The name of the executor to be used for executing the given job, which is equivalent " +
 					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
 					"currently available executors are: " + getExecutorFactoryNames() + ".");
+
+	private final Option targetOption = new Option("t", "target", true,
+			"The type of the deployment target: e.g. yarn-application.");
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
@@ -76,7 +79,8 @@ public class ExecutorCLI implements CustomCommandLine {
 	@Override
 	public boolean isActive(CommandLine commandLine) {
 		return baseConfiguration.getOptional(DeploymentOptions.TARGET).isPresent()
-				|| commandLine.hasOption(executorOption.getOpt());
+				|| commandLine.hasOption(executorOption.getOpt())
+				|| commandLine.hasOption(targetOption.getOpt());
 	}
 
 	@Override
@@ -92,6 +96,7 @@ public class ExecutorCLI implements CustomCommandLine {
 	@Override
 	public void addGeneralOptions(Options baseOptions) {
 		baseOptions.addOption(executorOption);
+		baseOptions.addOption(targetOption);
 		baseOptions.addOption(dynamicProperties);
 	}
 
@@ -102,6 +107,11 @@ public class ExecutorCLI implements CustomCommandLine {
 		final String executorName = commandLine.getOptionValue(executorOption.getOpt());
 		if (executorName != null) {
 			effectiveConfiguration.setString(DeploymentOptions.TARGET, executorName);
+		}
+
+		final String targetName = commandLine.getOptionValue(targetOption.getOpt());
+		if (targetName != null) {
+			effectiveConfiguration.setString(DeploymentOptions.TARGET, targetName);
 		}
 
 		encodeDynamicProperties(commandLine, effectiveConfiguration);

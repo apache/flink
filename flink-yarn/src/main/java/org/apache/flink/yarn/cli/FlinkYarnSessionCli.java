@@ -302,8 +302,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		final boolean yarnJobManager = ID.equals(jobManagerOption);
 		final boolean hasYarnAppId = commandLine.hasOption(applicationId.getOpt())
 				|| configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
-		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET))
-				|| YarnJobClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET));
+		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET))
+				|| YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 		return hasYarnExecutor || yarnJobManager || hasYarnAppId || (isYarnPropertiesFileMode(commandLine) && yarnApplicationIdFromYarnProperties != null);
 	}
 

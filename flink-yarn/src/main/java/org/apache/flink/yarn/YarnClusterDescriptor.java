@@ -55,6 +55,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
@@ -397,6 +398,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			final ApplicationConfiguration applicationConfiguration) throws ClusterDeploymentException {
 		checkNotNull(clusterSpecification);
 		checkNotNull(applicationConfiguration);
+
+		final YarnDeploymentTarget deploymentTarget = YarnDeploymentTarget.fromConfig(flinkConfiguration);
+
+		if (YarnDeploymentTarget.APPLICATION != deploymentTarget) {
+			throw new ClusterDeploymentException(
+					"Couldn't deploy Yarn Application Cluster." +
+							" Expected deployment.target=" + YarnDeploymentTarget.APPLICATION.getName() +
+							" but actual one was \"" + deploymentTarget.getName() + "\"");
+		}
 
 		applicationConfiguration.applyToConfiguration(flinkConfiguration);
 
