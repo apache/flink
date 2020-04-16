@@ -29,6 +29,8 @@ import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -140,6 +142,25 @@ public final class CliUtils {
 				return true;
 			default:
 				throw new RuntimeException("unknown UProperty.EAST_ASIAN_WIDTH: " + value);
+		}
+	}
+
+	/**
+	 * Create the file as well as the parent directory.
+	 */
+	public static boolean createFile(final Path filePath) {
+		try {
+			final Path parent = filePath.getParent();
+			if (parent == null) {
+				return false;
+			}
+			Files.createDirectories(parent);
+			if (Files.notExists(filePath)) {
+				Files.createFile(filePath);
+			}
+			return true;
+		} catch (final Exception e) {
+			return false;
 		}
 	}
 }
