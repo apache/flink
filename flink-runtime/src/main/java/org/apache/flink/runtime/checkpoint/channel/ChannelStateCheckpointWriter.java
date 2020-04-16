@@ -197,7 +197,6 @@ class ChannelStateCheckpointWriter {
 	public void fail(Throwable e) throws Exception {
 		result.fail(e);
 		checkpointStream.close();
-		dataStream.close();
 	}
 
 }
