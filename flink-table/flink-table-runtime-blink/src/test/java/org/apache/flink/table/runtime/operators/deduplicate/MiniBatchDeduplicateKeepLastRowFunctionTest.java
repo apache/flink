@@ -128,9 +128,6 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 		testHarness.processElement(record("book", 1L, 13));
 
 		testHarness.setStateTtlProcessingTime(30);
-		//Incremental cleanup is an eventual clean up, more state access guarantee more expired state cleaned
-		triggerMoreIncrementalCleanupByOtherOps(testHarness);
-
 		testHarness.processElement(record("book", 1L, 17));
 		testHarness.processElement(record("book", 2L, 18));
 		testHarness.processElement(record("book", 1L, 19));
@@ -138,7 +135,6 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(record("book", 2L, 11));
 		expectedOutput.add(record("book", 1L, 13));
-		addRecordToExpectedOutput(expectedOutput);
 		// because (2L,11), (1L,13) retired, so there is no retract message send to downstream
 		expectedOutput.add(record("book", 1L, 19));
 		expectedOutput.add(record("book", 2L, 18));

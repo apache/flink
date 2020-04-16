@@ -35,7 +35,7 @@ public class StateTtlConfigUtil {
 			return StateTtlConfig
 				.newBuilder(Time.milliseconds(retentionTime))
 				.setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-				.setStateVisibility(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp)
+				.setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
 				.build();
 		} else {
 			return StateTtlConfig.DISABLED;
