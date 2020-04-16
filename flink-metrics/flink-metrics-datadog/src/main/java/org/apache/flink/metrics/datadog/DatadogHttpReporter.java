@@ -18,7 +18,6 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
