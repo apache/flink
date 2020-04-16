@@ -45,7 +45,6 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Variables in metrics scope will be sent to Datadog as tags.
  */
-@PublicEvolving
 @InstantiateViaFactory(factoryClassName ="org.apache.flink.metrics.datadog.DatadogHttpReporterFactory")
 public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
