@@ -169,7 +169,7 @@ class PythonCalcSplitRuleTest extends TableTestBase {
 
   @Test
   def testPandasFunctionMixedWithGeneralPythonFunction(): Unit = {
-    val sqlQuery = "SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1 FROM MyTable"
+    val sqlQuery = "SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1, a + 1 FROM MyTable"
     util.verifyPlan(sqlQuery)
   }
 

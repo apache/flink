@@ -238,18 +238,18 @@ FlinkLogicalCalc(select=[pandasFunc1(a, b) AS EXPR$0])
   </TestCase>
   <TestCase name="testPandasFunctionMixedWithGeneralPythonFunction">
     <Resource name="sql">
-      <![CDATA[SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1 FROM MyTable]]>
+      <![CDATA[SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1, a + 1 FROM MyTable]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+(pyFunc1($0, $2), 1)])
+LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+(pyFunc1($0, $2), 1)], EXPR$2=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-FlinkLogicalCalc(select=[f0 AS EXPR$0, +(f1, 1) AS EXPR$1])
-+- FlinkLogicalCalc(select=[f0, pyFunc1(a, c) AS f1])
+FlinkLogicalCalc(select=[f0 AS EXPR$0, +(f1, 1) AS EXPR$1, +(a, 1) AS EXPR$2])
++- FlinkLogicalCalc(select=[a, f0, pyFunc1(a, c) AS f1])
    +- FlinkLogicalCalc(select=[a, c, pandasFunc1(a, b) AS f0])
       +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
