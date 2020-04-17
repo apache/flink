@@ -41,8 +41,8 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  * <p>However, for correctness, it might be necessary to perform the watermark generation as early as
  * possible in order to be close to the actual data generation within a source's data partition.
  *
- * <p>This interface provides a {@link WatermarkAssignerProvider} that needs to be applied to a runtime
- * implementation. Most built-in Flink sources provide a way of setting the watermark assigner.
+ * <p>This interface provides a {@link WatermarkProvider} that needs to be applied to a runtime
+ * implementation. Most built-in Flink sources provide a way of setting the watermark generator.
  *
  * <p>Note: In many cases, watermarks are generated from computed columns. If a source implements this
  * interface, it is recommended to also implement {@link SupportsComputedColumnPushDown}.
@@ -53,23 +53,27 @@ public interface SupportsWatermarkPushDown {
 	/**
 	 * Provides actual runtime implementation for generating watermarks.
 	 *
-	 * <p>There exist different interfaces for runtime implementation which is why {@link WatermarkAssignerProvider}
-	 * serves as the base interface. Concrete {@link WatermarkAssignerProvider} interfaces might be located
+	 * <p>There exist different interfaces for runtime implementation which is why {@link WatermarkProvider}
+	 * serves as the base interface. Concrete {@link WatermarkProvider} interfaces might be located
 	 * in other Flink modules.
 	 *
-	 * <p>See {@code org.apache.flink.table.connector.source.SourceFunctionProvider} in {@code flink-table-api-java-bridge}.
+	 * <p>See {@code org.apache.flink.table.connector.source.abilities} in {@code flink-table-api-java-bridge}.
+	 *
+	 * <p>Implementations need to perform an {@code instanceof} check and fail with an exception if the given
+	 * {@link WatermarkProvider} is unsupported.
 	 */
-	void applyWatermark(WatermarkAssignerProvider assigner);
+	void applyWatermark(WatermarkProvider provider);
 
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Provides actual runtime implementation for generating watermarks.
 	 *
-	 * <p>There exist different interfaces for runtime implementation which is why {@link WatermarkAssignerProvider}
+	 * <p>There exist different interfaces for runtime implementation which is why {@link WatermarkProvider}
 	 * serves as the base interface.
 	 */
-	class WatermarkAssignerProvider {
-		// marker interface that will be filled with FLIP-27
+	class WatermarkProvider {
+		// marker interface that will be filled after FLIP-126:
+		// WatermarkGenerator<RowData> getWatermarkGenerator();
 	}
 }

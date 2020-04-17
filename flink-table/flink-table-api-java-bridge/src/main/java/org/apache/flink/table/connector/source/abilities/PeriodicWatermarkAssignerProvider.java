@@ -28,7 +28,7 @@ import org.apache.flink.table.data.RowData;
  * generating watermarks in {@link ScanTableSource}.
  */
 @PublicEvolving
-public final class PeriodicWatermarkAssignerProvider extends SupportsWatermarkPushDown.WatermarkAssignerProvider {
+public final class PeriodicWatermarkAssignerProvider extends SupportsWatermarkPushDown.WatermarkProvider {
 
 	private final AssignerWithPeriodicWatermarks<RowData> periodicAssigner;
 

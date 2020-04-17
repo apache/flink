@@ -31,14 +31,14 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  * }</pre>
  *
  * <p>In the above example, {@code r.d} and {@code s} are required fields. Other fields can be skipped
- * in a projection.
+ * in a projection. Compared to table's schema, fields are reordered.
  *
  * <p>By default, if this interface is not implemented, a projection is applied in a subsequent operation
  * after the source.
  *
  * <p>For efficiency, a source can push a projection further down in order to be close to the actual
- * data generation. A projection is only selecting fields that are used by a query. It does neither
- * reorder fields nor contain any computation. A projection can either be performed on the fields of
+ * data generation. A projection is only selecting fields that are used by a query (possibly in a different
+ * field order). It does not contain any computation. A projection can either be performed on the fields of
  * the top-level row only or consider nested fields as well (see {@link #supportsNestedProjection()}).
  *
  * <p>Note: If a source implements {@link SupportsComputedColumnPushDown}, the projection must be applied
@@ -59,9 +59,9 @@ public interface SupportsProjectionPushDown {
 	 *
 	 * <p>In the example mentioned in {@link SupportsProjectionPushDown}, this method would receive:
 	 * <ul>
-	 *     <li>{@code [[1], [2]]} for {@code r} and {@code s} if {@link #supportsNestedProjection()}
+	 *     <li>{@code [[2], [1]]} which is equivalent to {@code [["s"], ["r"]]} if {@link #supportsNestedProjection()}
 	 *     returns false.
-	 *     <li>{@code [[1, 0], [2]]} for {@code r.d} and {@code s} if {@link #supportsNestedProjection()}
+	 *     <li>{@code [[2], [1, 0]]} which is equivalent to {@code [["s"], ["r", "d"]]]} if {@link #supportsNestedProjection()}
 	 *     returns true.
 	 * </ul>
 	 *

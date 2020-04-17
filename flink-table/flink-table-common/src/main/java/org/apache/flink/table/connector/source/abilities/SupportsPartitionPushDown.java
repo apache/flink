@@ -34,7 +34,7 @@ import java.util.Optional;
  * catalog table.
  *
  * <p>For example, data can be partitioned by region and within a region partitioned by month. The order
- * of the partition keys (in the example: first by region then by month) are defined by the catalog table. A
+ * of the partition keys (in the example: first by region then by month) is defined by the catalog table. A
  * list of partitions could be:
  * <pre>
  *   List(
@@ -45,14 +45,15 @@ import java.util.Optional;
  *   )
  * </pre>
  *
- * <p>By default, if this interface is not implemented, the list of all partitions is queried from the
- * catalog and the data is read entirely with a subsequent filter operation after the source.
- *
- * <p>However, depending on the external system, it might be necessary to query the list of partitions
- * in a connector-specific way instead of using the catalog information. See {@link #listPartitions()}.
+ * <p>By default, if this interface is not implemented, the data is read entirely with a subsequent filter
+ * operation after the source.
  *
  * <p>For efficiency, the planner can pass the number of required partitions and a source must exclude
  * those partitions from reading (including reading the metadata). See {@link #applyPartitions(List)}.
+ *
+ * <p>By default, the list of all partitions is queried from the catalog if necessary. However, depending
+ * on the external system, it might be necessary to query the list of partitions in a connector-specific
+ * way instead of using the catalog information. See {@link #listPartitions()}.
  *
  * <p>Note: After partitions are pushed into the source, the runtime will not perform a subsequent filter
  * operation for partition keys.

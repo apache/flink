@@ -69,6 +69,9 @@ import java.util.Map;
  * {@link #applyStaticPartition(Map)}. The remaining values for partition keys should be obtained from
  * each individual record by the sink during runtime. In the example, the {@code month} field is the dynamic
  * partition key.
+ *
+ * <p>If the {@code PARTITION} clause contains no static assignments or is omitted entirely, all values
+ * for partition keys are obtained dynamically.
  */
 @PublicEvolving
 public interface SupportsPartitioning {
