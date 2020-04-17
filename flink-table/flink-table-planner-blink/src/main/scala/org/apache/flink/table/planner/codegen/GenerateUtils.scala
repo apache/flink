@@ -346,7 +346,11 @@ object GenerateUtils {
         ctx.addReusableMember(fieldDecimal)
         val value = Decimal.fromBigDecimal(
           literalValue.asInstanceOf[JBigDecimal], precision, scale)
-        generateNonNullLiteral(literalType, fieldTerm, value)
+        if (value == null) {
+          generateNullLiteral(literalType, ctx.nullCheck)
+        } else {
+          generateNonNullLiteral(literalType, fieldTerm, value)
+        }
 
       case VARCHAR | CHAR =>
         val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(literalValue.toString)
