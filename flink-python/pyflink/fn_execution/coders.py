@@ -262,7 +262,7 @@ class SmallIntCoder(DeterministicCoder):
     """
 
     def _create_impl(self):
-        return coder_impl.SmallIntCoderImpl()
+        return coder_impl.SmallIntImpl()
 
     def to_type_hint(self):
         return int

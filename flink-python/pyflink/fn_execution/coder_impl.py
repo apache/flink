@@ -237,7 +237,7 @@ class TinyIntCoderImpl(StreamCoderImpl):
         return struct.unpack('b', in_stream.read(1))[0]
 
 
-class SmallIntCoderImpl(StreamCoderImpl):
+class SmallIntImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
         out_stream.write(struct.pack('>h', value))
