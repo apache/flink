@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
@@ -64,14 +65,7 @@ import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.ComponentFactoryService;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.AggregateFunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
@@ -934,15 +928,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			CreateCatalogFunctionOperation createCatalogFunctionOperation) {
 		String exMsg = getDDLOpExecuteErrorMsg(createCatalogFunctionOperation.asSummaryString());
 		try {
-			CatalogFunction function = createCatalogFunctionOperation.getCatalogFunction();
 			if (createCatalogFunctionOperation.isTemporary()) {
 				boolean exist = functionCatalog.hasTemporaryCatalogFunction(
 					createCatalogFunctionOperation.getFunctionIdentifier());
 				if (!exist) {
-					FunctionDefinition functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
-						createCatalogFunctionOperation.getFunctionName(), function.getClassName());
-					registerCatalogFunctionInFunctionCatalog(
-						createCatalogFunctionOperation.getFunctionIdentifier(), functionDefinition);
+					functionCatalog.registerTemporaryCatalogFunction(
+						UnresolvedIdentifier.of(createCatalogFunctionOperation.getFunctionIdentifier().toList()),
+						createCatalogFunctionOperation.getCatalogFunction(),
+						false);
 				} else if (!createCatalogFunctionOperation.isIgnoreIfExists()) {
 					throw new ValidationException(
 						String.format("Temporary catalog function %s is already defined",
@@ -1021,11 +1014,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		try {
 				boolean exist = functionCatalog.hasTemporarySystemFunction(operation.getFunctionName());
 				if (!exist) {
-					FunctionDefinition functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
+					functionCatalog.registerTemporarySystemFunction(
 						operation.getFunctionName(),
-						operation.getFunctionClass());
-					registerSystemFunctionInFunctionCatalog(operation.getFunctionName(), functionDefinition);
-
+						operation.getFunctionClass(),
+						FunctionLanguage.JAVA,
+						false);
 				} else if (!operation.isIgnoreIfExists()) {
 					throw new ValidationException(
 						String.format("Temporary system function %s is already defined",
@@ -1050,73 +1043,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} catch (Exception e) {
 			throw new TableException(getDDLOpExecuteErrorMsg(operation.asSummaryString()), e);
 		}
-	}
-
-	private <T, ACC> void  registerCatalogFunctionInFunctionCatalog(
-		ObjectIdentifier functionIdentifier, FunctionDefinition functionDefinition) {
-		if (functionDefinition instanceof ScalarFunctionDefinition) {
-			ScalarFunctionDefinition scalarFunction = (ScalarFunctionDefinition) functionDefinition;
-			functionCatalog.registerTempCatalogScalarFunction(
-				functionIdentifier, scalarFunction.getScalarFunction());
-		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
-			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
-			AggregateFunction<T, ACC > aggregateFunction =
-				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
-				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
-
-			functionCatalog.registerTempCatalogAggregateFunction(
-				functionIdentifier,
-				aggregateFunction,
-				typeInfo,
-				accTypeInfo);
-		} else if (functionDefinition instanceof TableFunctionDefinition) {
-			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
-			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfTableFunction(tableFunction);
-			functionCatalog.registerTempCatalogTableFunction(
-				functionIdentifier,
-				tableFunction,
-				typeInfo);
-		}
-	}
-
-	private <T, ACC> void  registerSystemFunctionInFunctionCatalog(
-		String functionName, FunctionDefinition functionDefinition) {
-
-		if (functionDefinition instanceof ScalarFunctionDefinition) {
-			ScalarFunctionDefinition scalarFunction = (ScalarFunctionDefinition) functionDefinition;
-			functionCatalog.registerTempSystemScalarFunction(
-				functionName, scalarFunction.getScalarFunction());
-		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
-			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
-			AggregateFunction<T, ACC > aggregateFunction =
-				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
-				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
-			functionCatalog.registerTempSystemAggregateFunction(
-				functionName,
-				aggregateFunction,
-				typeInfo,
-				accTypeInfo);
-
-		} else if (functionDefinition instanceof TableFunctionDefinition) {
-			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
-			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfTableFunction(tableFunction);
-
-			functionCatalog.registerTempSystemTableFunction(
-				functionName,
-				tableFunction,
-				typeInfo);
-		}
-
 	}
 
 	protected TableImpl createTable(QueryOperation tableOperation) {
