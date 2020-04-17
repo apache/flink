@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api
+package org.apache.flink.table.expressions
 
+import org.apache.flink.table.api.ImplicitExpressionConversions
 import org.apache.flink.table.expressions.ApiExpressionUtils.unwrapFromApi
-import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
 
 import org.hamcrest.CoreMatchers.equalTo
 import org.junit.Assert.assertThat
@@ -27,7 +27,7 @@ import org.junit.Test
 
 import java.math.{BigDecimal => JBigDecimal}
 
-class ObjectToExpressionTest extends ImplicitExpressionConversions {
+class ObjectToExpressionScalaTest extends ImplicitExpressionConversions {
 
   @Test
   def testSeqConversion(): Unit = {
