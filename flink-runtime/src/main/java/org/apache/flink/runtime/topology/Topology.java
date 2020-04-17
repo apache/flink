@@ -31,7 +31,7 @@ public interface Topology<VID extends VertexID, RID extends ResultID,
 	 *
 	 * @return Iterable over pipelined regions in this topology
 	 */
-	default Iterable<PR> getAllPipelinedRegions() {
+	default Iterable<? extends PR> getAllPipelinedRegions() {
 		throw new UnsupportedOperationException();
 	}
 

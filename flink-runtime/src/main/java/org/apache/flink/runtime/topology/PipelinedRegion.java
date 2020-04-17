@@ -36,7 +36,7 @@ public interface PipelinedRegion<VID extends VertexID, RID extends ResultID,
 	 *
 	 * @return Iterable over all vertices in this pipelined region
 	 */
-	Iterable<V> getVertices();
+	Iterable<? extends V> getVertices();
 
 	/**
 	 * Returns the vertex with the specified vertex id.
@@ -53,5 +53,5 @@ public interface PipelinedRegion<VID extends VertexID, RID extends ResultID,
 	 *
 	 * @return Iterable over all consumed results
 	 */
-	Iterable<R> getConsumedResults();
+	Iterable<? extends R> getConsumedResults();
 }
