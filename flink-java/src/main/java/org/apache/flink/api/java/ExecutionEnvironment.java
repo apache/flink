@@ -1074,7 +1074,7 @@ public class ExecutionEnvironment {
 			}
 		}
 
-		final PlanGenerator generator = new PlanGenerator(sinks, config, cacheFile, jobName);
+		final PlanGenerator generator = new PlanGenerator(sinks, config, getParallelism(), cacheFile, jobName);
 		final Plan plan = generator.generate();
 
 		// clear all the sinks such that the next execution does not redo everything

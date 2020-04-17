@@ -45,7 +45,11 @@ public class PlanGeneratorTest {
 				.writeAsText("/tmp/csv");
 
 		PlanGenerator generator = new PlanGenerator(
-				Collections.singletonList(sink), env.getConfig(), Collections.emptyList(), "test");
+				Collections.singletonList(sink),
+				env.getConfig(),
+				env.getParallelism(),
+				Collections.emptyList(),
+				"test");
 		Plan plan = generator.generate();
 		assertEquals(1, plan.getDataSinks().size());
 		assertEquals(10, plan.getDefaultParallelism());

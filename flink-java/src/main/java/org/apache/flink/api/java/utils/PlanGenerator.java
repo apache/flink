@@ -47,16 +47,19 @@ public class PlanGenerator {
 
 	private final List<DataSink<?>> sinks;
 	private final ExecutionConfig config;
+	private final int defaultParallelism;
 	private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile;
 	private final String jobName;
 
 	public PlanGenerator(
 			List<DataSink<?>> sinks,
 			ExecutionConfig config,
+			int defaultParallelism,
 			List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile,
 			String jobName) {
 		this.sinks = checkNotNull(sinks);
 		this.config = checkNotNull(config);
+		this.defaultParallelism = defaultParallelism;
 		this.cacheFile = checkNotNull(cacheFile);
 		this.jobName = checkNotNull(jobName);
 	}
@@ -86,8 +89,8 @@ public class PlanGenerator {
 		OperatorTranslation translator = new OperatorTranslation();
 		Plan plan = translator.translateToPlan(sinks, jobName);
 
-		if (config.getParallelism() > 0) {
-			plan.setDefaultParallelism(config.getParallelism());
+		if (defaultParallelism > 0) {
+			plan.setDefaultParallelism(defaultParallelism);
 		}
 		plan.setExecutionConfig(config);
 		return plan;

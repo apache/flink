@@ -91,6 +91,7 @@ public final class TestUtils {
 	 * @param expectedParallelism expected operator parallelism
 	 */
 	public static void verifyParallelism(ExecutionEnvironment env, int expectedParallelism) {
+		env.setParallelism(2 * expectedParallelism);
 		Optimizer compiler = new Optimizer(null, new DefaultCostEstimator(), new Configuration());
 		OptimizedPlan optimizedPlan = compiler.compile(env.createProgramPlan());
 
