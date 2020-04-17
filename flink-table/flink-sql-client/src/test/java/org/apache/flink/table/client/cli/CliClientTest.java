@@ -47,6 +47,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -146,6 +148,36 @@ public class CliClientTest extends TestLogger {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
 			verify(executor).useCatalog(any(), any());
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
+	@Test
+	public void testHistoryFile() throws Exception {
+		final SessionContext context = new SessionContext("test-session", new Environment());
+		final MockExecutor mockExecutor = new MockExecutor();
+		String sessionId = mockExecutor.openSession(context);
+
+		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
+		// don't care about the output
+		OutputStream outputStream = new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {
+			}
+		};
+
+		CliClient cliClient = null;
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			Path historyFilePath = File.createTempFile("history", "tmp").toPath();
+			cliClient = new CliClient(terminal, sessionId, mockExecutor, historyFilePath);
+			cliClient.open();
+			List<String> content = Files.readAllLines(historyFilePath);
+			assertEquals(2, content.size());
+			assertTrue(content.get(0).contains("help"));
+			assertTrue(content.get(1).contains("use catalog cat"));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
