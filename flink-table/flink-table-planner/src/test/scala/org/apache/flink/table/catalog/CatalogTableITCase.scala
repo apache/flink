@@ -92,7 +92,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     if (isStreaming) {
       tableEnv.execute(name)
     } else {
-      batchExec.execute(name)
+      tableEnv.execute(name)
     }
   }
 

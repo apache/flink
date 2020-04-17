@@ -44,7 +44,7 @@ bt_env.connect(FileSystem().path(sink_path)) \
 
 t.select("a + 1, b, c").insert_into("batch_sink")
 
-b_env.execute()
+bt_env.execute("test")
 
 with open(sink_path, 'r') as f:
     lines = f.read()

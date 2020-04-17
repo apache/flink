@@ -36,6 +36,6 @@ object SpendReport {
       .scan("transactions")
       .insertInto("spend_report")
 
-    env.execute("Spend Report")
+    tEnv.execute("Spend Report")
   }
 }

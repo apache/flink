@@ -20,6 +20,8 @@ import os
 import tempfile
 import time
 
+import unittest
+
 from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import DataTypes, BatchTableEnvironment, CsvTableSource, CsvTableSink
@@ -96,6 +98,7 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(type_list,
                          ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
 
+    @unittest.skip("Python API does not support DataSet now. refactor this test later")
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()
         source_path = os.path.join(tmp_dir + '/streaming.csv')
@@ -125,7 +128,7 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
             CsvTableSink(field_names, field_types,
                          os.path.join('{}/{}.csv'.format(tmp_dir, round(time.time())))))
         t_env.insert_into('Results', t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']))
-        execution_result = self.env.execute('test_batch_execute')
+        execution_result = t_env.execute('test_batch_execute')
         self.assertIsNotNone(execution_result.get_job_id())
         self.assertTrue(execution_result.is_job_execution_result())
         self.assertIsNotNone(execution_result.get_job_execution_result().get_job_id())
