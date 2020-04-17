@@ -34,11 +34,11 @@ import org.apache.flink.table.runtime.util.MurmurHashUtil
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Row, RowKind}
+
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 
 object CodeGenUtils {
@@ -82,6 +82,8 @@ object CodeGenUtils {
   val JOINED_ROW: String = className[JoinedRow]
 
   val GENERIC_ROW: String = className[GenericRow]
+
+  val ROW_KIND: String = className[RowKind]
 
   val DECIMAL_TERM: String = className[Decimal]
 

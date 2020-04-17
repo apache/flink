@@ -160,7 +160,7 @@ object CalcCodeGenerator {
       val projectionExpressionCode = projectionExpression.code
 
       val header = if (retainHeader) {
-        s"${projectionExpression.resultTerm}.setHeader($inputTerm.getHeader());"
+        s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }

@@ -124,7 +124,7 @@ public abstract class WindowOperator<K, W extends Window>
 
 	private final LogicalType[] windowPropertyTypes;
 
-	protected final boolean sendRetraction;
+	protected final boolean produceUpdates;
 
 	private final int rowtimeIndex;
 
@@ -178,7 +178,7 @@ public abstract class WindowOperator<K, W extends Window>
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes,
 			int rowtimeIndex,
-			boolean sendRetraction,
+			boolean produceUpdates,
 			long allowedLateness) {
 		checkArgument(allowedLateness >= 0);
 		this.windowAggregator = checkNotNull(windowAggregator);
@@ -190,7 +190,7 @@ public abstract class WindowOperator<K, W extends Window>
 		this.aggResultTypes = checkNotNull(aggResultTypes);
 		this.windowPropertyTypes = checkNotNull(windowPropertyTypes);
 		this.allowedLateness = allowedLateness;
-		this.sendRetraction = sendRetraction;
+		this.produceUpdates = produceUpdates;
 
 		// rowtime index should >= 0 when in event time mode
 		checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
@@ -208,7 +208,7 @@ public abstract class WindowOperator<K, W extends Window>
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes,
 			int rowtimeIndex,
-			boolean sendRetraction,
+			boolean produceUpdates,
 			long allowedLateness) {
 		checkArgument(allowedLateness >= 0);
 		this.windowAssigner = checkNotNull(windowAssigner);
@@ -219,7 +219,7 @@ public abstract class WindowOperator<K, W extends Window>
 		this.aggResultTypes = checkNotNull(aggResultTypes);
 		this.windowPropertyTypes = checkNotNull(windowPropertyTypes);
 		this.allowedLateness = allowedLateness;
-		this.sendRetraction = sendRetraction;
+		this.produceUpdates = produceUpdates;
 
 		// rowtime index should >= 0 when in event time mode
 		checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
@@ -249,7 +249,7 @@ public abstract class WindowOperator<K, W extends Window>
 				new BaseRowSerializer(getExecutionConfig(), accumulatorTypes));
 		this.windowState = (InternalValueState<K, W, BaseRow>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
 
-		if (sendRetraction) {
+		if (produceUpdates) {
 			LogicalType[] valueTypes = ArrayUtils.addAll(aggResultTypes, windowPropertyTypes);
 			StateDescriptor<ValueState<BaseRow>, BaseRow> previousStateDescriptor = new ValueStateDescriptor<>(
 					"previous-aggs",

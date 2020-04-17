@@ -42,6 +42,7 @@ import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -309,7 +310,7 @@ public class BinaryRowTest {
 			assertFalse(row.anyNull());
 
 			// test header should not compute by anyNull
-			row.setHeader((byte) 1);
+			row.setRowKind(RowKind.UPDATE_BEFORE);
 			assertFalse(row.anyNull());
 
 			writer.setNullAt(2);
@@ -327,7 +328,7 @@ public class BinaryRowTest {
 		for (int i = 0; i < numFields; i++) {
 			BinaryRow row = new BinaryRow(numFields);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
-			row.setHeader((byte) 17);
+			row.setRowKind(RowKind.DELETE);
 			assertFalse(row.anyNull());
 			writer.setNullAt(i);
 			assertTrue(row.anyNull());
@@ -394,15 +395,15 @@ public class BinaryRowTest {
 
 		writer.writeInt(0, 10);
 		writer.setNullAt(1);
-		writer.writeHeader((byte) 29);
+		writer.writeRowKind(RowKind.UPDATE_BEFORE);
 		writer.complete();
 
 		BinaryRow newRow = row.copy();
 		assertEquals(row, newRow);
-		assertEquals((byte) 29, newRow.getHeader());
+		assertEquals(RowKind.UPDATE_BEFORE, newRow.getRowKind());
 
-		newRow.setHeader((byte) 19);
-		assertEquals((byte) 19, newRow.getHeader());
+		newRow.setRowKind(RowKind.DELETE);
+		assertEquals(RowKind.DELETE, newRow.getRowKind());
 	}
 
 	@Test

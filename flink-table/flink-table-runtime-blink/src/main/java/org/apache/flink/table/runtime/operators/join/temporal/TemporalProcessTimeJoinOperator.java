@@ -84,7 +84,7 @@ public class TemporalProcessTimeJoinOperator
 
 		BaseRow leftSideRow = element.getValue();
 		if (joinCondition.apply(leftSideRow, rightSideRow)) {
-			outRow.setHeader(leftSideRow.getHeader());
+			outRow.setRowKind(leftSideRow.getRowKind());
 			outRow.replace(leftSideRow, rightSideRow);
 			collector.collect(outRow);
 		}

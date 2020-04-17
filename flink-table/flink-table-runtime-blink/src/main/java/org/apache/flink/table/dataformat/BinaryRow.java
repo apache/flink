@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.types.RowKind;
 
 import java.nio.ByteOrder;
 
@@ -129,14 +130,16 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 	}
 
 	@Override
-	public byte getHeader() {
-		// first nullBitsSizeInBytes byte is header.
-		return segments[0].get(offset);
+	public RowKind getRowKind() {
+		// first nullBitsSizeInBytes byte is the kind value.
+		byte kindValue = segments[0].get(offset);
+		return RowKind.fromByteValue(kindValue);
 	}
 
 	@Override
-	public void setHeader(byte header) {
-		segments[0].put(offset, header);
+	public void setRowKind(RowKind kind) {
+		byte kindValue = kind.toByteValue();
+		segments[0].put(offset, kindValue);
 	}
 
 	public void setTotalSize(int sizeInBytes) {
@@ -435,8 +438,8 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 
 	public static String toOriginString(BaseRow row, LogicalType[] types) {
 		checkArgument(types.length == row.getArity());
-		StringBuilder build = new StringBuilder("[");
-		build.append(row.getHeader());
+		StringBuilder build = new StringBuilder();
+		build.append(row.getRowKind().shortString()).append("(");
 		for (int i = 0; i < row.getArity(); i++) {
 			build.append(',');
 			if (row.isNullAt(i)) {
@@ -445,7 +448,7 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 				build.append(TypeGetterSetters.get(row, i, types[i]));
 			}
 		}
-		build.append(']');
+		build.append(')');
 		return build.toString();
 	}
 

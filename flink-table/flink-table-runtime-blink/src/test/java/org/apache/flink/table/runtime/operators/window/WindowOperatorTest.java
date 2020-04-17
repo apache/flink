@@ -62,6 +62,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -383,7 +384,7 @@ public class WindowOperatorTest {
 						EventTimeTriggers
 								.afterEndOfWindow()
 								.withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1))))
-				.withSendRetraction()
+				.produceUpdates()
 				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.build();
 
@@ -444,7 +445,7 @@ public class WindowOperatorTest {
 		testHarness.setProcessingTime(4001);
 		expectedOutput.add(new Watermark(3999));
 		expectedOutput.add(updateBeforeRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutput.add(insertRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateAfterRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
@@ -461,7 +462,7 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(5999));
 		expectedOutput.add(updateBeforeRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		expectedOutput.add(insertRecord("key2", 4L, 4L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateAfterRecord("key2", 4L, 4L, 3000L, 6000L, 5999L));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -503,7 +504,7 @@ public class WindowOperatorTest {
 								.withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)))
 								.withLateFirings(ElementTriggers.every()))
 				.withAllowedLateness(Duration.ofSeconds(3))
-				.withSendRetraction()
+				.produceUpdates()
 				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.build();
 
@@ -564,19 +565,19 @@ public class WindowOperatorTest {
 		testHarness.setProcessingTime(4001);
 		expectedOutput.add(new Watermark(3999));
 		expectedOutput.add(updateBeforeRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutput.add(insertRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateAfterRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
 		testHarness.processElement(insertRecord("key2", 1, 2001L));
 		expectedOutput.add(updateBeforeRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutput.add(insertRecord("key2", 4L, 4L, 0L, 3000L, 2999L));
+		expectedOutput.add(updateAfterRecord("key2", 4L, 4L, 0L, 3000L, 2999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
 		testHarness.processElement(insertRecord("key1", 1, 2030L));
 		expectedOutput.add(updateBeforeRecord("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutput.add(insertRecord("key1", 4L, 4L, 0L, 3000L, 2999L));
+		expectedOutput.add(updateAfterRecord("key1", 4L, 4L, 0L, 3000L, 2999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(5100);
@@ -587,7 +588,7 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(5999));
 		expectedOutput.add(updateBeforeRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		expectedOutput.add(insertRecord("key2", 4L, 4L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateAfterRecord("key2", 4L, 4L, 3000L, 6000L, 5999L));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -851,7 +852,7 @@ public class WindowOperatorTest {
 				.tumble(Duration.ofSeconds(2))
 				.withEventTime(2)
 				.withAllowedLateness(Duration.ofMillis(500))
-				.withSendRetraction()
+				.produceUpdates()
 				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
@@ -868,8 +869,7 @@ public class WindowOperatorTest {
 		testHarness.processElement(insertRecord("key2", 1, 1300L));
 		testHarness.processWatermark(new Watermark(2300));
 
-		GenericRow key2Result = GenericRow.of(fromString("key2"), 2L, 2L, 0L, 2000L, 1999L);
-		expectedOutput.add(new StreamRecord<>(key2Result));
+		expectedOutput.add(insertRecord("key2", 2L, 2L, 0L, 2000L, 1999L));
 		expectedOutput.add(new Watermark(2300));
 
 		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
@@ -877,9 +877,8 @@ public class WindowOperatorTest {
 		testHarness.processWatermark(new Watermark(6000));
 
 		// this is 1 and not 3 because the trigger fires and purges
-		BaseRow key2Retract = BaseRowUtil.setRetract(GenericRow.copyReference(key2Result));
-		expectedOutput.add(new StreamRecord<>(key2Retract));
-		expectedOutput.add(insertRecord("key2", 3L, 3L, 0L, 2000L, 1999L));
+		expectedOutput.add(updateBeforeRecord("key2", 2L, 2L, 0L, 2000L, 1999L));
+		expectedOutput.add(updateAfterRecord("key2", 3L, 3L, 0L, 2000L, 1999L));
 		expectedOutput.add(new Watermark(6000));
 
 		// this will be dropped because window.maxTimestamp() + allowedLateness < currentWatermark
@@ -905,7 +904,7 @@ public class WindowOperatorTest {
 				.tumble(Duration.ofMillis(windowSize))
 				.withEventTime(2)
 				.withAllowedLateness(Duration.ofMillis(lateness))
-				.withSendRetraction()
+				.produceUpdates()
 				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
@@ -960,7 +959,7 @@ public class WindowOperatorTest {
 				.tumble(Duration.ofSeconds(windowSize))
 				.withEventTime(2)
 				.withAllowedLateness(Duration.ofMillis(lateness))
-				.withSendRetraction()
+				.produceUpdates()
 				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);

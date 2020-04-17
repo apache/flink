@@ -25,6 +25,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDeduplicate.TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.operators.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
@@ -32,7 +33,11 @@ import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 
+import java.lang.{Boolean => JBoolean}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -99,6 +104,8 @@ class StreamExecDeduplicate(
     val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val tableConfig = planner.getTableConfig
+    val generateInsert = tableConfig.getConfiguration
+      .getBoolean(TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE)
     val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
     val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
@@ -109,6 +116,7 @@ class StreamExecDeduplicate(
         new MiniBatchDeduplicateKeepLastRowFunction(
           rowTypeInfo,
           generateUpdateBefore,
+          generateInsert,
           rowSerializer,
           minRetentionTime)
       } else {
@@ -125,7 +133,8 @@ class StreamExecDeduplicate(
         new DeduplicateKeepLastRowFunction(
           minRetentionTime,
           rowTypeInfo,
-          generateUpdateBefore)
+          generateUpdateBefore,
+          generateInsert)
       } else {
         new DeduplicateKeepFirstRowFunction(minRetentionTime)
       }
@@ -148,4 +157,18 @@ class StreamExecDeduplicate(
     ret.setStateKeyType(selector.getProducedType)
     ret
   }
+}
+
+object StreamExecDeduplicate {
+
+  @Experimental
+  val TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE: ConfigOption[JBoolean] =
+  key("table.exec.insert-and-updateafter-sensitive")
+    .defaultValue(JBoolean.valueOf(true))
+    .withDescription("Set whether the job (especially the sinks) is sensitive to " +
+      "INSERT messages and UPDATE_AFTER messages. " +
+      "If false, Flink may send UPDATE_AFTER instead of INSERT for the first row " +
+      "at some times (e.g. deduplication for last row). " +
+      "If true, Flink will guarantee to send INSERT for the first row. " +
+      "Default is true.")
 }

@@ -26,8 +26,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /**
  * Tests for {@link AppendOnlyTopNFunction}.
@@ -58,13 +58,13 @@ public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(insertRecord("book", 2L, 12));
 		expectedOutput.add(insertRecord("book", 2L, 19));
-		expectedOutput.add(updateBeforeRecord("book", 2L, 19));
+		expectedOutput.add(deleteRecord("book", 2L, 19));
 		expectedOutput.add(insertRecord("book", 2L, 11));
 		expectedOutput.add(insertRecord("fruit", 1L, 33));
-		expectedOutput.add(updateBeforeRecord("fruit", 1L, 33));
+		expectedOutput.add(deleteRecord("fruit", 1L, 33));
 		expectedOutput.add(insertRecord("fruit", 1L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 }

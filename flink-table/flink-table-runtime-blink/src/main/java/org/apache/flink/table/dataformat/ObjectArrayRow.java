@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.dataformat;
 
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
@@ -27,7 +27,7 @@ import java.util.Arrays;
  */
 public abstract class ObjectArrayRow implements BaseRow {
 
-	private byte header;
+	private RowKind rowKind = RowKind.INSERT; // INSERT as default
 
 	protected final Object[] fields;
 
@@ -41,13 +41,13 @@ public abstract class ObjectArrayRow implements BaseRow {
 	}
 
 	@Override
-	public byte getHeader() {
-		return header;
+	public RowKind getRowKind() {
+		return rowKind;
 	}
 
 	@Override
-	public void setHeader(byte header) {
-		this.header = header;
+	public void setRowKind(RowKind kind) {
+		this.rowKind = kind;
 	}
 
 	@Override
@@ -113,13 +113,7 @@ public abstract class ObjectArrayRow implements BaseRow {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("(");
-		if (BaseRowUtil.isAccumulateMsg(this)) {
-			sb.append("+");
-		} else {
-			sb.append("-");
-		}
-		sb.append("|");
+		sb.append(rowKind.shortString()).append("(");
 		for (int i = 0; i < fields.length; i++) {
 			if (i != 0) {
 				sb.append(",");
@@ -132,14 +126,14 @@ public abstract class ObjectArrayRow implements BaseRow {
 
 	@Override
 	public int hashCode() {
-		return 31 * Byte.hashCode(getHeader()) + Arrays.hashCode(fields);
+		return 31 * rowKind.hashCode() + Arrays.hashCode(fields);
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		if (o != null && o instanceof ObjectArrayRow) {
 			ObjectArrayRow other = (ObjectArrayRow) o;
-			return header == other.header && Arrays.equals(fields, other.fields);
+			return rowKind == other.rowKind && Arrays.equals(fields, other.fields);
 		} else {
 			return false;
 		}
