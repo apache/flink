@@ -27,6 +27,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGenerator;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGeneratorFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.TableSink;
@@ -171,22 +173,16 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-		final IndexFormatter indexFormatter = IndexFormatter.builder()
-			.index(index)
-			.fieldNames(getFieldNames())
-			.fieldTypes(getFieldTypes())
-			.build();
 		final ElasticsearchUpsertSinkFunction upsertFunction =
 			new ElasticsearchUpsertSinkFunction(
-				index,
+				IndexGeneratorFactory.createIndexGenerator(index, schema),
 				docType,
 				keyDelimiter,
 				keyNullLiteral,
 				serializationSchema,
 				contentType,
 				requestFactory,
-				keyFieldIndices,
-				indexFormatter);
+				keyFieldIndices);
 		final SinkFunction<Tuple2<Boolean, Row>> sinkFunction = createSinkFunction(
 			hosts,
 			failureHandler,
@@ -420,7 +416,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 	 */
 	public static class ElasticsearchUpsertSinkFunction implements ElasticsearchSinkFunction<Tuple2<Boolean, Row>> {
 
-		private final String index;
+		private final IndexGenerator indexGenerator;
 		private final String docType;
 		private final String keyDelimiter;
 		private final String keyNullLiteral;
@@ -428,20 +424,18 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 		private final XContentType contentType;
 		private final RequestFactory requestFactory;
 		private final int[] keyFieldIndices;
-		private final IndexFormatter indexFormatter;
 
 		public ElasticsearchUpsertSinkFunction(
-				String index,
+				IndexGenerator indexGenerator,
 				String docType,
 				String keyDelimiter,
 				String keyNullLiteral,
 				SerializationSchema<Row> serializationSchema,
 				XContentType contentType,
 				RequestFactory requestFactory,
-				int[] keyFieldIndices,
-				IndexFormatter indexFormatter) {
+				int[] keyFieldIndices) {
 
-			this.index = Preconditions.checkNotNull(index);
+			this.indexGenerator = Preconditions.checkNotNull(indexGenerator);
 			this.docType = Preconditions.checkNotNull(docType);
 			this.keyDelimiter = Preconditions.checkNotNull(keyDelimiter);
 			this.serializationSchema = Preconditions.checkNotNull(serializationSchema);
@@ -449,13 +443,17 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			this.keyFieldIndices = Preconditions.checkNotNull(keyFieldIndices);
 			this.requestFactory = Preconditions.checkNotNull(requestFactory);
 			this.keyNullLiteral = Preconditions.checkNotNull(keyNullLiteral);
-			this.indexFormatter = Preconditions.checkNotNull(indexFormatter);
+		}
+
+		@Override
+		public void open() {
+			indexGenerator.open();
 		}
 
 		@Override
 		public void process(Tuple2<Boolean, Row> element, RuntimeContext ctx, RequestIndexer indexer) {
 
-			final String formattedIndex = indexFormatter.getFormattedIndex(element.f1);
+			final String formattedIndex = indexGenerator.generate(element.f1);
 			if (element.f0) {
 				processUpsert(element.f1, indexer, formattedIndex);
 			} else {
@@ -519,28 +517,26 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 				return false;
 			}
 			ElasticsearchUpsertSinkFunction that = (ElasticsearchUpsertSinkFunction) o;
-			return Objects.equals(index, that.index) &&
+			return Objects.equals(indexGenerator, that.indexGenerator) &&
 				Objects.equals(docType, that.docType) &&
 				Objects.equals(keyDelimiter, that.keyDelimiter) &&
 				Objects.equals(keyNullLiteral, that.keyNullLiteral) &&
 				Objects.equals(serializationSchema, that.serializationSchema) &&
 				contentType == that.contentType &&
 				Objects.equals(requestFactory, that.requestFactory) &&
-				Arrays.equals(keyFieldIndices, that.keyFieldIndices) &&
-				Objects.equals(indexFormatter, that.indexFormatter);
+				Arrays.equals(keyFieldIndices, that.keyFieldIndices);
 		}
 
 		@Override
 		public int hashCode() {
 			int result = Objects.hash(
-				index,
+				indexGenerator,
 				docType,
 				keyDelimiter,
 				keyNullLiteral,
 				serializationSchema,
 				contentType,
-				requestFactory,
-				indexFormatter);
+				requestFactory);
 			result = 31 * result + Arrays.hashCode(keyFieldIndices);
 			return result;
 		}

@@ -69,4 +69,9 @@ public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 	 * @param indexer request indexer that {@code ActionRequest} should be added to
 	 */
 	void process(T element, RuntimeContext ctx, RequestIndexer indexer);
+
+	/**
+	 *  General-purpose open method.
+	 */
+	default void open() {}
 }

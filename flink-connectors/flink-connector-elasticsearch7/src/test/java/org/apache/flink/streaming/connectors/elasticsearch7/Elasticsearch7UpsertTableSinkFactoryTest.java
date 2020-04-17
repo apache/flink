@@ -37,7 +37,8 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkFactoryTestBase;
-import org.apache.flink.streaming.connectors.elasticsearch.IndexFormatter;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGenerator;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGeneratorFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
@@ -61,6 +62,7 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 	@Test
 	public void testBuilder() {
 		final TableSchema schema = createTestSchema();
+		final IndexGenerator indexGenerator = IndexGeneratorFactory.createIndexGenerator(INDEX, schema);
 
 		final TestElasticsearch7UpsertTableSink testSink = new TestElasticsearch7UpsertTableSink(
 			false,
@@ -73,7 +75,8 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
-			createTestSinkOptions());
+			createTestSinkOptions(),
+			indexGenerator);
 
 		final DataStreamMock dataStreamMock = new DataStreamMock(
 				new StreamExecutionEnvironmentMock(),
@@ -84,19 +87,14 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> expectedBuilder = new ElasticsearchSink.Builder<>(
 			Collections.singletonList(new HttpHost(HOSTNAME, PORT, SCHEMA)),
 			new ElasticsearchUpsertSinkFunction(
-				INDEX,
+				indexGenerator,
 				DOC_TYPE,
 				KEY_DELIMITER,
 				KEY_NULL_LITERAL,
 				JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 				XContentType.JSON,
 				Elasticsearch7UpsertTableSink.UPDATE_REQUEST_FACTORY,
-				new int[0],
-				IndexFormatter.builder()
-					.index(INDEX)
-					.fieldNames(schema.getFieldNames())
-					.fieldTypes(schema.getFieldTypes())
-					.build()));
+				new int[0]));
 		expectedBuilder.setFailureHandler(new DummyFailureHandler());
 		expectedBuilder.setBulkFlushBackoff(true);
 		expectedBuilder.setBulkFlushBackoffType(ElasticsearchSinkBase.FlushBackoffType.EXPONENTIAL);
@@ -106,7 +104,6 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		expectedBuilder.setBulkFlushMaxActions(1000);
 		expectedBuilder.setBulkFlushMaxSizeMb(1);
 		expectedBuilder.setRestClientFactory(new Elasticsearch7UpsertTableSink.DefaultRestClientFactory("/myapp"));
-
 		assertEquals(expectedBuilder, testSink.builder);
 	}
 
@@ -127,7 +124,8 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			SerializationSchema<Row> serializationSchema,
 			XContentType contentType,
 			ActionRequestFailureHandler failureHandler,
-			Map<SinkOption, String> sinkOptions) {
+			Map<SinkOption, String> sinkOptions,
+			IndexGenerator indexGenerator) {
 		return new Elasticsearch7UpsertTableSink(
 			isAppendOnly,
 			schema,
@@ -160,7 +158,8 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 				SerializationSchema<Row> serializationSchema,
 				XContentType contentType,
 				ActionRequestFailureHandler failureHandler,
-				Map<SinkOption, String> sinkOptions) {
+				Map<SinkOption, String> sinkOptions,
+				IndexGenerator indexGenerator) {
 
 			super(
 				isAppendOnly,
