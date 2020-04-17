@@ -50,7 +50,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 		generateHadoopConfFileItems();
 
 		this.resultPod =
-			KubernetesTaskManagerFactory.createTaskManagerComponent(kubernetesTaskManagerParameters).getInternalResource();
+			KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(kubernetesTaskManagerParameters).getInternalResource();
 	}
 
 	@Test
