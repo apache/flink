@@ -219,7 +219,8 @@ class SchemaValidatorTest {
     val extractor = rowtime.getTimestampExtractor
     assertTrue(extractor.equals(new ExistingField("rt")))
     assertTrue(rowtime.getWatermarkStrategy.isInstanceOf[BoundedOutOfOrderTimestamps])
-    val fieldMapping = SchemaValidator.deriveFieldMapping(properties, Optional.of(properties.getTableSchema(Schema.SCHEMA).toRowType))
+    val fieldMapping = SchemaValidator.deriveFieldMapping(properties,
+      Optional.of(properties.getTableSchema(Schema.SCHEMA).toRowType))
     assertTrue(fieldMapping.containsKey("rt"))
   }
 }
