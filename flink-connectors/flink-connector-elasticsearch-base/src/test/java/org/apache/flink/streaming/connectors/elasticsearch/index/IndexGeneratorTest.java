@@ -203,7 +203,7 @@ public class IndexGeneratorTest {
 	@Test
 	public void testUnsupportedTimeType() {
 		String expectedExceptionMsg = "Unsupported type 'Integer' found in Elasticsearch dynamic index field, " +
-			"time-related pattern only support types are: [Timestamp, Time, Date, LocalDateTime, LocalTime, LocalDate]";
+			"time-related pattern only support types are: [Date, LocalDate, LocalDateTime, LocalTime, Time, Timestamp]";
 		try {
 			IndexGeneratorFactory.createIndexGenerator("my-index-{id|yyyy-MM-dd}", schema);
 		} catch (TableException e) {

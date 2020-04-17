@@ -35,11 +35,13 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Factory of {@link IndexGenerator}.
@@ -91,7 +93,7 @@ public class IndexGeneratorFactory {
 			final String dateTimeFormat = indexHelper.extractDateFormat(index, indexFieldType);
 			// DataTypes.SQL_TIMESTAMP
 			if (indexFieldType == Types.LOCAL_DATE_TIME) {
-				return new AbstractTimeIndexGenerator(dateTimeFormat) {
+				return new AbstractTimeIndexGenerator(index, dateTimeFormat) {
 					@Override
 					public String generate(Row row) {
 						LocalDateTime indexField = (LocalDateTime) row.getField(indexFieldPos);
@@ -101,7 +103,7 @@ public class IndexGeneratorFactory {
 				};
 			}
 			else if (indexFieldType == Types.SQL_TIMESTAMP) {
-				return new AbstractTimeIndexGenerator(dateTimeFormat) {
+				return new AbstractTimeIndexGenerator(index, dateTimeFormat) {
 					@Override
 					public String generate(Row row) {
 						Timestamp indexField = (Timestamp) row.getField(indexFieldPos);
@@ -112,7 +114,7 @@ public class IndexGeneratorFactory {
 			}
 			// DataTypes.SQL_DATE
 			else if (indexFieldType == Types.LOCAL_DATE) {
-				return new AbstractTimeIndexGenerator(dateTimeFormat) {
+				return new AbstractTimeIndexGenerator(index, dateTimeFormat) {
 					@Override
 					public String generate(Row row) {
 						LocalDate indexField = (LocalDate) row.getField(indexFieldPos);
@@ -121,7 +123,7 @@ public class IndexGeneratorFactory {
 					}
 				};
 			} else if (indexFieldType == Types.SQL_DATE) {
-				return new AbstractTimeIndexGenerator(dateTimeFormat) {
+				return new AbstractTimeIndexGenerator(index, dateTimeFormat) {
 					@Override
 					public String generate(Row row) {
 						Date indexField = (Date) row.getField(indexFieldPos);
@@ -131,7 +133,7 @@ public class IndexGeneratorFactory {
 				};
 			} // DataTypes.TIME
 			else if (indexFieldType == Types.LOCAL_TIME) {
-				return new AbstractTimeIndexGenerator(dateTimeFormat) {
+				return new AbstractTimeIndexGenerator(index, dateTimeFormat) {
 					@Override
 					public String generate(Row row) {
 						LocalTime indexField = (LocalTime) row.getField(indexFieldPos);
@@ -140,7 +142,7 @@ public class IndexGeneratorFactory {
 					}
 				};
 			} else if (indexFieldType == Types.SQL_TIME) {
-				return new AbstractTimeIndexGenerator(dateTimeFormat) {
+				return new AbstractTimeIndexGenerator(index, dateTimeFormat) {
 					@Override
 					public String generate(Row row) {
 						Time indexField = (Time) row.getField(indexFieldPos);
@@ -220,7 +222,12 @@ public class IndexGeneratorFactory {
 		 */
 		String getSupportedDateTypes() {
 
-			return defaultFormats.keySet().toString();
+			return defaultFormats.keySet().stream().sorted(new Comparator<TypeInformation>() {
+				@Override
+				public int compare(TypeInformation o1, TypeInformation o2) {
+					return o1.toString().compareTo(o2.toString());
+				}
+			}).collect(Collectors.toList()).toString();
 		}
 
 		/**

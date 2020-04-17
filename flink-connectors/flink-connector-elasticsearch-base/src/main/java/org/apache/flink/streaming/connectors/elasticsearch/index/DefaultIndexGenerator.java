@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.elasticsearch.index;
 
 import org.apache.flink.types.Row;
 
+import java.util.Objects;
+
 /**
  * Default IndexGenerator implements.
  */
@@ -37,5 +39,22 @@ public class DefaultIndexGenerator implements IndexGenerator {
 	 */
 	public String generate(Row row) {
 		return index;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof DefaultIndexGenerator)) {
+			return false;
+		}
+		DefaultIndexGenerator that = (DefaultIndexGenerator) o;
+		return Objects.equals(index, that.index);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(index);
 	}
 }

@@ -75,8 +75,7 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
-			createTestSinkOptions(),
-			indexGenerator);
+			createTestSinkOptions());
 
 		final DataStreamMock dataStreamMock = new DataStreamMock(
 				new StreamExecutionEnvironmentMock(),
@@ -158,8 +157,7 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 				SerializationSchema<Row> serializationSchema,
 				XContentType contentType,
 				ActionRequestFailureHandler failureHandler,
-				Map<SinkOption, String> sinkOptions,
-				IndexGenerator indexGenerator) {
+				Map<SinkOption, String> sinkOptions) {
 
 			super(
 				isAppendOnly,
