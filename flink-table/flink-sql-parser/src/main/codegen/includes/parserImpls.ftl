@@ -573,6 +573,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
+	SqlTableLike tableLike = null;
 
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
@@ -609,6 +610,10 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
         <WITH>
         propertyList = TableProperties()
     ]
+    [
+        <LIKE>
+        tableLike = SqlTableLike(getPos())
+    ]
     {
         return new SqlCreateTable(startPos.plus(getPos()),
                 tableName,
@@ -618,7 +623,65 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
                 propertyList,
                 partitionColumns,
                 watermark,
-                comment);
+                comment,
+                tableLike);
+    }
+}
+
+SqlTableLike SqlTableLike(SqlParserPos startPos):
+{
+    final List<SqlTableLikeOption> likeOptions = new ArrayList<SqlTableLikeOption>();
+    SqlIdentifier tableName;
+    SqlTableLikeOption likeOption;
+}
+{
+    tableName = CompoundIdentifier()
+    [
+        <LPAREN>
+        (
+            likeOption = SqlTableLikeOption()
+            {
+                likeOptions.add(likeOption);
+            }
+        )+
+        <RPAREN>
+    ]
+    {
+        return new SqlTableLike(
+            startPos.plus(getPos()),
+            tableName,
+            likeOptions
+        );
+    }
+}
+
+SqlTableLikeOption SqlTableLikeOption():
+{
+    MergingStrategy mergingStrategy;
+    FeatureOption featureOption;
+}
+{
+    (
+        <INCLUDING> { mergingStrategy = MergingStrategy.INCLUDING; }
+    |
+        <EXCLUDING> { mergingStrategy = MergingStrategy.EXCLUDING; }
+    |
+        <OVERWRITING> { mergingStrategy = MergingStrategy.OVERWRITING; }
+    )
+    (
+        <ALL> { featureOption = FeatureOption.ALL;}
+    |
+        <CONSTRAINTS> { featureOption = FeatureOption.CONSTRAINTS;}
+    |
+        <GENERATED> { featureOption = FeatureOption.GENERATED;}
+    |
+        <OPTIONS> { featureOption = FeatureOption.OPTIONS;}
+    |
+        <PARTITIONS> { featureOption = FeatureOption.PARTITIONS;}
+    )
+
+    {
+        return new SqlTableLikeOption(mergingStrategy, featureOption);
     }
 }
 

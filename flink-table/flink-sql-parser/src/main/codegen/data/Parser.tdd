@@ -39,6 +39,10 @@
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
     "org.apache.flink.sql.parser.ddl.SqlTableColumn"
+    "org.apache.flink.sql.parser.ddl.SqlTableLike"
+    "org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption"
+    "org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy"
+    "org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption"
     "org.apache.flink.sql.parser.ddl.SqlTableOption"
     "org.apache.flink.sql.parser.ddl.SqlUseCatalog"
     "org.apache.flink.sql.parser.ddl.SqlUseDatabase"
@@ -78,7 +82,9 @@
     "FUNCTIONS"
     "IF"
     "OVERWRITE"
+    "OVERWRITING"
     "PARTITIONED"
+    "PARTITIONS"
     "RAW"
     "RENAME"
     "SCALA"
@@ -408,7 +414,9 @@
     # not in core, added in Flink
     "IF"
     "OVERWRITE"
+    "OVERWRITING"
     "PARTITIONED"
+    "PARTITIONS"
   ]
 
   # List of non-reserved keywords to remove;

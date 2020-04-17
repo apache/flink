@@ -24,19 +24,14 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Test;
 
-import java.io.Reader;
-import java.util.function.UnaryOperator;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-
 
 /** FlinkSqlParserImpl tests. **/
 public class FlinkSqlParserImplTest extends SqlParserTest {
@@ -44,11 +39,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	@Override
 	protected SqlParserImplFactory parserImplFactory() {
 		return FlinkSqlParserImpl.FACTORY;
-	}
-
-	protected SqlParser getSqlParser(Reader source,
-			UnaryOperator<SqlParser.ConfigBuilder> transform) {
-		return super.getSqlParser(source, transform);
 	}
 
 	@Test
@@ -586,6 +576,33 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  ^a^.b.c = 'ab',\n" +
 			"  a.b.c1 = 'aabb')\n";
 		sql(sql).fails("(?s).*Encountered \"a\" at line 6, column 3.\n.*");
+	}
+
+	@Test
+	public void testCreateTableWithLikeClause() {
+		final String sql = "create table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c string\n" +
+			")\n" +
+			"LIKE parent_table (\n" +
+			"   INCLUDING ALL\n" +
+			"   OVERWRITING OPTIONS\n" +
+			"   EXCLUDING PARTITIONS\n" +
+			"   INCLUDING GENERATED\n" +
+			")";
+		final String expected = "CREATE TABLE `SOURCE_TABLE` (\n" +
+			"  `A`  INTEGER,\n" +
+			"  `B`  BIGINT,\n" +
+			"  `C`  STRING\n" +
+			")\n" +
+			"LIKE `PARENT_TABLE` (\n" +
+			"  INCLUDING ALL\n" +
+			"  OVERWRITING OPTIONS\n" +
+			"  EXCLUDING PARTITIONS\n" +
+			"  INCLUDING GENERATED\n" +
+			")";
+		sql(sql).ok(expected);
 	}
 
 	@Test
