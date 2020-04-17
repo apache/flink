@@ -146,7 +146,7 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 		} else {
 			ret = new GenericRow(from.getArity());
 		}
-		ret.setHeader(from.getHeader());
+		ret.setRowKind(from.getRowKind());
 		for (int i = 0; i < from.getArity(); i++) {
 			if (!from.isNullAt(i)) {
 				ret.setField(
@@ -184,7 +184,7 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 			reuseWriter = new BinaryRowWriter(reuseRow);
 		}
 		reuseWriter.reset();
-		reuseWriter.writeHeader(row.getHeader());
+		reuseWriter.writeRowKind(row.getRowKind());
 		for (int i = 0; i < types.length; i++) {
 			if (row.isNullAt(i)) {
 				reuseWriter.setNullAt(i);

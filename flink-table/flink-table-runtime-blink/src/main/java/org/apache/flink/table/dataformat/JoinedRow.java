@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.types.RowKind;
+
 /**
  * Join two row to one row.
  */
@@ -24,7 +26,7 @@ public final class JoinedRow implements BaseRow {
 
 	private BaseRow row1;
 	private BaseRow row2;
-	private byte header;
+	private RowKind rowKind = RowKind.INSERT;
 
 	public JoinedRow() {}
 
@@ -45,13 +47,13 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
-	public byte getHeader() {
-		return header;
+	public RowKind getRowKind() {
+		return rowKind;
 	}
 
 	@Override
-	public void setHeader(byte header) {
-		this.header = header;
+	public void setRowKind(RowKind kind) {
+		this.rowKind = kind;
 	}
 
 	@Override

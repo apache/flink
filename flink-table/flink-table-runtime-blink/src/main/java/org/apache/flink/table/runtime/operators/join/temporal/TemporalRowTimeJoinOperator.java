@@ -36,6 +36,7 @@ import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -153,7 +154,9 @@ public class TemporalRowTimeJoinOperator
 			TIMERS_STATE_NAME, VoidNamespaceSerializer.INSTANCE, this);
 		collector = new TimestampedCollector<>(output);
 		outRow = new JoinedRow();
-		outRow.setHeader(BaseRowUtil.ACCUMULATE_MSG);
+		// all the output records should be INSERT only,
+		// because current temporal join only supports INSERT only left stream
+		outRow.setRowKind(RowKind.INSERT);
 	}
 
 	@Override

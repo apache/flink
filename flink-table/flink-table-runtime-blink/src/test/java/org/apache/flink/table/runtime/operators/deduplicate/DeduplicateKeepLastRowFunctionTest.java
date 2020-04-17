@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /**
@@ -36,11 +37,12 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
  */
 public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestBase {
 
-	private DeduplicateKeepLastRowFunction createFunction(boolean generateUpdateBefore) {
+	private DeduplicateKeepLastRowFunction createFunction(boolean generateUpdateBefore, boolean generateInsert) {
 		return new DeduplicateKeepLastRowFunction(
 			minTime.toMilliseconds(),
 			inputRowType,
-			generateUpdateBefore);
+			generateUpdateBefore,
+			generateInsert);
 	}
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
@@ -52,7 +54,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 
 	@Test
 	public void testWithoutGenerateUpdateBefore() throws Exception {
-		DeduplicateKeepLastRowFunction func = createFunction(false);
+		DeduplicateKeepLastRowFunction func = createFunction(false, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
@@ -61,15 +63,34 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
+		// we do not output INSERT if generateUpdateBefore is false for deduplication last row
 		expectedOutput.add(insertRecord("book", 1L, 12));
 		expectedOutput.add(insertRecord("book", 2L, 11));
-		expectedOutput.add(insertRecord("book", 1L, 13));
+		expectedOutput.add(updateAfterRecord("book", 1L, 13));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
+	public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
+		DeduplicateKeepLastRowFunction func = createFunction(false, false);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(insertRecord("book", 1L, 12));
+		testHarness.processElement(insertRecord("book", 2L, 11));
+		testHarness.processElement(insertRecord("book", 1L, 13));
+		testHarness.close();
+
+		List<Object> expectedOutput = new ArrayList<>();
+		// we always produce UPDATE_AFTER if INSERT is not needed.
+		expectedOutput.add(updateAfterRecord("book", 1L, 12));
+		expectedOutput.add(updateAfterRecord("book", 2L, 11));
+		expectedOutput.add(updateAfterRecord("book", 1L, 13));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
 	public void testWithGenerateUpdateBefore() throws Exception {
-		DeduplicateKeepLastRowFunction func = createFunction(true);
+		DeduplicateKeepLastRowFunction func = createFunction(true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
@@ -77,18 +98,18 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		testHarness.processElement(insertRecord("book", 1L, 13));
 		testHarness.close();
 
-		// Keep LastRow in deduplicate may send retraction
+		// Keep LastRow in deduplicate may send UPDATE_BEFORE
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(insertRecord("book", 1L, 12));
 		expectedOutput.add(updateBeforeRecord("book", 1L, 12));
-		expectedOutput.add(insertRecord("book", 1L, 13));
+		expectedOutput.add(updateAfterRecord("book", 1L, 13));
 		expectedOutput.add(insertRecord("book", 2L, 11));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
 	public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
-		DeduplicateKeepLastRowFunction func = createFunction(true);
+		DeduplicateKeepLastRowFunction func = createFunction(true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
@@ -100,16 +121,16 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		testHarness.processElement(insertRecord("book", 2L, 18));
 		testHarness.processElement(insertRecord("book", 1L, 19));
 
-		// Keep LastRow in deduplicate may send retraction
+		// Keep LastRow in deduplicate may send UPDATE_BEFORE
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(insertRecord("book", 1L, 12));
 		expectedOutput.add(updateBeforeRecord("book", 1L, 12));
-		expectedOutput.add(insertRecord("book", 1L, 13));
+		expectedOutput.add(updateAfterRecord("book", 1L, 13));
 		expectedOutput.add(insertRecord("book", 2L, 11));
-		// because (2L,11), (1L,13) retired, so there is no retract message send to downstream
+		// because (2L,11), (1L,13) retired, so no UPDATE_BEFORE message send to downstream
 		expectedOutput.add(insertRecord("book", 1L, 17));
 		expectedOutput.add(updateBeforeRecord("book", 1L, 17));
-		expectedOutput.add(insertRecord("book", 1L, 19));
+		expectedOutput.add(updateAfterRecord("book", 1L, 19));
 		expectedOutput.add(insertRecord("book", 2L, 18));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();

@@ -89,7 +89,7 @@ public abstract class AbstractBaseRowPythonScalarFunctionOperator
 	public void bufferInput(BaseRow input) {
 		// always copy the projection result as the generated Projection reuses the projection result
 		BaseRow forwardedFields = forwardedFieldProjection.apply(input).copy();
-		forwardedFields.setHeader(input.getHeader());
+		forwardedFields.setRowKind(input.getRowKind());
 		forwardedInputQueue.add(forwardedFields);
 	}
 

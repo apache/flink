@@ -106,7 +106,7 @@ public class BaseRowPythonTableFunctionOperator
 	public void bufferInput(BaseRow input) {
 		// always copy the input BaseRow
 		BaseRow forwardedFields = forwardedInputSerializer.copy(input);
-		forwardedFields.setHeader(input.getHeader());
+		forwardedFields.setRowKind(input.getRowKind());
 		forwardedInputQueue.add(forwardedFields);
 	}
 
@@ -156,7 +156,7 @@ public class BaseRowPythonTableFunctionOperator
 				input = forwardedInputQueue.poll();
 			} else if (input != null) {
 				if (!isFinishResult) {
-					reuseJoinedRow.setHeader(input.getHeader());
+					reuseJoinedRow.setRowKind(input.getRowKind());
 					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
 					BaseRow udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
 					baseRowWrapper.collect(reuseJoinedRow.replace(input, udtfResult));

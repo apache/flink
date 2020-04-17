@@ -49,7 +49,7 @@ object ExpandCodeGenerator {
       val projectionResultExpr = exprGenerator.generateResultExpression(
         projectionExprs, outputType, classOf[BoxedWrapperRow])
       val header = if (retainHeader) {
-        s"${projectionResultExpr.resultTerm}.setHeader($inputTerm.getHeader());"
+        s"${projectionResultExpr.resultTerm}.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }

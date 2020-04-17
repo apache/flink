@@ -56,7 +56,6 @@ public class BaseRowHarnessAssertor {
 		this(typeInfos, new StringComparator());
 	}
 
-
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 * Asserts two converted array should be same.
