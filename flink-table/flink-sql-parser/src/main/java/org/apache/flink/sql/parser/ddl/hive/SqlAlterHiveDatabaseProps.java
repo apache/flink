@@ -16,17 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.sql.parser.ddl.hive;
+
+import org.apache.flink.sql.parser.impl.ParseException;
+
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * Configs for catalog meta-objects in {@link HiveCatalog}.
+ * ALTER DDL to change properties of a Hive database.
  */
-public class HiveCatalogConfig {
+public class SqlAlterHiveDatabaseProps extends SqlAlterHiveDatabase {
 
-	// Table related configs
-	public static final String COMMENT = "comment";
-	public static final String DEFAULT_LIST_COLUMN_TYPES_SEPARATOR = ":";
+	public SqlAlterHiveDatabaseProps(SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList)
+			throws ParseException {
+		super(pos, databaseName, HiveDDLUtils.checkReservedDBProperties(propertyList));
+	}
 
-	// Partition related configs
-	public static final String PARTITION_LOCATION = "partition.location";
+	@Override
+	protected AlterHiveDatabaseOp getAlterOp() {
+		return AlterHiveDatabaseOp.CHANGE_PROPS;
+	}
 }

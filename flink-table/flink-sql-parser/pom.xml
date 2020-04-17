@@ -44,6 +44,12 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
@@ -232,6 +238,22 @@ under the License.
 				<artifactId>maven-resources-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>duplicate-parser-template</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/codegen-hive</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.build.directory}/codegen</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
 						<id>copy-fmpp-resources</id>
 						<phase>initialize</phase>
 						<goals>
@@ -242,6 +264,22 @@ under the License.
 							<resources>
 								<resource>
 									<directory>src/main/codegen</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-hive-fmpp-resources</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/codegen-hive</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/main/codegen-hive</directory>
 									<filtering>false</filtering>
 								</resource>
 							</resources>
@@ -273,6 +311,18 @@ under the License.
 							<templateDirectory>${project.build.directory}/codegen/templates</templateDirectory>
 						</configuration>
 					</execution>
+					<execution>
+						<id>generate-hive-fmpp-sources</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<cfgFile>${project.build.directory}/codegen-hive/config.fmpp</cfgFile>
+							<outputDirectory>${project.build.directory}/generated-sources-hive</outputDirectory>
+							<templateDirectory>${project.build.directory}/codegen-hive/templates</templateDirectory>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 			<plugin>
@@ -289,6 +339,23 @@ under the License.
 						</goals>
 						<configuration>
 							<sourceDirectory>${project.build.directory}/generated-sources/</sourceDirectory>
+							<includes>
+								<include>**/Parser.jj</include>
+							</includes>
+							<!-- This must be kept synced with Apache Calcite. -->
+							<lookAhead>1</lookAhead>
+							<isStatic>false</isStatic>
+							<outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<phase>generate-sources</phase>
+						<id>javacc-hive</id>
+						<goals>
+							<goal>javacc</goal>
+						</goals>
+						<configuration>
+							<sourceDirectory>${project.build.directory}/generated-sources-hive/</sourceDirectory>
 							<includes>
 								<include>**/Parser.jj</include>
 							</includes>

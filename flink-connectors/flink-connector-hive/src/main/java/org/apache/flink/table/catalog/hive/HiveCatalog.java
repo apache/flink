@@ -22,6 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.HiveTableFactory;
+import org.apache.flink.sql.parser.ddl.hive.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
+import org.apache.flink.sql.parser.ddl.hive.SqlAlterHiveDatabaseOwner;
+import org.apache.flink.sql.parser.ddl.hive.SqlCreateHiveDatabase;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -111,6 +114,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.sql.parser.ddl.hive.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
+import static org.apache.flink.sql.parser.ddl.hive.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_NAME;
+import static org.apache.flink.sql.parser.ddl.hive.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
@@ -249,7 +255,10 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = hiveDatabase.getParameters();
 
-		properties.put(HiveCatalogConfig.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+		boolean isGeneric = getObjectIsGeneric(properties);
+		if (!isGeneric) {
+			properties.put(SqlCreateHiveDatabase.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+		}
 
 		return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
 	}
@@ -277,13 +286,15 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = database.getProperties();
 
-		String dbLocationUri = properties.remove(HiveCatalogConfig.DATABASE_LOCATION_URI);
+		boolean isGeneric = createObjectIsGeneric(properties);
+
+		String dbLocationUri = isGeneric ? null : properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
 
 		return new Database(
-			databaseName,
-			database.getComment(),
-			dbLocationUri,
-			properties
+				databaseName,
+				database.getComment(),
+				dbLocationUri,
+				properties
 		);
 	}
 
@@ -294,18 +305,62 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
 		// client.alterDatabase doesn't throw any exception if there is no existing database
-		if (!databaseExists(databaseName)) {
+		Database hiveDB;
+		try {
+			hiveDB = getHiveDatabase(databaseName);
+		} catch (DatabaseNotExistException e) {
 			if (!ignoreIfNotExists) {
 				throw new DatabaseNotExistException(getName(), databaseName);
 			}
 
 			return;
 		}
-
-		Database newHiveDatabase = instantiateHiveDatabase(databaseName, newDatabase);
+		Map<String, String> params = hiveDB.getParameters();
+		boolean isGeneric = getObjectIsGeneric(params);
+		if (isGeneric) {
+			// altering generic DB doesn't merge properties, see CatalogTest::testAlterDb
+			hiveDB.setParameters(newDatabase.getProperties());
+		} else {
+			String opStr = newDatabase.getProperties().remove(ALTER_DATABASE_OP);
+			if (opStr == null) {
+				throw new CatalogException(ALTER_DATABASE_OP + " property is missing for alter database statement");
+			}
+			String newLocation = newDatabase.getProperties().remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
+			Map<String, String> newParams = newDatabase.getProperties();
+			AlterHiveDatabaseOp op = AlterHiveDatabaseOp.valueOf(opStr);
+			switch (op) {
+				case CHANGE_PROPS:
+					if (params == null) {
+						hiveDB.setParameters(newParams);
+					} else {
+						params.putAll(newParams);
+					}
+					break;
+				case CHANGE_LOCATION:
+					hiveDB.setLocationUri(newLocation);
+					break;
+				case CHANGE_OWNER:
+					String ownerName = newParams.remove(DATABASE_OWNER_NAME);
+					String ownerType = newParams.remove(DATABASE_OWNER_TYPE);
+					hiveDB.setOwnerName(ownerName);
+					switch (ownerType) {
+						case SqlAlterHiveDatabaseOwner.ROLE_OWNER:
+							hiveDB.setOwnerType(PrincipalType.ROLE);
+							break;
+						case SqlAlterHiveDatabaseOwner.USER_OWNER:
+							hiveDB.setOwnerType(PrincipalType.USER);
+							break;
+						default:
+							throw new CatalogException("Unsupported database owner type: " + ownerType);
+					}
+					break;
+				default:
+					throw new CatalogException("Unsupported alter database op:" + opStr);
+			}
+		}
 
 		try {
-			client.alterDatabase(databaseName, newHiveDatabase);
+			client.alterDatabase(databaseName, hiveDB);
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter database %s", databaseName), e);
 		}
@@ -349,7 +404,8 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private Database getHiveDatabase(String databaseName) throws DatabaseNotExistException {
+	@VisibleForTesting
+	public Database getHiveDatabase(String databaseName) throws DatabaseNotExistException {
 		try {
 			return client.getDatabase(databaseName);
 		} catch (NoSuchObjectException e) {
@@ -543,10 +599,7 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
 
-		// When retrieving a table, a generic table needs explicitly have a key is_generic = true
-		// otherwise, this is a Hive table if 1) the key is missing 2) is_generic = false
-		// this is opposite to creating a table. See instantiateHiveTable()
-		boolean isGeneric = Boolean.parseBoolean(hiveTable.getParameters().getOrDefault(CatalogConfig.IS_GENERIC, "false"));
+		boolean isGeneric = getObjectIsGeneric(hiveTable.getParameters());
 
 		TableSchema tableSchema;
 		// Partition keys
@@ -620,17 +673,7 @@ public class HiveCatalog extends AbstractCatalog {
 			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
 		}
 
-		// When creating a table, A hive table needs explicitly have a key is_generic = false
-		// otherwise, this is a generic table if 1) the key is missing 2) is_generic = true
-		// this is opposite to reading a table and instantiating a CatalogTable. See instantiateCatalogTable()
-		boolean isGeneric;
-		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
-			// must be a generic table
-			isGeneric = true;
-			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
-		} else {
-			isGeneric = Boolean.parseBoolean(properties.get(CatalogConfig.IS_GENERIC));
-		}
+		boolean isGeneric = createObjectIsGeneric(properties);
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
@@ -1408,6 +1451,31 @@ public class HiveCatalog extends AbstractCatalog {
 			throw new CatalogException(String.format("Failed to get table stats of table %s 's partition %s",
 													tablePath.getFullName(), String.valueOf(partitionSpec)), e);
 		}
+	}
+
+	private static boolean createObjectIsGeneric(Map<String, String> properties) {
+		// When creating an object, a hive object needs explicitly have a key is_generic = false
+		// otherwise, this is a generic object if 1) the key is missing 2) is_generic = true
+		// this is opposite to reading an object. See getObjectIsGeneric().
+		if (properties == null) {
+			return true;
+		}
+		boolean isGeneric;
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a generic object
+			isGeneric = true;
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+		} else {
+			isGeneric = Boolean.parseBoolean(properties.get(CatalogConfig.IS_GENERIC));
+		}
+		return isGeneric;
+	}
+
+	private static boolean getObjectIsGeneric(Map<String, String> properties) {
+		// When retrieving an object, a generic object needs explicitly have a key is_generic = true
+		// otherwise, this is a Hive object if 1) the key is missing 2) is_generic = false
+		// this is opposite to creating an object. See createObjectIsGeneric()
+		return properties != null && Boolean.parseBoolean(properties.getOrDefault(CatalogConfig.IS_GENERIC, "false"));
 	}
 
 }
