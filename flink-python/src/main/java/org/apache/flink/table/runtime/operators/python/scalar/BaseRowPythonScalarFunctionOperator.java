@@ -71,7 +71,7 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonSc
 		byte[] rawUdfResult;
 		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			BaseRow input = forwardedInputQueue.poll();
-			reuseJoinedRow.setHeader(input.getHeader());
+			reuseJoinedRow.setRowKind(input.getRowKind());
 			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
 			BaseRow udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
 			baseRowWrapper.collect(reuseJoinedRow.replace(input, udfResult));

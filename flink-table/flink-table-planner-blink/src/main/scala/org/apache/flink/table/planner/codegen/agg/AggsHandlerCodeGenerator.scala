@@ -538,9 +538,9 @@ class AggsHandlerCodeGenerator(
               $BASE_ROW tempBaseRow = convertToBaseRow($recordInputName);
               result.replace(key, tempBaseRow);
               if (isRetract) {
-                result.setHeader(${className[BaseRowUtil]}.RETRACT_MSG);
+                result.setRowKind($ROW_KIND.DELETE);
               } else {
-                result.setHeader(${className[BaseRowUtil]}.ACCUMULATE_MSG);
+                result.setRowKind($ROW_KIND.INSERT);
               }
               $COLLECTOR_TERM.collect(result);
             }

@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.types.RowKind;
+
 /**
  * An interface for row used internally in Flink Table/SQL.
  *
@@ -36,13 +38,16 @@ public interface BaseRow extends TypeGetterSetters {
 	int getArity();
 
 	/**
-	 * The header represents the type of this Row. Now just used in streaming.
-	 * Now there are two message: ACCUMULATE_MSG and RETRACT_MSG.
+	 * Returns the kind of change that this row describes in a changelog.
+	 *
+	 * @see RowKind
 	 */
-	byte getHeader();
+	RowKind getRowKind();
 
 	/**
-	 * Set the byte header.
+	 * Sets the kind of change that this row describes in a changelog.
+	 *
+	 * @see RowKind
 	 */
-	void setHeader(byte header);
+	void setRowKind(RowKind kind);
 }

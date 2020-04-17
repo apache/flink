@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
@@ -30,6 +29,7 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -78,7 +78,7 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes,
 			int rowtimeIndex,
-			boolean sendRetraction,
+			boolean produceUpdates,
 			long allowedLateness) {
 		super(windowAggregator,
 			windowAssigner,
@@ -89,7 +89,7 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
 			aggResultTypes,
 			windowPropertyTypes,
 			rowtimeIndex,
-			sendRetraction,
+			produceUpdates,
 			allowedLateness);
 		this.aggWindowAggregator = windowAggregator;
 		this.equaliser = checkNotNull(equaliser);
@@ -147,7 +147,7 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
 	protected void emitWindowResult(W window) throws Exception {
 		windowFunction.prepareAggregateAccumulatorForEmit(window);
 		BaseRow aggResult = aggWindowAggregator.getValue(window);
-		if (sendRetraction) {
+		if (produceUpdates) {
 			previousState.setCurrentNamespace(window);
 			BaseRow previousAggResult = previousState.value();
 
@@ -155,32 +155,31 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
 			if (previousAggResult != null) {
 				// current agg is not equal to the previous emitted, should emit retract
 				if (!equaliser.equalsWithoutHeader(aggResult, previousAggResult)) {
-					reuseOutput.replace((BaseRow) getCurrentKey(), previousAggResult);
-					BaseRowUtil.setRetract(reuseOutput);
-					// send retraction
-					collector.collect(reuseOutput);
-					// send accumulate
-					reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-					BaseRowUtil.setAccumulate(reuseOutput);
-					collector.collect(reuseOutput);
+					// send UPDATE_BEFORE
+					collect(RowKind.UPDATE_BEFORE, (BaseRow) getCurrentKey(), previousAggResult);
+					// send UPDATE_AFTER
+					collect(RowKind.UPDATE_AFTER, (BaseRow) getCurrentKey(), aggResult);
 					// update previousState
 					previousState.update(aggResult);
 				}
 				// if the previous agg equals to the current agg, no need to send retract and accumulate
 			}
-			// the first fire for the window, only send accumulate
+			// the first fire for the window, only send INSERT
 			else {
-				// send accumulate
-				reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-				BaseRowUtil.setAccumulate(reuseOutput);
-				collector.collect(reuseOutput);
+				// send INSERT
+				collect(RowKind.INSERT, (BaseRow) getCurrentKey(), aggResult);
 				// update previousState
 				previousState.update(aggResult);
 			}
 		} else {
-			reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-			// no need to set header
-			collector.collect(reuseOutput);
+			// send INSERT
+			collect(RowKind.INSERT, (BaseRow) getCurrentKey(), aggResult);
 		}
+	}
+
+	private void collect(RowKind rowKind, BaseRow key, BaseRow aggResult) {
+		reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
+		reuseOutput.setRowKind(rowKind);
+		collector.collect(reuseOutput);
 	}
 }

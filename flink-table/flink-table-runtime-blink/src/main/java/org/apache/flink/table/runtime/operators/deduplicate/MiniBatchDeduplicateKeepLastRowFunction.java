@@ -45,6 +45,7 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 
 	private final BaseRowTypeInfo rowTypeInfo;
 	private final boolean generateUpdateBefore;
+	private final boolean generateInsert;
 	private final TypeSerializer<BaseRow> typeSerializer;
 	private final long minRetentionTime;
 	// state stores complete row.
@@ -53,11 +54,13 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 	public MiniBatchDeduplicateKeepLastRowFunction(
 			BaseRowTypeInfo rowTypeInfo,
 			boolean generateUpdateBefore,
+			boolean generateInsert,
 			TypeSerializer<BaseRow> typeSerializer,
 			long minRetentionTime) {
 		this.minRetentionTime = minRetentionTime;
 		this.rowTypeInfo = rowTypeInfo;
 		this.generateUpdateBefore = generateUpdateBefore;
+		this.generateInsert = generateInsert;
 		this.typeSerializer = typeSerializer;
 	}
 
@@ -85,7 +88,7 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 			BaseRow currentKey = entry.getKey();
 			BaseRow currentRow = entry.getValue();
 			ctx.setCurrentKey(currentKey);
-			processLastRow(currentRow, generateUpdateBefore, state, out);
+			processLastRow(currentRow, generateUpdateBefore, generateInsert, state, out);
 		}
 	}
 }

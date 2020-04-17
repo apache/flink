@@ -39,6 +39,7 @@ public class DeduplicateKeepLastRowFunction
 	private static final long serialVersionUID = -291348892087180350L;
 	private final BaseRowTypeInfo rowTypeInfo;
 	private final boolean generateUpdateBefore;
+	private final boolean generateInsert;
 
 	private final long minRetentionTime;
 	// state stores complete row.
@@ -47,29 +48,28 @@ public class DeduplicateKeepLastRowFunction
 	public DeduplicateKeepLastRowFunction(
 			long minRetentionTime,
 			BaseRowTypeInfo rowTypeInfo,
-			boolean generateUpdateBefore) {
+			boolean generateUpdateBefore,
+			boolean generateInsert) {
 		this.minRetentionTime = minRetentionTime;
 		this.rowTypeInfo = rowTypeInfo;
 		this.generateUpdateBefore = generateUpdateBefore;
+		this.generateInsert = generateInsert;
 	}
 
 	@Override
 	public void open(Configuration configure) throws Exception {
 		super.open(configure);
-		if (generateUpdateBefore) {
-			// state stores complete row if need generate retraction, otherwise do not need a state
-			ValueStateDescriptor<BaseRow> stateDesc = new ValueStateDescriptor<>("preRowState", rowTypeInfo);
-			StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
-			if (ttlConfig.isEnabled()) {
-				stateDesc.enableTimeToLive(ttlConfig);
-			}
-			state = getRuntimeContext().getState(stateDesc);
+		ValueStateDescriptor<BaseRow> stateDesc = new ValueStateDescriptor<>("preRowState", rowTypeInfo);
+		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
+		if (ttlConfig.isEnabled()) {
+			stateDesc.enableTimeToLive(ttlConfig);
 		}
+		state = getRuntimeContext().getState(stateDesc);
 	}
 
 	@Override
 	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
-		processLastRow(input, generateUpdateBefore, state, out);
+		processLastRow(input, generateUpdateBefore, generateInsert, state, out);
 	}
 
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.util;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
 import java.util.Comparator;
@@ -43,10 +44,10 @@ public class GenericRowRecordSortComparator implements Comparator<GenericRow>, S
 
 	@Override
 	public int compare(GenericRow row1, GenericRow row2) {
-		byte header1 = row1.getHeader();
-		byte header2 = row2.getHeader();
-		if (header1 != header2) {
-			return header1 - header2;
+		RowKind kind1 = row1.getRowKind();
+		RowKind kind2 = row2.getRowKind();
+		if (kind1 != kind2) {
+			return kind1.toByteValue() - kind2.toByteValue();
 		} else {
 			Object key1 = TypeGetterSetters.get(row1, sortKeyIdx, sortKeyType);
 			Object key2 = TypeGetterSetters.get(row2, sortKeyIdx, sortKeyType);

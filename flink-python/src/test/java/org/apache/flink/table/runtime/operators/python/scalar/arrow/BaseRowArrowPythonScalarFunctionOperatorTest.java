@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
@@ -40,6 +39,7 @@ import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
@@ -77,7 +77,9 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 		if (accumulateMsg) {
 			return baserow(fields);
 		} else {
-			return BaseRowUtil.setRetract(baserow(fields));
+			BaseRow row = baserow(fields);
+			row.setRowKind(RowKind.DELETE);
+			return row;
 		}
 	}
 

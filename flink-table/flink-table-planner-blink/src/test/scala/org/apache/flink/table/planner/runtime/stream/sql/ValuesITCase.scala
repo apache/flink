@@ -43,7 +43,7 @@ class ValuesITCase extends StreamingTestBase {
     result.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = List("0|1,Alice", "0|1,Bob")
+    val expected = List("+I(1,Alice)", "+I(1,Bob)")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }
