@@ -335,37 +335,48 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
 
     def test_set_jars(self):
-        jar_urls = []
-        func1_class_name = "org.apache.flink.python.util.TestScalarFunction1"
-        func2_class_name = "org.apache.flink.python.util.TestScalarFunction2"
-        func1_jar_pattern = "flink-python/target/func1/flink-python*-tests.jar"
-        func2_jar_pattern = "flink-python/target/func2/flink-python*-tests.jar"
-        self.ensure_jar_not_loaded(func1_class_name, func1_jar_pattern)
-        self.ensure_jar_not_loaded(func2_class_name, func2_jar_pattern)
-        jar_urls.extend(self.get_jar_url(func1_jar_pattern))
-        jar_urls.extend(self.get_jar_url(func2_jar_pattern))
+        self.verify_set_java_dependencies("pipeline.jars")
 
-        # test set the "pipeline.jars" multiple times
-        self.t_env.get_config().get_configuration().set_string("pipeline.jars", ";".join(jar_urls))
-        first_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+    def test_set_classpaths(self):
+        self.verify_set_java_dependencies("pipeline.classpaths")
 
-        self.t_env.get_config().get_configuration().set_string("pipeline.jars", jar_urls[0])
-        self.t_env.get_config().get_configuration().set_string("pipeline.jars", ";".join(jar_urls))
-        second_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+    def verify_set_java_dependencies(self, config_key):
+        original_class_loader = \
+            get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        try:
+            jar_urls = []
+            func1_class_name = "org.apache.flink.python.util.TestScalarFunction1"
+            func2_class_name = "org.apache.flink.python.util.TestScalarFunction2"
+            func1_jar_pattern = "flink-python/target/func1/flink-python*-tests.jar"
+            func2_jar_pattern = "flink-python/target/func2/flink-python*-tests.jar"
+            self.ensure_jar_not_loaded(func1_class_name, func1_jar_pattern)
+            self.ensure_jar_not_loaded(func2_class_name, func2_jar_pattern)
+            jar_urls.extend(self.get_jar_url(func1_jar_pattern))
+            jar_urls.extend(self.get_jar_url(func2_jar_pattern))
 
-        self.assertEqual(first_class_loader, second_class_loader)
+            # test set the "pipeline.jars" multiple times
+            self.t_env.get_config().get_configuration().set_string(config_key, ";".join(jar_urls))
+            first_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
 
-        source = self.t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
-        self.t_env.register_java_function("func1", func1_class_name)
-        self.t_env.register_java_function("func2", func2_class_name)
-        table_sink = source_sink_utils.TestAppendSink(
-            ["a", "b"], [DataTypes.STRING(), DataTypes.STRING()])
-        self.t_env.register_table_sink("sink", table_sink)
-        source.select("func1(a, b), func2(a, b)").insert_into("sink")
-        self.t_env.execute("test")
-        actual = source_sink_utils.results()
-        expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
-        self.assert_equals(actual, expected)
+            self.t_env.get_config().get_configuration().set_string(config_key, jar_urls[0])
+            self.t_env.get_config().get_configuration().set_string(config_key, ";".join(jar_urls))
+            second_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+
+            self.assertEqual(first_class_loader, second_class_loader)
+
+            source = self.t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
+            self.t_env.register_java_function("func1", func1_class_name)
+            self.t_env.register_java_function("func2", func2_class_name)
+            table_sink = source_sink_utils.TestAppendSink(
+                ["a", "b"], [DataTypes.STRING(), DataTypes.STRING()])
+            self.t_env.register_table_sink("sink", table_sink)
+            source.select("func1(a, b), func2(a, b)").insert_into("sink")
+            self.t_env.execute("test")
+            actual = source_sink_utils.results()
+            expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
+            self.assert_equals(actual, expected)
+        finally:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(original_class_loader)
 
     def ensure_jar_not_loaded(self, func_class_name, jar_filename_pattern):
         test_jars = glob.glob(os.path.join(_find_flink_source_root(), jar_filename_pattern))

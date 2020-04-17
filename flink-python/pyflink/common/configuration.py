@@ -69,7 +69,9 @@ class Configuration:
         :type value: str
         """
         jvm = get_gateway().jvm
-        if key == jvm.org.apache.flink.configuration.PipelineOptions.JARS.key():
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
+        if key in [jars_key, classpaths_key]:
             add_jars_to_context_class_loader(value.split(";"))
         self._j_configuration.setString(key, value)
 
