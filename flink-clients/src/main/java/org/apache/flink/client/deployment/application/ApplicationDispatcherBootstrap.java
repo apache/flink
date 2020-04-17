@@ -26,7 +26,6 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.SerializedThrowable;
 
@@ -50,6 +50,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -76,11 +77,9 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 	private final Configuration configuration;
 
-	private final CompletableFuture<Void> applicationStatusFuture;
-
 	private CompletableFuture<Void> applicationCompletionFuture;
 
-	private ScheduledFuture<List<JobID>> applicationExecutionTask;
+	private ScheduledFuture<?> applicationExecutionTask;
 
 	public ApplicationDispatcherBootstrap(
 			final PackagedProgram application,
@@ -89,22 +88,16 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		this.configuration = checkNotNull(configuration);
 		this.recoveredJobs = checkNotNull(recoveredJobs);
 		this.application = checkNotNull(application);
-
-		this.applicationStatusFuture = new CompletableFuture<>();
-	}
-
-	public CompletableFuture<Void> getApplicationStatusFuture() {
-		return applicationStatusFuture;
 	}
 
 	@Override
-	public void initialize(final Dispatcher dispatcher) {
+	public void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) {
 		checkNotNull(dispatcher);
 		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
 
 		runApplicationAndShutdownClusterAsync(
 				dispatcher,
-				dispatcher.getRpcService().getScheduledExecutor());
+				scheduledExecutor);
 	}
 
 	@Override
@@ -119,98 +112,108 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	}
 
 	@VisibleForTesting
+	ScheduledFuture<?> getApplicationExecutionFuture() {
+		return applicationExecutionTask;
+	}
+
+	/**
+	 * Runs the user program entrypoint using {@link #runApplicationAsync(DispatcherGateway,
+	 * ScheduledExecutor, boolean)} and shuts down the given dispatcher when the application
+	 * completes (either succesfully or in case of failure).
+	 */
+	@VisibleForTesting
 	CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
 			final DispatcherGateway dispatcher,
-			final ScheduledExecutor executor) {
+			final ScheduledExecutor scheduledExecutor) {
 
-		applicationCompletionFuture = executeApplicationAsync(dispatcher, executor)
-				.thenCompose(applicationIds -> getApplicationResult(dispatcher, applicationIds, executor));
+		applicationCompletionFuture = runApplicationAsync(dispatcher, scheduledExecutor, false);
 
-		applicationCompletionFuture
-				.whenComplete((r, t) -> {
+		return applicationCompletionFuture
+				.handle((r, t) -> {
 					if (t != null) {
 						LOG.warn("Application FAILED: ", t);
-						applicationStatusFuture.completeExceptionally(t);
 					} else {
 						LOG.info("Application completed SUCCESSFULLY");
-						applicationStatusFuture.complete(null);
 					}
-				});
-
-		return applicationStatusFuture.handle((r, t) -> dispatcher.shutDownCluster().join());
+					return dispatcher.shutDownCluster();
+				})
+				.thenCompose(Function.identity());
 	}
 
-	private CompletableFuture<List<JobID>> executeApplicationAsync(
+	/**
+	 * Runs the user program entrypoint by scheduling a task on the given {@code scheduledExecutor}.
+	 * The returned {@link CompletableFuture} completes when all jobs of the user application
+	 * succeeded. if any of them fails, or if job submission fails.
+	 */
+	@VisibleForTesting
+	CompletableFuture<Void> runApplicationAsync(
 			final DispatcherGateway dispatcher,
-			final ScheduledExecutor executor) {
+			final ScheduledExecutor scheduledExecutor,
+			final boolean enforceSingleJobExecution) {
 		final CompletableFuture<List<JobID>> applicationExecutionFuture = new CompletableFuture<>();
-		applicationExecutionTask = executor.schedule(
-				() -> tryRunApplicationAndGetJobIDs(applicationExecutionFuture, dispatcher, executor, true),
+
+		// we need to hand in a future as return value because we need to get those JobIs out
+		// from the scheduled task that executes the user program
+		applicationExecutionTask = scheduledExecutor.schedule(
+				() -> runApplicationEntrypoint(
+						applicationExecutionFuture,
+						dispatcher,
+						scheduledExecutor,
+						enforceSingleJobExecution),
 				0L,
 				TimeUnit.MILLISECONDS);
-		return applicationExecutionFuture;
+
+		return applicationExecutionFuture.thenCompose(
+				jobIds -> getApplicationResult(dispatcher, jobIds, scheduledExecutor));
 	}
 
-	@VisibleForTesting
-	List<JobID> tryRunApplicationAndGetJobIDs(
-			final CompletableFuture<List<JobID>> applicationExecutionFuture,
+	/**
+	 * Runs the user program entrypoint and completes the given {@code jobIdsFuture} with the {@link
+	 * JobID JobIDs} of the submitted jobs.
+	 *
+	 * <p>This should be executed in a separate thread (or task).
+	 */
+	private void runApplicationEntrypoint(
+			final CompletableFuture<List<JobID>> jobIdsFuture,
 			final DispatcherGateway dispatcher,
-			final ScheduledExecutor executor,
+			final ScheduledExecutor scheduledExecutor,
 			final boolean enforceSingleJobExecution) {
 		try {
 			final List<JobID> applicationJobIds =
-					runApplicationAndGetJobIDs(dispatcher, executor, enforceSingleJobExecution);
-			applicationExecutionFuture.complete(applicationJobIds);
-			return applicationJobIds;
+					new ArrayList<>(getRecoveredJobIds(recoveredJobs));
+
+			final PipelineExecutorServiceLoader executorServiceLoader =
+					new EmbeddedExecutorServiceLoader(
+							applicationJobIds, dispatcher, scheduledExecutor);
+
+			ClientUtils.executeProgram(
+					executorServiceLoader,
+					configuration,
+					application,
+					enforceSingleJobExecution,
+					true /* suppress sysout */);
+
+			if (applicationJobIds.isEmpty()) {
+				jobIdsFuture.completeExceptionally(
+						new ApplicationExecutionException(
+								"The application contains no execute() calls."));
+			} else {
+				jobIdsFuture.complete(applicationJobIds);
+			}
 		} catch (Throwable t) {
-			applicationExecutionFuture.completeExceptionally(t);
+			jobIdsFuture.completeExceptionally(
+					new ApplicationExecutionException("Could not execute application.", t));
 		}
-		return null;
 	}
 
-	private List<JobID> runApplicationAndGetJobIDs(
-			final DispatcherGateway dispatcher,
-			final ScheduledExecutor executor,
-			final boolean enforceSingleJobExecution) throws ApplicationExecutionException {
-		final List<JobID> applicationJobIds = runApplication(
-				dispatcher, application, configuration, executor, enforceSingleJobExecution);
-		if (applicationJobIds.isEmpty()) {
-			throw new ApplicationExecutionException("The application contains no execute() calls.");
-		}
-		return applicationJobIds;
-	}
-
-	private List<JobID> runApplication(
-			final DispatcherGateway dispatcherGateway,
-			final PackagedProgram program,
-			final Configuration configuration,
-			final ScheduledExecutor executor,
-			final boolean enforceSingleJobExecution) {
-
-		final List<JobID> applicationJobIds =
-				new ArrayList<>(getRecoveredJobIds(recoveredJobs));
-
-		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway, executor);
-
-		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution, true);
-		} catch (ProgramInvocationException e) {
-			LOG.warn("Could not execute application: ", e);
-			throw new CompletionException("Could not execute application.", e);
-		}
-
-		return applicationJobIds;
-	}
-
-	@VisibleForTesting
-	CompletableFuture<Void> getApplicationResult(
+	private CompletableFuture<Void> getApplicationResult(
 			final DispatcherGateway dispatcherGateway,
 			final Collection<JobID> applicationJobIds,
 			final ScheduledExecutor executor) {
 		final CompletableFuture<?>[] jobResultFutures = applicationJobIds
 				.stream()
-				.map(jobId -> getJobResult(dispatcherGateway, jobId, executor))
+				.map(jobId ->
+						unwrapJobResultException(getJobResult(dispatcherGateway, jobId, executor)))
 				.toArray(CompletableFuture<?>[]::new);
 
 		final CompletableFuture<Void> allStatusFutures = CompletableFuture.allOf(jobResultFutures);
@@ -222,7 +225,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		return allStatusFutures;
 	}
 
-	private CompletableFuture<Void> getJobResult(
+	private CompletableFuture<JobResult> getJobResult(
 			final DispatcherGateway dispatcherGateway,
 			final JobID jobId,
 			final ScheduledExecutor scheduledExecutor) {
@@ -230,25 +233,32 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		final Time timeout = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_TIMEOUT).toMillis());
 		final Time retryPeriod = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_RETRY_PERIOD).toMillis());
 
-		final CompletableFuture<Void> jobFuture = new CompletableFuture<>();
+		return JobStatusPollingUtils.getJobResult(
+						dispatcherGateway, jobId, scheduledExecutor, timeout, retryPeriod);
+	}
 
-		JobStatusPollingUtils.getJobResult(dispatcherGateway, jobId, scheduledExecutor, timeout, retryPeriod)
-				.whenComplete((result, throwable) -> {
-					if (throwable != null) {
-						LOG.warn("Job {} FAILED: {}", jobId, throwable);
-						jobFuture.completeExceptionally(throwable);
-					} else {
-						final Optional<SerializedThrowable> optionalThrowable = result.getSerializedThrowable();
-						if (optionalThrowable.isPresent()) {
-							final SerializedThrowable t = optionalThrowable.get();
-							LOG.warn("Job {} FAILED: {}", jobId, t.getFullStringifiedStackTrace());
-							jobFuture.completeExceptionally(t);
-						} else {
-							jobFuture.complete(null);
-						}
-					}
-				});
-		return jobFuture;
+	/**
+	 * If the given {@link JobResult} indicates success, this passes through the {@link JobResult}.
+	 * Otherwise, this returns a future that is finished exceptionally (potentially with an
+	 * exception from the {@link JobResult}.
+	 */
+	private CompletableFuture<JobResult> unwrapJobResultException(
+			CompletableFuture<JobResult> jobResult) {
+		return jobResult.thenApply(result -> {
+			if (result.isSuccess()) {
+				return result;
+			}
+
+			Optional<SerializedThrowable> serializedThrowable = result.getSerializedThrowable();
+			if (serializedThrowable.isPresent()) {
+				Throwable throwable =
+						serializedThrowable
+								.get()
+								.deserializeError(application.getUserCodeClassLoader());
+				throw new CompletionException(throwable);
+			}
+			throw new RuntimeException("Job execution failed for unknown reason.");
+		});
 	}
 
 	private List<JobID> getRecoveredJobIds(final Collection<JobGraph> recoveredJobs) {

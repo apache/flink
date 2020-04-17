@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.util.Collection;
@@ -40,7 +41,7 @@ public class DefaultDispatcherBootstrap extends AbstractDispatcherBootstrap {
 	}
 
 	@Override
-	public void initialize(final Dispatcher dispatcher) {
+	public void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) {
 		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
 		recoveredJobs.clear();
 	}
