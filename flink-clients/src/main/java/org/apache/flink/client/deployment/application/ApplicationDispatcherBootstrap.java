@@ -28,7 +28,7 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.AbstractDispatcherBootstrap;
@@ -227,12 +227,12 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			final JobID jobId,
 			final ScheduledExecutor scheduledExecutor) {
 
-		final Time rpcTimeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
-		final Time retryPeriod = Time.milliseconds(100L);
+		final Time timeout = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_TIMEOUT).toMillis());
+		final Time retryPeriod = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_RETRY_PERIOD).toMillis());
 
 		final CompletableFuture<Void> jobFuture = new CompletableFuture<>();
 
-		JobStatusPollingUtils.getJobResult(dispatcherGateway, jobId, scheduledExecutor, rpcTimeout, retryPeriod)
+		JobStatusPollingUtils.getJobResult(dispatcherGateway, jobId, scheduledExecutor, timeout, retryPeriod)
 				.whenComplete((result, throwable) -> {
 					if (throwable != null) {
 						LOG.warn("Job {} FAILED: {}", jobId, throwable);
