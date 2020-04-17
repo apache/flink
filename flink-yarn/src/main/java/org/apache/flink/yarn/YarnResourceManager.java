@@ -167,7 +167,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		numPendingContainerRequests = 0;
 
 		this.webInterfaceUrl = webInterfaceUrl;
-		this.resource = Resource.newInstance(defaultMemoryMB, taskExecutorProcessSpec.getCpuCores().getValue().intValue());
+		this.resource = Resource.newInstance(defaultMemoryMB, defaultTaskExecutorProcessSpec.getCpuCores().getValue().intValue());
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
@@ -293,7 +293,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
 		Preconditions.checkArgument(Objects.equals(
 			workerResourceSpec,
-			WorkerResourceSpec.fromTaskExecutorProcessSpec(taskExecutorProcessSpec)));
+			WorkerResourceSpec.fromTaskExecutorProcessSpec(defaultTaskExecutorProcessSpec)));
 		requestYarnContainer();
 		return true;
 	}
@@ -566,12 +566,12 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		final String currDir = env.get(ApplicationConstants.Environment.PWD.key());
 
 		final ContaineredTaskManagerParameters taskManagerParameters =
-				ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
+				ContaineredTaskManagerParameters.create(flinkConfig, defaultTaskExecutorProcessSpec);
 
 		log.info("TaskExecutor {} will be started on {} with {}.",
 			containerId,
 			host,
-			taskExecutorProcessSpec);
+			defaultTaskExecutorProcessSpec);
 
 		final Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
 
