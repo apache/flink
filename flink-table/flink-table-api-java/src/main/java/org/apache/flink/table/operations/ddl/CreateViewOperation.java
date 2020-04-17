@@ -68,11 +68,8 @@ public class CreateViewOperation implements CreateOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("catalogView", Stream.of(new String[][]{
-			{"originalQuery", catalogView.getOriginalQuery()},
-			{"expandedQuery", catalogView.getExpandedQuery()}
-		}).collect(Collectors.toMap(d -> d[0], d -> d[1])));
-
+		params.put("originalQuery", catalogView.getOriginalQuery());
+		params.put("expandedQuery", catalogView.getExpandedQuery());
 		params.put("identifier", viewIdentifier);
 		params.put("ignoreIfExists", ignoreIfExists);
 		params.put("isTemporary", isTemporary);

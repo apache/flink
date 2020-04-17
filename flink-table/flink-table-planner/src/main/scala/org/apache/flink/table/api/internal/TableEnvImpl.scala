@@ -710,7 +710,7 @@ abstract class TableEnvImpl(
           val dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier)
           if (!dropped && !dropViewOperation.isIfExists) {
             throw new ValidationException(String.format(
-              "Temporary views with identifier %s doesn't exist",
+              "Temporary views with identifier '%s' doesn't exist",
               dropViewOperation.getViewIdentifier.asSummaryString()))
           }
         } else {

@@ -57,7 +57,7 @@ public class DropViewOperation implements DropOperation {
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("identifier", viewIdentifier);
-		params.put("IfExists", ifExists);
+		params.put("ifExists", ifExists);
 		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(

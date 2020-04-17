@@ -1003,6 +1003,56 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
+  @Test
+  def testCreateViewWithoutFieldListAndWithStar(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    TestCollectionTableFactory.initData(sourceData)
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T3 AS SELECT * FROM T1
+      """.stripMargin
+
+    val query = "SELECT * FROM T3"
+
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(viewDDL)
+
+    val result = tableEnv.sqlQuery(query)
+    result.insertInto("T2")
+    execJob("testJob")
+    assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
   @Test(expected = classOf[ValidationException])
   def testCreateViewTwice(): Unit = {
     val sourceDDL =
@@ -1042,7 +1092,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.sqlUpdate(viewWith3ColumnDDL)
     tableEnv.sqlUpdate(viewWith2ColumnDDL) // fail the case
   }
-
 
   @Test
   def testCreateTemporaryView(): Unit = {
@@ -1215,7 +1264,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
       """.stripMargin
 
-
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(viewDDL)
 
@@ -1247,6 +1295,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(viewDDL)
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    // failed since 'default_catalog1.default_database1.T2' is invalid path
     tableEnv.sqlUpdate("DROP VIEW default_catalog1.default_database1.T2")
   }
 
@@ -1292,12 +1341,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |CREATE TEMPORARY VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
       """.stripMargin
 
-
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(viewDDL)
 
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]("T2")))
-
 
     tableEnv.sqlUpdate("DROP TEMPORARY VIEW IF EXISTS default_catalog.default_database.T2")
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
@@ -1324,12 +1371,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |CREATE TEMPORARY VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
       """.stripMargin
 
-
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(viewDDL)
 
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]("T2")))
-
 
     tableEnv.sqlUpdate("DROP TEMPORARY VIEW default_catalog.default_database.T2")
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))

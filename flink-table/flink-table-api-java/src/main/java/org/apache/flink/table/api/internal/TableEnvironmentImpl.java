@@ -698,6 +698,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						createViewOperation.getViewIdentifier(),
 						createViewOperation.isIgnoreIfExists());
 			}
+			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof DropViewOperation) {
 			DropViewOperation dropViewOperation = (DropViewOperation) operation;
 			if (dropViewOperation.isTemporary()) {
@@ -712,6 +713,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						dropViewOperation.getViewIdentifier(),
 						dropViewOperation.isIfExists());
 			}
+			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
@@ -795,7 +797,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof ShowFunctionsOperation) {
 			return buildShowResult(listFunctions());
 		} else {
-			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
 	}
 

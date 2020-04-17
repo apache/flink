@@ -749,6 +749,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTemporaryViewIfNotExists() {
+		final String sql = "create temporary view if not exists v as select col1 from tbl";
+		final String expected = "CREATE TEMPORARY VIEW IF NOT EXISTS `V`\n" +
+				"AS\n" +
+				"SELECT `COL1`\n" +
+				"FROM `TBL`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
 	public void testCreateViewIfNotExists() {
 		final String sql = "create view if not exists v as select col1 from tbl";
 		final String expected = "CREATE VIEW IF NOT EXISTS `V`\n" +
@@ -760,6 +770,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testDropView() {
+		final String sql = "DROP VIEW IF EXISTS view_name";
+		final String expected = "DROP VIEW IF EXISTS `VIEW_NAME`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testDropTemporaryView() {
 		final String sql = "DROP TEMPORARY VIEW IF EXISTS view_name";
 		final String expected = "DROP TEMPORARY VIEW IF EXISTS `VIEW_NAME`";
 		sql(sql).ok(expected);

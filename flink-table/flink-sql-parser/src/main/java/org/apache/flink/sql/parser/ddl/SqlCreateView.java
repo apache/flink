@@ -100,9 +100,6 @@ public class SqlCreateView extends SqlCreate {
 		if (isTemporary()) {
 			writer.keyword("TEMPORARY");
 		}
-		if (getReplace()) {
-			writer.keyword("OR REPLACE");
-		}
 		writer.keyword("VIEW");
 		if (isIfNotExists()) {
 			writer.keyword("IF NOT EXISTS");
