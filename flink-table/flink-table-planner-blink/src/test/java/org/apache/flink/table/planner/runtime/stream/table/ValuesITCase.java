@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.runtime.stream.table;
 
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
@@ -37,6 +40,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -46,7 +51,7 @@ import static org.junit.Assert.assertThat;
  */
 public class ValuesITCase extends StreamingTestBase {
 	@Test
-	public void testTypeConvesrsions() throws Exception {
+	public void testTypeConversions() throws Exception {
 		List<Row> data = Arrays.asList(
 			Row.of(
 				1,
@@ -78,7 +83,7 @@ public class ValuesITCase extends StreamingTestBase {
 		DataType rowType = DataTypes.ROW(
 			DataTypes.FIELD("a", DataTypes.DECIMAL(10, 2).notNull()),
 			DataTypes.FIELD("b", DataTypes.CHAR(4).notNull()),
-			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).notNull()),
+			DataTypes.FIELD("c", DataTypes.TIMESTAMP(4).notNull()),
 			DataTypes.FIELD(
 				"row",
 				DataTypes.ROW(
@@ -100,7 +105,7 @@ public class ValuesITCase extends StreamingTestBase {
 				"a DECIMAL(10, 2) NOT NULL, " +
 				"b CHAR(4) NOT NULL," +
 				"c TIMESTAMP(4) NOT NULL," +
-				"`row` ROW(a DECIMAL(10, 3) NOT NULL, b BINARY(2), c CHAR(5) NOT NULL, d ARRAY<DECIMAL(10, 2)>)) " +
+				"`row` ROW<a DECIMAL(10, 3) NOT NULL, b BINARY(2), c CHAR(5) NOT NULL, d ARRAY<DECIMAL(10, 2)>>) " +
 				"WITH ('connector' = 'COLLECTION')");
 		t.insertInto("SinkTable");
 		tEnv().execute("");
@@ -216,7 +221,7 @@ public class ValuesITCase extends StreamingTestBase {
 				"f15 BINARY(1), " +
 				"f16 ARRAY<DECIMAL(2, 1)>, " +
 				"f17 MAP<CHAR(1), DECIMAL(2, 1)>, " +
-				"f18 ROW(" +
+				"f18 ROW<" +
 				"   `f0` TINYINT, " +
 				"   `f1` SMALLINT, " +
 				"   `f2` INT, " +
@@ -232,7 +237,7 @@ public class ValuesITCase extends StreamingTestBase {
 				"   `f14` CHAR(1), " +
 				"   `f15` BINARY(1), " +
 				"   `f16` ARRAY<DECIMAL(2, 1)>, " +
-				"   `f17` MAP<CHAR(1), DECIMAL(2, 1)>)) " +
+				"   `f17` MAP<CHAR(1), DECIMAL(2, 1)>>) " +
 				"WITH ('connector' = 'COLLECTION')");
 		t.insertInto("SinkTable");
 		tEnv().execute("");
@@ -241,6 +246,139 @@ public class ValuesITCase extends StreamingTestBase {
 		assertThat(
 			new HashSet<>(actual),
 			equalTo(new HashSet<>(data)));
+	}
+
+	@Test
+	public void testProjectionWithValues() throws Exception {
+		List<Row> data = Arrays.asList(
+			Row.of(
+				(byte) 1,
+				(short) 1,
+				1,
+				1L,
+				1.1f,
+				1.1,
+				new BigDecimal("1.1"),
+				true,
+				LocalTime.of(1, 1, 1),
+				LocalDate.of(1, 1, 1),
+				LocalDateTime.of(1, 1, 1, 1, 1, 1, 1),
+				Instant.ofEpochMilli(1),
+				"1",
+				new byte[] {1},
+				new BigDecimal[]{new BigDecimal("1.1")},
+				createMap("1", new BigDecimal("1.1"))
+			),
+			Row.of(
+				(byte) 2,
+				(short) 2,
+				2,
+				2L,
+				2.2f,
+				2.2,
+				new BigDecimal("2.2"),
+				false,
+				LocalTime.of(2, 2, 2),
+				LocalDate.of(2, 2, 2),
+				LocalDateTime.of(2, 2, 2, 2, 2, 2, 2),
+				Instant.ofEpochMilli(2),
+				"2",
+				new byte[] {2},
+				new BigDecimal[]{new BigDecimal("2.2")},
+				createMap("2", new BigDecimal("2.2"))
+			)
+		);
+
+		tEnv().createTemporaryFunction("func", new CustomScalarFunction());
+		Table t = tEnv().fromValues(data)
+			.select("func(f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15)");
+
+		TestCollectionTableFactory.reset();
+		tEnv().sqlUpdate(
+			"CREATE TABLE SinkTable(str STRING) WITH ('connector' = 'COLLECTION')");
+		t.insertInto("SinkTable");
+		tEnv().execute("");
+
+		List<Row> actual = TestCollectionTableFactory.getResult();
+		List<Row> expected = Arrays.asList(
+			Row.of(
+				"1,1,1,1,1.1,1.1,1.1,true,01:01:01,0001-01-01,0001-01-01T01:01:01.000000001," +
+					"1970-01-01T00:00:00.001Z,1,[1],[1.1],{1=1.1}"),
+			Row.of(
+				"2,2,2,2,2.2,2.2,2.2,false,02:02:02,0002-02-02,0002-02-02T02:02:02.000000002," +
+					"1970-01-01T00:00:00.002Z,2,[2],[2.2],{2=2.2}")
+		);
+		assertThat(
+			new HashSet<>(actual),
+			equalTo(new HashSet<>(expected)));
+	}
+
+	/**
+	 * A {@link ScalarFunction} that takes all supported types as parameters and
+	 * converts them to String.
+	 */
+	@FunctionHint(
+		output = @DataTypeHint("STRING"),
+		input = {
+			@DataTypeHint("TINYINT"),
+			@DataTypeHint("SMALLINT"),
+			@DataTypeHint("INT"),
+			@DataTypeHint("BIGINT"),
+			@DataTypeHint("FLOAT"),
+			@DataTypeHint("DOUBLE"),
+			@DataTypeHint("DECIMAL(2, 1)"),
+			@DataTypeHint("BOOLEAN"),
+			@DataTypeHint("TIME(0)"),
+			@DataTypeHint("DATE"),
+			@DataTypeHint("TIMESTAMP(9)"),
+			@DataTypeHint("TIMESTAMP(3) WITH LOCAL TIME ZONE"),
+			@DataTypeHint("CHAR(1)"),
+			@DataTypeHint("BINARY(1)"),
+			@DataTypeHint("ARRAY<DECIMAL(2, 1)>"),
+			@DataTypeHint("MAP<CHAR(1), DECIMAL(2, 1)>")
+		}
+	)
+	public static class CustomScalarFunction extends ScalarFunction {
+		public String eval(
+				byte tinyint,
+				short smallInt,
+				int integer,
+				long bigint,
+				float floating,
+				double doublePrecision,
+				BigDecimal decimal,
+				boolean bool,
+				LocalTime time,
+				LocalDate date,
+//				Period dateTimeInteraval, TODO TIMESTAMP WITH TIMEZONE not supported yet
+//				Duration timeInterval, TODO TIMESTAMP WITH TIMEZONE not supported yet
+//				OffsetDateTime zonedDateTime, TODO TIMESTAMP WITH TIMEZONE not supported yet
+				LocalDateTime timestamp,
+				Instant localZonedTimestamp,
+				String character,
+				byte[] binary,
+				BigDecimal[] array,
+				Map<String, BigDecimal> map) {
+			return Stream.of(
+				tinyint,
+				smallInt,
+				integer,
+				bigint,
+				floating,
+				doublePrecision,
+				decimal,
+				bool,
+				time,
+				date,
+				timestamp,
+				localZonedTimestamp,
+				character,
+				Arrays.toString(binary),
+				Arrays.toString(array),
+				map
+			).map(Object::toString)
+				.collect(Collectors.joining(","));
+		}
 	}
 
 	private static Map<String, BigDecimal> createMap(String key, BigDecimal value) {
@@ -260,8 +398,8 @@ public class ValuesITCase extends StreamingTestBase {
 			boolean bool,
 			LocalTime time,
 			LocalDate date,
-//			Period dateTimeInteraval, // TODO INTERVAL types not supported in DDL yet
-//			Duration timeInterval, // TODO INTERVAL types not supported in DDL yet
+//			Period dateTimeInteraval, // TODO INTERVAL types not supported yet
+//			Duration timeInterval, // TODO INTERVAL types not supported yet
 //			OffsetDateTime zonedDateTime, TODO TIMESTAMP WITH TIMEZONE not supported yet
 			LocalDateTime timestamp,
 			Instant localZonedTimestamp,

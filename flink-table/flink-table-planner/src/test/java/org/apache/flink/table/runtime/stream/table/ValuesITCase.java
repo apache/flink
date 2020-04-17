@@ -71,6 +71,7 @@ public class ValuesITCase extends AbstractTestBase {
 			data
 		);
 		DataStream<Row> rowDataStream = tableEnvironment.toAppendStream(t, Row.class);
+		StreamITCase.clear();
 		rowDataStream.addSink(new StreamITCase.StringSink<>());
 
 		streamExecEnvironment.execute();

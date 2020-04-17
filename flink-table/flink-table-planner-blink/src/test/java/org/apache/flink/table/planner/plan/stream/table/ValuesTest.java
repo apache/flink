@@ -73,6 +73,7 @@ public class ValuesTest extends TableTestBase {
 		JavaStreamTableTestUtil util = javaStreamTestUtil();
 		Table t = util.getTableEnv().fromValues(
 			row(lit(1).plus(3), "ABC", map("a", 3d)),
+			row(lit(-1).abs().plus(2), "ABC", map("a", lit(-5).abs().plus(-5))),
 			row(pi(), "ABC", map("abc", 3f)),
 			row(3.1f, "DEF", map("abcd", 3L)),
 			row(99L, "DEFG", map("a", 1)),

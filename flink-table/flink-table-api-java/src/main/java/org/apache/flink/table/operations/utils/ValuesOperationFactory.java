@@ -39,8 +39,6 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -56,6 +54,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Utility class for creating valid {@link ValuesQueryOperation} operation.
@@ -116,9 +116,9 @@ class ValuesOperationFactory {
 				}
 
 				ResolvedExpression castedExpr = row.get(i);
-				DataType targetType = dataTypes[i];
+				DataType targetDataType = dataTypes[i];
 
-				return convertToExpectedType(castedExpr, targetType, postResolverFactory)
+				return convertToExpectedType(castedExpr, targetDataType, postResolverFactory)
 					.orElseThrow(() -> new ValidationException(String.format(
 						"Could not cast the value of the %d column: [ %s ] of a row: %s to the requested type: %s",
 						i,
@@ -126,72 +126,89 @@ class ValuesOperationFactory {
 						row.stream()
 							.map(ResolvedExpression::asSummaryString)
 							.collect(Collectors.joining(", ", "[ ", " ]")),
-						targetType.getLogicalType().asSummaryString())));
+						targetDataType.getLogicalType().asSummaryString())));
 			})
 			.collect(Collectors.toList());
 	}
 
 	private Optional<ResolvedExpression> convertToExpectedType(
-			ResolvedExpression castedExpr,
-			DataType targetType,
+			ResolvedExpression sourceExpression,
+			DataType targetDataType,
 			ExpressionResolver.PostResolverFactory postResolverFactory) {
 
+		LogicalType sourceLogicalType = sourceExpression.getOutputDataType().getLogicalType();
+		LogicalType targetLogicalType = targetDataType.getLogicalType();
+
 		// if the expression is a literal try converting the literal in place instead of casting
-		if (castedExpr instanceof ValueLiteralExpression) {
+		if (sourceExpression instanceof ValueLiteralExpression) {
 			// Assign a type to a null literal
-			if (LogicalTypeChecks.hasRoot(castedExpr.getOutputDataType().getLogicalType(), LogicalTypeRoot.NULL)) {
-				return Optional.of(valueLiteral(null, targetType));
+			if (hasRoot(sourceLogicalType, LogicalTypeRoot.NULL)) {
+				return Optional.of(valueLiteral(null, targetDataType));
 			}
 
-			Optional<Object> value = ((ValueLiteralExpression) castedExpr).getValueAs(Object.class);
-			if (value.isPresent() && targetType.getLogicalType().supportsInputConversion(value.get().getClass())) {
+			// Check if the source value class is a valid input conversion class of the target type
+			// It may happen that a user wanted to use a secondary input conversion class as a value for
+			// a different type than what we derived.
+			//
+			// Example: we interpreted 1L as BIGINT, but user wanted to interpret it as a TIMESTAMP
+			// In this case long is a valid conversion class for TIMESTAMP, but a
+			// cast from BIGINT to TIMESTAMP is an invalid operation.
+			Optional<Object> value = ((ValueLiteralExpression) sourceExpression).getValueAs(Object.class);
+			if (value.isPresent() && targetLogicalType.supportsInputConversion(value.get().getClass())) {
 				ValueLiteralExpression convertedLiteral = valueLiteral(
 					value.get(),
-					targetType.notNull().bridgedTo(value.get().getClass()));
-				if (targetType.getLogicalType().isNullable()) {
-					return Optional.of(postResolverFactory.cast(convertedLiteral, targetType));
+					targetDataType.notNull().bridgedTo(value.get().getClass()));
+				if (targetLogicalType.isNullable()) {
+					return Optional.of(postResolverFactory.cast(convertedLiteral, targetDataType));
 				} else {
 					return Optional.of(convertedLiteral);
 				}
 			}
 		}
 
-		if (castedExpr instanceof CallExpression) {
-			FunctionDefinition functionDefinition = ((CallExpression) castedExpr).getFunctionDefinition();
-			if (functionDefinition == BuiltInFunctionDefinitions.ROW && targetType instanceof FieldsDataType) {
-				return convertRowToExpectedType(castedExpr, (FieldsDataType) targetType, postResolverFactory);
+		if (sourceExpression instanceof CallExpression) {
+			FunctionDefinition functionDefinition = ((CallExpression) sourceExpression).getFunctionDefinition();
+			if (functionDefinition == BuiltInFunctionDefinitions.ROW &&
+					hasRoot(targetLogicalType, LogicalTypeRoot.ROW)) {
+				return convertRowToExpectedType(sourceExpression, (FieldsDataType) targetDataType, postResolverFactory);
 			} else if (functionDefinition == BuiltInFunctionDefinitions.ARRAY &&
-						LogicalTypeChecks.hasRoot(targetType.getLogicalType(), LogicalTypeRoot.ARRAY)) {
-				return convertArrayToExpectedType(castedExpr, (CollectionDataType) targetType, postResolverFactory);
+						hasRoot(targetLogicalType, LogicalTypeRoot.ARRAY)) {
+				return convertArrayToExpectedType(
+					sourceExpression,
+					(CollectionDataType) targetDataType,
+					postResolverFactory);
 			} else if (functionDefinition == BuiltInFunctionDefinitions.MAP &&
-						LogicalTypeChecks.hasRoot(targetType.getLogicalType(), LogicalTypeRoot.MAP)) {
-				return convertMapToExpectedType(castedExpr, (KeyValueDataType) targetType, postResolverFactory);
+						hasRoot(targetLogicalType, LogicalTypeRoot.MAP)) {
+				return convertMapToExpectedType(
+					sourceExpression,
+					(KeyValueDataType) targetDataType,
+					postResolverFactory);
 			}
 		}
 
 		// We might not be able to cast to the expected type if the expected type was provided by the user
 		// we ignore nullability constraints here, as we let users override what we expect there, e.g. they
 		// might know that a certain function will not produce nullable values for a given input
-		if (LogicalTypeCasts.supportsExplicitCast(
-				castedExpr.getOutputDataType().getLogicalType().copy(true),
-				targetType.getLogicalType().copy(true))) {
-			return Optional.of(postResolverFactory.cast(castedExpr, targetType));
+		if (supportsExplicitCast(
+				sourceLogicalType.copy(true),
+				targetLogicalType.copy(true))) {
+			return Optional.of(postResolverFactory.cast(sourceExpression, targetDataType));
 		} else {
 			return Optional.empty();
 		}
 	}
 
 	private Optional<ResolvedExpression> convertRowToExpectedType(
-			ResolvedExpression castedExpr,
-			FieldsDataType targetType,
+			ResolvedExpression sourceExpression,
+			FieldsDataType targetDataType,
 			ExpressionResolver.PostResolverFactory postResolverFactory) {
-		DataType[] targetTypes = ((RowType) targetType.getLogicalType()).getFieldNames()
+		DataType[] targetDataTypes = ((RowType) targetDataType.getLogicalType()).getFieldNames()
 			.stream()
-			.map(name -> targetType.getFieldDataTypes().get(name))
+			.map(name -> targetDataType.getFieldDataTypes().get(name))
 			.toArray(DataType[]::new);
-		List<ResolvedExpression> resolvedChildren = castedExpr.getResolvedChildren();
+		List<ResolvedExpression> resolvedChildren = sourceExpression.getResolvedChildren();
 
-		if (resolvedChildren.size() != targetTypes.length) {
+		if (resolvedChildren.size() != targetDataTypes.length) {
 			return Optional.empty();
 		}
 
@@ -200,17 +217,17 @@ class ValuesOperationFactory {
 			boolean typesMatch = resolvedChildren.get(i)
 				.getOutputDataType()
 				.getLogicalType()
-				.equals(targetTypes[i].getLogicalType());
+				.equals(targetDataTypes[i].getLogicalType());
 			if (typesMatch) {
 				castedChildren[i] = resolvedChildren.get(i);
 			}
 
 			ResolvedExpression child = resolvedChildren.get(i);
-			DataType targetChildType = targetTypes[i];
+			DataType targetChildDataType = targetDataTypes[i];
 
 			Optional<ResolvedExpression> castedChild = convertToExpectedType(
 				child,
-				targetChildType,
+				targetChildDataType,
 				postResolverFactory);
 
 			if (!castedChild.isPresent()) {
@@ -220,20 +237,20 @@ class ValuesOperationFactory {
 			}
 		}
 
-		return Optional.of(postResolverFactory.row(targetType, castedChildren));
+		return Optional.of(postResolverFactory.row(targetDataType, castedChildren));
 	}
 
 	private Optional<ResolvedExpression> convertArrayToExpectedType(
-			ResolvedExpression castedExpr,
-			CollectionDataType targetType,
+			ResolvedExpression sourceExpression,
+			CollectionDataType targetDataType,
 			ExpressionResolver.PostResolverFactory postResolverFactory) {
-		DataType elementTargetType = targetType.getElementDataType();
-		List<ResolvedExpression> resolvedChildren = castedExpr.getResolvedChildren();
+		DataType elementTargetDataType = targetDataType.getElementDataType();
+		List<ResolvedExpression> resolvedChildren = sourceExpression.getResolvedChildren();
 		ResolvedExpression[] castedChildren = new ResolvedExpression[resolvedChildren.size()];
 		for (int i = 0; i < resolvedChildren.size(); i++) {
 			Optional<ResolvedExpression> castedChild = convertToExpectedType(
 				resolvedChildren.get(i),
-				elementTargetType,
+				elementTargetDataType,
 				postResolverFactory);
 			if (castedChild.isPresent()) {
 				castedChildren[i] = castedChild.get();
@@ -241,21 +258,21 @@ class ValuesOperationFactory {
 				return Optional.empty();
 			}
 		}
-		return Optional.of(postResolverFactory.array(targetType, castedChildren));
+		return Optional.of(postResolverFactory.array(targetDataType, castedChildren));
 	}
 
 	private Optional<ResolvedExpression> convertMapToExpectedType(
-			ResolvedExpression castedExpr,
-			KeyValueDataType targetType,
+			ResolvedExpression sourceExpression,
+			KeyValueDataType targetDataType,
 			ExpressionResolver.PostResolverFactory postResolverFactory) {
-		DataType keyTargetType = targetType.getKeyDataType();
-		DataType valueTargetType = targetType.getValueDataType();
-		List<ResolvedExpression> resolvedChildren = castedExpr.getResolvedChildren();
+		DataType keyTargetDataType = targetDataType.getKeyDataType();
+		DataType valueTargetDataType = targetDataType.getValueDataType();
+		List<ResolvedExpression> resolvedChildren = sourceExpression.getResolvedChildren();
 		ResolvedExpression[] castedChildren = new ResolvedExpression[resolvedChildren.size()];
 		for (int i = 0; i < resolvedChildren.size(); i++) {
 			Optional<ResolvedExpression> castedChild = convertToExpectedType(
 				resolvedChildren.get(i),
-				i % 2 == 0 ? keyTargetType : valueTargetType,
+				i % 2 == 0 ? keyTargetDataType : valueTargetDataType,
 				postResolverFactory);
 			if (castedChild.isPresent()) {
 				castedChildren[i] = castedChild.get();
@@ -264,7 +281,7 @@ class ValuesOperationFactory {
 			}
 		}
 
-		return Optional.of(postResolverFactory.map(targetType, castedChildren));
+		return Optional.of(postResolverFactory.map(targetDataType, castedChildren));
 	}
 
 	private List<List<ResolvedExpression>> unwrapFromRowConstructor(List<ResolvedExpression> resolvedExpressions) {
@@ -328,8 +345,8 @@ class ValuesOperationFactory {
 			int rowPosition) {
 		List<LogicalType> typesAtIPosition = new ArrayList<>();
 		for (List<ResolvedExpression> resolvedExpression : resolvedRows) {
-			LogicalType outputDataType = resolvedExpression.get(rowPosition).getOutputDataType().getLogicalType();
-			typesAtIPosition.add(outputDataType);
+			LogicalType outputLogicalType = resolvedExpression.get(rowPosition).getOutputDataType().getLogicalType();
+			typesAtIPosition.add(outputLogicalType);
 		}
 		return typesAtIPosition;
 	}

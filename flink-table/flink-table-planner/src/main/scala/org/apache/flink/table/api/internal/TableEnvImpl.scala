@@ -950,11 +950,11 @@ abstract class TableEnvImpl(
   }
 
   override def fromValues(values: Expression*): Table = {
-    createTable(operationTreeBuilder.values(values.asJava))
+    createTable(operationTreeBuilder.values(values: _*))
   }
 
   override def fromValues(rowType: DataType, values: Expression*): Table = {
-    createTable(operationTreeBuilder.values(rowType, values.asJava))
+    createTable(operationTreeBuilder.values(rowType, values: _*))
   }
 
   override def fromValues(values: JIterable[_]): Table = {
