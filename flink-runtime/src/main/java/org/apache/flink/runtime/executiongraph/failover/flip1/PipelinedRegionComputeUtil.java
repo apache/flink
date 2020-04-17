@@ -22,8 +22,8 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PipelinedRegion;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
-import org.apache.flink.runtime.topology.Result;
 import org.apache.flink.runtime.topology.BaseTopology;
+import org.apache.flink.runtime.topology.Result;
 import org.apache.flink.runtime.topology.Vertex;
 
 import org.slf4j.Logger;
