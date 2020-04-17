@@ -24,6 +24,7 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -71,6 +72,7 @@ public class ExecutionContextTest {
 	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 	private static final String CONFIGURATION_ENVIRONMENT_FILE = "test-sql-client-configuration.yaml";
+	private static final String DIALECT_ENVIRONMENT_FILE = "test-sql-client-dialect.yaml";
 
 	@Test
 	public void testExecutionConfig() throws Exception {
@@ -280,6 +282,21 @@ public class ExecutionContextTest {
 				new DefaultClusterClientServiceLoader(),
 				new Options(),
 				Collections.singletonList(new DefaultCLI(flinkConfig))).build();
+	}
+
+	@Test
+	public void testSQLDialect() throws Exception {
+		ExecutionContext<?> context = createDefaultExecutionContext();
+		assertEquals(SqlDialect.DEFAULT, context.getTableEnvironment().getConfig().getSqlDialect());
+
+		Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_DIALECT", "default");
+		context = createExecutionContext(DIALECT_ENVIRONMENT_FILE, replaceVars);
+		assertEquals(SqlDialect.DEFAULT, context.getTableEnvironment().getConfig().getSqlDialect());
+
+		replaceVars.put("$VAR_DIALECT", "hive");
+		context = createExecutionContext(DIALECT_ENVIRONMENT_FILE, replaceVars);
+		assertEquals(SqlDialect.HIVE, context.getTableEnvironment().getConfig().getSqlDialect());
 	}
 
 	@SuppressWarnings("unchecked")

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -110,6 +111,8 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
+	public static final String EXECUTION_SQL_DIALECT = "sql-dialect";
+
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
 	}
@@ -154,6 +157,12 @@ public class ExecutionEntry extends ConfigEntry {
 		properties.validateInt(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL, true, 1);
 		properties.validateString(EXECUTION_CURRENT_CATALOG, true, 1);
 		properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
+		properties.validateEnumValues(EXECUTION_SQL_DIALECT,
+				true,
+				Arrays.asList(
+						SqlDialect.DEFAULT.name().toLowerCase(),
+						SqlDialect.HIVE.name().toLowerCase()
+				));
 	}
 
 	public EnvironmentSettings getEnvironmentSettings() {
@@ -328,6 +337,12 @@ public class ExecutionEntry extends ConfigEntry {
 		return properties.getOptionalString(EXECUTION_RESULT_MODE)
 				.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLEAU))
 				.orElse(false);
+	}
+
+	public SqlDialect getSqlDialect() {
+		return properties.getOptionalString(EXECUTION_SQL_DIALECT)
+				.map(name -> SqlDialect.valueOf(name.toUpperCase()))
+				.orElse(SqlDialect.DEFAULT);
 	}
 
 	public Map<String, String> asTopLevelMap() {
