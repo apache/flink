@@ -843,7 +843,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -871,7 +871,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -897,7 +897,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -933,7 +933,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<exclusions>
 						<exclusion>
 							<groupId>org.apache.hadoop</groupId>
