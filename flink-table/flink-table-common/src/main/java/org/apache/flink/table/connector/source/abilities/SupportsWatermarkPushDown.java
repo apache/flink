@@ -72,7 +72,7 @@ public interface SupportsWatermarkPushDown {
 	 * <p>There exist different interfaces for runtime implementation which is why {@link WatermarkProvider}
 	 * serves as the base interface.
 	 */
-	class WatermarkProvider {
+	interface WatermarkProvider {
 		// marker interface that will be filled after FLIP-126:
 		// WatermarkGenerator<RowData> getWatermarkGenerator();
 	}

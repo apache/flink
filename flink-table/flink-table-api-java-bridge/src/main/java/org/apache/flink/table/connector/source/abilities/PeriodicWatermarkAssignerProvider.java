@@ -28,19 +28,14 @@ import org.apache.flink.table.data.RowData;
  * generating watermarks in {@link ScanTableSource}.
  */
 @PublicEvolving
-public final class PeriodicWatermarkAssignerProvider extends SupportsWatermarkPushDown.WatermarkProvider {
+public interface PeriodicWatermarkAssignerProvider extends SupportsWatermarkPushDown.WatermarkProvider {
 
-	private final AssignerWithPeriodicWatermarks<RowData> periodicAssigner;
-
-	private PeriodicWatermarkAssignerProvider(AssignerWithPeriodicWatermarks<RowData> periodicAssigner) {
-		this.periodicAssigner = periodicAssigner;
+	/**
+	 * Helper method for creating a static provider.
+	 */
+	static PeriodicWatermarkAssignerProvider of(AssignerWithPeriodicWatermarks<RowData> periodicAssigner) {
+		return () -> periodicAssigner;
 	}
 
-	public static PeriodicWatermarkAssignerProvider of(AssignerWithPeriodicWatermarks<RowData> periodicAssigner) {
-		return new PeriodicWatermarkAssignerProvider(periodicAssigner);
-	}
-
-	public AssignerWithPeriodicWatermarks<RowData> getPeriodicWatermarkAssigner() {
-		return periodicAssigner;
-	}
+	AssignerWithPeriodicWatermarks<RowData> getPeriodicWatermarkAssigner();
 }
