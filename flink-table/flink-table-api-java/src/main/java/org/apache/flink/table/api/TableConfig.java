@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
@@ -107,12 +108,6 @@ public class TableConfig {
 	private Configuration configuration = new Configuration();
 
 	/**
-	 * The SQL dialect defines how to parse a SQL query. A different SQL dialect may support different
-	 * SQL grammar.
-	 */
-	private SqlDialect sqlDialect = SqlDialect.DEFAULT;
-
-	/**
 	 * Gives direct access to the underlying key-value map for advanced configuration.
 	 */
 	public Configuration getConfiguration() {
@@ -134,14 +129,14 @@ public class TableConfig {
 	 * Returns the current SQL dialect.
 	 */
 	public SqlDialect getSqlDialect() {
-		return this.sqlDialect;
+		return SqlDialect.valueOf(getConfiguration().getString(TableConfigOptions.TABLE_SQL_DIALECT).toUpperCase());
 	}
 
 	/**
 	 * Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
 	 */
 	public void setSqlDialect(SqlDialect sqlDialect) {
-		this.sqlDialect = sqlDialect;
+		getConfiguration().setString(TableConfigOptions.TABLE_SQL_DIALECT, sqlDialect.name().toLowerCase());
 	}
 
 	/**
