@@ -586,8 +586,8 @@ function kill_random_taskmanager {
 
 function setup_flink_slf4j_metric_reporter() {
   INTERVAL="${1:-1 SECONDS}"
-  add_optional_lib "metrics-slf4j"
-  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  add_optional_plugin "metrics-slf4j"
+  set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 
