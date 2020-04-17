@@ -58,11 +58,12 @@ import java.io.Serializable;
  *    ROW<str STRING, ts TIMESTAMP(3), i INT>   // after conversion
  * }</pre>
  *
- * <p>Note: If a source implements {@link SupportsProjectionPushDown}, the projection must be applied
- * to the physical columns only and not to the computed columns. {@link SupportsComputedColumnPushDown}
- * assumes an already applied projection. In the example below, the projections {@code [i, d]} are derived
- * from the DDL ({@code c} requires {@code i}) and query ({@code d} and {@code c} are required). The
- * pushed converter will rely on this order and will process {@code [i, d]} to produce {@code [d, c]}.
+ * <p>Note: If a source implements {@link SupportsProjectionPushDown}, the projection must be applied to
+ * the physical data in the first step. The {@link SupportsComputedColumnPushDown} (already aware of the
+ * projection) will then use the projected physical data and insert computed columns into the result. In
+ * the example below, the projections {@code [i, d]} are derived from the DDL ({@code c} requires {@code i})
+ * and query ({@code d} and {@code c} are required). The pushed converter will rely on this order and
+ * will process {@code [i, d]} to produce {@code [d, c]}.
  * <pre>{@code
  *   CREATE TABLE t (i INT, s STRING, c AS i + 2, d DOUBLE);
  *   SELECT d, c FROM t;

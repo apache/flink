@@ -42,8 +42,8 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  * the top-level row only or consider nested fields as well (see {@link #supportsNestedProjection()}).
  *
  * <p>Note: If a source implements {@link SupportsComputedColumnPushDown}, the projection must be applied
- * to the physically produced data only. {@link SupportsComputedColumnPushDown} assumes an already applied
- * projection and includes a projection of computed columns.
+ * to the physical data in the first step. The {@link SupportsComputedColumnPushDown} (already aware of the projection)
+ * will then use the projected physical data and insert computed columns into the result.
  */
 @PublicEvolving
 public interface SupportsProjectionPushDown {
