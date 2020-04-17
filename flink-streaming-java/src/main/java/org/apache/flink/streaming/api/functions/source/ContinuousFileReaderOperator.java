@@ -126,6 +126,15 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 			}
 		},
 		/**
+		 * No further processing can be done; only state disposal transition to {@link #CLOSED} allowed.
+		 */
+		FAILED {
+			@Override
+			public boolean prepareToProcessRecord(ContinuousFileReaderOperator<?> op) {
+				throw new IllegalStateException("not processing any records in ERRORED state");
+			}
+		},
+		/**
 		 * {@link #close()} was called but unprocessed data (records and splits) remains and needs to be processed.
 		 * {@link #close()} caller is blocked.
 		 */
@@ -160,10 +169,11 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		private static final Map<ReaderState, Set<ReaderState>> TRANSITIONS;
 		static {
 			Map<ReaderState, Set<ReaderState>> tmpTransitions = new HashMap<>();
-			tmpTransitions.put(IDLE, EnumSet.of(OPENING, CLOSED));
-			tmpTransitions.put(OPENING, EnumSet.of(READING, CLOSING));
-			tmpTransitions.put(READING, EnumSet.of(IDLE, OPENING, CLOSING));
-			tmpTransitions.put(CLOSING, EnumSet.of(CLOSED));
+			tmpTransitions.put(IDLE, EnumSet.of(OPENING, CLOSED, FAILED));
+			tmpTransitions.put(OPENING, EnumSet.of(READING, CLOSING, FAILED));
+			tmpTransitions.put(READING, EnumSet.of(IDLE, OPENING, CLOSING, FAILED));
+			tmpTransitions.put(CLOSING, EnumSet.of(CLOSED, FAILED));
+			tmpTransitions.put(FAILED, EnumSet.of(CLOSED));
 			tmpTransitions.put(CLOSED, EnumSet.noneOf(ReaderState.class));
 			TRANSITIONS = new EnumMap<>(tmpTransitions);
 		}
@@ -202,7 +212,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 	 * MUST only be changed via {@link #switchState(ReaderState) switchState}.
 	 */
 	private transient ReaderState state = ReaderState.IDLE;
-	private transient PriorityQueue<TimestampedFileInputSplit> splits;
+	private transient PriorityQueue<TimestampedFileInputSplit> splits = new PriorityQueue<>();
 	private transient TimestampedFileInputSplit currentSplit; // can't work just on queue tail because it can change because it's PQ
 	private transient Counter completedSplitsCounter;
 
@@ -210,7 +220,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		try {
 			processRecord();
 		} catch (Exception e) {
-			switchState(ReaderState.CLOSED);
+			switchState(ReaderState.FAILED);
 			throw e;
 		}
 	};
