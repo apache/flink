@@ -53,7 +53,7 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	/** The process environment variables. */
 	protected final Map<String, String> env;
 
-	protected final TaskExecutorProcessSpec taskExecutorProcessSpec;
+	protected final TaskExecutorProcessSpec defaultTaskExecutorProcessSpec;
 
 	protected final int defaultMemoryMB;
 
@@ -98,11 +98,11 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 		this.env = env;
 
 		double defaultCpus = getCpuCores(flinkConfig);
-		this.taskExecutorProcessSpec = TaskExecutorProcessUtils
+		this.defaultTaskExecutorProcessSpec = TaskExecutorProcessUtils
 			.newProcessSpecBuilder(flinkConfig)
 			.withCpuCores(defaultCpus)
 			.build();
-		this.defaultMemoryMB = taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes();
+		this.defaultMemoryMB = defaultTaskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes();
 
 		// Load the flink config uploaded by flink client
 		this.flinkClientConfig = loadClientConfiguration();
