@@ -48,26 +48,21 @@ public class PackagedProgramUtils {
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
 	public static JobGraph createJobGraph(
-		PackagedProgram packagedProgram,
-		Configuration configuration,
-		int defaultParallelism,
-		@Nullable JobID jobID,
-		boolean suppressOutput) throws ProgramInvocationException {
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		final JobGraph jobGraph;
-		try {
-			Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
-			final Pipeline pipeline = getPipelineFromProgram(packagedProgram, configuration, defaultParallelism, suppressOutput);
-			jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
-			if (jobID != null) {
-				jobGraph.setJobID(jobID);
-			}
-			jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
-			jobGraph.setClasspaths(packagedProgram.getClasspaths());
-			jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
-		} finally {
-			Thread.currentThread().setContextClassLoader(contextClassLoader);
+			PackagedProgram packagedProgram,
+			Configuration configuration,
+			int defaultParallelism,
+			@Nullable JobID jobID,
+			boolean suppressOutput) throws ProgramInvocationException {
+		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, configuration, defaultParallelism, suppressOutput);
+		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
+
+		if (jobID != null) {
+			jobGraph.setJobID(jobID);
 		}
+		jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
+		jobGraph.setClasspaths(packagedProgram.getClasspaths());
+		jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
+
 		return jobGraph;
 	}
 
@@ -83,24 +78,31 @@ public class PackagedProgramUtils {
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
 	public static JobGraph createJobGraph(
-		PackagedProgram packagedProgram,
-		Configuration configuration,
-		int defaultParallelism,
-		boolean suppressOutput) throws ProgramInvocationException {
+			PackagedProgram packagedProgram,
+			Configuration configuration,
+			int defaultParallelism,
+			boolean suppressOutput) throws ProgramInvocationException {
 		return createJobGraph(packagedProgram, configuration, defaultParallelism, null, suppressOutput);
 	}
 
 	public static Pipeline getPipelineFromProgram(
-		PackagedProgram prog,
-		Configuration configuration,
-		int parallelism,
-		boolean suppressOutput) throws CompilerException, ProgramInvocationException {
-		// temporary hack to support the optimizer plan preview
-		OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(configuration);
-		if (parallelism > 0) {
-			env.setParallelism(parallelism);
+			PackagedProgram prog,
+			Configuration configuration,
+			int parallelism,
+			boolean suppressOutput) throws CompilerException, ProgramInvocationException {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
+
+			// temporary hack to support the optimizer plan preview
+			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(configuration);
+			if (parallelism > 0) {
+				env.setParallelism(parallelism);
+			}
+			return env.getPipeline(prog, suppressOutput);
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
-		return env.getPipeline(prog, suppressOutput);
 	}
 
 	public static Boolean isPython(String entryPointClassName) {
