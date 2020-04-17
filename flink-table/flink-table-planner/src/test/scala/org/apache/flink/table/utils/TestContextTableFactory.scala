@@ -57,6 +57,7 @@ class TestContextTableFactory[T](
 
   override def createTableSink(context: TableSinkFactory.Context): TableSink[T] = {
     Assert.assertTrue(context.getConfiguration.get(REQUIRED_KEY))
+    Assert.assertFalse(context.isBounded)
     Assert.assertEquals(sinkIdentifier, context.getObjectIdentifier)
     hasInvokedSink = true
     TableFactoryUtil.findAndCreateTableSink(context)

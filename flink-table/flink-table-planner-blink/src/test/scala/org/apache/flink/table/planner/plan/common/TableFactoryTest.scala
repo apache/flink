@@ -38,7 +38,8 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
   def testTableSourceSinkFactory(): Unit = {
     val factory = new TestContextTableFactory(
       ObjectIdentifier.of("cat", "default", "t1"),
-      ObjectIdentifier.of("cat", "default", "t2"))
+      ObjectIdentifier.of("cat", "default", "t2"),
+      isBatch)
     util.tableEnv.getConfig.getConfiguration.setBoolean(TestContextTableFactory.REQUIRED_KEY, true)
     util.tableEnv.registerCatalog("cat", new GenericInMemoryCatalog("default") {
       override def getTableFactory: Optional[TableFactory] = Optional.of(factory)

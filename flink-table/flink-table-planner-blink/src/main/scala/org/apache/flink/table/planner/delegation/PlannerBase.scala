@@ -307,7 +307,8 @@ abstract class PlannerBase(
         val context = new TableSinkFactoryContextImpl(
           objectIdentifier,
           tableToFind,
-          getTableConfig.getConfiguration)
+          getTableConfig.getConfiguration,
+          !isStreamingMode)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {

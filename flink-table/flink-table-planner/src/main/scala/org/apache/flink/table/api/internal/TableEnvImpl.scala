@@ -750,7 +750,7 @@ abstract class TableEnvImpl(
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
         val context = new TableSinkFactoryContextImpl(
-          objectIdentifier, catalogTable, config.getConfiguration)
+          objectIdentifier, catalogTable, config.getConfiguration, true)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {
