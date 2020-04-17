@@ -644,10 +644,16 @@ extractExecutionParams() {
     local execution_config=$1
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
-    if ! [[ $execution_config =~ ^${EXECUTION_PREFIX}.* ]]; then
+    local num_lines=$(echo "$execution_config" | wc -l)
+    if ! [[ ${num_lines} == 1 ]]; then
+        echo "[ERROR] Unexpected result ($num_lines lines): $execution_config" 1>&2
+        echo "[ERROR] extractExecutionParams only accepts exactly one line as the input" 1>&2
+        exit 1
+    fi
+
+    if ! [[ ${execution_config} =~ ^${EXECUTION_PREFIX}.* ]]; then
         echo "[ERROR] Unexpected result: $execution_config" 1>&2
-        echo "[ERROR] The last line of the BashJavaUtils outputs is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
-        echo "$output" 1>&2
+        echo "[ERROR] The output of BashJavaUtils is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
         exit 1
     fi
 
