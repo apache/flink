@@ -260,7 +260,8 @@ public class ExecutionContext<ClusterID> {
 				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
 				return streamTableEnv.getPipeline(name);
 			} else {
-				return execEnv.createProgramPlan(name);
+				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
+				return batchTableEnv.getPipeline(name);
 			}
 		});
 	}
