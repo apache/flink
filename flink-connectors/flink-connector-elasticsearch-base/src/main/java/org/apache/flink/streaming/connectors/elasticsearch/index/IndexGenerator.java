@@ -24,18 +24,18 @@ import org.apache.flink.types.Row;
 import java.io.Serializable;
 
 /**
- * Interface to generate index from {@link Row}.
+ * This interface is responsible to generate index name from given {@link Row} record.
  */
 @Internal
 public interface IndexGenerator extends Serializable {
 
 	/**
-	 * Init the dateTimeFormatter if necessary in runtime.
+	 * Initialize the index generator, this will be called only once before {@link #generate(Row)} is called.
 	 */
 	default void open() {}
 
 	/**
-	 * Generate index for each row dynamically, return the index value by default.
+	 * Generate index name according the the given row.
 	 */
 	String generate(Row row);
 }

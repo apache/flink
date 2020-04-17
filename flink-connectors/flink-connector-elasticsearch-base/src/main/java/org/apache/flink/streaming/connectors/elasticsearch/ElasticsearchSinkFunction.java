@@ -61,6 +61,11 @@ import java.io.Serializable;
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 
 	/**
+	 * Initialization method for the function. It is called once before the actual working process methods.
+	 */
+	default void open() {}
+
+	/**
 	 * Process the incoming element to produce multiple {@link ActionRequest ActionsRequests}.
 	 * The produced requests should be added to the provided {@link RequestIndexer}.
 	 *
@@ -69,9 +74,4 @@ public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 	 * @param indexer request indexer that {@code ActionRequest} should be added to
 	 */
 	void process(T element, RuntimeContext ctx, RequestIndexer indexer);
-
-	/**
-	 *  General-purpose open method.
-	 */
-	default void open() {}
 }

@@ -35,13 +35,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Factory of {@link IndexGenerator}.
@@ -68,7 +66,7 @@ public class IndexGeneratorFactory {
 		if (indexHelper.checkIsDynamicIndex(index)) {
 			return createRuntimeIndexGenerator(index, schema.getFieldNames(), schema.getFieldDataTypes(), indexHelper);
 		} else {
-			return new DefaultIndexGenerator(index);
+			return new StaticIndexGenerator(index);
 		}
 	}
 
@@ -152,16 +150,16 @@ public class IndexGeneratorFactory {
 				};
 			} else {
 				throw new TableException(String.format("Unsupported type '%s' found in Elasticsearch dynamic index field, " +
-					"time-related pattern only support types are: %s", indexFieldType, indexHelper.getSupportedDateTypes()));
+					"time-related pattern only support types are: DATE,TIME,TIMESTAMP.",
+					TypeConversions.fromLegacyInfoToDataType(indexFieldType)));
 			}
 		}
 		// general dynamic index pattern
-		return new DefaultIndexGenerator(index) {
-
+		return new IndexGeneratorBase(index) {
 			@Override
 			public String generate(Row row) {
 				Object indexField = row.getField(indexFieldPos);
-				return indexPrefix.concat(indexField == null ? index : indexField.toString()).concat(indexSuffix);
+				return indexPrefix.concat(indexField == null ? "null" : indexField.toString()).concat(indexSuffix);
 			}
 		};
 	}
@@ -215,19 +213,6 @@ public class IndexGeneratorFactory {
 		 */
 		String getDefaultFormat(TypeInformation indexTypeInfo) {
 			return defaultFormats.get(indexTypeInfo);
-		}
-
-		/**
-		 * Get the supported date related types.
-		 */
-		String getSupportedDateTypes() {
-
-			return defaultFormats.keySet().stream().sorted(new Comparator<TypeInformation>() {
-				@Override
-				public int compare(TypeInformation o1, TypeInformation o2) {
-					return o1.toString().compareTo(o2.toString());
-				}
-			}).collect(Collectors.toList()).toString();
 		}
 
 		/**

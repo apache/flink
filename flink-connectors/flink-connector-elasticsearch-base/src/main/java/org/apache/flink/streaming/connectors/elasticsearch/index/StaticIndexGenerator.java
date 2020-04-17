@@ -18,23 +18,18 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.index;
 
-import java.time.format.DateTimeFormatter;
+import org.apache.flink.types.Row;
 
 /**
- * Abstract class for time related {@link IndexGenerator}.
+ * A static {@link IndexGenerator} which generate fixed index name.
  */
-public abstract class AbstractTimeIndexGenerator extends IndexGeneratorBase {
+public class StaticIndexGenerator extends IndexGeneratorBase {
 
-	private final String dateTimeFormat;
-	protected transient DateTimeFormatter dateTimeFormatter;
-
-	public AbstractTimeIndexGenerator(String index, String dateTimeFormat) {
+	public StaticIndexGenerator(String index) {
 		super(index);
-		this.dateTimeFormat = dateTimeFormat;
 	}
 
-	@Override
-	public void open() {
-		this.dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimeFormat);
+	public String generate(Row row) {
+		return index;
 	}
 }
