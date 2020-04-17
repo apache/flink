@@ -105,10 +105,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
 
     # encode data to output_stream
     cdef void _encode_one_row(self, value)
-    cdef void _encode_field(self, CoderType coder_type, TypeName field_type, BaseCoder field_coder,
-                          item)
     cdef void _encode_field_simple(self, TypeName field_type, item)
-    cdef void _encode_field_complex(self, TypeName field_type, BaseCoder field_coder, item)
     cdef void _extend(self, size_t missing)
     cdef void _encode_byte(self, unsigned char val)
     cdef void _encode_smallint(self, libc.stdint.int16_t v)
@@ -120,9 +117,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
 
     # decode data from input_stream
     cdef void _decode_next_row(self)
-    cdef object _decode_field(self, CoderType coder_type, TypeName field_type, BaseCoder field_coder)
     cdef object _decode_field_simple(self, TypeName field_type)
-    cdef object _decode_field_complex(self, TypeName field_type, BaseCoder field_coder)
     cdef unsigned char _decode_byte(self) except? -1
     cdef libc.stdint.int16_t _decode_smallint(self) except? -1
     cdef libc.stdint.int32_t _decode_int(self) except? -1
@@ -195,23 +190,3 @@ cdef class DateCoderImpl(BaseCoder):
 
 cdef class TimeCoderImpl(BaseCoder):
     pass
-
-cdef class DecimalCoderImpl(BaseCoder):
-    cdef readonly object context
-    cdef readonly object scale_format
-
-cdef class TimestampCoderImpl(BaseCoder):
-    cdef readonly bint is_compact
-
-cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
-    cdef readonly object timezone
-
-cdef class ArrayCoderImpl(BaseCoder):
-    cdef readonly BaseCoder elem_coder
-
-cdef class MapCoderImpl(BaseCoder):
-    cdef readonly BaseCoder key_coder
-    cdef readonly BaseCoder value_coder
-
-cdef class RowCoderImpl(BaseCoder):
-    cdef readonly list field_coders
