@@ -26,11 +26,11 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
@@ -40,26 +40,24 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
 
+import org.junit.After;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -68,316 +66,264 @@ import static org.junit.Assert.fail;
 public class ApplicationDispatcherBootstrapTest {
 
 	private static final String MULTI_EXECUTE_JOB_CLASS_NAME = "org.apache.flink.client.testjar.MultiExecuteJob";
+	private static final int TIMEOUT_SECONDS = 10;
 
-	/**
-	 * Tests that the {@link org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader}
-	 * collects the ids of the submitted jobs correctly after submission. These will be used later to check the status
-	 * of the individual jobs in order to decide when to shut down the cluster.
-	 *
-	 * <p>Given that the current API does not allow the user to specify a JobID for each {@code execute()} call, we can
-	 * only check that the number of collected jobIDs is equal to the expected one, but we cannot check the actual jobIDs.
-	 */
-	@Test
-	public void testJobIdCollection() throws Exception {
-		final int noOfJobs = 3;
-		final CompletableFuture<List<JobID>> jobIDs = submitAndGetJobIDs(noOfJobs, false);
-		assertThat(jobIDs.get().size(), is(equalTo(noOfJobs)));
+	final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
+	final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+
+	@After
+	public void cleanup() {
+		ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
 	}
 
-	@Test(expected = ApplicationExecutionException.class)
+	@Test
 	public void testExceptionThrownWhenApplicationContainsNoJobs() throws Throwable {
-		final int noOfJobs = 0;
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()));
 
-		final CompletableFuture<List<JobID>> jobIdsFuture = submitAndGetJobIDs(noOfJobs, false);
-		assertTrue(jobIdsFuture.isDone() && jobIdsFuture.isCompletedExceptionally());
+		final CompletableFuture<Void> applicationFuture =
+				runApplication(dispatcherBuilder, 0, false);
 
-		try {
-			jobIdsFuture.get();
-		} catch (Exception e) {
-			Optional<ApplicationExecutionException> appException =
-					ExceptionUtils.findThrowable(e, ApplicationExecutionException.class);
-			if (appException.isPresent()) {
-				throw appException.get();
-			}
-			throw e;
-		}
-		fail("Test should have failed with ApplicationExecutionException.");
+		assertException(applicationFuture, ApplicationExecutionException.class);
 	}
 
-	@Test(expected = FlinkRuntimeException.class)
+	@Test
 	public void testExceptionThrownWithMultiJobApplicationIfOnlyOneJobIsAllowed() throws Throwable {
-		final int noOfJobs = 3;
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()));
 
-		final CompletableFuture<List<JobID>> jobIdsFuture = submitAndGetJobIDs(noOfJobs, true);
-		assertTrue(jobIdsFuture.isDone() && jobIdsFuture.isCompletedExceptionally());
+		final CompletableFuture<Void> applicationFuture =
+				runApplication(dispatcherBuilder, 3, true);
 
-		try {
-			jobIdsFuture.get();
-		} catch (Throwable e) {
-			Optional<FlinkRuntimeException> appException =
-					ExceptionUtils.findThrowable(e, FlinkRuntimeException.class);
-			if (appException.isPresent()) {
-				throw appException.get();
-			}
-			throw e;
-		}
-		fail("Test should have failed with ApplicationExecutionException.");
+		assertException(applicationFuture, FlinkRuntimeException.class);
 	}
 
 	@Test
-	public void testApplicationFailsAsSoonAsOneJobFails() throws FlinkException {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+	public void testApplicationFailsAsSoonAsOneJobFails() throws Throwable {
+		final ConcurrentLinkedDeque<JobID> submittedJobIds = new ConcurrentLinkedDeque<>();
 
-			final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> {
+					submittedJobIds.add(jobGraph.getJobID());
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+				.setRequestJobStatusFunction(jobId -> {
+					// we only fail one of the jobs, the first one, the others will "keep" running
+					// indefinitely
+					if (jobId.equals(submittedJobIds.peek())) {
+						return CompletableFuture.completedFuture(JobStatus.FAILED);
+					}
+					// never finish the other jobs
+					return CompletableFuture.completedFuture(JobStatus.RUNNING);
+				})
+				.setRequestJobResultFunction(jobId -> {
+					// we only fail one of the jobs, the first one, the other will "keep" running
+					// indefinitely. If we didn't have this the test would hang forever.
+					if (jobId.equals(submittedJobIds.peek())) {
+						return CompletableFuture.completedFuture(createFailedJobResult(jobId));
+					}
+					// never finish the other jobs
+					return new CompletableFuture<>();
+				});
 
-			final Map<JobID, CompletableFuture<JobResult>> simulatedPendingJobsOfApplication =
-					createSubmittedApplicationWithNoOfPendingJobs(3);
+		final CompletableFuture<Void> applicationFuture = runApplication(dispatcherBuilder, 2, false);
 
-			final CompletableFuture<Void> applicationTerminationFuture =
-					getApplicationTerminationFuture(simulatedPendingJobsOfApplication, scheduledExecutor)
-							.whenComplete((e, t) -> completionFuture.complete(null));
-
-			assertFalse(applicationTerminationFuture.isDone());
-
-			successfullyTerminateJob(simulatedPendingJobsOfApplication, 2);
-			assertFalse(applicationTerminationFuture.isDone());
-
-			failJob(simulatedPendingJobsOfApplication, 0);
-
-			completionFuture.join();
-			assertTrue(applicationTerminationFuture.isCompletedExceptionally());
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
+		assertException(applicationFuture, JobExecutionException.class);
 	}
 
 	@Test
-	public void testApplicationSucceedsWhenALLJobsSucceed() throws FlinkException {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+	public void testApplicationSucceedsWhenAllJobsSucceed() throws Exception {
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createSuccessfulJobResult(jobId)));
 
-			final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> applicationFuture = runApplication(dispatcherBuilder, 3, false);
 
-			final Map<JobID, CompletableFuture<JobResult>> simulatedJobsOfApplication =
-					createSubmittedApplicationWithNoOfPendingJobs(3);
-
-			final CompletableFuture<Void> applicationTerminationFuture =
-					getApplicationTerminationFuture(simulatedJobsOfApplication, scheduledExecutor)
-							.whenComplete((e, t) -> completionFuture.complete(null));
-
-			assertFalse(applicationTerminationFuture.isDone());
-
-			successfullyTerminateJob(simulatedJobsOfApplication, 2);
-			assertFalse(applicationTerminationFuture.isDone());
-
-			successfullyTerminateJob(simulatedJobsOfApplication, 1);
-			assertFalse(applicationTerminationFuture.isDone());
-
-			successfullyTerminateJob(simulatedJobsOfApplication, 0);
-
-			completionFuture.join();
-			assertTrue(applicationTerminationFuture.isDone());
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
+		// this would block indefinitely if the applications don't finish
+		applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 	}
 
 	@Test
-	public void testClusterShutdownWhenApplicationIsCancelled() throws Exception {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+	public void testApplicationTaskFinishesWhenApplicationFinishes() throws Exception {
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createSuccessfulJobResult(jobId)))
+				.setClusterShutdownSupplier(() -> CompletableFuture.completedFuture(Acknowledge.get()));
 
-			final JobID testJobId = new JobID(0, 2);
-			final CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
 
-			final PackagedProgram program = getProgram(1);
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
 
-			final Configuration configuration = getEmbeddedExecutorConfiguration();
-			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobId.toHexString());
+		ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
 
-			final DispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
-					.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-					.setRequestJobStatusFunction(jobID -> jobTerminationFuture)
-					.setClusterShutdownSupplier(() -> CompletableFuture.completedFuture(Acknowledge.get()))
-					.build();
+		// wait until the bootstrap "thinks" it's done
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-			final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(program, Collections.emptyList(), configuration);
+		// make sure the task finishes
+		applicationExecutionFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+	}
 
-			final CompletableFuture<Acknowledge> clusterShutdownFuture =
-					bootstrap.runApplicationAndShutdownClusterAsync(testingDispatcherGateway, scheduledExecutor);
+	@Test
+	public void testApplicationIsCancelledWhenStoppingBootstrap() throws Exception {
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
+				.setClusterShutdownSupplier(() -> CompletableFuture.completedFuture(Acknowledge.get()));
 
-			final CompletableFuture<Void> applicationCompletionFuture = bootstrap.getApplicationStatusFuture();
-			assertFalse(applicationCompletionFuture.isDone());
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
 
-			bootstrap.stop();
-			clusterShutdownFuture.get();
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
 
-			assertTrue(applicationCompletionFuture.isDone());
-		} finally {
-			ExecutorUtils.gracefulShutdown(5L, TimeUnit.SECONDS, executor);
-		}
+		ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
+
+		bootstrap.stop();
+
+		// wait until the bootstrap "thinks" it's done
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+		// verify that the application task is being cancelled
+		assertThat(applicationExecutionFuture.isCancelled(), is(true));
+	}
+
+	@Test
+	public void testClusterShutdownWhenStoppingBootstrap() throws Exception {
+		// we're "listening" on this to be completed to verify that the cluster
+		// is being shut down from the ApplicationDispatcherBootstrap
+		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
+
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
+				.setClusterShutdownSupplier(() -> {
+					externalShutdownFuture.complete(true);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				});
+
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(2);
+
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+
+		bootstrap.stop();
+
+		// wait until the bootstrap "thinks" it's done
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+		// verify that the dispatcher is actually being shut down
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
 	}
 
 	@Test
 	public void testClusterShutdownWhenSubmissionFails() throws Exception {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+		// we're "listening" on this to be completed to verify that the cluster
+		// is being shut down from the ApplicationDispatcherBootstrap
+		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
 
-			final JobID testJobId = new JobID(0, 2);
-			final CompletableFuture<JobResult> jobTerminationFuture = new CompletableFuture<>();
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> {
+					throw new FlinkRuntimeException("Nope!");
+				})
+				.setClusterShutdownSupplier(() -> {
+					externalShutdownFuture.complete(true);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				});
 
-			final PackagedProgram program = getProgram(1);
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
 
-			final Configuration configuration = getEmbeddedExecutorConfiguration();
-			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobId.toHexString());
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
 
-			final DispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
-					.setSubmitFunction(jobGraph -> {
-						throw new FlinkRuntimeException(new UnsupportedOperationException());
-					})
-					.setClusterShutdownSupplier(() -> CompletableFuture.completedFuture(Acknowledge.get()))
-					.build();
+		// wait until the bootstrap "thinks" it's done
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-			final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(program, Collections.emptyList(), configuration);
-
-			final CompletableFuture<Acknowledge> clusterShutdownFuture =
-					bootstrap.runApplicationAndShutdownClusterAsync(testingDispatcherGateway, scheduledExecutor);
-
-			final CompletableFuture<Void> applicationCompletionFuture = bootstrap.getApplicationStatusFuture();
-			assertFalse(applicationCompletionFuture.isDone());
-
-			clusterShutdownFuture.get();
-
-			assertTrue(applicationCompletionFuture.isDone() && applicationCompletionFuture.isCompletedExceptionally());
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
+		// verify that the dispatcher is actually being shut down
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
 	}
 
 	@Test
 	public void testClusterShutdownWhenApplicationSucceeds() throws Exception {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+		// we're "listening" on this to be completed to verify that the cluster
+		// is being shut down from the ApplicationDispatcherBootstrap
+		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
 
-			final JobID testJobId = new JobID(0, 2);
-			final CompletableFuture<JobResult> jobTerminationFuture = new CompletableFuture<>();
-			final CompletableFuture<Void> clusterTerminationFuture = new CompletableFuture<>();
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createSuccessfulJobResult(jobId)))
+				.setClusterShutdownSupplier(() -> {
+					externalShutdownFuture.complete(true);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				});
 
-			final CompletableFuture<Void> applicationCompletionFuture =
-					runSingleJobApplication(scheduledExecutor, testJobId, jobTerminationFuture, clusterTerminationFuture);
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
 
-			assertFalse(applicationCompletionFuture.isDone());
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
 
-			jobTerminationFuture.complete(createSuccessfulJobResult(testJobId));
-			clusterTerminationFuture.get();
+		// wait until the bootstrap "thinks" it's done
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-			assertTrue(
-					applicationCompletionFuture.isDone()
-							&& !applicationCompletionFuture.isCompletedExceptionally()
-							&& !applicationCompletionFuture.isCancelled());
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
+		// verify that the dispatcher is actually being shut down
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
 	}
 
 	@Test
 	public void testClusterShutdownWhenApplicationFails() throws Exception {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+		// we're "listening" on this to be completed to verify that the cluster
+		// is being shut down from the ApplicationDispatcherBootstrap
+		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
 
-			final JobID testJobId = new JobID(0, 2);
-			final CompletableFuture<JobResult> jobTerminationFuture = new CompletableFuture<>();
-			final CompletableFuture<Void> clusterTerminationFuture = new CompletableFuture<>();
-
-			final CompletableFuture<Void> applicationCompletionFuture =
-					runSingleJobApplication(scheduledExecutor, testJobId, jobTerminationFuture, clusterTerminationFuture);
-
-			assertFalse(applicationCompletionFuture.isDone());
-
-			jobTerminationFuture.complete(createFailedJobResult(testJobId));
-			clusterTerminationFuture.get();
-
-			assertTrue(applicationCompletionFuture.isDone() && applicationCompletionFuture.isCompletedExceptionally());
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
-	}
-
-	private CompletableFuture<Void> runSingleJobApplication(
-			ScheduledExecutor scheduledExecutor,
-			JobID testJobId,
-			CompletableFuture<JobResult> jobTerminationFuture,
-			CompletableFuture<Void> clusterTerminationFuture) throws FlinkException {
-
-		final PackagedProgram program = getProgram(1);
-
-		final Configuration configuration = getEmbeddedExecutorConfiguration();
-		configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobId.toHexString());
-
-		final DispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-				.setRequestJobStatusFunction(jobID -> CompletableFuture.completedFuture(JobStatus.FINISHED))
-				.setRequestJobResultFunction(jobID -> jobTerminationFuture)
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FAILED))
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createFailedJobResult(jobId)))
 				.setClusterShutdownSupplier(() -> {
-					clusterTerminationFuture.complete(null);
+					externalShutdownFuture.complete(true);
 					return CompletableFuture.completedFuture(Acknowledge.get());
-				})
-				.build();
+				});
 
-		final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(program, Collections.emptyList(), configuration);
-		bootstrap.runApplicationAndShutdownClusterAsync(testingDispatcherGateway, scheduledExecutor);
-		return bootstrap.getApplicationStatusFuture();
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+
+		// wait until the bootstrap "thinks" it's done
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+		// verify that the dispatcher is actually being shut down
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
 	}
 
-	private CompletableFuture<List<JobID>> submitAndGetJobIDs(int noOfJobs, boolean enforceSingleJobExecution) throws FlinkException {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+	private CompletableFuture<Void> runApplication(
+			TestingDispatcherGateway.Builder dispatcherBuilder,
+			int noOfJobs,
+			boolean enforceSingleJobExecution) throws FlinkException {
 
-			final PackagedProgram program = getProgram(noOfJobs);
+		final PackagedProgram program = getProgram(noOfJobs);
 
-			final Configuration configuration = getEmbeddedExecutorConfiguration();
+		final ApplicationDispatcherBootstrap bootstrap =
+				new ApplicationDispatcherBootstrap(
+						program, Collections.emptyList(), getConfiguration());
 
-			final DispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
-					.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-					.build();
-
-			final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(program, Collections.emptyList(), configuration);
-			final CompletableFuture<List<JobID>> jobIdsFuture = new CompletableFuture<>();
-			final List<JobID> jobIds = bootstrap.tryRunApplicationAndGetJobIDs(
-					jobIdsFuture,
-					testingDispatcherGateway,
-					scheduledExecutor,
-					enforceSingleJobExecution);
-			return jobIdsFuture;
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
+		return bootstrap.runApplicationAsync(
+				dispatcherBuilder.build(),
+				scheduledExecutor,
+				enforceSingleJobExecution);
 	}
 
-	private void successfullyTerminateJob(Map<JobID, CompletableFuture<JobResult>> pendingJobResults, int jobIdx) {
-		final JobID jobID = (JobID) pendingJobResults.keySet().toArray()[jobIdx];
-		pendingJobResults.get(jobID).complete(createSuccessfulJobResult(jobID));
+	private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(int noOfJobs) throws FlinkException {
+		return createApplicationDispatcherBootstrap(noOfJobs, Collections.emptyList());
 	}
 
-	private void failJob(Map<JobID, CompletableFuture<JobResult>> pendingJobResults, int jobIdx) {
-		final JobID jobID = (JobID) pendingJobResults.keySet().toArray()[jobIdx];
-		pendingJobResults.get(jobID).complete(createFailedJobResult(jobID));
-	}
-
-	private Map<JobID, CompletableFuture<JobResult>> createSubmittedApplicationWithNoOfPendingJobs(final int noOfJobs)  {
-		final Map<JobID, CompletableFuture<JobResult>> jobResults = new HashMap<>();
-		for (int i = 0; i < noOfJobs; i++) {
-			jobResults.put(new JobID(0, i), new CompletableFuture<>());
-		}
-		return jobResults;
+	private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(
+			int noOfJobs,
+			Collection<JobGraph> recoveredJobGraphs) throws FlinkException {
+		final PackagedProgram program = getProgram(noOfJobs);
+		return new ApplicationDispatcherBootstrap(program, recoveredJobGraphs, getConfiguration());
 	}
 
 	private PackagedProgram getProgram(int noOfJobs) throws FlinkException {
@@ -392,30 +338,12 @@ public class ApplicationDispatcherBootstrapTest {
 		}
 	}
 
-	private CompletableFuture<Void> getApplicationTerminationFuture(
-			final Map<JobID, CompletableFuture<JobResult>> jobResults,
-			final ScheduledExecutor scheduledExecutor) throws FlinkException {
-
-		final DispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
-				.setRequestJobStatusFunction(jobID -> CompletableFuture.completedFuture(JobStatus.FINISHED))
-				.setRequestJobResultFunction(jobResults::get)
-				.build();
-
-		final ApplicationDispatcherBootstrap bootstrap =
-				new ApplicationDispatcherBootstrap(
-						getProgram(3), // this is ignored
-						Collections.emptyList(),
-						getEmbeddedExecutorConfiguration());
-
-		return bootstrap.getApplicationResult(testingDispatcherGateway, jobResults.keySet(), scheduledExecutor);
-	}
-
 	private static JobResult createFailedJobResult(final JobID jobId) {
 		return new JobResult.Builder()
 				.jobId(jobId)
 				.netRuntime(2L)
 				.applicationStatus(ApplicationStatus.FAILED)
-				.serializedThrowable(new SerializedThrowable(new Exception("bla bla bla")))
+				.serializedThrowable(new SerializedThrowable(new JobExecutionException(jobId, "bla bla bla")))
 				.build();
 	}
 
@@ -427,7 +355,24 @@ public class ApplicationDispatcherBootstrapTest {
 				.build();
 	}
 
-	private Configuration getEmbeddedExecutorConfiguration() {
+	private static <T, E extends Throwable> void assertException(
+			CompletableFuture<T> future,
+			Class<E> exceptionClass) throws Exception {
+
+		try {
+			future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+		} catch (Throwable e) {
+			Optional<E> expectionException =
+					ExceptionUtils.findThrowable(e, exceptionClass);
+			if (!expectionException.isPresent()) {
+				throw e;
+			}
+			return;
+		}
+		fail("Future should have completed exceptionally with " + exceptionClass.getCanonicalName() + ".");
+	}
+
+	private Configuration getConfiguration() {
 		final Configuration configuration = new Configuration();
 		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
 		return configuration;

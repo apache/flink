@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
 /**
  * An interface containing the logic of bootstrapping the {@link Dispatcher} of a cluster.
@@ -34,11 +35,11 @@ public interface DispatcherBootstrap {
 	 *
 	 * @param dispatcher the dispatcher to be initialized.
 	 */
-	void initialize(final Dispatcher dispatcher) throws Exception;
+	void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) throws Exception;
 
 	/**
 	 * Stops and frees any resources (e.g. threads) acquired
-	 * by the {@link #initialize(Dispatcher)}.
+	 * by the {@link #initialize(Dispatcher, ScheduledExecutor)}.
 	 */
 	void stop() throws Exception;
 }
