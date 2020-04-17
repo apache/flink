@@ -710,6 +710,19 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateViewWithInvalidFieldList() {
+		final String expected = "(?s).*Encountered \"\\)\" at line 1, column 15.\n" +
+				"Was expecting one of:\n" +
+				".*\n" +
+				".*\n" +
+				".*\n" +
+				".*\n" +
+				".*";
+		sql("CREATE VIEW V(^)^ AS SELECT * FROM TBL")
+			.fails(expected);
+	}
+
+	@Test
 	public void testCreateViewWithComment() {
 		final String sql = "create view v COMMENT 'this is a view' as select col1 from tbl";
 		final String expected = "CREATE VIEW `V`\n" +

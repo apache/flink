@@ -29,17 +29,17 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Rule, Test}
-
 import java.io.File
 import java.util
 import java.math.{BigDecimal => JBigDecimal}
 import java.net.URI
+
+import org.apache.flink.table.planner.operations.SqlConversionException
 
 import scala.collection.JavaConversions._
 
@@ -1051,6 +1051,49 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     result.insertInto("T2")
     execJob("testJob")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test(expected = classOf[SqlConversionException])
+  def testCreateViewWithWrongFieldList(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    TestCollectionTableFactory.initData(sourceData)
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T3(d) AS SELECT * FROM T1
+      """.stripMargin
+
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(viewDDL)
   }
 
   @Test(expected = classOf[ValidationException])
