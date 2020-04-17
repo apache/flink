@@ -101,6 +101,7 @@ class StreamExecDeduplicate(
     val tableConfig = planner.getTableConfig
     val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = planner.getExecEnv.getConfig
       val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
@@ -108,25 +109,25 @@ class StreamExecDeduplicate(
         new MiniBatchDeduplicateKeepLastRowFunction(
           rowTypeInfo,
           generateUpdateBefore,
-          rowSerializer)
+          rowSerializer,
+          minRetentionTime)
       } else {
-        new MiniBatchDeduplicateKeepFirstRowFunction(rowSerializer)
+        new MiniBatchDeduplicateKeepFirstRowFunction(
+          rowSerializer,
+          minRetentionTime)
       }
       val trigger = AggregateUtil.createMiniBatchTrigger(tableConfig)
       new KeyedMapBundleOperator(
         processFunction,
         trigger)
     } else {
-      val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
-      val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
       val processFunction = if (keepLastRow) {
         new DeduplicateKeepLastRowFunction(
           minRetentionTime,
-          maxRetentionTime,
           rowTypeInfo,
           generateUpdateBefore)
       } else {
-        new DeduplicateKeepFirstRowFunction(minRetentionTime, maxRetentionTime)
+        new DeduplicateKeepFirstRowFunction(minRetentionTime)
       }
       new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
     }

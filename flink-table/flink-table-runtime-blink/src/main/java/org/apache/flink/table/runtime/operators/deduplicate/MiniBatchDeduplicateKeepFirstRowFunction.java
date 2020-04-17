@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processFirstRow;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
  * This function is used to get the first row for every key partition in miniBatch mode.
@@ -42,11 +44,14 @@ public class MiniBatchDeduplicateKeepFirstRowFunction
 	private static final long serialVersionUID = -7994602893547654994L;
 
 	private final TypeSerializer<BaseRow> typeSerializer;
-
+	private final long minRetentionTime;
 	// state stores a boolean flag to indicate whether key appears before.
 	private ValueState<Boolean> state;
 
-	public MiniBatchDeduplicateKeepFirstRowFunction(TypeSerializer<BaseRow> typeSerializer) {
+	public MiniBatchDeduplicateKeepFirstRowFunction(
+			TypeSerializer<BaseRow> typeSerializer,
+			long minRetentionTime) {
+		this.minRetentionTime = minRetentionTime;
 		this.typeSerializer = typeSerializer;
 	}
 
@@ -54,6 +59,10 @@ public class MiniBatchDeduplicateKeepFirstRowFunction
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
 		ValueStateDescriptor<Boolean> stateDesc = new ValueStateDescriptor<>("existsState", Types.BOOLEAN);
+		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
+		if (ttlConfig.isEnabled()) {
+			stateDesc.enableTimeToLive(ttlConfig);
+		}
 		state = ctx.getRuntimeContext().getState(stateDesc);
 	}
 

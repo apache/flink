@@ -76,7 +76,6 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	private final boolean filterAllNulls;
 
 	protected final long minRetentionTime;
-	protected final boolean stateCleaningEnabled;
 
 	protected transient JoinConditionWithNullFilters joinCondition;
 	protected transient TimestampedCollector<BaseRow> collector;
@@ -95,7 +94,6 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 		this.leftInputSideSpec = leftInputSideSpec;
 		this.rightInputSideSpec = rightInputSideSpec;
 		this.minRetentionTime = minRetentionTime;
-		this.stateCleaningEnabled = minRetentionTime > 1;
 		this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNullKeys);
 		this.nullSafe = nullFilterKeys.length == 0;
 		this.filterAllNulls = nullFilterKeys.length == filterNullKeys.length;
