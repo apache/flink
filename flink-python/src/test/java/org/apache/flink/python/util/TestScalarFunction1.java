@@ -23,9 +23,9 @@ import org.apache.flink.table.functions.ScalarFunction;
 /**
  * Just a simple scalar function for testing add jars from python side.
  */
-public class TestScalarFunction extends ScalarFunction {
+public class TestScalarFunction1 extends ScalarFunction {
 
-	public String eval(int a, String b) {
-		return a + " or " + b;
+	public String eval(long a, String b) {
+		return a + " and " + b;
 	}
 }

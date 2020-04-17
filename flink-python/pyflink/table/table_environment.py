@@ -947,7 +947,7 @@ class TableEnvironment(object):
         :type job_name: str
         :return: The result of the job execution, containing elapsed time and accumulators.
         """
-        self._write_pipeline_jars_to_j_env()
+        self._add_pipeline_jars_to_j_env_config()
         return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements, schema=None, verify_schema=True):
@@ -1096,7 +1096,7 @@ class TableEnvironment(object):
                 and is_local_deployment(j_config):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
 
-    def _write_pipeline_jars_to_j_env(self):
+    def _add_pipeline_jars_to_j_env_config(self):
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         jar_urls = self.get_config().get_configuration().get_string(jars_key, None)

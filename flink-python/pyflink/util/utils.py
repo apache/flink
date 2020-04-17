@@ -113,13 +113,13 @@ def add_jars_to_context_class_loader(jar_urls):
     # validate and normalize
     jar_urls = [gateway.jvm.java.net.URL(url).toString() for url in jar_urls]
     context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
-    existed_urls = []
+    existing_urls = []
     if context_classloader.getClass().getName() == "java.net.URLClassLoader":
-        existed_urls = set([url.toString() for url in context_classloader.getURLs()])
-    if all([url in existed_urls for url in jar_urls]):
+        existing_urls = set([url.toString() for url in context_classloader.getURLs()])
+    if all([url in existing_urls for url in jar_urls]):
         # if urls all existed, no need to create new class loader.
         return
-    jar_urls.extend(existed_urls)
+    jar_urls.extend(existing_urls)
     # remove duplicates and create Java objects.
     j_urls = [gateway.jvm.java.net.URL(url) for url in set(jar_urls)]
     new_classloader = gateway.jvm.java.net.URLClassLoader(

@@ -336,14 +336,14 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
     def test_set_jars(self):
         jar_urls = []
-        func1_class_name = "org.apache.flink.table.planner.plan.stream.sql.Func1"
-        func2_class_name = "org.apache.flink.python.util.TestScalarFunction"
-        jar_urls.extend(self.validate_and_return_unloaded_jar_url(
-            func1_class_name,
-            "flink-table/flink-table-planner-blink/target/flink-table-planner-blink*-tests.jar"))
-        jar_urls.extend(self.validate_and_return_unloaded_jar_url(
-            func2_class_name,
-            "flink-python/target/flink-python*-tests.jar"))
+        func1_class_name = "org.apache.flink.python.util.TestScalarFunction1"
+        func2_class_name = "org.apache.flink.python.util.TestScalarFunction2"
+        func1_jar_pattern = "flink-python/target/func1/flink-python*-tests.jar"
+        func2_jar_pattern = "flink-python/target/func2/flink-python*-tests.jar"
+        self.ensure_jar_not_loaded(func1_class_name, func1_jar_pattern)
+        self.ensure_jar_not_loaded(func2_class_name, func2_jar_pattern)
+        jar_urls.extend(self.get_jar_url(func1_jar_pattern))
+        jar_urls.extend(self.get_jar_url(func2_jar_pattern))
 
         # test set the "pipeline.jars" multiple times
         self.t_env.get_config().get_configuration().set_string("pipeline.jars", ";".join(jar_urls))
@@ -351,9 +351,9 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
         self.t_env.get_config().get_configuration().set_string("pipeline.jars", jar_urls[0])
         self.t_env.get_config().get_configuration().set_string("pipeline.jars", ";".join(jar_urls))
-        third_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        second_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
 
-        self.assertEqual(first_class_loader, third_class_loader)
+        self.assertEqual(first_class_loader, second_class_loader)
 
         source = self.t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
         self.t_env.register_java_function("func1", func1_class_name)
@@ -361,13 +361,13 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         table_sink = source_sink_utils.TestAppendSink(
             ["a", "b"], [DataTypes.STRING(), DataTypes.STRING()])
         self.t_env.register_table_sink("sink", table_sink)
-        source.select("func1(a.cast(int), b), func2(a.cast(int), b)").insert_into("sink")
+        source.select("func1(a, b), func2(a, b)").insert_into("sink")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
         self.assert_equals(actual, expected)
 
-    def validate_and_return_unloaded_jar_url(self, func_class_name, jar_filename_pattern):
+    def ensure_jar_not_loaded(self, func_class_name, jar_filename_pattern):
         test_jars = glob.glob(os.path.join(_find_flink_source_root(), jar_filename_pattern))
         if not test_jars:
             self.fail("'%s' is not available. Please compile the test jars first."
@@ -377,9 +377,13 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         except Py4JJavaError:
             pass
         else:
-            self.fail("The scalar function '%s' should not been loaded before this test case. "
-                      "Please remove the '%s' from the classpath of the PythonGatewayServer "
-                      "process." % (func_class_name, jar_filename_pattern))
+            self.fail("The scalar function '%s' should not be able to be loaded. Please remove "
+                      "the '%s' from the classpath of the PythonGatewayServer process." %
+                      (func_class_name, jar_filename_pattern))
+
+    @staticmethod
+    def get_jar_url(jar_filename_pattern):
+        test_jars = glob.glob(os.path.join(_find_flink_source_root(), jar_filename_pattern))
         return [pathlib.Path(jar_path).as_uri() for jar_path in test_jars]
 
 

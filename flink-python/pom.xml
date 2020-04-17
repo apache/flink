@@ -411,6 +411,35 @@ under the License.
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>testUDF1</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction1.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func1
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testUDF2</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction2.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func2
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>test-jar</id>
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
