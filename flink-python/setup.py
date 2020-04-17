@@ -58,6 +58,8 @@ except ImportError:
         ])
     else:
         extensions = ([])
+# set extensions to empty to disable the cython tests for now
+extensions = ([])
 
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
