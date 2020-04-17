@@ -98,11 +98,11 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
 	// ------------------------------------------------------------------------
 
 	private void buildFailoverRegions() {
-		final Set<? extends Set<SchedulingExecutionVertex>> distinctRegions =
+		final Set<Set<SchedulingExecutionVertex>> distinctRegions =
 			PipelinedRegionComputeUtil.computePipelinedRegions(topology);
 
 		// creating all the failover regions and register them
-		for (Set<? extends SchedulingExecutionVertex> regionVertices : distinctRegions) {
+		for (Set<SchedulingExecutionVertex> regionVertices : distinctRegions) {
 			LOG.debug("Creating a failover region with {} vertices.", regionVertices.size());
 			final FailoverRegion failoverRegion = new FailoverRegion(regionVertices);
 			regions.add(failoverRegion);
