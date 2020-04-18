@@ -37,6 +37,76 @@ Catalog 提供了元数据信息，例如数据库、表、分区、视图以及
 
 `GenericInMemoryCatalog` 是基于内存实现的 Catalog，所有元数据只在 session 的生命周期内可用。
 
+### JDBCCatalog
+
+The `JDBCCatalog` enables users to connect Flink to relational databases over JDBC protocol.
+
+#### PostgresCatalog
+
+`PostgresCatalog` is the only implementation of JDBC Catalog at the moment.
+
+To set a `JDBCcatalog`,
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+String name            = "mypg";
+String defaultDatabase = "mydb";
+String username        = "...";
+String password        = "...";
+String baseUrl         = "jdbc:postgresql://<ip>:<port>"; # should not contain database name here
+
+JDBCCatalog catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
+tableEnv.registerCatalog("mypg", catalog);
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg");
+{% endhighlight %}
+</div>
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+val tableEnv = TableEnvironment.create(settings)
+
+val name            = "mypg";
+val defaultDatabase = "mydb";
+val username        = "...";
+val password        = "...";
+val baseUrl         = "jdbc:postgresql://<ip>:<port>"; # should not contain database name here
+
+val catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
+tableEnv.registerCatalog("mypg", catalog);
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg");
+{% endhighlight %}
+</div>
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+
+execution:
+    planner: blink
+    ...
+    current-catalog: mypg  # set the JDBCCatalog as the current catalog of the session
+    current-database: mydb
+    
+catalogs:
+   - name: mypg
+     type: jdbc
+     default-database: mydb
+     username: ...
+     password: ...
+     base-url: jdbc:postgresql://<ip>:<port>
+{% endhighlight %}
+</div>
+</div>
+
+
 ### HiveCatalog
 
 `HiveCatalog` 有两个用途：作为原生 Flink 元数据的持久化存储，以及作为读写现有 Hive 元数据的接口。 

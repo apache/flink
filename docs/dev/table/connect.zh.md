@@ -1256,6 +1256,10 @@ To use JDBC connector, need to choose an actual driver to use. Here are drivers 
 | PostgreSQL  |   org.postgresql   |      postgresql      | [Download](https://jdbc.postgresql.org/download.html) |
 | Derby       |  org.apache.derby  |        derby         | [Download](http://db.apache.org/derby/derby_downloads.html) |
 
+**Catalog**
+
+JDBC Connector can be used together with [`JDBCCatalog`]({{ site.baseurl }}/dev/table/catalogs.html#jdbccatalog) to greatly simplify development effort and improve user experience.
+
 <br/>
 
 The connector can be defined as follows:
