@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.writers;
+package org.apache.flink.orc.writer;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.orc.data.Record;
-import org.apache.flink.formats.orc.vectorizer.RecordVectorizer;
+import org.apache.flink.orc.data.Record;
+import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
+import org.apache.flink.orc.vector.RecordVectorizer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -56,7 +57,7 @@ public class OrcBulkWriterTest {
 		final OrcBulkWriterFactory<Record> writer = new OrcBulkWriterFactory<>(
 			new RecordVectorizer(schema), writerProps, new Configuration());
 
-		writer.withUserMetadata(OrcTestUtil.getUserMetadataItems());
+		writer.withUserMetadata(OrcBulkWriterTestUtil.getUserMetadataItems());
 
 		StreamingFileSink<Record> sink = StreamingFileSink
 			.forBulkFormat(new Path(outDir.toURI()), writer)
@@ -77,7 +78,7 @@ public class OrcBulkWriterTest {
 			testHarness.snapshot(1, ++time);
 			testHarness.notifyOfCompletedCheckpoint(1);
 
-			OrcTestUtil.validate(outDir, input);
+			OrcBulkWriterTestUtil.validate(outDir, input);
 		}
 	}
 

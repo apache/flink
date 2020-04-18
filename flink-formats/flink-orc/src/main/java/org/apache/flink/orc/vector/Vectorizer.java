@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.vectorizer;
+package org.apache.flink.orc.vector;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
-import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import java.io.IOException;
 import java.io.Serializable;

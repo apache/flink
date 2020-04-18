@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.vectorizer;
+package org.apache.flink.orc.vector;
 
-import org.apache.flink.formats.orc.data.Record;
+import org.apache.flink.orc.data.Record;
 
-import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
-import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
 
 import java.io.IOException;
 import java.io.Serializable;

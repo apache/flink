@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.writers;
+package org.apache.flink.orc.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.formats.orc.vectorizer.Vectorizer;
+import org.apache.flink.orc.vector.Vectorizer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A factory that creates an ORC {@link BulkWriter}. The factory takes a user
  * supplied {@link Vectorizer} implementation to convert the element into an
- * {@link org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch}.
+ * {@link org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch}.
  *
  * @param <T> The type of element to write.
  */

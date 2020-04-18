@@ -136,12 +136,12 @@ specifying an `Encoder` we have to specify [BulkWriter.Factory]({{ site.javadocs
 The `BulkWriter` logic defines how new elements added, flushed and how the bulk of records
 are finalized for further encoding purposes.
 
-Flink comes with three built-in BulkWriter factories:
+Flink comes with four built-in BulkWriter factories:
 
  - [ParquetWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/ParquetWriterFactory.html)
  - [SequenceFileWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/sequencefile/SequenceFileWriterFactory.html)
  - [CompressWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/compress/CompressWriterFactory.html)
-
+ - [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/writer/OrcBulkWriterFactory.html)
 
 <div class="alert alert-info">
      <b>IMPORTANT:</b> Bulk Formats can only have `OnCheckpointRollingPolicy`, which rolls (ONLY) on every checkpoint.
@@ -207,14 +207,14 @@ input.addSink(sink)
 #### ORC Format
  
 To enable the data to be bulk encoded in ORC format, Flink offers [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/writers/OrcBulkWriterFactory.html) 
-which takes a custom implementation of [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/vectorizer/Vectorizer.html).
+which takes a user implementation of [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/vector/Vectorizer.html).
 
-As with any format that encodes data in bulk fashion, Flink's `OrcBulkWriter` writes a batch of input elements. It uses 
+Like any other columnar format that encodes data in bulk fashion, Flink's `OrcBulkWriter` writes a batch of input elements. It uses 
 ORC's `VectorizedRowBatch` to achieve this. 
 
-Since the input element has to be transformed to a `VectorizedRowBatch`, users have to extend the [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/vectorizer/Vectorizer.html) 
-class and override the `vectorize(T element)` method. The base class already exposes an instance of `VectorizedRowBatch` to 
-be used by the child implementations so users just have to write the custom logic to transform the `element` to 
+Since the input element has to be transformed to a `VectorizedRowBatch`, users have to extend the abstract `Vectorizer` 
+class and override the `vectorize(T element)` method. The base class already exposes an instance of `VectorizedRowBatch` 
+to be used by the child implementations so users just have to write the logic to transform the input `element` to 
 `ColumnVectors` and set them in the exposed `VectorizedRowBatch` instance inside the overridden method.
 
 For example, if the input element is of type `Person` which looks like: 
@@ -232,13 +232,13 @@ class Person {
 {% endhighlight %}
 </div>
 
-Then a child implementation to convert the element of type `Person` to `ColumnVector` and set them in the `VectorizedRowBatch` can be like: 
+Then a child implementation to convert the element of type `Person` and set them in the `VectorizedRowBatch` can be like: 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
-import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -263,7 +263,7 @@ public class PersonVectorizer extends Vectorizer<Person> implements Serializable
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import java.nio.charset.StandardCharsets
-import org.apache.orc.storage.ql.exec.vector.{BytesColumnVector, LongColumnVector}
+import org.apache.hadoop.hive.ql.exec.vector.{BytesColumnVector, LongColumnVector}
 
 class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
@@ -285,7 +285,7 @@ To use the ORC bulk encoder in an application, users need to add the following d
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-orc-compress{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-orc{{ site.scala_version_suffix }}</artifactId>
   <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
@@ -296,7 +296,7 @@ And then a `StreamingFileSink` that writes data in ORC format can be created lik
 <div data-lang="java" markdown="1">
 {% highlight java %}
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.formats.orc.writers.OrcBulkWriterFactory;
+import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 
 String schema = "struct<_col0:string,_col1:int>";
 DataStream<Person> stream = ...;
@@ -314,7 +314,7 @@ input.addSink(sink);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
-import org.apache.flink.formats.orc.writers.OrcBulkWriterFactory
+import org.apache.flink.orc.writer.OrcBulkWriterFactory
 
 val schema: String = "struct<_col0:string,_col1:int>"
 val input: DataStream[Person] = ...

@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.writers;
+package org.apache.flink.orc.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.formats.orc.vectorizer.Vectorizer;
+import org.apache.flink.orc.vector.Vectorizer;
 
 import org.apache.orc.OrcProto;
 import org.apache.orc.Writer;

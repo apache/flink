@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.writers;
+package org.apache.flink.orc.util;
 
-import org.apache.flink.formats.orc.data.Record;
+import org.apache.flink.orc.data.Record;
 
-import com.google.protobuf25.ByteString;
+import com.google.protobuf.ByteString;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.CompressionKind;
 import org.apache.orc.OrcFile;
 import org.apache.orc.OrcProto;
 import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
-import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
-import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
-import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,12 +42,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-class OrcTestUtil {
+/**
+ * Util class for the OrcBulkWriter tests.
+ */
+public class OrcBulkWriterTestUtil {
 
 	private static final String USER_METADATA_KEY = "userKey";
 	private static final ByteBuffer USER_METADATA_VALUE = ByteBuffer.wrap("hello".getBytes());
 
-	static void validate(File files, List<Record> expected) throws IOException {
+	public static void validate(File files, List<Record> expected) throws IOException {
 		final File[] buckets = files.listFiles();
 		assertNotNull(buckets);
 		assertEquals(1, buckets.length);
@@ -74,7 +77,7 @@ class OrcTestUtil {
 		}
 	}
 
-	static List<OrcProto.UserMetadataItem> getUserMetadataItems() {
+	public static List<OrcProto.UserMetadataItem> getUserMetadataItems() {
 		List<OrcProto.UserMetadataItem> userMetadata = new ArrayList<>();
 
 		userMetadata.add(OrcProto.UserMetadataItem.newBuilder()

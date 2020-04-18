@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.data;
+package org.apache.flink.orc.data;
 
 import java.io.Serializable;
 

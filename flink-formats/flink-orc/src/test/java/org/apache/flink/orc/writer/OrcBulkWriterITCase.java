@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.orc.writers;
+package org.apache.flink.orc.writer;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.orc.data.Record;
-import org.apache.flink.formats.orc.vectorizer.RecordVectorizer;
+import org.apache.flink.orc.data.Record;
+import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
+import org.apache.flink.orc.vector.RecordVectorizer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
@@ -60,7 +61,7 @@ public class OrcBulkWriterITCase extends TestLogger {
 		final OrcBulkWriterFactory<Record> factory = new OrcBulkWriterFactory<>(
 			new RecordVectorizer(schema), writerProps, new Configuration());
 
-		factory.withUserMetadata(OrcTestUtil.getUserMetadataItems());
+		factory.withUserMetadata(OrcBulkWriterTestUtil.getUserMetadataItems());
 
 		env.setParallelism(1);
 		env.enableCheckpointing(100);
@@ -73,6 +74,6 @@ public class OrcBulkWriterITCase extends TestLogger {
 
 		env.execute();
 
-		OrcTestUtil.validate(outDir, testData);
+		OrcBulkWriterTestUtil.validate(outDir, testData);
 	}
 }
