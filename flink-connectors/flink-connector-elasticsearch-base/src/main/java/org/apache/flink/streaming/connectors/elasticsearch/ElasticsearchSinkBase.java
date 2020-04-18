@@ -212,7 +212,6 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		this.callBridge = checkNotNull(callBridge);
 		this.elasticsearchSinkFunction = checkNotNull(elasticsearchSinkFunction);
 		this.failureHandler = checkNotNull(failureHandler);
-
 		// we eagerly check if the user-provided sink function and failure handler is serializable;
 		// otherwise, if they aren't serializable, users will merely get a non-informative error message
 		// "ElasticsearchSinkBase is not serializable"
@@ -302,6 +301,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 		failureRequestIndexer = new BufferingNoOpRequestIndexer();
+		elasticsearchSinkFunction.open();
 	}
 
 	@Override
