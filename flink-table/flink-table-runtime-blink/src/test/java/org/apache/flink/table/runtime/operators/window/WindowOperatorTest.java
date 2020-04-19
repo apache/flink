@@ -61,8 +61,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -160,31 +160,31 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		// add elements out-of-order
-		testHarness.processElement(record("key2", 1, 3999L));
-		testHarness.processElement(record("key2", 1, 3000L));
+		testHarness.processElement(insertRecord("key2", 1, 3999L));
+		testHarness.processElement(insertRecord("key2", 1, 3000L));
 
-		testHarness.processElement(record("key1", 1, 20L));
-		testHarness.processElement(record("key1", 1, 0L));
-		testHarness.processElement(record("key1", 1, 999L));
+		testHarness.processElement(insertRecord("key1", 1, 20L));
+		testHarness.processElement(insertRecord("key1", 1, 0L));
+		testHarness.processElement(insertRecord("key1", 1, 999L));
 
-		testHarness.processElement(record("key2", 1, 1998L));
-		testHarness.processElement(record("key2", 1, 1999L));
-		testHarness.processElement(record("key2", 1, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processElement(insertRecord("key2", 1, 1999L));
+		testHarness.processElement(insertRecord("key2", 1, 1000L));
 
 		testHarness.processWatermark(new Watermark(999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, -2000L, 1000L, 999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, -2000L, 1000L, 999L)));
 		expectedOutput.add(new Watermark(999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(1999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, -1000L, 2000L, 1999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, -1000L, 2000L, 1999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, -1000L, 2000L, 1999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, -1000L, 2000L, 1999L)));
 		expectedOutput.add(new Watermark(1999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(2999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
 		expectedOutput.add(new Watermark(2999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -199,17 +199,17 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(3999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 5L, 5L, 1000L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 5L, 5L, 1000L, 4000L, 3999L)));
 		expectedOutput.add(new Watermark(3999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(4999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 2000L, 5000L, 4999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 2000L, 5000L, 4999L)));
 		expectedOutput.add(new Watermark(4999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 3000L, 6000L, 5999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 3000L, 6000L, 5999L)));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -246,42 +246,42 @@ public class WindowOperatorTest {
 
 		// timestamp is ignored in processing time
 		testHarness.setProcessingTime(3);
-		testHarness.processElement(record("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
 
 		testHarness.setProcessingTime(1000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 1L, 1L, -2000L, 1000L, 999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, -2000L, 1000L, 999L)));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key2", 1, Long.MAX_VALUE));
-		testHarness.processElement(record("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
 
 		testHarness.setProcessingTime(2000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, -1000L, 2000L, 1999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, -1000L, 2000L, 1999L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
-		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
 
 		testHarness.setProcessingTime(3000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 2L, 2L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 0L, 3000L, 2999L)));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
-		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
-		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
 
 		testHarness.setProcessingTime(7000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 1000L, 4000L, 3999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 5L, 5L, 1000L, 4000L, 3999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 5L, 5L, 2000L, 5000L, 4999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 3000L, 6000L, 5999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 1000L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 5L, 5L, 1000L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 5L, 5L, 2000L, 5000L, 4999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 3000L, 6000L, 5999L)));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -307,16 +307,16 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		// add elements out-of-order
-		testHarness.processElement(record("key2", 1, 3999L));
-		testHarness.processElement(record("key2", 1, 3000L));
+		testHarness.processElement(insertRecord("key2", 1, 3999L));
+		testHarness.processElement(insertRecord("key2", 1, 3000L));
 
-		testHarness.processElement(record("key1", 1, 20L));
-		testHarness.processElement(record("key1", 1, 0L));
-		testHarness.processElement(record("key1", 1, 999L));
+		testHarness.processElement(insertRecord("key1", 1, 20L));
+		testHarness.processElement(insertRecord("key1", 1, 0L));
+		testHarness.processElement(insertRecord("key1", 1, 999L));
 
-		testHarness.processElement(record("key2", 1, 1998L));
-		testHarness.processElement(record("key2", 1, 1999L));
-		testHarness.processElement(record("key2", 1, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processElement(insertRecord("key2", 1, 1999L));
+		testHarness.processElement(insertRecord("key2", 1, 1000L));
 
 		testHarness.processWatermark(new Watermark(999));
 		expectedOutput.add(new Watermark(999));
@@ -337,8 +337,8 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(2999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
 		expectedOutput.add(new Watermark(2999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -351,7 +351,7 @@ public class WindowOperatorTest {
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 3000L, 6000L, 5999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 3000L, 6000L, 5999L)));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -395,27 +395,27 @@ public class WindowOperatorTest {
 		testHarness.setProcessingTime(0L);
 
 		// add elements out-of-order
-		testHarness.processElement(record("key2", 1, 3999L));
-		testHarness.processElement(record("key2", 1, 3000L));
+		testHarness.processElement(insertRecord("key2", 1, 3999L));
+		testHarness.processElement(insertRecord("key2", 1, 3000L));
 
 		testHarness.setProcessingTime(1L);
-		testHarness.processElement(record("key1", 1, 20L));
-		testHarness.processElement(record("key1", 1, 0L));
-		testHarness.processElement(record("key1", 1, 999L));
+		testHarness.processElement(insertRecord("key1", 1, 20L));
+		testHarness.processElement(insertRecord("key1", 1, 0L));
+		testHarness.processElement(insertRecord("key1", 1, 999L));
 
-		testHarness.processElement(record("key2", 1, 1998L));
-		testHarness.processElement(record("key2", 1, 1999L));
-		testHarness.processElement(record("key2", 1, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processElement(insertRecord("key2", 1, 1999L));
+		testHarness.processElement(insertRecord("key2", 1, 1000L));
 
 		testHarness.setProcessingTime(1000);
-		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(insertRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
 		testHarness.processWatermark(new Watermark(999));
 		expectedOutput.add(new Watermark(999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(1001);
-		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(insertRecord("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
 
 		testHarness.processWatermark(new Watermark(1999));
 		testHarness.setProcessingTime(2001);
@@ -439,29 +439,29 @@ public class WindowOperatorTest {
 		expectedOutput.add(new Watermark(2999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key2", 1, 4999L));
+		testHarness.processElement(insertRecord("key2", 1, 4999L));
 		testHarness.processWatermark(new Watermark(3999));
 		testHarness.setProcessingTime(4001);
 		expectedOutput.add(new Watermark(3999));
-		expectedOutput.add(retractRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutput.add(record("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateBeforeRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(insertRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
-		testHarness.processElement(record("key2", 1, 2001L));
-		testHarness.processElement(record("key1", 1, 2030L));
+		testHarness.processElement(insertRecord("key2", 1, 2001L));
+		testHarness.processElement(insertRecord("key1", 1, 2030L));
 		// drop late elements
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(5100);
-		testHarness.processElement(record("key2", 1, 5122L));
+		testHarness.processElement(insertRecord("key2", 1, 5122L));
 		testHarness.processWatermark(new Watermark(4999));
 		expectedOutput.add(new Watermark(4999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutput.add(retractRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		expectedOutput.add(record("key2", 4L, 4L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateBeforeRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(insertRecord("key2", 4L, 4L, 3000L, 6000L, 5999L));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -477,8 +477,8 @@ public class WindowOperatorTest {
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival, drop
-		testHarness.processElement(record("key2", 1, 2877L));
-		testHarness.processElement(record("key1", 1, 2899L));
+		testHarness.processElement(insertRecord("key2", 1, 2877L));
+		testHarness.processElement(insertRecord("key1", 1, 2899L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
@@ -515,27 +515,27 @@ public class WindowOperatorTest {
 		testHarness.setProcessingTime(0L);
 
 		// add elements out-of-order
-		testHarness.processElement(record("key2", 1, 3999L));
-		testHarness.processElement(record("key2", 1, 3000L));
+		testHarness.processElement(insertRecord("key2", 1, 3999L));
+		testHarness.processElement(insertRecord("key2", 1, 3000L));
 
 		testHarness.setProcessingTime(1L);
-		testHarness.processElement(record("key1", 1, 20L));
-		testHarness.processElement(record("key1", 1, 0L));
-		testHarness.processElement(record("key1", 1, 999L));
+		testHarness.processElement(insertRecord("key1", 1, 20L));
+		testHarness.processElement(insertRecord("key1", 1, 0L));
+		testHarness.processElement(insertRecord("key1", 1, 999L));
 
-		testHarness.processElement(record("key2", 1, 1998L));
-		testHarness.processElement(record("key2", 1, 1999L));
-		testHarness.processElement(record("key2", 1, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processElement(insertRecord("key2", 1, 1999L));
+		testHarness.processElement(insertRecord("key2", 1, 1000L));
 
 		testHarness.setProcessingTime(1000);
-		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(insertRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
 		testHarness.processWatermark(new Watermark(999));
 		expectedOutput.add(new Watermark(999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(1001);
-		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(insertRecord("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
 
 		testHarness.processWatermark(new Watermark(1999));
 		testHarness.setProcessingTime(2001);
@@ -559,35 +559,35 @@ public class WindowOperatorTest {
 		expectedOutput.add(new Watermark(2999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key2", 1, 4999L));
+		testHarness.processElement(insertRecord("key2", 1, 4999L));
 		testHarness.processWatermark(new Watermark(3999));
 		testHarness.setProcessingTime(4001);
 		expectedOutput.add(new Watermark(3999));
-		expectedOutput.add(retractRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutput.add(record("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateBeforeRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(insertRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
-		testHarness.processElement(record("key2", 1, 2001L));
-		expectedOutput.add(retractRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutput.add(record("key2", 4L, 4L, 0L, 3000L, 2999L));
+		testHarness.processElement(insertRecord("key2", 1, 2001L));
+		expectedOutput.add(updateBeforeRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(insertRecord("key2", 4L, 4L, 0L, 3000L, 2999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
-		testHarness.processElement(record("key1", 1, 2030L));
-		expectedOutput.add(retractRecord("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutput.add(record("key1", 4L, 4L, 0L, 3000L, 2999L));
+		testHarness.processElement(insertRecord("key1", 1, 2030L));
+		expectedOutput.add(updateBeforeRecord("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(insertRecord("key1", 4L, 4L, 0L, 3000L, 2999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(5100);
-		testHarness.processElement(record("key2", 1, 5122L));
+		testHarness.processElement(insertRecord("key2", 1, 5122L));
 		testHarness.processWatermark(new Watermark(4999));
 		expectedOutput.add(new Watermark(4999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutput.add(retractRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		expectedOutput.add(record("key2", 4L, 4L, 3000L, 6000L, 5999L));
+		expectedOutput.add(updateBeforeRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(insertRecord("key2", 4L, 4L, 3000L, 6000L, 5999L));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -603,8 +603,8 @@ public class WindowOperatorTest {
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival, but too late, drop
-		testHarness.processElement(record("key2", 1, 2877L));
-		testHarness.processElement(record("key1", 1, 2899L));
+		testHarness.processElement(insertRecord("key2", 1, 2877L));
+		testHarness.processElement(insertRecord("key1", 1, 2899L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
@@ -633,27 +633,27 @@ public class WindowOperatorTest {
 		testHarness.setProcessingTime(3);
 
 		// timestamp is ignored in processing time
-		testHarness.processElement(record("key2", 1, Long.MAX_VALUE));
-		testHarness.processElement(record("key2", 1, 7000L));
-		testHarness.processElement(record("key2", 1, 7000L));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, 7000L));
+		testHarness.processElement(insertRecord("key2", 1, 7000L));
 
-		testHarness.processElement(record("key1", 1, 7000L));
-		testHarness.processElement(record("key1", 1, 7000L));
+		testHarness.processElement(insertRecord("key1", 1, 7000L));
+		testHarness.processElement(insertRecord("key1", 1, 7000L));
 
 		testHarness.setProcessingTime(5000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 2L, 2L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 0L, 3000L, 2999L)));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key1", 1, 7000L));
-		testHarness.processElement(record("key1", 1, 7000L));
-		testHarness.processElement(record("key1", 1, 7000L));
+		testHarness.processElement(insertRecord("key1", 1, 7000L));
+		testHarness.processElement(insertRecord("key1", 1, 7000L));
+		testHarness.processElement(insertRecord("key1", 1, 7000L));
 
 		testHarness.setProcessingTime(7000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 3000L, 6000L, 5999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 3000L, 6000L, 5999L)));
 
 		assertEquals(0L, operator.getWatermarkLatency().getValue());
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -680,12 +680,12 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		// add elements out-of-order
-		testHarness.processElement(record("key2", 1, 0L));
-		testHarness.processElement(record("key2", 2, 1000L));
-		testHarness.processElement(record("key2", 3, 2500L));
+		testHarness.processElement(insertRecord("key2", 1, 0L));
+		testHarness.processElement(insertRecord("key2", 2, 1000L));
+		testHarness.processElement(insertRecord("key2", 3, 2500L));
 
-		testHarness.processElement(record("key1", 1, 10L));
-		testHarness.processElement(record("key1", 2, 1000L));
+		testHarness.processElement(insertRecord("key1", 1, 10L));
+		testHarness.processElement(insertRecord("key1", 2, 1000L));
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshotV2 = testHarness.snapshot(0L, 0);
@@ -699,29 +699,29 @@ public class WindowOperatorTest {
 
 		assertEquals(0L, operator.getWatermarkLatency().getValue());
 
-		testHarness.processElement(record("key1", 3, 2500L));
+		testHarness.processElement(insertRecord("key1", 3, 2500L));
 
-		testHarness.processElement(record("key2", 4, 5501L));
-		testHarness.processElement(record("key2", 5, 6000L));
-		testHarness.processElement(record("key2", 5, 6000L));
-		testHarness.processElement(record("key2", 6, 6050L));
+		testHarness.processElement(insertRecord("key2", 4, 5501L));
+		testHarness.processElement(insertRecord("key2", 5, 6000L));
+		testHarness.processElement(insertRecord("key2", 5, 6000L));
+		testHarness.processElement(insertRecord("key2", 6, 6050L));
 
 		testHarness.processWatermark(new Watermark(12000));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 6L, 3L, 10L, 5500L, 5499L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 6L, 3L, 0L, 5500L, 5499L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 6L, 3L, 10L, 5500L, 5499L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 6L, 3L, 0L, 5500L, 5499L)));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 20L, 4L, 5501L, 9050L, 9049L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 20L, 4L, 5501L, 9050L, 9049L)));
 		expectedOutput.add(new Watermark(12000));
 
 		// add a late data
-		testHarness.processElement(record("key1", 3, 4000L));
-		testHarness.processElement(record("key2", 10, 15000L));
-		testHarness.processElement(record("key2", 20, 15000L));
+		testHarness.processElement(insertRecord("key1", 3, 4000L));
+		testHarness.processElement(insertRecord("key2", 10, 15000L));
+		testHarness.processElement(insertRecord("key2", 20, 15000L));
 
 		testHarness.processWatermark(new Watermark(17999));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 30L, 2L, 15000L, 18000L, 17999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 30L, 2L, 15000L, 18000L, 17999L)));
 		expectedOutput.add(new Watermark(17999));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -758,27 +758,27 @@ public class WindowOperatorTest {
 
 		// timestamp is ignored in processing time
 		testHarness.setProcessingTime(3);
-		testHarness.processElement(record("key2", 1, 1L));
+		testHarness.processElement(insertRecord("key2", 1, 1L));
 
 		testHarness.setProcessingTime(1000);
-		testHarness.processElement(record("key2", 1, 1002L));
+		testHarness.processElement(insertRecord("key2", 1, 1002L));
 
 		testHarness.setProcessingTime(5000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 3L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 3L, 4000L, 3999L)));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key2", 1, 5000L));
-		testHarness.processElement(record("key2", 1, 5000L));
-		testHarness.processElement(record("key1", 1, 5000L));
-		testHarness.processElement(record("key1", 1, 5000L));
-		testHarness.processElement(record("key1", 1, 5000L));
+		testHarness.processElement(insertRecord("key2", 1, 5000L));
+		testHarness.processElement(insertRecord("key2", 1, 5000L));
+		testHarness.processElement(insertRecord("key1", 1, 5000L));
+		testHarness.processElement(insertRecord("key1", 1, 5000L));
+		testHarness.processElement(insertRecord("key1", 1, 5000L));
 
 		testHarness.setProcessingTime(10000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 5000L, 8000L, 7999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 5000L, 8000L, 7999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 5000L, 8000L, 7999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 5000L, 8000L, 7999L)));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -811,8 +811,8 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		// add elements out-of-order
-		testHarness.processElement(record("key2", 1, 0L));
-		testHarness.processElement(record("key2", 33, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 0L));
+		testHarness.processElement(insertRecord("key2", 33, 1000L));
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
@@ -823,16 +823,16 @@ public class WindowOperatorTest {
 		testHarness.initializeState(snapshot);
 		testHarness.open();
 
-		testHarness.processElement(record("key2", 33, 2500L));
+		testHarness.processElement(insertRecord("key2", 33, 2500L));
 
-		testHarness.processElement(record("key1", 1, 10L));
-		testHarness.processElement(record("key1", 2, 1000L));
-		testHarness.processElement(record("key1", 33, 2500L));
+		testHarness.processElement(insertRecord("key1", 1, 10L));
+		testHarness.processElement(insertRecord("key1", 2, 1000L));
+		testHarness.processElement(insertRecord("key1", 33, 2500L));
 
 		testHarness.processWatermark(new Watermark(12000));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 36L, 3L, 10L, 4000L, 3999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 67L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 36L, 3L, 10L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 67L, 3L, 0L, 3000L, 2999L)));
 		expectedOutput.add(new Watermark(12000));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -860,12 +860,12 @@ public class WindowOperatorTest {
 
 		testHarness.open();
 
-		testHarness.processElement(record("key2", 1, 500L));
+		testHarness.processElement(insertRecord("key2", 1, 500L));
 		testHarness.processWatermark(new Watermark(1500));
 
 		expectedOutput.add(new Watermark(1500));
 
-		testHarness.processElement(record("key2", 1, 1300L));
+		testHarness.processElement(insertRecord("key2", 1, 1300L));
 		testHarness.processWatermark(new Watermark(2300));
 
 		GenericRow key2Result = GenericRow.of(fromString("key2"), 2L, 2L, 0L, 2000L, 1999L);
@@ -873,17 +873,17 @@ public class WindowOperatorTest {
 		expectedOutput.add(new Watermark(2300));
 
 		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
-		testHarness.processElement(record("key2", 1, 1997L));
+		testHarness.processElement(insertRecord("key2", 1, 1997L));
 		testHarness.processWatermark(new Watermark(6000));
 
 		// this is 1 and not 3 because the trigger fires and purges
 		BaseRow key2Retract = BaseRowUtil.setRetract(GenericRow.copyReference(key2Result));
 		expectedOutput.add(new StreamRecord<>(key2Retract));
-		expectedOutput.add(record("key2", 3L, 3L, 0L, 2000L, 1999L));
+		expectedOutput.add(insertRecord("key2", 3L, 3L, 0L, 2000L, 1999L));
 		expectedOutput.add(new Watermark(6000));
 
 		// this will be dropped because window.maxTimestamp() + allowedLateness < currentWatermark
-		testHarness.processElement(record("key2", 1, 1998L));
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
 		testHarness.processWatermark(new Watermark(7000));
 
 		expectedOutput.add(new Watermark(7000));
@@ -921,7 +921,7 @@ public class WindowOperatorTest {
 		Collection<TimeWindow> windows = windowAssigner.assignWindows(GenericRow.of(fromString("key2"), 1), timestamp);
 		TimeWindow window = windows.iterator().next();
 
-		testHarness.processElement(record("key2", 1, timestamp));
+		testHarness.processElement(insertRecord("key2", 1, timestamp));
 
 		// the garbage collection timer would wrap-around
 		assertTrue(window.maxTimestamp() + lateness < window.maxTimestamp());
@@ -942,7 +942,7 @@ public class WindowOperatorTest {
 		testHarness.processWatermark(new Watermark(window.maxTimestamp()));
 
 		expected.add(new Watermark(Long.MAX_VALUE - 1500));
-		expected.add(record("key2", 1L, 1L, window.getStart(), window.getEnd(), window.maxTimestamp()));
+		expected.add(insertRecord("key2", 1L, 1L, window.getStart(), window.getEnd(), window.maxTimestamp()));
 		expected.add(new Watermark(window.maxTimestamp()));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput());
@@ -970,14 +970,14 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		// normal element
-		testHarness.processElement(record("key2", 1, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 1000L));
 		testHarness.processWatermark(new Watermark(1599));
 		testHarness.processWatermark(new Watermark(1999));
 		testHarness.processWatermark(new Watermark(2000));
 		testHarness.processWatermark(new Watermark(5000));
 
 		expected.add(new Watermark(1599));
-		expected.add(record("key2", 1L, 1L, 0L, 2000L, 1999L));
+		expected.add(insertRecord("key2", 1L, 1L, 0L, 2000L, 1999L));
 		expected.add(new Watermark(1999)); // here it fires and purges
 		expected.add(new Watermark(2000)); // here is the cleanup timer
 		expected.add(new Watermark(5000));
@@ -1004,15 +1004,15 @@ public class WindowOperatorTest {
 
 		testHarness.open();
 
-		testHarness.processElement(record("key2", 1, 0L));
-		testHarness.processElement(record("key2", 2, 1000L));
-		testHarness.processElement(record("key2", 3, 2500L));
-		testHarness.processElement(record("key1", 1, 10L));
-		testHarness.processElement(record("key1", 2, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 0L));
+		testHarness.processElement(insertRecord("key2", 2, 1000L));
+		testHarness.processElement(insertRecord("key2", 3, 2500L));
+		testHarness.processElement(insertRecord("key1", 1, 10L));
+		testHarness.processElement(insertRecord("key1", 2, 1000L));
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 6L, 3L, 0L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 6L, 3L, 0L)));
 		expectedOutput.add(new Watermark(12000));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1026,27 +1026,27 @@ public class WindowOperatorTest {
 		testHarness.initializeState(snapshotV2);
 		testHarness.open();
 
-		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 5L, 3L, 0L)));
+		testHarness.processElement(insertRecord("key1", 2, 2500L));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 5L, 3L, 0L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key2", 4, 5501L));
-		testHarness.processElement(record("key2", 5, 6000L));
-		testHarness.processElement(record("key2", 5, 6000L));
-		testHarness.processElement(record("key2", 6, 6050L));
+		testHarness.processElement(insertRecord("key2", 4, 5501L));
+		testHarness.processElement(insertRecord("key2", 5, 6000L));
+		testHarness.processElement(insertRecord("key2", 5, 6000L));
+		testHarness.processElement(insertRecord("key2", 6, 6050L));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 14L, 3L, 1L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 14L, 3L, 1L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key1", 3, 4000L));
-		testHarness.processElement(record("key2", 10, 15000L));
-		testHarness.processElement(record("key2", 20, 15000L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 36L, 3L, 2L)));
+		testHarness.processElement(insertRecord("key1", 3, 4000L));
+		testHarness.processElement(insertRecord("key2", 10, 15000L));
+		testHarness.processElement(insertRecord("key2", 20, 15000L));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 36L, 3L, 2L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key1", 2, 2500L));
-		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 7L, 3L, 1L)));
+		testHarness.processElement(insertRecord("key1", 2, 2500L));
+		testHarness.processElement(insertRecord("key1", 2, 2500L));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 7L, 3L, 1L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
@@ -1074,17 +1074,17 @@ public class WindowOperatorTest {
 
 		testHarness.open();
 
-		testHarness.processElement(record("key2", 1, 0L));
-		testHarness.processElement(record("key2", 2, 1000L));
-		testHarness.processElement(record("key2", 3, 2500L));
-		testHarness.processElement(record("key2", 4, 2500L));
-		testHarness.processElement(record("key2", 5, 2500L));
-		testHarness.processElement(record("key1", 1, 10L));
-		testHarness.processElement(record("key1", 2, 1000L));
+		testHarness.processElement(insertRecord("key2", 1, 0L));
+		testHarness.processElement(insertRecord("key2", 2, 1000L));
+		testHarness.processElement(insertRecord("key2", 3, 2500L));
+		testHarness.processElement(insertRecord("key2", 4, 2500L));
+		testHarness.processElement(insertRecord("key2", 5, 2500L));
+		testHarness.processElement(insertRecord("key1", 1, 10L));
+		testHarness.processElement(insertRecord("key1", 2, 1000L));
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 15L, 5L, 0L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 15L, 5L, 0L)));
 		expectedOutput.add(new Watermark(12000));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1098,26 +1098,26 @@ public class WindowOperatorTest {
 		testHarness.initializeState(snapshotV2);
 		testHarness.open();
 
-		testHarness.processElement(record("key1", 3, 2500L));
-		testHarness.processElement(record("key1", 4, 2500L));
-		testHarness.processElement(record("key1", 5, 2500L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 15L, 5L, 0L)));
+		testHarness.processElement(insertRecord("key1", 3, 2500L));
+		testHarness.processElement(insertRecord("key1", 4, 2500L));
+		testHarness.processElement(insertRecord("key1", 5, 2500L));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 15L, 5L, 0L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key2", 6, 6000L));
-		testHarness.processElement(record("key2", 7, 6000L));
-		testHarness.processElement(record("key2", 8, 6050L));
-		testHarness.processElement(record("key2", 9, 6050L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 30L, 5L, 1L)));
+		testHarness.processElement(insertRecord("key2", 6, 6000L));
+		testHarness.processElement(insertRecord("key2", 7, 6000L));
+		testHarness.processElement(insertRecord("key2", 8, 6050L));
+		testHarness.processElement(insertRecord("key2", 9, 6050L));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 30L, 5L, 1L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(record("key1", 6, 4000L));
-		testHarness.processElement(record("key1", 7, 4000L));
-		testHarness.processElement(record("key1", 8, 4000L));
-		testHarness.processElement(record("key2", 10, 15000L));
-		testHarness.processElement(record("key2", 11, 15000L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 30L, 5L, 1L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 45L, 5L, 2L)));
+		testHarness.processElement(insertRecord("key1", 6, 4000L));
+		testHarness.processElement(insertRecord("key1", 7, 4000L));
+		testHarness.processElement(insertRecord("key1", 8, 4000L));
+		testHarness.processElement(insertRecord("key2", 10, 15000L));
+		testHarness.processElement(insertRecord("key2", 11, 15000L));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 30L, 5L, 1L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 45L, 5L, 2L)));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
