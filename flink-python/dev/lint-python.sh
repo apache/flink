@@ -527,8 +527,8 @@ function tox_check() {
     # Set created py-env in $PATH for tox's creating virtual env
     activate
     # Ensure the permission of the scripts set correctly
-    chmod +x $FLINK_PYTHON_DIR/../build-target/bin/pyflink-gateway-server.sh
-    chmod +x $FLINK_PYTHON_DIR/../build-target/bin/pyflink-shell.sh
+    chmod +x $FLINK_PYTHON_DIR/../build-target/bin/*
+    chmod +x $FLINK_PYTHON_DIR/dev/*
 
     $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
 
