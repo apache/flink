@@ -34,7 +34,6 @@ import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PullRequest;
-import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.Topic;
@@ -42,8 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
 
 /**
  * A helper class to make managing the testing topics a bit easier.
@@ -52,17 +52,13 @@ public class PubsubHelper {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PubsubHelper.class);
 
-	private TransportChannelProvider channelProvider = null;
+	private TransportChannelProvider channelProvider;
 
 	private TopicAdminClient topicClient;
 	private SubscriptionAdminClient subscriptionAdminClient;
 
 	public PubsubHelper(TransportChannelProvider channelProvider) {
 		this.channelProvider = channelProvider;
-	}
-
-	public TransportChannelProvider getChannelProvider() {
-		return channelProvider;
 	}
 
 	public TopicAdminClient getTopicAdminClient() throws IOException {
@@ -129,14 +125,12 @@ public class PubsubHelper {
 
 		deleteSubscription(subscriptionName);
 
-		SubscriptionAdminClient adminClient = getSubscriptionAdminClient();
-
 		ProjectTopicName topicName = ProjectTopicName.of(topicProject, topic);
 
 		PushConfig pushConfig = PushConfig.getDefaultInstance();
 
 		LOG.info("CreateSubscription {}", subscriptionName);
-		getSubscriptionAdminClient().createSubscription(subscriptionName, topicName, pushConfig, 1);
+		getSubscriptionAdminClient().createSubscription(subscriptionName, topicName, pushConfig, 1).isInitialized();
 	}
 
 	public void deleteSubscription(String subscriptionProject, String subscription) throws IOException {
@@ -167,35 +161,34 @@ public class PubsubHelper {
 				.setCredentialsProvider(NoCredentialsProvider.create())
 				.build();
 		try (SubscriberStub subscriber = GrpcSubscriberStub.create(subscriberStubSettings)) {
-			// String projectId = "my-project-id";
-			// String subscriptionId = "my-subscription-id";
-			// int numOfMessages = 10;   // max number of messages to be pulled
 			String subscriptionName = ProjectSubscriptionName.format(projectId, subscriptionId);
 			PullRequest pullRequest =
 				PullRequest.newBuilder()
 					.setMaxMessages(maxNumberOfMessages)
-					.setReturnImmediately(false) // return immediately if messages are not available
+					.setReturnImmediately(false)
 					.setSubscription(subscriptionName)
 					.build();
 
-			// use pullCallable().futureCall to asynchronously perform this operation
-			PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
-			List<String> ackIds = new ArrayList<>();
-			for (ReceivedMessage message : pullResponse.getReceivedMessagesList()) {
-				// handle received message
-				// ...
-				ackIds.add(message.getAckId());
-			}
-			// acknowledge received messages
-			AcknowledgeRequest acknowledgeRequest =
-				AcknowledgeRequest.newBuilder()
-					.setSubscription(subscriptionName)
-					.addAllAckIds(ackIds)
-					.build();
-			// use acknowledgeCallable().futureCall to asynchronously perform this operation
-			subscriber.acknowledgeCallable().call(acknowledgeRequest);
-			return pullResponse.getReceivedMessagesList();
+			List<ReceivedMessage> receivedMessages = subscriber.pullCallable().call(pullRequest).getReceivedMessagesList();
+			acknowledgeIds(subscriber, subscriptionName, receivedMessages);
+			return receivedMessages;
 		}
+	}
+
+	private void acknowledgeIds(SubscriberStub subscriber, String subscriptionName, List<ReceivedMessage> receivedMessages) {
+		if (receivedMessages.isEmpty()) {
+			return;
+		}
+
+		List<String> ackIds = receivedMessages.stream().map(ReceivedMessage::getAckId).collect(Collectors.toList());
+		// acknowledge received messages
+		AcknowledgeRequest acknowledgeRequest =
+			AcknowledgeRequest.newBuilder()
+							.setSubscription(subscriptionName)
+							.addAllAckIds(ackIds)
+							.build();
+		// use acknowledgeCallable().futureCall to asynchronously perform this operation
+		subscriber.acknowledgeCallable().call(acknowledgeRequest);
 	}
 
 	public Subscriber subscribeToSubscription(String project, String subscription, MessageReceiver messageReceiver) {
