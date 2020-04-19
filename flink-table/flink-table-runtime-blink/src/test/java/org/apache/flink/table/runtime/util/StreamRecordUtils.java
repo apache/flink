@@ -45,7 +45,7 @@ public class StreamRecordUtils {
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public static StreamRecord<BaseRow> record(Object... fields) {
+	public static StreamRecord<BaseRow> insertRecord(Object... fields) {
 		return new StreamRecord<>(baserow(fields));
 	}
 
@@ -55,7 +55,7 @@ public class StreamRecordUtils {
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public static StreamRecord<BaseRow> retractRecord(Object... fields) {
+	public static StreamRecord<BaseRow> updateBeforeRecord(Object... fields) {
 		BaseRow row = baserow(fields);
 		BaseRowUtil.setRetract(row);
 		return new StreamRecord<>(row);
