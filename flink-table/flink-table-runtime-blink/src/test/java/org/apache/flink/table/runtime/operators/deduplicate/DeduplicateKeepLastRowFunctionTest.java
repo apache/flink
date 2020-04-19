@@ -28,8 +28,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /**
  * Tests for {@link DeduplicateKeepLastRowFunction}.
@@ -55,15 +55,15 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		DeduplicateKeepLastRowFunction func = createFunction(false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 1L, 12));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 1L, 13));
+		testHarness.processElement(insertRecord("book", 1L, 12));
+		testHarness.processElement(insertRecord("book", 2L, 11));
+		testHarness.processElement(insertRecord("book", 1L, 13));
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 1L, 12));
-		expectedOutput.add(record("book", 2L, 11));
-		expectedOutput.add(record("book", 1L, 13));
+		expectedOutput.add(insertRecord("book", 1L, 12));
+		expectedOutput.add(insertRecord("book", 2L, 11));
+		expectedOutput.add(insertRecord("book", 1L, 13));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
@@ -72,17 +72,17 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		DeduplicateKeepLastRowFunction func = createFunction(true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 1L, 12));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 1L, 13));
+		testHarness.processElement(insertRecord("book", 1L, 12));
+		testHarness.processElement(insertRecord("book", 2L, 11));
+		testHarness.processElement(insertRecord("book", 1L, 13));
 		testHarness.close();
 
 		// Keep LastRow in deduplicate may send retraction
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 1L, 12));
-		expectedOutput.add(retractRecord("book", 1L, 12));
-		expectedOutput.add(record("book", 1L, 13));
-		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(insertRecord("book", 1L, 12));
+		expectedOutput.add(updateBeforeRecord("book", 1L, 12));
+		expectedOutput.add(insertRecord("book", 1L, 13));
+		expectedOutput.add(insertRecord("book", 2L, 11));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
@@ -91,26 +91,26 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		DeduplicateKeepLastRowFunction func = createFunction(true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 1L, 12));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 1L, 13));
+		testHarness.processElement(insertRecord("book", 1L, 12));
+		testHarness.processElement(insertRecord("book", 2L, 11));
+		testHarness.processElement(insertRecord("book", 1L, 13));
 
 		testHarness.setStateTtlProcessingTime(30);
-		testHarness.processElement(record("book", 1L, 17));
-		testHarness.processElement(record("book", 2L, 18));
-		testHarness.processElement(record("book", 1L, 19));
+		testHarness.processElement(insertRecord("book", 1L, 17));
+		testHarness.processElement(insertRecord("book", 2L, 18));
+		testHarness.processElement(insertRecord("book", 1L, 19));
 
 		// Keep LastRow in deduplicate may send retraction
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 1L, 12));
-		expectedOutput.add(retractRecord("book", 1L, 12));
-		expectedOutput.add(record("book", 1L, 13));
-		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(insertRecord("book", 1L, 12));
+		expectedOutput.add(updateBeforeRecord("book", 1L, 12));
+		expectedOutput.add(insertRecord("book", 1L, 13));
+		expectedOutput.add(insertRecord("book", 2L, 11));
 		// because (2L,11), (1L,13) retired, so there is no retract message send to downstream
-		expectedOutput.add(record("book", 1L, 17));
-		expectedOutput.add(retractRecord("book", 1L, 17));
-		expectedOutput.add(record("book", 1L, 19));
-		expectedOutput.add(record("book", 2L, 18));
+		expectedOutput.add(insertRecord("book", 1L, 17));
+		expectedOutput.add(updateBeforeRecord("book", 1L, 17));
+		expectedOutput.add(insertRecord("book", 1L, 19));
+		expectedOutput.add(insertRecord("book", 2L, 18));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
 	}
