@@ -36,7 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kafka.version>2.2.0</kafka.version>
+		<kafka.version>2.2.2</kafka.version>
 	</properties>
 
 	<dependencies>
@@ -68,7 +68,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Add Kafka 2.0.x as a dependency -->
+		<!-- Add Kafka 2.x as a dependency -->
 
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
