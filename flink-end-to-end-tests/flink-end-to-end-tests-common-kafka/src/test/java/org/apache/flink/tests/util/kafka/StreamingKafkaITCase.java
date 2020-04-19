@@ -59,7 +59,7 @@ public class StreamingKafkaITCase extends TestLogger {
 		return Arrays.asList(new Object[][]{
 			{"flink-streaming-kafka010-test.*", "0.10.2.0"},
 			{"flink-streaming-kafka011-test.*", "0.11.0.2"},
-			{"flink-streaming-kafka-test.*", "2.2.0"}
+			{"flink-streaming-kafka-test.*", "2.2.2"}
 		});
 	}
 
