@@ -74,7 +74,7 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 				.build())
 			.get();
 
-		List<ReceivedMessage> receivedMessages = pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 10);
+		List<ReceivedMessage> receivedMessages = pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 1);
 		assertEquals(1, receivedMessages.size());
 		assertEquals("Hello World PULL", receivedMessages.get(0).getMessage().getData().toStringUtf8());
 
