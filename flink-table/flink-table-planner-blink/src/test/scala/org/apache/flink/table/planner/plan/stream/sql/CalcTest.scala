@@ -86,6 +86,12 @@ class CalcTest extends TableTestBase {
   }
 
   @Test
+  def testFilterOnNonAsciiLiteral(): Unit = {
+    val sql = s"SELECT a, b, c, c || TRIM(' 世界 ') FROM MyTable WHERE c = '你好'"
+    util.verifyPlan(sql)
+  }
+
+  @Test
   def testMultipleFlattening(): Unit = {
     util.addTableSource[((Int, Long), (String, Boolean), String)]("MyTable2", 'a, 'b, 'c)
     util.verifyPlan("SELECT MyTable2.a.*, c, MyTable2.b.* FROM MyTable2")
