@@ -22,7 +22,24 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-If third-party dependencies are used, you can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/ops/cli.html#usage">command line arguments</a> directly when submitting the job.
+# Java Dependency Management
+
+If third-party Java dependencies are used, you can using following code to add jars for your Python job.
+
+{% highlight python %}
+# Set jar urls in "pipeline.jars". The jars will be uploaded to the cluster.
+# NOTE: Only local file urls (start with "file://") are supported.
+table_env.get_config.set_configuration("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+
+# Set jar urls in "pipeline.classpaths". The jars will be added to the classpath of the cluster.
+# Users should ensure the urls are accessible on both the local client and the cluster.
+# NOTE: The supported schemes includes: file,ftp,http,https,jar. "hdfs" is not supported by default.
+table_env.get_config.set_configuration("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+{% endhighlight %}
+
+# Python Dependency Management
+
+If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/zh/ops/cli.html#usage">command line arguments</a> directly when submitting the job.
 
 <table class="table table-bordered">
   <thead>
