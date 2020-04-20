@@ -57,7 +57,7 @@ through learning how to work with the concepts being presented.
 
 ## Stream Processing
 
-Streams are data's natural habitat. Whether it's events from web servers, trades from a stock
+Streams are data's natural habitat. Whether it is events from web servers, trades from a stock
 exchange, or sensor readings from a machine on a factory floor, data is created as part of a stream.
 But when you analyze data, you can either organize your processing around _bounded_ or _unbounded_
 streams, and which of these paradigms you choose has profound consequences.
@@ -66,7 +66,7 @@ streams, and which of these paradigms you choose has profound consequences.
 
 **Batch processing** is the paradigm at work when you process a bounded data stream. In this mode of
 operation you can choose to ingest the entire dataset before producing any results, which means that
-it's possible, for example, to sort the data, compute global statistics, or produce a final report
+it is possible, for example, to sort the data, compute global statistics, or produce a final report
 that summarizes all of the input.
 
 **Stream processing**, on the other hand, involves unbounded data streams. Conceptually, at least,
@@ -78,11 +78,11 @@ user-defined **operators**. These dataflows form directed graphs that start with
 
 <img src="{{ site.baseurl }}/fig/program_dataflow.svg" alt="A DataStream program, and its dataflow." class="offset" width="80%" />
 
-Often there is a one-to-one correspondence between the transformations in the programs and the
+Often there is a one-to-one correspondence between the transformations in the program and the
 operators in the dataflow. Sometimes, however, one transformation may consist of multiple operators.
 
 An application may consume real-time data from streaming sources such as message queues or
-distributed logs, such as Apache Kafka or Kinesis. But flink can also consume bounded, historic data
+distributed logs, like Apache Kafka or Kinesis. But flink can also consume bounded, historic data
 from a variety of data sources. Similarly, the streams of results being produced by a Flink
 application can be sent to a wide variety of systems, and the state held within Flink can be
 accessed via a REST API.
