@@ -34,7 +34,7 @@ bin=`cd "$bin"; pwd`
 
 FLINK_CONF_DIR=${bin}/../../main/resources
 FLINK_TARGET_DIR=${bin}/../../../target
-FLINK_DIST_JARS=`find ${FLINK_TARGET_DIR} -name 'flink-dist*.jar' -maxdepth 1`
+FLINK_DIST_JARS=`find ${FLINK_TARGET_DIR} -maxdepth 1 -name 'flink-dist*.jar'`
 FLINK_DIST_CLASSPATH=`echo ${FLINK_DIST_JARS[@]} | tr ' ' ':'`
 
 . ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
