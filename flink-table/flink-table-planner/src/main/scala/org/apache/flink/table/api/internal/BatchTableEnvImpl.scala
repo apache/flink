@@ -28,7 +28,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.utils.PlanGenerator
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.DeploymentOptions
-import org.apache.flink.core.execution.DetachedJobExecutionResult
+import org.apache.flink.core.execution.{DetachedJobExecutionResult, JobClient}
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
 import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager}
@@ -38,7 +38,7 @@ import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor
 import org.apache.flink.table.expressions.{Expression, UnresolvedCallExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.DataSetQueryOperation
+import org.apache.flink.table.operations.{DataSetQueryOperation, QueryOperation}
 import org.apache.flink.table.plan.BatchOptimizer
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.planner.Conversions
@@ -57,7 +57,7 @@ import org.apache.flink.util.Preconditions.checkNotNull
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 
-import _root_.java.util.{ArrayList => JArrayList, Collections => JCollections}
+import _root_.java.util.{ArrayList => JArrayList, Collections => JCollections, List => JList}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -122,53 +122,56 @@ abstract class BatchTableEnvImpl(
   }
 
   /**
-    * Writes a [[Table]] to a [[TableSink]].
+    * Writes a [[QueryOperation]] to a [[TableSink]],
+    * and translates them into a [[DataSink]].
     *
-    * Internally, the [[Table]] is translated into a [[DataSet]] and handed over to the
-    * [[TableSink]] to write it.
+    * Internally, the [[QueryOperation]] is translated into a [[DataSet]]
+    * and handed over to the [[TableSink]] to write it.
     *
-    * @param table The [[Table]] to write.
-    * @param sink The [[TableSink]] to write the [[Table]] to.
-    * @tparam T The expected type of the [[DataSet]] which represents the [[Table]].
+    * @param queryOperation The [[QueryOperation]] to write.
+    * @param tableSink The [[TableSink]] to write the [[Table]] to.
+    * @return [[DataSink]] which represents the plan.
     */
-  override private[flink] def writeToSink[T](
-      table: Table,
-      sink: TableSink[T]): Unit = {
+  override protected def writeToSinkAndTranslate[T](
+      queryOperation: QueryOperation,
+      tableSink: TableSink[T]): DataSink[_] = {
 
     val batchTableEnv = createDummyBatchTableEnv()
-    sink match {
+    tableSink match {
       case batchSink: BatchTableSink[T] =>
-        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+        val outputType = fromDataTypeToLegacyInfo(tableSink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
-        val result: DataSet[T] = translate(table)(outputType)
+        val result: DataSet[T] = translate(queryOperation)(outputType)
         // create a dummy NoOpOperator, which holds dummy DummyExecutionEnvironment as context.
         // NoOpOperator will be ignored in OperatorTranslation
         // when translating DataSet to Operator, while its input can be translated normally.
         val dummyOp = new DummyNoOpOperator(batchTableEnv.execEnv, result, result.getType)
         // Give the DataSet to the TableSink to emit it.
-        val dataSink = batchSink.consumeDataSet(dummyOp)
-        bufferedSinks.add(dataSink)
+        batchSink.consumeDataSet(dummyOp)
       case boundedSink: OutputFormatTableSink[T] =>
-        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+        val outputType = fromDataTypeToLegacyInfo(tableSink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
-        val result: DataSet[T] = translate(table)(outputType)
+        val result: DataSet[T] = translate(queryOperation)(outputType)
         // create a dummy NoOpOperator, which holds DummyExecutionEnvironment as context.
         // NoOpOperator will be ignored in OperatorTranslation
         // when translating DataSet to Operator, while its input can be translated normally.
         val dummyOp = new DummyNoOpOperator(batchTableEnv.execEnv, result, result.getType)
         // use the OutputFormat to consume the DataSet.
         val dataSink = dummyOp.output(boundedSink.getOutputFormat)
-        val dataSinkWithName = dataSink.name(
+        dataSink.name(
           TableConnectorUtils.generateRuntimeName(
             boundedSink.getClass,
             boundedSink.getTableSchema.getFieldNames))
-        bufferedSinks.add(dataSinkWithName)
       case _ =>
         throw new TableException(
           "BatchTableSink or OutputFormatTableSink required to emit batch Table.")
     }
+  }
+
+  override protected def addToBuffer(sink: DataSink[_]): Unit = {
+    bufferedSinks.add(sink)
   }
 
   /**
@@ -241,6 +244,27 @@ abstract class BatchTableEnvImpl(
   override def execute(jobName: String): JobExecutionResult = {
     val plan = createPipelineAndClearBuffer(jobName)
 
+    try {
+      val jobClient = executePipeline(plan)
+      if (execEnv.getConfiguration.getBoolean(DeploymentOptions.ATTACHED)) {
+        jobClient.getJobExecutionResult(execEnv.getUserCodeClassLoader).get
+      } else {
+        new DetachedJobExecutionResult(jobClient.getJobID)
+      }
+    } catch {
+      case t: Throwable =>
+        ExceptionUtils.rethrow(t)
+        // make javac happy, this code path will not be reached
+        null
+    }
+  }
+
+  protected def execute(dataSinks: JList[DataSink[_]], jobName: String): JobClient = {
+    val plan = createPipeline(dataSinks, jobName)
+    executePipeline(plan)
+  }
+
+  private def executePipeline(plan: Pipeline): JobClient = {
     val configuration = execEnv.getConfiguration
     checkNotNull(configuration.get(DeploymentOptions.TARGET),
       "No execution.target specified in your configuration file.")
@@ -252,12 +276,7 @@ abstract class BatchTableEnvImpl(
 
     val jobClientFuture = executorFactory.getExecutor(configuration).execute(plan, configuration)
     try {
-      val jobClient = jobClientFuture.get
-      if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-        jobClient.getJobExecutionResult(execEnv.getUserCodeClassLoader).get
-      } else {
-        new DetachedJobExecutionResult(jobClient.getJobID)
-      }
+      jobClientFuture.get
     } catch {
       case t: Throwable =>
         ExceptionUtils.rethrow(t)
@@ -286,16 +305,20 @@ abstract class BatchTableEnvImpl(
     */
   private def createPipelineAndClearBuffer(jobName: String): Pipeline = {
     try {
-      val generator = new PlanGenerator(
-        bufferedSinks,
-        execEnv.getConfig,
-        execEnv.getParallelism,
-        JCollections.emptyList(),
-        jobName)
-      generator.generate()
+      createPipeline(bufferedSinks, jobName)
     } finally {
       bufferedSinks.clear()
     }
+  }
+
+  private def createPipeline(sinks: JList[DataSink[_]], jobName: String): Pipeline = {
+    val generator = new PlanGenerator(
+      sinks,
+      execEnv.getConfig,
+      execEnv.getParallelism,
+      JCollections.emptyList(),
+      jobName)
+    generator.generate()
   }
 
   protected def asQueryOperation[T](dataSet: DataSet[T], fields: Option[Array[Expression]])
@@ -345,7 +368,22 @@ abstract class BatchTableEnvImpl(
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    val queryOperation = table.getQueryOperation
+    translate(table.getQueryOperation)(tpe)
+  }
+
+  /**
+    * Translates a [[QueryOperation]] into a [[DataSet]].
+    *
+    * The transformation involves optimizing the relational expression tree as defined by
+    * Table API calls and / or SQL queries and generating corresponding [[DataSet]] operators.
+    *
+    * @param queryOperation The root operation of the relational expression tree.
+    * @param tpe   The [[TypeInformation]] of the resulting [[DataSet]].
+    * @tparam A The type of the resulting [[DataSet]].
+    * @return The [[DataSet]] that corresponds to the translated [[Table]].
+    */
+  protected def translate[A](
+      queryOperation: QueryOperation)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     val relNode = getRelBuilder.tableOperation(queryOperation).build()
     val dataSetPlan = optimizer.optimize(relNode)
     translate(

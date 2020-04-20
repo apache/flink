@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ResultKind;
@@ -120,7 +121,7 @@ import java.util.stream.StreamSupport;
  * not bind to any particular {@code StreamExecutionEnvironment}.
  */
 @Internal
-public class TableEnvironmentImpl implements TableEnvironment {
+public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	// Flag that tells if the TableSource/TableSink used in this environment is stream table source/sink,
 	// and this should always be true. This avoids too many hard code.
 	private static final boolean IS_STREAM_TABLE = true;
@@ -143,7 +144,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, SHOW VIEWS.";
+			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, SHOW VIEWS, " +
+			"INSERT.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -633,6 +635,15 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public TableResult executeInternal(List<ModifyOperation> operations) {
+		if (operations.size() != 1) {
+			throw new TableException("Only one ModifyOperation is supported now.");
+		}
+
+		return executeOperation(operations.get(0));
+	}
+
+	@Override
 	public void sqlUpdate(String stmt) {
 		List<Operation> operations = parser.parse(stmt);
 
@@ -666,7 +677,22 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private TableResult executeOperation(Operation operation) {
-		if (operation instanceof CreateTableOperation) {
+		if (operation instanceof ModifyOperation) {
+			List<Transformation<?>> transformations = translate(Collections.singletonList((ModifyOperation) operation));
+			String jobName = extractJobName(operation);
+			Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
+			try {
+				JobClient jobClient = execEnv.executeAsync(pipeline);
+				return TableResultImpl.builder()
+						.jobClient(jobClient)
+						.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+						.tableSchema(TableSchema.builder().field("affected_rowcount", DataTypes.BIGINT()).build())
+						.data(Collections.singletonList(Row.of(-1L)))
+						.build();
+			} catch (Exception e) {
+				throw new TableException("Failed to execute sql", e);
+			}
+		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
 			if (createTableOperation.isTemporary()) {
 				catalogManager.createTemporaryTable(
@@ -839,6 +865,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				.build();
 	}
 
+	private String extractJobName(Operation operation) {
+		String tableName;
+		if (operation instanceof CatalogSinkModifyOperation) {
+			tableName = ((CatalogSinkModifyOperation) operation).getTableIdentifier().toString();
+		} else {
+			throw new UnsupportedOperationException("Unsupported operation: " + operation);
+		}
+		return "insert_into_" + tableName;
+	}
+
 	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
 	private Catalog getCatalogOrThrowException(String catalogName) {
 		return getCatalog(catalogName)
@@ -878,6 +914,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Pipeline pipeline = execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
 		return execEnv.execute(pipeline);
+	}
+
+	@Override
+	public Parser getParser() {
+		return parser;
+	}
+
+	@Override
+	public CatalogManager getCatalogManager() {
+		return catalogManager;
 	}
 
 	/**
