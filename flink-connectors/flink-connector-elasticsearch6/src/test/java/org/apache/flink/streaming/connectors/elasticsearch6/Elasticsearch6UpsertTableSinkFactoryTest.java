@@ -39,7 +39,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkFactoryTestBase;
 import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGenerator;
 import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGeneratorFactory;
-import org.apache.flink.streaming.connectors.elasticsearch6.Elasticsearch6UpsertTableSink.DefaultRestClientFactory;
+import org.apache.flink.streaming.connectors.elasticsearch6.Elasticsearch6UpsertTableSink.AuthRestClientFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
@@ -103,7 +103,9 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		expectedBuilder.setBulkFlushInterval(100);
 		expectedBuilder.setBulkFlushMaxActions(1000);
 		expectedBuilder.setBulkFlushMaxSizeMb(1);
-		expectedBuilder.setRestClientFactory(new DefaultRestClientFactory(100, "/myapp"));
+		expectedBuilder.setRestClientFactory(new AuthRestClientFactory(
+			"elastic", "123456", 100, "/myapp"));
+//		expectedBuilder.setRestClientFactory(new DefaultRestClientFactory(100, "/myapp"));
 		assertEquals(expectedBuilder, testSink.builder);
 	}
 

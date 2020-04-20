@@ -86,6 +86,8 @@ public class ElasticsearchTest extends DescriptorTestBase {
 				.host("host2", 1234, "https")
 				.index("MyIndex")
 				.documentType("MyType")
+				.userName("elastic")
+				.password("123456")
 				.keyDelimiter("#")
 				.keyNullLiteral("")
 				.bulkFlushBackoffExponential()
@@ -127,6 +129,8 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		maximumDesc.put("connector.hosts", "https://host1:1234;https://host2:1234");
 		maximumDesc.put("connector.index", "MyIndex");
 		maximumDesc.put("connector.document-type", "MyType");
+		maximumDesc.put("connector.username", "elastic");
+		maximumDesc.put("connector.password", "123456");
 		maximumDesc.put("connector.key-delimiter", "#");
 		maximumDesc.put("connector.key-null-literal", "");
 		maximumDesc.put("connector.bulk-flush.backoff.type", "exponential");

@@ -84,7 +84,9 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_INDEX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_DELIMITER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_NULL_LITERAL;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_PASSWORD;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_TYPE_VALUE_ELASTICSEARCH;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_USERNAME;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.validateAndParseHostsString;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
@@ -129,6 +131,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PORT);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PROTOCOL);
 		properties.add(CONNECTOR_INDEX);
+		properties.add(CONNECTOR_USERNAME);
+		properties.add(CONNECTOR_PASSWORD);
 		properties.add(CONNECTOR_DOCUMENT_TYPE);
 		properties.add(CONNECTOR_KEY_DELIMITER);
 		properties.add(CONNECTOR_KEY_NULL_LITERAL);
@@ -270,6 +274,9 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 
 	private Map<SinkOption, String> getSinkOptions(DescriptorProperties descriptorProperties) {
 		final Map<SinkOption, String> options = new HashMap<>();
+
+		mapSinkOption(descriptorProperties, options, CONNECTOR_USERNAME, SinkOption.CONNECTOR_USERNAME);
+		mapSinkOption(descriptorProperties, options, CONNECTOR_PASSWORD, SinkOption.CONNECTOR_PASSWORD);
 
 		descriptorProperties.getOptionalBoolean(CONNECTOR_FLUSH_ON_CHECKPOINT)
 			.ifPresent(v -> options.put(SinkOption.DISABLE_FLUSH_ON_CHECKPOINT, String.valueOf(!v)));
