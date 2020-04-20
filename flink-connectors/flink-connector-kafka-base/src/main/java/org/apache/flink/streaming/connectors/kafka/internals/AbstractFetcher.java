@@ -130,9 +130,11 @@ public abstract class AbstractFetcher<T, KPH> {
 	 */
 	private final MetricGroup consumerMetricGroup;
 
+	@SuppressWarnings("DeprecatedIsStillUsed")
 	@Deprecated
 	private final MetricGroup legacyCurrentOffsetsMetricGroup;
 
+	@SuppressWarnings("DeprecatedIsStillUsed")
 	@Deprecated
 	private final MetricGroup legacyCommittedOffsetsMetricGroup;
 
@@ -185,7 +187,7 @@ public abstract class AbstractFetcher<T, KPH> {
 				userCodeClassLoader);
 
 		// check that all seed partition states have a defined offset
-		for (KafkaTopicPartitionState partitionState : subscribedPartitionStates) {
+		for (KafkaTopicPartitionState<?> partitionState : subscribedPartitionStates) {
 			if (!partitionState.isOffsetDefined()) {
 				throw new IllegalArgumentException("The fetcher was assigned seed partitions with undefined initial offsets.");
 			}
@@ -204,7 +206,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		// if we have periodic watermarks, kick off the interval scheduler
 		if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
 			@SuppressWarnings("unchecked")
-			PeriodicWatermarkEmitter periodicEmitter = new PeriodicWatermarkEmitter(
+			PeriodicWatermarkEmitter<KPH> periodicEmitter = new PeriodicWatermarkEmitter(
 					subscribedPartitionStates,
 					sourceContext,
 					processingTimeProvider,
@@ -303,7 +305,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		return offsets.entrySet()
 			.stream()
 			.filter(entry -> !KafkaTopicPartitionStateSentinel.isSentinel(entry.getValue()))
-			.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 	}
 
 	/**
