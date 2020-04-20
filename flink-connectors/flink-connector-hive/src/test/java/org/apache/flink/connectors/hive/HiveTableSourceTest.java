@@ -534,7 +534,7 @@ public class HiveTableSourceTest {
 
 		TestPartitionFilterCatalog(String catalogName, String defaultDatabase,
 				@Nullable HiveConf hiveConf, String hiveVersion) {
-			super(catalogName, defaultDatabase, hiveConf, hiveVersion);
+			super(catalogName, defaultDatabase, hiveConf, hiveVersion, true);
 		}
 
 		@Override

@@ -147,14 +147,21 @@ public class HiveCatalog extends AbstractCatalog {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
 			createHiveConf(hiveConfDir),
-			hiveVersion);
+			hiveVersion,
+			false);
 	}
 
 	@VisibleForTesting
-	protected HiveCatalog(String catalogName, String defaultDatabase, @Nullable HiveConf hiveConf, String hiveVersion) {
+	protected HiveCatalog(String catalogName, String defaultDatabase, @Nullable HiveConf hiveConf, String hiveVersion,
+			boolean allowEmbedded) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
+		if (!allowEmbedded) {
+			checkArgument(!StringUtils.isNullOrWhitespaceOnly(this.hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS)),
+					"Embedded metastore is not allowed. Make sure you have set a valid value for " +
+							HiveConf.ConfVars.METASTOREURIS.toString());
+		}
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
 		this.hiveVersion = hiveVersion;
 		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
