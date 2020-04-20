@@ -39,6 +39,7 @@ import java.util.concurrent.TimeoutException;
  * The test base for SourceCoordinator related tests.
  */
 public abstract class SourceCoordinatorTestBase {
+	protected static final String OPERATOR_NAME = "TestOperator";
 	protected static final OperatorID TEST_OPERATOR_ID = new OperatorID(1234L, 5678L);
 	protected static final int NUM_SUBTASKS = 3;
 
@@ -54,10 +55,15 @@ public abstract class SourceCoordinatorTestBase {
 		operatorCoordinatorContext = new MockOperatorCoordinatorContext(TEST_OPERATOR_ID, NUM_SUBTASKS);
 		splitSplitAssignmentTracker = new SplitAssignmentTracker<>();
 		String coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
-		coordinatorExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, coordinatorThreadName));
+		SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
+				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+						OPERATOR_NAME,
+						coordinatorThreadName,
+						operatorCoordinatorContext);
+		coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		context = new SourceCoordinatorContext<>(
 				coordinatorExecutor,
-				coordinatorThreadName,
+				coordinatorThreadFactory,
 				1,
 				operatorCoordinatorContext,
 				splitSplitAssignmentTracker);
@@ -78,6 +84,6 @@ public abstract class SourceCoordinatorTestBase {
 	protected SourceCoordinator getNewSourceCoordinator() {
 		Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
 				new MockSource(Boundedness.BOUNDED, NUM_SUBTASKS * 2);
-		return new SourceCoordinator<>(coordinatorExecutor, mockSource, context);
+		return new SourceCoordinator<>(OPERATOR_NAME, coordinatorExecutor, mockSource, context);
 	}
 }

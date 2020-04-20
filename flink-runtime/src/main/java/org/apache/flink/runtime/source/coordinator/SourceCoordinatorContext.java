@@ -80,25 +80,31 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	private final OperatorCoordinator.Context operatorCoordinatorContext;
 	private final ConcurrentMap<Integer, ReaderInfo> registeredReaders;
 	private final SplitAssignmentTracker<SplitT> assignmentTracker;
+	private final SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory;
 	private final String coordinatorThreadName;
 
 	public SourceCoordinatorContext(
 			ExecutorService coordinatorExecutor,
-			String coordinatorThreadName,
+			SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
 			int numWorkerThreads,
 			OperatorCoordinator.Context operatorCoordinatorContext) {
-		this(coordinatorExecutor, coordinatorThreadName, numWorkerThreads, operatorCoordinatorContext,
+		this(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, operatorCoordinatorContext,
 				new SplitAssignmentTracker<>());
 	}
 
 	// Package private method for unit test.
 	SourceCoordinatorContext(
 			ExecutorService coordinatorExecutor,
-			String coordinatorThreadName,
+			SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
 			int numWorkerThreads,
 			OperatorCoordinator.Context operatorCoordinatorContext,
 			SplitAssignmentTracker<SplitT> splitAssignmentTracker) {
 		this.coordinatorExecutor = coordinatorExecutor;
+		this.coordinatorThreadFactory = coordinatorThreadFactory;
+		this.operatorCoordinatorContext = operatorCoordinatorContext;
+		this.registeredReaders = new ConcurrentHashMap<>();
+		this.assignmentTracker = splitAssignmentTracker;
+		this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
 		this.notifier = new ExecutorNotifier(
 				Executors.newScheduledThreadPool(numWorkerThreads, new ThreadFactory() {
 					private int index = 0;
@@ -108,10 +114,6 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 					}
 				}),
 				coordinatorExecutor);
-		this.operatorCoordinatorContext = operatorCoordinatorContext;
-		this.registeredReaders = new ConcurrentHashMap<>();
-		this.assignmentTracker = splitAssignmentTracker;
-		this.coordinatorThreadName = coordinatorThreadName;
 	}
 
 	@Override
@@ -143,7 +145,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	@Override
 	public void assignSplits(SplitsAssignment<SplitT> assignment) {
 		// Ensure the split assignment is done by the the coordinator executor.
-		if (!Thread.currentThread().getName().equals(coordinatorThreadName)) {
+		if (!coordinatorThreadFactory.isCurrentThreadCoordinatorThread()) {
 			try {
 				coordinatorExecutor.submit(() -> assignSplits(assignment)).get();
 				return;
@@ -190,6 +192,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	// --------- Package private additional methods for the SourceCoordinator ------------
 
 	/**
+	 * Fail the job with the given cause.
+	 *
+	 * @param cause the cause of the job failure.
+	 */
+	void failJob(Throwable cause) {
+		operatorCoordinatorContext.failJob(cause);
+	}
+
+	/**
 	 * Take a snapshot of this SourceCoordinatorContext.
 	 *
 	 * @param checkpointId The id of the ongoing checkpoint.
@@ -234,8 +245,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	 * @param subtaskId the subtask id of the source reader.
 	 */
 	void unregisterSourceReader(int subtaskId) {
-		Preconditions.checkNotNull(registeredReaders.remove(subtaskId),
-				"Failed to unregister source reader of id " + subtaskId + " because it is not registered.");
+		Preconditions.checkNotNull(registeredReaders.remove(subtaskId), String.format(
+				"Failed to unregister source reader of id %s because it is not registered.", subtaskId));
 	}
 
 	/**

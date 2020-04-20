@@ -49,8 +49,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 	public void testThrowExceptionWhenNotStarted() {
 		// The following methods should only be invoked after the source coordinator has started.
 		String failureMessage = "Call should fail when source coordinator has not started yet.";
-		verifyException(() -> sourceCoordinator.close(),
-				failureMessage, "The coordinator has not started yet.");
 		verifyException(() -> sourceCoordinator.checkpointComplete(100L),
 				failureMessage, "The coordinator has not started yet.");
 		verifyException(() -> sourceCoordinator.handleEventFromOperator(0, null),
@@ -67,7 +65,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 		sourceCoordinator.start();
 		verifyException(() -> sourceCoordinator.resetToCheckpoint(null),
 				"Reset to checkpoint should fail after the coordinator has started",
-				"The source coordinator has started");
+				String.format("The coordinator for source %s has started. The source coordinator state can " +
+						"only be reset to a checkpoint before it starts.", OPERATOR_NAME));
 	}
 
 	@Test

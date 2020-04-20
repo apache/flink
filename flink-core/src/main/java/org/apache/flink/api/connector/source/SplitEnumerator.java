@@ -66,8 +66,9 @@ public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT> extend
 	 * Checkpoints the state of this split enumerator.
 	 *
 	 * @return an object containing the state of the split enumerator.
+	 * @throws Exception when the snapshot cannot be taken.
 	 */
-	CheckpointT snapshotState();
+	CheckpointT snapshotState() throws Exception;
 
 	/**
 	 * Called to close the enumerator, in case it holds on to any resources, like threads or

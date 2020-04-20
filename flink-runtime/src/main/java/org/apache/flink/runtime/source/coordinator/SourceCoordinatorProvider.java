@@ -23,9 +23,13 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
 /**
@@ -33,6 +37,7 @@ import java.util.function.BiConsumer;
  */
 public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 		implements OperatorCoordinator.Provider {
+	private final String operatorName;
 	private final OperatorID operatorID;
 	private final Source<?, SplitT, ?> source;
 	private final int numWorkerThreads;
@@ -40,6 +45,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 	/**
 	 * Construct the {@link SourceCoordinatorProvider}.
 	 *
+	 * @param operatorName the name of the operator.
 	 * @param operatorID the ID of the operator this coordinator corresponds to.
 	 * @param source the Source that will be used for this coordinator.
 	 * @param numWorkerThreads the number of threads the should provide to the SplitEnumerator
@@ -48,9 +54,11 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 	 *                         SplitEnumeratorContext.callAsync()}.
 	 */
 	public SourceCoordinatorProvider(
+			String operatorName,
 			OperatorID operatorID,
 			Source<?, SplitT, ?> source,
 			int numWorkerThreads) {
+		this.operatorName = operatorName;
 		this.operatorID = operatorID;
 		this.source = source;
 		this.numWorkerThreads = numWorkerThreads;
@@ -63,11 +71,55 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
 	@Override
 	public OperatorCoordinator create(OperatorCoordinator.Context context) {
-		final String coordinatorThreadName = "SourceCoordinator-" + operatorID;
-		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(
-				r -> new Thread(r, coordinatorThreadName));
+		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
+		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
+				new CoordinatorExecutorThreadFactory(operatorName, coordinatorThreadName, context);
+		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
-				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadName, numWorkerThreads, context);
-		return new SourceCoordinator<>(coordinatorExecutor, source, sourceCoordinatorContext);
+				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, context);
+		return new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
+	}
+
+	/**
+	 * A thread factory class that provides some helper methods.
+	 */
+	public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
+		private static final Logger LOG = LoggerFactory.getLogger(CoordinatorExecutorThreadFactory.class);
+		private final String operatorName;
+		private final String coordinatorThreadName;
+		private final OperatorCoordinator.Context context;
+		private Thread t;
+
+		CoordinatorExecutorThreadFactory(
+				String operatorName,
+				String coordinatorThreadName,
+				OperatorCoordinator.Context context) {
+			this.operatorName = operatorName;
+			this.coordinatorThreadName = coordinatorThreadName;
+			this.context = context;
+			this.t = null;
+		}
+
+		@Override
+		public Thread newThread(Runnable r) {
+			if (t != null) {
+				throw new IllegalStateException("Should never happen. This factory should only be used by a " +
+						"SingleThreadExecutor.");
+			}
+			t = new Thread(r, coordinatorThreadName);
+			t.setUncaughtExceptionHandler((ignored, e) -> {
+				LOG.error("Received uncaught exception from the coordinator for source {}", operatorName);
+				context.failJob(e);
+			});
+			return t;
+		}
+
+		String getCoordinatorThreadName() {
+			return coordinatorThreadName;
+		}
+
+		boolean isCurrentThreadCoordinatorThread() {
+			return Thread.currentThread() == t;
+		}
 	}
 }
