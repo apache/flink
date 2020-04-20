@@ -206,7 +206,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 				new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
 			// no chance to complete this checkpoint
 			releaseBlocksAndResetBarriers();
-			return true;
 		}
 		return false;
 	}
