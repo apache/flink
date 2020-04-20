@@ -52,7 +52,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
     *state*. In addition, users can register event time and processing time
     callbacks, allowing programs to realize sophisticated computations.
 
-  - In practice, many applications do not need the low level
+  - In practice, many applications do not need the low-level
     abstractions described above, and can instead program against the **Core APIs**: the
     [DataStream API]({{ site.baseurl }}{% link dev/datastream_api.md %})
     (bounded/unbounded streams) and the [DataSet API]({{ site.baseurl }}{% link
@@ -63,7 +63,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
     respective programming languages.
 
     The low level *Process Function* integrates with the *DataStream API*,
-    making it possible to use the lower level abstraction on an as-needed basis. 
+    making it possible to use the lower-level abstraction on an as-needed basis. 
     The *DataSet API* offers additional primitives on bounded data sets,
     like loops/iterations.
 
@@ -90,4 +90,3 @@ Flink offers different levels of abstraction for developing streaming/batch appl
     }}{% link dev/table/index.md %}#sql) abstraction closely interacts with the
     Table API, and SQL queries can be executed over tables defined in the
     *Table API*.
-

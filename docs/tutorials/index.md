@@ -51,7 +51,8 @@ These tutorials focus on four critical concepts: continuous processing of stream
 time, stateful stream processing, and state snapshots. This page introduces these concepts.
 
 {% info Note %} Accompanying these tutorials are a set of hands-on exercises that will guide you
-through learning how to work with the concepts being presented.
+through learning how to work with the concepts being presented. A link to the relevant exercise
+is provided at the end of each tutorial.
 
 {% top %}
 
@@ -84,8 +85,7 @@ operators in the dataflow. Sometimes, however, one transformation may consist of
 An application may consume real-time data from streaming sources such as message queues or
 distributed logs, like Apache Kafka or Kinesis. But flink can also consume bounded, historic data
 from a variety of data sources. Similarly, the streams of results being produced by a Flink
-application can be sent to a wide variety of systems, and the state held within Flink can be
-accessed via a REST API.
+application can be sent to a wide variety of systems that can be connected as sinks.
 
 <img src="{{ site.baseurl }}/fig/flink-application-sources-sinks.png" alt="Flink application with sources and sinks" class="offset" width="90%" />
 
@@ -98,7 +98,7 @@ another, and execute in different threads and possibly on different machines or
 containers.
 
 The number of operator subtasks is the **parallelism** of that particular
-operator. The parallelism of a stream is always that of its producing operator.
+operator.
 Different operators of the same program may have different levels of
 parallelism.
 
@@ -160,7 +160,7 @@ those keys is kept locally.
 
 The diagram below shows a job running with a parallelism of two across the first three operators in
 the job graph, terminating in a sink that has a parallelism of one. The third operator is stateful,
-and you can see that a fully connected network shuffle is occurring between the second and third
+and you can see that a fully-connected network shuffle is occurring between the second and third
 operators. This is being done to partition the stream by some key, so that all of the events that
 need to be processed together, will be.
 
