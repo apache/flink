@@ -25,6 +25,7 @@ import org.apache.flink.table.api.dataview.ListView;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -76,7 +77,12 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
 
 	@Override
 	public boolean remove(EE value) throws Exception {
-		List<EE> list = (List<EE>) getListState().get();
+		Iterator<EE> iterator = getListState().get().iterator();
+		List<EE> list = new ArrayList<>();
+		while (iterator.hasNext()) {
+			EE it = iterator.next();
+			list.add(it);
+		}
 		boolean success = list.remove(value);
 		if (success) {
 			getListState().update(list);
