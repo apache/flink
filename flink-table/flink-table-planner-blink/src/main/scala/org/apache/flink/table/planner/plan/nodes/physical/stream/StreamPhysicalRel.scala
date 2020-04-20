@@ -20,33 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 
-import org.apache.calcite.rel.RelNode
-
 /**
   * Base class for stream physical relational expression.
   */
 trait StreamPhysicalRel extends FlinkPhysicalRel {
-
-  /**
-    * Whether the [[StreamPhysicalRel]] produces update and delete changes.
-    */
-  def producesUpdates: Boolean
-
-  /**
-    * Whether the [[StreamPhysicalRel]] requires retraction messages or not.
-    */
-  def needsUpdatesAsRetraction(input: RelNode): Boolean
-
-  /**
-    * Whether the [[StreamPhysicalRel]] consumes retraction messages instead of forwarding them.
-    * The node might or might not produce new retraction messages.
-    */
-  def consumesRetractions: Boolean
-
-  /**
-    * Whether the [[StreamPhysicalRel]] produces retraction messages.
-    */
-  def producesRetractions: Boolean
 
   /**
     * Whether the [[StreamPhysicalRel]] requires rowtime watermark in processing logic.

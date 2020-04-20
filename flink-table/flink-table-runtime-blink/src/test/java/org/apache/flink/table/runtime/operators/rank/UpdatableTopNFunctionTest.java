@@ -36,11 +36,23 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
 public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 
 	@Override
-	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
-			boolean generateRetraction, boolean outputRankNumber) {
-		return new UpdatableTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType, rowKeySelector,
-				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
-				cacheSize);
+	protected AbstractTopNFunction createFunction(
+			RankType rankType,
+			RankRange rankRange,
+			boolean generateUpdateBefore,
+			boolean outputRankNumber) {
+		return new UpdatableTopNFunction(
+			minTime.toMilliseconds(),
+			maxTime.toMilliseconds(),
+			inputRowType,
+			rowKeySelector,
+			sortKeyComparator,
+			sortKeySelector,
+			rankType,
+			rankRange,
+			generateUpdateBefore,
+			outputRankNumber,
+			cacheSize);
 	}
 
 	@Test
@@ -138,7 +150,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	}
 
 	@Test
-	public void testSortKeyChangesWhenOutputRankNumberAndNotGenerateRetraction() throws Exception {
+	public void testSortKeyChangesWhenOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
@@ -198,7 +210,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	}
 
 	@Test
-	public void testSortKeyChangesWhenNotOutputRankNumberAndNotGenerateRetraction() throws Exception {
+	public void testSortKeyChangesWhenNotOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);

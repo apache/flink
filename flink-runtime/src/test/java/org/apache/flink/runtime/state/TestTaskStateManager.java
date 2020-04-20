@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -94,7 +95,6 @@ public class TestTaskStateManager implements TaskStateManager {
 		@Nullable TaskStateSnapshot acknowledgedState,
 		@Nullable TaskStateSnapshot localState) {
 
-
 		jobManagerTaskStateSnapshotsByCheckpointId.put(
 			checkpointMetaData.getCheckpointId(),
 			acknowledgedState);
@@ -157,6 +157,11 @@ public class TestTaskStateManager implements TaskStateManager {
 	public LocalRecoveryConfig createLocalRecoveryConfig() {
 		return Preconditions.checkNotNull(localRecoveryDirectoryProvider,
 			"Local state directory was never set for this test object!");
+	}
+
+	@Override
+	public ChannelStateReader getChannelStateReader() {
+		return ChannelStateReader.NO_OP;
 	}
 
 	public void setLocalRecoveryConfig(LocalRecoveryConfig recoveryDirectoryProvider) {
@@ -257,5 +262,9 @@ public class TestTaskStateManager implements TaskStateManager {
 
 		setReportedCheckpointId(latestId);
 		setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshotsByCheckpointId);
+	}
+
+	@Override
+	public void close() throws Exception {
 	}
 }

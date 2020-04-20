@@ -25,11 +25,13 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType
+import org.apache.flink.types.Row
 
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInteger, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.util.{List => JList, Map => JMap}
 
 import _root_.scala.language.implicitConversions
 
@@ -239,6 +241,11 @@ trait ImplicitExpressionConversions {
     def expr: Expression = unresolvedRef(s.name)
   }
 
+  implicit class AnyWithOperations[T](e: T)(implicit toExpr: T => Expression)
+      extends ImplicitExpressionOperations {
+    def expr: Expression = toExpr(e)
+  }
+
   implicit class LiteralLongExpression(l: Long) extends ImplicitExpressionOperations {
     def expr: Expression = valueLiteral(l)
   }
@@ -272,17 +279,17 @@ trait ImplicitExpressionConversions {
   }
 
   implicit class LiteralJavaDecimalExpression(javaDecimal: JBigDecimal)
-      extends ImplicitExpressionOperations {
+    extends ImplicitExpressionOperations {
     def expr: Expression = valueLiteral(javaDecimal)
   }
 
   implicit class LiteralScalaDecimalExpression(scalaDecimal: BigDecimal)
-      extends ImplicitExpressionOperations {
+    extends ImplicitExpressionOperations {
     def expr: Expression = valueLiteral(scalaDecimal.bigDecimal)
   }
 
   implicit class LiteralSqlDateExpression(sqlDate: Date)
-      extends ImplicitExpressionOperations {
+    extends ImplicitExpressionOperations {
     def expr: Expression = valueLiteral(sqlDate)
   }
 
@@ -292,7 +299,7 @@ trait ImplicitExpressionConversions {
   }
 
   implicit class LiteralSqlTimestampExpression(sqlTimestamp: Timestamp)
-      extends ImplicitExpressionOperations {
+    extends ImplicitExpressionOperations {
     def expr: Expression = valueLiteral(sqlTimestamp)
   }
 
@@ -370,10 +377,9 @@ trait ImplicitExpressionConversions {
      * Creates an unresolved reference to a table's field.
      *
      * Example:
-     * ```
+     * {{{
      * tab.select($"key", $"value")
-     * ```
-     * </pre>
+     * }}}
      */
     def $(args: Any*): Expression = unresolvedRef(sc.s(args: _*))
   }
@@ -392,19 +398,33 @@ trait ImplicitExpressionConversions {
 
   implicit def byte2Literal(b: Byte): Expression = valueLiteral(b)
 
+  implicit def byte2Literal(b: JByte): Expression = valueLiteral(b)
+
   implicit def short2Literal(s: Short): Expression = valueLiteral(s)
+
+  implicit def short2Literal(s: JShort): Expression = valueLiteral(s)
 
   implicit def int2Literal(i: Int): Expression = valueLiteral(i)
 
+  implicit def int2Literal(i: JInteger): Expression = valueLiteral(i)
+
   implicit def long2Literal(l: Long): Expression = valueLiteral(l)
+
+  implicit def long2Literal(l: JLong): Expression = valueLiteral(l)
 
   implicit def double2Literal(d: Double): Expression = valueLiteral(d)
 
+  implicit def double2Literal(d: JDouble): Expression = valueLiteral(d)
+
   implicit def float2Literal(d: Float): Expression = valueLiteral(d)
+
+  implicit def float2Literal(d: JFloat): Expression = valueLiteral(d)
 
   implicit def string2Literal(str: String): Expression = valueLiteral(str)
 
   implicit def boolean2Literal(bool: Boolean): Expression = valueLiteral(bool)
+
+  implicit def boolean2Literal(bool: JBoolean): Expression = valueLiteral(bool)
 
   implicit def javaDec2Literal(javaDec: JBigDecimal): Expression = valueLiteral(javaDec)
 
@@ -425,54 +445,28 @@ trait ImplicitExpressionConversions {
   implicit def localDateTime2Literal(localDateTime: LocalDateTime): Expression =
     valueLiteral(localDateTime)
 
+  implicit def javaList2ArrayConstructor(jList: JList[_]): Expression = {
+    ApiExpressionUtils.objectToExpression(jList)
+  }
+
+  implicit def seq2ArrayConstructor(seq: Seq[_]): Expression = {
+    ApiExpressionUtils.objectToExpression(seq)
+  }
+
   implicit def array2ArrayConstructor(array: Array[_]): Expression = {
+    ApiExpressionUtils.objectToExpression(array)
+  }
 
-    def createArray(elements: Array[_]): Expression = {
-      unresolvedCall(BuiltInFunctionDefinitions.ARRAY, elements.map(valueLiteral): _*)
-    }
+  implicit def javaMap2MapConstructor(map: JMap[_, _]): Expression = {
+    ApiExpressionUtils.objectToExpression(map)
+  }
 
-    def convertArray(array: Array[_]): Expression = array match {
-      // primitives
-      case _: Array[Boolean] => createArray(array)
-      case _: Array[Byte] => createArray(array)
-      case _: Array[Short] => createArray(array)
-      case _: Array[Int] => createArray(array)
-      case _: Array[Long] => createArray(array)
-      case _: Array[Float] => createArray(array)
-      case _: Array[Double] => createArray(array)
+  implicit def map2MapConstructor(map: Map[_, _]): Expression = {
+    ApiExpressionUtils.objectToExpression(map)
+  }
 
-      // boxed types
-      case _: Array[JBoolean] => createArray(array)
-      case _: Array[JByte] => createArray(array)
-      case _: Array[JShort] => createArray(array)
-      case _: Array[JInteger] => createArray(array)
-      case _: Array[JLong] => createArray(array)
-      case _: Array[JFloat] => createArray(array)
-      case _: Array[JDouble] => createArray(array)
-
-      // others
-      case _: Array[String] => createArray(array)
-      case _: Array[JBigDecimal] => createArray(array)
-      case _: Array[Date] => createArray(array)
-      case _: Array[Time] => createArray(array)
-      case _: Array[Timestamp] => createArray(array)
-      case _: Array[LocalDate] => createArray(array)
-      case _: Array[LocalTime] => createArray(array)
-      case _: Array[LocalDateTime] => createArray(array)
-      case bda: Array[BigDecimal] => createArray(bda.map(_.bigDecimal))
-
-      case _ =>
-        // nested
-        if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
-          unresolvedCall(
-            BuiltInFunctionDefinitions.ARRAY,
-            array.map { na => convertArray(na.asInstanceOf[Array[_]]) } :_*)
-        } else {
-          throw new ValidationException("Unsupported array type.")
-        }
-    }
-
-    convertArray(array)
+  implicit def row2RowConstructor(rowObject: Row): Expression = {
+    ApiExpressionUtils.objectToExpression(rowObject)
   }
 
   // ----------------------------------------------------------------------------------------------

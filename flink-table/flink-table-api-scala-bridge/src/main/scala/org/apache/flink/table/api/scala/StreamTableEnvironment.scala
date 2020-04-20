@@ -330,26 +330,6 @@ trait StreamTableEnvironment extends TableEnvironment {
   def toAppendStream[T: TypeInformation](table: Table): DataStream[T]
 
   /**
-    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
-    *
-    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
-    * by update or delete changes, the conversion will fail.
-    *
-    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
-    * types must match.
-    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
-    *
-    * @param table The [[Table]] to convert.
-    * @param queryConfig The configuration of the query to generate.
-    * @tparam T The type of the resulting [[DataStream]].
-    * @return The converted [[DataStream]].
-    */
-  def toAppendStream[T: TypeInformation](
-    table: Table,
-    queryConfig: StreamQueryConfig): DataStream[T]
-
-  /**
     * Converts the given [[Table]] into a [[DataStream]] of add and retract messages.
     * The message will be encoded as [[Tuple2]]. The first field is a [[Boolean]] flag,
     * the second field holds the record of the specified type [[T]].
@@ -361,68 +341,6 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @return The converted [[DataStream]].
     */
   def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)]
-
-  /**
-    * Converts the given [[Table]] into a [[DataStream]] of add and retract messages.
-    * The message will be encoded as [[Tuple2]]. The first field is a [[Boolean]] flag,
-    * the second field holds the record of the specified type [[T]].
-    *
-    * A true [[Boolean]] flag indicates an add message, a false flag indicates a retract message.
-    *
-    * @param table The [[Table]] to convert.
-    * @param queryConfig The configuration of the query to generate.
-    * @tparam T The type of the requested data type.
-    * @return The converted [[DataStream]].
-    */
-  def toRetractStream[T: TypeInformation](
-    table: Table,
-    queryConfig: StreamQueryConfig): DataStream[(Boolean, T)]
-
-
-  /**
-    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-    * NOTE: Currently only SQL INSERT statements are supported.
-    *
-    * All tables referenced by the query must be registered in the TableEnvironment.
-    * A [[Table]] is automatically registered when its [[Table#toString()]] method is
-    * called, for example when it is embedded into a String.
-    * Hence, SQL queries can directly reference a [[Table]] as follows:
-    *
-    * {{{
-    *   // register the configured table sink into which the result is inserted.
-    *   tEnv.registerTableSink("sinkTable", configuredSink);
-    *   Table sourceTable = ...
-    *   String tableName = sourceTable.toString();
-    *   // sourceTable is not registered to the table environment
-    *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
-    * }}}
-    *
-    * @param stmt   The SQL statement to evaluate.
-    * @param config The [[QueryConfig]] to use.
-    */
-  def sqlUpdate(stmt: String, config: StreamQueryConfig): Unit
-
-  /**
-    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
-    *
-    * See the documentation of TableEnvironment#useDatabase or
-    * TableEnvironment.useCatalog(String) for the rules on the path resolution.
-    *
-    * @param table             The Table to write to the sink.
-    * @param queryConfig       The [[StreamQueryConfig]] to use.
-    * @param sinkPath          The first part of the path of the registered [[TableSink]] to
-    *                          which the [[Table]] is written. This is to ensure at least the name
-    *                          of the [[TableSink]] is provided.
-    * @param sinkPathContinued The remaining part of the path of the registered [[TableSink]] to
-    *                          which the [[Table]] is written.
-    * @deprecated use `TableEnvironment#insertInto(String, Table)`
-    */
-  @deprecated
-  def insertInto(
-    table: Table,
-    queryConfig: StreamQueryConfig,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit
 
   /**
     * Triggers the program execution. The environment will execute all parts of
@@ -458,7 +376,6 @@ trait StreamTableEnvironment extends TableEnvironment {
     *     new Kafka()
     *       .version("0.11")
     *       .topic("clicks")
-    *       .property("zookeeper.connect", "localhost")
     *       .property("group.id", "click-group")
     *       .startFromEarliest())
     *   .withFormat(

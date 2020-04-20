@@ -123,6 +123,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
           true,
           getTypeSystem)
 
+      case LogicalTypeRoot.SYMBOL =>
+        createSqlType(SqlTypeName.SYMBOL)
+
       case _@t =>
         throw new TableException(s"Type is not supported: $t")
     }

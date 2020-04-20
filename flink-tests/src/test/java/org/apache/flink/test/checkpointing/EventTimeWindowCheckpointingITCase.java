@@ -178,9 +178,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			}
 			case ROCKSDB_INCREMENTAL:
 				// Test RocksDB based timer service as well
-				config.setString(
-					RocksDBOptions.TIMER_SERVICE_FACTORY,
-					RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+				config.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
 				setupRocksDB(config, 16, true);
 				break;
 			case ROCKSDB_INCREMENTAL_ZK: {

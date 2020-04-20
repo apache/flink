@@ -35,6 +35,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -45,6 +46,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -58,6 +60,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.entrypoint.YarnWorkerResourceSpecFactory;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
@@ -205,6 +208,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
+				NoOpResourceManagerPartitionTracker::get,
 				jobLeaderIdService,
 				clusterInformation,
 				fatalErrorHandler,
@@ -268,8 +272,11 @@ public class YarnResourceManagerTest extends TestLogger {
 		}
 
 		Context(Configuration configuration) throws  Exception {
+			final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+				.setDefaultWorkerResourceSpec(YarnWorkerResourceSpecFactory.INSTANCE.createDefaultWorkerResourceSpec(configuration))
+				.build();
 			rpcService = new TestingRpcService();
-			rmServices = new MockResourceManagerRuntimeServices(rpcService, TIMEOUT);
+			rmServices = new MockResourceManagerRuntimeServices(rpcService, TIMEOUT, slotManager);
 
 			// resource manager
 			rmResourceID = ResourceID.generate();

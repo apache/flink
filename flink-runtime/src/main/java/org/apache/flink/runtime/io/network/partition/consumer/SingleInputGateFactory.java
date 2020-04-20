@@ -158,8 +158,8 @@ public class SingleInputGateFactory {
 				shuffleDescriptors[i],
 				channelStatistics,
 				metrics);
-			inputGate.setInputChannel(inputChannels[i]);
 		}
+		inputGate.setInputChannels(inputChannels);
 
 		LOG.debug("{}: Created {} input channels ({}).",
 			owningTaskName,

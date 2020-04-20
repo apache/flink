@@ -97,6 +97,10 @@ if [ ! -z "$TF_BUILD" ] ; then
 	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tar.gz
 fi
 
+# enable coredumps
+ulimit -c unlimited
+export JAVA_TOOL_OPTIONS="-XX:+HeapDumpOnOutOfMemoryError"
+
 if [ $TEST == $STAGE_PYTHON ]; then
 	CMD=$PYTHON_TEST
 	CMD_PID=$PYTHON_PID
@@ -275,6 +279,8 @@ case $TEST in
 		put_yarn_logs_to_artifacts
 	;;
 esac
+
+collect_coredumps `pwd` $ARTIFACTS_DIR
 
 upload_artifacts_s3
 

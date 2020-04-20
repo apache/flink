@@ -20,6 +20,8 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.util.Preconditions;
 
@@ -254,11 +256,11 @@ public final class BuiltInFunctionDefinitions {
 	// we need LOWERCASE here to maintain compatibility for the string-based expression DSL
 	// which exposes LOWER as lowerCase()
 	public static final BuiltInFunctionDefinition LOWERCASE =
-			new BuiltInFunctionDefinition.Builder()
-					.name("lowerCase")
-					.kind(SCALAR)
-					.outputTypeStrategy(TypeStrategies.MISSING)
-					.build();
+		new BuiltInFunctionDefinition.Builder()
+			.name("lowerCase")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
 	public static final BuiltInFunctionDefinition SIMILAR =
 		new BuiltInFunctionDefinition.Builder()
 			.name("similar")
@@ -292,11 +294,11 @@ public final class BuiltInFunctionDefinitions {
 	// we need UPPERCASE here to maintain compatibility for the string-based expression DSL
 	// which exposes UPPER as upperCase()
 	public static final BuiltInFunctionDefinition UPPERCASE =
-			new BuiltInFunctionDefinition.Builder()
-					.name("upperCase")
-					.kind(SCALAR)
-					.outputTypeStrategy(TypeStrategies.MISSING)
-					.build();
+		new BuiltInFunctionDefinition.Builder()
+			.name("upperCase")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
 	public static final BuiltInFunctionDefinition POSITION =
 		new BuiltInFunctionDefinition.Builder()
 			.name("position")
@@ -691,7 +693,8 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("array")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+			.outputTypeStrategy(TypeStrategies.ARRAY)
 			.build();
 	public static final BuiltInFunctionDefinition ARRAY_ELEMENT =
 		new BuiltInFunctionDefinition.Builder()
@@ -703,13 +706,15 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("map")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_MAP)
+			.outputTypeStrategy(TypeStrategies.MAP)
 			.build();
 	public static final BuiltInFunctionDefinition ROW =
 		new BuiltInFunctionDefinition.Builder()
 			.name("row")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(InputTypeStrategies.wildcardWithCount(ConstantArgumentCount.from(1)))
+			.outputTypeStrategy(TypeStrategies.ROW)
 			.build();
 
 	// composite
@@ -872,7 +877,7 @@ public final class BuiltInFunctionDefinitions {
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
 	public static final BuiltInFunctionDefinition REINTERPRET_CAST =
-			new BuiltInFunctionDefinition.Builder()
+		new BuiltInFunctionDefinition.Builder()
 			.name("reinterpretCast")
 			.kind(SCALAR)
 			.outputTypeStrategy(TypeStrategies.MISSING)

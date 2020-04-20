@@ -35,6 +35,10 @@ import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
+import org.apache.flink.sql.parser.dql.SqlShowDatabases;
+import org.apache.flink.sql.parser.dql.SqlShowFunctions;
+import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -54,6 +58,10 @@ import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowDatabasesOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
@@ -71,11 +79,14 @@ import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.hint.HintStrategyTable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlDialect;
@@ -83,6 +94,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -159,6 +171,14 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
 		} else if (validated instanceof SqlCreateCatalog) {
 			return Optional.of(converter.convertCreateCatalog((SqlCreateCatalog) validated));
+		} else if (validated instanceof SqlShowCatalogs) {
+			return Optional.of(converter.convertShowCatalogs((SqlShowCatalogs) validated));
+		} else if (validated instanceof SqlShowDatabases) {
+			return Optional.of(converter.convertShowDatabases((SqlShowDatabases) validated));
+		} else if (validated instanceof SqlShowTables) {
+			return Optional.of(converter.convertShowTables((SqlShowTables) validated));
+		} else if (validated instanceof SqlShowFunctions) {
+			return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -342,8 +362,14 @@ public class SqlToOperationConverter {
 
 	/** Convert insert into statement. */
 	private Operation convertSqlInsert(RichSqlInsert insert) {
-		// get name of sink table
-		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTable()).names;
+		// Get sink table name.
+		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTableID()).names;
+		// Get sink table hints.
+		HintStrategyTable hintStrategyTable = flinkPlanner.config()
+				.getSqlToRelConverterConfig()
+				.getHintStrategyTable();
+		List<RelHint> tableHints = SqlUtil.getRelHint(hintStrategyTable, insert.getTableHints());
+		Map<String, String> dynamicOptions = FlinkHints.getHintedOptions(tableHints);
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -359,7 +385,8 @@ public class SqlToOperationConverter {
 			identifier,
 			query,
 			insert.getStaticPartitionKVs(),
-			insert.isOverwrite());
+			insert.isOverwrite(),
+			dynamicOptions);
 	}
 
 	/** Convert use catalog statement. */
@@ -454,6 +481,26 @@ public class SqlToOperationConverter {
 			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
 		return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
+	}
+
+	/** Convert SHOW CATALOGS statement. */
+	private Operation convertShowCatalogs(SqlShowCatalogs sqlShowCatalogs) {
+		return new ShowCatalogsOperation();
+	}
+
+	/** Convert SHOW DATABASES statement. */
+	private Operation convertShowDatabases(SqlShowDatabases sqlShowDatabases) {
+		return new ShowDatabasesOperation();
+	}
+
+	/** Convert SHOW TABLES statement. */
+	private Operation convertShowTables(SqlShowTables sqlShowTables) {
+		return new ShowTablesOperation();
+	}
+
+	/** Convert SHOW FUNCTIONS statement. */
+	private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
+		return new ShowFunctionsOperation();
 	}
 
 	/** Fallback method for sql query. */

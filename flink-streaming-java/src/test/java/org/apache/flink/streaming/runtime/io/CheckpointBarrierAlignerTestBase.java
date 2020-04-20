@@ -104,7 +104,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		assertTrue(inputGate.isFinished());
 		assertTrue(inputGate.isEmpty());
 
-		inputGate.cleanup();
+		inputGate.close();
 	}
 
 	// ------------------------------------------------------------------------
@@ -703,7 +703,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createCancellationBarrier(3L, 1),
 			createBuffer(0)
 		};
-		AbstractInvokable validator = new CheckpointSequenceValidator(-3);
+		AbstractInvokable validator = new ValidatingCheckpointHandler();
 		inputGate = createBarrierBuffer(2, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
@@ -1320,7 +1320,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		public void triggerCheckpointOnBarrier(
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) throws Exception {
+				CheckpointMetrics checkpointMetrics) {
 			assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L ||
 				nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
 

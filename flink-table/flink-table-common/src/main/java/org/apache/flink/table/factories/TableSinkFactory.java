@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -65,7 +66,7 @@ public interface TableSinkFactory<T> extends TableFactory {
 
 	/**
 	 * Creates and configures a {@link TableSink} based on the given
-	 {@link Context}.
+	 * {@link Context}.
 	 *
 	 * @param context context of this table sink.
 	 * @return the configured table sink.
@@ -98,6 +99,14 @@ public interface TableSinkFactory<T> extends TableFactory {
 		 * {@code TableEnvironment} session configurations.
 		 */
 		ReadableConfig getConfiguration();
+
+		/**
+		 * It depends on whether the {@code TableEnvironment} execution mode is batch.
+		 *
+		 * <p>In the future, the new sink interface will infer from input to source.
+		 * See {@link Source#getBoundedness}.
+		 */
+		boolean isBounded();
 	}
 
 }

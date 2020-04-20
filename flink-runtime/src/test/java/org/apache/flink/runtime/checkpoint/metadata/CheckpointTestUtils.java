@@ -22,14 +22,17 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -43,6 +46,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.empty;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -117,11 +124,19 @@ public class CheckpointTestUtils {
 					keyedStateStream = createDummyKeyGroupStateHandle(random);
 				}
 
+				StateObjectCollection<InputChannelStateHandle> inputChannelStateHandles =
+					random.nextBoolean() ? singleton(createNewInputChannelStateHandle(random.nextInt(5), random)) : empty();
+
+				StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionStateHandles =
+					random.nextBoolean() ? singleton(createNewResultSubpartitionStateHandle(random.nextInt(5), random)) : empty();
+
 				taskState.putState(subtaskIdx, new OperatorSubtaskState(
 						operatorStateHandleBackend,
 						operatorStateHandleStream,
 						keyedStateStream,
-						keyedStateBackend));
+						keyedStateBackend,
+						inputChannelStateHandles,
+						resultSubpartitionStateHandles));
 			}
 
 			taskStates.add(taskState);

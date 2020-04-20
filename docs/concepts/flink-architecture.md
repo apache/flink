@@ -44,7 +44,7 @@ The Flink runtime consists of two types of processes:
     tasks, coordinates checkpoints, coordinates recovery on failures, etc.
 
     There is always at least one *Flink Master*. A high-availability setup
-    might have multiple *Flink Masters*, one of which one is always the
+    might have multiple *Flink Masters*, one of which is always the
     *leader*, and the others are *standby*.
 
   - The *TaskManagers* (also called *workers*) execute the *tasks* (or more
@@ -102,7 +102,7 @@ certain amount of reserved managed memory. Note that no CPU isolation happens
 here; currently slots only separate the managed memory of tasks.
 
 By adjusting the number of task slots, users can define how subtasks are
-isolated from each other.  Having one slot per TaskManager means each task
+isolated from each other.  Having one slot per TaskManager means that each task
 group runs in a separate JVM (which can be started in a separate container, for
 example). Having multiple slots means more subtasks share the same JVM. Tasks
 in the same JVM share TCP connections (via multiplexing) and heartbeat

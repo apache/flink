@@ -36,13 +36,14 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -139,7 +140,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		throw new UnsupportedOperationException(ERROR_MSG);
+		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	}
 
 	@Override
@@ -239,16 +240,16 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public ResultPartitionWriter[] getAllWriters() {
+		return new ResultPartitionWriter[0];
+	}
+
+	@Override
+	public IndexedInputGate getInputGate(int index) {
 		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
-	public InputGate getInputGate(int index) {
-		throw new UnsupportedOperationException(ERROR_MSG);
-	}
-
-	@Override
-	public InputGate[] getAllInputGates() {
+	public IndexedInputGate[] getAllInputGates() {
 		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 

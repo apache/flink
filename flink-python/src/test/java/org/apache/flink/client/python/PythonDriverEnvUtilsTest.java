@@ -18,8 +18,9 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.After;
@@ -34,21 +35,24 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.client.python.PythonDriverEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
+import static org.apache.flink.client.python.PythonDriverEnvUtils.preparePythonEnvironment;
+import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
+import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
+import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 
 /**
  * Tests for the {@link PythonDriverEnvUtils}.
  */
 public class PythonDriverEnvUtilsTest {
-	private static final String UUID_PATTERN = "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}";
 
 	private String tmpDirPath;
 
@@ -60,50 +64,43 @@ public class PythonDriverEnvUtilsTest {
 	}
 
 	@Test
-	public void testPreparePythonEnvironment() throws IOException, InterruptedException {
+	public void testPreparePythonEnvironment() throws IOException {
 		// xxx/a.zip, xxx/subdir/b.py, xxx/subdir/c.zip
-		File a = new File(tmpDirPath + File.separator + "a.zip");
-		a.createNewFile();
-		File moduleDir = new File(tmpDirPath + File.separator + "module_dir");
-		moduleDir.mkdir();
-		File subdir = new File(tmpDirPath + File.separator + "subdir");
-		subdir.mkdir();
-		File b = new File(tmpDirPath + File.separator + "subdir" + File.separator + "b.py");
-		b.createNewFile();
-		File c = new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.zip");
-		c.createNewFile();
+		File zipFile = new File(tmpDirPath + File.separator + "a.zip");
+		File dirFile = new File(tmpDirPath + File.separator + "module_dir");
+		File subdirFile = new File(tmpDirPath + File.separator + "subdir");
+		File relativeFile = new File(tmpDirPath + File.separator + "subdir" + File.separator + "b.py");
+		File schemeFile = new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.zip");
+
+		// The files must actually exist
+		zipFile.createNewFile();
+		dirFile.mkdir();
+		subdirFile.mkdir();
+		relativeFile.createNewFile();
+		schemeFile.createNewFile();
+
+		String workingDir = new File("").getAbsolutePath();
+		String absolutePath = relativeFile.getAbsolutePath();
+
+		Path zipPath = new Path(zipFile.getAbsolutePath());
+		Path dirPath = new Path(dirFile.getAbsolutePath());
+		Path relativePath = new Path(Paths.get(workingDir).relativize(Paths.get(absolutePath)).toString());
+		Path schemePath = new Path("file://" + schemeFile.getAbsolutePath());
 
 		List<Path> pyFilesList = new ArrayList<>();
-		pyFilesList.add(new Path(a.getAbsolutePath()));
-		pyFilesList.add(new Path(moduleDir.getAbsolutePath()));
-		// test relative path
-		String relativePath = Paths.get(new File("").getAbsolutePath())
-			.relativize(Paths.get(b.getAbsolutePath())).toString();
-		pyFilesList.add(new Path(relativePath));
-		// test path with schema
-		pyFilesList.add(new Path("file://" + c.getAbsolutePath()));
+		pyFilesList.add(zipPath);
+		pyFilesList.add(dirPath);
+		pyFilesList.add(relativePath);
+		pyFilesList.add(schemePath);
 
-		List<String> pyFiles = pyFilesList.stream().map(Path::toString).collect(Collectors.toList());
+		String pyFiles = pyFilesList.stream()
+			.map(Path::toString)
+			.collect(Collectors.joining(FILE_DELIMITER));
 
-		Tuple2<String, String> pyRequirements = new Tuple2<>("requirements.txt", "requirements_cache");
+		Configuration config = new Configuration();
+		config.set(PYTHON_FILES, pyFiles);
 
-		String pyExecutable = "/usr/bin/python";
-
-		List<Tuple2<String, String>> pyArchives = new ArrayList<>();
-		pyArchives.add(new Tuple2<>("hdfs://a.zip", null));
-		pyArchives.add(new Tuple2<>("b.zip", "venv"));
-
-		PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(
-			"test",
-			pyFilesList,
-			new ArrayList<>(),
-			pyFiles,
-			pyRequirements,
-			pyExecutable,
-			pyArchives);
-
-		PythonDriverEnvUtils.PythonEnvironment env = PythonDriverEnvUtils.preparePythonEnvironment(
-			pythonDriverOptions, tmpDirPath);
+		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 
 		String base = replaceUUID(env.tempDirectory);
 		Set<String> expectedPythonPaths = new HashSet<>();
@@ -112,30 +109,10 @@ public class PythonDriverEnvUtilsTest {
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}"));
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "c.zip"));
 
-		Set<String> expectedInteralLibPatterns = new HashSet<>();
-		expectedInteralLibPatterns.add(
-			Pattern.quote(env.tempDirectory + File.separator) + UUID_PATTERN + "pyflink\\.zip");
-		expectedInteralLibPatterns.add(
-			Pattern.quote(env.tempDirectory + File.separator) + UUID_PATTERN + "py4j-0\\.10\\.8\\.1-src\\.zip");
-		expectedInteralLibPatterns.add(
-			Pattern.quote(env.tempDirectory + File.separator) + UUID_PATTERN + "cloudpickle-1\\.2\\.2-src\\.zip");
-
-		List<String> actualPaths = Arrays.asList(env.pythonPath.split(File.pathSeparator));
-		List<String> internalLibPaths = getMatchedPaths(expectedInteralLibPatterns, actualPaths)
-			.stream()
+		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
 			.map(PythonDriverEnvUtilsTest::replaceUUID)
-			.collect(Collectors.toList());
-		expectedPythonPaths.addAll(internalLibPaths);
-		Assert.assertEquals(
-			expectedPythonPaths,
-			actualPaths.stream().map(PythonDriverEnvUtilsTest::replaceUUID).collect(Collectors.toSet()));
-
-		Map<String, String> expectedEnv = new HashMap<>();
-		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_FILES, String.join("\n", pyFiles));
-		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_REQUIREMENTS, "requirements.txt\nrequirements_cache");
-		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_EXECUTABLE, "/usr/bin/python");
-		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_ARCHIVES, "hdfs://a.zip\n\nb.zip\nvenv");
-		Assert.assertEquals(expectedEnv, env.systemEnv);
+			.collect(Collectors.toSet());
+		Assert.assertEquals(expectedPythonPaths, actualPaths);
 	}
 
 	@Test
@@ -179,22 +156,54 @@ public class PythonDriverEnvUtilsTest {
 		}
 	}
 
+	@Test
+	public void testSetPythonExecutable() throws IOException {
+		Configuration config = new Configuration();
+
+		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
+		Assert.assertEquals("python", env.pythonExec);
+
+		Map<String, String> systemEnv = new HashMap<>(System.getenv());
+		systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "python3");
+		CommonTestUtils.setEnv(systemEnv);
+		try {
+			env = preparePythonEnvironment(config, null, tmpDirPath);
+			Assert.assertEquals("python3", env.pythonExec);
+		} finally {
+			systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
+			CommonTestUtils.setEnv(systemEnv);
+		}
+
+		config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
+		env = preparePythonEnvironment(config, null, tmpDirPath);
+		Assert.assertEquals("/usr/bin/python", env.pythonExec);
+	}
+
+	@Test
+	public void testPrepareEnvironmentWithEntryPointScript() throws IOException {
+		File entryFile = new File(tmpDirPath + File.separator + "test.py");
+		// The file must actually exist
+		entryFile.createNewFile();
+		String entryFilePath = entryFile.getAbsolutePath();
+
+		Configuration config = new Configuration();
+		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, entryFilePath, tmpDirPath);
+
+		Set<String> expectedPythonPaths = new HashSet<>();
+		expectedPythonPaths.add(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}"));
+
+		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
+			.map(PythonDriverEnvUtilsTest::replaceUUID)
+			.collect(Collectors.toSet());
+		Assert.assertEquals(expectedPythonPaths, actualPaths);
+	}
+
 	@After
 	public void cleanEnvironment() {
 		FileUtils.deleteDirectoryQuietly(new File(tmpDirPath));
 	}
 
 	private static String replaceUUID(String originPath) {
-		return originPath.replaceAll(
-			"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}",
-			"{uuid}");
-	}
-
-	private static Set<String> getMatchedPaths(Collection<String> patterns, Collection<String> paths) {
-		List<Pattern> regexPatterns = patterns.stream().map(Pattern::compile).collect(Collectors.toList());
-		return paths.stream()
-			.filter(
-				path -> regexPatterns.stream().anyMatch(p -> p.matcher(path).matches()))
-			.collect(Collectors.toSet());
+		return originPath.replaceAll("[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "{uuid}");
 	}
 }

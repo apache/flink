@@ -64,7 +64,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStar(): Unit = {
     checkResult(
-      "SELECT * FROM Table3",
+      "SELECT * FROM Table3 where a is not null",
       data3)
   }
 

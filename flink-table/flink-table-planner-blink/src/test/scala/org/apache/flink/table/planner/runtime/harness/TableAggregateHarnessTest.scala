@@ -49,7 +49,6 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
   }
 
   val data = new mutable.MutableList[(Int, Int)]
-  val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(2))
 
   @Test
   def testTableAggregate(): Unit = {
@@ -61,8 +60,9 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       .flatAggregate(top3('b) as ('b1, 'b2))
       .select('a, 'b1, 'b2)
 
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
     val testHarness = createHarnessTester(
-      resultTable.toRetractStream[Row](queryConfig), "GroupTableAggregate")
+      resultTable.toRetractStream[Row], "GroupTableAggregate")
     val assertor = new BaseRowHarnessAssertor(Array(Types.INT, Types.INT, Types.INT))
 
     testHarness.open()
@@ -121,8 +121,9 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       .flatAggregate(top3('b) as ('b1, 'b2))
       .select('b1, 'b2)
 
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
     val testHarness = createHarnessTester(
-      resultTable.toRetractStream[Row](queryConfig), "GroupTableAggregate")
+      resultTable.toRetractStream[Row], "GroupTableAggregate")
     val assertor = new BaseRowHarnessAssertor(Array(Types.INT, Types.INT))
 
     testHarness.open()

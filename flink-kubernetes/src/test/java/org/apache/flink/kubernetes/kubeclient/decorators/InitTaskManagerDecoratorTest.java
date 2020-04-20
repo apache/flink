@@ -31,6 +31,8 @@ import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.Toleration;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -58,6 +60,11 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 			put("a2", "v2");
 		}
 	};
+	private static final String TOLERATION_STRING = "key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+		"KEY:key2,operator:Exists,Effect:NoExecute,tolerationSeconds:6000";
+	private static final List<Toleration> TOLERATION = Arrays.asList(
+		new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
+		new Toleration("NoExecute", "key2", "Exists", 6000L, null));
 
 	private Pod resultPod;
 	private Container resultMainContainer;
@@ -67,6 +74,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 		super.setup();
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
 		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS, ANNOTATIONS);
+		this.flinkConfig.setString(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
 
 		final InitTaskManagerDecorator initTaskManagerDecorator =
 			new InitTaskManagerDecorator(kubernetesTaskManagerParameters);
@@ -162,5 +170,15 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 			.collect(Collectors.toList());
 
 		assertEquals(IMAGE_PULL_SECRETS, resultSecrets);
+	}
+
+	@Test
+	public void testNodeSelector() {
+		assertThat(this.resultPod.getSpec().getNodeSelector(), is(equalTo(nodeSelector)));
+	}
+
+	@Test
+	public void testPodTolerations() {
+		assertThat(this.resultPod.getSpec().getTolerations(), Matchers.containsInAnyOrder(TOLERATION.toArray()));
 	}
 }

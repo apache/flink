@@ -196,6 +196,13 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Tools to unify display format for different languages -->
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>65.1</version>
+		</dependency>
+
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -327,6 +334,9 @@ under the License.
 
 									<!-- flink-table-runtime-blink dependencies -->
 									<include>org.codehaus.janino:*</include>
+
+									<!-- Tools to unify display format for different languages -->
+									<include>com.ibm.icu:icu4j</include>
 								</includes>
 							</artifactSet>
 							<relocations>

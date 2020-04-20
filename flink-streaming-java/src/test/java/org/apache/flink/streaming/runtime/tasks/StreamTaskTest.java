@@ -23,15 +23,17 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -43,6 +45,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -138,6 +141,7 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.instanceOf;
@@ -506,6 +510,8 @@ public class StreamTaskTest extends TestLogger {
 			ExceptionallyDoneFuture.of(failingCause),
 			DoneFuture.of(SnapshotResult.empty()),
 			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()),
 			DoneFuture.of(SnapshotResult.empty()));
 
 		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
@@ -645,7 +651,9 @@ public class StreamTaskTest extends TestLogger {
 			DoneFuture.of(SnapshotResult.of(managedKeyedStateHandle)),
 			DoneFuture.of(SnapshotResult.of(rawKeyedStateHandle)),
 			DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
-			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)));
+			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)),
+			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()));
 
 		try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder()
 			.setTaskName("mock-task")
@@ -681,10 +689,10 @@ public class StreamTaskTest extends TestLogger {
 			OperatorSubtaskState subtaskState = subtaskStates.getSubtaskStateMappings().iterator().next().getValue();
 
 			// check that the subtask state contains the expected state handles
-			assertEquals(StateObjectCollection.singleton(managedKeyedStateHandle), subtaskState.getManagedKeyedState());
-			assertEquals(StateObjectCollection.singleton(rawKeyedStateHandle), subtaskState.getRawKeyedState());
-			assertEquals(StateObjectCollection.singleton(managedOperatorStateHandle), subtaskState.getManagedOperatorState());
-			assertEquals(StateObjectCollection.singleton(rawOperatorStateHandle), subtaskState.getRawOperatorState());
+			assertEquals(singleton(managedKeyedStateHandle), subtaskState.getManagedKeyedState());
+			assertEquals(singleton(rawKeyedStateHandle), subtaskState.getRawKeyedState());
+			assertEquals(singleton(managedOperatorStateHandle), subtaskState.getManagedOperatorState());
+			assertEquals(singleton(rawOperatorStateHandle), subtaskState.getRawOperatorState());
 
 			// check that the state handles have not been discarded
 			verify(managedKeyedStateHandle, never()).discardState();
@@ -728,7 +736,9 @@ public class StreamTaskTest extends TestLogger {
 			DoneFuture.of(SnapshotResult.of(managedKeyedStateHandle)),
 			rawKeyedStateHandleFuture,
 			DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
-			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)));
+			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)),
+			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()));
 
 		final OneInputStreamOperator<String, String> streamOperator = streamOperatorWithSnapshot(operatorSnapshotResult);
 
@@ -891,6 +901,30 @@ public class StreamTaskTest extends TestLogger {
 			});
 			latch.await();
 			task.waitForTaskCompletion(false);
+		}
+	}
+
+	@Test
+	public void testInitializeResultPartitionState() throws Exception {
+		int numWriters = 2;
+		RecoveryResultPartition[] partitions = new RecoveryResultPartition[numWriters];
+		for (int i = 0; i < numWriters; i++) {
+			partitions[i] = new RecoveryResultPartition();
+		}
+
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
+		mockEnvironment.addOutputs(Arrays.asList(partitions));
+		StreamTask task = new MockStreamTaskBuilder(mockEnvironment).build();
+
+		try {
+			task.beforeInvoke();
+
+			// output recovery should be done before task processing
+			for (RecoveryResultPartition resultPartition : partitions) {
+				assertTrue(resultPartition.isStateInitialized());
+			}
+		} finally {
+			task.cleanUpInvoke();
 		}
 	}
 
@@ -1141,6 +1175,13 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
+		public CompletableFuture<Void> prepareSnapshot(
+				ChannelStateWriter channelStateWriter,
+				final long checkpointId) {
+			return FutureUtils.completedVoidFuture();
+		}
+
+		@Override
 		public void close() throws IOException {
 		}
 
@@ -1249,11 +1290,11 @@ public class StreamTaskTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public AbstractStateBackend createFromConfig(Configuration config, ClassLoader classLoader) {
+		public AbstractStateBackend createFromConfig(ReadableConfig config, ClassLoader classLoader) {
 			return new TestSpyWrapperStateBackend(createInnerBackend(config));
 		}
 
-		protected AbstractStateBackend createInnerBackend(Configuration config) {
+		protected AbstractStateBackend createInnerBackend(ReadableConfig config) {
 			return new MemoryStateBackend();
 		}
 	}
@@ -1303,6 +1344,11 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public InputStatus processInput() throws Exception {
 			return isFinished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
+		}
+
+		@Override
+		public CompletableFuture<Void> prepareSnapshot(ChannelStateWriter channelStateWriter, long checkpointId) {
+			return FutureUtils.completedVoidFuture();
 		}
 
 		@Override
@@ -1720,6 +1766,22 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
 			throw new UnsupportedOperationException();
+		}
+	}
+
+	private static class RecoveryResultPartition extends MockResultPartitionWriter {
+		private boolean isStateInitialized;
+
+		RecoveryResultPartition() {
+		}
+
+		@Override
+		public void initializeState(ChannelStateReader stateReader) {
+			isStateInitialized = true;
+		}
+
+		boolean isStateInitialized() {
+			return isStateInitialized;
 		}
 	}
 }

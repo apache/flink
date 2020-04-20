@@ -26,13 +26,16 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -76,12 +79,16 @@ public class StreamOperatorStateHandlerTest {
 			RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture = new CancelableFuture<>();
 			RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture = new CancelableFuture<>();
 			RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture = new CancelableFuture<>();
+			RunnableFuture<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>> inputChannelStateFuture = new CancelableFuture<>();
+			RunnableFuture<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>> resultSubpartitionStateFuture = new CancelableFuture<>();
 
 			OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 				keyedStateManagedFuture,
 				keyedStateRawFuture,
 				operatorStateManagedFuture,
-				operatorStateRawFuture);
+				operatorStateRawFuture,
+				inputChannelStateFuture,
+				resultSubpartitionStateFuture);
 
 			StateSnapshotContextSynchronousImpl context = new TestStateSnapshotContextSynchronousImpl(checkpointId, timestamp, closeableRegistry);
 			context.getRawKeyedOperatorStateOutput();
@@ -151,6 +158,8 @@ public class StreamOperatorStateHandlerTest {
 			assertTrue(operatorStateManagedFuture.isCancelled());
 			assertTrue(operatorStateRawFuture.isCancelled());
 			assertTrue(context.getOperatorStateStreamFuture().isCancelled());
+			assertTrue(inputChannelStateFuture.isCancelled());
+			assertTrue(resultSubpartitionStateFuture.isCancelled());
 
 			stateHandler.dispose();
 

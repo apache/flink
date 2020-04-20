@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -150,6 +151,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		partitionManager.registerResultPartition(this);
 	}
 
+	@Override
+	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		for (ResultSubpartition subpartition : subpartitions) {
+			subpartition.initializeState(stateReader);
+		}
+	}
+
 	public String getOwningTaskName() {
 		return owningTaskName;
 	}
@@ -158,8 +166,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return partitionId;
 	}
 
-	int getPartitionIndex() {
+	public int getPartitionIndex() {
 		return partitionIndex;
+	}
+
+	@Override
+	public ResultSubpartition getSubpartition(int subpartitionIndex) {
+		return subpartitions[subpartitionIndex];
 	}
 
 	@Override
@@ -200,7 +213,16 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+	public BufferBuilder tryGetBufferBuilder() throws IOException {
+		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder();
+		return bufferBuilder;
+	}
+
+	@Override
+	public boolean addBufferConsumer(
+			BufferConsumer bufferConsumer,
+			int subpartitionIndex,
+			boolean isPriorityEvent) throws IOException {
 		checkNotNull(bufferConsumer);
 
 		ResultSubpartition subpartition;
@@ -213,7 +235,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			throw ex;
 		}
 
-		return subpartition.add(bufferConsumer);
+		return subpartition.add(bufferConsumer, isPriorityEvent);
 	}
 
 	@Override

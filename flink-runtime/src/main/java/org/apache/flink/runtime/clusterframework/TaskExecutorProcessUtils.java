@@ -24,21 +24,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.LegacyMemoryOptions;
+import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemoryUtils;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -100,30 +98,6 @@ public class TaskExecutorProcessUtils {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Generating Slot Resource Profiles
-	// ------------------------------------------------------------------------
-
-	public static List<ResourceProfile> createDefaultWorkerSlotProfiles(
-			TaskExecutorProcessSpec taskExecutorProcessSpec,
-			int numberOfSlots) {
-		final ResourceProfile resourceProfile =
-			generateDefaultSlotResourceProfile(taskExecutorProcessSpec, numberOfSlots);
-		return Collections.nCopies(numberOfSlots, resourceProfile);
-	}
-
-	public static ResourceProfile generateDefaultSlotResourceProfile(
-			TaskExecutorProcessSpec taskExecutorProcessSpec,
-			int numberOfSlots) {
-		return ResourceProfile.newBuilder()
-			.setCpuCores(taskExecutorProcessSpec.getCpuCores().divide(numberOfSlots))
-			.setTaskHeapMemory(taskExecutorProcessSpec.getTaskHeapSize().divide(numberOfSlots))
-			.setTaskOffHeapMemory(taskExecutorProcessSpec.getTaskOffHeapSize().divide(numberOfSlots))
-			.setManagedMemory(taskExecutorProcessSpec.getManagedMemorySize().divide(numberOfSlots))
-			.setNetworkMemory(taskExecutorProcessSpec.getNetworkMemSize().divide(numberOfSlots))
-			.build();
-	}
-
-	// ------------------------------------------------------------------------
 	//  Memory Configuration Calculations
 	// ------------------------------------------------------------------------
 
@@ -133,6 +107,27 @@ public class TaskExecutorProcessUtils {
 
 	public static TaskExecutorProcessSpec processSpecFromConfig(final Configuration config) {
 		return createMemoryProcessSpec(config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
+	}
+
+	public static TaskExecutorProcessSpec processSpecFromWorkerResourceSpec(
+		final Configuration config, final WorkerResourceSpec workerResourceSpec) {
+
+		final MemorySize frameworkHeapMemorySize = TaskExecutorFlinkMemoryUtils.getFrameworkHeapMemorySize(config);
+		final MemorySize frameworkOffHeapMemorySize = TaskExecutorFlinkMemoryUtils.getFrameworkOffHeapMemorySize(config);
+
+		final TaskExecutorFlinkMemory flinkMemory = new TaskExecutorFlinkMemory(
+			frameworkHeapMemorySize,
+			frameworkOffHeapMemorySize,
+			workerResourceSpec.getTaskHeapSize(),
+			workerResourceSpec.getTaskOffHeapSize(),
+			workerResourceSpec.getNetworkMemSize(),
+			workerResourceSpec.getManagedMemSize());
+
+		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
+			PROCESS_MEMORY_UTILS.deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
+				config, flinkMemory.getTotalFlinkMemorySize());
+
+		return new TaskExecutorProcessSpec(workerResourceSpec.getCpuCores(), flinkMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static TaskExecutorProcessSpec createMemoryProcessSpec(

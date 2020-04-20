@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -100,12 +101,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	}
 
 	private CheckpointedInputGate createCheckpointedInputGate() {
-		InputGate[] inputGates = getEnvironment().getAllInputGates();
+		IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
 		return InputProcessorUtil.createCheckpointedInputGate(
 			this,
-			configuration.getCheckpointMode(),
+			configuration,
+			getChannelStateWriter(),
 			inputGate,
 			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),

@@ -67,7 +67,7 @@
                                          (seq (flink-configuration test node))))]
     (c/exec :echo c :> conf-file)
     ;; TODO: write log4j.properties properly
-    (c/exec (c/lit (str "sed -i'.bak' -e '/log4j.rootLogger=/ s/=.*/=DEBUG, file/' " install-dir "/conf/log4j.properties")))))
+    (c/exec (c/lit (str "sed -i'.bak' -e '/rootLogger\\.level/ s/=.*/= DEBUG/' " install-dir "/conf/log4j.properties")))))
 
 (defn- file-name
   [path]

@@ -62,10 +62,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	private final Time maxRegistrationDuration;
 
-	private final Time initialRegistrationPause;
-	private final Time maxRegistrationPause;
-	private final Time refusedRegistrationPause;
-
 	private final UnmodifiableConfiguration configuration;
 
 	private final boolean exitJvmOnOutOfMemory;
@@ -92,9 +88,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			String[] tmpDirectories,
 			Time timeout,
 			@Nullable Time maxRegistrationDuration,
-			Time initialRegistrationPause,
-			Time maxRegistrationPause,
-			Time refusedRegistrationPause,
 			Configuration configuration,
 			boolean exitJvmOnOutOfMemory,
 			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
@@ -110,9 +103,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maxRegistrationDuration = maxRegistrationDuration;
-		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
-		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
-		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 		this.classLoaderResolveOrder = classLoaderResolveOrder;
@@ -142,19 +132,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	public Time getMaxRegistrationDuration() {
 		return maxRegistrationDuration;
-	}
-
-	public Time getInitialRegistrationPause() {
-		return initialRegistrationPause;
-	}
-
-	@Nullable
-	public Time getMaxRegistrationPause() {
-		return maxRegistrationPause;
-	}
-
-	public Time getRefusedRegistrationPause() {
-		return refusedRegistrationPause;
 	}
 
 	@Override
@@ -235,33 +212,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			finiteRegistrationDuration = null;
 		}
 
-		final Time initialRegistrationPause;
-		try {
-			Duration pause = configuration.get(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF);
-			initialRegistrationPause = Time.milliseconds(pause.toMillis());
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
-		}
-
-		final Time maxRegistrationPause;
-		try {
-			Duration pause = configuration.get(TaskManagerOptions.REGISTRATION_MAX_BACKOFF);
-			maxRegistrationPause = Time.milliseconds(pause.toMillis());
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
-		}
-
-		final Time refusedRegistrationPause;
-		try {
-			Duration pause = configuration.get(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF);
-			refusedRegistrationPause = Time.milliseconds(pause.toMillis());
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
-		}
-
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
 		final String classLoaderResolveOrder =
@@ -296,9 +246,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			tmpDirPaths,
 			timeout,
 			finiteRegistrationDuration,
-			initialRegistrationPause,
-			maxRegistrationPause,
-			refusedRegistrationPause,
 			configuration,
 			exitOnOom,
 			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),

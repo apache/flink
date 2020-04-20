@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.harness
 import java.lang.{Integer => JInt}
 import java.util.concurrent.ConcurrentLinkedQueue
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -30,7 +29,6 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.dataview.StateMapView
 import org.apache.flink.table.runtime.aggregate.GroupAggProcessFunction
-import org.apache.flink.table.runtime.harness.HarnessTestBase.TestStreamQueryConfig
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.junit.Assert.assertTrue
@@ -40,7 +38,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class AggFunctionHarnessTest extends HarnessTestBase {
-  private val queryConfig = new TestStreamQueryConfig(Time.seconds(0), Time.seconds(0))
 
   @Test
   def testCollectAggregate(): Unit = {
@@ -62,7 +59,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
          |""".stripMargin)
 
     val testHarness = createHarnessTester[String, CRow, CRow](
-      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+      sqlQuery.toRetractStream[Row], "groupBy")
 
     testHarness.setStateBackend(getStateBackend)
     testHarness.open()
@@ -127,7 +124,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
          |""".stripMargin)
 
     val testHarness = createHarnessTester[String, CRow, CRow](
-      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+      sqlQuery.toRetractStream[Row], "groupBy")
 
     testHarness.setStateBackend(getStateBackend)
     testHarness.open()

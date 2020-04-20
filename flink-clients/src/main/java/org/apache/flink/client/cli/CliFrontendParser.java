@@ -124,7 +124,7 @@ public class CliFrontendParser {
 	public static final Option STOP_AND_DRAIN = new Option("d", "drain", false,
 			"Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
 
-	static final Option PY_OPTION = new Option("py", "python", true,
+	public static final Option PY_OPTION = new Option("py", "python", true,
 		"Python script with the program entry point. " +
 			"The dependent resources can be configured with the `--pyFiles` option.");
 
@@ -135,7 +135,7 @@ public class CliFrontendParser {
 			"Comma (',') could be used as the separator to specify multiple files " +
 			"(e.g.: --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip).");
 
-	static final Option PYMODULE_OPTION = new Option("pym", "pyModule", true,
+	public static final Option PYMODULE_OPTION = new Option("pym", "pyModule", true,
 		"Python module with the program entry point. " +
 			"This option must be used in conjunction with `--pyFiles`.");
 

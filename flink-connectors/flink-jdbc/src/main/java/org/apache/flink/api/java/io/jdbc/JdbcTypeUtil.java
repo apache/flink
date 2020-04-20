@@ -24,11 +24,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.inference.TypeTransformations;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Collections;
 import java.util.HashMap;
@@ -117,17 +115,7 @@ class JdbcTypeUtil {
 		schema.getTableColumns()
 			.forEach(c -> {
 				if (!c.isGenerated()) {
-					LogicalTypeRoot root = c.getType().getLogicalType().getTypeRoot();
-					final DataType type;
-					if (root == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-						type = c.getType().bridgedTo(Timestamp.class);
-					} else if (root == LogicalTypeRoot.DATE) {
-						type = c.getType().bridgedTo(Date.class);
-					} else if (root == LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE) {
-						type = c.getType().bridgedTo(Time.class);
-					} else {
-						type = c.getType();
-					}
+					final DataType type = DataTypeUtils.transform(c.getType(), TypeTransformations.timeToSqlTypes());
 					physicalSchemaBuilder.field(c.getName(), type);
 				}
 			});

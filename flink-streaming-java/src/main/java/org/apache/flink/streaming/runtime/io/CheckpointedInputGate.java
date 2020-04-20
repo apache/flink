@@ -23,14 +23,19 @@ import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -41,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link CheckpointBarrier} from the {@link InputGate}.
  */
 @Internal
-public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent> {
+public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent>, Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointedInputGate.class);
 
@@ -171,6 +176,18 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 		}
 	}
 
+	public List<Buffer> requestInflightBuffers(long checkpointId, int channelIndex) throws IOException {
+		if (((CheckpointBarrierUnaligner) barrierHandler).hasInflightData(checkpointId, channelIndex)) {
+			return inputGate.getChannel(channelIndex).requestInflightBuffers(checkpointId);
+		}
+
+		return Collections.emptyList();
+	}
+
+	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+		return ((CheckpointBarrierUnaligner) barrierHandler).getAllBarriersReceivedFuture(checkpointId);
+	}
+
 	private int offsetChannelIndex(int channelIndex) {
 		return channelIndex + channelIndexOffset;
 	}
@@ -210,8 +227,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 *
 	 * @throws IOException Thrown if the cleanup of I/O resources failed.
 	 */
-	public void cleanup() throws IOException {
+	public void close() throws IOException {
 		bufferStorage.close();
+		barrierHandler.close();
 	}
 
 	// ------------------------------------------------------------------------
@@ -262,5 +280,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	@Override
 	public String toString() {
 		return barrierHandler.toString();
+	}
+
+	public InputChannel getChannel(int channelIndex) {
+		return inputGate.getChannel(channelIndex);
 	}
 }

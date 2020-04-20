@@ -136,7 +136,7 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
 		return jvmMetaspaceAndOverhead;
 	}
 
-	private JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
+	public JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
 			Configuration config,
 			MemorySize totalFlinkMemorySize) {
 		MemorySize jvmMetaspaceSize = getMemorySizeFromConfig(config, options.getJvmOptions().getJvmMetaspaceOption());

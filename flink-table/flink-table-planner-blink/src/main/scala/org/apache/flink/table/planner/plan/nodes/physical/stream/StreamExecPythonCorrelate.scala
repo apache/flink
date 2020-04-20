@@ -81,7 +81,7 @@ class StreamExecPythonCorrelate(
       scan,
       "StreamExecPythonCorrelate",
       outputRowType,
-      getConfig(planner.getTableConfig),
+      getConfig(planner.getExecEnv, planner.getTableConfig),
       joinType)
   }
 }

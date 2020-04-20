@@ -80,7 +80,7 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 }
 
 /**
-* Parse a "Show Catalogs" metadata query command.
+* Parse a "Show DATABASES" metadata query command.
 */
 SqlShowDatabases SqlShowDatabases() :
 {
@@ -107,7 +107,9 @@ SqlUseDatabase SqlUseDatabase() :
 
 /**
 * Parses a create database statement.
-* CREATE DATABASE database_name [COMMENT database_comment] [WITH (property_name=property_value, ...)];
+* <pre>CREATE DATABASE database_name
+*       [COMMENT database_comment]
+*       [WITH (property_name=property_value, ...)].</pre>
 */
 SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 {
@@ -679,7 +681,7 @@ SqlNode RichSqlInsert() :
         keywordList = new SqlNodeList(keywords, s.addAll(keywords).pos());
         extendedKeywordList = new SqlNodeList(extendedKeywords, s.addAll(extendedKeywords).pos());
     }
-    table = CompoundIdentifier()
+    table = TableRefWithHintsOpt()
     [
         LOOKAHEAD(5)
         [ <EXTEND> ]

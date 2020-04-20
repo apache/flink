@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -36,7 +35,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -52,9 +51,8 @@ public final class JoinRecordStateViews {
 			String stateName,
 			JoinInputSideSpec inputSideSpec,
 			BaseRowTypeInfo recordType,
-			long retentionTime,
-			boolean stateCleaningEnabled) {
-		StateTtlConfig ttlConfig = createTtlConfig(retentionTime, stateCleaningEnabled);
+			long retentionTime) {
+		StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
 		if (inputSideSpec.hasUniqueKey()) {
 			if (inputSideSpec.joinKeyContainsUniqueKey()) {
 				return new JoinKeyContainsUniqueKey(ctx, stateName, recordType, ttlConfig);
@@ -72,18 +70,6 @@ public final class JoinRecordStateViews {
 		}
 	}
 
-	static StateTtlConfig createTtlConfig(long retentionTime, boolean stateCleaningEnabled) {
-		if (stateCleaningEnabled) {
-			checkArgument(retentionTime > 0);
-			return StateTtlConfig
-				.newBuilder(Time.milliseconds(retentionTime))
-				.setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-				.setStateVisibility(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp)
-				.build();
-		} else {
-			return StateTtlConfig.DISABLED;
-		}
-	}
 
 	// ------------------------------------------------------------------------------------
 
@@ -100,7 +86,7 @@ public final class JoinRecordStateViews {
 			ValueStateDescriptor<BaseRow> recordStateDesc = new ValueStateDescriptor<>(
 				stateName,
 				recordType);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getState(recordStateDesc);
@@ -148,7 +134,7 @@ public final class JoinRecordStateViews {
 				stateName,
 				uniqueKeyType,
 				recordType);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getMapState(recordStateDesc);
@@ -186,7 +172,7 @@ public final class JoinRecordStateViews {
 				stateName,
 				recordType,
 				Types.INT);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getMapState(recordStateDesc);

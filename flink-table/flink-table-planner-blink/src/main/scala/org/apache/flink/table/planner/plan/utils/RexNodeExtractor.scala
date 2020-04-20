@@ -402,8 +402,7 @@ class RexNodeToExpressionConverter(
         literal.getValue
     }
 
-    Some(valueLiteral(literalValue,
-      fromLogicalTypeToDataType(literalType)))
+    Some(valueLiteral(literalValue, fromLogicalTypeToDataType(literalType).notNull()))
   }
 
   override def visitCall(rexCall: RexCall): Option[ResolvedExpression] = {

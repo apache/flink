@@ -65,7 +65,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	private GeneratedRecordComparator generatedSortKeyComparator;
 	protected Comparator<BaseRow> sortKeyComparator;
 
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 	protected final boolean outputRankNumber;
 	protected final BaseRowTypeInfo inputRowType;
 	protected final KeySelector<BaseRow, BaseRow> sortKeySelector;
@@ -93,7 +93,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			boolean generateRetraction,
+			boolean generateUpdateBefore,
 			boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime);
 		// TODO support RANK and DENSE_RANK
@@ -129,7 +129,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 			throw new UnsupportedOperationException(WITHOUT_RANK_END_UNSUPPORTED_MSG);
 		}
 		this.generatedSortKeyComparator = generatedSortKeyComparator;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 		this.inputRowType = inputRowType;
 		this.outputRankNumber = outputRankNumber;
 		this.sortKeySelector = sortKeySelector;
@@ -249,8 +249,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	}
 
 	/**
-	 * This is similar to [[retract()]] but always send retraction message regardless of generateRetraction is true or
-	 * not.
+	 * Send DELETE messages.
 	 */
 	protected void delete(Collector<BaseRow> out, BaseRow inputRow) {
 		BaseRowUtil.setRetract(inputRow);
@@ -273,7 +272,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	}
 
 	protected void retract(Collector<BaseRow> out, BaseRow inputRow, long rank) {
-		if (generateRetraction && isInRankRange(rank)) {
+		if (generateUpdateBefore && isInRankRange(rank)) {
 			out.collect(createOutputRow(inputRow, rank, BaseRowUtil.RETRACT_MSG));
 		}
 	}

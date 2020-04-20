@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.Set;
 
@@ -55,8 +55,7 @@ public interface SchedulingStrategy {
 	/**
 	 * Called whenever an {@link IntermediateResultPartition} becomes consumable.
 	 *
-	 * @param executionVertexId The id of the producer
 	 * @param resultPartitionId The id of the result partition
 	 */
-	void onPartitionConsumable(ExecutionVertexID executionVertexId, ResultPartitionID resultPartitionId);
+	void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId);
 }

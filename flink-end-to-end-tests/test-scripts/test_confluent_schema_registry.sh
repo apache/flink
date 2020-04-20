@@ -78,7 +78,7 @@ create_kafka_topic 1 1 test-avro-out
 # Read Avro message from [test-avro-input], check the schema and send message to [test-string-ou]
 $FLINK_DIR/bin/flink run -d $TEST_PROGRAM_JAR \
   --input-topic test-avro-input --output-string-topic test-string-out --output-avro-topic test-avro-out --output-subject test-output-subject \
-  --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest \
+  --bootstrap.servers localhost:9092 --group.id myconsumer --auto.offset.reset earliest \
   --schema-registry-url ${SCHEMA_REGISTRY_URL}
 
 #echo "Reading messages from Kafka topic [test-string-ou] ..."

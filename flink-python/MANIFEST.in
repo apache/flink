@@ -30,3 +30,5 @@ include pyflink/LICENSE
 include pyflink/NOTICE
 include pyflink/README.txt
 recursive-exclude deps/opt/python *
+recursive-include pyflink/fn_execution *.pxd
+recursive-include pyflink/fn_execution *.pyx

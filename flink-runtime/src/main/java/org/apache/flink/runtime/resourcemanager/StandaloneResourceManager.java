@@ -21,10 +21,10 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -34,8 +34,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -56,11 +54,13 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
+			ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			Time startupPeriodTime) {
+			Time startupPeriodTime,
+			Time rpcTimeout) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -68,10 +68,12 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
+			clusterPartitionTrackerFactory,
 			jobLeaderIdService,
 			clusterInformation,
 			fatalErrorHandler,
-			resourceManagerMetricGroup);
+			resourceManagerMetricGroup,
+			rpcTimeout);
 		this.startupPeriodTime = Preconditions.checkNotNull(startupPeriodTime);
 	}
 
@@ -85,8 +87,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		return Collections.emptyList();
+	public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
+		return false;
 	}
 
 	@Override

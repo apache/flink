@@ -117,6 +117,11 @@ public class BufferBuilder {
 		return positionMarker.getCached() == getMaxCapacity();
 	}
 
+	public int getWritableBytes() {
+		checkState(positionMarker.getCached() <= getMaxCapacity());
+		return getMaxCapacity() - positionMarker.getCached();
+	}
+
 	public int getMaxCapacity() {
 		return memorySegment.size();
 	}

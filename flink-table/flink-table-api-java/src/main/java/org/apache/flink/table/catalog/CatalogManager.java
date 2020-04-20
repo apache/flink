@@ -529,16 +529,18 @@ public final class CatalogManager {
 	 *
 	 * @param table The table to put in the given path.
 	 * @param objectIdentifier The fully qualified path where to put the table.
-	 * @param replace controls what happens if a table exists in the given path,
-	 *                if true the table is replaced, an exception will be thrown otherwise
+	 * @param ignoreIfExists if false exception will be thrown if a table exists in the given path.
 	 */
 	public void createTemporaryTable(
 			CatalogBaseTable table,
 			ObjectIdentifier objectIdentifier,
-			boolean replace) {
+			boolean ignoreIfExists) {
 		temporaryTables.compute(objectIdentifier, (k, v) -> {
-			if (v != null && !replace) {
-				throw new ValidationException(String.format("Temporary table %s already exists", objectIdentifier));
+			if (v != null) {
+				if (!ignoreIfExists) {
+					throw new ValidationException(String.format("Temporary table %s already exists", objectIdentifier));
+				}
+				return v;
 			} else {
 				return table;
 			}
@@ -546,31 +548,28 @@ public final class CatalogManager {
 	}
 
 	/**
-	 * Qualifies the given {@link UnresolvedIdentifier} with current catalog & database and
-	 * removes a temporary table registered with this path if it exists.
+	 * Drop a temporary table in a given fully qualified path if it exists.
 	 *
-	 * @param identifier potentially unresolved identifier
+	 * @param objectIdentifier The fully qualified path of the table to drop
 	 * @return true if a table with a given identifier existed and was removed, false otherwise
 	 */
-	public boolean dropTemporaryTable(UnresolvedIdentifier identifier) {
-		return dropTemporaryTableInternal(identifier, (table) -> table instanceof CatalogTable);
+	public boolean dropTemporaryTable(ObjectIdentifier objectIdentifier) {
+		return dropTemporaryTableInternal(objectIdentifier, (table) -> table instanceof CatalogTable);
 	}
 
 	/**
-	 * Qualifies the given {@link UnresolvedIdentifier} with current catalog & database and
-	 * removes a temporary view registered with this path if it exists.
+	 * Drop a temporary view in a given fully qualified path if it exists.
 	 *
-	 * @param identifier potentially unresolved identifier
+	 * @param objectIdentifier potentially unresolved identifier
 	 * @return true if a view with a given identifier existed and was removed, false otherwise
 	 */
-	public boolean dropTemporaryView(UnresolvedIdentifier identifier) {
-		return dropTemporaryTableInternal(identifier, (table) -> table instanceof CatalogView);
+	public boolean dropTemporaryView(ObjectIdentifier objectIdentifier) {
+		return dropTemporaryTableInternal(objectIdentifier, (table) -> table instanceof CatalogView);
 	}
 
 	private boolean dropTemporaryTableInternal(
-			UnresolvedIdentifier unresolvedIdentifier,
+			ObjectIdentifier objectIdentifier,
 			Predicate<CatalogBaseTable> filter) {
-		ObjectIdentifier objectIdentifier = qualifyIdentifier(unresolvedIdentifier);
 		CatalogBaseTable catalogBaseTable = temporaryTables.get(objectIdentifier);
 		if (filter.test(catalogBaseTable)) {
 			temporaryTables.remove(objectIdentifier);

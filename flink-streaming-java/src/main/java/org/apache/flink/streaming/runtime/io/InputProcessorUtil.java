@@ -21,14 +21,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
@@ -39,7 +41,8 @@ public class InputProcessorUtil {
 
 	public static CheckpointedInputGate createCheckpointedInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
-			CheckpointingMode checkpointMode,
+			StreamConfig config,
+			ChannelStateWriter channelStateWriter,
 			InputGate inputGate,
 			Configuration taskManagerConfig,
 			TaskIOMetricGroup taskIOMetricGroup,
@@ -47,11 +50,16 @@ public class InputProcessorUtil {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
 
-		BufferStorage bufferStorage = createBufferStorage(
-			checkpointMode, pageSize, taskManagerConfig, taskName);
+		BufferStorage bufferStorage = createBufferStorage(config, pageSize, taskManagerConfig, taskName);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
-			checkpointMode, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
+			config,
+			IntStream.of(inputGate.getNumberOfInputChannels()),
+			channelStateWriter,
+			taskName,
+			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
+		barrierHandler.getBufferReceivedListener().ifPresent(inputGate::registerBufferReceivedListener);
 
 		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
 	}
@@ -62,7 +70,8 @@ public class InputProcessorUtil {
 	 */
 	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
 			AbstractInvokable toNotifyOnCheckpoint,
-			CheckpointingMode checkpointMode,
+			StreamConfig config,
+			ChannelStateWriter channelStateWriter,
 			Configuration taskManagerConfig,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName,
@@ -72,8 +81,7 @@ public class InputProcessorUtil {
 
 		BufferStorage[] mainBufferStorages = new BufferStorage[inputGates.length];
 		for (int i = 0; i < inputGates.length; i++) {
-			mainBufferStorages[i] = createBufferStorage(
-				checkpointMode, pageSize, taskManagerConfig, taskName);
+			mainBufferStorages[i] = createBufferStorage(config, pageSize, taskManagerConfig, taskName);
 		}
 
 		BufferStorage[] linkedBufferStorages = new BufferStorage[inputGates.length];
@@ -86,11 +94,18 @@ public class InputProcessorUtil {
 		}
 
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
-			checkpointMode,
-			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum(),
+			config,
+			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels),
+			channelStateWriter,
 			taskName,
 			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
+		barrierHandler.getBufferReceivedListener().ifPresent(listener -> {
+			for (final InputGate inputGate : inputGates) {
+				inputGate.registerBufferReceivedListener(listener);
+			}
+		});
 
 		CheckpointedInputGate[] checkpointedInputGates = new CheckpointedInputGate[inputGates.length];
 
@@ -113,30 +128,38 @@ public class InputProcessorUtil {
 	}
 
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
-			CheckpointingMode checkpointMode,
-			int numberOfInputChannels,
+			StreamConfig config,
+			IntStream numberOfInputChannelsPerGate,
+			ChannelStateWriter channelStateWriter,
 			String taskName,
 			AbstractInvokable toNotifyOnCheckpoint) {
-		switch (checkpointMode) {
+		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:
-				return new CheckpointBarrierAligner(
-					numberOfInputChannels,
-					taskName,
-					toNotifyOnCheckpoint);
+				if (config.isUnalignedCheckpointsEnabled()) {
+					return new CheckpointBarrierUnaligner(
+						numberOfInputChannelsPerGate.toArray(),
+						channelStateWriter,
+						taskName,
+						toNotifyOnCheckpoint);
+				}
+				return new CheckpointBarrierAligner(numberOfInputChannelsPerGate.sum(), taskName, toNotifyOnCheckpoint);
 			case AT_LEAST_ONCE:
-				return new CheckpointBarrierTracker(numberOfInputChannels, toNotifyOnCheckpoint);
+				return new CheckpointBarrierTracker(numberOfInputChannelsPerGate.sum(), toNotifyOnCheckpoint);
 			default:
-				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + checkpointMode);
+				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
 		}
 	}
 
 	private static BufferStorage createBufferStorage(
-			CheckpointingMode checkpointMode,
+			StreamConfig config,
 			int pageSize,
 			Configuration taskManagerConfig,
 			String taskName) {
-		switch (checkpointMode) {
-			case EXACTLY_ONCE: {
+		switch (config.getCheckpointMode()) {
+			case EXACTLY_ONCE:
+				if (config.isUnalignedCheckpointsEnabled()) {
+					return new EmptyBufferStorage();
+				}
 				long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
 				if (!(maxAlign == -1 || maxAlign > 0)) {
 					throw new IllegalConfigurationException(
@@ -144,11 +167,10 @@ public class InputProcessorUtil {
 							+ " must be positive or -1 (infinite)");
 				}
 				return new CachedBufferStorage(pageSize, maxAlign, taskName);
-			}
 			case AT_LEAST_ONCE:
 				return new EmptyBufferStorage();
 			default:
-				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + checkpointMode);
+				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
 		}
 	}
 

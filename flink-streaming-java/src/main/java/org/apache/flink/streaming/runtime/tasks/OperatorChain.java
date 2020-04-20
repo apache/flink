@@ -24,10 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -249,17 +247,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 	}
 
-	public void broadcastCheckpointBarrier(long id, long timestamp, CheckpointOptions checkpointOptions) throws IOException {
-		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, checkpointOptions);
-		for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-			streamOutput.broadcastEvent(barrier);
-		}
+	public void broadcastEvent(AbstractEvent event) throws IOException {
+		broadcastEvent(event, false);
 	}
 
-	public void broadcastCheckpointCancelMarker(long id) throws IOException {
-		CancelCheckpointMarker barrier = new CancelCheckpointMarker(id);
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
 		for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-			streamOutput.broadcastEvent(barrier);
+			streamOutput.broadcastEvent(event, isPriorityEvent);
 		}
 	}
 
@@ -542,6 +536,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			operator,
 			processingTimeService,
 			containingTask.getMailboxExecutorFactory().createExecutor(operatorConfig.getChainIndex()));
+	}
+
+	@Nullable
+	StreamOperator<?> getTailOperator() {
+		return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
 	}
 
 	// ------------------------------------------------------------------------

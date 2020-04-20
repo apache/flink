@@ -21,8 +21,10 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -153,7 +155,7 @@ public class RocksDBStateBackendConfigTest {
 
 		// Fix the default
 		Assert.assertEquals(
-			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString(),
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
 			RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
 
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
@@ -163,9 +165,7 @@ public class RocksDBStateBackendConfigTest {
 		keyedBackend.dispose();
 
 		Configuration conf = new Configuration();
-		conf.setString(
-			RocksDBOptions.TIMER_SERVICE_FACTORY,
-			RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
+		conf.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.HEAP);
 
 		rocksDbBackend = rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
 		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
@@ -190,7 +190,7 @@ public class RocksDBStateBackendConfigTest {
 		// priorityQueueStateType in the cluster config
 		final Configuration configFromConfFile = new Configuration();
 		configFromConfFile.setString(
-			RocksDBOptions.TIMER_SERVICE_FACTORY,
+			RocksDBOptions.TIMER_SERVICE_FACTORY.key(),
 			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
 
 		// configure final backend from job and cluster config
@@ -547,7 +547,7 @@ public class RocksDBStateBackendConfigTest {
 		// verify that user-defined options factory could be configured via flink-conf.yaml
 		Configuration config = new Configuration();
 		config.setString(RocksDBOptions.OPTIONS_FACTORY.key(), TestOptionsFactory.class.getName());
-		config.setInteger(TestOptionsFactory.BACKGROUND_JOBS_OPTION, 4);
+		config.setString(TestOptionsFactory.BACKGROUND_JOBS_OPTION.key(), "4");
 
 		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader());
 
@@ -776,10 +776,12 @@ public class RocksDBStateBackendConfigTest {
 	 * An implementation of options factory for testing.
 	 */
 	public static class TestOptionsFactory implements ConfigurableRocksDBOptionsFactory {
-		public static final String BACKGROUND_JOBS_OPTION = "my.custom.rocksdb.backgroundJobs";
+		public static final ConfigOption<Integer> BACKGROUND_JOBS_OPTION =
+			ConfigOptions.key("my.custom.rocksdb.backgroundJobs")
+				.intType()
+				.defaultValue(2);
 
-		private static final int DEFAULT_BACKGROUND_JOBS = 2;
-		private int backgroundJobs = DEFAULT_BACKGROUND_JOBS;
+		private int backgroundJobs = BACKGROUND_JOBS_OPTION.defaultValue();
 
 		@Override
 		public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
@@ -792,8 +794,8 @@ public class RocksDBStateBackendConfigTest {
 		}
 
 		@Override
-		public RocksDBOptionsFactory configure(Configuration configuration) {
-			this.backgroundJobs = configuration.getInteger(BACKGROUND_JOBS_OPTION, DEFAULT_BACKGROUND_JOBS);
+		public RocksDBOptionsFactory configure(ReadableConfig configuration) {
+			this.backgroundJobs = configuration.get(BACKGROUND_JOBS_OPTION);
 			return this;
 		}
 	}

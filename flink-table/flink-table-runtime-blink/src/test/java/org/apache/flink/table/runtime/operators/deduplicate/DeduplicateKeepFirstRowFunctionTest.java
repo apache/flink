@@ -44,8 +44,7 @@ public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTest
 
 	@Test
 	public void test() throws Exception {
-		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds(),
-				maxTime.toMilliseconds());
+		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 1L, 12));
@@ -60,4 +59,28 @@ public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTest
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
+	@Test
+	public void testWithStateTtl() throws Exception {
+		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(record("book", 1L, 12));
+		testHarness.processElement(record("book", 2L, 11));
+		testHarness.processElement(record("book", 1L, 13));
+
+		testHarness.setStateTtlProcessingTime(30);
+		testHarness.processElement(record("book", 1L, 17));
+		testHarness.processElement(record("book", 2L, 18));
+		testHarness.processElement(record("book", 1L, 19));
+
+		// Keep FirstRow in deduplicate will not send retraction
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("book", 2L, 11));
+		//(1L,12),(2L,11) has retired, so output (1L,17) and (2L,18)
+		expectedOutput.add(record("book", 1L, 17));
+		expectedOutput.add(record("book", 2L, 18));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+		testHarness.close();
+	}
 }

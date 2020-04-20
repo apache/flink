@@ -67,7 +67,7 @@ Row-encoded formats need to specify an [Encoder]({{ site.javadocs_baseurl }}/api
 
 In addition to the bucket assigner the [RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.RowFormatBuilder.html) allows the user to specify:
 
- - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) : Rolling polciy to override the DefaultRollingPolicy
+ - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) : Rolling policy to override the DefaultRollingPolicy
  - bucketCheckInterval (default = 1 min) : Millisecond interval for checking time based rolling policies
 
 Basic usage for writing String elements thus looks like this:

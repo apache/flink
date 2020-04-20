@@ -36,9 +36,11 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
  */
 public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestBase {
 
-	private DeduplicateKeepLastRowFunction createFunction(boolean generateRetraction) {
-		return new DeduplicateKeepLastRowFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
-				generateRetraction);
+	private DeduplicateKeepLastRowFunction createFunction(boolean generateUpdateBefore) {
+		return new DeduplicateKeepLastRowFunction(
+			minTime.toMilliseconds(),
+			inputRowType,
+			generateUpdateBefore);
 	}
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
@@ -49,7 +51,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 	}
 
 	@Test
-	public void testWithoutGenerateRetraction() throws Exception {
+	public void testWithoutGenerateUpdateBefore() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -66,7 +68,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 	}
 
 	@Test
-	public void testWithGenerateRetraction() throws Exception {
+	public void testWithGenerateUpdateBefore() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -82,5 +84,34 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		expectedOutput.add(record("book", 1L, 13));
 		expectedOutput.add(record("book", 2L, 11));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
+	public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
+		DeduplicateKeepLastRowFunction func = createFunction(true);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(record("book", 1L, 12));
+		testHarness.processElement(record("book", 2L, 11));
+		testHarness.processElement(record("book", 1L, 13));
+
+		testHarness.setStateTtlProcessingTime(30);
+		testHarness.processElement(record("book", 1L, 17));
+		testHarness.processElement(record("book", 2L, 18));
+		testHarness.processElement(record("book", 1L, 19));
+
+		// Keep LastRow in deduplicate may send retraction
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(retractRecord("book", 1L, 12));
+		expectedOutput.add(record("book", 1L, 13));
+		expectedOutput.add(record("book", 2L, 11));
+		// because (2L,11), (1L,13) retired, so there is no retract message send to downstream
+		expectedOutput.add(record("book", 1L, 17));
+		expectedOutput.add(retractRecord("book", 1L, 17));
+		expectedOutput.add(record("book", 1L, 19));
+		expectedOutput.add(record("book", 2L, 18));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+		testHarness.close();
 	}
 }

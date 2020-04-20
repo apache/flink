@@ -26,13 +26,16 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -88,6 +91,235 @@ public interface TableEnvironment {
 	static TableEnvironment create(EnvironmentSettings settings) {
 		return TableEnvironmentImpl.create(settings);
 	}
+
+	/**
+	 * Creates a Table from given values.
+	 *
+	 * <p>Examples:
+	 *
+	 * <p>You can use a {@code row(...)} expression to create a composite rows:
+	 * <pre>{@code
+	 *  tEnv.fromValues(
+	 *      row(1, "ABC"),
+	 *      row(2L, "ABCDE")
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
+	 *  |-- f1: VARCHAR(5) NOT NULL // original types CHAR(3) and CHAR(5) are generalized to VARCHAR(5)
+	 *                              // it uses VARCHAR instead of CHAR so that no padding is applied
+	 * }</pre>
+	 *
+	 * <p>The method will derive the types automatically from the input expressions. If types
+	 * at a certain position differ, the method will try to find a common super type for all types. If a common
+	 * super type does not exist, an exception will be thrown. If you want to specify the requested type explicitly
+	 * see {@link #fromValues(DataType, Object...)}.
+	 *
+	 * <p>It is also possible to use {@link org.apache.flink.types.Row} object instead of
+	 * {@code row} expressions.
+	 *
+	 * <p>ROWs that are a result of e.g. a function call are not flattened
+	 * <pre>{@code
+	 *  public class RowFunction extends ScalarFunction {
+	 *      {@literal @}DataTypeHint("ROW<f0 BIGINT, f1 VARCHAR(5)>")
+	 *      Row eval();
+	 *  }
+	 *
+	 *  tEnv.fromValues(
+	 *      call(new RowFunction()),
+	 *      call(new RowFunction())
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- f0: ROW<`f0` BIGINT, `f1` VARCHAR(5)>
+	 * }</pre>
+	 *
+	 * <p>The row constructor can be dropped to create a table with a single column:
+	 *
+	 * <p>ROWs that are a result of e.g. a function call are not flattened
+	 * <pre>{@code
+	 *  tEnv.fromValues(
+	 *      1,
+	 *      2L,
+	 *      3
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- f0: BIGINT NOT NULL
+	 * }</pre>
+	 *
+	 * @param values Expressions for constructing rows of the VALUES table.
+	 */
+	default Table fromValues(Object... values) {
+		// It is necessary here to implement TableEnvironment#fromValues(Object...) for BatchTableEnvImpl.
+		// In scala varargs are translated to Seq. Due to the type erasure Seq<Expression> and Seq<Object>
+		// are the same. It is not a problem in java as varargs in java are translated to an array.
+		return fromValues(Arrays.asList(values));
+	}
+
+	/**
+	 * Creates a Table from given collection of objects with a given row type.
+	 *
+	 * <p>The difference between this method and {@link #fromValues(Object...)} is that the schema
+	 * can be manually adjusted. It might be helpful for assigning more generic types like
+	 * e.g. DECIMAL or naming the columns.
+	 *
+	 * <p>Examples:
+	 * <pre>{@code
+	 *  tEnv.fromValues(
+	 *      DataTypes.ROW(
+	 *          DataTypes.FIELD("id", DataTypes.DECIMAL(10, 2)),
+	 *          DataTypes.FIELD("name", DataTypes.STRING())
+	 *      ),
+	 *      row(1, "ABC"),
+	 *      row(2L, "ABCDE")
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- id: DECIMAL(10, 2)
+	 *  |-- f1: STRING
+	 * }</pre>
+	 *
+	 * <p>For more examples see {@link #fromValues(Object...)}.
+	 *
+	 * @param rowType Expected row type for the values.
+	 * @param values Expressions for constructing rows of the VALUES table.
+	 * @see #fromValues(Object...)
+	 */
+	default Table fromValues(DataType rowType, Object... values) {
+		// It is necessary here to implement TableEnvironment#fromValues(Object...) for BatchTableEnvImpl.
+		// In scala varargs are translated to Seq. Due to the type erasure Seq<Expression> and Seq<Object>
+		// are the same. It is not a problem in java as varargs in java are translated to an array.
+		return fromValues(rowType, Arrays.asList(values));
+	}
+
+	/**
+	 * Creates a Table from given values.
+	 *
+	 * <p>Examples:
+	 *
+	 * <p>You can use a {@code row(...)} expression to create a composite rows:
+	 * <pre>{@code
+	 *  tEnv.fromValues(
+	 *      row(1, "ABC"),
+	 *      row(2L, "ABCDE")
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
+	 *  |-- f1: VARCHAR(5) NOT NULL // original types CHAR(3) and CHAR(5) are generalized to VARCHAR(5)
+	 * 	 *                          // it uses VARCHAR instead of CHAR so that no padding is applied
+	 * }</pre>
+	 *
+	 * <p>The method will derive the types automatically from the input expressions. If types
+	 * at a certain position differ, the method will try to find a common super type for all types. If a common
+	 * super type does not exist, an exception will be thrown. If you want to specify the requested type explicitly
+	 * see {@link #fromValues(DataType, Expression...)}.
+	 *
+	 * <p>It is also possible to use {@link org.apache.flink.types.Row} object instead of
+	 * {@code row} expressions.
+	 *
+	 * <p>ROWs that are a result of e.g. a function call are not flattened
+	 * <pre>{@code
+	 *  public class RowFunction extends ScalarFunction {
+	 *      {@literal @}DataTypeHint("ROW<f0 BIGINT, f1 VARCHAR(5)>")
+	 *      Row eval();
+	 *  }
+	 *
+	 *  tEnv.fromValues(
+	 *      call(new RowFunction()),
+	 *      call(new RowFunction())
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- f0: ROW<`f0` BIGINT, `f1` VARCHAR(5)>
+	 * }</pre>
+	 *
+	 * <p>The row constructor can be dropped to create a table with a single column:
+	 *
+	 * <p>ROWs that are a result of e.g. a function call are not flattened
+	 * <pre>{@code
+	 *  tEnv.fromValues(
+	 *      lit(1).plus(2),
+	 *      lit(2L),
+	 *      lit(3)
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- f0: BIGINT NOT NULL
+	 * }</pre>
+	 *
+	 * @param values Expressions for constructing rows of the VALUES table.
+	 */
+	Table fromValues(Expression... values);
+
+	/**
+	 * Creates a Table from given collection of objects with a given row type.
+	 *
+	 * <p>The difference between this method and {@link #fromValues(Expression...)} is that the
+	 * schema can be manually adjusted. It might be helpful for assigning more generic types like
+	 * e.g. DECIMAL or naming the columns.
+	 *
+	 * <p>Examples:
+	 * <pre>{@code
+	 *  tEnv.fromValues(
+	 *      DataTypes.ROW(
+	 *          DataTypes.FIELD("id", DataTypes.DECIMAL(10, 2)),
+	 *          DataTypes.FIELD("name", DataTypes.STRING())
+	 *      ),
+	 *      row(1, "ABC"),
+	 *      row(2L, "ABCDE")
+	 *  )
+	 * }</pre>
+	 * will produce a Table with a schema as follows:
+	 * <pre>{@code
+	 *  root
+	 *  |-- id: DECIMAL(10, 2)
+	 *  |-- name: STRING
+	 * }</pre>
+	 *
+	 * <p>For more examples see {@link #fromValues(Expression...)}.
+	 *
+	 * @param rowType Expected row type for the values.
+	 * @param values Expressions for constructing rows of the VALUES table.
+	 * @see #fromValues(Expression...)
+	 */
+	Table fromValues(DataType rowType, Expression... values);
+
+	/**
+	 * Creates a Table from given collection of objects.
+	 *
+	 * <p>See {@link #fromValues(Object...)} for more explanation.
+	 *
+	 * @param values Expressions for constructing rows of the VALUES table.
+	 * @see #fromValues(Object...)
+	 */
+	Table fromValues(Iterable<?> values);
+
+	/**
+	 * Creates a Table from given collection of objects with a given row type.
+	 *
+	 * <p>See {@link #fromValues(DataType, Object...)} for more explanation.
+	 *
+	 * @param rowType Expected row type for the values.
+	 * @param values Expressions for constructing rows of the VALUES table.
+	 * @see #fromValues(DataType, Object...)
+	 */
+	Table fromValues(DataType rowType, Iterable<?> values);
 
 	/**
 	 * Creates a table from a table source.
@@ -636,6 +868,19 @@ public interface TableEnvironment {
 	Table sqlQuery(String query);
 
 	/**
+	 * Execute the given single statement, and return the execution result.
+	 *
+	 * <p>The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE.
+	 * For DML and DQL, this method returns TableResult once the job has been submitted.
+	 * For DDL and DCL statements, TableResult is returned once the operation has finished.
+	 *
+	 * @return content for DQL/SHOW/DESCRIBE/EXPLAIN,
+	 *         the affected row count for `DML` (-1 means unknown),
+	 *         or a string message ("OK") for other statements.
+	 */
+	TableResult executeSql(String statement);
+
+	/**
 	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
 	 * NOTE: Currently only SQL INSERT statements and CREATE TABLE statements are supported.
 	 *
@@ -689,7 +934,6 @@ public interface TableEnvironment {
 	 *                        'connector.type' = 'kafka',
 	 *                        'update-mode' = 'append',
 	 *                        'connector.topic' = 'xxx',
-	 *                        'connector.properties.zookeeper.connect' = 'localhost:2181',
 	 *                        'connector.properties.bootstrap.servers' = 'localhost:9092',
 	 *                        ...
 	 *                      )";

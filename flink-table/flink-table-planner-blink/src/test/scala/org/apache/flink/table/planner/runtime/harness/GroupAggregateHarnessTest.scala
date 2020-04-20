@@ -64,8 +64,8 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
-    val testHarness = createHarnessTester(t1.toRetractStream[Row](queryConfig), "GroupAggregate")
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
+    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
     val assertor = new BaseRowHarnessAssertor(Array( Types.STRING, Types.LONG))
 
     testHarness.open()

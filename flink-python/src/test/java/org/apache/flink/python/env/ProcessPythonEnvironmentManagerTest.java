@@ -42,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYFLINK_GATEWAY_DISABLED;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_ARCHIVES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_FILES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_CACHE;
@@ -156,7 +157,7 @@ public class ProcessPythonEnvironmentManagerTest {
 		pythonFiles.put(String.join(File.separator, tmpDir, "file2"), "test_file3.egg");
 		pythonFiles.put(String.join(File.separator, tmpDir, "dir0"), "test_dir");
 		PythonDependencyInfo dependencyInfo = new PythonDependencyInfo(
-			pythonFiles, null, null, new HashMap<>(), null);
+			pythonFiles, null, null, new HashMap<>(), "python");
 
 		try (ProcessPythonEnvironmentManager environmentManager = createBasicPythonEnvironmentManager(dependencyInfo)) {
 			environmentManager.open();
@@ -196,7 +197,7 @@ public class ProcessPythonEnvironmentManagerTest {
 			String.join(File.separator, tmpDir, "file0"),
 			String.join(File.separator, tmpDir, "dir0"),
 			new HashMap<>(),
-			null);
+			"python");
 
 		try (ProcessPythonEnvironmentManager environmentManager = createBasicPythonEnvironmentManager(dependencyInfo)) {
 			environmentManager.open();
@@ -220,7 +221,7 @@ public class ProcessPythonEnvironmentManagerTest {
 		archives.put(String.join(File.separator, tmpDir, "zip0"), "py27.zip");
 		archives.put(String.join(File.separator, tmpDir, "zip1"), "py37");
 		PythonDependencyInfo dependencyInfo = new PythonDependencyInfo(
-			new HashMap<>(), null, null, archives, null);
+			new HashMap<>(), null, null, archives, "python");
 
 		try (ProcessPythonEnvironmentManager environmentManager = createBasicPythonEnvironmentManager(dependencyInfo)) {
 			environmentManager.open();
@@ -257,7 +258,7 @@ public class ProcessPythonEnvironmentManagerTest {
 	@Test
 	public void testCreateEnvironment() throws Exception {
 		PythonDependencyInfo dependencyInfo = new PythonDependencyInfo(
-			new HashMap<>(), null, null, new HashMap<>(), null);
+			new HashMap<>(), null, null, new HashMap<>(), "python");
 
 		try (ProcessPythonEnvironmentManager environmentManager = createBasicPythonEnvironmentManager(dependencyInfo)) {
 			environmentManager.open();
@@ -279,7 +280,7 @@ public class ProcessPythonEnvironmentManagerTest {
 			null,
 			null,
 			new HashMap<>(),
-			null);
+			"python");
 		Map<String, String> sysEnv = new HashMap<>();
 		sysEnv.put("FLINK_HOME", "/flink");
 
@@ -304,7 +305,7 @@ public class ProcessPythonEnvironmentManagerTest {
 			null,
 			null,
 			new HashMap<>(),
-			null);
+			"python");
 
 		try (ProcessPythonEnvironmentManager environmentManager = new ProcessPythonEnvironmentManager(
 				dependencyInfo, new String[] {tmpDir}, new HashMap<>())) {
@@ -323,7 +324,7 @@ public class ProcessPythonEnvironmentManagerTest {
 			null,
 			null,
 			new HashMap<>(),
-			null);
+			"python");
 
 		try (ProcessPythonEnvironmentManager environmentManager = createBasicPythonEnvironmentManager(dependencyInfo)) {
 			environmentManager.open();
@@ -377,7 +378,9 @@ public class ProcessPythonEnvironmentManagerTest {
 	private static Map<String, String> getBasicExpectedEnv(ProcessPythonEnvironmentManager environmentManager) {
 		Map<String, String> map = new HashMap<>();
 		String tmpBase = environmentManager.getBaseDirectory();
+		map.put("python", "python");
 		map.put("BOOT_LOG_DIR", tmpBase);
+		map.put(PYFLINK_GATEWAY_DISABLED, "true");
 		return map;
 	}
 

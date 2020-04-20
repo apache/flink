@@ -23,7 +23,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
@@ -34,15 +33,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Adapter of {@link ExecutionGraph} to {@link SchedulingTopology} and {@link FailoverTopology}.
+ * Adapter of {@link ExecutionGraph} to {@link SchedulingTopology}.
  */
-public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecutionVertex, DefaultResultPartition>,
-		FailoverTopology<DefaultExecutionVertex, DefaultResultPartition> {
+public class DefaultExecutionTopology implements SchedulingTopology {
 
 	private final boolean containsCoLocationConstraints;
 
@@ -90,13 +87,21 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 	}
 
 	@Override
-	public Optional<DefaultExecutionVertex> getVertex(ExecutionVertexID executionVertexId) {
-		return Optional.ofNullable(executionVerticesById.get(executionVertexId));
+	public DefaultExecutionVertex getVertex(final ExecutionVertexID executionVertexId) {
+		final DefaultExecutionVertex executionVertex = executionVerticesById.get(executionVertexId);
+		if (executionVertex == null) {
+			throw new IllegalArgumentException("can not find vertex: " + executionVertexId);
+		}
+		return executionVertex;
 	}
 
 	@Override
-	public Optional<DefaultResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId) {
-		return Optional.ofNullable(resultPartitionsById.get(intermediateResultPartitionId));
+	public DefaultResultPartition getResultPartition(final IntermediateResultPartitionID intermediateResultPartitionId) {
+		final DefaultResultPartition resultPartition = resultPartitionsById.get(intermediateResultPartitionId);
+		if (resultPartition == null) {
+			throw new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId);
+		}
+		return resultPartition;
 	}
 
 	private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(

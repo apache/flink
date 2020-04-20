@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -57,7 +58,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 		TypeSerializer<?>[] inputDeserializers = configuration.getTypeSerializersIn(userClassLoader);
 
-		ArrayList<InputGate>[] inputLists = new ArrayList[inputDeserializers.length];
+		ArrayList<IndexedInputGate>[] inputLists = new ArrayList[inputDeserializers.length];
 		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputDeserializers.length];
 
 		for (int i = 0; i < inputDeserializers.length; i++) {
@@ -74,7 +75,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();
-			InputGate reader = getEnvironment().getInputGate(i);
+			IndexedInputGate reader = getEnvironment().getInputGate(i);
 			inputLists[inputType - 1].add(reader);
 		}
 
@@ -85,7 +86,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 	}
 
 	protected void createInputProcessor(
-			Collection<InputGate>[] inputGates,
+			Collection<IndexedInputGate>[] inputGates,
 			TypeSerializer<?>[] inputDeserializers,
 			WatermarkGauge[] inputWatermarkGauges) {
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
@@ -94,12 +95,13 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 		InputGate[] unionedInputGates = new InputGate[inputGates.length];
 		for (int i = 0; i < inputGates.length; i++) {
-			unionedInputGates[i] = InputGateUtil.createInputGate(inputGates[i].toArray(new InputGate[0]));
+			unionedInputGates[i] = InputGateUtil.createInputGate(inputGates[i].toArray(new IndexedInputGate[0]));
 		}
 
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
 			this,
-			getConfiguration().getCheckpointMode(),
+			getConfiguration(),
+			getChannelStateWriter(),
 			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),

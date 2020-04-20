@@ -16,13 +16,14 @@
 # limitations under the License.
 ################################################################################
 import os
+import sys
 import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class, get_method
 
-from pyflink.common.dependency_manager import DependencyManager
+from pyflink.common import JobExecutionResult
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.table_config import TableConfig
@@ -33,6 +34,7 @@ from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter
 from pyflink.util import utils
+from pyflink.util.utils import get_j_env_configuration, is_local_deployment
 
 __all__ = [
     'BatchTableEnvironment',
@@ -79,9 +81,10 @@ class TableEnvironment(object):
         self._j_tenv = j_tenv
         self._is_blink_planner = TableEnvironment._judge_blink_planner(j_tenv)
         self._serializer = serializer
-        self._dependency_manager = DependencyManager(self.get_config().get_configuration(),
-                                                     self._get_j_env())
-        self._dependency_manager.load_from_env(os.environ)
+        # When running in MiniCluster, launch the Python UDF worker using the Python executable
+        # specified by sys.executable if users have not specified it explicitly via configuration
+        # python.executable.
+        self._set_python_executable_for_local_executor()
 
     @staticmethod
     def _judge_blink_planner(j_tenv):
@@ -476,6 +479,20 @@ class TableEnvironment(object):
         j_table = self._j_tenv.sqlQuery(query)
         return Table(j_table)
 
+    def execute_sql(self, stmt):
+        """
+        Execute the given single statement, and return the execution result.
+
+        The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE.
+        For DML and DQL, this method returns TableResult once the job has been submitted.
+        For DDL and DCL statements, TableResult is returned once the operation has finished.
+
+        :return content for DQL/SHOW/DESCRIBE/EXPLAIN,
+                the affected row count for `DML` (-1 means unknown),
+                or a string message ("OK") for other statements.
+        """
+        return self._j_tenv.executeSql(stmt)
+
     def sql_update(self, stmt):
         """
         Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
@@ -522,7 +539,6 @@ class TableEnvironment(object):
             ...     'connector.type' = 'kafka',
             ...     'update-mode' = 'append',
             ...     'connector.topic' = 'xxx',
-            ...     'connector.properties.zookeeper.connect' = 'localhost:2181',
             ...     'connector.properties.bootstrap.servers' = 'localhost:9092'
             ... )
             ... '''
@@ -803,7 +819,15 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._dependency_manager.add_python_file(file_path)
+        jvm = get_gateway().jvm
+        python_files = self.get_config().get_configuration().get_string(
+            jvm.PythonOptions.PYTHON_FILES.key(), None)
+        if python_files is not None:
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([python_files, file_path])
+        else:
+            python_files = file_path
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
     def set_python_requirements(self, requirements_file_path, requirements_cache_dir=None):
         """
@@ -841,8 +865,13 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._dependency_manager.set_python_requirements(requirements_file_path,
-                                                         requirements_cache_dir)
+        jvm = get_gateway().jvm
+        python_requirements = requirements_file_path
+        if requirements_cache_dir is not None:
+            python_requirements = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
+                [python_requirements, requirements_cache_dir])
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
     def add_python_archive(self, archive_path, target_dir=None):
         """
@@ -897,7 +926,19 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._dependency_manager.add_python_archive(archive_path, target_dir)
+        jvm = get_gateway().jvm
+        if target_dir is not None:
+            archive_path = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
+                [archive_path, target_dir])
+        python_archives = self.get_config().get_configuration().get_string(
+            jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
+        if python_archives is not None:
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join(
+                [python_archives, archive_path])
+        else:
+            python_files = archive_path
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
 
     def execute(self, job_name):
         """
@@ -918,8 +959,9 @@ class TableEnvironment(object):
 
         :param job_name: Desired name of the job.
         :type job_name: str
+        :return: The result of the job execution, containing elapsed time and accumulators.
         """
-        self._j_tenv.execute(job_name)
+        return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements, schema=None, verify_schema=True):
         """
@@ -1059,6 +1101,13 @@ class TableEnvironment(object):
             return Table(self._j_tenv.fromTableSource(j_table_source))
         finally:
             os.unlink(temp_file.name)
+
+    def _set_python_executable_for_local_executor(self):
+        jvm = get_gateway().jvm
+        j_config = get_j_env_configuration(self)
+        if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
+                and is_local_deployment(j_config):
+            j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
 
     @abstractmethod
     def _get_j_env(self):

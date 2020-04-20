@@ -20,13 +20,13 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.grpc:grpc-protobuf:1.21.0
 - io.grpc:grpc-stub:1.21.0
 - io.grpc:grpc-testing:1.21.0
-- io.netty:netty-buffer:4.1.27.Final
+- io.netty:netty-buffer:4.1.44.Final
 - io.netty:netty-buffer:4.1.34.Final
 - io.netty:netty-codec:4.1.34.Final
 - io.netty:netty-codec-http:4.1.34.Final
 - io.netty:netty-codec-http2:4.1.34.Final
 - io.netty:netty-codec-socks:4.1.34.Final
-- io.netty:netty-common:4.1.27.Final
+- io.netty:netty-common:4.1.44.Final
 - io.netty:netty-common:4.1.34.Final
 - io.netty:netty-handler:4.1.34.Final
 - io.netty:netty-handler-proxy:4.1.34.Final

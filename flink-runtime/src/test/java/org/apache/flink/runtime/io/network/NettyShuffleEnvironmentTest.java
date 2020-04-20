@@ -25,8 +25,10 @@ import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -127,21 +129,29 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		SingleInputGate ig2 = createSingleInputGate(network, ResultPartitionType.BLOCKING, channels);
 		SingleInputGate ig3 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, channels);
 		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, rp4Channels);
+		InputChannel[] ic1 = new InputChannel[channels];
+		InputChannel[] ic2 = new InputChannel[channels];
+		InputChannel[] ic3 = new InputChannel[channels];
+		InputChannel[] ic4 = new InputChannel[rp4Channels];
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
-		createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
+		ic4[0] = createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
+		ic4[1] = createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
+		ic4[2] = createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
+		ic4[3] = createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
+		ig4.setInputChannels(ic4);
 
-		createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
+		ic1[0] = createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
+		ic1[1] = createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
+		ig1.setInputChannels(ic1);
 
-		createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
+		ic2[0] = createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
+		ic2[1] = createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
+		ig2.setInputChannels(ic2);
 
-		createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
+		ic3[0] = createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
+		ic3[1] = createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
+		ig3.setInputChannels(ic3);
 
 		Task.setupPartitionsAndGates(resultPartitions, inputGates);
 
@@ -205,17 +215,17 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 			.build());
 	}
 
-	private static void createRemoteInputChannel(
+	private static RemoteInputChannel createRemoteInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartition resultPartition,
 			ConnectionManager connManager,
 			MemorySegmentProvider memorySegmentProvider) {
-		InputChannelBuilder.newBuilder()
+		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setPartitionId(resultPartition.getPartitionId())
 			.setConnectionManager(connManager)
 			.setMemorySegmentProvider(memorySegmentProvider)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 }

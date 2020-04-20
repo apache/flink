@@ -205,6 +205,11 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
+	public BufferBuilder requestBufferBuilder() throws IOException {
+		return toBufferBuilder(requestMemorySegment());
+	}
+
+	@Override
 	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
 		return toBufferBuilder(requestMemorySegmentBlocking());
 	}

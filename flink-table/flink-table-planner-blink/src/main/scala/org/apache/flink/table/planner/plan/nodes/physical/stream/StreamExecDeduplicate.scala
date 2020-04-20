@@ -21,17 +21,14 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, KeySelectorUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.operators.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
@@ -52,20 +49,12 @@ class StreamExecDeduplicate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     uniqueKeys: Array[Int],
-    keepLastRow: Boolean)
+    val keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
-
-  override def producesUpdates: Boolean = keepLastRow
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
-
-  override def consumesRetractions: Boolean = true
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
@@ -103,40 +92,42 @@ class StreamExecDeduplicate(
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
-    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
-
-    if (inputIsAccRetract) {
-      throw new TableException("Deduplicate doesn't support retraction input stream currently.")
-    }
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
     val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val tableConfig = planner.getTableConfig
     val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = planner.getExecEnv.getConfig
       val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
       val processFunction = if (keepLastRow) {
-        new MiniBatchDeduplicateKeepLastRowFunction(rowTypeInfo, generateRetraction, rowSerializer)
+        new MiniBatchDeduplicateKeepLastRowFunction(
+          rowTypeInfo,
+          generateUpdateBefore,
+          rowSerializer,
+          minRetentionTime)
       } else {
-        new MiniBatchDeduplicateKeepFirstRowFunction(rowSerializer)
+        new MiniBatchDeduplicateKeepFirstRowFunction(
+          rowSerializer,
+          minRetentionTime)
       }
       val trigger = AggregateUtil.createMiniBatchTrigger(tableConfig)
       new KeyedMapBundleOperator(
         processFunction,
         trigger)
     } else {
-      val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
-      val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
       val processFunction = if (keepLastRow) {
-        new DeduplicateKeepLastRowFunction(minRetentionTime, maxRetentionTime, rowTypeInfo,
-          generateRetraction)
+        new DeduplicateKeepLastRowFunction(
+          minRetentionTime,
+          rowTypeInfo,
+          generateUpdateBefore)
       } else {
-        new DeduplicateKeepFirstRowFunction(minRetentionTime, maxRetentionTime)
+        new DeduplicateKeepFirstRowFunction(minRetentionTime)
       }
       new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
     }

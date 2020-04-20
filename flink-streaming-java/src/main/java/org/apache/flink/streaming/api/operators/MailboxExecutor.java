@@ -23,6 +23,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nonnull;
 
@@ -89,7 +90,7 @@ public interface MailboxExecutor {
 	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
 	 * 		quiesced or closed.
 	 */
-	default void execute(@Nonnull RunnableWithException command, String description) {
+	default void execute(ThrowingRunnable<? extends Exception> command, String description) {
 		execute(command, description, EMPTY_ARGS);
 	}
 
@@ -106,7 +107,7 @@ public interface MailboxExecutor {
 	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
 	 * 		quiesced or closed.
 	 */
-	void execute(@Nonnull RunnableWithException command, String descriptionFormat, Object... descriptionArgs);
+	void execute(ThrowingRunnable<? extends Exception> command, String descriptionFormat, Object... descriptionArgs);
 
 	/**
 	 * Submits the given command for execution in the future in the mailbox thread and returns a Future representing

@@ -352,6 +352,7 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
   )
@@ -404,16 +405,6 @@ object FlinkStreamRuleSets {
     StreamExecPythonCorrelateRule.INSTANCE,
     // sink
     StreamExecSinkRule.INSTANCE
-  )
-
-  /**
-    * RuleSet for retraction inference.
-    */
-  val RETRACTION_RULES: RuleSet = RuleSets.ofList(
-    // retraction rules
-    StreamExecRetractionRules.DEFAULT_RETRACTION_INSTANCE,
-    StreamExecRetractionRules.UPDATES_AS_RETRACTION_INSTANCE,
-    StreamExecRetractionRules.ACCMODE_INSTANCE
   )
 
   /**

@@ -29,6 +29,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.api.java.io.jdbc.catalog.PostgresCatalog.DEFAULT_DATABASE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -61,20 +62,20 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 	public void testDbExists() throws Exception {
 		assertFalse(catalog.databaseExists("nonexistent"));
 
-		assertTrue(catalog.databaseExists(PostgresCatalog.DEFAULT_DATABASE));
+		assertTrue(catalog.databaseExists(DEFAULT_DATABASE));
 	}
 
 	// ------ tables ------
 
 	@Test
 	public void testListTables() throws DatabaseNotExistException {
-		List<String> actual = catalog.listTables(PostgresCatalog.DEFAULT_DATABASE);
+		List<String> actual = catalog.listTables(DEFAULT_DATABASE);
 
-		assertEquals(Arrays.asList("public.t1", "public.t4", "public.t5"), actual);
+		assertEquals(Arrays.asList("public.dt", "public.t1", "public.t4", "public.t5"), actual);
 
 		actual = catalog.listTables(TEST_DB);
 
-		assertEquals(Arrays.asList("public.datatypes", "public.t2", "test_schema.t3"), actual);
+		assertEquals(Arrays.asList("public.t2", "test_schema.t3"), actual);
 	}
 
 	@Test
@@ -87,7 +88,7 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 	public void testTableExists() {
 		assertFalse(catalog.tableExists(new ObjectPath(TEST_DB, "nonexist")));
 
-		assertTrue(catalog.tableExists(new ObjectPath(PostgresCatalog.DEFAULT_DATABASE, TABLE1)));
+		assertTrue(catalog.tableExists(new ObjectPath(DEFAULT_DATABASE, TABLE1)));
 		assertTrue(catalog.tableExists(new ObjectPath(TEST_DB, TABLE2)));
 		assertTrue(catalog.tableExists(new ObjectPath(TEST_DB, "test_schema.t3")));
 	}
@@ -140,9 +141,9 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 	}
 
 	@Test
-	public void testDataTypes() throws TableNotExistException {
-		CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, "datatypes"));
+	public void testPrimitiveDataTypes() throws TableNotExistException {
+		CatalogBaseTable table = catalog.getTable(new ObjectPath(DEFAULT_DATABASE, TABLE_PRIMITIVE_TYPE));
 
-		assertEquals(getDataTypesTable().schema, table.getSchema());
+		assertEquals(getPrimitiveTable().schema, table.getSchema());
 	}
 }

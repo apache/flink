@@ -140,14 +140,12 @@ public final class ColumnarRow implements BaseRow {
 
 	@Override
 	public BaseRow getRow(int ordinal, int numFields) {
-		// TODO
-		throw new UnsupportedOperationException("Row is not supported.");
+		return vectorizedColumnBatch.getRow(rowId, ordinal);
 	}
 
 	@Override
 	public BaseArray getArray(int ordinal) {
-		// TODO
-		throw new UnsupportedOperationException("Array is not supported.");
+		return vectorizedColumnBatch.getArray(rowId, ordinal);
 	}
 
 	@Override

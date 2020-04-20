@@ -36,7 +36,7 @@ public interface NetworkSequenceViewReader {
 		ResultPartitionID resultPartitionId,
 		int subPartitionIndex) throws IOException;
 
-	BufferAndAvailability getNextBuffer() throws IOException, InterruptedException;
+	BufferAndAvailability getNextBuffer() throws IOException;
 
 	/**
 	 * The credits from consumer are added in incremental way.

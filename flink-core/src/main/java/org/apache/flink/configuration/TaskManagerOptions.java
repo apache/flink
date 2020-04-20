@@ -143,8 +143,10 @@ public class TaskManagerOptions {
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
 	 * is doubled for each new registration attempt until it reaches the maximum registration backoff.
+	 *
+	 * @deprecated use {@link ClusterOptions#INITIAL_REGISTRATION_TIMEOUT} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> INITIAL_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.initial-backoff")
 			.durationType()
@@ -155,8 +157,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The maximum registration backoff between two consecutive registration attempts.
+	 *
+	 * @deprecated use {@link ClusterOptions#MAX_REGISTRATION_TIMEOUT} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> REGISTRATION_MAX_BACKOFF =
 		key("taskmanager.registration.max-backoff")
 			.durationType()
@@ -167,8 +171,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The backoff after a registration has been refused by the job manager before retrying to connect.
+	 *
+	 * @deprecated use {@link ClusterOptions#REFUSED_REGISTRATION_DELAY} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> REFUSED_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.refused-backoff")
 			.durationType()

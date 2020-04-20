@@ -193,6 +193,13 @@ under the License.
 			<artifactId>joda-time</artifactId>
 		</dependency>
 
+		<!-- Tools to unify display format for different languages -->
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>65.1</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -325,6 +332,9 @@ under the License.
 									<include>org.codehaus.janino:*</include>
 									<include>joda-time:*</include>
 									<include>joda-convert:*</include>
+
+									<!-- Tools to unify display format for different languages -->
+									<include>com.ibm.icu:icu4j</include>
 								</includes>
 							</artifactSet>
 							<relocations>

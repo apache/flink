@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.dataformat.TypeGetterSetters;
 
 import org.apache.arrow.vector.Float8Vector;
 
@@ -27,18 +27,18 @@ import org.apache.arrow.vector.Float8Vector;
  * {@link ArrowFieldWriter} for Double.
  */
 @Internal
-public final class DoubleWriter extends ArrowFieldWriter<Row> {
+public final class DoubleWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
 
 	public DoubleWriter(Float8Vector doubleVector) {
 		super(doubleVector);
 	}
 
 	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
+	public void doWrite(T row, int ordinal) {
+		if (row.isNullAt(ordinal)) {
 			((Float8Vector) getValueVector()).setNull(getCount());
 		} else {
-			((Float8Vector) getValueVector()).setSafe(getCount(), (double) value.getField(ordinal));
+			((Float8Vector) getValueVector()).setSafe(getCount(), row.getDouble(ordinal));
 		}
 	}
 }

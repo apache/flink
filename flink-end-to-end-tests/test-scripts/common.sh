@@ -352,6 +352,7 @@ function check_logs_for_errors {
       | grep -v "Error while loading kafka-version.properties :null" \
       | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
+      | grep -v "HeapDumpOnOutOfMemoryError" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files:"
@@ -401,12 +402,14 @@ function check_logs_for_exceptions {
 function check_logs_for_non_empty_out_files {
   echo "Checking for non-empty .out files..."
   # exclude reflective access warnings as these are expected (and currently unavoidable) on Java 9
+  # exclude message about JAVA_TOOL_OPTIONS being set (https://bugs.openjdk.java.net/browse/JDK-8039152)
   if grep -ri -v \
     -e "WARNING: An illegal reflective access" \
     -e "WARNING: Illegal reflective access"\
     -e "WARNING: Please consider reporting"\
     -e "WARNING: Use --illegal-access"\
     -e "WARNING: All illegal access"\
+    -e "Picked up JAVA_TOOL_OPTIONS"\
     $FLINK_DIR/log/*.out\
    | grep "." \
    > /dev/null; then
@@ -583,8 +586,8 @@ function kill_random_taskmanager {
 
 function setup_flink_slf4j_metric_reporter() {
   INTERVAL="${1:-1 SECONDS}"
-  add_optional_lib "metrics-slf4j"
-  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  add_optional_plugin "metrics-slf4j"
+  set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 

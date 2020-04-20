@@ -167,6 +167,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -182,6 +183,9 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -2022,17 +2026,18 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	private Collection<OperatorState> createOperatorState(OperatorID... operatorIds) {
+		Random random = new Random();
 		Collection<OperatorState> operatorStates = new ArrayList<>(operatorIds.length);
 
 		for (OperatorID operatorId : operatorIds) {
 			final OperatorState operatorState = new OperatorState(operatorId, 1, 42);
 			final OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-				new OperatorStreamStateHandle(
-					Collections.emptyMap(),
-					new ByteStreamStateHandle("foobar", new byte[0])),
+				new OperatorStreamStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("foobar", new byte[0])),
 				null,
 				null,
-				null);
+				null,
+				singleton(createNewInputChannelStateHandle(10, random)),
+				singleton(createNewResultSubpartitionStateHandle(10, random)));
 			operatorState.putState(0, subtaskState);
 			operatorStates.add(operatorState);
 		}

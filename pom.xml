@@ -123,7 +123,7 @@ under the License.
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.10.1</jackson.version>
-		<prometheus.version>0.3.0</prometheus.version>
+		<prometheus.version>0.8.1</prometheus.version>
 		<avro.version>1.8.2</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
@@ -146,7 +146,8 @@ under the License.
 		<minikdc.version>3.2.0</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
-		<orc.version>1.4.3</orc.version>
+		<hive.connector.orc.version>1.4.3</hive.connector.orc.version>
+		<orc.version>1.5.6</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
@@ -951,6 +952,7 @@ under the License.
 							<compilerArgs combine.children="append">
 								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
+								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 							</compilerArgs>
 						</configuration>
 					</plugin>
@@ -1734,7 +1736,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.1.1</version><!--$NO-MVN-MAN-VER$-->
+					<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
 					<configuration>
 						<quiet>true</quiet>
 						<detectOfflineLinks>false</detectOfflineLinks>

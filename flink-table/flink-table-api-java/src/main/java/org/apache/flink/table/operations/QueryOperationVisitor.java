@@ -47,6 +47,8 @@ public interface QueryOperationVisitor<T> {
 
 	T visit(CatalogQueryOperation catalogTable);
 
+	T visit(ValuesQueryOperation values);
+
 	<U> T visit(TableSourceQueryOperation<U> tableSourceTable);
 
 	T visit(QueryOperation other);

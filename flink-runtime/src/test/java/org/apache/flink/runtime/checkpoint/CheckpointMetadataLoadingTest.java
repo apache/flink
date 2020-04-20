@@ -38,7 +38,11 @@ import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -61,6 +65,7 @@ public class CheckpointMetadataLoadingTest {
 	 */
 	@Test
 	public void testLoadAndValidateSavepoint() throws Exception {
+		final Random rnd = new Random();
 		File tmp = tmpFolder.newFolder();
 
 		int parallelism = 128128;
@@ -69,12 +74,12 @@ public class CheckpointMetadataLoadingTest {
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 
 		OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-				new OperatorStreamStateHandle(
-				Collections.emptyMap(),
-				new ByteStreamStateHandle("testHandler", new byte[0])),
+				new OperatorStreamStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("testHandler", new byte[0])),
 				null,
 				null,
-				null);
+				null,
+				singleton(createNewInputChannelStateHandle(10, rnd)),
+				singleton(createNewResultSubpartitionStateHandle(10, rnd)));
 
 		OperatorState state = new OperatorState(operatorID, parallelism, parallelism);
 		state.putState(0, subtaskState);

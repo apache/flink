@@ -49,22 +49,12 @@ public class JarHandlerTest extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TMP = new TemporaryFolder();
 
-	enum Type {
-		PLAN,
-		RUN
-	}
-
 	@Test
 	public void testPlanJar() throws Exception {
-		runTest(Type.PLAN, "hello out!", "hello err!");
+		runTest("hello out!", "hello err!");
 	}
 
-	@Test
-	public void testRunJar() throws Exception {
-		runTest(Type.RUN, "(none)", "(none)");
-	}
-
-	private static void runTest(Type type, String expectedCapturedStdOut, String expectedCapturedStdErr) throws Exception {
+	private static void runTest(String expectedCapturedStdOut, String expectedCapturedStdErr) throws Exception {
 		final TestingDispatcherGateway restfulGateway = new TestingDispatcherGateway.Builder().build();
 
 		final JarHandlers handlers = new JarHandlers(TMP.newFolder().toPath(), restfulGateway);
@@ -76,13 +66,7 @@ public class JarHandlerTest extends TestLogger {
 		final String storedJarName = Paths.get(storedJarPath).getFileName().toString();
 
 		try {
-			switch (type) {
-				case RUN:
-					JarHandlers.runJar(handlers.runHandler, storedJarName, restfulGateway);
-					break;
-				case PLAN:
-					JarHandlers.showPlan(handlers.planHandler, storedJarName, restfulGateway);
-			}
+			JarHandlers.showPlan(handlers.planHandler, storedJarName, restfulGateway);
 			Assert.fail("Should have failed with an exception.");
 		} catch (Exception e) {
 			Optional<ProgramInvocationException> expected = ExceptionUtils.findThrowable(e, ProgramInvocationException.class);

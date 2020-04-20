@@ -19,6 +19,10 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.ExceptionUtils;
@@ -82,6 +86,8 @@ public class MailboxProcessor implements Closeable {
 
 	private final StreamTaskActionExecutor actionExecutor;
 
+	private Meter idleTime = new MeterView(new SimpleCounter());
+
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this(mailboxDefaultAction, StreamTaskActionExecutor.IMMEDIATE);
 	}
@@ -126,6 +132,10 @@ public class MailboxProcessor implements Closeable {
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
 		return new MailboxExecutorImpl(mailbox, priority, actionExecutor);
+	}
+
+	public void initMetric(TaskMetricGroup metricGroup) {
+		idleTime = metricGroup.getIOMetricGroup().getIdleTimeMsPerSecond();
 	}
 
 	/**
@@ -200,6 +210,15 @@ public class MailboxProcessor implements Closeable {
 	}
 
 	/**
+	 * Check if the current thread is the mailbox thread.
+	 *
+	 * @return only true if called from the mailbox thread.
+	 */
+	public boolean isMailboxThread() {
+		return mailbox.isMailboxThread();
+	}
+
+	/**
 	 * Reports a throwable for rethrowing from the mailbox thread. This will clear and cancel all other pending mails.
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
@@ -269,7 +288,13 @@ public class MailboxProcessor implements Closeable {
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			mailbox.take(MIN_PRIORITY).run();
+			maybeMail = mailbox.tryTake(MIN_PRIORITY);
+			if (!maybeMail.isPresent()) {
+				long start = System.currentTimeMillis();
+				maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
+				idleTime.markEvent(System.currentTimeMillis() - start);
+			}
+			maybeMail.get().run();
 		}
 
 		return isMailboxLoopRunning();
@@ -299,6 +324,11 @@ public class MailboxProcessor implements Closeable {
 	@VisibleForTesting
 	public boolean isMailboxLoopRunning() {
 		return mailboxLoopRunning;
+	}
+
+	@VisibleForTesting
+	public Meter getIdleTime() {
+		return idleTime;
 	}
 
 	/**

@@ -66,6 +66,15 @@ public class TestPooledBufferProvider implements BufferProvider {
 		return bufferFactory.create();
 	}
 
+	@Override
+	public BufferBuilder requestBufferBuilder() throws IOException {
+		Buffer buffer = requestBuffer();
+		if (buffer != null) {
+			return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
+		}
+		return null;
+	}
+
 	private Buffer requestBufferBlocking() throws IOException, InterruptedException {
 		Buffer buffer = buffers.poll();
 		if (buffer != null) {

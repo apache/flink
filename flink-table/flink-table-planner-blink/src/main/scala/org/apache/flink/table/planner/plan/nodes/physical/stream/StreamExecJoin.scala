@@ -25,14 +25,12 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil, RelExplainUtil}
-import org.apache.flink.table.runtime.operators.join.FlinkJoinType
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.runtime.operators.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
-import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
@@ -59,42 +57,22 @@ class StreamExecJoin(
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  override def producesUpdates: Boolean = {
-    flinkJoinType != FlinkJoinType.INNER && flinkJoinType != FlinkJoinType.SEMI
-  }
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
-    def getCurrentRel(rel: RelNode): RelNode = {
-      rel match {
-        case _: HepRelVertex => rel.asInstanceOf[HepRelVertex].getCurrentRel
-        case _ => rel
-      }
-    }
-
-    val realInput = getCurrentRel(input)
-    val inputUniqueKeys = getCluster.getMetadataQuery.getUniqueKeys(realInput)
+  def inputUniqueKeyContainsJoinKey(inputOrdinal: Int): Boolean = {
+    val input = getInput(inputOrdinal)
+    val inputUniqueKeys = getCluster.getMetadataQuery.getUniqueKeys(input)
     if (inputUniqueKeys != null) {
-      val joinKeys = if (input == getCurrentRel(getLeft)) {
+      val joinKeys = if (inputOrdinal == 0) {
+        // left input
         keyPairs.map(_.source).toArray
       } else {
+        // right input
         keyPairs.map(_.target).toArray
       }
-      val pkContainJoinKey = inputUniqueKeys.exists {
+      inputUniqueKeys.exists {
         uniqueKey => joinKeys.forall(uniqueKey.toArray.contains(_))
       }
-      if (pkContainJoinKey) false else true
     } else {
-      true
-    }
-  }
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = {
-    flinkJoinType match {
-      case FlinkJoinType.FULL | FlinkJoinType.RIGHT | FlinkJoinType.LEFT => true
-      case FlinkJoinType.ANTI => true
-      case _ => false
+      false
     }
   }
 

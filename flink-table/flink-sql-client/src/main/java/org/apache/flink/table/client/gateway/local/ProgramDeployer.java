@@ -58,7 +58,7 @@ public class ProgramDeployer {
 		this.jobName = jobName;
 	}
 
-	public CompletableFuture<JobClient> deploy() {
+	public CompletableFuture<? extends JobClient> deploy() {
 		LOG.info("Submitting job {} for query {}`", pipeline, jobName);
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Submitting job {} with configuration: \n{}", pipeline, configuration);
@@ -77,7 +77,7 @@ public class ProgramDeployer {
 		}
 
 		final PipelineExecutor executor = executorFactory.getExecutor(configuration);
-		CompletableFuture<JobClient> jobClient;
+		CompletableFuture<? extends JobClient> jobClient;
 		try {
 			jobClient = executor.execute(pipeline, configuration);
 		} catch (Exception e) {
