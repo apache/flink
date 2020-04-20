@@ -155,8 +155,6 @@ public class WindowOperatorBuilder {
 		checkArgument(!allowedLateness.isNegative());
 		if (allowedLateness.toMillis() > 0) {
 			this.allowedLateness = allowedLateness.toMillis();
-			// allow late element, which means this window will send retractions
-			this.sendRetraction = true;
 		}
 		return this;
 	}
