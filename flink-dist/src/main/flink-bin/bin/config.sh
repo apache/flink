@@ -644,7 +644,7 @@ extractExecutionParams() {
     local execution_config=$1
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
-    local num_lines=$(echo "$execution_config" | wc -l)
+    local num_lines=$(eval echo $(echo "$execution_config" | wc -l))
     if ! [[ ${num_lines} == 1 ]]; then
         echo "[ERROR] Unexpected result ($num_lines lines): $execution_config" 1>&2
         echo "[ERROR] extractExecutionParams only accepts exactly one line as the input" 1>&2
