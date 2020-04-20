@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -53,6 +54,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
+import org.apache.flink.streaming.runtime.operators.util.AssignerWithPeriodicWatermarksAdapter;
+import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -127,15 +130,12 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/** The set of topic partitions that the source will read, with their initial offsets to start reading from. */
 	private Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets;
 
-	/** Optional timestamp extractor / watermark generator that will be run per Kafka partition,
-	 * to exploit per-partition timestamp characteristics.
-	 * The assigner is kept in serialized form, to deserialize it into multiple copies. */
-	private SerializedValue<AssignerWithPeriodicWatermarks<T>> periodicWatermarkAssigner;
-
-	/** Optional timestamp extractor / watermark generator that will be run per Kafka partition,
-	 * to exploit per-partition timestamp characteristics.
-	 * The assigner is kept in serialized form, to deserialize it into multiple copies. */
-	private SerializedValue<AssignerWithPunctuatedWatermarks<T>> punctuatedWatermarkAssigner;
+	/**
+	 * Optional watermark strategy that will be run per Kafka partition, to exploit per-partition
+	 * timestamp characteristics. The watermark strategy is kept in serialized form, to deserialize
+	 * it into multiple copies.
+	 */
+	private SerializedValue<WatermarkStrategy<T>> watermarkStrategy;
 
 	/**
 	 * User-set flag determining whether or not to commit on checkpoints.
@@ -274,6 +274,39 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Sets the given {@link WatermarkStrategy} on this consumer. These will be used to assign
+	 * timestamps to records and generates watermarks to signal event time progress.
+	 *
+	 * <p>Running timestamp extractors / watermark generators directly inside the Kafka source
+	 * (which you can do by using this method), per Kafka partition, allows users to let them
+	 * exploit the per-partition characteristics.
+	 *
+	 * <p>When a subtask of a FlinkKafkaConsumer source reads multiple Kafka partitions,
+	 * the streams from the partitions are unioned in a "first come first serve" fashion.
+	 * Per-partition characteristics are usually lost that way. For example, if the timestamps are
+	 * strictly ascending per Kafka partition, they will not be strictly ascending in the resulting
+	 * Flink DataStream, if the parallel source subtask reads more than one partition.
+	 *
+	 * <p>Common watermark generation patterns can be found in the
+	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategies} class.
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(
+			WatermarkStrategy<T> watermarkStrategy) {
+		checkNotNull(watermarkStrategy);
+
+		try {
+			ClosureCleaner.clean(watermarkStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+			this.watermarkStrategy = new SerializedValue<>(watermarkStrategy);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("The given WatermarkStrategy is not serializable", e);
+		}
+
+		return this;
+	}
+
+	/**
 	 * Specifies an {@link AssignerWithPunctuatedWatermarks} to emit watermarks in a punctuated manner.
 	 * The watermark extractor will run per Kafka partition, watermarks will be merged across partitions
 	 * in the same way as in the Flink runtime, when streams are merged.
@@ -290,19 +323,29 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * <p>Note: One can use either an {@link AssignerWithPunctuatedWatermarks} or an
 	 * {@link AssignerWithPeriodicWatermarks}, not both at the same time.
 	 *
+	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
+	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
+	 * to differentiate between "periodic" and "punctuated" watermarks.
+	 *
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
+	 *
 	 * @param assigner The timestamp assigner / watermark generator to use.
 	 * @return The consumer object, to allow function chaining.
 	 */
+	@Deprecated
 	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks<T> assigner) {
 		checkNotNull(assigner);
 
-		if (this.periodicWatermarkAssigner != null) {
-			throw new IllegalStateException("A periodic watermark emitter has already been set.");
+		if (this.watermarkStrategy != null) {
+			throw new IllegalStateException("Some watermark strategy has already been set.");
 		}
+
 		try {
 			ClosureCleaner.clean(assigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-			this.punctuatedWatermarkAssigner = new SerializedValue<>(assigner);
-			return this;
+			final WatermarkStrategy<T> wms = new AssignerWithPunctuatedWatermarksAdapter.Strategy<>(assigner);
+
+			return assignTimestampsAndWatermarks(wms);
 		} catch (Exception e) {
 			throw new IllegalArgumentException("The given assigner is not serializable", e);
 		}
@@ -325,19 +368,29 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * <p>Note: One can use either an {@link AssignerWithPunctuatedWatermarks} or an
 	 * {@link AssignerWithPeriodicWatermarks}, not both at the same time.
 	 *
+	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
+	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
+	 * to differentiate between "periodic" and "punctuated" watermarks.
+	 *
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
+	 *
 	 * @param assigner The timestamp assigner / watermark generator to use.
 	 * @return The consumer object, to allow function chaining.
 	 */
+	@Deprecated
 	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks<T> assigner) {
 		checkNotNull(assigner);
 
-		if (this.punctuatedWatermarkAssigner != null) {
-			throw new IllegalStateException("A punctuated watermark emitter has already been set.");
+		if (this.watermarkStrategy != null) {
+			throw new IllegalStateException("Some watermark strategy has already been set.");
 		}
+
 		try {
 			ClosureCleaner.clean(assigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-			this.periodicWatermarkAssigner = new SerializedValue<>(assigner);
-			return this;
+			final WatermarkStrategy<T> wms = new AssignerWithPeriodicWatermarksAdapter.Strategy<>(assigner);
+
+			return assignTimestampsAndWatermarks(wms);
 		} catch (Exception e) {
 			throw new IllegalArgumentException("The given assigner is not serializable", e);
 		}
@@ -696,8 +749,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.kafkaFetcher = createFetcher(
 				sourceContext,
 				subscribedPartitionsToStartOffsets,
-				periodicWatermarkAssigner,
-				punctuatedWatermarkAssigner,
+				watermarkStrategy,
 				(StreamingRuntimeContext) getRuntimeContext(),
 				offsetCommitMode,
 				getRuntimeContext().getMetricGroup().addGroup(KAFKA_CONSUMER_METRICS_GROUP),
@@ -993,8 +1045,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 *
 	 * @param sourceContext The source context to emit data to.
 	 * @param subscribedPartitionsToStartOffsets The set of partitions that this subtask should handle, with their start offsets.
-	 * @param watermarksPeriodic Optional, a serialized timestamp extractor / periodic watermark generator.
-	 * @param watermarksPunctuated Optional, a serialized timestamp extractor / punctuated watermark generator.
+	 * @param watermarkStrategy Optional, a serialized WatermarkStrategy.
 	 * @param runtimeContext The task's runtime context.
 	 *
 	 * @return The instantiated fetcher
@@ -1004,8 +1055,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	protected abstract AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets,
-			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
-			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+			SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
 			StreamingRuntimeContext runtimeContext,
 			OffsetCommitMode offsetCommitMode,
 			MetricGroup kafkaMetricGroup,
