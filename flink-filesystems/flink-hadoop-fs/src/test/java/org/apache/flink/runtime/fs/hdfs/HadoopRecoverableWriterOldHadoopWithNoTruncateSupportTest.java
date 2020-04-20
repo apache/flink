@@ -34,6 +34,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -44,6 +45,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static junit.framework.TestCase.assertTrue;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link HadoopRecoverableWriter} with Hadoop versions pre Hadoop 2.7.
@@ -139,6 +141,14 @@ public class HadoopRecoverableWriterOldHadoopWithNoTruncateSupportTest {
 			// this is the expected exception and we check also if the root cause is the hadoop < 2.7 version
 			assertTrue(e.getCause() instanceof IllegalStateException);
 		}
+	}
+
+	@Test
+	public void testRecoverableWriterWithViewfsScheme() {
+		final org.apache.hadoop.fs.FileSystem mockViewfs = Mockito.mock(org.apache.hadoop.fs.FileSystem.class);
+		when(mockViewfs.getScheme()).thenReturn("viewfs");
+		// Creating the writer should not throw UnsupportedOperationException.
+		RecoverableWriter recoverableWriter = new HadoopRecoverableWriter(mockViewfs);
 	}
 
 	private RecoverableFsDataOutputStream getOpenStreamToFileWithContent(
