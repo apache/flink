@@ -271,6 +271,57 @@ class TableEnvironmentTest {
     tableEnv.executeSql("select * from MyTable")
   }
 
+  @Test
+  def testExecuteSqlWithCreateDropView(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    val viewResult1 = tableEnv.executeSql("CREATE VIEW IF NOT EXISTS v1 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, viewResult1.getResultKind)
+    assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.v1")))
+
+    val viewResult2 = tableEnv.executeSql("DROP VIEW IF EXISTS v1")
+    assertEquals(ResultKind.SUCCESS, viewResult2.getResultKind)
+    assertFalse(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.v1")))
+  }
+
+  @Test
+  def testExecuteSqlWithCreateDropTemporaryView(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    val viewResult1 = tableEnv.executeSql(
+      "CREATE TEMPORARY VIEW IF NOT EXISTS v1 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, viewResult1.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1", "v1")))
+
+    val viewResult2 = tableEnv.executeSql("DROP TEMPORARY VIEW IF EXISTS v1")
+    assertEquals(ResultKind.SUCCESS, viewResult2.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())
