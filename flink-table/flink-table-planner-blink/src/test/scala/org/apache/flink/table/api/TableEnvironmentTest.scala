@@ -72,7 +72,7 @@ class TableEnvironmentTest {
     // register on a conflict name
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "Temporary table `default_catalog`.`default_database`.`MyTable` already exists")
+      "Temporary table '`default_catalog`.`default_database`.`MyTable`' already exists")
     tableEnv.createTemporaryView("MyTable", env.fromElements[(Int, Long)]())
   }
 

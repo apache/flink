@@ -133,7 +133,7 @@ public class CatalogManagerTest extends TestLogger {
 			.build();
 
 		thrown.expect(ValidationException.class);
-		thrown.expectMessage(String.format("Temporary table %s already exists", tempIdentifier));
+		thrown.expectMessage(String.format("Temporary table '%s' already exists", tempIdentifier));
 		manager.createTemporaryTable(new CatalogTest.TestTable(), tempIdentifier, false);
 	}
 
