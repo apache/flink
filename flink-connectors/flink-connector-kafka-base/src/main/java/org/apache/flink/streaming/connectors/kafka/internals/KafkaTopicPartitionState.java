@@ -30,7 +30,7 @@ import org.apache.flink.annotation.Internal;
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
 @Internal
-public class KafkaTopicPartitionState<KPH> {
+public class KafkaTopicPartitionState<T, KPH> {
 
 	// ------------------------------------------------------------------------
 
@@ -105,6 +105,19 @@ public class KafkaTopicPartitionState<KPH> {
 	public final long getCommittedOffset() {
 		return committedOffset;
 	}
+
+	public long extractTimestamp(T record, long kafkaEventTimestamp) {
+		return kafkaEventTimestamp;
+	}
+
+	public void onEvent(T event, long timestamp) {
+		// do nothing
+	}
+
+	public void onPeriodicEmit() {
+		// do nothing
+	}
+
 
 	// ------------------------------------------------------------------------
 
