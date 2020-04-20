@@ -524,6 +524,8 @@ public class SqlToOperationConverter {
 		PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
 		TableSchema schema = operation.getTableSchema();
 
+		// the view column list in CREATE VIEW is optional, if it's not empty, we should update
+		// the column name with the names in view column list.
 		if (!fieldList.getList().isEmpty()) {
 			// alias column names:
 			String[] inputFieldNames = schema.getFieldNames();

@@ -799,6 +799,8 @@ void PartitionSpecCommaList(SqlNodeList list) :
 * Parses a create view or temporary view statement.
 *   CREATE [OR REPLACE] [TEMPORARY] VIEW [IF NOT EXISTS] view_name [ (field1, field2 ...) ]
 *   AS select_statement
+* We only support [IF NOT EXISTS] semantic in Flink although the parser supports [OR REPLACE] grammar.
+* See: FLINK-17067
 */
 SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     SqlIdentifier viewName;
