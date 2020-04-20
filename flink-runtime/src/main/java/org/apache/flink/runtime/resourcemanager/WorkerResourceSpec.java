@@ -23,12 +23,15 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Resource specification of a worker, mainly used by SlotManager requesting from ResourceManager.
  */
-public class WorkerResourceSpec {
+public final class WorkerResourceSpec implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	public static final WorkerResourceSpec ZERO = new Builder().build();
 
