@@ -90,6 +90,10 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 		this.producer = checkNotNull(producer);
 	}
 
+	void setState(ResultPartitionState state) {
+		this.state = state;
+	}
+
 	/**
 	 * Builder for {@link TestingSchedulingResultPartition}.
 	 */
