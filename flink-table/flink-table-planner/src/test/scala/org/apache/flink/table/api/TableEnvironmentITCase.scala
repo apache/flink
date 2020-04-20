@@ -41,6 +41,7 @@ import org.junit.runners.Parameterized
 import org.junit.{Before, Rule, Test}
 
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
+import _root_.java.lang.{Long => JLong}
 import _root_.java.util
 
 import _root_.scala.collection.mutable
@@ -249,6 +250,81 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(StreamITCase.testResults.isEmpty)
   }
 
+  @Test
+  def testExecuteSqlWithInsertInto(): Unit = {
+    val sinkPath = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
+    checkEmptyFile(sinkPath)
+    val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
+    checkInsertTableResult(tableResult)
+    // wait job finished
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+  }
+
+  @Test
+  def testExecuteSqlAndSqlUpdate(): Unit = {
+    val sink1Path = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
+    val sink2Path = registerCsvTableSink(tEnv, Array("last"), Array(STRING), "MySink2")
+    checkEmptyFile(sink1Path)
+    checkEmptyFile(sink2Path)
+
+    val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
+    checkInsertTableResult(tableResult)
+    // wait job finished
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+
+    assertFirstValues(sink1Path)
+    checkEmptyFile(sink2Path)
+
+    // delete first csv file
+    new File(sink1Path).delete()
+    assertFalse(new File(sink1Path).exists())
+
+    val table2 = tEnv.sqlQuery("select last from MyTable")
+    tEnv.insertInto(table2, "MySink2")
+    tEnv.execute("test2")
+    assertFalse(new File(sink1Path).exists())
+    assertLastValues(sink2Path)
+  }
+
+  @Test
+  def testExecuteSqlAndToDataStream(): Unit = {
+    if (!tableEnvName.equals("StreamTableEnvironment")) {
+      return
+    }
+    val streamEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val streamTableEnv = StreamTableEnvironment.create(streamEnv, settings)
+    streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
+    val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
+    checkEmptyFile(sink1Path)
+
+    val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
+    val resultSet = streamTableEnv.toAppendStream(table, classOf[Row])
+    resultSet.addSink(new StreamITCase.StringSink[Row])
+
+    val tableResult = streamTableEnv.executeSql("insert into MySink1 select first from MyTable")
+    checkInsertTableResult(tableResult)
+    // wait job finished
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sink1Path)
+
+    // the DataStream program is not executed
+    assertTrue(StreamITCase.testResults.isEmpty)
+
+    deleteFile(sink1Path)
+
+    streamEnv.execute("test2")
+    assertEquals(getExpectedLastValues.sorted, StreamITCase.testResults.sorted)
+    // the table program is not executed again
+    assertFileNotExist(sink1Path)
+  }
+
   private def registerCsvTableSink(
       tEnv: TableEnvironment,
       fieldNames: Array[String],
@@ -290,6 +366,15 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
   private def assertFileNotExist(path: String): Unit = {
     assertFalse(new File(path).exists())
+  }
+
+  private def checkInsertTableResult(tableResult: TableResult): Unit = {
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    val it = tableResult.collect()
+    assertTrue(it.hasNext)
+    assertEquals(Row.of(JLong.valueOf(-1L)), it.next())
+    assertFalse(it.hasNext)
   }
 }
 

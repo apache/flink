@@ -20,6 +20,9 @@ package org.apache.flink.table.api.internal
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.operators.DataSink
+import org.apache.flink.core.execution.JobClient
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
@@ -44,9 +47,9 @@ import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 
-import _root_.java.lang.{Iterable => JIterable}
+import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
-import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
+import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -135,7 +138,7 @@ abstract class TableEnvImpl(
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
       "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, " +
-      "SHOW VIEWS."
+      "SHOW VIEWS, INSERT."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -570,21 +573,7 @@ abstract class TableEnvImpl(
     if (operations.size != 1) {
       throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
     }
-
-    val operation = operations.get(0)
-    operation match {
-      case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
-           _: CreateViewOperation | _: DropViewOperation |
-           _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
-           _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
-           _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
-           _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation |
-           _: ShowCatalogsOperation | _: ShowDatabasesOperation | _: ShowTablesOperation |
-           _: ShowFunctionsOperation | _: ShowViewsOperation =>
-        executeOperation(operation)
-      case _ =>
-        throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
-    }
+    executeOperation(operations.get(0))
   }
 
   override def sqlUpdate(stmt: String): Unit = {
@@ -614,6 +603,21 @@ abstract class TableEnvImpl(
 
   private def executeOperation(operation: Operation): TableResult = {
     operation match {
+      case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
+        val dataSink = writeToSinkAndTranslate(
+          catalogSinkModifyOperation.getChild,
+          InsertOptions(
+            catalogSinkModifyOperation.getDynamicOptions,
+            catalogSinkModifyOperation.isOverwrite),
+          catalogSinkModifyOperation.getTableIdentifier)
+        val jobName = extractJobName(catalogSinkModifyOperation)
+        val jobClient = execute(JCollections.singletonList(dataSink), jobName)
+        TableResultImpl.builder()
+          .jobClient(jobClient)
+          .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+          .tableSchema(TableSchema.builder().field("affected_rowcount", DataTypes.BIGINT()).build())
+          .data(JCollections.singletonList(Row.of(JLong.valueOf(-1L))))
+          .build()
       case createTableOperation: CreateTableOperation =>
         if (createTableOperation.isTemporary) {
           catalogManager.createTemporaryTable(
@@ -752,7 +756,7 @@ abstract class TableEnvImpl(
         TableResultImpl.TABLE_RESULT_OK
       case _: ShowViewsOperation =>
         buildShowResult(listViews())
-      case _ => throw new TableException("Unsupported operation: " + operation)
+      case _ => throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
     }
   }
 
@@ -788,14 +792,90 @@ abstract class TableEnvImpl(
       }))
   }
 
+  private def extractJobName(operation: Operation): String = {
+    val tableName = operation match {
+      case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
+        catalogSinkModifyOperation.getTableIdentifier.toString
+      case _ =>
+        throw new UnsupportedOperationException("Unsupported operation: " + operation)
+    }
+    "insert_into_" + tableName
+  }
+
   /**
-    * Writes a [[Table]] to a [[TableSink]].
-    *
-    * @param table The [[Table]] to write.
-    * @param sink The [[TableSink]] to write the [[Table]] to.
-    * @tparam T The data type that the [[TableSink]] expects.
+    * Triggers the program execution.
     */
-  private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit
+  protected def execute(dataSinks: JList[DataSink[_]], jobName: String): JobClient
+
+  /**
+    * Writes a [[QueryOperation]] to the registered TableSink with insert options,
+    * and translates them into a [[DataSink]].
+    *
+    * Internally, the [[QueryOperation]] is translated into a [[DataSet]]
+    * and handed over to the [[TableSink]] to write it.
+    *
+    * @param queryOperation The [[QueryOperation]] to translate.
+    * @param insertOptions The insert options for executing sql insert.
+    * @param sinkIdentifier The name of the registered TableSink.
+    * @return [[DataSink]] which represents the plan.
+    */
+  private def writeToSinkAndTranslate(
+      queryOperation: QueryOperation,
+      insertOptions: InsertOptions,
+      sinkIdentifier: ObjectIdentifier): DataSink[_] = {
+    getTableSink(sinkIdentifier) match {
+
+      case None =>
+        throw new TableException(s"No table was registered under the name $sinkIdentifier.")
+
+      case Some(tableSink) =>
+        // validate schema of source table and table sink
+        TableSinkUtils.validateSink(
+          insertOptions.staticPartitions,
+          queryOperation,
+          sinkIdentifier,
+          tableSink)
+        // set static partitions if it is a partitioned table sink
+        tableSink match {
+          case partitionableSink: PartitionableTableSink =>
+            partitionableSink.setStaticPartition(insertOptions.staticPartitions)
+          case _ =>
+        }
+        // set whether to overwrite if it's an OverwritableTableSink
+        tableSink match {
+          case overwritableTableSink: OverwritableTableSink =>
+            overwritableTableSink.setOverwrite(insertOptions.overwrite)
+          case _ =>
+            require(!insertOptions.overwrite, "INSERT OVERWRITE requires " +
+              s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
+              tableSink.getClass.getName)
+        }
+        // emit the table to the configured table sink
+        writeToSinkAndTranslate(queryOperation, tableSink)
+    }
+  }
+
+  /**
+    * Writes a [[QueryOperation]] to a [[TableSink]],
+    * and translates them into a [[DataSink]].
+    *
+    * Internally, the [[QueryOperation]] is translated into a [[DataSet]]
+    * and handed over to the [[TableSink]] to write it.
+    *
+    * @param queryOperation The [[QueryOperation]] to write.
+    * @param tableSink The [[TableSink]] to write the [[Table]] to.
+    * @return [[DataSink]] which represents the plan.
+    */
+  protected def writeToSinkAndTranslate[T](
+      queryOperation: QueryOperation,
+      tableSink: TableSink[T]): DataSink[_]
+
+  /**
+    * Add the given [[DataSink]] into the buffer.
+    *
+    * @param dataSink The [[DataSink]] to add the buffer to.
+    */
+  protected def addToBuffer(dataSink: DataSink[_]): Unit
 
   override def insertInto(path: String, table: Table): Unit = {
     val parser = planningConfigurationBuilder.createCalciteParser()
@@ -832,37 +912,8 @@ abstract class TableEnvImpl(
       table: Table,
       insertOptions: InsertOptions,
       sinkIdentifier: ObjectIdentifier): Unit = {
-
-    getTableSink(sinkIdentifier) match {
-
-      case None =>
-        throw new TableException(s"No table was registered under the name $sinkIdentifier.")
-
-      case Some(tableSink) =>
-        // validate schema of source table and table sink
-        TableSinkUtils.validateSink(
-          insertOptions.staticPartitions,
-          table.getQueryOperation,
-          sinkIdentifier,
-          tableSink)
-        // set static partitions if it is a partitioned table sink
-        tableSink match {
-          case partitionableSink: PartitionableTableSink =>
-            partitionableSink.setStaticPartition(insertOptions.staticPartitions)
-          case _ =>
-        }
-        // set whether to overwrite if it's an OverwritableTableSink
-        tableSink match {
-          case overwritableTableSink: OverwritableTableSink =>
-            overwritableTableSink.setOverwrite(insertOptions.overwrite)
-          case _ =>
-            require(!insertOptions.overwrite, "INSERT OVERWRITE requires " +
-              s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
-              tableSink.getClass.getName)
-        }
-        // emit the table to the configured table sink
-        writeToSink(table, tableSink)
-    }
+    val dataSink = writeToSinkAndTranslate(table.getQueryOperation, insertOptions, sinkIdentifier)
+    addToBuffer(dataSink)
   }
 
   private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {

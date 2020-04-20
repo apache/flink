@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ResultKind;
@@ -143,7 +144,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, SHOW VIEWS.";
+			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, SHOW VIEWS, " +
+			"INSERT.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -666,7 +668,22 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private TableResult executeOperation(Operation operation) {
-		if (operation instanceof CreateTableOperation) {
+		if (operation instanceof ModifyOperation) {
+			List<Transformation<?>> transformations = translate(Collections.singletonList((ModifyOperation) operation));
+			String jobName = extractJobName(operation);
+			Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
+			try {
+				JobClient jobClient = execEnv.executeAsync(pipeline);
+				return TableResultImpl.builder()
+						.jobClient(jobClient)
+						.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+						.tableSchema(TableSchema.builder().field("affected_rowcount", DataTypes.BIGINT()).build())
+						.data(Collections.singletonList(Row.of(-1L)))
+						.build();
+			} catch (Exception e) {
+				throw new TableException("Failed to execute sql", e);
+			}
+		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
 			if (createTableOperation.isTemporary()) {
 				catalogManager.createTemporaryTable(
@@ -837,6 +854,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
 				.data(Arrays.stream(objects).map(Row::of).collect(Collectors.toList()))
 				.build();
+	}
+
+	private String extractJobName(Operation operation) {
+		String tableName;
+		if (operation instanceof CatalogSinkModifyOperation) {
+			tableName = ((CatalogSinkModifyOperation) operation).getTableIdentifier().toString();
+		} else {
+			throw new UnsupportedOperationException("Unsupported operation: " + operation);
+		}
+		return "insert_into_" + tableName;
 	}
 
 	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
