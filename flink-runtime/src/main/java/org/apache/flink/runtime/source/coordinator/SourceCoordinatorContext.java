@@ -35,8 +35,8 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +48,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
+
+import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readRegisteredReaders;
+import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeRegisteredReaders;
 
 /**
  * A context class for the {@link OperatorCoordinator}. Compared with {@link SplitEnumeratorContext} this class
@@ -210,8 +213,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	void snapshotState(
 			long checkpointId,
 			SimpleVersionedSerializer<SplitT> splitSerializer,
-			ObjectOutput out) throws Exception {
-		out.writeObject(registeredReaders);
+			ByteArrayOutputStream out) throws Exception {
+		writeRegisteredReaders(registeredReaders, out);
 		assignmentTracker.snapshotState(checkpointId, splitSerializer, out);
 	}
 
@@ -224,8 +227,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	@SuppressWarnings("unchecked")
 	void restoreState(
 			SimpleVersionedSerializer<SplitT> splitSerializer,
-			ObjectInput in) throws Exception {
-		Map<Integer, ReaderInfo> readers = (Map<Integer, ReaderInfo>) in.readObject();
+			ByteArrayInputStream in) throws Exception {
+		Map<Integer, ReaderInfo> readers = readRegisteredReaders(in);
+		registeredReaders.clear();
 		registeredReaders.putAll(readers);
 		assignmentTracker.restoreState(splitSerializer, in);
 	}

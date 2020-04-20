@@ -29,10 +29,6 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -150,7 +146,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 						OPERATOR_NAME,
 						TEST_OPERATOR_ID.toHexString(),
 						operatorCoordinatorContext);
-		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes); ObjectInput in = new ObjectInputStream(bais)) {
+		try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
 			restoredContext = new SourceCoordinatorContext<>(
 					coordinatorExecutor,
 					coordinatorThreadFactory,
@@ -180,10 +176,10 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
 	private byte[] takeSnapshot(SourceCoordinatorContext<MockSourceSplit> context, long checkpointId) throws Exception {
 		byte[] bytes;
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); ObjectOutput out = new ObjectOutputStream(baos)) {
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			context.snapshotState(checkpointId, new MockSourceSplitSerializer(), out);
 			out.flush();
-			bytes = baos.toByteArray();
+			bytes = out.toByteArray();
 		}
 		return bytes;
 	}

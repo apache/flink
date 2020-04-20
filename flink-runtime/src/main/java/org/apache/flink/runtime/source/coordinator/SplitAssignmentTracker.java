@@ -24,10 +24,9 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.util.function.FunctionWithException;
 
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -36,6 +35,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAssignmentsByCheckpointId;
+import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeAssignmentsByCheckpointId;
 
 /**
  * A class that is responsible for tracking the past split assignments made by
@@ -64,16 +66,11 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	public void snapshotState(
 			long checkpointId,
 			SimpleVersionedSerializer<SplitT> splitSerializer,
-			ObjectOutput out) throws Exception {
-		// Write the split serializer version.
-		out.writeInt(splitSerializer.getVersion());
-
+			ByteArrayOutputStream out) throws Exception {
 		// Include the uncheckpointed assignments to the snapshot.
 		assignmentsByCheckpointId.put(checkpointId, uncheckpointedAssignments);
 		uncheckpointedAssignments = new HashMap<>();
-		Map<Long, Map<Integer, LinkedHashSet<byte[]>>> serializedState = convertAssignmentsByCheckpoints(
-				assignmentsByCheckpointId, splitSerializer::serialize);
-		out.writeObject(serializedState);
+		writeAssignmentsByCheckpointId(assignmentsByCheckpointId, splitSerializer, out);
 	}
 
 	/**
@@ -84,17 +81,11 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	 * @throws Exception when the state deserialization fails.
 	 */
 	@SuppressWarnings("unchecked")
-	public void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, ObjectInput in) throws Exception {
-		// Read the version.
-		final int version = in.readInt();
-
+	public void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, ByteArrayInputStream in) throws Exception {
 		// Read the split assignments by checkpoint id.
-		Map<Long, Map<Integer, LinkedHashSet<byte[]>>> serializedState =
-				(Map<Long, Map<Integer, LinkedHashSet<byte[]>>>) in.readObject();
-		Map<Long, Map<Integer, LinkedHashSet<SplitT>>> deserializedState = convertAssignmentsByCheckpoints(
-				serializedState,
-				(byte[] splitBytes) -> splitSerializer.deserialize(version, splitBytes));
-		assignmentsByCheckpointId.putAll(deserializedState);
+		Map<Long, Map<Integer, LinkedHashSet<SplitT>>> deserializedAssignments =
+				readAssignmentsByCheckpointId(in, splitSerializer);
+		assignmentsByCheckpointId.putAll(deserializedAssignments);
 	}
 
 	/**
@@ -169,34 +160,5 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 			Map<Integer, LinkedHashSet<SplitT>> assignments) {
 		additionalAssignment.assignment().forEach((id, splits) ->
 				assignments.computeIfAbsent(id, ignored -> new LinkedHashSet<>()).addAll(splits));
-	}
-
-	// -------------- private util methods -----------------
-
-	private static <S, T> Map<Long, Map<Integer, LinkedHashSet<T>>> convertAssignmentsByCheckpoints(
-			Map<Long, Map<Integer, LinkedHashSet<S>>> uncheckpiontedAssignments,
-			FunctionWithException<S, T, Exception> converter) throws Exception {
-		Map<Long, Map<Integer, LinkedHashSet<T>>> targetSplitsContextCkpt = new HashMap<>(uncheckpiontedAssignments.size());
-		for (Map.Entry<Long, Map<Integer, LinkedHashSet<S>>> ckptEntry : uncheckpiontedAssignments.entrySet()) {
-			targetSplitsContextCkpt.put(
-					ckptEntry.getKey(),
-					convertAssignment(ckptEntry.getValue(), converter));
-		}
-		return targetSplitsContextCkpt;
-	}
-
-	private static <S, T> Map<Integer, LinkedHashSet<T>> convertAssignment(
-			Map<Integer, LinkedHashSet<S>> assignment,
-			FunctionWithException<S, T, Exception> converter) throws Exception {
-		Map<Integer, LinkedHashSet<T>> convertedAssignments = new HashMap<>();
-		for (Map.Entry<Integer, LinkedHashSet<S>> assignmentEntry : assignment.entrySet()) {
-			LinkedHashSet<T> serializedSplits = convertedAssignments.compute(
-					assignmentEntry.getKey(),
-					(taskId, ignored) -> new LinkedHashSet<>(assignmentEntry.getValue().size()));
-			for (S source : assignmentEntry.getValue()) {
-				serializedSplits.add(converter.apply(source));
-			}
-		}
-		return convertedAssignments;
 	}
 }

@@ -29,22 +29,24 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
+import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeCoordinatorSerdeVersion;
+import static org.apache.flink.util.serde.SerdeUtils.readBytes;
+import static org.apache.flink.util.serde.SerdeUtils.readInt;
+import static org.apache.flink.util.serde.SerdeUtils.writeBytes;
+import static org.apache.flink.util.serde.SerdeUtils.writeInt;
 
 /**
  * The default implementation of the {@link OperatorCoordinator} for the {@link Source}.
@@ -223,13 +225,13 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	private byte[] toBytes(long checkpointId) throws Exception {
 		EnumChkT enumCkpt = enumerator.snapshotState();
 
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			ObjectOutput out = new ObjectOutputStream(baos)) {
-			out.writeInt(enumCheckpointSerializer.getVersion());
-			out.writeObject(enumCheckpointSerializer.serialize(enumCkpt));
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			writeCoordinatorSerdeVersion(out);
+			writeInt(enumCheckpointSerializer.getVersion(), out);
+			writeBytes(enumCheckpointSerializer.serialize(enumCkpt), out);
 			context.snapshotState(checkpointId, splitSerializer, out);
 			out.flush();
-			return baos.toByteArray();
+			return out.toByteArray();
 		}
 	}
 
@@ -240,10 +242,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	 * @throws Exception When the deserialization failed.
 	 */
 	private void fromBytes(byte[] bytes) throws Exception {
-		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-			ObjectInput in = new ObjectInputStream(bais)) {
-			int enumSerializerVersion = in.readInt();
-			byte[] serializedEnumChkpt = (byte[]) in.readObject();
+		try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
+			readAndVerifyCoordinatorSerdeVersion(in);
+			int enumSerializerVersion = readInt(in);
+			byte[] serializedEnumChkpt = readBytes(in);
 			EnumChkT enumChkpt = enumCheckpointSerializer.deserialize(enumSerializerVersion, serializedEnumChkpt);
 			context.restoreState(splitSerializer, in);
 			enumerator = source.restoreEnumerator(context, enumChkpt);

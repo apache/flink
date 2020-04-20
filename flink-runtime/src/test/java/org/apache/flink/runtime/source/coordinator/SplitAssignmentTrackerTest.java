@@ -25,10 +25,6 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -152,17 +148,17 @@ public class SplitAssignmentTrackerTest {
 
 	private byte[] takeSnapshot(SplitAssignmentTracker<MockSourceSplit> tracker, long checkpointId) throws Exception {
 		byte[] bytes;
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); ObjectOutput out = new ObjectOutputStream(baos)) {
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			tracker.snapshotState(checkpointId, new MockSourceSplitSerializer(), out);
 			out.flush();
-			bytes = baos.toByteArray();
+			bytes = out.toByteArray();
 		}
 		return bytes;
 	}
 
 	private SplitAssignmentTracker<MockSourceSplit> restoreSnapshot(byte[] bytes) throws Exception {
 		SplitAssignmentTracker<MockSourceSplit> deserializedTracker;
-		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes); ObjectInput in = new ObjectInputStream(bais)) {
+		try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
 			deserializedTracker = new SplitAssignmentTracker<>();
 			deserializedTracker.restoreState(new MockSourceSplitSerializer(), in);
 		}
