@@ -25,7 +25,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelShuttle}
+import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -49,6 +49,14 @@ class FlinkLogicalWindowTableAggregate(
   def getWindow: LogicalWindow = window
 
   def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+    for (property <- namedProperties) {
+      pw.item(property.name, property.property)
+    }
+    pw.item("window", window.toString)
+  }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): TableAggregate = {
     new FlinkLogicalWindowTableAggregate(

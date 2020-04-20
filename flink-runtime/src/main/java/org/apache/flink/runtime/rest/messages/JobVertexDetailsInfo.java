@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDSerializer;
 
@@ -61,7 +60,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
 	private final long now;
 
 	@JsonProperty(FIELD_NAME_SUBTASKS)
-	private final List<VertexTaskDetail> subtasks;
+	private final List<SubtaskExecutionAttemptDetailsInfo> subtasks;
 
 	@JsonCreator
 	public JobVertexDetailsInfo(
@@ -69,7 +68,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
 			@JsonProperty(FIELD_NAME_VERTEX_NAME) String name,
 			@JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
 			@JsonProperty(FIELD_NAME_NOW) long now,
-			@JsonProperty(FIELD_NAME_SUBTASKS) List<VertexTaskDetail> subtasks) {
+			@JsonProperty(FIELD_NAME_SUBTASKS) List<SubtaskExecutionAttemptDetailsInfo> subtasks) {
 		this.id = checkNotNull(id);
 		this.name = checkNotNull(name);
 		this.parallelism = parallelism;
@@ -78,7 +77,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
 	}
 
 	@JsonIgnore
-	public List<VertexTaskDetail> getSubtasks() {
+	public List<SubtaskExecutionAttemptDetailsInfo> getSubtasks() {
 		return Collections.unmodifiableList(subtasks);
 	}
 
@@ -103,104 +102,5 @@ public class JobVertexDetailsInfo implements ResponseBody {
 	@Override
 	public int hashCode() {
 		return Objects.hash(id, name, parallelism, now, subtasks);
-	}
-
-	//---------------------------------------------------------------------------------
-	// Static helper classes
-	//---------------------------------------------------------------------------------
-
-	/**
-	 * Vertex task detail class.
-	 */
-	public static final class VertexTaskDetail {
-		public static final String FIELD_NAME_SUBTASK = "subtask";
-		public static final String FIELD_NAME_STATUS = "status";
-		public static final String FIELD_NAME_ATTEMPT = "attempt";
-		public static final String FIELD_NAME_HOST = "host";
-		public static final String FIELD_NAME_START_TIME = "start-time";
-		public static final String FIELD_NAME_COMPATIBLE_START_TIME = "start_time";
-		public static final String FIELD_NAME_END_TIME = "end-time";
-		public static final String FIELD_NAME_DURATION = "duration";
-		public static final String FIELD_NAME_METRICS = "metrics";
-
-		@JsonProperty(FIELD_NAME_SUBTASK)
-		private final int subtask;
-
-		@JsonProperty(FIELD_NAME_STATUS)
-		private final ExecutionState status;
-
-		@JsonProperty(FIELD_NAME_ATTEMPT)
-		private final int attempt;
-
-		@JsonProperty(FIELD_NAME_HOST)
-		private final String host;
-
-		@JsonProperty(FIELD_NAME_START_TIME)
-		private final long startTime;
-
-		@JsonProperty(FIELD_NAME_COMPATIBLE_START_TIME)
-		private final long startTimeCompatible;
-
-		@JsonProperty(FIELD_NAME_END_TIME)
-		private final long endTime;
-
-		@JsonProperty(FIELD_NAME_DURATION)
-		private final long duration;
-
-		@JsonProperty(FIELD_NAME_METRICS)
-		private final IOMetricsInfo metrics;
-
-		@JsonCreator
-		public VertexTaskDetail(
-				@JsonProperty(FIELD_NAME_SUBTASK) int subtask,
-				@JsonProperty(FIELD_NAME_STATUS) ExecutionState status,
-				@JsonProperty(FIELD_NAME_ATTEMPT) int attempt,
-				@JsonProperty(FIELD_NAME_HOST) String host,
-				@JsonProperty(FIELD_NAME_START_TIME) long startTime,
-				@JsonProperty(FIELD_NAME_END_TIME) long endTime,
-				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo metrics) {
-			this.subtask = subtask;
-			this.status = checkNotNull(status);
-			this.attempt = attempt;
-			this.host = checkNotNull(host);
-			this.startTime = startTime;
-			this.startTimeCompatible = startTime;
-			this.endTime = endTime;
-			this.duration = duration;
-			this.metrics = checkNotNull(metrics);
-		}
-
-		@JsonIgnore
-		public int getAttempt() {
-			return attempt;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-
-			if (null == o || this.getClass() != o.getClass()) {
-				return false;
-			}
-
-			VertexTaskDetail that = (VertexTaskDetail) o;
-			return subtask == that.subtask &&
-				Objects.equals(status, that.status) &&
-				attempt == that.attempt &&
-				Objects.equals(host, that.host) &&
-				startTime == that.startTime &&
-				startTimeCompatible == that.startTimeCompatible &&
-				endTime == that.endTime &&
-				duration == that.duration &&
-				Objects.equals(metrics, that.metrics);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(subtask, status, attempt, host, startTime, startTimeCompatible, endTime, duration, metrics);
-		}
 	}
 }

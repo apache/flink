@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.util.Preconditions;
 
@@ -67,7 +68,7 @@ public final class DistinctType extends UserDefinedType {
 				"Source type must not be a user-defined type.");
 		}
 
-		public Builder setDescription(String description) {
+		public Builder description(String description) {
 			this.description = Preconditions.checkNotNull(description, "Description must not be null");
 			return this;
 		}
@@ -92,8 +93,20 @@ public final class DistinctType extends UserDefinedType {
 		this.sourceType = Preconditions.checkNotNull(sourceType, "Source type must not be null.");
 	}
 
+	/**
+	 * Creates a builder for a {@link DistinctType}.
+	 */
+	public static DistinctType.Builder newBuilder(ObjectIdentifier objectIdentifier, LogicalType sourceType) {
+		return new DistinctType.Builder(objectIdentifier, sourceType);
+	}
+
 	public LogicalType getSourceType() {
 		return sourceType;
+	}
+
+	public ObjectIdentifier getObjectIdentifier() {
+		return getOptionalObjectIdentifier()
+			.orElseThrow(() -> new TableException("Object identifier expected."));
 	}
 
 	@Override

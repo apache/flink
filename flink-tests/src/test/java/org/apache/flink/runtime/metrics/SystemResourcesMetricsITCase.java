@@ -27,10 +27,12 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +50,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Integration tests for proper initialization of the system resource metrics.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class SystemResourcesMetricsITCase extends TestLogger {
 
 	@ClassRule

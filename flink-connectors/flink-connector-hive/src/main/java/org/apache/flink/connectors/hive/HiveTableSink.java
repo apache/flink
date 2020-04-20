@@ -20,18 +20,24 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.table.filesystem.FileSystemOutputFormat;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -40,21 +46,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
-import org.apache.hadoop.hive.metastore.Warehouse;
-import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.exec.Utilities;
+import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Table sink to write to Hive tables.
@@ -64,12 +66,14 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 	private final JobConf jobConf;
 	private final CatalogTable catalogTable;
 	private final ObjectPath tablePath;
-	private final RowTypeInfo rowTypeInfo;
+	private final TableSchema tableSchema;
 	private final String hiveVersion;
+	private final HiveShim hiveShim;
 
-	private Map<String, String> staticPartitionSpec = Collections.emptyMap();
+	private LinkedHashMap<String, String> staticPartitionSpec = new LinkedHashMap<>();
 
 	private boolean overwrite = false;
+	private boolean dynamicGrouping = false;
 
 	public HiveTableSink(JobConf jobConf, ObjectPath tablePath, CatalogTable table) {
 		this.jobConf = jobConf;
@@ -77,56 +81,65 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		this.catalogTable = table;
 		hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
-		TableSchema tableSchema = table.getSchema();
-		rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+		tableSchema = TableSchemaUtils.getPhysicalSchema(table.getSchema());
 	}
 
 	@Override
 	public OutputFormat<Row> getOutputFormat() {
-		List<String> partitionColumns = getPartitionFieldNames();
-		boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
-		boolean isDynamicPartition = isPartitioned && partitionColumns.size() > staticPartitionSpec.size();
+		String[] partitionColumns = getPartitionFieldNames().toArray(new String[0]);
 		String dbName = tablePath.getDatabaseName();
 		String tableName = tablePath.getObjectName();
-		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
+		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(
+				new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
 			Table table = client.getTable(dbName, tableName);
 			StorageDescriptor sd = table.getSd();
-			// here we use the sdLocation to store the output path of the job, which is always a staging dir
-			String sdLocation = sd.getLocation();
-			HiveTablePartition hiveTablePartition;
-			if (isPartitioned) {
-				validatePartitionSpec();
-				if (isDynamicPartition) {
-					List<String> path = new ArrayList<>(2);
-					path.add(sd.getLocation());
-					if (!staticPartitionSpec.isEmpty()) {
-						path.add(Warehouse.makePartName(staticPartitionSpec, false));
-					}
-					sdLocation = String.join(Path.SEPARATOR, path);
-				} else {
-					List<Partition> partitions = client.listPartitions(dbName, tableName,
-							new ArrayList<>(staticPartitionSpec.values()), (short) 1);
-					sdLocation = !partitions.isEmpty() ? partitions.get(0).getSd().getLocation() :
-							sd.getLocation() + Path.SEPARATOR + Warehouse.makePartName(staticPartitionSpec, true);
-				}
 
-				sd.setLocation(toStagingDir(sdLocation, jobConf));
-				hiveTablePartition = new HiveTablePartition(sd, new LinkedHashMap<>(staticPartitionSpec));
-			} else {
-				sd.setLocation(toStagingDir(sdLocation, jobConf));
-				hiveTablePartition = new HiveTablePartition(sd, null);
-			}
-			return new HiveTableOutputFormat(
-				jobConf,
-				tablePath,
-				catalogTable,
-				hiveTablePartition,
-				MetaStoreUtils.getTableMetadata(table),
-				overwrite);
+			FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
+			builder.setPartitionComputer(new HivePartitionComputer(
+					hiveShim,
+					jobConf.get(
+							HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+							HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal),
+					tableSchema.getFieldNames(),
+					tableSchema.getFieldDataTypes(),
+					partitionColumns));
+			builder.setDynamicGrouped(dynamicGrouping);
+			builder.setPartitionColumns(partitionColumns);
+			builder.setFileSystemFactory(new HadoopFileSystemFactory(jobConf));
+
+			boolean isCompressed = jobConf.getBoolean(HiveConf.ConfVars.COMPRESSRESULT.varname, false);
+			Class hiveOutputFormatClz = hiveShim.getHiveOutputFormatClass(Class.forName(sd.getOutputFormat()));
+			builder.setFormatFactory(new HiveOutputFormatFactory(
+					jobConf,
+					hiveOutputFormatClz,
+					sd.getSerdeInfo(),
+					tableSchema,
+					partitionColumns,
+					HiveReflectionUtils.getTableMetadata(hiveShim, table),
+					hiveShim,
+					isCompressed));
+			builder.setMetaStoreFactory(
+					new HiveTableMetaStoreFactory(jobConf, hiveVersion, dbName, tableName));
+			builder.setOverwrite(overwrite);
+			builder.setStaticPartitions(staticPartitionSpec);
+			builder.setTempPath(new org.apache.flink.core.fs.Path(
+					toStagingDir(sd.getLocation(), jobConf)));
+			String extension = Utilities.getFileExtension(jobConf, isCompressed,
+					(HiveOutputFormat<?, ?>) hiveOutputFormatClz.newInstance());
+			extension = extension == null ? "" : extension;
+			OutputFileConfig outputFileConfig = new OutputFileConfig("", extension);
+			builder.setOutputFileConfig(outputFileConfig);
+
+			return builder.build();
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to create staging dir", e);
+		} catch (ClassNotFoundException e) {
+			throw new FlinkHiveException("Failed to get output format class", e);
+		} catch (IllegalAccessException | InstantiationException e) {
+			throw new FlinkHiveException("Failed to instantiate output format instance", e);
 		}
 	}
 
@@ -136,18 +149,19 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 	}
 
 	@Override
-	public String[] getFieldNames() {
-		return rowTypeInfo.getFieldNames();
+	public DataType getConsumedDataType() {
+		return getTableSchema().toRowDataType();
 	}
 
 	@Override
-	public TypeInformation<?>[] getFieldTypes() {
-		return rowTypeInfo.getFieldTypes();
+	public TableSchema getTableSchema() {
+		return tableSchema;
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
-		return rowTypeInfo;
+	public boolean configurePartitionGrouping(boolean supportsGrouping) {
+		this.dynamicGrouping = supportsGrouping;
+		return supportsGrouping;
 	}
 
 	// get a staging dir associated with a final dir
@@ -165,8 +179,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		return res;
 	}
 
-	@Override
-	public List<String> getPartitionFieldNames() {
+	private List<String> getPartitionFieldNames() {
 		return catalogTable.getPartitionKeys();
 	}
 
@@ -177,27 +190,6 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		for (String partitionCol : getPartitionFieldNames()) {
 			if (partitionSpec.containsKey(partitionCol)) {
 				staticPartitionSpec.put(partitionCol, partitionSpec.get(partitionCol));
-			}
-		}
-	}
-
-	private void validatePartitionSpec() {
-		List<String> partitionCols = getPartitionFieldNames();
-		List<String> unknownPartCols = staticPartitionSpec.keySet().stream().filter(k -> !partitionCols.contains(k)).collect(Collectors.toList());
-		Preconditions.checkArgument(
-				unknownPartCols.isEmpty(),
-				"Static partition spec contains unknown partition column: " + unknownPartCols.toString());
-		int numStaticPart = staticPartitionSpec.size();
-		if (numStaticPart < partitionCols.size()) {
-			for (String partitionCol : partitionCols) {
-				if (!staticPartitionSpec.containsKey(partitionCol)) {
-					// this is a dynamic partition, make sure we have seen all static ones
-					Preconditions.checkArgument(numStaticPart == 0,
-							"Dynamic partition cannot appear before static partition");
-					return;
-				} else {
-					numStaticPart--;
-				}
 			}
 		}
 	}

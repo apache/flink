@@ -28,9 +28,21 @@ export AWS_SECRET_KEY=flinkKinesisTestFakeAccessKey
 
 KINESALITE_PORT=4567
 
-#docker run -d --rm --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
-# override entrypoint to enable SSL
-docker run -d --rm --entrypoint "/tini" --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite -- /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
+function start_kinesalite {
+    #docker run -d --rm --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
+    # override entrypoint to enable SSL
+    docker run -d --rm --entrypoint "/tini" \
+        --name flink-test-kinesis \
+        -p ${KINESALITE_PORT}:${KINESALITE_PORT} \
+        instructure/kinesalite -- \
+        /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
+}
+
+START_KINESALITE_MAX_RETRIES=50
+if ! retry_times ${START_KINESALITE_MAX_RETRIES} 0 start_kinesalite; then
+    echo "Failed to run kinesalite docker image"
+    exit 1
+fi
 
 # reveal potential issues with the container in the CI environment
 docker logs flink-test-kinesis

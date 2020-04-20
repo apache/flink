@@ -430,4 +430,16 @@ class OverAggregateTest extends TableTestBase {
     verifyPlanIdentical(sql, sql2)
     util.verifyPlan(sql)
   }
+
+  @Test
+  def testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime(): Unit = {
+    val sqlQuery = "SELECT a, " +
+      "  SUM(c) OVER (" +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
+      "  MIN(c) OVER (" +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
+      "FROM MyTable"
+
+    util.verifyPlan(sqlQuery)
+  }
 }

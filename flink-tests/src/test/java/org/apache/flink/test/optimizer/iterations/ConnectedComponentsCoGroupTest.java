@@ -31,8 +31,6 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSec
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.OptimizerPlanEnvironment.ProgramAbortException;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -71,7 +69,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 	private final FieldList set0 = new FieldList(0);
 
 	@Test
-	public void testWorksetConnectedComponents() {
+	public void testWorksetConnectedComponents() throws Exception {
 		Plan plan = getConnectedComponentsCoGroupPlan();
 		plan.setExecutionConfig(new ExecutionConfig());
 		OptimizedPlan optPlan = compileNoStats(plan);
@@ -145,22 +143,11 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 		jgg.compileJobGraph(optPlan);
 	}
 
-	public static Plan getConnectedComponentsCoGroupPlan() {
-		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
-		env.setAsContext();
-		try {
-			connectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});
-		} catch (ProgramAbortException pae) {
-			// all good.
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("connectedComponentsWithCoGroup failed with an exception");
-		}
-		return env.getPlan();
+	public static Plan getConnectedComponentsCoGroupPlan() throws Exception {
+		return connectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});
 	}
 
-	public static void connectedComponentsWithCoGroup(String[] args) throws Exception {
+	public static Plan connectedComponentsWithCoGroup(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(Integer.parseInt(args[0]));
 
@@ -183,7 +170,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 		iteration.closeWith(minAndUpdate, minAndUpdate).writeAsCsv(args[3]).name(SINK);
 
-		env.execute();
+		return env.createProgramPlan();
 	}
 
 	private static class DummyMapFunction implements FlatMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {

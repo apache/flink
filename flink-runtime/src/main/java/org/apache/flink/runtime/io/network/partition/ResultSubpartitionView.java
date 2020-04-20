@@ -42,13 +42,11 @@ public interface ResultSubpartitionView {
 	 * after it has been consumed.
 	 */
 	@Nullable
-	BufferAndBacklog getNextBuffer() throws IOException, InterruptedException;
+	BufferAndBacklog getNextBuffer() throws IOException;
 
 	void notifyDataAvailable();
 
 	void releaseAllResources() throws IOException;
-
-	void notifySubpartitionConsumed() throws IOException;
 
 	boolean isReleased();
 

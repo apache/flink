@@ -23,9 +23,12 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -61,8 +64,8 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public int getNumberPendingTaskManagerSlots() {
-		return 0;
+	public Map<WorkerResourceSpec, Integer> getRequiredResources() {
+		return Collections.emptyMap();
 	}
 
 	@Override
@@ -96,7 +99,7 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public boolean unregisterTaskManager(InstanceID instanceId) {
+	public boolean unregisterTaskManager(InstanceID instanceId, Exception cause) {
 		return false;
 	}
 

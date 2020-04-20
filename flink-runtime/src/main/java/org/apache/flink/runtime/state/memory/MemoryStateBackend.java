@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -66,7 +66,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * main memory, reducing operational stability.
  * For any other setup, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend FsStateBackend}
  * should be used. The {@code FsStateBackend} holds the working state on the TaskManagers in the same way, but
- * checkpoints state directly to files rather then to the JobManager's memory, thus supporting
+ * checkpoints state directly to files rather than to the JobManager's memory, thus supporting
  * large state sizes.
  *
  * <h1>State Size Considerations</h1>
@@ -100,7 +100,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(Configuration, ClassLoader)} method.
+ * {@link #configure(ReadableConfig, ClassLoader)} method.
  */
 @PublicEvolving
 public class MemoryStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -234,7 +234,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @param configuration The configuration
 	 * @param classLoader The class loader
 	 */
-	private MemoryStateBackend(MemoryStateBackend original, Configuration configuration, ClassLoader classLoader) {
+	private MemoryStateBackend(MemoryStateBackend original, ReadableConfig configuration, ClassLoader classLoader) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		this.maxStateSize = original.maxStateSize;
@@ -242,7 +242,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		// if asynchronous snapshots were configured, use that setting,
 		// else check the configuration
 		this.asynchronousSnapshots = original.asynchronousSnapshots.resolveUndefined(
-				configuration.getBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS));
+				configuration.get(CheckpointingOptions.ASYNC_SNAPSHOTS));
 	}
 
 	// ------------------------------------------------------------------------
@@ -282,7 +282,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader) {
+	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
 		return new MemoryStateBackend(this, config, classLoader);
 	}
 

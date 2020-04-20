@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.SqlParserException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.utils.{TableTestBase, TestLimitableTableSource}
 
 import org.junit.Test
 
@@ -29,6 +32,9 @@ class LimitTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addTableSource("LimitTable", new TestLimitableTableSource(null, new RowTypeInfo(
+    Array[TypeInformation[_]](INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO),
+    Array("a", "b", "c"))))
 
   @Test
   def testLimitWithoutOffset(): Unit = {
@@ -88,6 +94,36 @@ class LimitTest extends TableTestBase {
   @Test
   def testOnlyOffset(): Unit = {
     util.verifyPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS")
+  }
+
+  @Test
+  def testFetchWithLimitSource(): Unit = {
+    val sqlQuery = "SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testOrderByWithLimitSource(): Unit = {
+    val sqlQuery = "SELECT a, c FROM LimitTable ORDER BY c LIMIT 10"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLimitWithLimitSource(): Unit = {
+    val sqlQuery = "SELECT a, c FROM LimitTable LIMIT 10"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLimitWithOffsetAndLimitSource(): Unit = {
+    val sqlQuery = "SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testFetchWithOffsetAndLimitSource(): Unit = {
+    val sqlQuery = "SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY"
+    util.verifyPlan(sqlQuery)
   }
 
 }

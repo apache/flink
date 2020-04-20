@@ -18,15 +18,16 @@
 package org.apache.flink.table.api.validation
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{TableException, TableSchema}
+import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
+
 
 class TableSchemaValidationTest extends TableTestBase {
 
   @Test
   def testColumnNameAndColumnTypeNotEqual() {
-    thrown.expect(classOf[TableException])
+    thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Number of field names and field data types must be equal.\n" +
         "Number of names is 3, number of data types is 2.\n" +
@@ -42,11 +43,8 @@ class TableSchemaValidationTest extends TableTestBase {
 
   @Test
   def testColumnNamesDuplicate() {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Field names must be unique.\n" +
-        "List of duplicate fields: [a]\n" +
-        "List of all fields: [a, a, c]")
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Field names must be unique. Duplicate field: 'a'")
 
     val fieldNames = Array("a", "a", "c")
     val typeInfos: Array[TypeInformation[_]] = Array(

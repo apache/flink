@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -169,7 +170,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		client.submitJob(jobGraph, SavepointWriterITCase.class.getClassLoader());
+		ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointWriterITCase.class.getClassLoader());
 
 		Assert.assertEquals("Unexpected output", 3, CollectSink.accountList.size());
 	}
@@ -215,7 +216,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		client.submitJob(jobGraph, SavepointWriterITCase.class.getClassLoader());
+		ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointWriterITCase.class.getClassLoader());
 
 		Assert.assertEquals("Unexpected output", 3, CollectSink.accountList.size());
 	}

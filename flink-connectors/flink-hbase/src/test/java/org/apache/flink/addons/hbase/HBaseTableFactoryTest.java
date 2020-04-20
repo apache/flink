@@ -22,6 +22,7 @@ package org.apache.flink.addons.hbase;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -46,14 +47,14 @@ public class HBaseTableFactoryTest {
 	private static final String FAMILY1 = "f1";
 	private static final String FAMILY2 = "f2";
 	private static final String FAMILY3 = "f3";
+	private static final String FAMILY4 = "f4";
 	private static final String COL1 = "c1";
 	private static final String COL2 = "c2";
 	private static final String COL3 = "c3";
+	private static final String COL4 = "c4";
 	private static final String ROWKEY = "rowkey";
 
-	private DescriptorProperties createDescriptor(String[] columnNames, TypeInformation[] columnTypes) {
-		TableSchema tableSchema = new TableSchema(columnNames, columnTypes);
-
+	private DescriptorProperties createDescriptor(TableSchema tableSchema) {
 		Map<String, String> tableProperties = new HashMap<>();
 		tableProperties.put("connector.type", "hbase");
 		tableProperties.put("connector.version", "1.4.3");
@@ -73,14 +74,23 @@ public class HBaseTableFactoryTest {
 
 	@Test
 	public void testTableSourceFactory() {
-		String[] columnNames = {FAMILY1, FAMILY2, ROWKEY, FAMILY3};
-
-		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{COL1}, Types.INT);
-		TypeInformation<Row> f2 = Types.ROW_NAMED(new String[]{COL1, COL2}, Types.INT, Types.LONG);
-		TypeInformation<Row> f3 = Types.ROW_NAMED(new String[]{COL1, COL2, COL3}, Types.DOUBLE, Types.BOOLEAN, Types.STRING);
-		TypeInformation[] columnTypes = new TypeInformation[]{f1, f2, Types.LONG, f3};
-
-		DescriptorProperties descriptorProperties = createDescriptor(columnNames, columnTypes);
+		TableSchema schema = TableSchema.builder()
+			.field(FAMILY1, DataTypes.ROW(DataTypes.FIELD(COL1, DataTypes.INT())))
+			.field(FAMILY2, DataTypes.ROW(
+				DataTypes.FIELD(COL1, DataTypes.INT()),
+				DataTypes.FIELD(COL2, DataTypes.BIGINT())))
+			.field(ROWKEY, DataTypes.BIGINT())
+			.field(FAMILY3, DataTypes.ROW(
+				DataTypes.FIELD(COL1, DataTypes.DOUBLE()),
+				DataTypes.FIELD(COL2, DataTypes.BOOLEAN()),
+				DataTypes.FIELD(COL3, DataTypes.STRING())))
+			.field(FAMILY4, DataTypes.ROW(
+				DataTypes.FIELD(COL1, DataTypes.DECIMAL(10, 3)),
+				DataTypes.FIELD(COL2, DataTypes.TIMESTAMP(3)),
+				DataTypes.FIELD(COL3, DataTypes.DATE()),
+				DataTypes.FIELD(COL4, DataTypes.TIME())))
+			.build();
+		DescriptorProperties descriptorProperties = createDescriptor(schema);
 		TableSource source = TableFactoryService.find(HBaseTableFactory.class,
 			descriptorProperties.asMap()).createTableSource(descriptorProperties.asMap());
 		Assert.assertTrue(source instanceof HBaseTableSource);
@@ -92,24 +102,41 @@ public class HBaseTableFactoryTest {
 		Assert.assertEquals(2, hbaseSchema.getRowKeyIndex());
 		Assert.assertEquals(Optional.of(Types.LONG), hbaseSchema.getRowKeyTypeInfo());
 
-		Assert.assertArrayEquals(new String[]{"f1", "f2", "f3"}, hbaseSchema.getFamilyNames());
+		Assert.assertArrayEquals(new String[]{"f1", "f2", "f3", "f4"}, hbaseSchema.getFamilyNames());
 		Assert.assertArrayEquals(new String[]{"c1"}, hbaseSchema.getQualifierNames("f1"));
 		Assert.assertArrayEquals(new String[]{"c1", "c2"}, hbaseSchema.getQualifierNames("f2"));
 		Assert.assertArrayEquals(new String[]{"c1", "c2", "c3"}, hbaseSchema.getQualifierNames("f3"));
+		Assert.assertArrayEquals(new String[]{"c1", "c2", "c3", "c4"}, hbaseSchema.getQualifierNames("f4"));
 
 		Assert.assertArrayEquals(new TypeInformation[]{Types.INT}, hbaseSchema.getQualifierTypes("f1"));
 		Assert.assertArrayEquals(new TypeInformation[]{Types.INT, Types.LONG}, hbaseSchema.getQualifierTypes("f2"));
 		Assert.assertArrayEquals(new TypeInformation[]{Types.DOUBLE, Types.BOOLEAN, Types.STRING}, hbaseSchema.getQualifierTypes("f3"));
+		Assert.assertArrayEquals(
+			new TypeInformation[]{Types.BIG_DEC, Types.SQL_TIMESTAMP, Types.SQL_DATE, Types.SQL_TIME},
+			hbaseSchema.getQualifierTypes("f4"));
 	}
 
 	@Test
 	public void testTableSinkFactory() {
-		String[] columnNames = {ROWKEY, FAMILY1, FAMILY2, FAMILY3};
-		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{COL1, COL2}, Types.DOUBLE, Types.INT);
-		TypeInformation<Row> f2 = Types.ROW_NAMED(new String[]{COL1, COL3}, Types.INT, Types.LONG);
-		TypeInformation<Row> f3 = Types.ROW_NAMED(new String[]{COL2, COL3}, Types.BOOLEAN, Types.STRING);
-		TypeInformation[] columnTypes = new TypeInformation[]{Types.STRING, f1, f2, f3};
-		DescriptorProperties descriptorProperties = createDescriptor(columnNames, columnTypes);
+		TableSchema schema = TableSchema.builder()
+			.field(ROWKEY, DataTypes.STRING())
+			.field(FAMILY1, DataTypes.ROW(
+				DataTypes.FIELD(COL1, DataTypes.DOUBLE()),
+				DataTypes.FIELD(COL2, DataTypes.INT())))
+			.field(FAMILY2, DataTypes.ROW(
+				DataTypes.FIELD(COL1, DataTypes.INT()),
+				DataTypes.FIELD(COL3, DataTypes.BIGINT())))
+			.field(FAMILY3, DataTypes.ROW(
+				DataTypes.FIELD(COL2, DataTypes.BOOLEAN()),
+				DataTypes.FIELD(COL3, DataTypes.STRING())))
+			.field(FAMILY4, DataTypes.ROW(
+				DataTypes.FIELD(COL1, DataTypes.DECIMAL(10, 3)),
+				DataTypes.FIELD(COL2, DataTypes.TIMESTAMP(3)),
+				DataTypes.FIELD(COL3, DataTypes.DATE()),
+				DataTypes.FIELD(COL4, DataTypes.TIME())))
+			.build();
+
+		DescriptorProperties descriptorProperties = createDescriptor(schema);
 
 		TableSink sink = TableFactoryService
 			.find(HBaseTableFactory.class, descriptorProperties.asMap())
@@ -121,14 +148,18 @@ public class HBaseTableFactoryTest {
 		Assert.assertEquals(0, hbaseSchema.getRowKeyIndex());
 		Assert.assertEquals(Optional.of(Types.STRING), hbaseSchema.getRowKeyTypeInfo());
 
-		Assert.assertArrayEquals(new String[]{"f1", "f2", "f3"}, hbaseSchema.getFamilyNames());
+		Assert.assertArrayEquals(new String[]{"f1", "f2", "f3", "f4"}, hbaseSchema.getFamilyNames());
 		Assert.assertArrayEquals(new String[]{"c1", "c2"}, hbaseSchema.getQualifierNames("f1"));
 		Assert.assertArrayEquals(new String[]{"c1", "c3"}, hbaseSchema.getQualifierNames("f2"));
 		Assert.assertArrayEquals(new String[]{"c2", "c3"}, hbaseSchema.getQualifierNames("f3"));
+		Assert.assertArrayEquals(new String[]{"c1", "c2", "c3", "c4"}, hbaseSchema.getQualifierNames("f4"));
 
 		Assert.assertArrayEquals(new TypeInformation[]{Types.DOUBLE, Types.INT}, hbaseSchema.getQualifierTypes("f1"));
 		Assert.assertArrayEquals(new TypeInformation[]{Types.INT, Types.LONG}, hbaseSchema.getQualifierTypes("f2"));
 		Assert.assertArrayEquals(new TypeInformation[]{Types.BOOLEAN, Types.STRING}, hbaseSchema.getQualifierTypes("f3"));
+		Assert.assertArrayEquals(
+			new TypeInformation[]{Types.BIG_DEC, Types.SQL_TIMESTAMP, Types.SQL_DATE, Types.SQL_TIME},
+			hbaseSchema.getQualifierTypes("f4"));
 
 		HBaseOptions expectedHBaseOptions = HBaseOptions.builder()
 			.setTableName("testHBastTable")

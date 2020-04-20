@@ -70,11 +70,16 @@ public class PythonGatewayServer {
 			System.exit(1);
 		}
 
-		// Exit on EOF or broken pipe.  This ensures that the server dies
-		// if its parent program dies.
-		while (System.in.read() != -1) {
-			// Do nothing
+		try {
+			// Exit on EOF or broken pipe.  This ensures that the server dies
+			// if its parent program dies.
+			while (System.in.read() != -1) {
+				// Do nothing
+			}
+			gatewayServer.shutdown();
+			System.exit(0);
+		} finally {
+			System.exit(1);
 		}
-		gatewayServer.shutdown();
 	}
 }

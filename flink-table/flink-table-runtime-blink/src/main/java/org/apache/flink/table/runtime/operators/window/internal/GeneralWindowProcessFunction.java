@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.window.internal;
 
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 
@@ -41,7 +41,7 @@ public class GeneralWindowProcessFunction<K, W extends Window>
 
 	public GeneralWindowProcessFunction(
 			WindowAssigner<W> windowAssigner,
-			NamespaceAggsHandleFunction<W> windowAggregator,
+			NamespaceAggsHandleFunctionBase<W> windowAggregator,
 			long allowedLateness) {
 		super(windowAssigner, windowAggregator, allowedLateness);
 	}
@@ -65,13 +65,12 @@ public class GeneralWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public BaseRow getWindowAggregationResult(W window) throws Exception {
+	public void prepareAggregateAccumulatorForEmit(W window) throws Exception {
 		BaseRow acc = ctx.getWindowAccumulators(window);
 		if (acc == null) {
 			acc = windowAggregator.createAccumulators();
 		}
 		windowAggregator.setAccumulators(window, acc);
-		return windowAggregator.getValue(window);
 	}
 
 	@Override

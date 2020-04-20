@@ -45,33 +45,15 @@ the same one that is used by the Java Virtual Machine to find the main method wh
 files through the command `java -jar pathToTheJarFile`. Most IDEs offer to include that attribute
 automatically when exporting JAR files.
 
-
-### Packaging Programs through Plans
-
-Additionally, we support packaging programs as *Plans*. Instead of defining a program in the main
-method and calling
-`execute()` on the environment, plan packaging returns the *Program Plan*, which is a description of
-the program's data flow. To do that, the program must implement the
-`org.apache.flink.api.common.Program` interface, defining the `getPlan(String...)` method. The
-strings passed to that method are the command line arguments. The program's plan can be created from
-the environment via the `ExecutionEnvironment#createProgramPlan()` method. When packaging the
-program's plan, the JAR manifest must point to the class implementing the
-`org.apache.flink.api.common.Program` interface, instead of the class with the main method.
-
-
 ### Summary
 
-The overall procedure to invoke a packaged program is as follows:
+The overall procedure to invoke a packaged program consists of two steps:
 
 1. The JAR's manifest is searched for a *main-class* or *program-class* attribute. If both
 attributes are found, the *program-class* attribute takes precedence over the *main-class*
 attribute. Both the command line and the web interface support a parameter to pass the entry point
-class name manually for cases where the JAR manifest contains neither attribute.
+class name manually for cases where the JAR manifest contains neither attribute. 
 
-2. If the entry point class implements the `org.apache.flink.api.common.Program`, then the system
-calls the `getPlan(String...)` method to obtain the program plan to execute.
-
-3. If the entry point class does not implement the `org.apache.flink.api.common.Program` interface,
-the system will invoke the main method of the class.
+2. The system invokes the main method of the class.
 
 {% top %}

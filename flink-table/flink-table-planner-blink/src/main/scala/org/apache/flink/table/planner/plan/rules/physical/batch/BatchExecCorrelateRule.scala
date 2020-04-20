@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCorrelate
+import org.apache.flink.table.planner.plan.utils.PythonUtil
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -40,11 +41,15 @@ class BatchExecCorrelateRule extends ConverterRule(
 
     right match {
       // right node is a table function
-      case _: FlinkLogicalTableFunctionScan => true
+      // return true if it is a non python table function
+      case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
       // a filter is pushed above the table function
+      // return true if it is a non python table function
       case calc: FlinkLogicalCalc =>
-        calc.getInput.asInstanceOf[RelSubset]
-            .getOriginal.isInstanceOf[FlinkLogicalTableFunctionScan]
+        calc.getInput.asInstanceOf[RelSubset].getOriginal match {
+          case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
+          case _ => false
+        }
       case _ => false
     }
   }

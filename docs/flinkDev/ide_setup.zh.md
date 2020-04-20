@@ -115,7 +115,32 @@ Nevertheless please make sure that code you add/modify in these modules still co
 
 ### Checkstyle For Scala
 
-Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle_config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle-config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+
+### FAQ
+
+This section lists issues that developers have run into in the past when working with IntelliJ:
+
+- Compilation fails with `invalid flag: --add-expots=java.base/sun.net.util=ALL-UNNAMED`
+
+This means that IntelliJ activated the `java11` profile despite an older JDK being used.
+Open the Maven tool window (View -> Tool Windows -> Maven), uncheck the `java11` profile and reimport the project.
+
+- Compilation fails with `cannot find symbol: symbol: method defineClass(...) location: class sun.misc.Unsafe`
+
+This means that IntelliJ is using JDK 11 for the project, but you are working on a Flink version which doesn't
+support Java 11.
+This commonly happens when you have setup IntelliJ to use JDK 11 and checkout older versions of Flink (<= 1.9).
+Open the project settings window (File -> Project Structure -> Project Settings: Project) and select JDK 8 as the project
+SDK.
+You may have to revert this after switching back to the new Flink version if you want to use JDK 11.
+
+- Examples fail with a `NoClassDefFoundError` for Flink classes.
+
+This is likely due to Flink dependencies being set to provided, resulting in them not being put automatically on the 
+classpath.
+You can either tick the "Include dependencies with 'Provided' scope" box in the run configuration, or create a test
+that calls the `main()` method of the example (`provided` dependencies are available on the test classpath).
 
 ## Eclipse
 

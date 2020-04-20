@@ -18,11 +18,11 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.core.fs.Path;
-
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -32,32 +32,34 @@ import static java.util.Objects.requireNonNull;
 final class PythonDriverOptions {
 
 	@Nonnull
-	private String entrypointModule;
+	private String entryPointModule;
 
-	@Nonnull
-	private List<Path> pythonLibFiles;
+	@Nullable
+	private String entryPointScript;
 
 	@Nonnull
 	private List<String> programArgs;
 
-	PythonDriverOptions(String entrypointModule, List<Path> pythonLibFiles, List<String> programArgs) {
-		this.entrypointModule = requireNonNull(entrypointModule, "entrypointModule");
-		this.pythonLibFiles = requireNonNull(pythonLibFiles, "pythonLibFiles");
-		this.programArgs = requireNonNull(programArgs, "programArgs");
+	@Nonnull
+	String getEntryPointModule() {
+		return entryPointModule;
 	}
 
-	@Nonnull
-	String getEntrypointModule() {
-		return entrypointModule;
-	}
-
-	@Nonnull
-	List<Path> getPythonLibFiles() {
-		return pythonLibFiles;
+	Optional<String> getEntryPointScript() {
+		return Optional.ofNullable(entryPointScript);
 	}
 
 	@Nonnull
 	List<String> getProgramArgs() {
 		return programArgs;
+	}
+
+	PythonDriverOptions(
+		String entryPointModule,
+		@Nullable String entryPointScript,
+		List<String> programArgs) {
+		this.entryPointModule = requireNonNull(entryPointModule, "entryPointModule");
+		this.entryPointScript = entryPointScript;
+		this.programArgs = requireNonNull(programArgs, "programArgs");
 	}
 }

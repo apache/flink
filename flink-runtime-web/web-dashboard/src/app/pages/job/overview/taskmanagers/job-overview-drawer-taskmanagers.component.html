@@ -21,12 +21,13 @@
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfTaskManager"
-  [nzScroll]="{x:'1450px',y:'calc( 100% - 35px )'}"
+  [nzScroll]="{x:'1500px',y:'calc( 100% - 35px )'}"
   [nzFrontPagination]="false"
   [nzShowPagination]="false">
   <thead (nzSortChange)="sort($event)" nzSingleSort>
     <tr>
       <th nzWidth="160px" nzLeft="0px" nzShowSort nzSortKey="host">Host</th>
+      <th nzWidth="50px" nzLeft="160px">LOG</th>
       <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-bytes">Bytes received</th>
       <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-records">Records received</th>
       <th nzWidth="120px" nzShowSort nzSortKey="metrics.write-bytes">Bytes sent</th>
@@ -41,6 +42,12 @@
   <tbody>
     <tr *ngFor="let taskManager of listOfTaskManager; trackBy:trackTaskManagerBy;">
       <td nzLeft="0px">{{ taskManager.host }}</td>
+      <td nzLeft="160px">
+        <span *ngIf="!taskManager['taskmanager-id'] || taskManager['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
+        <ng-template #hrefTpl>
+          <a [routerLink]="['/task-manager',taskManager['taskmanager-id'],'logs']" target="_blank">LOG</a>
+        </ng-template>
+      </td>
       <td>
         <span *ngIf="taskManager.metrics['read-bytes-complete'];else loadingTemplate">
           {{ taskManager.metrics['read-bytes'] | humanizeBytes }}

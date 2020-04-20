@@ -173,6 +173,27 @@ Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS 
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime">
+    <Resource name="sql">
+      <![CDATA[SELECT a,   SUM(c) OVER (    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW),   MIN(c) OVER (    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), null:BIGINT)], EXPR$2=[MIN($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT) AS EXPR$1, w0$o2 AS EXPR$2])
++- OverAggregate(partitionBy=[a], orderBy=[$2 ASC], window=[ ROWS BETWEEN 4 PRECEDING AND CURRENT ROW], select=[a, c, $2, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1, MIN(c) AS w0$o2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, PROCTIME() AS $2])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
     </Resource>
   </TestCase>
   <TestCase name="testProcTimeUnboundedNonPartitionedRangeOver">

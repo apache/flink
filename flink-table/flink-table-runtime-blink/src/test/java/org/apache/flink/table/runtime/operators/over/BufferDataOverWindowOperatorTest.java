@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -69,7 +72,7 @@ public class BufferDataOverWindowOperatorTest {
 			new RowType.RowField("f0", new BigIntType())));
 
 	private List<GenericRow> collect;
-	private MemoryManager memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+	private MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 	private IOManager ioManager;
 	private BufferDataOverWindowOperator operator;
 	private GeneratedRecordComparator boundComparator = new GeneratedRecordComparator("", "", new Object[0]) {
@@ -176,13 +179,19 @@ public class BufferDataOverWindowOperatorTest {
 	}
 
 	private void test(OverWindowFrame[] frames, GenericRow[] expect) throws Exception {
-		operator = new BufferDataOverWindowOperator(MEMORY_SIZE, frames, comparator, true) {
+		MockEnvironment env = new MockEnvironmentBuilder().setIOManager(ioManager).setMemoryManager(memoryManager).build();
+		StreamTask<Object, StreamOperator<Object>> task = new StreamTask<Object, StreamOperator<Object>>(env) {
+			@Override
+			protected void init() {
+			}
+		};
+		operator = new BufferDataOverWindowOperator(frames, comparator, true) {
 			{
 				output = new NonBufferOverWindowOperatorTest.ConsumerOutput(new Consumer<BaseRow>() {
 					@Override
 					public void accept(BaseRow r) {
 						collect.add(GenericRow.of(r.getInt(0), r.getLong(1),
-								r.getLong(2), r.getLong(3), r.getLong(4)));
+							r.getLong(2), r.getLong(3), r.getLong(4)));
 					}
 				});
 			}
@@ -197,16 +206,13 @@ public class BufferDataOverWindowOperatorTest {
 				StreamConfig conf = mock(StreamConfig.class);
 				when(conf.<BaseRow>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
+				when(conf.getManagedMemoryFraction())
+						.thenReturn(0.99);
 				return conf;
 			}
 
 			@Override
 			public StreamTask<?, ?> getContainingTask() {
-				StreamTask task = mock(StreamTask.class);
-				Environment env = mock(Environment.class);
-				when(task.getEnvironment()).thenReturn(env);
-				when(env.getMemoryManager()).thenReturn(memoryManager);
-				when(env.getIOManager()).thenReturn(ioManager);
 				return task;
 			}
 
@@ -234,4 +240,5 @@ public class BufferDataOverWindowOperatorTest {
 	private void addRow(Object... fields) throws Exception {
 		operator.processElement(new StreamRecord<>(GenericRow.of(fields)));
 	}
+
 }

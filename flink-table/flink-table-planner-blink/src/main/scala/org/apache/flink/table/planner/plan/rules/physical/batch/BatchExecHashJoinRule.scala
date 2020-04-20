@@ -59,7 +59,7 @@ class BatchExecHashJoinRule
       return false
     }
 
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val isShuffleHashJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)
     val isBroadcastHashJoinEnabled = !isOperatorDisabled(
       tableConfig, OperatorType.BroadcastHashJoin)
@@ -73,7 +73,7 @@ class BatchExecHashJoinRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
     val joinType = join.getJoinType

@@ -103,7 +103,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 // env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-DataStream<MyEvent> stream = env.addSource(new FlinkKafkaConsumer09<MyEvent>(topic, schema, props));
+DataStream<MyEvent> stream = env.addSource(new FlinkKafkaConsumer010<MyEvent>(topic, schema, props));
 
 stream
     .keyBy( (event) -> event.getUser() )
@@ -122,7 +122,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 // env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-val stream: DataStream[MyEvent] = env.addSource(new FlinkKafkaConsumer09[MyEvent](topic, schema, props))
+val stream: DataStream[MyEvent] = env.addSource(new FlinkKafkaConsumer010[MyEvent](topic, schema, props))
 
 stream
     .keyBy( _.getUser )

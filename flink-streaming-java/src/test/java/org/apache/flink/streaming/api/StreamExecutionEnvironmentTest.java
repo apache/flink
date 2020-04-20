@@ -87,12 +87,12 @@ public class StreamExecutionEnvironmentTest {
 
 			dataStream2.addSink(new DiscardingSink<Integer>());
 
-			env.getExecutionPlan();
+			final StreamGraph streamGraph = env.getStreamGraph();
+			streamGraph.getStreamingPlanAsJSON();
 
-			assertEquals("Parallelism of collection source must be 1.", 1, env.getStreamGraph().getStreamNode(dataStream1.getId()).getParallelism());
+			assertEquals("Parallelism of collection source must be 1.", 1, streamGraph.getStreamNode(dataStream1.getId()).getParallelism());
 			assertEquals("Parallelism of parallel collection source must be 4.",
-					4,
-					env.getStreamGraph().getStreamNode(dataStream2.getId()).getParallelism());
+					4, streamGraph.getStreamNode(dataStream2.getId()).getParallelism());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -177,12 +177,12 @@ public class StreamExecutionEnvironmentTest {
 		Assert.assertEquals(1 << 15, operator.getParallelism());
 
 		// default value after generating
-		env.getStreamGraph().getJobGraph();
+		env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
 		Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
 		// configured value after generating
 		env.setMaxParallelism(42);
-		env.getStreamGraph().getJobGraph();
+		env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
 		Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());
 
 		// bounds configured parallelism 1
@@ -222,8 +222,35 @@ public class StreamExecutionEnvironmentTest {
 		Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
 
 		// override config
-		env.getStreamGraph().getJobGraph();
+		env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
 		Assert.assertEquals(1 << 15 , operator.getTransformation().getMaxParallelism());
+	}
+
+	@Test
+	public void testGetStreamGraph() {
+		try {
+			TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+			DataStreamSource<Integer> dataStream1 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream1.addSink(new DiscardingSink<Integer>());
+			assertEquals(2, env.getStreamGraph().getStreamNodes().size());
+
+			DataStreamSource<Integer> dataStream2 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream2.addSink(new DiscardingSink<Integer>());
+			assertEquals(2, env.getStreamGraph().getStreamNodes().size());
+
+			DataStreamSource<Integer> dataStream3 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream3.addSink(new DiscardingSink<Integer>());
+			// Does not clear the transformations.
+			env.getExecutionPlan();
+			DataStreamSource<Integer> dataStream4 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream4.addSink(new DiscardingSink<Integer>());
+			assertEquals(4, env.getStreamGraph("TestJob").getStreamNodes().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	/////////////////////////////////////////////////////////////

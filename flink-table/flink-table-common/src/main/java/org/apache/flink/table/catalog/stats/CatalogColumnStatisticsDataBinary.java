@@ -28,30 +28,31 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
 	/**
 	 * max length of all values.
 	 */
-	private final long maxLength;
+	private final Long maxLength;
 
 	/**
 	 * average length of all values.
 	 */
-	private final double avgLength;
+	private final Double avgLength;
 
-	public CatalogColumnStatisticsDataBinary(long maxLength, double avgLength, long nullCount) {
+	public CatalogColumnStatisticsDataBinary(Long maxLength, Double avgLength, Long nullCount) {
 		super(nullCount);
 		this.maxLength = maxLength;
 		this.avgLength = avgLength;
 	}
 
-	public CatalogColumnStatisticsDataBinary(long maxLength, double avgLength, long nullCount, Map<String, String> properties) {
+	public CatalogColumnStatisticsDataBinary(Long maxLength, Double avgLength, Long nullCount,
+											Map<String, String> properties) {
 		super(nullCount, properties);
 		this.maxLength = maxLength;
 		this.avgLength = avgLength;
 	}
 
-	public long getMaxLength() {
+	public Long getMaxLength() {
 		return maxLength;
 	}
 
-	public double getAvgLength() {
+	public Double getAvgLength() {
 		return avgLength;
 	}
 

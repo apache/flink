@@ -18,51 +18,29 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import javax.annotation.Nullable;
+import java.util.Collection;
 
 /**
  * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}.
  */
-public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
+public enum SessionDispatcherFactory implements DispatcherFactory {
 	INSTANCE;
 
 	@Override
-	public Dispatcher createDispatcher(
-				Configuration configuration,
-				RpcService rpcService,
-				HighAvailabilityServices highAvailabilityServices,
-				GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-				BlobServer blobServer,
-				HeartbeatServices heartbeatServices,
-				JobManagerMetricGroup jobManagerMetricGroup,
-				@Nullable String metricQueryServiceAddress,
-				ArchivedExecutionGraphStore archivedExecutionGraphStore,
-				FatalErrorHandler fatalErrorHandler,
-				HistoryServerArchivist historyServerArchivist) throws Exception {
+	public StandaloneDispatcher createDispatcher(
+			RpcService rpcService,
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			getEndpointId(),
-			configuration,
-			highAvailabilityServices,
-			resourceManagerGatewayRetriever,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroup,
-			metricQueryServiceAddress,
-			archivedExecutionGraphStore,
-			DefaultJobManagerRunnerFactory.INSTANCE,
-			fatalErrorHandler,
-			historyServerArchivist);
+			fencingToken,
+			recoveredJobs,
+			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

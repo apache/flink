@@ -80,6 +80,7 @@ public enum ClientUtils {
 				throw new FlinkException("Could not upload job files.", ioe);
 			}
 		}
+		jobGraph.writeUserArtifactEntriesToConfiguration();
 	}
 
 	/**
@@ -137,6 +138,5 @@ public enum ClientUtils {
 		for (Tuple2<String, PermanentBlobKey> blobKey : blobKeys) {
 			jobGraph.setUserArtifactBlobKey(blobKey.f0, blobKey.f1);
 		}
-		jobGraph.writeUserArtifactEntriesToConfiguration();
 	}
 }

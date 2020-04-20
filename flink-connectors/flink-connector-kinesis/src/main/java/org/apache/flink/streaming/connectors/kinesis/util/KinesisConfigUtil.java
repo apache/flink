@@ -28,8 +28,6 @@ import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConsta
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -77,8 +75,6 @@ public class KinesisConfigUtil {
 	/** Default values for ThreadPoolSize. **/
 	protected static final int DEFAULT_THREAD_POOL_SIZE = 10;
 
-	private static final Logger LOG = LoggerFactory.getLogger(KinesisConfigUtil.class);
-
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
 	 */
@@ -87,9 +83,9 @@ public class KinesisConfigUtil {
 
 		validateAwsConfiguration(config);
 
-		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) ^ config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
+		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) || config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
 			// per validation in AwsClientBuilder
-			throw new IllegalArgumentException(String.format("For FlinkKinesisConsumer either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+			throw new IllegalArgumentException(String.format("For FlinkKinesisConsumer AWS region ('%s') and/or AWS endpoint ('%s') must be set in the config.",
 					AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT));
 		}
 
@@ -177,6 +173,7 @@ public class KinesisConfigUtil {
 	 * Replace deprecated configuration properties for {@link FlinkKinesisProducer}.
 	 * This should be remove along with deprecated keys
 	 */
+	@SuppressWarnings("deprecation")
 	public static Properties replaceDeprecatedProducerKeys(Properties configProps) {
 		// Replace deprecated key
 		if (configProps.containsKey(ProducerConfigConstants.COLLECTION_MAX_COUNT)) {
@@ -207,6 +204,7 @@ public class KinesisConfigUtil {
 	 * @param configProps original config properties.
 	 * @return backfilled config properties.
 	 */
+	@SuppressWarnings("UnusedReturnValue")
 	public static Properties backfillConsumerKeys(Properties configProps) {
 		HashMap<String, String> oldKeyToNewKeys = new HashMap<>();
 		oldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE);

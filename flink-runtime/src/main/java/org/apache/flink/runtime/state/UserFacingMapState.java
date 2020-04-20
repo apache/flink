@@ -95,4 +95,9 @@ class UserFacingMapState<K, V> implements MapState<K, V> {
 		Iterator<Map.Entry<K, V>> original = originalState.iterator();
 		return original != null ? original : emptyState.entrySet().iterator();
 	}
+
+	@Override
+	public boolean isEmpty() throws Exception {
+		return originalState.isEmpty();
+	}
 }

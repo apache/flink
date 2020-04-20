@@ -18,16 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.util.SerializedValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,10 +30,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
-
-import static org.mockito.Mockito.mock;
 
 public class LegacyJobVertexIdTest {
 
@@ -48,19 +39,10 @@ public class LegacyJobVertexIdTest {
 		JobVertexID legacyId1 = new JobVertexID();
 		JobVertexID legacyId2 = new JobVertexID();
 
-		JobVertex jobVertex = new JobVertex("test", defaultId, Arrays.asList(legacyId1, legacyId2), new ArrayList<OperatorID>(), new ArrayList<OperatorID>());
+		JobVertex jobVertex = new JobVertex("test", defaultId, Arrays.asList(legacyId1, legacyId2), new ArrayList<>(), new ArrayList<>());
 		jobVertex.setInvokableClass(AbstractInvokable.class);
 
-		ExecutionGraph executionGraph = new ExecutionGraph(
-			mock(ScheduledExecutorService.class),
-			mock(Executor.class),
-			new JobID(),
-			"test",
-			mock(Configuration.class),
-			mock(SerializedValue.class),
-			Time.seconds(1),
-			mock(RestartStrategy.class),
-			mock(SlotProvider.class));
+		ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder().build();
 
 		ExecutionJobVertex executionJobVertex =
 				new ExecutionJobVertex(executionGraph, jobVertex, 1, Time.seconds(1));

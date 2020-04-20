@@ -166,7 +166,7 @@ class WikipediaEditEventIrcStream implements AutoCloseable {
 
 		@Override
 		public void onPart(String chan, IRCUser user, String msg) {
-			LOG.debug("[{}] {} parts.", chan, user.getNick(), msg);
+			LOG.debug("[{}] {} parts {}.", chan, user.getNick(), msg);
 		}
 
 		@Override

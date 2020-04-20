@@ -31,13 +31,16 @@ import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.dataformat.ColumnarArray;
 import org.apache.flink.table.dataformat.GenericArray;
+import org.apache.flink.table.dataformat.vector.heap.HeapBytesVector;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 
 import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObj;
 import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObjSerializer;
@@ -84,7 +87,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 
 		MyObj inputObj = new MyObj(114514, 1919810);
 		BaseArray inputArray = new GenericArray(new BinaryGeneric[] {
-			new BinaryGeneric<>(inputObj, new KryoSerializer<>(MyObj.class, config))
+			new BinaryGeneric<>(inputObj)
 		}, 1);
 
 		byte[] serialized;
@@ -112,7 +115,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 
 	private BaseArraySerializer createSerializerWithConfig(ExecutionConfig config) {
 		return new BaseArraySerializer(
-			DataTypes.ANY(TypeInformation.of(MyObj.class)).getLogicalType(), config);
+			DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType(), config);
 	}
 
 	@Override
@@ -138,6 +141,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 				createArray("11", "haa", "ke"),
 				createArray("11", "haa", "ke"),
 				createArray("11", "lele", "haa", "ke"),
+				createColumnarArray("11", "lele", "haa", "ke"),
 		};
 	}
 
@@ -149,5 +153,13 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 		}
 		writer.complete();
 		return array;
+	}
+
+	private static ColumnarArray createColumnarArray(String... vs) {
+		HeapBytesVector vector = new HeapBytesVector(vs.length);
+		for (String v : vs) {
+			vector.fill(v.getBytes(StandardCharsets.UTF_8));
+		}
+		return new ColumnarArray(vector, 0, vs.length);
 	}
 }

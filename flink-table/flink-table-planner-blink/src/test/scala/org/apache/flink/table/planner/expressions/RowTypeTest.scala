@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.RowTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
-
 import org.junit.Test
 
 class RowTypeTest extends RowTypeTestBase {
@@ -38,7 +38,7 @@ class RowTypeTest extends RowTypeTestBase {
       "(1,foo,true)")
 
     // special literal
-    testAllApis(
+    testTableApi(
       row(
         localDate("1985-04-11"),
         gLocalTime("14:15:16"),
@@ -47,16 +47,16 @@ class RowTypeTest extends RowTypeTestBase {
         array(1, 2, 3),
         map("foo", "bar"),
         row(1, true)),
-      "row('1985-04-11'.toDate, '14:15:16'.toTime, '1985-04-11 14:15:16'.toTimestamp, " +
-          "0.1p, Array(1, 2, 3), Map('foo', 'bar'), row(1, true))",
-      "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
-          "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11,14:15:16,1985-04-11 14:15:16.000,0.1,[1, 2, 3],{foo=bar},(1,true))")
-
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16,0.1,[1, 2, 3],{foo=bar},(1,true))")
     testSqlApi(
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
           "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11,14:15:16,1985-04-11 14:15:16.000,0.1,[1, 2, 3],{foo=bar},(1,true))")
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16,0.1,[1, 2, 3],{foo=bar},(1,true))")
+
+    testSqlApi(
+      "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16.123456', " +
+        "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16.123456,0.1,[1, 2, 3],{foo=bar},(1,true))")
 
     testAllApis(
       row(1 + 1, 2 * 3, nullOf(DataTypes.STRING())),
@@ -129,4 +129,29 @@ class RowTypeTest extends RowTypeTestBase {
       "null"
     )
   }
+
+  @Test
+  def testUnsupportedCastTableApi(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Unsupported cast from 'Row(f0: String, f1: Boolean)' to 'Long'")
+
+    testTableApi(
+      'f5.cast(DataTypes.BIGINT()),
+      ""
+    )
+  }
+
+  @Test
+  def testUnsupportedCastSqlApi(): Unit = {
+    expectedException.expect(classOf[CodeGenException])
+    expectedException.expectMessage(
+      "Unsupported cast from 'ROW<`f0` STRING, `f1` BOOLEAN>' to 'ROW<`f0` INT, `f1` STRING>'")
+
+    testSqlApi(
+      "CAST(f5 AS ROW<f0 INT, f1 STRING>)",
+      ""
+    )
+  }
+
 }

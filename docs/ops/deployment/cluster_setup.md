@@ -1,7 +1,7 @@
 ---
 title: "Standalone Cluster"
 nav-parent_id: deployment
-nav-pos: 1
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -68,9 +68,9 @@ cd flink-*
 
 After having extracted the system files, you need to configure Flink for the cluster by editing *conf/flink-conf.yaml*.
 
-Set the `jobmanager.rpc.address` key to point to your master node. You should also define the maximum amount of main memory the JVM is allowed to allocate on each node by setting the `jobmanager.heap.size` and `taskmanager.heap.size` keys.
+Set the `jobmanager.rpc.address` key to point to your master node. You should also define the maximum amount of main memory Flink is allowed to allocate on each node by setting the `jobmanager.heap.size` and `taskmanager.memory.process.size` keys.
 
-These values are given in MB. If some worker nodes have more main memory which you want to allocate to the Flink system you can overwrite the default value by setting the environment variable `FLINK_TM_HEAP` on those specific nodes.
+These values are given in MB. If some worker nodes have more main memory which you want to allocate to the Flink system you can overwrite the default value by setting `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` in *conf/flink-conf.yaml* on those specific nodes.
 
 Finally, you must provide a list of all nodes in your cluster which shall be used as worker nodes. Therefore, similar to the HDFS configuration, edit the file *conf/slaves* and enter the IP/host name of each worker node. Each worker node will later run a TaskManager.
 
@@ -107,7 +107,7 @@ Please see the [configuration page](../config.html) for details and additional c
 In particular,
 
  * the amount of available memory per JobManager (`jobmanager.heap.size`),
- * the amount of available memory per TaskManager (`taskmanager.heap.size`),
+ * the amount of available memory per TaskManager (`taskmanager.memory.process.size` and check [memory setup guide](../memory/mem_tuning.html#configure-memory-for-standalone-deployment)),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
  * the temporary directories (`io.tmp.dirs`)

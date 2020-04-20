@@ -68,13 +68,13 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 			T expected = expectedResults.get(i);
 			GenericRow acc = accumulateValues(inputValues, inputOrders);
 			T result = aggregator.getValue(acc);
-			validateResult(expected, result);
+			validateResult(expected, result, aggregator.getResultType());
 
 			if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
 				retractValues(acc, inputValues, inputOrders);
 				GenericRow expectedAcc = aggregator.createAccumulator();
 				// The two accumulators should be exactly same
-				validateResult(expectedAcc, acc);
+				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
 			}
 		}
 	}
@@ -103,7 +103,7 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 				resetAccFunc.invoke(aggregator, (Object) acc);
 				GenericRow expectedAcc = aggregator.createAccumulator();
 				//The accumulator after reset should be exactly same as the new accumulator
-				validateResult(expectedAcc, acc);
+				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
 			}
 		}
 	}

@@ -39,6 +39,7 @@ import org.junit.Assert._
 import org.junit._
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class SqlITCase extends StreamingWithStateTestBase {
 
@@ -460,7 +461,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT * FROM MyTable WHERE _1 = 3"
 
     val t = StreamTestData.getSmall3TupleDataStream(env)
-    tEnv.registerDataStream("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
@@ -537,7 +538,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("T1", t1)
     val t2 = StreamTestData.get3TupleDataStream(env)
-    tEnv.registerDataStream("T2", t2, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T2", t2, 'a, 'b, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
@@ -559,7 +560,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       (3, Array(18, 42), Array(Array(1), Array(45)))
     )
     val stream = env.fromCollection(data)
-    tEnv.registerDataStream("T", stream, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", stream, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT a, b, s FROM T, UNNEST(T.b) AS A (s)"
 
@@ -590,7 +591,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       (3, Array(18, 42), Array(Array(1), Array(45)))
     )
     val stream = env.fromCollection(data)
-    tEnv.registerDataStream("T", stream, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", stream, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) AS A (s)"
 
@@ -619,7 +620,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       (3, Array((18, "42.6")))
     )
     val stream = env.fromCollection(data)
-    tEnv.registerDataStream("T", stream, 'a, 'b)
+    tEnv.createTemporaryView("T", stream, 'a, 'b)
 
     val sqlQuery = "SELECT a, b, s, t FROM T, UNNEST(T.b) AS A (s, t) WHERE s > 13"
 
@@ -782,6 +783,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       new InMemoryTableFactory(3).createStreamTableSink(properties))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
+    tEnv.execute("job name")
     tEnv.sqlQuery("SELECT a, e, f, t from targetTable")
       .addSink(new StreamITCase.StringSink[Row])
     env.execute()
@@ -869,6 +871,45 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     assertEquals(List(expected.toString()), StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testProjectionWithManyColumns(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.clear
+
+    // force code split
+    tEnv.getConfig.setMaxGeneratedCodeLength(1)
+
+    val length = 1000
+    val rowData = List.range(0, length)
+    val row: Row = new Row(length)
+    val fieldTypes = new ArrayBuffer[TypeInformation[_]]()
+    val fieldNames = new ArrayBuffer[String]()
+    rowData.foreach { i =>
+      row.setField(i, i)
+      fieldTypes += Types.INT()
+      fieldNames += s"f$i"
+    }
+
+    val data = new mutable.MutableList[Row]
+    data.+=(row)
+    val t = env.fromCollection(data)(new RowTypeInfo(fieldTypes.toArray: _*)).toTable(tEnv)
+    tEnv.registerTable("MyTable", t)
+
+    val expected = List(rowData.reverse.mkString(","))
+    val sql =
+      s"""
+         |SELECT ${fieldNames.reverse.mkString(", ")} FROM MyTable
+       """.stripMargin
+
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    assertEquals(expected, StreamITCase.testResults)
   }
 }
 

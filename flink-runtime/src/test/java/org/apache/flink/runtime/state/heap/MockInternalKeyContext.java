@@ -19,18 +19,23 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 /**
  * Mock {@link InternalKeyContext}.
  */
 public class MockInternalKeyContext<K> extends InternalKeyContextImpl<K> {
+
 	MockInternalKeyContext() {
 		super(new KeyGroupRange(0, 0), 1);
 	}
 
-	@Override
-	public void setCurrentKey(K key) {
+	MockInternalKeyContext(int startKeyGroup, int endKeyGroup, int numberOfKeyGroups) {
+		super(new KeyGroupRange(startKeyGroup, endKeyGroup), numberOfKeyGroups);
+	}
+
+	public void setCurrentKeyAndKeyGroup(K key) {
 		super.setCurrentKey(key);
-		super.setCurrentKeyGroupIndex(0);
+		super.setCurrentKeyGroupIndex(KeyGroupRangeAssignment.assignToKeyGroup(key, getNumberOfKeyGroups()));
 	}
 }

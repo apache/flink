@@ -120,7 +120,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setRestartStrategy(RestartStrategies.noRestart());
-			env.getConfig().disableSysoutLogging();
 
 			TypeInformationSerializationSchema<Tuple2<Long, String>> serSchema =
 				new TypeInformationSerializationSchema<>(longStringInfo, env.getConfig());
@@ -238,23 +237,29 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		env.enableCheckpointing(500);
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
 
 		Properties properties = new Properties();
 		properties.putAll(standardProps);
 		properties.putAll(secureProps);
 		// decrease timeout and block time from 60s down to 10s - this is how long KafkaProducer will try send pending (not flushed) data on close()
 		properties.setProperty("timeout.ms", "10000");
+		// KafkaProducer prior to KIP-91 (release 2.1) uses request timeout to expire the unsent records.
+		properties.setProperty("request.timeout.ms", "3000");
+		// KafkaProducer in 2.1.0 and above uses delivery timeout to expire the the records.
+		properties.setProperty("delivery.timeout.ms", "5000");
 		properties.setProperty("max.block.ms", "10000");
 		// increase batch.size and linger.ms - this tells KafkaProducer to batch produced events instead of flushing them immediately
 		properties.setProperty("batch.size", "10240000");
 		properties.setProperty("linger.ms", "10000");
+		// kafka producer messages guarantee
+		properties.setProperty("retries", "3");
+		properties.setProperty("acks", "all");
 
 		BrokerRestartingMapper.resetState(kafkaServer::blockProxyTraffic);
 
 		// process exactly failAfterElements number of elements and then shutdown Kafka broker and fail application
 		DataStream<Integer> inputStream = env
-			.fromCollection(getIntegersSequence(numElements))
+			.addSource(new InfiniteIntegerSource())
 			.map(new BrokerRestartingMapper<>(failAfterElements));
 
 		StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic, keyedSerializationSchema, properties, new FlinkKafkaPartitioner<Integer>() {
@@ -276,16 +281,14 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 			});
 		}
 
-		FailingIdentityMapper.failedBefore = false;
 		try {
 			env.execute("One-to-one at least once test");
 			fail("Job should fail!");
-		}
-		catch (JobExecutionException ex) {
+		} catch (JobExecutionException ex) {
 			// ignore error, it can be one of many errors so it would be hard to check the exception message/cause
+		} finally {
+			kafkaServer.unblockProxyTraffic();
 		}
-
-		kafkaServer.unblockProxyTraffic();
 
 		// assert that before failure we successfully snapshot/flushed all expected elements
 		assertAtLeastOnceForTopic(
@@ -335,7 +338,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		env.enableCheckpointing(500);
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-		env.getConfig().disableSysoutLogging();
 
 		Properties properties = new Properties();
 		properties.putAll(standardProps);
@@ -537,6 +539,24 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
+		}
+	}
+
+	private static final class InfiniteIntegerSource implements SourceFunction<Integer> {
+
+		private volatile boolean running = true;
+		private int counter = 0;
+
+		@Override
+		public void run(SourceContext<Integer> ctx) throws Exception {
+			while (running) {
+				ctx.collect(counter++);
+			}
+		}
+
+		@Override
+		public void cancel() {
+			running = false;
 		}
 	}
 }

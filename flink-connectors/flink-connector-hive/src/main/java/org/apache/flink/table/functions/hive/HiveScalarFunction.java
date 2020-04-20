@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
@@ -71,7 +71,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 
 	@Override
 	public TypeInformation getResultType(Class[] signature) {
-		return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
+		return TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
 			getHiveResultType(this.constantArguments, this.argTypes));
 	}
 

@@ -148,11 +148,11 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
-        self.assertFalse(state_backend.is_ttl_compaction_filter_enabled())
-
-        state_backend.enable_ttl_compaction_filter()
-
         self.assertTrue(state_backend.is_ttl_compaction_filter_enabled())
+
+        state_backend.disable_ttl_compaction_filter()
+
+        self.assertFalse(state_backend.is_ttl_compaction_filter_enabled())
 
     def test_get_set_predefined_options(self):
 

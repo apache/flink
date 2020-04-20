@@ -152,8 +152,8 @@ class JoinITCase(
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    tEnv.registerDataSet("Table3", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("Table5", ds2, 'd, 'e, 'f, 'g, 'h)
+    tEnv.createTemporaryView("Table3", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("Table5", ds2, 'd, 'e, 'f, 'g, 'h)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -482,7 +482,7 @@ class JoinITCase(
       (3, 2L, Array("Hello world", "x"))
     )
     val stream = env.fromCollection(data)
-    tEnv.registerDataSet("T", stream, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", stream, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) as A (s)"
 
@@ -554,7 +554,7 @@ class JoinITCase(
       (3, Array((18, "42.6")))
     )
     val stream = env.fromCollection(data)
-    tEnv.registerDataSet("T", stream, 'a, 'b)
+    tEnv.createTemporaryView("T", stream, 'a, 'b)
 
     val sqlQuery = "" +
       "SELECT a, b, x, y " +

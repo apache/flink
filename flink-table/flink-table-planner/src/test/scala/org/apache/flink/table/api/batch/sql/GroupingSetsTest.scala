@@ -34,38 +34,15 @@ class GroupingSetsTest extends TableTestBase {
     val sqlQuery = "SELECT b, c, avg(a) as a, GROUP_ID() as g FROM MyTable " +
       "GROUP BY GROUPING SETS (b, c)"
 
-    val aggregate = binaryNode(
-      "DataSetUnion",
+    val aggregate = unaryNode(
+      "DataSetCalc",
       unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(table),
-            term("select", "b", "a")
-          ),
-          term("groupBy", "b"),
-          term("select", "b", "AVG(a) AS a")
-        ),
-        term("select", "b", "null:INTEGER AS c", "a", "1:BIGINT AS g")
+        "DataSetAggregate",
+        batchTableNode(table),
+        term("groupBy", "b", "c"),
+        term("select", "b", "c", "AVG(a) AS a")
       ),
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(table),
-            term("select", "c", "a")
-          ),
-          term("groupBy", "c"),
-          term("select", "c", "AVG(a) AS a")
-        ),
-        term("select", "null:BIGINT AS b", "c", "a", "2:BIGINT AS g")
-      ),
-      term("all", "true"),
-      term("union", "b", "c", "a", "g")
+      term("select", "b", "c", "a", "0:BIGINT AS g")
     )
 
     util.verifySql(sqlQuery, aggregate)
@@ -91,7 +68,7 @@ class GroupingSetsTest extends TableTestBase {
         term("groupBy", "b", "c"),
         term("select", "b", "c", "AVG(a) AS a")
       ),
-      term("select", "b", "c", "a", "3:BIGINT AS g", "1:BIGINT AS gb", "1:BIGINT AS gc",
+      term("select", "b", "c", "a", "0:BIGINT AS g", "1:BIGINT AS gb", "1:BIGINT AS gc",
         "1:BIGINT AS gib", "1:BIGINT AS gic", "3:BIGINT AS gid")
     )
 
@@ -107,7 +84,7 @@ class GroupingSetsTest extends TableTestBase {
         term("groupBy", "b"),
         term("select", "b", "AVG(a) AS a")
       ),
-      term("select", "b", "null:INTEGER AS c", "a", "1:BIGINT AS g", "1:BIGINT AS gb",
+      term("select", "b", "null:INTEGER AS c", "a", "0:BIGINT AS g", "1:BIGINT AS gb",
         "0:BIGINT AS gc", "1:BIGINT AS gib", "0:BIGINT AS gic", "2:BIGINT AS gid")
     )
 
@@ -123,7 +100,7 @@ class GroupingSetsTest extends TableTestBase {
         term("groupBy", "c"),
         term("select", "c", "AVG(a) AS a")
       ),
-      term("select", "null:BIGINT AS b", "c", "a", "2:BIGINT AS g", "0:BIGINT AS gb",
+      term("select", "null:BIGINT AS b", "c", "a", "0:BIGINT AS g", "0:BIGINT AS gb",
         "1:BIGINT AS gc", "0:BIGINT AS gib", "1:BIGINT AS gic", "1:BIGINT AS gid")
     )
 
@@ -185,7 +162,7 @@ class GroupingSetsTest extends TableTestBase {
         term("groupBy", "b", "c"),
         term("select", "b", "c", "AVG(a) AS a")
       ),
-      term("select", "b", "c", "a", "3:BIGINT AS g", "1:BIGINT AS gb", "1:BIGINT AS gc",
+      term("select", "b", "c", "a", "0:BIGINT AS g", "1:BIGINT AS gb", "1:BIGINT AS gc",
         "1:BIGINT AS gib", "1:BIGINT AS gic", "3:BIGINT AS gid")
     )
 
@@ -201,7 +178,7 @@ class GroupingSetsTest extends TableTestBase {
         term("groupBy", "b"),
         term("select", "b", "AVG(a) AS a")
       ),
-      term("select", "b", "null:INTEGER AS c", "a", "1:BIGINT AS g", "1:BIGINT AS gb",
+      term("select", "b", "null:INTEGER AS c", "a", "0:BIGINT AS g", "1:BIGINT AS gb",
         "0:BIGINT AS gc", "1:BIGINT AS gib", "0:BIGINT AS gic", "2:BIGINT AS gid")
     )
 

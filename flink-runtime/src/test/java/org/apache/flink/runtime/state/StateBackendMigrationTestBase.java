@@ -36,14 +36,17 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -74,8 +77,20 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
+	@Before
+	public void before() {
+		env = MockEnvironment.builder().build();
+	}
+
+	@After
+	public void after() {
+		IOUtils.closeQuietly(env);
+	}
+
 	// lazily initialized stream storage
 	private CheckpointStorageLocation checkpointStorageLocation;
+
+	private MockEnvironment env;
 
 	// -------------------------------------------------------------------------------
 	//  Tests for keyed ValueState
@@ -1153,8 +1168,10 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 	private CheckpointStreamFactory createStreamFactory() throws Exception {
 		if (checkpointStorageLocation == null) {
-			checkpointStorageLocation = getStateBackend()
-				.createCheckpointStorage(new JobID())
+			CheckpointStorage checkpointStorage = getStateBackend()
+				.createCheckpointStorage(new JobID());
+			checkpointStorage.initializeBaseLocations();
+			checkpointStorageLocation = checkpointStorage
 				.initializeLocationForCheckpoint(1L);
 		}
 		return checkpointStorageLocation;
@@ -1165,7 +1182,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	// -------------------------------------------------------------------------------
 
 	private <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
-		return createKeyedBackend(keySerializer, new DummyEnvironment());
+		return createKeyedBackend(keySerializer, env);
 	}
 
 	private <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer, Environment env) throws Exception {
@@ -1197,7 +1214,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	}
 
 	private <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(TypeSerializer<K> keySerializer, KeyedStateHandle state) throws Exception {
-		return restoreKeyedBackend(keySerializer, state, new DummyEnvironment());
+		return restoreKeyedBackend(keySerializer, state, env);
 	}
 
 	private  <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
@@ -1255,12 +1272,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 	private OperatorStateBackend createOperatorStateBackend() throws Exception {
 		return getStateBackend().createOperatorStateBackend(
-			new DummyEnvironment(), "test_op", Collections.emptyList(), new CloseableRegistry());
+			env, "test_op", Collections.emptyList(), new CloseableRegistry());
 	}
 
 	private OperatorStateBackend createOperatorStateBackend(Collection<OperatorStateHandle> state) throws Exception {
 		return getStateBackend().createOperatorStateBackend(
-			new DummyEnvironment(), "test_op", state, new CloseableRegistry());
+			env, "test_op", state, new CloseableRegistry());
 	}
 
 	private OperatorStateBackend restoreOperatorStateBackend(OperatorStateHandle state) throws Exception {

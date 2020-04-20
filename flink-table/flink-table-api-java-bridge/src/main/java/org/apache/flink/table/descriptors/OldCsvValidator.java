@@ -19,6 +19,7 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 
 /**
  * Validator for {@link OldCsv}.
@@ -49,6 +50,19 @@ public class OldCsvValidator extends FormatDescriptorValidator {
 		properties.validateString(FORMAT_COMMENT_PREFIX, true, 1);
 		properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, true);
 		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
-		properties.validateTableSchema(FORMAT_FIELDS, false);
+		properties.validateBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA, true);
+
+		final boolean hasSchema = properties.hasPrefix(FORMAT_FIELDS);
+		final boolean isDerived = properties
+			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
+			.orElse(true); // derive schema by default
+
+		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
+		if (hasSchema) {
+			properties.validateTableSchema(FORMAT_FIELDS, false);
+		} else if (!isDerived) {
+			throw new ValidationException(
+				"A definition of a schema is required if derivation from the table's schema is disabled.");
+		}
 	}
 }

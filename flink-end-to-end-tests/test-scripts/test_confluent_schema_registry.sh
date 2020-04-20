@@ -34,6 +34,11 @@ function verify_output {
   fi
 }
 
+function test_setup {
+  start_kafka_cluster
+  start_confluent_schema_registry
+}
+
 function test_cleanup {
   stop_confluent_schema_registry
   stop_kafka_cluster
@@ -44,8 +49,7 @@ on_exit test_cleanup
 setup_kafka_dist
 setup_confluent_dist
 
-start_kafka_cluster
-start_confluent_schema_registry
+retry_times_with_backoff_and_cleanup 3 5 test_setup test_cleanup
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-confluent-schema-registry/target/TestAvroConsumerConfluent.jar
 
@@ -68,22 +72,32 @@ send_messages_to_kafka_avro $INPUT_MESSAGE_3 test-avro-input $USER_SCHEMA
 
 start_cluster
 
+create_kafka_topic 1 1 test-string-out
 create_kafka_topic 1 1 test-avro-out
 
-# Read Avro message from [test-avro-input], check the schema and send message to [test-avro-out]
+# Read Avro message from [test-avro-input], check the schema and send message to [test-string-ou]
 $FLINK_DIR/bin/flink run -d $TEST_PROGRAM_JAR \
-  --input-topic test-avro-input --output-topic test-avro-out \
-  --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest \
+  --input-topic test-avro-input --output-string-topic test-string-out --output-avro-topic test-avro-out --output-subject test-output-subject \
+  --bootstrap.servers localhost:9092 --group.id myconsumer --auto.offset.reset earliest \
   --schema-registry-url ${SCHEMA_REGISTRY_URL}
 
-#echo "Reading messages from Kafka topic [test-avro-out] ..."
+#echo "Reading messages from Kafka topic [test-string-ou] ..."
 
-KEY_1_MSGS=$(read_messages_from_kafka 3 test-avro-out  Alyssa_consumer | grep Alyssa)
-KEY_2_MSGS=$(read_messages_from_kafka 3 test-avro-out Charlie_consumer | grep Charlie)
-KEY_3_MSGS=$(read_messages_from_kafka 3 test-avro-out Ben_consumer | grep Ben)
+KEY_1_STRING_MSGS=$(read_messages_from_kafka 3 test-string-out Alyssa_consumer | grep Alyssa)
+KEY_2_STRING_MSGS=$(read_messages_from_kafka 3 test-string-out Charlie_consumer | grep Charlie)
+KEY_3_STRING_MSGS=$(read_messages_from_kafka 3 test-string-out Ben_consumer | grep Ben)
+
+## Verifying STRING output with actual message
+verify_output $INPUT_MESSAGE_1 "$KEY_1_STRING_MSGS"
+verify_output $INPUT_MESSAGE_2 "$KEY_2_STRING_MSGS"
+verify_output $INPUT_MESSAGE_3 "$KEY_3_STRING_MSGS"
+
+KEY_1_AVRO_MSGS=$(read_messages_from_kafka_avro 3 test-avro-out $USER_SCHEMA Alyssa_consumer_1 | grep Alyssa)
+KEY_2_AVRO_MSGS=$(read_messages_from_kafka_avro 3 test-avro-out $USER_SCHEMA Charlie_consumer_1 | grep Charlie)
+KEY_3_AVRO_MSGS=$(read_messages_from_kafka_avro 3 test-avro-out $USER_SCHEMA Ben_consumer_1 | grep Ben)
 
 ## Verifying AVRO output with actual message
-verify_output $INPUT_MESSAGE_1 "$KEY_1_MSGS"
-verify_output $INPUT_MESSAGE_2 "$KEY_2_MSGS"
-verify_output $INPUT_MESSAGE_3 "$KEY_3_MSGS"
+verify_output $INPUT_MESSAGE_1 "$KEY_1_AVRO_MSGS"
+verify_output $INPUT_MESSAGE_2 "$KEY_2_AVRO_MSGS"
+verify_output $INPUT_MESSAGE_3 "$KEY_3_AVRO_MSGS"
 

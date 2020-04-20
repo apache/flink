@@ -18,6 +18,7 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.api.common.typeinfo.TypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfoFactory;
@@ -116,7 +117,7 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		ensureMaterialized();
 		if (inFirstSegment()) {
 			int len = 0;
-			for (int i = 0; i < sizeInBytes; i += numBytesForFirstByte(getByteOneSegment(i))) {
+			for (int i = 0; i < binarySection.sizeInBytes; i += numBytesForFirstByte(getByteOneSegment(i))) {
 				len++;
 			}
 			return len;
@@ -127,10 +128,10 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 
 	private int numCharsMultiSegs() {
 		int len = 0;
-		int segSize = segments[0].size();
+		int segSize = binarySection.segments[0].size();
 		SegmentAndOffset index = firstSegmentAndOffset(segSize);
 		int i = 0;
-		while (i < sizeInBytes) {
+		while (i < binarySection.sizeInBytes) {
 			int charBytes = numBytesForFirstByte(index.value());
 			i += charBytes;
 			len++;
@@ -141,7 +142,7 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 
 	/**
 	 * Returns the {@code byte} value at the specified index. An index ranges from {@code 0} to
-	 * {@code getSizeInBytes() - 1}.
+	 * {@code binarySection.sizeInBytes - 1}.
 	 *
 	 * @param      index   the index of the {@code byte} value.
 	 * @return     the {@code byte} value at the specified index of this UTF-8 bytes.
@@ -151,12 +152,12 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	 */
 	public byte byteAt(int index) {
 		ensureMaterialized();
-		int globalOffset = offset + index;
-		int size = segments[0].size();
+		int globalOffset = binarySection.offset + index;
+		int size = binarySection.segments[0].size();
 		if (globalOffset < size) {
-			return segments[0].get(globalOffset);
+			return binarySection.segments[0].get(globalOffset);
 		} else {
-			return segments[globalOffset / size].get(globalOffset % size);
+			return binarySection.segments[globalOffset / size].get(globalOffset % size);
 		}
 	}
 
@@ -165,12 +166,12 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	 */
 	public byte[] getBytes() {
 		ensureMaterialized();
-		return SegmentsUtil.getBytes(segments, offset, sizeInBytes);
+		return SegmentsUtil.getBytes(binarySection.segments, binarySection.offset, binarySection.sizeInBytes);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		if (o != null && o instanceof BinaryString) {
+		if (o instanceof BinaryString) {
 			BinaryString other = (BinaryString) o;
 			if (javaObject != null && other.javaObject != null) {
 				return javaObject.equals(other.javaObject);
@@ -178,28 +179,62 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 
 			ensureMaterialized();
 			other.ensureMaterialized();
-			return binaryEquals(other);
+			return binarySection.equals(other.binarySection);
 		} else {
 			return false;
 		}
 	}
 
 	@Override
+	public int hashCode() {
+		ensureMaterialized();
+		return binarySection.hashCode();
+	}
+
+	@Override
 	public String toString() {
 		if (javaObject == null) {
-			byte[] bytes = SegmentsUtil.allocateReuseBytes(sizeInBytes);
-			SegmentsUtil.copyToBytes(segments, offset, bytes, 0, sizeInBytes);
-			javaObject = StringUtf8Utils.decodeUTF8(bytes, 0, sizeInBytes);
+			byte[] bytes = SegmentsUtil.allocateReuseBytes(binarySection.sizeInBytes);
+			SegmentsUtil.copyToBytes(binarySection.segments, binarySection.offset, bytes, 0, binarySection.sizeInBytes);
+			javaObject = StringUtf8Utils.decodeUTF8(bytes, 0, binarySection.sizeInBytes);
 		}
 		return javaObject;
 	}
 
 	@Override
-	public void materialize() {
+	public MemorySegment[] getSegments() {
+		ensureMaterialized();
+		return super.getSegments();
+	}
+
+	@Override
+	public int getOffset() {
+		ensureMaterialized();
+		return super.getOffset();
+	}
+
+	@Override
+	public int getSizeInBytes() {
+		ensureMaterialized();
+		return super.getSizeInBytes();
+	}
+
+	public void ensureMaterialized() {
+		ensureMaterialized(null);
+	}
+
+	@Override
+	protected BinarySection materialize(TypeSerializer<String> serializer) {
+		if (serializer != null) {
+			throw new IllegalArgumentException("BinaryString does not support custom serializers");
+		}
+
 		byte[] bytes = StringUtf8Utils.encodeUTF8(javaObject);
-		segments = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
-		offset = 0;
-		sizeInBytes = bytes.length;
+		return new BinarySection(
+			new MemorySegment[]{MemorySegmentFactory.wrap(bytes)},
+			0,
+			bytes.length
+		);
 	}
 
 	/**
@@ -207,9 +242,9 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	 */
 	public BinaryString copy() {
 		ensureMaterialized();
-		byte[] copy = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
+		byte[] copy = SegmentsUtil.copyToBytes(binarySection.segments, binarySection.offset, binarySection.sizeInBytes);
 		return new BinaryString(new MemorySegment[] {MemorySegmentFactory.wrap(copy)},
-				0, sizeInBytes, javaObject);
+				0, binarySection.sizeInBytes, javaObject);
 	}
 
 	/**
@@ -227,19 +262,20 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 
 		ensureMaterialized();
 		other.ensureMaterialized();
-		if (segments.length == 1 && other.segments.length == 1) {
+		if (binarySection.segments.length == 1 && other.binarySection.segments.length == 1) {
 
-			int len = Math.min(sizeInBytes, other.sizeInBytes);
-			MemorySegment seg1 = segments[0];
-			MemorySegment seg2 = other.segments[0];
+			int len = Math.min(binarySection.sizeInBytes, other.binarySection.sizeInBytes);
+			MemorySegment seg1 = binarySection.segments[0];
+			MemorySegment seg2 = other.binarySection.segments[0];
 
 			for (int i = 0; i < len; i++) {
-				int res = (seg1.get(offset + i) & 0xFF) - (seg2.get(other.offset + i) & 0xFF);
+				int res =
+					(seg1.get(binarySection.offset + i) & 0xFF) - (seg2.get(other.binarySection.offset + i) & 0xFF);
 				if (res != 0) {
 					return res;
 				}
 			}
-			return sizeInBytes - other.sizeInBytes;
+			return binarySection.sizeInBytes - other.binarySection.sizeInBytes;
 		}
 
 		// if there are multi segments.
@@ -251,20 +287,20 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	 */
 	private int compareMultiSegments(BinaryString other) {
 
-		if (sizeInBytes == 0 || other.sizeInBytes == 0) {
-			return sizeInBytes - other.sizeInBytes;
+		if (binarySection.sizeInBytes == 0 || other.binarySection.sizeInBytes == 0) {
+			return binarySection.sizeInBytes - other.binarySection.sizeInBytes;
 		}
 
-		int len = Math.min(sizeInBytes, other.sizeInBytes);
+		int len = Math.min(binarySection.sizeInBytes, other.binarySection.sizeInBytes);
 
-		MemorySegment seg1 = segments[0];
-		MemorySegment seg2 = other.segments[0];
+		MemorySegment seg1 = binarySection.segments[0];
+		MemorySegment seg2 = other.binarySection.segments[0];
 
-		int segmentSize = segments[0].size();
-		int otherSegmentSize = other.segments[0].size();
+		int segmentSize = binarySection.segments[0].size();
+		int otherSegmentSize = other.binarySection.segments[0].size();
 
-		int sizeOfFirst1 = segmentSize - offset;
-		int sizeOfFirst2 = otherSegmentSize - other.offset;
+		int sizeOfFirst1 = segmentSize - binarySection.offset;
+		int sizeOfFirst2 = otherSegmentSize - other.binarySection.offset;
 
 		int varSegIndex1 = 1;
 		int varSegIndex2 = 1;
@@ -272,12 +308,12 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		// find the first segment of this string.
 		while (sizeOfFirst1 <= 0) {
 			sizeOfFirst1 += segmentSize;
-			seg1 = segments[varSegIndex1++];
+			seg1 = binarySection.segments[varSegIndex1++];
 		}
 
 		while (sizeOfFirst2 <= 0) {
 			sizeOfFirst2 += otherSegmentSize;
-			seg2 = other.segments[varSegIndex2++];
+			seg2 = other.binarySection.segments[varSegIndex2++];
 		}
 
 		int offset1 = segmentSize - sizeOfFirst1;
@@ -299,20 +335,20 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 			len -= needCompare;
 			// next segment
 			if (sizeOfFirst1 < sizeOfFirst2) { //I am smaller
-				seg1 = segments[varSegIndex1++];
+				seg1 = binarySection.segments[varSegIndex1++];
 				offset1 = 0;
 				offset2 += needCompare;
 				sizeOfFirst1 = segmentSize;
 				sizeOfFirst2 -= needCompare;
 			} else if (sizeOfFirst1 > sizeOfFirst2) { //other is smaller
-				seg2 = other.segments[varSegIndex2++];
+				seg2 = other.binarySection.segments[varSegIndex2++];
 				offset2 = 0;
 				offset1 += needCompare;
 				sizeOfFirst2 = otherSegmentSize;
 				sizeOfFirst1 -= needCompare;
 			} else { // same, should go ahead both.
-				seg1 = segments[varSegIndex1++];
-				seg2 = other.segments[varSegIndex2++];
+				seg1 = binarySection.segments[varSegIndex1++];
+				seg2 = other.binarySection.segments[varSegIndex2++];
 				offset1 = 0;
 				offset2 = 0;
 				sizeOfFirst1 = segmentSize;
@@ -323,7 +359,7 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 
 		checkArgument(needCompare == len);
 
-		return sizeInBytes - other.sizeInBytes;
+		return binarySection.sizeInBytes - other.binarySection.sizeInBytes;
 	}
 
 	/**
@@ -343,27 +379,27 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	 */
 	public BinaryString substring(int beginIndex, int endIndex) {
 		ensureMaterialized();
-		if (endIndex <= beginIndex || beginIndex >= sizeInBytes) {
+		if (endIndex <= beginIndex || beginIndex >= binarySection.sizeInBytes) {
 			return EMPTY_UTF8;
 		}
 		if (inFirstSegment()) {
-			MemorySegment segment = segments[0];
+			MemorySegment segment = binarySection.segments[0];
 			int i = 0;
 			int c = 0;
-			while (i < sizeInBytes && c < beginIndex) {
-				i += numBytesForFirstByte(segment.get(i + offset));
+			while (i < binarySection.sizeInBytes && c < beginIndex) {
+				i += numBytesForFirstByte(segment.get(i + binarySection.offset));
 				c += 1;
 			}
 
 			int j = i;
-			while (i < sizeInBytes && c < endIndex) {
-				i += numBytesForFirstByte(segment.get(i + offset));
+			while (i < binarySection.sizeInBytes && c < endIndex) {
+				i += numBytesForFirstByte(segment.get(i + binarySection.offset));
 				c += 1;
 			}
 
 			if (i > j) {
 				byte[] bytes = new byte[i - j];
-				segment.get(offset + j, bytes, 0, i - j);
+				segment.get(binarySection.offset + j, bytes, 0, i - j);
 				return fromBytes(bytes);
 			} else {
 				return EMPTY_UTF8;
@@ -374,11 +410,11 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	}
 
 	private BinaryString substringMultiSegs(final int start, final int until) {
-		int segSize = segments[0].size();
+		int segSize = binarySection.segments[0].size();
 		SegmentAndOffset index = firstSegmentAndOffset(segSize);
 		int i = 0;
 		int c = 0;
-		while (i < sizeInBytes && c < start) {
+		while (i < binarySection.sizeInBytes && c < start) {
 			int charSize = numBytesForFirstByte(index.value());
 			i += charSize;
 			index.skipBytes(charSize, segSize);
@@ -386,7 +422,7 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		}
 
 		int j = i;
-		while (i < sizeInBytes && c < until) {
+		while (i < binarySection.sizeInBytes && c < until) {
 			int charSize = numBytesForFirstByte(index.value());
 			i += charSize;
 			index.skipBytes(charSize, segSize);
@@ -394,7 +430,7 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		}
 
 		if (i > j) {
-			return fromBytes(SegmentsUtil.copyToBytes(segments, offset + j, i - j));
+			return fromBytes(SegmentsUtil.copyToBytes(binarySection.segments, binarySection.offset + j, i - j));
 		} else {
 			return EMPTY_UTF8;
 		}
@@ -410,12 +446,12 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	public boolean contains(final BinaryString s) {
 		ensureMaterialized();
 		s.ensureMaterialized();
-		if (s.sizeInBytes == 0) {
+		if (s.binarySection.sizeInBytes == 0) {
 			return true;
 		}
 		int find = SegmentsUtil.find(
-			segments, offset, sizeInBytes,
-			s.segments, s.offset, s.sizeInBytes);
+			binarySection.segments, binarySection.offset, binarySection.sizeInBytes,
+			s.binarySection.segments, s.binarySection.offset, s.binarySection.sizeInBytes);
 		return find != -1;
 	}
 
@@ -446,7 +482,7 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	public boolean endsWith(final BinaryString suffix) {
 		ensureMaterialized();
 		suffix.ensureMaterialized();
-		return matchAt(suffix, sizeInBytes - suffix.sizeInBytes);
+		return matchAt(suffix, binarySection.sizeInBytes - suffix.binarySection.sizeInBytes);
 	}
 
 	/**
@@ -461,9 +497,9 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		ensureMaterialized();
 		if (inFirstSegment()) {
 			int s = 0;
-			int e = this.sizeInBytes - 1;
+			int e = this.binarySection.sizeInBytes - 1;
 			// skip all of the space (0x20) in the left side
-			while (s < this.sizeInBytes && getByteOneSegment(s) == 0x20) {
+			while (s < this.binarySection.sizeInBytes && getByteOneSegment(s) == 0x20) {
 				s++;
 			}
 			// skip all of the space (0x20) in the right side
@@ -483,11 +519,11 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 
 	private BinaryString trimMultiSegs() {
 		int s = 0;
-		int e = this.sizeInBytes - 1;
-		int segSize = segments[0].size();
+		int e = this.binarySection.sizeInBytes - 1;
+		int segSize = binarySection.segments[0].size();
 		SegmentAndOffset front = firstSegmentAndOffset(segSize);
 		// skip all of the space (0x20) in the left side
-		while (s < this.sizeInBytes && front.value() == 0x20) {
+		while (s < this.binarySection.sizeInBytes && front.value() == 0x20) {
 			s++;
 			front.nextByte(segSize);
 		}
@@ -518,7 +554,7 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	public int indexOf(BinaryString str, int fromIndex) {
 		ensureMaterialized();
 		str.ensureMaterialized();
-		if (str.sizeInBytes == 0) {
+		if (str.binarySection.sizeInBytes == 0) {
 			return 0;
 		}
 		if (inFirstSegment()) {
@@ -526,21 +562,21 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 			int byteIdx = 0;
 			// position is char
 			int charIdx = 0;
-			while (byteIdx < sizeInBytes && charIdx < fromIndex) {
+			while (byteIdx < binarySection.sizeInBytes && charIdx < fromIndex) {
 				byteIdx += numBytesForFirstByte(getByteOneSegment(byteIdx));
 				charIdx++;
 			}
 			do {
-				if (byteIdx + str.sizeInBytes > sizeInBytes) {
+				if (byteIdx + str.binarySection.sizeInBytes > binarySection.sizeInBytes) {
 					return -1;
 				}
-				if (SegmentsUtil.equals(segments, offset + byteIdx,
-						str.segments, str.offset, str.sizeInBytes)) {
+				if (SegmentsUtil.equals(binarySection.segments, binarySection.offset + byteIdx,
+						str.binarySection.segments, str.binarySection.offset, str.binarySection.sizeInBytes)) {
 					return charIdx;
 				}
 				byteIdx += numBytesForFirstByte(getByteOneSegment(byteIdx));
 				charIdx++;
-			} while (byteIdx < sizeInBytes);
+			} while (byteIdx < binarySection.sizeInBytes);
 
 			return -1;
 		} else {
@@ -553,27 +589,27 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		int byteIdx = 0;
 		// position is char
 		int charIdx = 0;
-		int segSize = segments[0].size();
+		int segSize = binarySection.segments[0].size();
 		SegmentAndOffset index = firstSegmentAndOffset(segSize);
-		while (byteIdx < sizeInBytes && charIdx < fromIndex) {
+		while (byteIdx < binarySection.sizeInBytes && charIdx < fromIndex) {
 			int charBytes = numBytesForFirstByte(index.value());
 			byteIdx += charBytes;
 			charIdx++;
 			index.skipBytes(charBytes, segSize);
 		}
 		do {
-			if (byteIdx + str.sizeInBytes > sizeInBytes) {
+			if (byteIdx + str.binarySection.sizeInBytes > binarySection.sizeInBytes) {
 				return -1;
 			}
-			if (SegmentsUtil.equals(segments, offset + byteIdx,
-					str.segments, str.offset, str.sizeInBytes)) {
+			if (SegmentsUtil.equals(binarySection.segments, binarySection.offset + byteIdx,
+					str.binarySection.segments, str.binarySection.offset, str.binarySection.sizeInBytes)) {
 				return charIdx;
 			}
 			int charBytes = numBytesForFirstByte(index.segment.get(index.offset));
 			byteIdx += charBytes;
 			charIdx++;
 			index.skipBytes(charBytes, segSize);
-		} while (byteIdx < sizeInBytes);
+		} while (byteIdx < binarySection.sizeInBytes);
 
 		return -1;
 	}
@@ -587,14 +623,14 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		if (javaObject != null) {
 			return javaToUpperCase();
 		}
-		if (sizeInBytes == 0) {
+		if (binarySection.sizeInBytes == 0) {
 			return EMPTY_UTF8;
 		}
-		int size = segments[0].size();
+		int size = binarySection.segments[0].size();
 		SegmentAndOffset segmentAndOffset = startSegmentAndOffset(size);
-		byte[] bytes = new byte[sizeInBytes];
+		byte[] bytes = new byte[binarySection.sizeInBytes];
 		bytes[0] = (byte) Character.toTitleCase(segmentAndOffset.value());
-		for (int i = 0; i < sizeInBytes; i++) {
+		for (int i = 0; i < binarySection.sizeInBytes; i++) {
 			byte b = segmentAndOffset.value();
 			if (numBytesForFirstByte(b) != 1) {
 				// fallback
@@ -624,14 +660,14 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		if (javaObject != null) {
 			return javaToLowerCase();
 		}
-		if (sizeInBytes == 0) {
+		if (binarySection.sizeInBytes == 0) {
 			return EMPTY_UTF8;
 		}
-		int size = segments[0].size();
+		int size = binarySection.segments[0].size();
 		SegmentAndOffset segmentAndOffset = startSegmentAndOffset(size);
-		byte[] bytes = new byte[sizeInBytes];
+		byte[] bytes = new byte[binarySection.sizeInBytes];
 		bytes[0] = (byte) Character.toTitleCase(segmentAndOffset.value());
-		for (int i = 0; i < sizeInBytes; i++) {
+		for (int i = 0; i < binarySection.sizeInBytes; i++) {
 			byte b = segmentAndOffset.value();
 			if (numBytesForFirstByte(b) != 1) {
 				// fallback
@@ -657,11 +693,11 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	// ------------------------------------------------------------------------------------------
 
 	byte getByteOneSegment(int i) {
-		return segments[0].get(offset + i);
+		return binarySection.segments[0].get(binarySection.offset + i);
 	}
 
 	boolean inFirstSegment() {
-		return sizeInBytes + offset <= segments[0].size();
+		return binarySection.sizeInBytes + binarySection.offset <= binarySection.segments[0].size();
 	}
 
 	private boolean matchAt(final BinaryString s, int pos) {
@@ -669,41 +705,50 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	}
 
 	private boolean matchAtOneSeg(final BinaryString s, int pos) {
-		return s.sizeInBytes + pos <= sizeInBytes && pos >= 0 &&
-			segments[0].equalTo(s.segments[0], offset + pos, s.offset, s.sizeInBytes);
+		return s.binarySection.sizeInBytes + pos <= binarySection.sizeInBytes && pos >= 0 &&
+			binarySection.segments[0].equalTo(
+				s.binarySection.segments[0],
+				binarySection.offset + pos,
+				s.binarySection.offset,
+				s.binarySection.sizeInBytes);
 	}
 
 	private boolean matchAtVarSeg(final BinaryString s, int pos) {
-		return s.sizeInBytes + pos <= sizeInBytes && pos >= 0 &&
-			SegmentsUtil.equals(segments, offset + pos, s.segments, s.offset, s.sizeInBytes);
+		return s.binarySection.sizeInBytes + pos <= binarySection.sizeInBytes && pos >= 0 &&
+			SegmentsUtil.equals(
+				binarySection.segments,
+				binarySection.offset + pos,
+				s.binarySection.segments,
+				s.binarySection.offset,
+				s.binarySection.sizeInBytes);
 	}
 
 	BinaryString copyBinaryStringInOneSeg(int start, int len) {
 		byte[] newBytes = new byte[len];
-		segments[0].get(offset + start, newBytes, 0, len);
+		binarySection.segments[0].get(binarySection.offset + start, newBytes, 0, len);
 		return fromBytes(newBytes);
 	}
 
 	BinaryString copyBinaryString(int start, int end) {
 		int len = end - start + 1;
 		byte[] newBytes = new byte[len];
-		SegmentsUtil.copyToBytes(segments, offset + start, newBytes, 0, len);
+		SegmentsUtil.copyToBytes(binarySection.segments, binarySection.offset + start, newBytes, 0, len);
 		return fromBytes(newBytes);
 	}
 
 	SegmentAndOffset firstSegmentAndOffset(int segSize) {
-		int segIndex = offset / segSize;
-		return new SegmentAndOffset(segIndex, offset % segSize);
+		int segIndex = binarySection.offset / segSize;
+		return new SegmentAndOffset(segIndex, binarySection.offset % segSize);
 	}
 
 	SegmentAndOffset lastSegmentAndOffset(int segSize) {
-		int lastOffset = offset + sizeInBytes - 1;
+		int lastOffset = binarySection.offset + binarySection.sizeInBytes - 1;
 		int segIndex = lastOffset / segSize;
 		return new SegmentAndOffset(segIndex, lastOffset % segSize);
 	}
 
 	private SegmentAndOffset startSegmentAndOffset(int segSize) {
-		return inFirstSegment() ? new SegmentAndOffset(0, offset) : firstSegmentAndOffset(segSize);
+		return inFirstSegment() ? new SegmentAndOffset(0, binarySection.offset) : firstSegmentAndOffset(segSize);
 	}
 
 	/**
@@ -716,13 +761,13 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 
 		private SegmentAndOffset(int segIndex, int offset) {
 			this.segIndex = segIndex;
-			this.segment = segments[segIndex];
+			this.segment = binarySection.segments[segIndex];
 			this.offset = offset;
 		}
 
 		private void assignSegment() {
-			segment = segIndex >= 0 && segIndex < segments.length ?
-					segments[segIndex] : null;
+			segment = segIndex >= 0 && segIndex < binarySection.segments.length ?
+					binarySection.segments[segIndex] : null;
 		}
 
 		void previousByte(int segSize) {

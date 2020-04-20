@@ -1,7 +1,7 @@
 ---
 title: "Configuration"
 nav-parent_id: tableapi
-nav-pos: 150
+nav-pos: 110
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -52,11 +52,12 @@ table environment.
 // instantiate table environment
 TableEnvironment tEnv = ...
 
-tEnv.getConfig()        // access high-level configuration
-  .getConfiguration()   // set low-level key-value options
-  .setString("table.exec.mini-batch.enabled", "true")
-  .setString("table.exec.mini-batch.allow-latency", "5 s")
-  .setString("table.exec.mini-batch.size", "5000");
+// access flink configuration
+Configuration configuration = tEnv.getConfig().getConfiguration();
+// set low-level key-value options
+configuration.setString("table.exec.mini-batch.enabled", "true");
+configuration.setString("table.exec.mini-batch.allow-latency", "5 s");
+configuration.setString("table.exec.mini-batch.size", "5000");
 {% endhighlight %}
 </div>
 
@@ -65,11 +66,12 @@ tEnv.getConfig()        // access high-level configuration
 // instantiate table environment
 val tEnv: TableEnvironment = ...
 
-tEnv.getConfig         // access high-level configuration
-  .getConfiguration    // set low-level key-value options
-  .setString("table.exec.mini-batch.enabled", "true")
-  .setString("table.exec.mini-batch.allow-latency", "5 s")
-  .setString("table.exec.mini-batch.size", "5000")
+// access flink configuration
+val configuration = tEnv.getConfig().getConfiguration()
+// set low-level key-value options
+configuration.setString("table.exec.mini-batch.enabled", "true")
+configuration.setString("table.exec.mini-batch.allow-latency", "5 s")
+configuration.setString("table.exec.mini-batch.size", "5000")
 {% endhighlight %}
 </div>
 
@@ -78,11 +80,12 @@ tEnv.getConfig         // access high-level configuration
 # instantiate table environment
 t_env = ...
 
-t_env.get_config()        # access high-level configuration
-  .get_configuration()    # set low-level key-value options
-  .set_string("table.exec.mini-batch.enabled", "true")
-  .set_string("table.exec.mini-batch.allow-latency", "5 s")
-  .set_string("table.exec.mini-batch.size", "5000");
+# access flink configuration
+configuration = t_env.get_config().get_configuration();
+# set low-level key-value options
+configuration.set_string("table.exec.mini-batch.enabled", "true");
+configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
+configuration.set_string("table.exec.mini-batch.size", "5000");
 {% endhighlight %}
 </div>
 </div>

@@ -19,6 +19,10 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.ExceptionUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
@@ -32,6 +36,7 @@ import java.nio.ByteBuffer;
  */
 @Internal
 public final class MemorySegmentFactory {
+	private static final Logger LOG = LoggerFactory.getLogger(MemorySegmentFactory.class);
 
 	/**
 	 * Creates a new memory segment that targets the given heap memory region.
@@ -42,7 +47,7 @@ public final class MemorySegmentFactory {
 	 * @return A new memory segment that targets the given heap memory region.
 	 */
 	public static MemorySegment wrap(byte[] buffer) {
-		return new HybridMemorySegment(buffer);
+		return new HybridMemorySegment(buffer, null);
 	}
 
 	/**
@@ -79,41 +84,58 @@ public final class MemorySegmentFactory {
 	 * represents that memory.
 	 *
 	 * @param size The size of the off-heap memory segment to allocate.
+	 * @return A new memory segment, backed by unpooled off-heap memory.
+	 */
+	public static MemorySegment allocateUnpooledOffHeapMemory(int size) {
+		return allocateUnpooledOffHeapMemory(size, null);
+	}
+
+	/**
+	 * Allocates some unpooled off-heap memory and creates a new memory segment that
+	 * represents that memory.
+	 *
+	 * @param size The size of the off-heap memory segment to allocate.
 	 * @param owner The owner to associate with the off-heap memory segment.
 	 * @return A new memory segment, backed by unpooled off-heap memory.
 	 */
 	public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
-		ByteBuffer memory = ByteBuffer.allocateDirect(size);
-		return wrapPooledOffHeapMemory(memory, owner);
+		ByteBuffer memory = allocateDirectMemory(size);
+		return new HybridMemorySegment(memory, owner, null);
+	}
+
+	private static ByteBuffer allocateDirectMemory(int size) {
+		//noinspection ErrorNotRethrown
+		try {
+			return ByteBuffer.allocateDirect(size);
+		} catch (OutOfMemoryError outOfMemoryError) {
+			// TODO: this error handling can be removed in future,
+			// once we find a common way to handle OOM errors in netty threads.
+			// Here we enrich it to propagate better OOM message to the receiver
+			// if it happens in a netty thread.
+			OutOfMemoryError enrichedOutOfMemoryError = (OutOfMemoryError) ExceptionUtils
+				.enrichTaskManagerOutOfMemoryError(outOfMemoryError);
+			if (ExceptionUtils.isDirectOutOfMemoryError(outOfMemoryError)) {
+				LOG.error("Cannot allocate direct memory segment", enrichedOutOfMemoryError);
+			}
+			throw enrichedOutOfMemoryError;
+		}
 	}
 
 	/**
-	 * Creates a memory segment that wraps the given byte array.
+	 * Allocates an off-heap unsafe memory and creates a new memory segment to represent that memory.
 	 *
-	 * <p>This method is intended to be used for components which pool memory and create
-	 * memory segments around long-lived memory regions.
+	 * <p>Creation of this segment schedules its memory freeing operation when its java wrapping object is about
+	 * to be garbage collected, similar to {@link java.nio.DirectByteBuffer#DirectByteBuffer(int)}.
+	 * The difference is that this memory allocation is out of option -XX:MaxDirectMemorySize limitation.
 	 *
-	 * @param memory The heap memory to be represented by the memory segment.
-	 * @param owner The owner to associate with the memory segment.
-	 * @return A new memory segment representing the given heap memory.
+	 * @param size The size of the off-heap unsafe memory segment to allocate.
+	 * @param owner The owner to associate with the off-heap unsafe memory segment.
+	 * @return A new memory segment, backed by off-heap unsafe memory.
 	 */
-	public static MemorySegment wrapPooledHeapMemory(byte[] memory, Object owner) {
-		return new HybridMemorySegment(memory, owner);
-	}
-
-	/**
-	 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
-	 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>.
-	 *
-	 * <p>This method is intended to be used for components which pool memory and create
-	 * memory segments around long-lived memory regions.
-	 *
-	 * @param memory The byte buffer with the off-heap memory to be represented by the memory segment.
-	 * @param owner The owner to associate with the memory segment.
-	 * @return A new memory segment representing the given off-heap memory.
-	 */
-	public static MemorySegment wrapPooledOffHeapMemory(ByteBuffer memory, Object owner) {
-		return new HybridMemorySegment(memory, owner);
+	public static MemorySegment allocateOffHeapUnsafeMemory(int size, Object owner) {
+		long address = MemoryUtils.allocateUnsafe(size);
+		ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
+		return new HybridMemorySegment(offHeapBuffer, owner, MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address));
 	}
 
 	/**
@@ -127,7 +149,7 @@ public final class MemorySegmentFactory {
 	 * @return A new memory segment representing the given off-heap memory.
 	 */
 	public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
-		return new HybridMemorySegment(memory);
+		return new HybridMemorySegment(memory, null, null);
 	}
 
 }

@@ -78,7 +78,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVEHISTORYFILELOC;
-import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.LOCALSCRATCHDIR;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORECONNECTURLKEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREWAREHOUSE;
@@ -92,7 +91,7 @@ import static org.reflections.ReflectionUtils.withAnnotation;
  */
 public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 	private static final Logger LOGGER = LoggerFactory.getLogger(FlinkStandaloneHiveRunner.class);
-	private static final Duration HMS_START_TIMEOUT = Duration.ofSeconds(30);
+	private static final Duration HMS_START_TIMEOUT = Duration.ofSeconds(90);
 	private Future<Void> hmsWatcher;
 	private int hmsPort;
 	private HiveShellContainer container;
@@ -355,13 +354,13 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		args.add(System.getProperty("java.class.path"));
 
 		// set sys properties
-		// TODO: generate hive-site.xml at runtime?
 		args.add(hiveCmdLineConfig(METASTOREWAREHOUSE.varname, outsideConf.getVar(METASTOREWAREHOUSE)));
 		args.add(hiveCmdLineConfig(SCRATCHDIR.varname, outsideConf.getVar(SCRATCHDIR)));
 		args.add(hiveCmdLineConfig(LOCALSCRATCHDIR.varname, outsideConf.getVar(LOCALSCRATCHDIR)));
 		args.add(hiveCmdLineConfig(HIVEHISTORYFILELOC.varname, outsideConf.getVar(HIVEHISTORYFILELOC)));
-		args.add(hiveCmdLineConfig(HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS.varname,
-				String.valueOf(outsideConf.getBoolVar(HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS))));
+		// The following config is removed in Hive 3.1.0.
+		args.add(hiveCmdLineConfig("hive.warehouse.subdir.inherit.perms",
+				String.valueOf(outsideConf.getBoolean("hive.warehouse.subdir.inherit.perms", true))));
 		args.add(hiveCmdLineConfig("hadoop.tmp.dir", outsideConf.get("hadoop.tmp.dir")));
 		args.add(hiveCmdLineConfig("test.log.dir", outsideConf.get("test.log.dir")));
 		String metaStorageUrl = "jdbc:derby:memory:" + UUID.randomUUID().toString();
@@ -377,45 +376,52 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 
 		ProcessBuilder builder = new ProcessBuilder(args);
 		Process process = builder.start();
-		Thread inLogger = new Thread(new LogRedirect(process.getInputStream(), LOGGER));
-		Thread errLogger = new Thread(new LogRedirect(process.getErrorStream(), LOGGER));
-		inLogger.setDaemon(true);
-		inLogger.setName("HMS-IN-Logger");
-		errLogger.setDaemon(true);
-		errLogger.setName("HMS-ERR-Logger");
-		inLogger.start();
-		errLogger.start();
 
-		FutureTask<Void> res = new FutureTask<>(() -> {
-			try {
-				int r = process.waitFor();
-				inLogger.join();
-				errLogger.join();
-				if (r != 0) {
-					throw new RuntimeException("HMS process exited with " + r);
-				}
-			} catch (InterruptedException e) {
-				LOGGER.info("Shutting down HMS");
-			} finally {
-				if (process.isAlive()) {
-					// give it a chance to terminate gracefully
-					process.destroy();
-					try {
-						process.waitFor(5, TimeUnit.SECONDS);
-					} catch (InterruptedException e) {
-						LOGGER.info("Interrupted waiting for HMS to shut down, killing it forcibly");
+		try {
+			Thread inLogger = new Thread(new LogRedirect(process.getInputStream(), LOGGER));
+			Thread errLogger = new Thread(new LogRedirect(process.getErrorStream(), LOGGER));
+			inLogger.setDaemon(true);
+			inLogger.setName("HMS-IN-Logger");
+			errLogger.setDaemon(true);
+			errLogger.setName("HMS-ERR-Logger");
+			inLogger.start();
+			errLogger.start();
+
+			FutureTask<Void> res = new FutureTask<>(() -> {
+				try {
+					int r = process.waitFor();
+					inLogger.join();
+					errLogger.join();
+					if (r != 0) {
+						throw new RuntimeException("HMS process exited with " + r);
 					}
-					process.destroyForcibly();
+				} catch (InterruptedException e) {
+					LOGGER.info("Shutting down HMS");
+				} finally {
+					if (process.isAlive()) {
+						// give it a chance to terminate gracefully
+						process.destroy();
+						try {
+							process.waitFor(5, TimeUnit.SECONDS);
+						} catch (InterruptedException e) {
+							LOGGER.info("Interrupted waiting for HMS to shut down, killing it forcibly");
+						}
+						process.destroyForcibly();
+					}
 				}
-			}
-		}, null);
-		Thread thread = new Thread(res);
-		thread.setName("HMS-Watcher");
-		// we need the watcher thread to kill HMS, don't make it daemon
-		thread.setDaemon(false);
-		thread.start();
-		waitForHMSStart(port);
-		return res;
+			}, null);
+			Thread thread = new Thread(res);
+			thread.setName("HMS-Watcher");
+			// we need the watcher thread to kill HMS, don't make it daemon
+			thread.setDaemon(false);
+			thread.start();
+			waitForHMSStart(port);
+			return res;
+		} catch (Throwable e) {
+			// make sure to kill the process in case anything goes wrong
+			process.destroyForcibly();
+			throw e;
+		}
 	}
 
 	private static void waitForHMSStart(int port) throws Exception {

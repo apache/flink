@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -31,11 +32,10 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -121,7 +121,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		final CompletableFuture<LogicalSlot> sourceFuture = new CompletableFuture<>();
 		final CompletableFuture<LogicalSlot> targetFuture = new CompletableFuture<>();
@@ -195,7 +194,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
@@ -292,7 +290,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		//
 		//  Create the slots, futures, and the slot provider
@@ -376,7 +373,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", vertex);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(2);
 		final TestingSlotOwner slotOwner = new TestingSlotOwner();
@@ -436,7 +432,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		jobVertex.setParallelism(2);
 		final JobGraph jobGraph = new JobGraph(jobVertex);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		final CompletableFuture<LogicalSlot> slotFuture1 = new CompletableFuture<>();
 		final CompletableFuture<LogicalSlot> slotFuture2 = new CompletableFuture<>();
@@ -478,7 +473,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 		jobVertex.setParallelism(parallelism);
 		final JobGraph jobGraph = new JobGraph(jobVertex);
-		jobGraph.setAllowQueuedScheduling(true);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
@@ -520,7 +514,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		jobVertex.setParallelism(parallelism);
 
 		final JobGraph jobGraph = new JobGraph(jobVertex);
-		jobGraph.setAllowQueuedScheduling(true);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		final TestingSlotOwner slotOwner = new TestingSlotOwner();
@@ -594,7 +587,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			timeout,
 			log,
 			NettyShuffleMaster.INSTANCE,
-			NoOpPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE);
 	}
 
 	@Nonnull

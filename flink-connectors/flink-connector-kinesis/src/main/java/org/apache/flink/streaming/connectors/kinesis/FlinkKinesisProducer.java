@@ -361,7 +361,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 			if (failOnError) {
 				throw new RuntimeException("An exception was thrown while processing a record: " + errorMessages, thrownException);
 			} else {
-				LOG.warn("An exception was thrown while processing a record: {}", thrownException, errorMessages);
+				LOG.warn("An exception was thrown while processing a record: {}.", errorMessages, thrownException);
 
 				// reset, prevent double throwing
 				thrownException = null;

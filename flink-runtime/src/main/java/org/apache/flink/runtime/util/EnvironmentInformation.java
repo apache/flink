@@ -270,14 +270,22 @@ public class EnvironmentInformation {
 		if (log.isInfoEnabled()) {
 			RevisionInformation rev = getRevisionInformation();
 			String version = getVersion();
-			
+
 			String jvmVersion = getJvmVersion();
 			String[] options = getJvmStartupOptionsArray();
-			
+
 			String javaHome = System.getenv("JAVA_HOME");
-			
+
+			String inheritedLogs = System.getenv("FLINK_INHERITED_LOGS");
+
 			long maxHeapMegabytes = getMaxJvmHeapMemory() >>> 20;
-			
+
+			if (inheritedLogs != null) {
+				log.info("--------------------------------------------------------------------------------");
+				log.info(" Preconfiguration: ");
+				log.info(inheritedLogs);
+			}
+
 			log.info("--------------------------------------------------------------------------------");
 			log.info(" Starting " + componentName + " (Version: " + version + ", "
 					+ "Rev:" + rev.commitId + ", " + "Date:" + rev.commitDate + ")");

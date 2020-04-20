@@ -27,13 +27,14 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
 
 import java.sql.Date;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -367,13 +368,27 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	/**
 	 * Built-in Timestamp Max with retraction aggregate function.
 	 */
-	public static class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Timestamp> {
+	public static class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction<SqlTimestamp> {
 
 		private static final long serialVersionUID = -7096481949093142944L;
 
+		private final int precision;
+
+		public TimestampMaxWithRetractAggFunction(int precision) {
+			this.precision = precision;
+		}
+
+		public void accumulate(MaxWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
+			super.accumulate(acc, value);
+		}
+
+		public void retract(MaxWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
+			super.retract(acc, value);
+		}
+
 		@Override
-		protected TypeInformation<Timestamp> getValueTypeInfo() {
-			return Types.SQL_TIMESTAMP;
+		protected TypeInformation<SqlTimestamp> getValueTypeInfo() {
+			return new SqlTimestampTypeInfo(precision);
 		}
 	}
 

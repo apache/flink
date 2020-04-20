@@ -18,56 +18,38 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobWriter;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -82,7 +64,7 @@ import static org.junit.Assert.assertNotNull;
  */
 public class ExecutionGraphTestUtils {
 
-	private static final Logger TEST_LOGGER = LoggerFactory.getLogger(ExecutionGraphTestUtils.class);
+	private static final Time DEFAULT_TIMEOUT = AkkaUtils.getDefaultTimeout();
 
 	// ------------------------------------------------------------------------
 	//  reaching states
@@ -233,26 +215,6 @@ public class ExecutionGraphTestUtils {
 		return (AccessExecution execution) -> execution.getState() == executionState;
 	}
 
-	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
-			throws TimeoutException {
-		checkNotNull(region);
-		checkNotNull(status);
-		checkArgument(maxWaitMillis >= 0);
-
-		// this is a poor implementation - we may want to improve it eventually
-		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
-
-		while (region.getState() != status && System.nanoTime() < deadline) {
-			try {
-				Thread.sleep(2);
-			} catch (InterruptedException ignored) {}
-		}
-
-		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
-		}
-	}
-
 	/**
 	 * Takes all vertices in the given ExecutionGraph and switches their current
 	 * execution to RUNNING.
@@ -285,7 +247,7 @@ public class ExecutionGraphTestUtils {
 
 	/**
 	 * Checks that all execution are in state DEPLOYING and then switches them
-	 * to state RUNNING
+	 * to state RUNNING.
 	 */
 	public static void switchToRunning(ExecutionGraph eg) {
 		// check that all execution are in state DEPLOYING
@@ -305,11 +267,11 @@ public class ExecutionGraphTestUtils {
 	// ------------------------------------------------------------------------
 	//  state modifications
 	// ------------------------------------------------------------------------
-	
+
 	public static void setVertexState(ExecutionVertex vertex, ExecutionState state) {
 		try {
 			Execution exec = vertex.getCurrentExecutionAttempt();
-			
+
 			Field f = Execution.class.getDeclaredField("state");
 			f.setAccessible(true);
 			f.set(exec, state);
@@ -318,11 +280,11 @@ public class ExecutionGraphTestUtils {
 			throw new RuntimeException("Modifying the state failed", e);
 		}
 	}
-	
+
 	public static void setVertexResource(ExecutionVertex vertex, LogicalSlot slot) {
 		Execution exec = vertex.getCurrentExecutionAttempt();
 
-		if(!exec.tryAssignResource(slot)) {
+		if (!exec.tryAssignResource(slot)) {
 			throw new RuntimeException("Could not assign resource.");
 		}
 	}
@@ -345,7 +307,7 @@ public class ExecutionGraphTestUtils {
 	public static ExecutionGraph createSimpleTestGraph(RestartStrategy restartStrategy) throws Exception {
 		JobVertex vertex = createNoOpVertex(10);
 
-		return createSimpleTestGraph(new JobID(), new SimpleAckingTaskManagerGateway(), restartStrategy, vertex);
+		return createSimpleTestGraph(new SimpleAckingTaskManagerGateway(), restartStrategy, vertex);
 	}
 
 	/**
@@ -353,15 +315,14 @@ public class ExecutionGraphTestUtils {
 	 *
 	 * <p>The execution graph uses {@link NoRestartStrategy} as the restart strategy.
 	 */
-	public static ExecutionGraph createSimpleTestGraph(JobID jid, JobVertex... vertices) throws Exception {
-		return createSimpleTestGraph(jid, new SimpleAckingTaskManagerGateway(), new NoRestartStrategy(), vertices);
+	public static ExecutionGraph createSimpleTestGraph(JobVertex... vertices) throws Exception {
+		return createSimpleTestGraph(new SimpleAckingTaskManagerGateway(), new NoRestartStrategy(), vertices);
 	}
 
 	/**
 	 * Creates an execution graph containing the given vertices and the given restart strategy.
 	 */
 	public static ExecutionGraph createSimpleTestGraph(
-			JobID jid,
 			TaskManagerGateway taskManagerGateway,
 			RestartStrategy restartStrategy,
 			JobVertex... vertices) throws Exception {
@@ -371,44 +332,42 @@ public class ExecutionGraphTestUtils {
 			numSlotsNeeded += vertex.getParallelism();
 		}
 
-		SlotProvider slotProvider = new SimpleSlotProvider(jid, numSlotsNeeded, taskManagerGateway);
+		SlotProvider slotProvider = new SimpleSlotProvider(numSlotsNeeded, taskManagerGateway);
 
-		return createSimpleTestGraph(jid, slotProvider, restartStrategy, vertices);
+		return createSimpleTestGraph(slotProvider, restartStrategy, vertices);
 	}
 
 	public static ExecutionGraph createSimpleTestGraph(
-			JobID jid,
 			SlotProvider slotProvider,
 			RestartStrategy restartStrategy,
 			JobVertex... vertices) throws Exception {
 
-		return createExecutionGraph(jid, slotProvider, restartStrategy, TestingUtils.defaultExecutor(), vertices);
+		return createExecutionGraph(slotProvider, restartStrategy, TestingUtils.defaultExecutor(), vertices);
 	}
 
 	public static ExecutionGraph createExecutionGraph(
-			JobID jid,
 			SlotProvider slotProvider,
 			RestartStrategy restartStrategy,
 			ScheduledExecutorService executor,
 			JobVertex... vertices) throws Exception {
 
-			return createExecutionGraph(jid, slotProvider, restartStrategy, executor, Time.seconds(10L), vertices);
+			return createExecutionGraph(slotProvider, restartStrategy, executor, Time.seconds(10L), vertices);
 	}
 
 	public static ExecutionGraph createExecutionGraph(
-			JobID jid,
 			SlotProvider slotProvider,
 			RestartStrategy restartStrategy,
 			ScheduledExecutorService executor,
 			Time timeout,
 			JobVertex... vertices) throws Exception {
 
-		checkNotNull(jid);
 		checkNotNull(restartStrategy);
 		checkNotNull(vertices);
 		checkNotNull(timeout);
 
-		return new TestingExecutionGraphBuilder(vertices)
+		return TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(new JobGraph(vertices))
 			.setFutureExecutor(executor)
 			.setIoExecutor(executor)
 			.setSlotProvider(slotProvider)
@@ -440,33 +399,114 @@ public class ExecutionGraphTestUtils {
 		return groupVertex;
 	}
 
-	public static ExecutionJobVertex getExecutionVertex(
+	public static ExecutionJobVertex getExecutionJobVertex(
 			JobVertexID id,
 			ScheduledExecutorService executor) throws Exception {
-		return getExecutionVertex(id, executor, ScheduleMode.LAZY_FROM_SOURCES);
+		return getExecutionJobVertex(id, executor, ScheduleMode.LAZY_FROM_SOURCES);
 	}
 
-	public static ExecutionJobVertex getExecutionVertex(
+	public static ExecutionJobVertex getExecutionJobVertex(
 			JobVertexID id,
+			ScheduledExecutorService executor,
+			ScheduleMode scheduleMode) throws Exception {
+
+		return getExecutionJobVertex(id, 1, null, executor, scheduleMode);
+	}
+
+	public static ExecutionJobVertex getExecutionJobVertex(
+			JobVertexID id,
+			int parallelism,
+			@Nullable SlotSharingGroup slotSharingGroup,
 			ScheduledExecutorService executor,
 			ScheduleMode scheduleMode) throws Exception {
 
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(AbstractInvokable.class);
+		ajv.setParallelism(parallelism);
+		if (slotSharingGroup != null) {
+			ajv.setSlotSharingGroup(slotSharingGroup);
+		}
 
-		ExecutionGraph graph = new TestingExecutionGraphBuilder(ajv)
+		JobGraph jobGraph = new JobGraph(ajv);
+		jobGraph.setScheduleMode(scheduleMode);
+
+		ExecutionGraph graph = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
 			.setIoExecutor(executor)
 			.setFutureExecutor(executor)
-			.setScheduleMode(scheduleMode)
 			.build();
 
 		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		return new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout());
 	}
-	
-	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
-		return getExecutionVertex(id, new DirectScheduledExecutorService());
+
+	public static ExecutionJobVertex getExecutionJobVertex(JobVertexID id) throws Exception {
+		return getExecutionJobVertex(id, new DirectScheduledExecutorService());
+	}
+
+	public static Execution getExecution() throws Exception {
+		final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
+		return ejv.getTaskVertices()[0].getCurrentExecutionAttempt();
+	}
+
+	public static Execution getExecution(final TaskManagerLocation... preferredLocations) throws Exception {
+		return getExecution(mapToPreferredLocationFutures(preferredLocations));
+	}
+
+	private static Collection<CompletableFuture<TaskManagerLocation>> mapToPreferredLocationFutures(
+			final TaskManagerLocation... preferredLocations) {
+
+		final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = new ArrayList<>();
+		for (TaskManagerLocation preferredLocation : preferredLocations) {
+			preferredLocationFutures.add(CompletableFuture.completedFuture(preferredLocation));
+		}
+		return preferredLocationFutures;
+	}
+
+	public static Execution getExecution(
+			final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures) throws Exception {
+
+		final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
+		final TestExecutionVertex ev = new TestExecutionVertex(ejv, 0, new IntermediateResult[0], DEFAULT_TIMEOUT);
+		ev.setPreferredLocationFutures(preferredLocationFutures);
+		return ev.getCurrentExecutionAttempt();
+	}
+
+	public static Execution getExecution(
+			final JobVertexID jid,
+			final int subtaskIndex,
+			final int numTasks,
+			final SlotSharingGroup slotSharingGroup) throws Exception {
+
+		return getExecution(jid, subtaskIndex, numTasks, slotSharingGroup, null);
+	}
+
+	public static Execution getExecution(
+			final JobVertexID jid,
+			final int subtaskIndex,
+			final int numTasks,
+			final SlotSharingGroup slotSharingGroup,
+			@Nullable final TaskManagerLocation... locations) throws Exception {
+
+		final ExecutionJobVertex ejv = getExecutionJobVertex(
+			jid,
+			numTasks,
+			slotSharingGroup,
+			new DirectScheduledExecutorService(),
+			ScheduleMode.LAZY_FROM_SOURCES);
+		final TestExecutionVertex ev = new TestExecutionVertex(
+			ejv,
+			subtaskIndex,
+			new IntermediateResult[0],
+			DEFAULT_TIMEOUT);
+
+		if (locations != null) {
+			ev.setPreferredLocationFutures(mapToPreferredLocationFutures(locations));
+		}
+
+		return ev.getCurrentExecutionAttempt();
 	}
 
 	// ------------------------------------------------------------------------
@@ -474,7 +514,7 @@ public class ExecutionGraphTestUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Verifies the generated {@link ExecutionJobVertex} for a given {@link JobVertex} in a {@link ExecutionGraph}
+	 * Verifies the generated {@link ExecutionJobVertex} for a given {@link JobVertex} in a {@link ExecutionGraph}.
 	 *
 	 * @param executionGraph the generated execution graph
 	 * @param originJobVertex the vertex to verify for
@@ -539,154 +579,6 @@ public class ExecutionGraphTestUtils {
 			}
 
 			subtaskIndex++;
-		}
-	}
-
-	/**
-	 * Builder for {@link ExecutionGraph}.
-	 */
-	public static class TestingExecutionGraphBuilder {
-
-		private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
-		private Time allocationTimeout = Time.seconds(10L);
-		private BlobWriter blobWriter = VoidBlobWriter.getInstance();
-		private MetricGroup metricGroup = new UnregisteredMetricsGroup();
-		private RestartStrategy restartStrategy = new NoRestartStrategy();
-		private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
-		private CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
-		private ClassLoader classLoader = getClass().getClassLoader();
-		private SlotProvider slotProvider = new TestingSlotProvider(slotRequestId -> CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
-		private Executor ioExecutor = TestingUtils.defaultExecutor();
-		private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-		private Configuration jobMasterConfig = new Configuration();
-		private JobGraph jobGraph;
-		private PartitionTracker partitionTracker = NoOpPartitionTracker.INSTANCE;
-		private FailoverStrategy.Factory failoverStrategyFactory = new RestartAllStrategy.Factory();
-
-		public TestingExecutionGraphBuilder(final JobVertex ... jobVertices) {
-			this(new JobID(), "test job", jobVertices);
-		}
-
-		public TestingExecutionGraphBuilder(final JobID jobId, final JobVertex ... jobVertices) {
-			this(jobId, "test job", jobVertices);
-		}
-
-		public TestingExecutionGraphBuilder(final String jobName, final JobVertex ... jobVertices) {
-			this(new JobID(), jobName, jobVertices);
-		}
-
-		public TestingExecutionGraphBuilder(final JobID jobId, final String jobName, final JobVertex ... jobVertices) {
-			this(new JobGraph(jobId, jobName, jobVertices));
-		}
-
-		public TestingExecutionGraphBuilder(final JobGraph jobGraph) {
-			this.jobGraph = jobGraph;
-		}
-
-		public TestingExecutionGraphBuilder setJobMasterConfig(final Configuration jobMasterConfig) {
-			this.jobMasterConfig = jobMasterConfig;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setFutureExecutor(final ScheduledExecutorService futureExecutor) {
-			this.futureExecutor = futureExecutor;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setIoExecutor(final Executor ioExecutor) {
-			this.ioExecutor = ioExecutor;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setSlotProvider(final SlotProvider slotProvider) {
-			this.slotProvider = slotProvider;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setClassLoader(final ClassLoader classLoader) {
-			this.classLoader = classLoader;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setCheckpointRecoveryFactory(final CheckpointRecoveryFactory checkpointRecoveryFactory) {
-			this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setRpcTimeout(final Time rpcTimeout) {
-			this.rpcTimeout = rpcTimeout;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setRestartStrategy(final RestartStrategy restartStrategy) {
-			this.restartStrategy = restartStrategy;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setMetricGroup(final MetricGroup metricGroup) {
-			this.metricGroup = metricGroup;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setBlobWriter(final BlobWriter blobWriter) {
-			this.blobWriter = blobWriter;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setAllocationTimeout(final Time allocationTimeout) {
-			this.allocationTimeout = allocationTimeout;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setShuffleMaster(final ShuffleMaster<?> shuffleMaster) {
-			this.shuffleMaster = shuffleMaster;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setPartitionTracker(final PartitionTracker partitionTracker) {
-			this.partitionTracker = partitionTracker;
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder allowQueuedScheduling() {
-			jobGraph.setAllowQueuedScheduling(true);
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setAllowQueuedScheduling(boolean allowQueuedScheduling) {
-			jobGraph.setAllowQueuedScheduling(allowQueuedScheduling);
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setScheduleMode(ScheduleMode scheduleMode) {
-			jobGraph.setScheduleMode(scheduleMode);
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setFailoverStrategyFactory(FailoverStrategy.Factory failoverStrategyFactory) {
-			this.failoverStrategyFactory = failoverStrategyFactory;
-			return this;
-		}
-
-		public ExecutionGraph build() throws JobException, JobExecutionException {
-			return ExecutionGraphBuilder.buildGraph(
-				null,
-				jobGraph,
-				jobMasterConfig,
-				futureExecutor,
-				ioExecutor,
-				slotProvider,
-				classLoader,
-				checkpointRecoveryFactory,
-				rpcTimeout,
-				restartStrategy,
-				metricGroup,
-				blobWriter,
-				allocationTimeout,
-				TEST_LOGGER,
-				shuffleMaster,
-				partitionTracker,
-				failoverStrategyFactory);
 		}
 	}
 }

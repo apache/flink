@@ -49,7 +49,9 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private int floatingNetworkBuffersPerGate = 8;
 
-	private boolean isCreditBased = true;
+	private boolean blockingShuffleCompressionEnabled = false;
+
+	private String compressionCodec = "LZ4";
 
 	private ResourceID taskManagerLocation = ResourceID.generate();
 
@@ -87,8 +89,13 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
-		this.isCreditBased = isCreditBased;
+	public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
+		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
+		this.compressionCodec = compressionCodec;
 		return this;
 	}
 
@@ -112,12 +119,13 @@ public class NettyShuffleEnvironmentBuilder {
 				networkBuffersPerChannel,
 				floatingNetworkBuffersPerGate,
 				DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
-				isCreditBased,
 				false,
 				nettyConfig,
 				DEFAULT_TEMP_DIRS,
 				BoundedBlockingSubpartitionType.AUTO,
-				false),
+				false,
+				blockingShuffleCompressionEnabled,
+				compressionCodec),
 			taskManagerLocation,
 			new TaskEventDispatcher(),
 			metricGroup);

@@ -49,8 +49,7 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
 		final PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
 			new ResultPartitionManager(),
 			new TaskEventDispatcher(),
-			new PartitionRequestQueue(),
-			true);
+			new PartitionRequestQueue());
 		final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
 		final ResultPartitionID partitionId = new ResultPartitionID();
 

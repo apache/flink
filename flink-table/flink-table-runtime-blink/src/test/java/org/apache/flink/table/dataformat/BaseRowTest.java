@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -29,10 +30,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
+import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -48,11 +53,15 @@ public class BaseRowTest {
 	private BinaryMap map;
 	private BinaryRow underRow;
 	private byte[] bytes;
+	private BinaryGenericSerializer<String> genericSerializer;
+	private SqlTimestamp sqlTimestamp1;
+	private SqlTimestamp sqlTimestamp2;
 
 	@Before
 	public void before() {
 		str = BinaryString.fromString("haha");
-		generic = new BinaryGeneric<>("haha", StringSerializer.INSTANCE);
+		generic = new BinaryGeneric<>("haha");
+		genericSerializer = new BinaryGenericSerializer<>(StringSerializer.INSTANCE);
 		decimal1 = Decimal.fromLong(10, 5, 0);
 		decimal2 = Decimal.fromBigDecimal(new BigDecimal(11), 20, 0);
 		array = new BinaryArray();
@@ -71,6 +80,8 @@ public class BaseRowTest {
 			writer.complete();
 		}
 		bytes = new byte[] {1, 5, 6};
+		sqlTimestamp1 = SqlTimestamp.fromEpochMillis(123L);
+		sqlTimestamp2 = SqlTimestamp.fromLocalDateTime(LocalDateTime.of(1969, 1, 1, 0, 0, 0, 123456789));
 	}
 
 	@Test
@@ -84,11 +95,11 @@ public class BaseRowTest {
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeRow(0, getBinaryRow(), null);
 		writer.complete();
-		testAll(row.getRow(0, 16));
+		testAll(row.getRow(0, 18));
 	}
 
 	private BinaryRow getBinaryRow() {
-		BinaryRow row = new BinaryRow(16);
+		BinaryRow row = new BinaryRow(18);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeBoolean(0, true);
 		writer.writeByte(1, (byte) 1);
@@ -98,7 +109,7 @@ public class BaseRowTest {
 		writer.writeFloat(5, 5);
 		writer.writeDouble(6, 6);
 		writer.writeString(8, str);
-		writer.writeGeneric(9, generic);
+		writer.writeGeneric(9, generic, genericSerializer);
 		writer.writeDecimal(10, decimal1, 5);
 		writer.writeDecimal(11, decimal2, 20);
 		writer.writeArray(12, array, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
@@ -106,12 +117,14 @@ public class BaseRowTest {
 			DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 		writer.writeRow(14, underRow, new BaseRowSerializer(null, RowType.of(new IntType(), new IntType())));
 		writer.writeBinary(15, bytes);
+		writer.writeTimestamp(16, sqlTimestamp1, 3);
+		writer.writeTimestamp(17, sqlTimestamp2, 9);
 		return row;
 	}
 
 	@Test
 	public void testGenericRow() {
-		GenericRow row = new GenericRow(16);
+		GenericRow row = new GenericRow(18);
 		row.setField(0, true);
 		row.setField(1, (byte) 1);
 		row.setField(2, (short) 2);
@@ -128,12 +141,14 @@ public class BaseRowTest {
 		row.setField(13, map);
 		row.setField(14, underRow);
 		row.setField(15, bytes);
+		row.setField(16, sqlTimestamp1);
+		row.setField(17, sqlTimestamp2);
 		testAll(row);
 	}
 
 	@Test
 	public void testBoxedWrapperRow() {
-		BoxedWrapperRow row = new BoxedWrapperRow(16);
+		BoxedWrapperRow row = new BoxedWrapperRow(18);
 		row.setBoolean(0, true);
 		row.setByte(1, (byte) 1);
 		row.setShort(2, (short) 2);
@@ -149,6 +164,8 @@ public class BaseRowTest {
 		row.setNonPrimitiveValue(13, map);
 		row.setNonPrimitiveValue(14, underRow);
 		row.setNonPrimitiveValue(15, bytes);
+		row.setNonPrimitiveValue(16, sqlTimestamp1);
+		row.setNonPrimitiveValue(17, sqlTimestamp2);
 		testAll(row);
 	}
 
@@ -161,7 +178,7 @@ public class BaseRowTest {
 		row1.setField(3, 3);
 		row1.setField(4, (long) 4);
 
-		GenericRow row2 = new GenericRow(11);
+		GenericRow row2 = new GenericRow(13);
 		row2.setField(0, (float) 5);
 		row2.setField(1, (double) 6);
 		row2.setField(2, (char) 7);
@@ -173,11 +190,13 @@ public class BaseRowTest {
 		row2.setField(8, map);
 		row2.setField(9, underRow);
 		row2.setField(10, bytes);
+		row2.setField(11, sqlTimestamp1);
+		row2.setField(12, sqlTimestamp2);
 		testAll(new JoinedRow(row1, row2));
 	}
 
 	private void testAll(BaseRow row) {
-		assertEquals(16, row.getArity());
+		assertEquals(18, row.getArity());
 
 		// test header
 		assertEquals(0, row.getHeader());
@@ -193,7 +212,7 @@ public class BaseRowTest {
 		assertEquals(5, (int) row.getFloat(5));
 		assertEquals(6, (int) row.getDouble(6));
 		assertEquals(str, row.getString(8));
-		assertEquals(generic, row.getGeneric(9));
+		assertThat(row.getGeneric(9), equivalent(generic, genericSerializer));
 		assertEquals(decimal1, row.getDecimal(10, 5, 0));
 		assertEquals(decimal2, row.getDecimal(11, 20, 0));
 		assertEquals(array, row.getArray(12));
@@ -201,6 +220,8 @@ public class BaseRowTest {
 		assertEquals(15, row.getRow(14, 2).getInt(0));
 		assertEquals(16, row.getRow(14, 2).getInt(1));
 		assertArrayEquals(bytes, row.getBinary(15));
+		assertEquals(sqlTimestamp1, row.getTimestamp(16, 3));
+		assertEquals(sqlTimestamp2, row.getTimestamp(17, 9));
 
 		// test set
 		row.setBoolean(0, false);
@@ -221,6 +242,11 @@ public class BaseRowTest {
 		assertEquals(Decimal.fromLong(11, 5, 0), row.getDecimal(10, 5, 0));
 		row.setDecimal(11, Decimal.fromBigDecimal(new BigDecimal(12), 20, 0), 20);
 		assertEquals(Decimal.fromBigDecimal(new BigDecimal(12), 20, 0), row.getDecimal(11, 20, 0));
+
+		row.setTimestamp(16, SqlTimestamp.fromEpochMillis(456L), 3);
+		assertEquals(SqlTimestamp.fromEpochMillis(456L), row.getTimestamp(16, 3));
+		row.setTimestamp(17, SqlTimestamp.fromTimestamp(Timestamp.valueOf("1970-01-01 00:00:00.123456789")), 9);
+		assertEquals(SqlTimestamp.fromTimestamp(Timestamp.valueOf("1970-01-01 00:00:00.123456789")), row.getTimestamp(17, 9));
 
 		// test null
 		assertFalse(row.isNullAt(0));

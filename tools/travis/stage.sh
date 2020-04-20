@@ -25,6 +25,8 @@ STAGE_BLINK_PLANNER="blink_planner"
 STAGE_CONNECTORS="connectors"
 STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
+STAGE_LEGACY_SCHEDULER_CORE="legacy_scheduler_core"
+STAGE_LEGACY_SCHEDULER_TESTS="legacy_scheduler_tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
 
@@ -79,21 +81,21 @@ flink-formats/flink-parquet,\
 flink-formats/flink-sequence-file,\
 flink-formats/flink-json,\
 flink-formats/flink-csv,\
+flink-formats/flink-orc,\
+flink-formats/flink-orc-nohive,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors/flink-jdbc,\
 flink-connectors,\
-flink-connectors/flink-orc,\
 flink-connectors/flink-connector-cassandra,\
-flink-connectors/flink-connector-elasticsearch2,\
 flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
+flink-connectors/flink-connector-elasticsearch7,\
 flink-connectors/flink-sql-connector-elasticsearch6,\
+flink-connectors/flink-sql-connector-elasticsearch7,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
-flink-connectors/flink-connector-kafka-0.9,\
-flink-connectors/flink-sql-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
 flink-connectors/flink-sql-connector-kafka-0.10,\
 flink-connectors/flink-connector-kafka-0.11,\
@@ -102,6 +104,7 @@ flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-twitter,\
+flink-connectors/flink-connector-kinesis,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\
@@ -120,23 +123,8 @@ flink-libraries/flink-gelly-examples,\
 flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,"
 
-MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
-!flink-filesystems/flink-s3-fs-hadoop,\
-!flink-filesystems/flink-s3-fs-presto,\
-!flink-filesystems/flink-mapr-fs,\
-!flink-connectors/flink-hbase"
-
 MODULES_TESTS="\
 flink-tests"
-
-if [[ ${PROFILE} == *"include-kinesis"* ]]; then
-    MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kinesis"
-fi
-
-# we can only build the Kafka 0.8 connector when building for Scala 2.11
-if [[ $PROFILE == *"scala-2.11"* ]]; then
-    MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.8"
-fi
 
 # we can only build the Scala Shell when building for Scala 2.11
 if [[ $PROFILE == *"scala-2.11"* ]]; then
@@ -165,6 +153,12 @@ function get_compile_modules_for_stage() {
         (${STAGE_TESTS})
             echo "-pl $MODULES_TESTS -am"
         ;;
+        (${STAGE_LEGACY_SCHEDULER_CORE})
+            echo "-pl $MODULES_CORE -am"
+        ;;
+        (${STAGE_LEGACY_SCHEDULER_TESTS})
+            echo "-pl $MODULES_TESTS -am"
+        ;;
         (${STAGE_MISC})
             # compile everything; using the -am switch does not work with negated module lists!
             # the negation takes precedence, thus not all required modules would be built
@@ -189,11 +183,6 @@ function get_test_modules_for_stage() {
     local negated_tests=\!${MODULES_TESTS//,/,\!}
     local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
 
-    # various modules fail testing on JDK 9; exclude them
-    if [[ ${PROFILE} == *"jdk9"* ]]; then
-        modules_connectors="$modules_connectors,$MODULES_CONNECTORS_JDK9_EXCLUSIONS"
-    fi
-
     case ${stage} in
         (${STAGE_CORE})
             echo "-pl $modules_core"
@@ -212,6 +201,12 @@ function get_test_modules_for_stage() {
         ;;
         (${STAGE_TESTS})
             echo "-pl $modules_tests"
+        ;;
+        (${STAGE_LEGACY_SCHEDULER_CORE})
+            echo "-Dlegacy-scheduler -pl $MODULES_CORE"
+        ;;
+        (${STAGE_LEGACY_SCHEDULER_TESTS})
+            echo "-Dlegacy-scheduler -pl $MODULES_TESTS"
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"

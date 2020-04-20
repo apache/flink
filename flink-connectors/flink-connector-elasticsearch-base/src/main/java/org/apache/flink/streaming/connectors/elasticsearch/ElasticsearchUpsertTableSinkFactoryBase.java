@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -52,6 +53,11 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_DELAY;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_MAX_RETRIES;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_TYPE;
@@ -79,9 +85,11 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_DELIMITER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_NULL_LITERAL;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_TYPE_VALUE_ELASTICSEARCH;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.validateAndParseHostsString;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
@@ -116,6 +124,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(UPDATE_MODE);
 
 		// Elasticsearch
+		properties.add(CONNECTOR_HOSTS);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_HOSTNAME);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PORT);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PROTOCOL);
@@ -136,8 +145,16 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(CONNECTOR_CONNECTION_PATH_PREFIX);
 
 		// schema
+		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+		// computed column
+		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
 		// format wildcard
 		properties.add(FORMAT + ".*");
@@ -151,7 +168,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 
 		return createElasticsearchUpsertTableSink(
 			descriptorProperties.isValue(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND),
-			descriptorProperties.getTableSchema(SCHEMA),
+			TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA)),
 			getHosts(descriptorProperties),
 			descriptorProperties.getString(CONNECTOR_INDEX),
 			descriptorProperties.getString(CONNECTOR_DOCUMENT_TYPE),
@@ -198,15 +215,19 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 	}
 
 	private List<Host> getHosts(DescriptorProperties descriptorProperties) {
-		final List<Map<String, String>> hosts = descriptorProperties.getFixedIndexedProperties(
-			CONNECTOR_HOSTS,
-			Arrays.asList(CONNECTOR_HOSTS_HOSTNAME, CONNECTOR_HOSTS_PORT, CONNECTOR_HOSTS_PROTOCOL));
-		return hosts.stream()
-			.map(host -> new Host(
-				descriptorProperties.getString(host.get(CONNECTOR_HOSTS_HOSTNAME)),
-				descriptorProperties.getInt(host.get(CONNECTOR_HOSTS_PORT)),
-				descriptorProperties.getString(host.get(CONNECTOR_HOSTS_PROTOCOL))))
-			.collect(Collectors.toList());
+		if (descriptorProperties.containsKey(CONNECTOR_HOSTS)) {
+			return validateAndParseHostsString(descriptorProperties);
+		} else {
+			final List<Map<String, String>> hosts = descriptorProperties.getFixedIndexedProperties(
+				CONNECTOR_HOSTS,
+				Arrays.asList(CONNECTOR_HOSTS_HOSTNAME, CONNECTOR_HOSTS_PORT, CONNECTOR_HOSTS_PROTOCOL));
+			return hosts.stream()
+				.map(host -> new Host(
+					descriptorProperties.getString(host.get(CONNECTOR_HOSTS_HOSTNAME)),
+					descriptorProperties.getInt(host.get(CONNECTOR_HOSTS_PORT)),
+					descriptorProperties.getString(host.get(CONNECTOR_HOSTS_PROTOCOL))))
+				.collect(Collectors.toList());
+		}
 	}
 
 	private SerializationSchema<Row> getSerializationSchema(Map<String, String> properties) {

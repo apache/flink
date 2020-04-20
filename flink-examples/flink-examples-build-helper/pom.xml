@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-examples</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,7 +36,6 @@ under the License.
 		<module>flink-examples-streaming-twitter</module>
 		<module>flink-examples-streaming-state-machine</module>
 		<module>flink-examples-streaming-gcp-pubsub</module>
-		<module>flink-examples-streaming-click-event-count</module>
 	</modules>
 
 </project>

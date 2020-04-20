@@ -84,6 +84,8 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESULT_MODE_VALUE_TABLE = "table";
 
+	private static final String EXECUTION_RESULT_MODE_VALUE_TABLEAU = "tableau";
+
 	private static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
 
 	private static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
@@ -320,6 +322,12 @@ public class ExecutionEntry extends ConfigEntry {
 		return properties.getOptionalString(EXECUTION_RESULT_MODE)
 			.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLE))
 			.orElse(false);
+	}
+
+	public boolean isTableauMode() {
+		return properties.getOptionalString(EXECUTION_RESULT_MODE)
+				.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLEAU))
+				.orElse(false);
 	}
 
 	public Map<String, String> asTopLevelMap() {

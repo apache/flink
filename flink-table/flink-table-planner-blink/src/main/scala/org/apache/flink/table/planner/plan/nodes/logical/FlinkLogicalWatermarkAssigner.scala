@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWatermarkAssigner, WatermarkAssigner}
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-
-import java.util
+import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWatermarkAssigner, WatermarkAssigner}
 
 /**
   * Sub-class of [[WatermarkAssigner]] that is a relational operator
@@ -35,16 +33,21 @@ class FlinkLogicalWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkDelay: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkDelay)
+    rowtimeFieldIndex: Int,
+    watermarkExpr: RexNode)
+  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkExpr)
   with FlinkLogicalRel {
 
+
+  /**
+    * Copies a new WatermarkAssigner.
+    */
   override def copy(
       traitSet: RelTraitSet,
-      inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalWatermarkAssigner(
-      cluster, traitSet, inputs.get(0), rowtimeFieldIndex, watermarkDelay)
+      input: RelNode,
+      rowtime: Int,
+      watermark: RexNode): RelNode = {
+    new FlinkLogicalWatermarkAssigner(cluster, traitSet, input, rowtime, watermark)
   }
 
 }
@@ -61,7 +64,7 @@ class FlinkLogicalWatermarkAssignerConverter extends ConverterRule(
     FlinkLogicalWatermarkAssigner.create(
       newInput,
       watermark.rowtimeFieldIndex,
-      watermark.watermarkDelay)
+      watermark.watermarkExpr)
   }
 }
 
@@ -70,10 +73,10 @@ object FlinkLogicalWatermarkAssigner {
 
   def create(
       input: RelNode,
-      rowtimeFieldIndex: Option[Int],
-      watermarkDelay: Option[Long]): FlinkLogicalWatermarkAssigner = {
+      rowtimeFieldIndex: Int,
+      watermarkExpr: RexNode): FlinkLogicalWatermarkAssigner = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalWatermarkAssigner(cluster, traitSet, input, rowtimeFieldIndex, watermarkDelay)
+    new FlinkLogicalWatermarkAssigner(cluster, traitSet, input, rowtimeFieldIndex, watermarkExpr)
   }
 }

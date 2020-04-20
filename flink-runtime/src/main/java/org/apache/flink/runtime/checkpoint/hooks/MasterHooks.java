@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.checkpoint.hooks;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.LambdaUtil;
@@ -35,12 +35,10 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Collection of methods to deal with checkpoint master hooks.
@@ -60,7 +58,7 @@ public class MasterHooks {
 	 */
 	public static void reset(
 		final Collection<MasterTriggerRestoreHook<?>> hooks,
-		final Logger log) throws FlinkException {
+		@SuppressWarnings("unused") final Logger log) throws FlinkException {
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
 			final String id = hook.getIdentifier();
@@ -78,12 +76,10 @@ public class MasterHooks {
 	 * Closes the master hooks.
 	 *
 	 * @param hooks The hooks to close
-	 *
-	 * @throws FlinkException Thrown, if the hooks throw an exception.
 	 */
 	public static void close(
 		final Collection<MasterTriggerRestoreHook<?>> hooks,
-		final Logger log) throws FlinkException {
+		final Logger log) {
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
 			try {
@@ -100,105 +96,65 @@ public class MasterHooks {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Triggers all given master hooks and returns state objects for each hook that
-	 * produced a state.
-	 *
-	 * @param hooks The hooks to trigger
+	 * Trigger master hook and return a completable future with state.
+	 * @param hook The master hook given
 	 * @param checkpointId The checkpoint ID of the triggering checkpoint
 	 * @param timestamp The (informational) timestamp for the triggering checkpoint
 	 * @param executor An executor that can be used for asynchronous I/O calls
-	 * @param timeout The maximum time that a hook may take to complete
-	 *
-	 * @return A list containing all states produced by the hooks
-	 *
-	 * @throws FlinkException Thrown, if the hooks throw an exception, or the state+
-	 *                        deserialization fails.
+	 * @param <T> The type of data produced by the hook
+	 * @return the completable future with state
 	 */
-	public static List<MasterState> triggerMasterHooks(
-			Collection<MasterTriggerRestoreHook<?>> hooks,
+	public static <T> CompletableFuture<MasterState> triggerHook(
+			MasterTriggerRestoreHook<T> hook,
 			long checkpointId,
 			long timestamp,
-			Executor executor,
-			Time timeout) throws FlinkException {
+			Executor executor) {
 
-		final ArrayList<MasterState> states = new ArrayList<>(hooks.size());
+		final String id = hook.getIdentifier();
+		final SimpleVersionedSerializer<T> serializer = hook.createCheckpointDataSerializer();
 
-		for (MasterTriggerRestoreHook<?> hook : hooks) {
-			MasterState state = triggerHook(hook, checkpointId, timestamp, executor, timeout);
-			if (state != null) {
-				states.add(state);
-			}
-		}
-
-		states.trimToSize();
-		return states;
-	}
-
-	private static <T> MasterState triggerHook(
-			MasterTriggerRestoreHook<?> hook,
-			long checkpointId,
-			long timestamp,
-			Executor executor,
-			Time timeout) throws FlinkException {
-
-		@SuppressWarnings("unchecked")
-		final MasterTriggerRestoreHook<T> typedHook = (MasterTriggerRestoreHook<T>) hook;
-
-		final String id = typedHook.getIdentifier();
-		final SimpleVersionedSerializer<T> serializer = typedHook.createCheckpointDataSerializer();
-
-		// call the hook!
-		final CompletableFuture<T> resultFuture;
 		try {
-			resultFuture = typedHook.triggerCheckpoint(checkpointId, timestamp, executor);
+			// call the hook!
+			final CompletableFuture<T> resultFuture =
+				hook.triggerCheckpoint(checkpointId, timestamp, executor);
+
+			if (resultFuture == null) {
+				return CompletableFuture.completedFuture(null);
+			}
+
+			return resultFuture
+				.thenApply(result -> {
+					// if the result of the future is not null, return it as state
+					if (result == null) {
+						return null;
+					}
+					else if (serializer != null) {
+						try {
+							final int version = serializer.getVersion();
+							final byte[] bytes = serializer.serialize(result);
+
+							return new MasterState(id, bytes, version);
+						}
+						catch (Throwable t) {
+							ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+							throw new CompletionException(new FlinkException(
+								"Failed to serialize state of master hook '" + id + '\'', t));
+						}
+					}
+					else {
+						throw new CompletionException(new FlinkException(
+							"Checkpoint hook '" + id + " is stateful but creates no serializer"));
+					}
+				})
+				.exceptionally((throwable) -> {
+					throw new CompletionException(new FlinkException(
+						"Checkpoint master hook '" + id + "' produced an exception",
+						throwable.getCause()));
+				});
 		}
 		catch (Throwable t) {
-			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-			throw new FlinkException("Error while triggering checkpoint master hook '" + id + '\'', t);
-		}
-
-		// is there is a result future, wait for its completion
-		// in the future we want to make this asynchronous with futures (no pun intended)
-		if (resultFuture == null) {
-			return null;
-		}
-		else {
-			final T result;
-			try {
-				result = resultFuture.get(timeout.getSize(), timeout.getUnit());
-			}
-			catch (InterruptedException e) {
-				// cannot continue here - restore interrupt status and leave
-				Thread.currentThread().interrupt();
-				throw new FlinkException("Checkpoint master hook was interrupted");
-			}
-			catch (ExecutionException e) {
-				throw new FlinkException("Checkpoint master hook '" + id + "' produced an exception", e.getCause());
-			}
-			catch (TimeoutException e) {
-				throw new FlinkException("Checkpoint master hook '" + id +
-						"' did not complete in time (" + timeout + ')');
-			}
-
-			// if the result of the future is not null, return it as state
-			if (result == null) {
-				return null;
-			}
-			else if (serializer != null) {
-				try {
-					final int version = serializer.getVersion();
-					final byte[] bytes = serializer.serialize(result);
-
-					return new MasterState(id, bytes, version);
-				}
-				catch (Throwable t) {
-					ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-					throw new FlinkException("Failed to serialize state of master hook '" + id + '\'', t);
-				}
-			}
-			else {
-				throw new FlinkException("Checkpoint hook '" + id + " is stateful but creates no serializer");
-			}
+			return FutureUtils.completedExceptionally(new FlinkException(
+				"Error while triggering checkpoint master hook '" + id + '\'', t));
 		}
 	}
 
@@ -362,12 +318,7 @@ public class MasterHooks {
 		@Nullable
 		@Override
 		public CompletableFuture<T> triggerCheckpoint(long checkpointId, long timestamp, final Executor executor) throws Exception {
-			final Executor wrappedExecutor = new Executor() {
-				@Override
-				public void execute(Runnable command) {
-					executor.execute(new WrappedCommand(userClassLoader, command));
-				}
-			};
+			final Executor wrappedExecutor = command -> executor.execute(new WrappedCommand(userClassLoader, command));
 
 			return LambdaUtil.withContextClassLoader(
 					userClassLoader,

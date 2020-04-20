@@ -35,7 +35,7 @@ You can:
 - use a Hadoop `Reducer` as [GroupReduceFunction](dataset_transformations.html#groupreduce-on-grouped-dataset).
 
 This document shows how to use existing Hadoop MapReduce code with Flink. Please refer to the
-[Connecting to other systems]({{ site.baseurl }}/dev/batch/connectors.html) guide for reading from Hadoop supported file systems.
+[Connecting to other systems]({{ site.baseurl }}/ops/filesystems/index.html#hadoop-file-system-hdfs-and-its-other-implementations) guide for reading from Hadoop supported file systems.
 
 * This will be replaced by the TOC
 {:toc}
@@ -64,12 +64,7 @@ and Reducers.
 </dependency>
 {% endhighlight %}
 
-### Using Hadoop Data Types
-
-Flink supports all Hadoop `Writable` and `WritableComparable` data types
-out-of-the-box. You do not need to include the Hadoop Compatibility dependency,
-if you only want to use your Hadoop data types. See the
-[Programming Guide](index.html) for more details.
+See also **[how to configure hadoop dependencies]({{ site.baseurl }}/ops/deployment/hadoop.html#add-hadoop-classpaths)**.
 
 ### Using Hadoop InputFormats
 

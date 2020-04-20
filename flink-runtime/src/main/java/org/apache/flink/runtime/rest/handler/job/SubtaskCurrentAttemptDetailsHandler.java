@@ -27,7 +27,6 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
-import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
@@ -69,18 +68,9 @@ public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<
 
 		final AccessExecution execution = executionVertex.getCurrentExecutionAttempt();
 
-		final MutableIOMetrics ioMetrics = new MutableIOMetrics();
-
 		final JobID jobID = request.getPathParameter(JobIDPathParameter.class);
 		final JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
 
-		ioMetrics.addIOMetrics(
-			execution,
-			metricFetcher,
-			jobID.toString(),
-			jobVertexID.toString()
-		);
-
-		return SubtaskExecutionAttemptDetailsInfo.create(execution, ioMetrics);
+		return SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, jobID, jobVertexID);
 	}
 }

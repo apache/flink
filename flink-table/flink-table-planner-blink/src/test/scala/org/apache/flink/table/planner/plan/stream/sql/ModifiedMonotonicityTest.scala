@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase,
 
 import org.apache.calcite.sql.validate.SqlMonotonicity.{CONSTANT, DECREASING, INCREASING, NOT_MONOTONIC}
 import org.junit.Assert.assertEquals
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class ModifiedMonotonicityTest extends TableTestBase {
 
@@ -95,9 +95,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
     util.verifyPlanWithTrait(query)
   }
 
-  @Ignore
   @Test
-  // TODO remove ignore after window aggregate supported
   def testTumbleFunAndRegularAggFunInGroupBy(): Unit = {
     val sql = "SELECT b, d, weightedAvg(c, a) FROM " +
       " (SELECT a, b, c, count(*) d," +
@@ -108,9 +106,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
     verifyMonotonicity(sql, new RelModifiedMonotonicity(Array(CONSTANT, CONSTANT, NOT_MONOTONIC)))
   }
 
-  @Ignore
   @Test
-  // TODO remove ignore after anti-join supported
   def testAntiJoin(): Unit = {
     val sql = "SELECT * FROM AA WHERE NOT EXISTS (SELECT b1 from BB WHERE a1 = b1)"
     verifyMonotonicity(sql, null)

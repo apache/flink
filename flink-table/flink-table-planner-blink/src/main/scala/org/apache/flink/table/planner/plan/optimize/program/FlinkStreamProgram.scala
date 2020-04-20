@@ -140,7 +140,7 @@ object FlinkStreamProgram {
           .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.JOIN_REORDER_PERPARE_RULES)
+            .add(FlinkStreamRuleSets.JOIN_REORDER_PREPARE_RULES)
             .build(), "merge join into MultiJoin")
           .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
@@ -179,14 +179,8 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       PHYSICAL_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
-        .addProgram(new FlinkUpdateAsRetractionTraitInitProgram,
-          "init for retraction")
-        .addProgram(
-          FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.RETRACTION_RULES)
-            .build(), "retraction rules")
+        .addProgram(new FlinkChangelogModeInferenceProgram,
+          "Changelog mode inference")
         .addProgram(new FlinkMiniBatchIntervalTraitInitProgram,
           "Initialization for mini-batch interval inference")
         .addProgram(

@@ -60,8 +60,7 @@ class HashAggCodeGenerator(
     AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggregates)
   private lazy val aggBufferRowType = RowType.of(aggBufferTypes.flatten, aggBufferNames.flatten)
 
-  def genWithKeys(reservedManagedMemory: Long)
-    : GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+  def genWithKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val className = if (isFinal) "HashAggregateWithKeys" else "LocalHashAggregateWithKeys"
 
@@ -95,7 +94,6 @@ class HashAggCodeGenerator(
       "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
       ctx,
-      reservedManagedMemory,
       groupKeyTypesTerm,
       aggBufferTypesTerm,
       aggregateMapTerm)

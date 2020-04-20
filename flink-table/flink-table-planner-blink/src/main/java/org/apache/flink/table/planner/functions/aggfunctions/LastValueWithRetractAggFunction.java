@@ -46,7 +46,7 @@ import org.apache.flink.table.runtime.typeutils.DecimalSerializer;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -70,9 +70,9 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 		acc.setField(0, null);
 		acc.setField(1, null);
 		acc.setField(2, new BinaryGeneric<>(
-				new MapView<>(getResultType(), new ListTypeInfo<>(Types.LONG)), getValueToOrderMapViewSerializer()));
+				new MapView<>(getResultType(), new ListTypeInfo<>(Types.LONG))));
 		acc.setField(3, new BinaryGeneric<>(
-				new MapView<>(Types.LONG, new ListTypeInfo<>(getResultType())), getOrderToValueMapViewSerializer()));
+				new MapView<>(Types.LONG, new ListTypeInfo<>(getResultType()))));
 		return acc;
 	}
 
@@ -190,8 +190,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 		LogicalType[] fieldTypes = new LogicalType[] {
 				fromTypeInfoToLogicalType(getResultType()),
 				new BigIntType(),
-				new TypeInformationAnyType<>(new MapViewTypeInfo<>(getResultType(), new ListTypeInfo<>(Types.LONG), false, false)),
-				new TypeInformationAnyType<>(new MapViewTypeInfo<>(Types.LONG, new ListTypeInfo<>(getResultType()), false, false))
+				new TypeInformationRawType<>(new MapViewTypeInfo<>(getResultType(), new ListTypeInfo<>(Types.LONG), false, false)),
+				new TypeInformationRawType<>(new MapViewTypeInfo<>(Types.LONG, new ListTypeInfo<>(getResultType()), false, false))
 		};
 
 		String[] fieldNames = new String[] {

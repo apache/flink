@@ -35,7 +35,7 @@ import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
  *
  * <p>{@code BinaryArray} are influenced by Apache Spark UnsafeArrayData.
  */
-public final class BinaryArray extends BinaryFormat implements BaseArray {
+public final class BinaryArray extends BinarySection implements BaseArray {
 
 	/**
 	 * Offset for Arrays.
@@ -174,7 +174,7 @@ public final class BinaryArray extends BinaryFormat implements BaseArray {
 		assertIndexIsValid(pos);
 		int fieldOffset = getElementOffset(pos, 8);
 		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
-		return BinaryString.readBinaryStringFieldFromSegments(
+		return BinaryFormat.readBinaryStringFieldFromSegments(
 				segments, offset, fieldOffset, offsetAndSize);
 	}
 
@@ -192,6 +192,20 @@ public final class BinaryArray extends BinaryFormat implements BaseArray {
 	}
 
 	@Override
+	public SqlTimestamp getTimestamp(int pos, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			return SqlTimestamp.fromEpochMillis(
+				SegmentsUtil.getLong(segments, getElementOffset(pos, 8)));
+		}
+
+		int fieldOffset = getElementOffset(pos, 8);
+		final long offsetAndNanoOfMilli = SegmentsUtil.getLong(segments, fieldOffset);
+		return SqlTimestamp.readTimestampFieldFromSegments(segments, offset, offsetAndNanoOfMilli);
+	}
+
+	@Override
 	public <T> BinaryGeneric<T> getGeneric(int pos) {
 		assertIndexIsValid(pos);
 		int fieldOffset = getElementOffset(pos, 8);
@@ -205,7 +219,7 @@ public final class BinaryArray extends BinaryFormat implements BaseArray {
 		assertIndexIsValid(pos);
 		int fieldOffset = getElementOffset(pos, 8);
 		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
-		return readBinaryFieldFromSegments(
+		return BinaryFormat.readBinaryFieldFromSegments(
 				segments, offset, fieldOffset, offsetAndSize);
 	}
 
@@ -357,6 +371,32 @@ public final class BinaryArray extends BinaryFormat implements BaseArray {
 				// Write the bytes to the variable length portion.
 				SegmentsUtil.copyFromBytes(segments, offset + cursor, bytes, 0, bytes.length);
 				setLong(pos, ((long) cursor << 32) | ((long) bytes.length));
+			}
+		}
+	}
+
+	@Override
+	public void setTimestamp(int pos, SqlTimestamp value, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			setLong(pos, value.getMillisecond());
+		} else {
+			int fieldOffset = getElementOffset(pos, 8);
+			int cursor = (int) (SegmentsUtil.getLong(segments, fieldOffset) >>> 32);
+			assert cursor > 0 : "invalid cursor " + cursor;
+
+			if (value == null) {
+				setNullAt(pos);
+				// zero-out the bytes
+				SegmentsUtil.setLong(segments, offset + cursor, 0L);
+				// keep the offset for future update
+				SegmentsUtil.setLong(segments, fieldOffset, ((long) cursor) << 32);
+			} else {
+				// write millisecond to the variable length portion.
+				SegmentsUtil.setLong(segments, offset + cursor, value.getMillisecond());
+				// write nanoOfMillisecond to the fixed-length portion.
+				setLong(pos, ((long) cursor << 32) | (long) value.getNanoOfMillisecond());
 			}
 		}
 	}

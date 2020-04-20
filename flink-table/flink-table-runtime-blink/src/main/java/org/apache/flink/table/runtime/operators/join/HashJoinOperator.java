@@ -107,9 +107,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 				parameter.buildProjectionCode.newInstance(cl),
 				parameter.probeProjectionCode.newInstance(cl),
 				getContainingTask().getEnvironment().getMemoryManager(),
-				parameter.reservedMemorySize,
-				parameter.maxMemorySize,
-				parameter.perRequestMemorySize,
+				computeMemorySize(),
 				getContainingTask().getEnvironment().getIOManager(),
 				parameter.buildRowSize,
 				parameter.buildRowCount / parallel,
@@ -216,9 +214,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	public static HashJoinOperator newHashJoinOperator(
-			long minMemorySize,
-			long maxMemorySize,
-			long eachRequestMemorySize,
 			HashJoinType type,
 			GeneratedJoinCondition condFuncCode,
 			boolean reverseJoinFunction,
@@ -230,9 +225,18 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 			long buildRowCount,
 			long probeRowCount,
 			RowType keyType) {
-		HashJoinParameter parameter = new HashJoinParameter(minMemorySize, maxMemorySize, eachRequestMemorySize,
-				type, condFuncCode, reverseJoinFunction, filterNullKeys, buildProjectionCode, probeProjectionCode,
-				tryDistinctBuildRow, buildRowSize, buildRowCount, probeRowCount, keyType);
+		HashJoinParameter parameter = new HashJoinParameter(
+				type,
+				condFuncCode,
+				reverseJoinFunction,
+				filterNullKeys,
+				buildProjectionCode,
+				probeProjectionCode,
+				tryDistinctBuildRow,
+				buildRowSize,
+				buildRowCount,
+				probeRowCount,
+				keyType);
 		switch (type) {
 			case INNER:
 				return new InnerHashJoinOperator(parameter);
@@ -255,9 +259,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	static class HashJoinParameter implements Serializable {
-		long reservedMemorySize;
-		long maxMemorySize;
-		long perRequestMemorySize;
 		HashJoinType type;
 		GeneratedJoinCondition condFuncCode;
 		boolean reverseJoinFunction;
@@ -271,15 +272,12 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		RowType keyType;
 
 		HashJoinParameter(
-				long reservedMemorySize, long maxMemorySize, long perRequestMemorySize, HashJoinType type,
+				HashJoinType type,
 				GeneratedJoinCondition condFuncCode, boolean reverseJoinFunction,
 				boolean[] filterNullKeys,
 				GeneratedProjection buildProjectionCode,
 				GeneratedProjection probeProjectionCode, boolean tryDistinctBuildRow,
 				int buildRowSize, long buildRowCount, long probeRowCount, RowType keyType) {
-			this.reservedMemorySize = reservedMemorySize;
-			this.maxMemorySize = maxMemorySize;
-			this.perRequestMemorySize = perRequestMemorySize;
 			this.type = type;
 			this.condFuncCode = condFuncCode;
 			this.reverseJoinFunction = reverseJoinFunction;
@@ -442,6 +440,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 			if (buildIter.advanceNext()) {
 				if (probeRow != null) { //Probe phase
 					// we must iterator to set probedSet.
+					//noinspection StatementWithEmptyBody
 					while (buildIter.advanceNext()) {}
 				} else { //End Probe phase, iterator build side elements.
 					collector.collect(buildIter.getRow());

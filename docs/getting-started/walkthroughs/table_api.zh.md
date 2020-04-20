@@ -3,7 +3,7 @@ title: "Table API"
 nav-id: tableapiwalkthrough
 nav-title: 'Table API'
 nav-parent_id: walkthroughs
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,35 +24,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink offers a Table API as a unified, relational API for batch and stream processing, i.e., queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results.
-The Table API in Flink is commonly used to ease the definition of data analytics, data pipelining, and ETL applications.
-
+Apache Filnk 提供 Table API 作为批处理和流处理统一的关系型API，
+即查询在无界实时流或有界批数据集上以相同的语义执行，并产生相同的结果。
+Flink 中的 Table API 通常用于简化数据分析，数据流水线和 ETL 应用程序的定义。
 * This will be replaced by the TOC
 {:toc}
 
-## What Will You Be Building? 
+## 接下来你会构建什么？ 
 
-In this tutorial, you will learn how to build a continuous ETL pipeline for tracking financial transactions by account over time.
-You will start by building your report as a nightly batch job, and then migrate to a streaming pipeline.
+在本教程中，你将学习如何构建连续的 ETL 流水线，以便按账户随时跟踪金融交易。
+首先你将报表构建为每晚执行的批处理作业，然后迁移到流式管道。
 
-## Prerequisites
+## 先决条件
 
-This walkthrough assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you are coming from a different programming language.
-It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses. 
+本演练假设你对 Java 和 Scala 有一定的了解，但即便你使用其他编程语言，相信也可以学会。
+它还假定你熟悉基本的关系概念比如 `SELECT` 和 `GROUP BY` 子句。
 
-## Help, I’m Stuck! 
+## 救命，我被困住了！
 
-If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
-In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) is consistently ranked as one of the most active of any Apache project and a great way to get help quickly. 
+如果你被难题困住了，可以在[社区](https://flink.apache.org/community.html)寻求帮助。
+值得一提的是，Apache Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直是最活跃的 Apache 项目之一，也是一个快速获得帮助的好途径。
 
-## How To Follow Along
+## 如何跟进
 
-If you want to follow along, you will require a computer with: 
-
-* Java 8 
+如果想要继续，你的电脑需要安装：
+* Java 8 or 11
 * Maven 
 
-A provided Flink Maven Archetype will create a skeleton project with all the necessary dependencies quickly:
+现成的 Flink Maven Archetype 可以快速创建一个具有所有必要依赖的框架项目：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -87,13 +86,33 @@ $ mvn archetype:generate \
 
 {% unless site.is_stable %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven's official document</a>
+    <b>注意</b>：Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+    请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+    如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
+{% highlight bash %}
+<settings>
+  <activeProfiles>
+    <activeProfile>apache</activeProfile>
+  </activeProfiles>
+  <profiles>
+    <profile>
+      <id>apache</id>
+      <repositories>
+        <repository>
+          <id>apache-snapshots</id>
+          <url>https://repository.apache.org/content/repositories/snapshots/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+</settings>
+{% endhighlight %}
 </p>
 {% endunless %}
 
-You can edit the `groupId`, `artifactId` and `package` if you like. With the above parameters,
-Maven will create a project with all the dependencies to complete this tutorial.
-After importing the project into your editor, you will see a file with the following code which you can run directly inside your IDE.
+你可以根据自己的意愿修改 `groupId`、`artifactId` 和 `package` 参数。通过使用以上参数，
+Maven 将创建一个拥有全部所需依赖的项目来完成本教程。
+把项目导入编辑器后，你会看到一个包含以下代码的文件，你可以在 IDE 中直接运行它。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -132,14 +151,14 @@ env.execute("Spend Report")
 </div>
 </div>
 
-## Breaking Down The Code
+## 代码详解
 
-#### The Execution Environment
+#### 运行环境
 
-The first two lines set up your `ExecutionEnvironment`.
-The execution environment is how you can set properties for your Job, specify whether you are writing a batch or a streaming application, and create your sources.
-This walkthrough begins with the batch environment since you are building a periodic batch report.
-It is then wrapped in a `BatchTableEnvironment` to have full access to the Table API.
+前两行设置了你的 `ExecutionEnvironment`。
+运行环境用来设置作业的属性、指定应用是批处理还是流处理，以及创建数据源。
+由于你正在建立一个定时的批处理报告，本教程以批处理环境作为开始。
+然后将其包装进 `BatchTableEnvironment` 中从而能够使用所有的 Tabel API。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -158,12 +177,12 @@ val tEnv = BatchTableEnvironment.create(env)
 </div>
 
 
-#### Registering Tables
+#### 注册表
 
-Next, tables are registered in the execution environment that you can use to connect to external systems for reading and writing both batch and streaming data.
-A table source provides access to data stored in external systems; such as a database, a key-value store, a message queue, or a file system.
-A table sink emits a table to an external storage system.
-Depending on the type of source and sink, they support different formats such as CSV, JSON, Avro, or Parquet.
+接下来，表将会被注册到运行环境之中，这样你就可以用它们连接外部系统以读取或写入批数据或流数据。
+source 提供对存储在外部系统中的数据的访问；例如数据库、键-值存储、消息队列或文件系统。
+sink 则将表中的数据发送到外部存储系统。
+根据 source 或 sink 的类型，它们支持不同的格式，如 CSV、JSON、Avro 或 Parquet。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -181,16 +200,16 @@ tEnv.registerTableSink("spend_report", new SpendReportTableSink)
 </div>
 </div>
 
-Two tables are registered; a transaction input table, and a spend report output table.
-The transactions (`transactions`) table lets us read credit card transactions, which contain account ID's (`accountId`), timestamps (`timestamp`), and US$ amounts (`amount`).
-In this tutorial, the table is backed by data generated in memory to avoid any dependencies on external systems.
-In practice, the `BoundedTransactionTableSource` may be backed by a filesystem, a database, or any other static source.
-The spend report (`spend_report`) table logs each row with log level **INFO**, instead of writing to persistent storage, so you can easily see your results.
+上例代码注册了两张表。交易表作为输入表，支出报告表作为输出表。
+我们可以从交易（`transactions`）表中读取信用卡的交易记录，其中包含了账户 ID（`accountId`）字段、时间戳（`timestamp`）字段和交易金额（`amount`）字段。
+本教程中，该表使用内存中的数据，以避免对外部系统的任何依赖。
+而在实际情况下，`BoundedTransactionTableSource` 可能来源于文件系统、数据库或任何静态数据源。
+支出报告表 `spend_report` 用 **INFO** 日志级别将表的每一行数据记录到日志，而不是写入持久化存储，所以你可以很容易地查看结果。
 
-#### Registering A UDF
+#### 注册 UDF
 
-Along with the tables, a [user-defined function]({{ site.baseurl }}/dev/table/udfs.html) is registered for working with timestamps.
-This function takes a timestamp and rounds it down to the nearest hour.
+一个用来处理时间戳的[自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)随表一起被注册到tEnv中。
+此函数将时间戳向下舍入到最接近的小时。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -206,10 +225,10 @@ val truncateDateToHour = new TruncateDateToHour
 </div>
 </div>
 
-#### The Query
+#### 查询
 
-With the environment configured and tables registered, you are ready to build your first application.
-From the `TableEnvironment` you can `scan` an input table to read its rows and then write those results into an output table using `insertInto`.
+完成配置环境和注册表后，你已准备好构建第一个应用程序。
+从 `TableEnvironment` 中，你可以 `scan` 一个输入表读取其中的行，然后用 `insertInto` 把这些数据写到输出表中。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -229,12 +248,13 @@ tEnv
 </div>
 </div>
 
-Initially, the Job reads all transactions and logs them out with log level **INFO**.
+最初，作业读取所有的交易记录并用 **INFO** 日志级别将其记录下来。
 
-#### Execute
+#### 运行
 
-Flink applications are built lazily and shipped to the cluster for execution only once fully formed.
-You call `ExecutionEnvironment#execute` to begin the execution of your Job by giving it a name.
+Flink 应用是延迟构建的，只有完全定义好之后才交付集群运行。
+你可以调用 `ExecutionEnvironment#execute` 来开始作业的执行并给它取一个名字。
+
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -250,14 +270,13 @@ env.execute("Spend Report")
 </div>
 </div>
 
-## Attempt One
+## 尝试一下
 
-Now with the skeleton of a Job set-up, you are ready to add some business logic.
-The goal is to build a report that shows the total spend for each account across each hour of the day.
-Just like a SQL query, Flink can select the required fields and group by your keys.
-Because the timestamp field has millisecond granularity, you can use the UDF to round it down to the nearest hour.
-Finally, select all the fields, summing the total spend per account-hour pair with the built-in `sum` [aggregate function]({{ site.baseurl }}/dev/table/functions.html#aggregate-functions).
-
+现在有了作业设置的框架，你就可以添加一些业务逻辑了。
+目标是建立一个报表来显示每天每小时每个账户的总支出。
+就像一个 SQL 查询一样，Flink 可以选取所需的字段并且按键分组。
+由于时间戳字段具有毫秒的粒度，你可以使用自定义函数将其舍入到最近的小时。
+最后，选取所有的字段，用内建的 `sum` [聚合函数]({{ site.baseurl }}/zh/dev/table/functions/systemFunctions.html#aggregate-functions)函数合计每一个账户每小时的支出。
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -282,10 +301,9 @@ tEnv
 </div>
 </div>
 
-This query consumes all records from the `transactions` table, calculates the report, and outputs the results in an efficient, scalable manner.
-
+这个查询处理了 `transactions` 表中的所有记录，计算报告，并以高效、可扩展的方式输出结果。
 {% highlight raw %}
-# Query 1 output showing account id, timestamp, and amount
+# 查询 1 的输出显示了账户 id、时间戳和消费总额。
 
 > 1, 2019-01-01 00:00:00.0, $567.87
 > 2, 2019-01-01 00:00:00.0, $726.23
@@ -299,11 +317,11 @@ This query consumes all records from the `transactions` table, calculates the re
 > 2, 2019-01-01 04:00:00.0, $760.76
 {% endhighlight %}
 
-## Adding Windows
+## 添加窗口
 
-Grouping data based on time is a typical operation in data processing, especially when working with infinite streams.
-A grouping based on time is called a [window]({{ site.baseurl }} /dev/stream/operators/windows.html) and Flink offers flexible windowing semantics.
-The most basic type of window is called a `Tumble` window, which has a fixed size and whose buckets do not overlap.
+根据时间进行分组在数据处理中是一种很常见的方式，特别是在处理无限的数据流时。
+基于时间的分组称为[窗口]({{ site.baseurl }}/zh/dev/stream/operators/windows.html) ，Flink 提供了灵活的窗口语义。
+其中最基础的是 `Tumble` window （滚动窗口），它具有固定大小且窗口之间不重叠。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -329,16 +347,16 @@ tEnv
 </div>
 </div>
 
-This defines your application as using one hour tumbling windows based on the timestamp column.
-So a row with timestamp `2019-06-01 01:23:47` is put in the `2019-06-01 01:00:00` window.
+你的应用将会使用基于时间戳字段的一小时的滚动窗口。
+因此时间戳是 `2019-06-01 01:23:47` 的行被放入 `2019-06-01 01:00:00` 这个时间窗口之中。
 
-Aggregations based on time are unique because time, as opposed to other attributes, generally moves forward in a continuous streaming application.
-In a batch context, windows offer a convenient API for grouping records by a timestamp attribute.
+在持续的流式应用中，基于时间的聚合结果是唯一的，因为相较于其他属性，时间通常会向前移动。
+在批处理环境中，窗口提供了一个方便的 API，用于按时间戳属性对记录进行分组。
 
-Running the updated query will produce identical results as before.
+运行这个更新过的查询将会得到和之前一样的结果。
 
 {% highlight raw %}
-# Query 2 output showing account id, timestamp, and amount
+# 查询 2 的输出显示了账户 id、时间戳和消费总额
 
 > 1, 2019-01-01 00:00:00.0, $567.87
 > 2, 2019-01-01 00:00:00.0, $726.23
@@ -352,13 +370,13 @@ Running the updated query will produce identical results as before.
 > 2, 2019-01-01 04:00:00.0, $760.76
 {% endhighlight %}
 
-## Once More, With Streaming!
+## 通过流处理的方式再来一次！
 
-Because Flink's Table API offers consistent syntax and semantics for both batch and streaming, migrating from one to the other requires just two steps.
+因为 Flink 的 Table API 为批处理和流处理提供了相同的语法和语义，从一种方式迁移到另一种方式只需要两步。
 
-The first step is to replace the batch `ExecutionEnvironment` with its streaming counterpart, `StreamExecutionEnvironment`, which creates a continuous streaming Job.
-It includes stream-specific configurations, such as the time characteristic, which when set to [event time]({{ site.baseurl }}/dev/event_time.html) guarantees consistent results even when faced with out-of-order events or a Job failure.
-This is what will be used by your `Tumble` window when grouping records.
+第一步是把批处理的 `ExecutionEnvironment` 替换成流处理对应的 `StreamExecutionEnvironment`，后者创建连续的流作业。
+它包含特定于流处理的配置，比如时间特性。当这个属性被设置成 [事件时间]({{ site.baseurl }}/zh/dev/event_time.html)时，它能保证即使遭遇乱序事件或者作业失败的情况也能输出一致的结果。
+滚动窗口在对数据进行分组时就运用了这个特性。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -380,10 +398,10 @@ val tEnv = StreamTableEnvironment.create(env)
 </div>
 </div>
 
-The second step is to migrate from a bounded data source to an infinite data source.
-The project comes with an `UnboundedTransactionTableSource` that continuously creates transaction events in real-time.
-Similar to the `BoundedTransactionTableSource` this table is backed by data generated in memory to avoid any dependencies on external systems.
-In practice, this table might read from a streaming source such as Apache Kafka, AWS Kinesis, or Pravega.
+第二步就是把有界的数据源替换成无限的数据源。
+这个项目通过 `UnboundedTransactionTableSource` 持续不断地实时生成交易事件。
+与 `BoundedTransactionTableSource` 一样，这个表也是通过在内存中生成数据从而不依赖外部系统。
+在实践中，这个表可能从一个流式数据源中读取数据，比如 Apache Kafka、AWS Kinesis 或者 Pravega。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -399,27 +417,29 @@ tEnv.registerTableSource("transactions", new UnboundedTransactionTableSource)
 </div>
 </div>
 
-And that's it, a fully functional, stateful, distributed streaming application!
-The query continuously consumes the stream of transactions, computes the hourly spendings, and emits results as soon as they are ready.
-Since the input is unbounded, the query keeps running until it is manually stopped.
-And because the Job uses time window-based aggregations, Flink can perform specific optimizations such as state clean up when the framework knows that no more records will arrive for a particular window.
+这就是一个功能齐全、有状态的分布式流式应用！
+这个查询会持续处理交易流，计算每小时的消费额，然后实时输出结果。
+由于输入是无界的，因此查询将一直运行，直到手动停止为止。
+因为这个作业使用了基于时间窗口的聚合，Flink 可以使用一些特定的优化，比如当系统知道一个特定的窗口不会再有新的数据到来，它就会对状态进行清理。
 
 {% highlight raw %}
-# Query 3 output showing account id, timestamp, and amount
+# 查询 3 的输出显示了账户 id、时间戳消费总额
 
-# These rows are calculated continuously over the hour 
-# and output immediately at the end of the hour
 > 1, 2019-01-01 00:00:00.0, $567.87
 > 2, 2019-01-01 00:00:00.0, $726.23
 
-# Flink begins computing these rows as soon as 
-# as the first record for the window arrives
+# 这些行是在这一小时中连续计算的
+# 并在这一小时结束时立刻输出
+
 > 1, 2019-01-01 01:00:00.0, $686.87
 > 2, 2019-01-01 01:00:00.0, $810.06
 
+# 当接收到该窗口的第一条数据时
+# Flink 就开始计算了
+
 {% endhighlight %}
 
-## Final Application
+## 最终程序
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

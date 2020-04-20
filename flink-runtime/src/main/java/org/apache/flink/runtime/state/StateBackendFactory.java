@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ReadableConfig;
 
 import java.io.IOException;
 
@@ -48,5 +48,5 @@ public interface StateBackendFactory<T extends StateBackend> {
 	 * @throws IOException
 	 *             If the state backend initialization failed due to an I/O exception
 	 */
-	T createFromConfig(Configuration config, ClassLoader classLoader) throws IllegalConfigurationException, IOException;
+	T createFromConfig(ReadableConfig config, ClassLoader classLoader) throws IllegalConfigurationException, IOException;
 }

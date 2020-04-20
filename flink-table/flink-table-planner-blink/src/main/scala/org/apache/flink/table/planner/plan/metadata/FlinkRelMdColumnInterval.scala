@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnInterval
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAggregate, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, VariableRankRange}
@@ -59,19 +59,27 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     * @return interval of the given column on TableScan
     */
   def getColumnInterval(ts: TableScan, mq: RelMetadataQuery, index: Int): ValueInterval = {
-    val relOptTable = ts.getTable.asInstanceOf[FlinkRelOptTable]
+    val relOptTable = ts.getTable.asInstanceOf[FlinkPreparingTableBase]
     val fieldNames = relOptTable.getRowType.getFieldNames
     Preconditions.checkArgument(index >= 0 && index < fieldNames.size())
     val fieldName = fieldNames.get(index)
-    val statistic = relOptTable.getFlinkStatistic
+    val statistic = relOptTable.getStatistic
     val colStats = statistic.getColumnStats(fieldName)
     if (colStats != null) {
-      val min = colStats.getMinValue
-      val max = colStats.getMaxValue
-      if (min == null && max == null) {
-        null
-      } else {
+      val minValue = colStats.getMinValue
+      val maxValue = colStats.getMaxValue
+      val min = colStats.getMin
+      val max = colStats.getMax
+
+      Preconditions.checkArgument(
+        (minValue == null && maxValue == null) || (max == null && min == null))
+
+      if (minValue != null || maxValue != null) {
+        ValueInterval(minValue, maxValue)
+      } else if (max != null || min != null) {
         ValueInterval(min, max)
+      } else {
+        null
       }
     } else {
       null
@@ -482,6 +490,19 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
+  /**
+    * Gets interval of the given column on stream window table aggregate.
+    *
+    * @param agg   stream window table aggregate RelNode
+    * @param mq    RelMetadataQuery instance
+    * @param index the index of the given column
+    * @return interval of the given column on stream window Aggregate
+    */
+  def getColumnInterval(
+    agg: StreamExecGroupWindowTableAggregate,
+    mq: RelMetadataQuery,
+    index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
+
   private def estimateColumnIntervalOfAggregate(
       aggregate: SingleRel,
       mq: RelMetadataQuery,
@@ -505,6 +526,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       case agg: BatchExecWindowAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
       case agg: TableAggregate => agg.getGroupSet.toArray
       case agg: StreamExecGroupTableAggregate => agg.grouping
+      case agg: StreamExecGroupWindowTableAggregate => agg.getGrouping
     }
 
     if (index < groupSet.length) {

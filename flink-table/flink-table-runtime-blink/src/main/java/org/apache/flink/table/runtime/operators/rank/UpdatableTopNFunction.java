@@ -55,7 +55,7 @@ import java.util.TreeMap;
  * However, the function only works in some special scenarios:
  * 1. sort field collation is ascending and its mono is decreasing, or sort field collation is descending and its mono
  * is increasing
- * 2. input data has unique keys
+ * 2. input data has unique keys and unique key must contain partition key
  * 3. input stream could not contain delete record or retract record
  */
 public class UpdatableTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
@@ -96,11 +96,11 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			boolean generateRetraction,
+			boolean generateUpdateBefore,
 			boolean outputRankNumber,
 			long cacheSize) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
-				rankRange, generateRetraction, outputRankNumber);
+				rankRange, generateUpdateBefore, outputRankNumber);
 		this.rowKeyType = rowKeySelector.getProducedType();
 		this.cacheSize = cacheSize;
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());

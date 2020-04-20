@@ -25,7 +25,9 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.dataview.DataViewSpec
-import org.apache.flink.table.planner.expressions.{ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.planner.utils.SingleElementIterator
@@ -101,7 +103,7 @@ class ImperativeAggCodeGen(
   } else {
     boxedTypeTermForType(fromDataTypeToLogicalType(externalAccType))
   }
-  val accTypeExternalTerm: String = boxedTypeTermForExternalType(externalAccType)
+  val accTypeExternalTerm: String = typeTerm(externalAccType.getConversionClass)
 
   val argTypes: Array[LogicalType] = {
     val types = inputTypes ++ constantExprs.map(_.resultType)
@@ -111,7 +113,7 @@ class ImperativeAggCodeGen(
   private val externalResultType = aggInfo.externalResultType
   private val internalResultType = fromDataTypeToLogicalType(externalResultType)
 
-  private val rexNodeGen = new RexNodeConverter(relBuilder)
+  private val rexNodeGen = new ExpressionConverter(relBuilder)
 
   val viewSpecs: Array[DataViewSpec] = aggInfo.viewSpecs
   // add reusable dataviews to context
@@ -248,7 +250,7 @@ class ImperativeAggCodeGen(
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression = {
     val valueExternalTerm = newName("value_external")
-    val valueExternalTypeTerm = boxedTypeTermForExternalType(externalResultType)
+    val valueExternalTypeTerm = typeTerm(externalResultType.getConversionClass)
     val valueInternalTerm = newName("value_internal")
     val valueInternalTypeTerm = boxedTypeTermForType(internalResultType)
     val nullTerm = newName("valueIsNull")
@@ -275,27 +277,26 @@ class ImperativeAggCodeGen(
       if (f >= inputTypes.length) {
         // index to constant
         val expr = constantExprs(f - inputTypes.length)
-        s"${expr.nullTerm} ? null : ${
-          genToExternal(ctx, externalInputTypes(index), expr.resultTerm)}"
+        genToExternalIfNeeded(ctx, externalInputTypes(index), expr)
       } else {
         // index to input field
         val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
           if (argTypes.length == 1) {
             // called from distinct merge and the inputTerm is the only argument
-            new ResolvedDistinctKeyReference(generator.input1Term, inputTypes(f))
+            DeclarativeExpressionResolver.toRexDistinctKey(
+              relBuilder, generator.input1Term, inputTypes(f))
           } else {
             // called from distinct merge call and the inputTerm is BaseRow type
-            new ResolvedAggInputReference(f.toString, index, inputTypes(f))
+            toRexInputRef(relBuilder, index, inputTypes(f))
           }
         } else {
           // called from accumulate
-          new ResolvedAggInputReference(f.toString, f, inputTypes(f))
+          toRexInputRef(relBuilder, f, inputTypes(f))
         }
         var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
         if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)
         codes += inputExpr.code
-        val term = s"${genToExternal(ctx, externalInputTypes(index), inputExpr.resultTerm)}"
-        s"${inputExpr.nullTerm} ? null : $term"
+        genToExternalIfNeeded(ctx, externalInputTypes(index), inputExpr)
       }
     }
 

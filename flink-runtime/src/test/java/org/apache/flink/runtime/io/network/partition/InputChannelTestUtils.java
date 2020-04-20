@@ -100,7 +100,7 @@ public class InputChannelTestUtils {
 		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setPartitionManager(partitionManager)
-			.buildLocalAndSetToGate(inputGate);
+			.buildLocalChannel(inputGate);
 	}
 
 	public static LocalInputChannel createLocalInputChannel(
@@ -113,7 +113,7 @@ public class InputChannelTestUtils {
 			.setPartitionManager(partitionManager)
 			.setInitialBackoff(initialBackoff)
 			.setMaxBackoff(maxBackoff)
-			.buildLocalAndSetToGate(inputGate);
+			.buildLocalChannel(inputGate);
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(
@@ -124,7 +124,7 @@ public class InputChannelTestUtils {
 		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setConnectionManager(connectionManager)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(
@@ -135,7 +135,7 @@ public class InputChannelTestUtils {
 		return InputChannelBuilder.newBuilder()
 			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
 			.setMemorySegmentProvider(memorySegmentProvider)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 
 	public static ConnectionManager mockConnectionManagerWithPartitionRequestClient(PartitionRequestClient client) {

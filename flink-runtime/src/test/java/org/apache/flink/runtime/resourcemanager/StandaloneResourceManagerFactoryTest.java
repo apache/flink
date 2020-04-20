@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -48,7 +47,7 @@ public class StandaloneResourceManagerFactoryTest extends TestLogger {
 		final TestingRpcService rpcService = new TestingRpcService();
 		try {
 			final Configuration configuration = new Configuration();
-			configuration.setString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, new MemorySize(128 * 1024 * 1024).toString());
+			configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, new MemorySize(128 * 1024 * 1024));
 			configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 600);
 
 			final ResourceManager<ResourceID> ignored = resourceManagerFactory.createResourceManager(
@@ -57,11 +56,10 @@ public class StandaloneResourceManagerFactoryTest extends TestLogger {
 				rpcService,
 				new TestingHighAvailabilityServices(),
 				new TestingHeartbeatServices(),
-				NoOpMetricRegistry.INSTANCE,
 				new TestingFatalErrorHandler(),
 				new ClusterInformation("foobar", 1234),
 				null,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 		} finally {
 			RpcUtils.terminateRpcService(rpcService, Time.seconds(10L));
 		}

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -427,7 +428,7 @@ public class StateBackendLoadingTest {
 	static final class FailingFactory implements StateBackendFactory<StateBackend> {
 
 		@Override
-		public StateBackend createFromConfig(Configuration config, ClassLoader classLoader) throws IOException {
+		public StateBackend createFromConfig(ReadableConfig config, ClassLoader classLoader) throws IOException {
 			throw new IOException("fail!");
 		}
 	}

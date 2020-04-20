@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.fs.maprfs;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.ClassLoaderUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 

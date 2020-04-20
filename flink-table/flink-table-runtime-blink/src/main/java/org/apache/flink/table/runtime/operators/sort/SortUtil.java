@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.NormalizedKeyUtil;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 
 import java.nio.ByteOrder;
 
@@ -133,6 +134,15 @@ public class SortUtil {
 		for (int i = offset; i < limit; i++) {
 			target.put(i, (byte) 0);
 		}
+	}
+
+	/**
+	 * Support the compact precision SqlTimestamp.
+	 */
+	public static void putTimestampNormalizedKey(
+			SqlTimestamp value, MemorySegment target, int offset, int numBytes) {
+		assert value.getNanoOfMillisecond() == 0;
+		putLongNormalizedKey(value.getMillisecond(), target, offset, numBytes);
 	}
 
 	public static int compareBinary(byte[] a, byte[] b) {

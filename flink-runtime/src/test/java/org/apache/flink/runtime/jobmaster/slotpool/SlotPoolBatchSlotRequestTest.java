@@ -56,8 +56,8 @@ import static org.junit.Assert.fail;
  */
 public class SlotPoolBatchSlotRequestTest extends TestLogger {
 
-	private static final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1024);
-	private static final ResourceProfile smallerResourceProfile = new ResourceProfile(0.5, 512);
+	private static final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1024);
+	private static final ResourceProfile smallerResourceProfile = ResourceProfile.fromResources(0.5, 512);
 	public static final CompletableFuture[] COMPLETABLE_FUTURES_EMPTY_ARRAY = new CompletableFuture[0];
 	private static ScheduledExecutorService singleThreadScheduledExecutorService;
 	private static ComponentMainThreadExecutor mainThreadExecutor;

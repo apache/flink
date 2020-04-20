@@ -164,6 +164,7 @@ export interface CheckPointSubTaskInterface {
       buffered: CheckPointMinMaxAvgStatisticsInterface;
       duration: CheckPointMinMaxAvgStatisticsInterface;
     };
+    start_delay: CheckPointMinMaxAvgStatisticsInterface;
   };
   subtasks: Array<{
     index: number;

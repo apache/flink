@@ -216,8 +216,19 @@ Once you specified the complete program you need to **trigger the program execut
 Depending on the type of the `ExecutionEnvironment` the execution will be triggered on your local
 machine or submit your program for execution on a cluster.
 
-The `execute()` method is returning a `JobExecutionResult`, this contains execution
+The `execute()` method will wait for the job to finish and then return a `JobExecutionResult`, this contains execution
 times and accumulator results.
+
+If you don't want to wait for the job to finish, you can trigger asynchronous job execution by calling
+`executeAysnc()` on the `StreamExecutionEnvironment`. It will return a `JobClient` with which you can
+communicate with the job you just submitted. For instance, here is how to implement the semantics
+of `execute()` by using `executeAsync()`.
+
+{% highlight java %}
+final JobClient jobClient = env.executeAsync();
+
+final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+{% endhighlight %}
 
 Please see the [Streaming Guide]({{ site.baseurl }}/dev/datastream_api.html)
 for information about streaming data sources and sink and for more in-depths information
@@ -393,7 +404,7 @@ These are valid field expressions for the example code above:
 <div data-lang="scala" markdown="1">
 
 In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `keyBy()` function.
-{% highlight java %}
+{% highlight scala %}
 // some ordinary POJO (Plain old Java Object)
 class WC(var word: String, var count: Int) {
   def this() { this("", 0L) }
@@ -624,7 +635,7 @@ Flink places some restrictions on the type of elements that can be in a DataSet 
 The reason for this is that the system analyzes the types to determine
 efficient execution strategies.
 
-There are six different categories of data types:
+There are seven different categories of data types:
 
 1. **Java Tuples** and **Scala Case Classes**
 2. **Java POJOs**

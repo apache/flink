@@ -42,7 +42,7 @@ import java.util.Set;
 @PublicEvolving
 public final class MultisetType extends LogicalType {
 
-	private static final String FORMAT = "MULTISET<%s>";
+	public static final String FORMAT = "MULTISET<%s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		Map.class.getName(),
@@ -82,6 +82,9 @@ public final class MultisetType extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
+		if (Map.class.isAssignableFrom(clazz)) {
+			return true;
+		}
 		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
 	}
 

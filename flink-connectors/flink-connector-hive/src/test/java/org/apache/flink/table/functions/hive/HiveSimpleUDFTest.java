@@ -19,6 +19,8 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.hive.util.TestHiveUDFArray;
 import org.apache.flink.table.types.DataType;
 
@@ -26,7 +28,6 @@ import org.apache.hadoop.hive.ql.udf.UDFBase64;
 import org.apache.hadoop.hive.ql.udf.UDFBin;
 import org.apache.hadoop.hive.ql.udf.UDFConv;
 import org.apache.hadoop.hive.ql.udf.UDFJson;
-import org.apache.hadoop.hive.ql.udf.UDFMinute;
 import org.apache.hadoop.hive.ql.udf.UDFRand;
 import org.apache.hadoop.hive.ql.udf.UDFRegExpExtract;
 import org.apache.hadoop.hive.ql.udf.UDFToInteger;
@@ -46,6 +47,8 @@ import static org.junit.Assert.assertTrue;
  * Test for {@link HiveSimpleUDF}.
  */
 public class HiveSimpleUDFTest {
+	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+
 	@Test
 	public void testUDFRand() {
 		HiveSimpleUDF udf = init(UDFRand.class, new DataType[0]);
@@ -122,20 +125,7 @@ public class HiveSimpleUDFTest {
 	}
 
 	@Test
-	public void testUDFMinute() {
-		HiveSimpleUDF udf = init(
-			UDFMinute.class,
-			new DataType[]{
-				DataTypes.STRING()
-			});
-
-		assertEquals(17, udf.eval("1969-07-20 20:17:40"));
-		assertEquals(17, udf.eval(Timestamp.valueOf("1969-07-20 20:17:40")));
-		assertEquals(58, udf.eval("12:58:59"));
-	}
-
-	@Test
-	public void testUDFWeekOfYear() {
+	public void testUDFWeekOfYear() throws FlinkHiveUDFException {
 		HiveSimpleUDF udf = init(
 			UDFWeekOfYear.class,
 			new DataType[]{
@@ -230,7 +220,7 @@ public class HiveSimpleUDFTest {
 	}
 
 	protected static HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
-		HiveSimpleUDF udf = new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()));
+		HiveSimpleUDF udf = new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
 		// Hive UDF won't have literal args
 		udf.setArgumentTypesAndConstants(new Object[0], argTypes);

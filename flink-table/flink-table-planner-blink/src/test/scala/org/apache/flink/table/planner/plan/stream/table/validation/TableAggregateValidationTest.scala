@@ -33,7 +33,8 @@ class TableAggregateValidationTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Given parameters do not match any signature. \n" +
       "Actual: (java.lang.Long, java.lang.Integer, java.lang.String) \n" +
-      "Expected: (int), (long, int), (long, java.sql.Timestamp)")
+      "Expected: (int), (java.sql.Timestamp, java.sql.Timestamp), " +
+      "(long, int), (long, java.sql.Timestamp)")
 
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
@@ -51,7 +52,8 @@ class TableAggregateValidationTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Given parameters do not match any signature. \n" +
       "Actual: (java.lang.Long, java.lang.String) \n" +
-      "Expected: (int), (long, int), (long, java.sql.Timestamp)")
+      "Expected: (int), (java.sql.Timestamp, java.sql.Timestamp), " +
+      "(long, int), (long, java.sql.Timestamp)")
 
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)

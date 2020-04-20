@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.rel.logical.LogicalJoin
@@ -83,6 +84,22 @@ class WindowJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND t2.proctime
       """.stripMargin
 
+    util.verifyPlan(sql)
+  }
+
+  /**
+    * Currently only the inner join condition can support the Python UDF taking the inputs from
+    * the left table and the right table at the same time.
+    */
+  @Test(expected = classOf[TableException])
+  def testWindowOuterJoinWithPythonFunctionInCondition(): Unit = {
+    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    val sql =
+      """
+        |SELECT t1.a, t2.b FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |    t1.a = t2.a AND pyFunc(t1.a, t2.a) = t1.a + t2.a AND
+        |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      """.stripMargin
     util.verifyPlan(sql)
   }
 

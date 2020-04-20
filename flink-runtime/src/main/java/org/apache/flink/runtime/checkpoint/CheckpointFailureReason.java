@@ -25,8 +25,6 @@ public enum CheckpointFailureReason {
 
 	PERIODIC_SCHEDULER_SHUTDOWN(true, "Periodic checkpoint scheduler is shut down."),
 
-	ALREADY_QUEUED(true, "Another checkpoint request has already been queued."),
-
 	TOO_MANY_CONCURRENT_CHECKPOINTS(true, "The maximum number of concurrent checkpoints is exceeded"),
 
 	MINIMUM_TIME_BETWEEN_CHECKPOINTS(true, "The minimum time between checkpoints is still pending. " +
@@ -61,6 +59,8 @@ public enum CheckpointFailureReason {
 	JOB_FAILURE(false, "The job has failed."),
 
 	JOB_FAILOVER_REGION(false, "FailoverRegion is restarting."),
+
+	TASK_FAILURE(false, "Task has failed."),
 
 	TASK_CHECKPOINT_FAILURE(false, "Task local checkpoint failure."),
 

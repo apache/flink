@@ -22,6 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.TypeStringUtils;
 
 import java.util.Arrays;
@@ -31,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_COMMENT_PREFIX;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
@@ -62,6 +68,7 @@ public class OldCsv extends FormatDescriptor {
 	private Optional<String> commentPrefix = Optional.empty();
 	private Optional<Boolean> isIgnoreFirstLine = Optional.empty();
 	private Optional<Boolean> lenient = Optional.empty();
+	private Optional<Boolean> deriveSchema = Optional.empty();
 
 	public OldCsv() {
 		super(FORMAT_TYPE_VALUE, 1);
@@ -94,7 +101,11 @@ public class OldCsv extends FormatDescriptor {
 	 * <p>This method overwrites existing fields added with [[field()]].
 	 *
 	 * @param schema the table schema
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 * 	           it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv schema(TableSchema schema) {
 		this.schema.clear();
 		for (int i = 0; i < schema.getFieldCount(); ++i) {
@@ -110,9 +121,30 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type information of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, TypeInformation<?> fieldType) {
-		field(fieldName, TypeStringUtils.writeTypeInfo(fieldType));
+		field(fieldName, TypeConversions.fromLegacyInfoToDataType(fieldType));
+		return this;
+	}
+
+	/**
+	 * Adds a format field with the field name and the type information. Required.
+	 * This method can be called multiple times. The call order of this method defines
+	 * also the order of the fields in the format.
+	 *
+	 * @param fieldName the field name
+	 * @param fieldType the type information of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
+	 */
+	@Deprecated
+	public OldCsv field(String fieldName, DataType fieldType) {
+		addField(fieldName, fieldType.getLogicalType().asSerializableString());
 		return this;
 	}
 
@@ -121,15 +153,43 @@ public class OldCsv extends FormatDescriptor {
 	 * This method can be called multiple times. The call order of this method defines
 	 * also the order of the fields in the format.
 	 *
+	 * <p>NOTE: the fieldType string should follow the type string defined in {@link LogicalTypeParser}.
+	 * This method also keeps compatible with old type string defined in {@link TypeStringUtils} but
+	 * will be dropped in future versions as it uses the old type system.
+	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type string of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, String fieldType) {
+		if (isLegacyTypeString(fieldType)) {
+			// fallback to legacy parser
+			TypeInformation<?> typeInfo = TypeStringUtils.readTypeInfo(fieldType);
+			return field(fieldName, TypeConversions.fromLegacyInfoToDataType(typeInfo));
+		} else {
+			return addField(fieldName, fieldType);
+		}
+	}
+
+	private OldCsv addField(String fieldName, String fieldType) {
 		if (schema.containsKey(fieldName)) {
 			throw new ValidationException("Duplicate field name " + fieldName + ".");
 		}
 		schema.put(fieldName, fieldType);
 		return this;
+	}
+
+	private static boolean isLegacyTypeString(String fieldType) {
+		try {
+			LogicalType type = LogicalTypeParser.parse(fieldType);
+			return type instanceof UnresolvedUserDefinedType;
+		} catch (Exception e) {
+			// if the parsing failed, fallback to the legacy parser
+			return true;
+		}
 	}
 
 	/**
@@ -168,6 +228,23 @@ public class OldCsv extends FormatDescriptor {
 		return this;
 	}
 
+	/**
+	 * Derives the format schema from the table's schema. Required if no format schema is defined.
+	 *
+	 * <p>This allows for defining schema information only once.
+	 *
+	 * <p>The names, types, and fields' order of the format are determined by the table's
+	 * schema.
+	 *
+	 * @deprecated Derivation format schema from table's schema is the default behavior now.
+	 *  So there is no need to explicitly declare to derive schema.
+	 */
+	@Deprecated
+	public OldCsv deriveSchema() {
+		this.deriveSchema = Optional.of(true);
+		return this;
+	}
+
 	@Override
 	protected Map<String, String> toFormatProperties() {
 		DescriptorProperties properties = new DescriptorProperties();
@@ -175,15 +252,19 @@ public class OldCsv extends FormatDescriptor {
 		fieldDelim.ifPresent(s -> properties.putString(FORMAT_FIELD_DELIMITER, s));
 		lineDelim.ifPresent(s -> properties.putString(FORMAT_LINE_DELIMITER, s));
 
-		List<String> subKeys = Arrays.asList(
+		if (deriveSchema.isPresent() && deriveSchema.get()) {
+			properties.putBoolean(FORMAT_DERIVE_SCHEMA, true);
+		} else {
+			List<String> subKeys = Arrays.asList(
 				DescriptorProperties.TABLE_SCHEMA_NAME,
-				DescriptorProperties.TABLE_SCHEMA_TYPE);
+				DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 
-		List<List<String>> subValues = schema.entrySet().stream()
+			List<List<String>> subValues = schema.entrySet().stream()
 				.map(e -> Arrays.asList(e.getKey(), e.getValue()))
 				.collect(Collectors.toList());
 
-		properties.putIndexedFixedProperties(FORMAT_FIELDS, subKeys, subValues);
+			properties.putIndexedFixedProperties(FORMAT_FIELDS, subKeys, subValues);
+		}
 
 		quoteCharacter.ifPresent(character -> properties.putCharacter(FORMAT_QUOTE_CHARACTER, character));
 		commentPrefix.ifPresent(s -> properties.putString(FORMAT_COMMENT_PREFIX, s));

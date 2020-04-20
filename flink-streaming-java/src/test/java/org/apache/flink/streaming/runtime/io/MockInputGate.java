@@ -20,7 +20,9 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.util.ArrayDeque;
@@ -54,7 +56,7 @@ public class MockInputGate extends InputGate {
 		this.closed = new boolean[numberOfChannels];
 		this.finishAfterLastBuffer = finishAfterLastBuffer;
 
-		isAvailable = AVAILABLE;
+		availabilityHelper.resetAvailable();
 	}
 
 	@Override
@@ -67,6 +69,11 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
+	public InputChannel getChannel(int channelIndex) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public boolean isFinished() {
 		return finishAfterLastBuffer && bufferOrEvents.isEmpty();
 	}
@@ -75,7 +82,7 @@ public class MockInputGate extends InputGate {
 	public Optional<BufferOrEvent> getNext() {
 		BufferOrEvent next = bufferOrEvents.poll();
 		if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {
-			resetIsAvailable();
+			availabilityHelper.resetUnavailable();
 		}
 		if (next == null) {
 			return Optional.empty();
@@ -103,5 +110,9 @@ public class MockInputGate extends InputGate {
 
 	@Override
 	public void close() {
+	}
+
+	@Override
+	public void registerBufferReceivedListener(BufferReceivedListener listener) {
 	}
 }

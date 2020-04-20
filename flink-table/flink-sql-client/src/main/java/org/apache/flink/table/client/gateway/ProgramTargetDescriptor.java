@@ -20,61 +20,35 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.common.JobID;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Describes the target where a table program has been submitted to.
  */
 public class ProgramTargetDescriptor {
 
-	private final String clusterId;
+	private final JobID jobId;
 
-	private final String jobId;
-
-	private final String webInterfaceUrl;
-
-	public ProgramTargetDescriptor(String clusterId, String jobId, String webInterfaceUrl) {
-		this.clusterId = clusterId;
-		this.jobId = jobId;
-		this.webInterfaceUrl = webInterfaceUrl;
+	public ProgramTargetDescriptor(JobID jobId) {
+		this.jobId = checkNotNull(jobId);
 	}
 
-	public String getClusterId() {
-		return clusterId;
-	}
-
-	public String getJobId() {
+	public JobID getJobId() {
 		return jobId;
-	}
-
-	public String getWebInterfaceUrl() {
-		return webInterfaceUrl;
 	}
 
 	@Override
 	public String toString() {
-		return String.format(
-			"Cluster ID: %s\n" +
-			"Job ID: %s\n" +
-			"Web interface: %s",
-			clusterId, jobId, webInterfaceUrl);
+		return String.format("Job ID: %s\n", jobId);
 	}
 
 	/**
 	 * Creates a program target description from deployment classes.
 	 *
-	 * @param clusterId cluster id
 	 * @param jobId job id
-	 * @param <C> cluster id type
 	 * @return program target descriptor
 	 */
-	public static <C> ProgramTargetDescriptor of(C clusterId, JobID jobId, String webInterfaceUrl) {
-		String clusterIdString;
-		try {
-			// check if cluster id has a toString method
-			clusterId.getClass().getDeclaredMethod("toString");
-			clusterIdString = clusterId.toString();
-		} catch (NoSuchMethodException e) {
-			clusterIdString = clusterId.getClass().getSimpleName();
-		}
-		return new ProgramTargetDescriptor(clusterIdString, jobId.toString(), webInterfaceUrl);
+	public static ProgramTargetDescriptor of(JobID jobId) {
+		return new ProgramTargetDescriptor(jobId);
 	}
 }

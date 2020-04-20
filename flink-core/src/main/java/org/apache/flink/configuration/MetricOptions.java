@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -156,6 +157,7 @@ public class MetricOptions {
 	 * The default network port range for Flink's internal metric query service. The {@code "0"} means that
 	 * Flink searches for a free port.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
 	public static final ConfigOption<String> QUERY_SERVICE_PORT =
 		key("metrics.internal.query-service.port")
 		.defaultValue("0")

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRow;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
  * This function is used to get the last row for every key partition in miniBatch mode.
@@ -42,16 +44,20 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 	private static final long serialVersionUID = -8981813609115029119L;
 
 	private final BaseRowTypeInfo rowTypeInfo;
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 	private final TypeSerializer<BaseRow> typeSerializer;
-
+	private final long minRetentionTime;
 	// state stores complete row.
 	private ValueState<BaseRow> state;
 
-	public MiniBatchDeduplicateKeepLastRowFunction(BaseRowTypeInfo rowTypeInfo, boolean generateRetraction,
-			TypeSerializer<BaseRow> typeSerializer) {
+	public MiniBatchDeduplicateKeepLastRowFunction(
+			BaseRowTypeInfo rowTypeInfo,
+			boolean generateUpdateBefore,
+			TypeSerializer<BaseRow> typeSerializer,
+			long minRetentionTime) {
+		this.minRetentionTime = minRetentionTime;
 		this.rowTypeInfo = rowTypeInfo;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 		this.typeSerializer = typeSerializer;
 	}
 
@@ -59,6 +65,10 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
 		ValueStateDescriptor<BaseRow> stateDesc = new ValueStateDescriptor<>("preRowState", rowTypeInfo);
+		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
+		if (ttlConfig.isEnabled()) {
+			stateDesc.enableTimeToLive(ttlConfig);
+		}
 		state = ctx.getRuntimeContext().getState(stateDesc);
 	}
 
@@ -75,7 +85,7 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 			BaseRow currentKey = entry.getKey();
 			BaseRow currentRow = entry.getValue();
 			ctx.setCurrentKey(currentKey);
-			processLastRow(currentRow, generateRetraction, state, out);
+			processLastRow(currentRow, generateUpdateBefore, state, out);
 		}
 	}
 }

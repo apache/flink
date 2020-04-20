@@ -77,7 +77,8 @@ public class RocksDBIncrementalCheckpointUtils {
 		@Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
 		@Nonnull KeyGroupRange targetKeyGroupRange,
 		@Nonnull KeyGroupRange currentKeyGroupRange,
-		@Nonnegative int keyGroupPrefixBytes) throws RocksDBException {
+		@Nonnegative int keyGroupPrefixBytes,
+		@Nonnegative long writeBatchSize) throws RocksDBException {
 
 		final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
 		final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
@@ -87,7 +88,7 @@ public class RocksDBIncrementalCheckpointUtils {
 				currentKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
 			RocksDBKeySerializationUtils.serializeKeyGroup(
 				targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
-			deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+			deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);
 		}
 
 		if (currentKeyGroupRange.getEndKeyGroup() > targetKeyGroupRange.getEndKeyGroup()) {
@@ -95,7 +96,7 @@ public class RocksDBIncrementalCheckpointUtils {
 				targetKeyGroupRange.getEndKeyGroup() + 1, beginKeyGroupBytes);
 			RocksDBKeySerializationUtils.serializeKeyGroup(
 				currentKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
-			deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+			deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);
 		}
 	}
 
@@ -111,11 +112,12 @@ public class RocksDBIncrementalCheckpointUtils {
 		RocksDB db,
 		List<ColumnFamilyHandle> columnFamilyHandles,
 		byte[] beginKeyBytes,
-		byte[] endKeyBytes) throws RocksDBException {
+		byte[] endKeyBytes,
+		@Nonnegative long writeBatchSize) throws RocksDBException {
 
 		for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
 			try (RocksIteratorWrapper iteratorWrapper = RocksDBOperationUtils.getRocksIterator(db, columnFamilyHandle);
-				RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db)) {
+				RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeBatchSize)) {
 
 				iteratorWrapper.seek(beginKeyBytes);
 

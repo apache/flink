@@ -170,7 +170,14 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 	@Override
 	public void run() {
 		LOG.info("Starting emitter with maxLookaheadMillis: {}", this.maxLookaheadMillis);
+		emitRecords();
+	}
 
+	public void stop() {
+		running = false;
+	}
+
+	protected void emitRecords() {
 		// emit available records, ordered by timestamp
 		AsyncRecordQueue<T> min = heads.poll();
 		runLoop:
@@ -198,6 +205,10 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 						}
 					}
 				}
+				if (!running) {
+					// Make sure we can exit this loop so the thread can shut down
+					break runLoop;
+				}
 			}
 
 			// wait until ready to emit min or another queue receives elements
@@ -215,6 +226,10 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 						min = null;
 						continue runLoop;
 					}
+				}
+				if (!running) {
+					// Make sure we can exit this loop so the thread can shut down
+					break runLoop;
 				}
 			}
 
@@ -236,6 +251,11 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 			}
 			if (record == null) {
 				this.emptyQueues.put(min, true);
+			} else if (nextQueue != null && nextQueue.headTimestamp > min.headTimestamp) {
+				// if we stopped emitting due to reaching max timestamp,
+				// the next queue may not be the new min
+				heads.offer(nextQueue);
+				nextQueue = min;
 			} else {
 				heads.offer(min);
 			}
@@ -243,12 +263,8 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 		}
 	}
 
-	public void stop() {
-		running = false;
-	}
-
 	/** Emit the record. This is specific to a connector, like the Kinesis data fetcher. */
-	public abstract void emit(T record, RecordQueue<T> source);
+	protected abstract void emit(T record, RecordQueue<T> source);
 
 	/** Summary of emit queues that can be used for logging. */
 	public String printInfo() {

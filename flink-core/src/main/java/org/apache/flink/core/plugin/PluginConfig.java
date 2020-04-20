@@ -55,23 +55,20 @@ public class PluginConfig {
 
 	public static PluginConfig fromConfiguration(Configuration configuration) {
 		return new PluginConfig(
-			getPluginsDirPath(configuration),
-			CoreOptions.getParentFirstLoaderPatterns(configuration));
+			getPluginsDir().map(File::toPath),
+			CoreOptions.getPluginParentFirstLoaderPatterns(configuration));
 	}
 
-	private static Optional<Path> getPluginsDirPath(Configuration configuration) {
-		String pluginsDir = configuration.getString(ConfigConstants.ENV_FLINK_PLUGINS_DIR, null);
-		if (pluginsDir == null) {
-			LOG.info("Environment variable [{}] is not set", ConfigConstants.ENV_FLINK_PLUGINS_DIR);
-			return Optional.empty();
-		}
+	public static Optional<File> getPluginsDir() {
+		String pluginsDir = System.getenv().getOrDefault(
+			ConfigConstants.ENV_FLINK_PLUGINS_DIR,
+			ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS);
+
 		File pluginsDirFile = new File(pluginsDir);
 		if (!pluginsDirFile.isDirectory()) {
-			LOG.warn("Environment variable [{}] is set to [{}] but the directory doesn't exist",
-				ConfigConstants.ENV_FLINK_PLUGINS_DIR,
-				pluginsDir);
+			LOG.warn("The plugins directory [{}] does not exist.", pluginsDirFile);
 			return Optional.empty();
 		}
-		return Optional.of(pluginsDirFile.toPath());
+		return Optional.of(pluginsDirFile);
 	}
 }

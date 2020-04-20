@@ -23,7 +23,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, RelDigestUtil}
+import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, FlinkRelOptUtil}
 
 import com.google.common.collect.{Maps, Sets}
 import org.apache.calcite.rel.core.{Exchange, TableFunctionScan}
@@ -106,7 +106,7 @@ object SubplanReuser {
       if (digest != null) {
         digest
       } else {
-        val newDigest = RelDigestUtil.getDigest(node)
+        val newDigest = FlinkRelOptUtil.getDigest(node)
         mapRelToDigest.put(node, newDigest)
         newDigest
       }

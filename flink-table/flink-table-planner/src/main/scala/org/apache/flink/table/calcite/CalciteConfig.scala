@@ -53,6 +53,12 @@ class CalciteConfigBuilder {
   private var logicalOptRuleSets: List[RuleSet] = Nil
 
   /**
+    * Defines the logical rewrite rule set.
+    */
+  private var replaceLogicalRewriteRules: Boolean = false
+  private var logicalRewriteRuleSets: List[RuleSet] = Nil
+
+  /**
     * Defines the physical optimization rule set.
     */
   private var replacePhysicalOptRules: Boolean = false
@@ -116,6 +122,25 @@ class CalciteConfigBuilder {
   def addLogicalOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
     Preconditions.checkNotNull(addedRuleSet)
     logicalOptRuleSets = addedRuleSet :: logicalOptRuleSets
+    this
+  }
+
+  /**
+    * Replaces the built-in logical rewrite rule set with the given rule set.
+    */
+  def replaceLogicalRewriteRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(replaceRuleSet)
+    logicalRewriteRuleSets = List(replaceRuleSet)
+    replaceLogicalRewriteRules = true
+    this
+  }
+
+  /**
+    * Appends the given logical rewrite rule set to the built-in rule set.
+    */
+  def addLogicalRewriteRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(addedRuleSet)
+    logicalRewriteRuleSets = addedRuleSet :: logicalRewriteRuleSets
     this
   }
 
@@ -225,6 +250,8 @@ class CalciteConfigBuilder {
     replaceNormRules,
     getRuleSet(logicalOptRuleSets),
     replaceLogicalOptRules,
+    getRuleSet(logicalRewriteRuleSets),
+    replaceLogicalRewriteRules,
     getRuleSet(physicalOptRuleSets),
     replacePhysicalOptRules,
     getRuleSet(decoRuleSets),
@@ -254,6 +281,10 @@ class CalciteConfig(
   val logicalOptRuleSet: Option[RuleSet],
   /** Whether this configuration replaces the built-in logical optimization rule set. */
   val replacesLogicalOptRuleSet: Boolean,
+  /** A custom logical rewrite rule set. */
+  val logicalRewriteRuleSet: Option[RuleSet],
+  /** Whether this configuration replaces the built-in logical rewrite rule set.  */
+  val replacesLogicalRewriteRuleSet: Boolean,
   /** A custom physical optimization rule set. */
   val physicalOptRuleSet: Option[RuleSet],
   /** Whether this configuration replaces the built-in physical optimization rule set. */

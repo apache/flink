@@ -124,7 +124,7 @@ state updates) of Flink coupled with bundled sinks:
     </tr>
     <tr>
         <td>File sinks</td>
-        <td>at least once</td>
+        <td>exactly once</td>
         <td></td>
     </tr>
     <tr>

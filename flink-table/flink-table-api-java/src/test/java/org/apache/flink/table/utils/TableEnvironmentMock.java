@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.utils;
 
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.module.ModuleManager;
 
 /**
  * Mocking {@link TableEnvironment} for tests.
@@ -41,12 +40,13 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 
 	protected TableEnvironmentMock(
 			CatalogManager catalogManager,
+			ModuleManager moduleManager,
 			TableConfig tableConfig,
 			ExecutorMock executor,
 			FunctionCatalog functionCatalog,
 			PlannerMock planner,
 			boolean isStreamingMode) {
-		super(catalogManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
+		super(catalogManager, moduleManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
 
 		this.catalogManager = catalogManager;
 		this.executor = executor;
@@ -63,22 +63,17 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 	}
 
 	private static TableEnvironmentMock getInstance(boolean isStreamingMode) {
-		final CatalogManager catalogManager = createCatalogManager();
+		final TableConfig config = createTableConfig();
+		final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+		final ModuleManager moduleManager = new ModuleManager();
 		return new TableEnvironmentMock(
 			catalogManager,
-			createTableConfig(),
+			moduleManager,
+			config,
 			createExecutor(),
-			createFunctionCatalog(catalogManager),
+			createFunctionCatalog(config, catalogManager, moduleManager),
 			createPlanner(),
 			isStreamingMode);
-	}
-
-	private static CatalogManager createCatalogManager() {
-		return new CatalogManager(
-			EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
-			new GenericInMemoryCatalog(
-				EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
-				EnvironmentSettings.DEFAULT_BUILTIN_DATABASE));
 	}
 
 	private static TableConfig createTableConfig() {
@@ -89,8 +84,11 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 		return new ExecutorMock();
 	}
 
-	private static FunctionCatalog createFunctionCatalog(CatalogManager catalogManager) {
-		return new FunctionCatalog(catalogManager);
+	private static FunctionCatalog createFunctionCatalog(
+			TableConfig config,
+			CatalogManager catalogManager,
+			ModuleManager moduleManager) {
+		return new FunctionCatalog(config, catalogManager, moduleManager);
 	}
 
 	private static PlannerMock createPlanner() {

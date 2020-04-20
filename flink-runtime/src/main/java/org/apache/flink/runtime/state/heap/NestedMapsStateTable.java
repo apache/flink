@@ -95,5 +95,9 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 			return stateMap.stateSnapshot();
 		}
+
+		@Override
+		public void release() {
+		}
 	}
 }

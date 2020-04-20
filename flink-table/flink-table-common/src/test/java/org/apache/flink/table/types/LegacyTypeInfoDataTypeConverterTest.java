@@ -65,7 +65,7 @@ public class LegacyTypeInfoDataTypeConverterTest {
 					Types.GENERIC(LegacyTypeInfoDataTypeConverterTest.class),
 					new AtomicDataType(
 						new LegacyTypeInformationType<>(
-							LogicalTypeRoot.ANY,
+							LogicalTypeRoot.RAW,
 							Types.GENERIC(LegacyTypeInfoDataTypeConverterTest.class)))
 				},
 

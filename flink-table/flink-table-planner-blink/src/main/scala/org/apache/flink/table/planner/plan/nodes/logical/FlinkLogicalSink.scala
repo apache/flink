@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
+import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.sinks.TableSink
@@ -39,12 +40,15 @@ class FlinkLogicalSink(
     traitSet: RelTraitSet,
     input: RelNode,
     sink: TableSink[_],
-    sinkName: String)
+    sinkName: String,
+    val catalogTable: CatalogTable,
+    val staticPartitions: Map[String, String])
   extends Sink(cluster, traitSet, input, sink, sinkName)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalSink(cluster, traitSet, inputs.head, sink, sinkName)
+    new FlinkLogicalSink(
+      cluster, traitSet, inputs.head, sink, sinkName, catalogTable, staticPartitions)
   }
 
 }
@@ -62,7 +66,9 @@ private class FlinkLogicalSinkConverter
     FlinkLogicalSink.create(
       newInput,
       sink.sink,
-      sink.sinkName)
+      sink.sinkName,
+      sink.catalogTable,
+      sink.staticPartitions)
   }
 }
 
@@ -72,9 +78,12 @@ object FlinkLogicalSink {
   def create(
       input: RelNode,
       sink: TableSink[_],
-      sinkName: String): FlinkLogicalSink = {
+      sinkName: String,
+      catalogTable: CatalogTable = null,
+      staticPartitions: Map[String, String] = Map()): FlinkLogicalSink = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalSink(cluster, traitSet, input, sink, sinkName)
+    new FlinkLogicalSink(
+      cluster, traitSet, input, sink, sinkName, catalogTable, staticPartitions)
   }
 }

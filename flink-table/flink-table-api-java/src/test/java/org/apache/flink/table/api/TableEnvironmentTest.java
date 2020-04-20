@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.ConnectorCatalogTable;
-import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.utils.ConnectorDescriptorMock;
 import org.apache.flink.table.utils.FormatDescriptorMock;
@@ -49,14 +48,17 @@ public class TableEnvironmentTest {
 				.field("my_field_0", "INT")
 				.field("my_field_1", "BOOLEAN"))
 			.inAppendMode()
-			.registerTableSource("my_table");
+			.createTemporaryTable("my_table");
 
-		final Catalog catalog = tableEnv.getCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG)
+		CatalogManager.TableLookupResult lookupResult = tableEnv.catalogManager.getTable(ObjectIdentifier.of(
+			EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
+			EnvironmentSettings.DEFAULT_BUILTIN_DATABASE,
+			"my_table"))
 			.orElseThrow(AssertionError::new);
 
-		final CatalogBaseTable table = catalog
-			.getTable(new ObjectPath(EnvironmentSettings.DEFAULT_BUILTIN_DATABASE, "my_table"));
+		assertThat(lookupResult.isTemporary(), equalTo(true));
 
+		CatalogBaseTable table = lookupResult.getTable();
 		assertThat(
 			table.getSchema(),
 			equalTo(
@@ -64,11 +66,5 @@ public class TableEnvironmentTest {
 					.field("my_field_0", DataTypes.INT())
 					.field("my_field_1", DataTypes.BOOLEAN())
 					.build()));
-
-		final ConnectorCatalogTable<?, ?> connectorCatalogTable = (ConnectorCatalogTable<?, ?>) table;
-
-		assertThat(
-			connectorCatalogTable.getTableSource().isPresent(),
-			equalTo(true));
 	}
 }

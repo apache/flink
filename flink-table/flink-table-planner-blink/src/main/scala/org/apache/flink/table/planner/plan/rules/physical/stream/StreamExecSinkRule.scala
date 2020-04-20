@@ -42,32 +42,32 @@ class StreamExecSinkRule extends ConverterRule(
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    sinkNode.sink match {
-      case partitionSink: PartitionableTableSink
-        if partitionSink.getPartitionFieldNames != null &&
-          partitionSink.getPartitionFieldNames.nonEmpty =>
-        val partitionFields = partitionSink.getPartitionFieldNames
-        val partitionIndices = partitionFields
-          .map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
-        // validate
-        partitionIndices.foreach { idx =>
-          if (idx < 0) {
-            throw new TableException(s"Partitionable sink ${sinkNode.sinkName} field " +
-              s"${partitionFields.get(idx)} must be in the schema.")
+    if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
+      sinkNode.sink match {
+        case partitionSink: PartitionableTableSink =>
+          partitionSink.setStaticPartition(sinkNode.staticPartitions)
+          val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
+              .filter(!sinkNode.staticPartitions.contains(_))
+
+          if (dynamicPartFields.nonEmpty) {
+            val dynamicPartIndices =
+              dynamicPartFields.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
+
+            if (partitionSink.configurePartitionGrouping(false)) {
+              throw new TableException("Partition grouping in stream mode is not supported yet!")
+            }
+
+            if (!partitionSink.isInstanceOf[DataStreamTableSink[_]]) {
+              requiredTraitSet = requiredTraitSet.plus(
+                FlinkRelDistribution.hash(dynamicPartIndices
+                    .map(Integer.valueOf), requireStrict = false))
+            }
           }
-        }
-
-        if (partitionSink.configurePartitionGrouping(false)) {
-          throw new TableException("Partition grouping in stream mode is not supported yet!")
-        }
-
-        if (!partitionSink.isInstanceOf[DataStreamTableSink[_]]) {
-          requiredTraitSet = requiredTraitSet.plus(
-            FlinkRelDistribution.hash(partitionIndices
-              .map(Integer.valueOf), requireStrict = false))
-        }
-      case _ =>
+        case _ => throw new TableException("We need PartitionableTableSink to write data to" +
+            s" partitioned table: ${sinkNode.sinkName}")
+      }
     }
+
     val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
     new StreamExecSink(

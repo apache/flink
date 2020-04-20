@@ -18,16 +18,20 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.program.ProgramAbortException;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import py4j.GatewayServer;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A main class used to launch Python applications. It executes python as a
@@ -37,9 +41,9 @@ public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
 	public static void main(String[] args) {
-		// the python job needs at least 2 args.
-		// e.g. py a.py ...
-		// e.g. pym a.b -pyfs a.zip ...
+		// The python job needs at least 2 args.
+		// e.g. py a.py [user args]
+		// e.g. pym a.b [user args]
 		if (args.length < 2) {
 			LOG.error("Required at least two arguments, only python file or python module is available.");
 			System.exit(1);
@@ -57,20 +61,26 @@ public final class PythonDriver {
 			System.exit(1);
 		}
 
+		// Get configuration from ContextEnvironment/OptimizerPlanEnvironment. As the configurations of
+		// streaming and batch environments are always set at the same time, for streaming jobs we can
+		// also get its configuration from batch environments.
+		Configuration config = ExecutionEnvironment.getExecutionEnvironment().getConfiguration();
+
 		// start gateway server
 		GatewayServer gatewayServer = startGatewayServer();
-		// prepare python env
 
 		// commands which will be exec in python progress.
 		final List<String> commands = constructPythonCommands(pythonDriverOptions);
 		try {
 			// prepare the exec environment of python progress.
-			PythonEnvUtils.PythonEnvironment pythonEnv = PythonEnvUtils.preparePythonEnvironment(
-				pythonDriverOptions.getPythonLibFiles());
+			String tmpDir = System.getProperty("java.io.tmpdir") +
+				File.separator + "pyflink" + File.separator + UUID.randomUUID();
+			PythonDriverEnvUtils.PythonEnvironment pythonEnv = PythonDriverEnvUtils.preparePythonEnvironment(
+				config, pythonDriverOptions.getEntryPointScript().orElse(null), tmpDir);
 			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
 			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
-			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonDriverEnvUtils.startPythonProcess(pythonEnv, commands);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
@@ -80,7 +90,7 @@ public final class PythonDriver {
 
 			// throw ProgramAbortException if the caller is interested in the program plan,
 			// there is no harm to throw ProgramAbortException even if it is not the case.
-			throw new OptimizerPlanEnvironment.ProgramAbortException();
+			throw new ProgramAbortException();
 		} finally {
 			gatewayServer.shutdown();
 		}
@@ -118,7 +128,7 @@ public final class PythonDriver {
 	static List<String> constructPythonCommands(final PythonDriverOptions pythonDriverOptions) {
 		final List<String> commands = new ArrayList<>();
 		commands.add("-m");
-		commands.add(pythonDriverOptions.getEntrypointModule());
+		commands.add(pythonDriverOptions.getEntryPointModule());
 		commands.addAll(pythonDriverOptions.getProgramArgs());
 		return commands;
 	}

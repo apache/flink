@@ -53,8 +53,8 @@ public class QueryableStateConfiguration {
 
 		checkArgument(proxyPortRange != null && proxyPortRange.hasNext());
 		checkArgument(qserverPortRange != null && qserverPortRange.hasNext());
-		checkArgument(numProxyThreads >= 0, "queryable state number of server threads must be zero or larger");
-		checkArgument(numPQueryThreads >= 0, "queryable state number of query threads must be zero or larger");
+		checkArgument(numProxyThreads >= 0, "queryable state number of proxy threads must be zero or larger");
+		checkArgument(numPQueryThreads >= 0, "queryable state number of proxy query threads must be zero or larger");
 		checkArgument(numServerThreads >= 0, "queryable state number of server threads must be zero or larger");
 		checkArgument(numSQueryThreads >= 0, "queryable state number of query threads must be zero or larger");
 
@@ -77,7 +77,7 @@ public class QueryableStateConfiguration {
 	}
 
 	/**
-	 * Returns the port range where the queryable state client proxy can listen.
+	 * Returns the port range where the queryable state server can listen.
 	 * See {@link org.apache.flink.configuration.QueryableStateOptions#SERVER_PORT_RANGE QueryableStateOptions.SERVER_PORT_RANGE}.
 	 */
 	public Iterator<Integer> getStateServerPortRange() {
@@ -85,7 +85,7 @@ public class QueryableStateConfiguration {
 	}
 
 	/**
-	 * Returns the number of threads for the query server NIO event loop.
+	 * Returns the number of threads for the query proxy NIO event loop.
 	 * These threads only process network events and dispatch query requests to the query threads.
 	 */
 	public int numProxyServerThreads() {
@@ -93,8 +93,7 @@ public class QueryableStateConfiguration {
 	}
 
 	/**
-	 * Returns the number of threads for the thread pool that performs the actual state lookup.
-	 * These threads perform the actual state lookup.
+	 * Returns the number of query threads for the queryable state client proxy.
 	 */
 	public int numProxyQueryThreads() {
 		return numPQueryThreads;

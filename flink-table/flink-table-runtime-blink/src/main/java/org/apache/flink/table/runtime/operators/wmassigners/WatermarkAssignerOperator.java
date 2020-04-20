@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -27,7 +28,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.generated.WatermarkGenerator;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A stream operator that extracts timestamps from stream elements and
@@ -41,32 +46,42 @@ public class WatermarkAssignerOperator
 
 	private final int rowtimeFieldIndex;
 
-	private final long watermarkDelay;
-
 	private final long idleTimeout;
+
+	private final WatermarkGenerator watermarkGenerator;
+
+	private transient long lastWatermark;
 
 	private transient long watermarkInterval;
 
 	private transient long currentWatermark;
 
-	private transient long currentMaxTimestamp;
-
 	private transient long lastRecordTime;
 
 	private transient StreamStatusMaintainer streamStatusMaintainer;
 
+	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
+	private transient boolean functionsClosed = false;
+
 	/**
 	 * Create a watermark assigner operator.
 	 * @param rowtimeFieldIndex  the field index to extract event timestamp
-	 * @param watermarkDelay    the delay by which watermarks are behind the maximum observed timestamp.
+	 * @param watermarkGenerator	the watermark generator
 	 * @param idleTimeout   (idleness checking timeout)
 	 */
-	public WatermarkAssignerOperator(int rowtimeFieldIndex, long watermarkDelay, long idleTimeout) {
+	public WatermarkAssignerOperator(
+		int rowtimeFieldIndex,
+		WatermarkGenerator watermarkGenerator,
+		long idleTimeout,
+		ProcessingTimeService processingTimeService) {
+
 		this.rowtimeFieldIndex = rowtimeFieldIndex;
-		this.watermarkDelay = watermarkDelay;
+		this.watermarkGenerator = watermarkGenerator;
 
 		this.idleTimeout = idleTimeout;
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
+
+		this.processingTimeService = checkNotNull(processingTimeService);
 	}
 
 	@Override
@@ -75,7 +90,6 @@ public class WatermarkAssignerOperator
 
 		// watermark and timestamp should start from 0
 		this.currentWatermark = 0;
-		this.currentMaxTimestamp = 0;
 		this.watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 		this.lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
 		this.streamStatusMaintainer = getContainingTask().getStreamStatusMaintainer();
@@ -84,6 +98,9 @@ public class WatermarkAssignerOperator
 			long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
+
+		FunctionUtils.setFunctionRuntimeContext(watermarkGenerator, getRuntimeContext());
+		FunctionUtils.openFunction(watermarkGenerator, new Configuration());
 	}
 
 	@Override
@@ -98,24 +115,25 @@ public class WatermarkAssignerOperator
 			throw new RuntimeException("RowTime field should not be null," +
 					" please convert it to a non-null long value.");
 		}
-		long ts = row.getLong(rowtimeFieldIndex);
-		currentMaxTimestamp = Math.max(currentMaxTimestamp, ts);
+		Long watermark = watermarkGenerator.currentWatermark(row);
+		if (watermark != null) {
+			currentWatermark = Math.max(currentWatermark, watermark);
+		}
 		// forward element
 		output.collect(element);
 
-		// eagerly emit watermark to avoid period timer not called
-		// current_ts - last_ts > interval
-		if (currentMaxTimestamp - (currentWatermark + watermarkDelay) > watermarkInterval) {
+		// eagerly emit watermark to avoid period timer not called (this often happens when cpu load is high)
+		// current_wm - last_wm > interval
+		if (currentWatermark - lastWatermark > watermarkInterval) {
 			advanceWatermark();
 		}
 	}
 
 	private void advanceWatermark() {
-		long newWatermark = currentMaxTimestamp - watermarkDelay;
-		if (newWatermark > currentWatermark) {
-			currentWatermark = newWatermark;
+		if (currentWatermark > lastWatermark) {
+			lastWatermark = currentWatermark;
 			// emit watermark
-			output.emitWatermark(new Watermark(newWatermark));
+			output.emitWatermark(new Watermark(currentWatermark));
 		}
 	}
 
@@ -138,8 +156,7 @@ public class WatermarkAssignerOperator
 
 	/**
 	 * Override the base implementation to completely ignore watermarks propagated from
-	 * upstream (we rely only on the {@link AssignerWithPeriodicWatermarks} to emit
-	 * watermarks from here).
+	 * upstream (we rely only on the {@link WatermarkGenerator} to emit watermarks from here).
 	 */
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
@@ -155,16 +172,21 @@ public class WatermarkAssignerOperator
 		}
 	}
 
-	public void endInput() throws Exception {
+	@Override
+	public void close() throws Exception {
+		// all records have been processed, emit a final watermark
 		processWatermark(Watermark.MAX_WATERMARK);
+
+		functionsClosed = true;
+		FunctionUtils.closeFunction(watermarkGenerator);
 	}
 
 	@Override
-	public void close() throws Exception {
-		endInput(); // TODO after introduce endInput
-		super.close();
-
-		// emit a final watermark
-		advanceWatermark();
+	public void dispose() throws Exception {
+		super.dispose();
+		if (!functionsClosed) {
+			functionsClosed = true;
+			FunctionUtils.closeFunction(watermarkGenerator);
+		}
 	}
 }

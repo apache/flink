@@ -20,9 +20,8 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecGroupWindowAggregate, StreamExecTableSourceScan, StreamExecWatermarkAssigner, StreamPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecGroupWindowAggregate, StreamExecMiniBatchAssigner, StreamExecTableSourceScan, StreamExecWatermarkAssigner, StreamPhysicalRel}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -31,11 +30,11 @@ import org.apache.calcite.rel.RelNode
 import scala.collection.JavaConversions._
 
 /**
-  * Planner rule that infers the mini-batch interval of watermark assigner.
+  * Planner rule that infers the mini-batch interval of minibatch asssigner.
   *
   * This rule could handle the following two kinds of operator:
   * 1. supports operators which supports mini-batch and does not require watermark, e.g.
-  * group aggregate. In this case, [[StreamExecWatermarkAssigner]] with Protime mode will be
+  * group aggregate. In this case, [[StreamExecMiniBatchAssigner]] with Protime mode will be
   * created if not exist, and the interval value will be set as
   * [[ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY]].
   * 2. supports operators which requires watermark, e.g. window join, window aggregate.
@@ -74,6 +73,8 @@ class MiniBatchIntervalInferRule extends RelOptRule(
 
       case _: StreamExecWatermarkAssigner => MiniBatchIntervalTrait.NONE
 
+      case _: StreamExecMiniBatchAssigner => MiniBatchIntervalTrait.NONE
+
       case _ => if (rel.requireWatermark && miniBatchEnabled) {
         val mergedInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
           miniBatchIntervalTrait.getMiniBatchInterval, MiniBatchInterval(0, MiniBatchMode.RowTime))
@@ -85,30 +86,27 @@ class MiniBatchIntervalInferRule extends RelOptRule(
 
     // propagate parent's MiniBatchInterval to children.
     val updatedInputs = inputs.map { input =>
-      val originTrait = input.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
-      val newChild = if (originTrait != updatedTrait) {
-        /**
-          * calc new MiniBatchIntervalTrait according parent's miniBatchInterval
-          * and the child's original miniBatchInterval.
-          */
-        val mergedMiniBatchInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
-          originTrait.getMiniBatchInterval, updatedTrait.getMiniBatchInterval)
-        val inferredTrait = new MiniBatchIntervalTrait(mergedMiniBatchInterval)
-        input.copy(input.getTraitSet.plus(inferredTrait), input.getInputs)
-      } else {
-        input
-      }
-
       // add mini-batch watermark assigner node.
-      if (isTableSourceScan(newChild) &&
-        newChild.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
-          .getMiniBatchInterval.mode == MiniBatchMode.ProcTime) {
-        StreamExecWatermarkAssigner.createIngestionTimeWatermarkAssigner(
-          newChild.getCluster,
-          newChild.getTraitSet,
-          newChild.copy(newChild.getTraitSet.plus(MiniBatchIntervalTrait.NONE), newChild.getInputs))
+      if (shouldAppendMiniBatchAssignerNode(input)) {
+        new StreamExecMiniBatchAssigner(
+          input.getCluster,
+          input.getTraitSet,
+          // attach NONE trait for all of the inputs of MiniBatchAssigner,
+          // as they are leaf nodes and don't need to do propagate
+          input.copy(input.getTraitSet.plus(MiniBatchIntervalTrait.NONE), input.getInputs)
+        )
       } else {
-        newChild
+        val originTrait = input.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
+        if (originTrait != updatedTrait) {
+          // calculate new MiniBatchIntervalTrait according parent's miniBatchInterval
+          // and the child's original miniBatchInterval.
+          val mergedMiniBatchInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
+            originTrait.getMiniBatchInterval, updatedTrait.getMiniBatchInterval)
+          val inferredTrait = new MiniBatchIntervalTrait(mergedMiniBatchInterval)
+          input.copy(input.getTraitSet.plus(inferredTrait), input.getInputs)
+        } else {
+          input
+        }
       }
     }
     // update parent if a child was updated
@@ -118,9 +116,26 @@ class MiniBatchIntervalInferRule extends RelOptRule(
     }
   }
 
-  private def isTableSourceScan(node: RelNode): Boolean = node match {
-    case _: StreamExecDataStreamScan | _: StreamExecTableSourceScan => true
-    case _ => false
+  private def shouldAppendMiniBatchAssignerNode(node: RelNode): Boolean = {
+    val mode = node.getTraitSet
+      .getTrait(MiniBatchIntervalTraitDef.INSTANCE)
+      .getMiniBatchInterval
+      .mode
+    node match {
+      case _: StreamExecDataStreamScan | _: StreamExecTableSourceScan =>
+        // append minibatch node if the mode is not NONE and reach a source leaf node
+        mode == MiniBatchMode.RowTime || mode == MiniBatchMode.ProcTime
+      case _: StreamExecWatermarkAssigner  =>
+        // append minibatch node if it is rowtime mode and the child is watermark assigner
+        // TODO: if it is ProcTime mode, we also append a minibatch node for now.
+        //  Because the downstream can be a regular aggregate and the watermark assigner
+        //  might be redundant. In FLINK-14621, we will remove redundant watermark assigner,
+        //  then we can remove the ProcTime condition.
+        mode == MiniBatchMode.RowTime || mode == MiniBatchMode.ProcTime
+      case _ =>
+        // others do not append minibatch node
+        false
+    }
   }
 }
 

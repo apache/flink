@@ -29,6 +29,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataview.MapViewTypeInfo;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
@@ -36,18 +37,27 @@ import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
+import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -98,6 +108,29 @@ public class TypeInfoDataTypeConverter {
 		}
 		LogicalType logicalType = fromDataTypeToLogicalType(dataType);
 		switch (logicalType.getTypeRoot()) {
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				TimestampType timestampType = (TimestampType) logicalType;
+				int precision = timestampType.getPrecision();
+				if (timestampType.getKind() == TimestampKind.REGULAR) {
+					return clazz == SqlTimestamp.class ?
+						new SqlTimestampTypeInfo(precision) :
+						(clazz == LocalDateTime.class ?
+							((3 == precision) ?
+								Types.LOCAL_DATE_TIME : new LegacyLocalDateTimeTypeInfo(precision)) :
+							((3 == precision) ?
+								Types.SQL_TIMESTAMP : new LegacyTimestampTypeInfo(precision)));
+				} else {
+					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+				}
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) logicalType;
+				int precisionLzTs = lzTs.getPrecision();
+				return clazz == SqlTimestamp.class ?
+					new SqlTimestampTypeInfo(precisionLzTs) :
+					(clazz == Instant.class ?
+						((3 == precisionLzTs) ? Types.INSTANT : new LegacyInstantTypeInfo(precisionLzTs)) :
+						TypeConversions.fromDataTypeToLegacyInfo(dataType));
+
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) logicalType;
 				return clazz == Decimal.class ?

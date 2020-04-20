@@ -290,7 +290,7 @@ class JoinTest extends TableTestBase {
           ),
           unaryNode("DataStreamCalc",
             streamTableNode(t2),
-            term("select", "a", "c", "proctime", "CAST(12:BIGINT) AS nullField")
+            term("select", "a", "c", "proctime", "12:BIGINT AS nullField")
           ),
           term("where", "AND(=(a, a0), =(nullField, nullField0), >=(PROCTIME(proctime), " +
             "-(PROCTIME(proctime0), 5000:INTERVAL SECOND)), <=(PROCTIME(proctime), " +
@@ -848,15 +848,15 @@ class JoinTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(left),
-          term("select", "a", "b", "<(b, 2) AS $f3")
+          term("select", "a", "b")
         ),
         unaryNode(
           "DataStreamCalc",
           streamTableNode(right),
           term("select", "y", "z")
         ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "$f3", "y", "z"),
+        term("where", "AND(=(a, z), <(b, 2))"),
+        term("join", "a", "b", "y", "z"),
         term("joinType", "LeftOuterJoin")
       ),
       term("select", "b", "y")
@@ -948,10 +948,10 @@ class JoinTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(right),
-          term("select", "x", "z", "<(x, 2) AS $f3")
+          term("select", "x", "z")
         ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "x", "z", "$f3"),
+        term("where", "AND(=(a, z), <(x, 2))"),
+        term("join", "a", "b", "x", "z"),
         term("joinType", "RightOuterJoin")
       ),
       term("select", "b", "x")

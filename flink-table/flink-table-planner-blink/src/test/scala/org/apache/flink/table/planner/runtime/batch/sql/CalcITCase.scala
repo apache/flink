@@ -28,8 +28,8 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter}
-import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter}
+import org.apache.flink.table.dataformat.{Decimal, SqlTimestamp}
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
@@ -41,12 +41,11 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
-
+import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{LocalDate, LocalDateTime}
+import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.util
 
 import scala.collection.Seq
@@ -65,7 +64,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStar(): Unit = {
     checkResult(
-      "SELECT * FROM Table3",
+      "SELECT * FROM Table3 where a is not null",
       data3)
   }
 
@@ -307,6 +306,14 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testDecimalReturnType(): Unit = {
+    registerFunction("myNegative", MyNegative)
+    checkResult("SELECT myNegative(5.1)",
+      Seq(row(new java.math.BigDecimal("-5.100000000000000000"))
+      ))
+  }
+
+  @Test
   def testUDFWithInternalClass(): Unit = {
     registerFunction("func", BinaryStringFunction)
     val data = Seq(row("a"), row("b"), row("c"))
@@ -316,6 +323,28 @@ class CalcITCase extends BatchTestBase {
       "SELECT func(text) FROM MyTable",
       Seq(row("a"), row("b"), row("c")
       ))
+  }
+
+  @Test
+  def testTimestampSemantics(): Unit = {
+    // If the timestamp literal '1969-07-20 16:17:39' is inserted in Washington D.C.
+    // and then queried from Paris, it might be shown in the following ways based
+    // on timestamp semantics:
+    // TODO: Add ZonedDateTime/OffsetDateTime
+    val new_york = ZoneId.of("America/New_York")
+    val ldt = localDateTime("1969-07-20 16:17:39")
+    val data = Seq(row(
+      ldt,
+      ldt.toInstant(new_york.getRules.getOffset(ldt))
+    ))
+    registerCollection("T", data, new RowTypeInfo(LOCAL_DATE_TIME, INSTANT), "a, b")
+
+    val pairs = ZoneId.of("Europe/Paris")
+    tEnv.getConfig.setLocalTimeZone(pairs)
+    checkResult(
+      "SELECT CAST(a AS VARCHAR), b, CAST(b AS VARCHAR) FROM T",
+      Seq(row("1969-07-20 16:17:39.000", "1969-07-20T20:17:39Z", "1969-07-20 21:17:39.000"))
+    )
   }
 
   @Test
@@ -361,7 +390,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testBinary(): Unit = {
-    val data = Seq(row(1, 2, "hehe".getBytes))
+    val data = Seq(row(1, 2, "hehe".getBytes(StandardCharsets.UTF_8)))
     registerCollection(
       "MyTable",
       data,
@@ -427,7 +456,6 @@ class CalcITCase extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO support agg
   @Test
   def testExternalTypeFunc2(): Unit = {
     registerFunction("func1", RowFunc)
@@ -576,7 +604,6 @@ class CalcITCase extends BatchTestBase {
       Seq(row("Hello"), row("Hello world")))
   }
 
-  @Ignore // TODO support substring
   @Test
   def testComplexNotInLargeValues(): Unit = {
     checkResult(
@@ -701,14 +728,14 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testValueConstructor(): Unit = {
-    val data = Seq(row("foo", 12, localDateTime("1984-07-12 14:34:24")))
+    val data = Seq(row("foo", 12, localDateTime("1984-07-12 14:34:24.001")))
     BatchTableEnvUtil.registerCollection(
       tEnv, "MyTable", data,
       new RowTypeInfo(Types.STRING, Types.INT, Types.LOCAL_DATE_TIME),
       Some(parseFieldNames("a, b, c")), None, None)
 
     val table = parseQuery("SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
-        "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")
+        "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24.001')")
     val result = executeQuery(table)
 
     val baseRow = result.head.getField(0).asInstanceOf[Row]
@@ -773,7 +800,6 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Ignore //TODO support cast string to bigint.
   @Test
   def testSelectStarFromNestedValues2(): Unit = {
     val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
@@ -1005,8 +1031,8 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = LocalDateTimeConverter.INSTANCE.toInternal(
-      result.toList.head.getField(0).asInstanceOf[LocalDateTime])
+    val ts1 = SqlTimestamp.fromLocalDateTime(
+      result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
 
@@ -1048,7 +1074,6 @@ class CalcITCase extends BatchTestBase {
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
     */
-  @Ignore
   @Test
   def testTimestampCompareWithDateString(): Unit = {
     //j 2015-05-20 10:00:00.887
@@ -1170,13 +1195,15 @@ class CalcITCase extends BatchTestBase {
   def testCalcBinary(): Unit = {
     registerCollection(
       "BinaryT",
-      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      nullData3.map((r) => row(r.getField(0), r.getField(1),
+        r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
     checkResult(
       "select a, b, c from BinaryT where b < 1000",
-      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes))
+      nullData3.map((r) => row(r.getField(0), r.getField(1),
+        r.getField(2).toString.getBytes(StandardCharsets.UTF_8)))
     )
   }
 
@@ -1184,7 +1211,8 @@ class CalcITCase extends BatchTestBase {
   def testOrderByBinary(): Unit = {
     registerCollection(
       "BinaryT",
-      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      nullData3.map((r) => row(r.getField(0), r.getField(1),
+        r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
@@ -1196,7 +1224,8 @@ class CalcITCase extends BatchTestBase {
       "select * from BinaryT order by c",
       nullData3.sortBy((x : Row) =>
         x.getField(2).asInstanceOf[String]).map((r) =>
-        row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+        row(r.getField(0), r.getField(1),
+          r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       isSorted = true
     )
   }
@@ -1205,7 +1234,8 @@ class CalcITCase extends BatchTestBase {
   def testGroupByBinary(): Unit = {
     registerCollection(
       "BinaryT2",
-      nullData3.map((r) => row(r.getField(0), r.getField(1).toString.getBytes, r.getField(2))),
+      nullData3.map((r) => row(r.getField(0),
+        r.getField(1).toString.getBytes(StandardCharsets.UTF_8), r.getField(2))),
       new RowTypeInfo(INT_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO, STRING_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)

@@ -45,16 +45,17 @@ public class BufferConsumer implements Closeable {
 	private int currentReaderPosition;
 
 	/**
-	 * Constructs {@link BufferConsumer} instance with content that can be changed by {@link BufferBuilder}.
+	 * Constructs {@link BufferConsumer} instance with the initial reader position.
 	 */
 	public BufferConsumer(
 			MemorySegment memorySegment,
 			BufferRecycler recycler,
-			PositionMarker currentWriterPosition) {
+			PositionMarker currentWriterPosition,
+			int currentReaderPosition) {
 		this(
 			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), true),
 			currentWriterPosition,
-			0);
+			currentReaderPosition);
 	}
 
 	/**
@@ -136,6 +137,17 @@ public class BufferConsumer implements Closeable {
 		return writerPosition.getCached();
 	}
 
+	int getCurrentReaderPosition() {
+		return currentReaderPosition;
+	}
+
+	/**
+	 * Returns true if there is new data available for reading.
+	 */
+	public boolean isDataAvailable() {
+		return currentReaderPosition < writerPosition.getLatest();
+	}
+
 	/**
 	 * Cached reading wrapper around {@link PositionMarker}.
 	 *
@@ -161,6 +173,10 @@ public class BufferConsumer implements Closeable {
 
 		public int getCached() {
 			return PositionMarker.getAbsolute(cachedPosition);
+		}
+
+		private int getLatest() {
+			return PositionMarker.getAbsolute(positionMarker.get());
 		}
 
 		private void update() {

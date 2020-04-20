@@ -99,7 +99,7 @@ public class InputChannelBuilder {
 		return this;
 	}
 
-	InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
+	public InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
 		this.partitionManager = network.getResultPartitionManager();
 		this.connectionManager = network.getConnectionManager();
 		this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();
@@ -108,8 +108,8 @@ public class InputChannelBuilder {
 		return this;
 	}
 
-	UnknownInputChannel buildUnknownAndSetToGate(SingleInputGate inputGate) {
-		UnknownInputChannel channel = new UnknownInputChannel(
+	UnknownInputChannel buildUnknownChannel(SingleInputGate inputGate) {
+		return new UnknownInputChannel(
 			inputGate,
 			channelIndex,
 			partitionId,
@@ -120,12 +120,10 @@ public class InputChannelBuilder {
 			maxBackoff,
 			metrics,
 			memorySegmentProvider);
-		inputGate.setInputChannel(partitionId.getPartitionId(), channel);
-		return channel;
 	}
 
-	public LocalInputChannel buildLocalAndSetToGate(SingleInputGate inputGate) {
-		LocalInputChannel channel = new LocalInputChannel(
+	public LocalInputChannel buildLocalChannel(SingleInputGate inputGate) {
+		return new LocalInputChannel(
 			inputGate,
 			channelIndex,
 			partitionId,
@@ -134,12 +132,10 @@ public class InputChannelBuilder {
 			initialBackoff,
 			maxBackoff,
 			metrics);
-		inputGate.setInputChannel(partitionId.getPartitionId(), channel);
-		return channel;
 	}
 
-	public RemoteInputChannel buildRemoteAndSetToGate(SingleInputGate inputGate) {
-		RemoteInputChannel channel = new RemoteInputChannel(
+	public RemoteInputChannel buildRemoteChannel(SingleInputGate inputGate) {
+		return new RemoteInputChannel(
 			inputGate,
 			channelIndex,
 			partitionId,
@@ -149,7 +145,5 @@ public class InputChannelBuilder {
 			maxBackoff,
 			metrics,
 			memorySegmentProvider);
-		inputGate.setInputChannel(partitionId.getPartitionId(), channel);
-		return channel;
 	}
 }

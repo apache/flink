@@ -44,6 +44,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
 	protected static final String TEST_TABLE_1 = "testTable1";
 	protected static final String TEST_TABLE_2 = "testTable2";
+	protected static final String TEST_TABLE_3 = "testTable3";
 
 	protected static final String ROWKEY = "rk";
 	protected static final String FAMILY1 = "family1";
@@ -57,6 +58,8 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 	protected static final String F3COL1 = "col1";
 	protected static final String F3COL2 = "col2";
 	protected static final String F3COL3 = "col3";
+
+	protected static final String FAMILY4 = "family4";
 
 	private static final byte[][] FAMILIES = new byte[][]{
 		Bytes.toBytes(FAMILY1),
@@ -100,6 +103,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 	private static void prepareTables() throws IOException {
 		createHBaseTable1();
 		createHBaseTable2();
+		createHBaseTable3();
 	}
 
 	private static void createHBaseTable1() throws IOException {
@@ -129,6 +133,18 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 		// create a table
 		TableName tableName = TableName.valueOf(TEST_TABLE_2);
 		createTable(tableName, FAMILIES, SPLIT_KEYS);
+	}
+
+	private static void createHBaseTable3() {
+		// create a table
+		byte[][] families = new byte[][]{
+			Bytes.toBytes(FAMILY1),
+			Bytes.toBytes(FAMILY2),
+			Bytes.toBytes(FAMILY3),
+			Bytes.toBytes(FAMILY4),
+		};
+		TableName tableName = TableName.valueOf(TEST_TABLE_3);
+		createTable(tableName, families, SPLIT_KEYS);
 	}
 
 	private static Put putRow(int rowKey, int f1c1, String f2c1, long f2c2, double f3c1, boolean f3c2, String f3c3) {

@@ -260,4 +260,13 @@ class AggregateTest extends TableTestBase {
   def testMaxWithRetract(): Unit = {
     util.verifyPlanWithTrait("SELECT MAX(a) FROM (SELECT MAX(a) AS a FROM T GROUP BY b)")
   }
+
+  @Test
+  def testGroupByWithConstantKey(): Unit = {
+    val sql =
+      """
+        |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM T) t GROUP BY a, c
+      """.stripMargin
+    util.verifyPlan(sql)
+  }
 }

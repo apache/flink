@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
-import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -37,7 +36,7 @@ public interface BufferStorage extends AutoCloseable {
 	 *
 	 * @param boe The buffer or event to be added into the blocker.
 	 */
-	void add(BufferOrEvent boe) throws IOException;
+	void add(BufferOrEvent boe);
 
 	/**
 	 * @return true if size limit was exceeded.
@@ -47,7 +46,7 @@ public interface BufferStorage extends AutoCloseable {
 	/**
 	 * Start returning next sequence of stored {@link BufferOrEvent}s.
 	 */
-	void rollOver() throws IOException;
+	void rollOver();
 
 	/**
 	 * @return the number of pending bytes blocked in the current sequence - bytes that are have not
@@ -65,7 +64,7 @@ public interface BufferStorage extends AutoCloseable {
 	 */
 	boolean isEmpty();
 
-	Optional<BufferOrEvent> pollNext() throws IOException;
+	Optional<BufferOrEvent> pollNext();
 
 	long getMaxBufferedBytes();
 
@@ -73,5 +72,5 @@ public interface BufferStorage extends AutoCloseable {
 	 * Cleans up all the resources in the current sequence.
 	 */
 	@Override
-	void close() throws IOException;
+	void close();
 }

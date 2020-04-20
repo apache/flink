@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * Record serializer which serializes the complete record to an intermediate
@@ -44,18 +43,11 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}). */
 	private ByteBuffer dataBuffer;
 
-	/** Intermediate buffer for length serialization. */
-	private final ByteBuffer lengthBuffer;
-
 	public SpanningRecordSerializer() {
 		serializationBuffer = new DataOutputSerializer(128);
 
-		lengthBuffer = ByteBuffer.allocate(4);
-		lengthBuffer.order(ByteOrder.BIG_ENDIAN);
-
 		// ensure initial state with hasRemaining false (for correct continueWritingWithNextBufferBuilder logic)
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
-		lengthBuffer.position(4);
 	}
 
 	/**
@@ -72,13 +64,16 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		}
 
 		serializationBuffer.clear();
-		lengthBuffer.clear();
+		// the initial capacity of the serialization buffer should be no less than 4
+		serializationBuffer.skipBytesToWrite(4);
 
 		// write data and length
 		record.write(serializationBuffer);
 
-		int len = serializationBuffer.length();
-		lengthBuffer.putInt(0, len);
+		int len = serializationBuffer.length() - 4;
+		serializationBuffer.setPosition(0);
+		serializationBuffer.writeInt(len);
+		serializationBuffer.skipBytesToWrite(len);
 
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 	}
@@ -92,7 +87,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	 */
 	@Override
 	public SerializationResult copyToBufferBuilder(BufferBuilder targetBuffer) {
-		targetBuffer.append(lengthBuffer);
 		targetBuffer.append(dataBuffer);
 		targetBuffer.commit();
 
@@ -100,7 +94,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	private SerializationResult getSerializationResult(BufferBuilder targetBuffer) {
-		if (dataBuffer.hasRemaining() || lengthBuffer.hasRemaining()) {
+		if (dataBuffer.hasRemaining()) {
 			return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
 		}
 		return !targetBuffer.isFull()
@@ -111,7 +105,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	@Override
 	public void reset() {
 		dataBuffer.position(0);
-		lengthBuffer.position(0);
 	}
 
 	@Override
@@ -122,6 +115,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 	@Override
 	public boolean hasSerializedData() {
-		return lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
+		return dataBuffer.hasRemaining();
 	}
 }

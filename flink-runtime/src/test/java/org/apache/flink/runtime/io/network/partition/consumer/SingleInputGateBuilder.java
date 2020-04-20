@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -41,11 +42,13 @@ public class SingleInputGateBuilder {
 
 	private int consumedSubpartitionIndex = 0;
 
+	private int gateIndex = 0;
+
 	private int numberOfChannels = 1;
 
 	private PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
 
-	private boolean isCreditBased = true;
+	private BufferDecompressor bufferDecompressor = null;
 
 	private SupplierWithException<BufferPool, IOException> bufferPoolFactory = () -> {
 		throw new UnsupportedOperationException();
@@ -68,13 +71,13 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
-	public SingleInputGateBuilder setNumberOfChannels(int numberOfChannels) {
-		this.numberOfChannels = numberOfChannels;
+	SingleInputGateBuilder setSingleInputGateIndex(int gateIndex) {
+		this.gateIndex = gateIndex;
 		return this;
 	}
 
-	public SingleInputGateBuilder setIsCreditBased(boolean isCreditBased) {
-		this.isCreditBased = isCreditBased;
+	public SingleInputGateBuilder setNumberOfChannels(int numberOfChannels) {
+		this.numberOfChannels = numberOfChannels;
 		return this;
 	}
 
@@ -82,7 +85,6 @@ public class SingleInputGateBuilder {
 		NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
 		this.bufferPoolFactory = SingleInputGateFactory.createBufferPoolFactory(
 			environment.getNetworkBufferPool(),
-			config.isCreditBased(),
 			config.networkBuffersPerChannel(),
 			config.floatingNetworkBuffersPerGate(),
 			numberOfChannels,
@@ -95,15 +97,21 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setBufferDecompressor(BufferDecompressor bufferDecompressor) {
+		this.bufferDecompressor = bufferDecompressor;
+		return this;
+	}
+
 	public SingleInputGate build() {
 		return new SingleInputGate(
 			"Single Input Gate",
+			gateIndex,
 			intermediateDataSetID,
 			partitionType,
 			consumedSubpartitionIndex,
 			numberOfChannels,
 			partitionProducerStateProvider,
-			isCreditBased,
-			bufferPoolFactory);
+			bufferPoolFactory,
+			bufferDecompressor);
 	}
 }

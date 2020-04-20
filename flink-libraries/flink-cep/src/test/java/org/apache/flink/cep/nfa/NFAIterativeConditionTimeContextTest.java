@@ -33,7 +33,7 @@ import java.util.List;
 
 import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.apache.flink.cep.utils.NFATestHarness.forPattern;
-import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 
 /**
  * Tests for accesing time properties from {@link IterativeCondition}.
@@ -56,7 +56,7 @@ public class NFAIterativeConditionTimeContextTest extends TestLogger {
 
 		final List<List<Event>> resultingPattern = testHarness.feedRecord(new StreamRecord<>(event, timestamp));
 
-		compareMaps(resultingPattern, Collections.singletonList(
+		comparePatterns(resultingPattern, Collections.singletonList(
 			Collections.singletonList(event)
 		));
 	}
@@ -83,8 +83,8 @@ public class NFAIterativeConditionTimeContextTest extends TestLogger {
 		cepTimerService.setCurrentProcessingTime(3);
 		final List<List<Event>> resultingPatterns2 = testHarness.feedRecord(new StreamRecord<>(event2, 8));
 
-		compareMaps(resultingPatterns1, Collections.emptyList());
-		compareMaps(resultingPatterns2, Collections.singletonList(
+		comparePatterns(resultingPatterns1, Collections.emptyList());
+		comparePatterns(resultingPatterns2, Collections.singletonList(
 			Collections.singletonList(event2)
 		));
 	}

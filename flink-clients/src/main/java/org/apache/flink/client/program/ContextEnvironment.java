@@ -20,96 +20,123 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.client.deployment.DetachedOnlyJobClientAdapter;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.ShutdownHookUtil;
 
-import java.net.URL;
-import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Execution Environment for remote execution with the Client.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	protected final ClusterClient<?> client;
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	protected final List<URL> jarFilesToAttach;
+	private final boolean forbidBlockingJobClient;
 
-	protected final List<URL> classpathsToAttach;
+	private final boolean enforceSingleJobExecution;
 
-	protected final ClassLoader userCodeClassLoader;
+	private int jobCounter;
 
-	protected final SavepointRestoreSettings savepointSettings;
+	public ContextEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean forbidBlockingJobClient) {
+		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.forbidBlockingJobClient = forbidBlockingJobClient;
+		this.enforceSingleJobExecution = enforceSingleJobExecution;
 
-	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
-		this.client = remoteConnection;
-		this.jarFilesToAttach = jarFiles;
-		this.classpathsToAttach = classpaths;
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.savepointSettings = savepointSettings;
+		this.jobCounter = 0;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
-		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
-				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings).getJobExecutionResult();
-		return this.lastJobExecutionResult;
+		JobClient jobClient = executeAsync(jobName);
+
+		JobExecutionResult jobExecutionResult;
+		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+					jobClient.getJobExecutionResult(getUserCodeClassLoader());
+
+			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+						() -> {
+							// wait a smidgen to allow the async request to go through before
+							// the jvm exits
+							jobClient.cancel().get(1, TimeUnit.SECONDS);
+						},
+						ContextEnvironment.class.getSimpleName(),
+						LOG);
+				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
+						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+			}
+
+			jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
+		} else {
+			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+		}
+
+		return jobExecutionResult;
 	}
 
 	@Override
-	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unnamed job");
+	public JobClient executeAsync(String jobName) throws Exception {
+		validateAllowedExecution();
 
-		OptimizedPlan op = ClusterClient.getOptimizedPlan(client.compiler, plan, getParallelism());
-		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
-		return gen.getOptimizerPlanAsJSON(op);
+		final JobClient jobClient = super.executeAsync(jobName);
+
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return forbidBlockingJobClient
+				? new DetachedOnlyJobClientAdapter(jobClient)
+				: jobClient;
 	}
 
-	@Override
-	public void startNewSession() throws Exception {
-		jobID = JobID.generate();
+	private void validateAllowedExecution() {
+		if (enforceSingleJobExecution && jobCounter > 0) {
+			throw new FlinkRuntimeException("Cannot have more than one execute() or executeAsync() call in a single environment.");
+		}
+		jobCounter++;
 	}
 
 	@Override
 	public String toString() {
-		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
-				+ ") : " + getIdString();
-	}
-
-	public ClusterClient<?> getClient() {
-		return this.client;
-	}
-
-	public List<URL> getJars(){
-		return jarFilesToAttach;
-	}
-
-	public List<URL> getClasspaths(){
-		return classpathsToAttach;
-	}
-
-	public ClassLoader getUserCodeClassLoader() {
-		return userCodeClassLoader;
-	}
-
-	public SavepointRestoreSettings getSavepointRestoreSettings() {
-		return savepointSettings;
+		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ")";
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean disallowBlockingJobClient) {
+		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
+			executorServiceLoader,
+			configuration,
+			userCodeClassLoader,
+			enforceSingleJobExecution,
+			disallowBlockingJobClient);
 		initializeContextEnvironment(factory);
 	}
 
-	static void unsetContext() {
+	public static void unsetAsContext() {
 		resetContextEnvironment();
 	}
 }

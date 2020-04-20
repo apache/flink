@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -36,6 +36,10 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ProducerDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -55,6 +59,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecution;
+import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
+import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -93,7 +100,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, slotFuture);
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -151,7 +157,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -197,7 +202,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -245,7 +249,6 @@ public class ExecutionTest extends TestLogger {
 		slotProvider.addSlot(jobVertexId, 0, slotFuture);
 
 		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -283,7 +286,7 @@ public class ExecutionTest extends TestLogger {
 	 * Tests that all preferred locations are calculated.
 	 */
 	@Test
-	public void testAllPreferredLocationCalculation() throws ExecutionException, InterruptedException {
+	public void testAllPreferredLocationCalculation() throws Exception {
 		final TaskManagerLocation taskManagerLocation1 = new LocalTaskManagerLocation();
 		final TaskManagerLocation taskManagerLocation2 = new LocalTaskManagerLocation();
 		final TaskManagerLocation taskManagerLocation3 = new LocalTaskManagerLocation();
@@ -292,7 +295,7 @@ public class ExecutionTest extends TestLogger {
 		final CompletableFuture<TaskManagerLocation> locationFuture2 = new CompletableFuture<>();
 		final CompletableFuture<TaskManagerLocation> locationFuture3 = new CompletableFuture<>();
 
-		final Execution execution = SchedulerTestUtils.getTestVertex(Arrays.asList(locationFuture1, locationFuture2, locationFuture3));
+		final Execution execution = getExecution(Arrays.asList(locationFuture1, locationFuture2, locationFuture3));
 
 		CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = execution.calculatePreferredLocations(LocationPreferenceConstraint.ALL);
 
@@ -315,7 +318,7 @@ public class ExecutionTest extends TestLogger {
 	 * Tests that any preferred locations are calculated.
 	 */
 	@Test
-	public void testAnyPreferredLocationCalculation() throws ExecutionException, InterruptedException {
+	public void testAnyPreferredLocationCalculation() throws Exception {
 		final TaskManagerLocation taskManagerLocation1 = new LocalTaskManagerLocation();
 		final TaskManagerLocation taskManagerLocation3 = new LocalTaskManagerLocation();
 
@@ -323,7 +326,7 @@ public class ExecutionTest extends TestLogger {
 		final CompletableFuture<TaskManagerLocation> locationFuture2 = new CompletableFuture<>();
 		final CompletableFuture<TaskManagerLocation> locationFuture3 = CompletableFuture.completedFuture(taskManagerLocation3);
 
-		final Execution execution = SchedulerTestUtils.getTestVertex(Arrays.asList(locationFuture1, locationFuture2, locationFuture3));
+		final Execution execution = getExecution(Arrays.asList(locationFuture1, locationFuture2, locationFuture3));
 
 		CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = execution.calculatePreferredLocations(LocationPreferenceConstraint.ANY);
 
@@ -353,7 +356,6 @@ public class ExecutionTest extends TestLogger {
 			slotOwner);
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -402,7 +404,6 @@ public class ExecutionTest extends TestLogger {
 			slotOwner);
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -451,7 +452,6 @@ public class ExecutionTest extends TestLogger {
 			(LogicalSlot logicalSlot) -> returnedSlotFuture.complete(logicalSlot.getSlotRequestId()));
 
 		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -518,7 +518,6 @@ public class ExecutionTest extends TestLogger {
 			return slotFuture;
 		});
 		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
@@ -538,6 +537,51 @@ public class ExecutionTest extends TestLogger {
 
 			assertThat(execution.getReleaseFuture().isDone(), is(true));
 		});
+	}
+
+	/**
+	 * Tests that incomplete futures returned by {@link ShuffleMaster#registerPartitionWithProducer} are rejected.
+	 */
+	@Test
+	public void testIncompletePartitionRegistrationFutureIsRejected() throws Exception {
+		final ShuffleMaster<ShuffleDescriptor> shuffleMaster = new TestingShuffleMaster();
+		final JobGraph jobGraph = new JobGraph("job graph");
+		final JobVertex source = new JobVertex("source");
+		final JobVertex target = new JobVertex("target");
+
+		source.setInvokableClass(AbstractInvokable.class);
+		target.setInvokableClass(AbstractInvokable.class);
+		target.connectNewDataSetAsInput(source, POINTWISE, PIPELINED);
+		jobGraph.addVertex(source);
+		jobGraph.addVertex(target);
+		ExecutionGraph executionGraph = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
+			.setShuffleMaster(shuffleMaster)
+			.build();
+
+		final ExecutionVertex sourceVertex = executionGraph.getAllVertices().get(source.getID()).getTaskVertices()[0];
+
+		boolean incompletePartitionRegistrationRejected = false;
+		try {
+			Execution.registerProducedPartitions(sourceVertex, new LocalTaskManagerLocation(), new ExecutionAttemptID(), false);
+		} catch (IllegalStateException e) {
+			incompletePartitionRegistrationRejected = true;
+		}
+
+		assertTrue(incompletePartitionRegistrationRejected);
+	}
+
+	private static class TestingShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
+
+		@Override
+		public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+			return new CompletableFuture<>();
+		}
+
+		@Override
+		public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
+		}
 	}
 
 	@Nonnull

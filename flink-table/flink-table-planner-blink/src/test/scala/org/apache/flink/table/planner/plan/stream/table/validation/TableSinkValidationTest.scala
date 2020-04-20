@@ -22,8 +22,9 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{TableException, ValidationException, DataTypes, TableSchema}
 import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink, TestingUpsertTableSink}
+import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.DataTypeOutputFormatTableSink
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
 import org.junit.Test
@@ -63,7 +64,7 @@ class TableSinkValidationTest extends TableTestBase {
     val schema = result.getSchema
     sink.configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.registerTableSink("testSink", sink)
-    tEnv.insertInto(result, "testSink")
+    tEnv.insertInto("testSink", result)
     // must fail because table is updating table without full key
     env.execute()
   }
@@ -83,4 +84,36 @@ class TableSinkValidationTest extends TableTestBase {
     // must fail because table is not append-only
     env.execute()
   }
+
+  @Test
+  def testValidateSink(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Field types of query result and registered TableSink default_catalog." +
+      "default_database.testSink do not match.\n" +
+      "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
+      "Sink schema: [a: INT, b: BIGINT, c: STRING, d: INT]")
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val sourceTable = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("source", sourceTable)
+    val resultTable = tEnv.sqlQuery("select a, b, c, b as d from source")
+
+    val sinkSchema = TableSchema.builder()
+      .field("a", DataTypes.INT())
+      .field("b", DataTypes.BIGINT())
+      .field("c", DataTypes.STRING())
+      .field("d", DataTypes.INT())
+      .build()
+    val sink = new DataTypeOutputFormatTableSink(sinkSchema)
+    tEnv.registerTableSink("testSink", sink)
+
+    tEnv.insertInto(resultTable, "testSink")
+
+    // must fail because query result table schema is different with sink table schema
+    tEnv.execute("testJob")
+  }
+
 }

@@ -24,7 +24,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.util.Preconditions;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -127,11 +126,6 @@ public class DataStreamSink<T> {
 	 * @return The sink with set minimum and preferred resources.
 	 */
 	private DataStreamSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
-		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
-		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
-				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
-
 		transformation.setResources(minResources, preferredResources);
 
 		return this;
@@ -144,9 +138,6 @@ public class DataStreamSink<T> {
 	 * @return The sink with set minimum and preferred resources.
 	 */
 	private DataStreamSink<T> setResources(ResourceSpec resources) {
-		Preconditions.checkNotNull(resources, "The resources must be not null.");
-		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
-
 		transformation.setResources(resources, resources);
 
 		return this;

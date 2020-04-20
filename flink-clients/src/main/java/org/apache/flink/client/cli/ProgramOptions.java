@@ -22,22 +22,27 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
@@ -45,7 +50,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION
 /**
  * Base class for command line options that refer to a JAR file program.
  */
-public abstract class ProgramOptions extends CommandLineOptions {
+public class ProgramOptions extends CommandLineOptions {
 
 	private final String jarFilePath;
 
@@ -56,8 +61,6 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final String[] programArgs;
 
 	private final int parallelism;
-
-	private final boolean stdoutLogging;
 
 	private final boolean detachedMode;
 
@@ -70,7 +73,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	 */
 	private final boolean isPython;
 
-	protected ProgramOptions(CommandLine line) throws CliArgsException {
+	public ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
 
 		String[] args = line.hasOption(ARGS_OPTION.getOpt()) ?
@@ -82,52 +85,24 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 		isPython = line.hasOption(PY_OPTION.getOpt()) | line.hasOption(PYMODULE_OPTION.getOpt())
 			| "org.apache.flink.client.python.PythonGatewayServer".equals(entryPointClass);
-		// If specified the option -py(--python)
-		if (line.hasOption(PY_OPTION.getOpt())) {
-			// Cannot use option -py and -pym simultaneously.
-			if (line.hasOption(PYMODULE_OPTION.getOpt())) {
-				throw new CliArgsException("Cannot use option -py and -pym simultaneously.");
+		if (isPython) {
+			// copy python related parameters to program args and place them in front of user parameters
+			List<String> pyArgList = new ArrayList<>();
+			Set<Option> pyOptions = new HashSet<>();
+			pyOptions.add(PY_OPTION);
+			pyOptions.add(PYMODULE_OPTION);
+			pyOptions.add(PYFILES_OPTION);
+			pyOptions.add(PYREQUIREMENTS_OPTION);
+			pyOptions.add(PYARCHIVE_OPTION);
+			pyOptions.add(PYEXEC_OPTION);
+			for (Option option: line.getOptions()) {
+				if (pyOptions.contains(option)) {
+					pyArgList.add("--" + option.getLongOpt());
+					pyArgList.add(option.getValue());
+				}
 			}
-			// The cli cmd args which will be transferred to PythonDriver will be transformed as follows:
-			// CLI cmd : -py ${python.py} pyfs [optional] ${py-files} [optional] ${other args}.
-			// PythonDriver args: py ${python.py} [optional] pyfs [optional] ${py-files} [optional] ${other args}.
-			// -------------------------------transformed-------------------------------------------------------
-			// e.g. -py wordcount.py(CLI cmd) -----------> py wordcount.py(PythonDriver args)
-			// e.g. -py wordcount.py -pyfs file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt(CLI cmd)
-			// 	-----> -py wordcount.py -pyfs file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt(PythonDriver args)
-			String[] newArgs;
-			int argIndex;
-			if (line.hasOption(PYFILES_OPTION.getOpt())) {
-				newArgs = new String[args.length + 4];
-				newArgs[2] = "-" + PYFILES_OPTION.getOpt();
-				newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
-				argIndex = 4;
-			} else {
-				newArgs = new String[args.length + 2];
-				argIndex = 2;
-			}
-			newArgs[0] = "-" + PY_OPTION.getOpt();
-			newArgs[1] = line.getOptionValue(PY_OPTION.getOpt());
-			System.arraycopy(args, 0, newArgs, argIndex, args.length);
-			args = newArgs;
-		}
-
-		// If specified the option -pym(--pyModule)
-		if (line.hasOption(PYMODULE_OPTION.getOpt())) {
-			// If you specify the option -pym, you should specify the option --pyFiles simultaneously.
-			if (!line.hasOption(PYFILES_OPTION.getOpt())) {
-				throw new CliArgsException("-pym must be used in conjunction with `--pyFiles`");
-			}
-			// The cli cmd args which will be transferred to PythonDriver will be transformed as follows:
-			// CLI cmd : -pym ${py-module} -pyfs ${py-files} [optional] ${other args}.
-			// PythonDriver args: -pym ${py-module} -pyfs ${py-files} [optional] ${other args}.
-			// e.g. -pym AAA.fun -pyfs AAA.zip(CLI cmd) ----> -pym AAA.fun -pyfs AAA.zip(PythonDriver args)
-			String[] newArgs = new String[args.length + 4];
-			newArgs[0] = "-" + PYMODULE_OPTION.getOpt();
-			newArgs[1] = line.getOptionValue(PYMODULE_OPTION.getOpt());
-			newArgs[2] = "-" + PYFILES_OPTION.getOpt();
-			newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
-			System.arraycopy(args, 0, newArgs, 4, args.length);
+			String[] newArgs = pyArgList.toArray(new String[args.length + pyArgList.size()]);
+			System.arraycopy(args, 0, newArgs, pyArgList.size(), args.length);
 			args = newArgs;
 		}
 
@@ -171,9 +146,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
-		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());
-		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(
-			YARN_DETACHED_OPTION.getOpt());
+		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(YARN_DETACHED_OPTION.getOpt());
 		shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
 		this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);
@@ -197,10 +170,6 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public int getParallelism() {
 		return parallelism;
-	}
-
-	public boolean getStdoutLogging() {
-		return stdoutLogging;
 	}
 
 	public boolean getDetachedMode() {

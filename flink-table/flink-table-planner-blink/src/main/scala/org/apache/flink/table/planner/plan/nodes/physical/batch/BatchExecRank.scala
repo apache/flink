@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -286,10 +286,10 @@ class BatchExecRank(
       rankEnd,
       outputRankNumber)
 
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
       getRelDetailedDescription,
-      operator,
+      SimpleOperatorFactory.of(operator),
       BaseRowTypeInfo.of(outputType),
       input.getParallelism)
   }

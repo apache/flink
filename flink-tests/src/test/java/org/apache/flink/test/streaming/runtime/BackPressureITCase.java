@@ -22,7 +22,7 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -36,12 +36,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.BlockingSink;
 import org.apache.flink.test.util.IdentityMapFunction;
 import org.apache.flink.test.util.InfiniteIntegerSource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 import java.util.List;
@@ -52,6 +54,7 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondit
 /**
  * Integration test for operator back pressure tracking.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class BackPressureITCase extends TestLogger {
 
 	private static final JobID TEST_JOB_ID = new JobID();
@@ -91,11 +94,11 @@ public class BackPressureITCase extends TestLogger {
 		final Configuration configuration = new Configuration();
 
 		final int memorySegmentSizeKb = 32;
-		final String networkBuffersMemory = (memorySegmentSizeKb * NUM_TASKS) + "kb";
+		final MemorySize networkBuffersMemory = MemorySize.parse(memorySegmentSizeKb * (NUM_TASKS + 2) + "kb");
 
-		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, memorySegmentSizeKb + "kb");
-		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, networkBuffersMemory);
-		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, networkBuffersMemory);
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(memorySegmentSizeKb + "kb"));
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, networkBuffersMemory);
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, networkBuffersMemory);
 		return configuration;
 	}
 

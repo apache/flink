@@ -30,6 +30,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -115,7 +116,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public boolean add(BufferConsumer bufferConsumer) throws IOException {
+	public boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException {
 		if (isFinished()) {
 			bufferConsumer.close();
 			return false;
@@ -145,11 +146,24 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		}
 	}
 
+	@Override
+	public List<Buffer> requestInflightBufferSnapshot() {
+		throw new UnsupportedOperationException("The batch job does not support unaligned checkpoint.");
+	}
+
 	private void writeAndCloseBufferConsumer(BufferConsumer bufferConsumer) throws IOException {
 		try {
 			final Buffer buffer = bufferConsumer.build();
 			try {
-				data.writeBuffer(buffer);
+				if (canBeCompressed(buffer)) {
+					final Buffer compressedBuffer = parent.bufferCompressor.compressToIntermediateBuffer(buffer);
+					data.writeBuffer(compressedBuffer);
+					if (compressedBuffer != buffer) {
+						compressedBuffer.recycleBuffer();
+					}
+				} else {
+					data.writeBuffer(buffer);
+				}
 
 				numBuffersAndEventsWritten++;
 				if (buffer.isBuffer()) {
@@ -206,6 +220,8 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	}
 
 	void releaseReaderReference(BoundedBlockingSubpartitionReader reader) throws IOException {
+		onConsumedSubpartition();
+
 		synchronized (lock) {
 			if (readers.remove(reader) && isReleased) {
 				checkReaderReferencesAndDispose();

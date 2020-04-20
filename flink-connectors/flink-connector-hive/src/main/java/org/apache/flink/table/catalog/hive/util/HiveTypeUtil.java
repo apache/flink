@@ -70,27 +70,18 @@ public class HiveTypeUtil {
 	}
 
 	/**
-	 * Convert Flink data type to Hive data type name.
+	 * Convert Flink DataType to Hive TypeInfo. For types with a precision parameter, e.g. timestamp, the supported
+	 * precisions in Hive and Flink can be different. Therefore the conversion will fail for those types if the precision
+	 * is not supported by Hive and checkPrecision is true.
 	 *
-	 * @param type a Flink data type
-	 * @return the corresponding Hive data type name
-	 */
-	public static String toHiveTypeName(DataType type) {
-		checkNotNull(type, "type cannot be null");
-
-		return toHiveTypeInfo(type).getTypeName();
-	}
-
-	/**
-	 * Convert Flink data type to Hive data type.
-	 *
-	 * @param dataType a Flink data type
+	 * @param dataType a Flink DataType
+	 * @param checkPrecision whether to fail the conversion if the precision of the DataType is not supported by Hive
 	 * @return the corresponding Hive data type
 	 */
-	public static TypeInfo toHiveTypeInfo(DataType dataType) {
+	public static TypeInfo toHiveTypeInfo(DataType dataType, boolean checkPrecision) {
 		checkNotNull(dataType, "type cannot be null");
 		LogicalType logicalType = dataType.getLogicalType();
-		return logicalType.accept(new TypeInfoLogicalTypeVisitor(dataType));
+		return logicalType.accept(new TypeInfoLogicalTypeVisitor(dataType, checkPrecision));
 	}
 
 	/**
@@ -167,7 +158,7 @@ public class HiveTypeUtil {
 			case DATE:
 				return DataTypes.DATE();
 			case TIMESTAMP:
-				return DataTypes.TIMESTAMP();
+				return DataTypes.TIMESTAMP(9);
 			case BINARY:
 				return DataTypes.BYTES();
 			case DECIMAL:
@@ -181,9 +172,12 @@ public class HiveTypeUtil {
 
 	private static class TypeInfoLogicalTypeVisitor extends LogicalTypeDefaultVisitor<TypeInfo> {
 		private final DataType dataType;
+		// whether to check type precision
+		private final boolean checkPrecision;
 
-		public TypeInfoLogicalTypeVisitor(DataType dataType) {
+		TypeInfoLogicalTypeVisitor(DataType dataType, boolean checkPrecision) {
 			this.dataType = dataType;
+			this.checkPrecision = checkPrecision;
 		}
 
 		@Override
@@ -274,13 +268,16 @@ public class HiveTypeUtil {
 
 		@Override
 		public TypeInfo visit(TimestampType timestampType) {
+			if (checkPrecision && timestampType.getPrecision() != 9) {
+				throw new CatalogException("HiveCatalog currently only supports timestamp of precision 9");
+			}
 			return TypeInfoFactory.timestampTypeInfo;
 		}
 
 		@Override
 		public TypeInfo visit(ArrayType arrayType) {
 			LogicalType elementType = arrayType.getElementType();
-			TypeInfo elementTypeInfo = elementType.accept(new TypeInfoLogicalTypeVisitor(dataType));
+			TypeInfo elementTypeInfo = elementType.accept(this);
 			if (null != elementTypeInfo) {
 				return TypeInfoFactory.getListTypeInfo(elementTypeInfo);
 			} else {
@@ -292,8 +289,8 @@ public class HiveTypeUtil {
 		public TypeInfo visit(MapType mapType) {
 			LogicalType keyType  = mapType.getKeyType();
 			LogicalType valueType = mapType.getValueType();
-			TypeInfo keyTypeInfo = keyType.accept(new TypeInfoLogicalTypeVisitor(dataType));
-			TypeInfo valueTypeInfo = valueType.accept(new TypeInfoLogicalTypeVisitor(dataType));
+			TypeInfo keyTypeInfo = keyType.accept(this);
+			TypeInfo valueTypeInfo = valueType.accept(this);
 			if (null == keyTypeInfo || null == valueTypeInfo) {
 				return defaultMethod(mapType);
 			} else {
@@ -307,7 +304,7 @@ public class HiveTypeUtil {
 			List<TypeInfo> typeInfos = new ArrayList<>(names.size());
 			for (String name : names) {
 				TypeInfo typeInfo =
-						rowType.getTypeAt(rowType.getFieldIndex(name)).accept(new TypeInfoLogicalTypeVisitor(dataType));
+						rowType.getTypeAt(rowType.getFieldIndex(name)).accept(this);
 				if (null != typeInfo) {
 					typeInfos.add(typeInfo);
 				} else {
@@ -322,5 +319,14 @@ public class HiveTypeUtil {
 			throw new UnsupportedOperationException(
 					String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
 		}
+	}
+
+	/**
+	 * INTERVAL are not available in older versions. So better to have our own enum for primitive categories.
+	 */
+	public enum HivePrimitiveCategory {
+		VOID, BOOLEAN, BYTE, SHORT, INT, LONG, FLOAT, DOUBLE, STRING,
+		DATE, TIMESTAMP, BINARY, DECIMAL, VARCHAR, CHAR, INTERVAL_YEAR_MONTH, INTERVAL_DAY_TIME,
+		UNKNOWN
 	}
 }

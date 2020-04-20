@@ -34,7 +34,7 @@ import java.io.Serializable;
  *
  * <p>Example:
  * <pre>{@code
- * OutputTag<Tuple2<String, Long>> info = new OutputTag<Tuple2<String, Long>>("late-data"){});
+ * OutputTag<Tuple2<String, Long>> info = new OutputTag<Tuple2<String, Long>>("late-data"){};
  * }</pre>
  *
  * @param <T> the type of elements in the side-output stream.

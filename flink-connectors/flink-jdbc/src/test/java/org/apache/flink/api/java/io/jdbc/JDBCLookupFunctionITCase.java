@@ -45,7 +45,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTestBase.DRIVER_CLASS;
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * IT case for {@link JDBCLookupFunction}.
@@ -69,9 +69,9 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
-		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
+		System.setProperty("derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
 
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
 			Statement stat = conn.createStatement()) {
@@ -84,20 +84,37 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 			Object[][] data = new Object[][] {
 					new Object[] {1, 1, "11-c1-v1", "11-c2-v1"},
 					new Object[] {1, 1, "11-c1-v2", "11-c2-v2"},
-					new Object[] {2, 3, "23-c1", "23-c2"},
+					new Object[] {2, 3, null, "23-c2"},
 					new Object[] {2, 5, "25-c1", "25-c2"},
 					new Object[] {3, 8, "38-c1", "38-c2"}
 			};
+			boolean[] surroundedByQuotes = new boolean[] {
+				false, false, true, true
+			};
+
 			StringBuilder sqlQueryBuilder = new StringBuilder(
 					"INSERT INTO " + LOOKUP_TABLE + " (id1, id2, comment1, comment2) VALUES ");
 			for (int i = 0; i < data.length; i++) {
-				sqlQueryBuilder.append("(")
-						.append(data[i][0]).append(",")
-						.append(data[i][1]).append(",'")
-						.append(data[i][2]).append("','")
-						.append(data[i][3]).append("')");
+				sqlQueryBuilder.append("(");
+				for (int j = 0; j < data[i].length; j++) {
+					if (data[i][j] == null) {
+						sqlQueryBuilder.append("null");
+					} else {
+						if (surroundedByQuotes[j]) {
+							sqlQueryBuilder.append("'");
+						}
+						sqlQueryBuilder.append(data[i][j]);
+						if (surroundedByQuotes[j]) {
+							sqlQueryBuilder.append("'");
+						}
+					}
+					if (j < data[i].length - 1) {
+						sqlQueryBuilder.append(", ");
+					}
+				}
+				sqlQueryBuilder.append(")");
 				if (i < data.length - 1) {
-					sqlQueryBuilder.append(",");
+					sqlQueryBuilder.append(", ");
 				}
 			}
 			stat.execute(sqlQueryBuilder.toString());
@@ -106,7 +123,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 
 	@After
 	public void clearOutputTable() throws Exception {
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 				Connection conn = DriverManager.getConnection(DB_URL);
 				Statement stat = conn.createStatement()) {
@@ -127,7 +144,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 					new Tuple2<>(2, 5),
 					new Tuple2<>(3, 5),
 					new Tuple2<>(3, 8)
-				)), "id1, id2");
+				)), $("id1"), $("id2"));
 
 		tEnv.registerTable("T", t);
 
@@ -160,7 +177,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 		expected.add("1,1,11-c1-v1,11-c2-v1");
 		expected.add("1,1,11-c1-v2,11-c2-v2");
 		expected.add("1,1,11-c1-v2,11-c2-v2");
-		expected.add("2,3,23-c1,23-c2");
+		expected.add("2,3,null,23-c2");
 		expected.add("2,5,25-c1,25-c2");
 		expected.add("3,8,38-c1,38-c2");
 

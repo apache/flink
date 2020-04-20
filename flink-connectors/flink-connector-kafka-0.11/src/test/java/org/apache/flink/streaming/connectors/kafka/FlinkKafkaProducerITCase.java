@@ -22,12 +22,14 @@ import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaProducer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import kafka.server.KafkaServer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -44,6 +46,22 @@ import static org.junit.Assert.assertEquals;
 public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	protected String transactionalId;
 	protected Properties extraProperties;
+
+	@BeforeClass
+	public static void prepare() throws Exception {
+		LOG.info("-------------------------------------------------------------------------");
+		LOG.info("    Starting KafkaTestBase ");
+		LOG.info("-------------------------------------------------------------------------");
+
+		Properties serverProperties = new Properties();
+		serverProperties.put("transaction.state.log.num.partitions", Integer.toString(1));
+		serverProperties.put("auto.leader.rebalance.enable", Boolean.toString(false));
+		startClusters(KafkaTestEnvironment.createConfig()
+			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
+			.setSecureMode(false)
+			.setHideKafkaBehindProxy(true)
+			.setKafkaServerProperties(serverProperties));
+	}
 
 	@Before
 	public void before() {
@@ -152,6 +170,20 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		kafkaProducer.flush();
 	}
 
+	@Test(timeout = 30000L)
+	public void testProducerWhenCommitEmptyPartitionsToOutdatedTxnCoordinator() throws Exception {
+		String topic = "flink-kafka-producer-txn-coordinator-changed";
+		createTestTopic(topic, 1, 2);
+		try (Producer<String, String> kafkaProducer = new FlinkKafkaProducer<>(extraProperties)) {
+			kafkaProducer.initTransactions();
+			kafkaProducer.beginTransaction();
+			restartBroker(kafkaServer.getLeaderToShutDown("__transaction_state"));
+			kafkaProducer.flush();
+			kafkaProducer.commitTransaction();
+		}
+		deleteTestTopic(topic);
+	}
+
 	private FlinkKafkaProducer<String, String> getClosedProducer(String topicName) {
 		FlinkKafkaProducer<String, String> kafkaProducer = new FlinkKafkaProducer<>(extraProperties);
 		kafkaProducer.initTransactions();
@@ -169,6 +201,30 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 			ConsumerRecord<String, String> record = Iterables.getOnlyElement(records);
 			assertEquals(expectedKey, record.key());
 			assertEquals(expectedValue, record.value());
+		}
+	}
+
+	private void restartBroker(int brokerId) {
+		KafkaServer toRestart = null;
+		for (KafkaServer server : kafkaServer.getBrokers()) {
+			if (kafkaServer.getBrokerId(server) == brokerId) {
+				toRestart = server;
+			}
+		}
+
+		if (toRestart == null) {
+			StringBuilder listOfBrokers = new StringBuilder();
+			for (KafkaServer server : kafkaServer.getBrokers()) {
+				listOfBrokers.append(kafkaServer.getBrokerId(server));
+				listOfBrokers.append(" ; ");
+			}
+
+			throw new IllegalArgumentException("Cannot find broker to restart: " + brokerId
+				+ " ; available brokers: " + listOfBrokers.toString());
+		} else {
+			toRestart.shutdown();
+			toRestart.awaitShutdown();
+			toRestart.startup();
 		}
 	}
 }

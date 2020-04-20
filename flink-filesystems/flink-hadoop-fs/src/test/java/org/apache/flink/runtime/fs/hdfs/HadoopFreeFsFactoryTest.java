@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
-import org.apache.flink.util.ClassLoaderUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 

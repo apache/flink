@@ -22,10 +22,9 @@ import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashAggregate, BatchExecLocalHashAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecHashAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -63,7 +62,7 @@ class BatchExecHashAggRule
   with BatchExecAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     if (isOperatorDisabled(tableConfig, OperatorType.HashAgg)) {
       return false
     }
@@ -73,9 +72,9 @@ class BatchExecHashAggRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val agg: FlinkLogicalAggregate = call.rel(0)
-    val input: RelNode = call.rels(1)
+    val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType
 
     if (agg.indicator) {
@@ -94,30 +93,23 @@ class BatchExecHashAggRule
     // create two-phase agg if possible
     if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
       // create BatchExecLocalHashAggregate
-      val localAggRowType = inferLocalAggType(
-        inputRowType,
-        agg,
-        groupSet,
-        auxGroupSet,
-        aggFunctions,
-        aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
       val localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       val newInput = RelOptRule.convert(input, localRequiredTraitSet)
       val providedTraitSet = localRequiredTraitSet
-      val localHashAgg = new BatchExecLocalHashAggregate(
+      val localHashAgg = createLocalAgg(
         agg.getCluster,
         call.builder(),
         providedTraitSet,
         newInput,
-        localAggRowType,
-        inputRowType,
+        agg.getRowType,
         groupSet,
         auxGroupSet,
-        aggCallToAggFunction)
+        aggBufferTypes,
+        aggCallToAggFunction,
+        isLocalHashAgg = true)
 
       // create global BatchExecHashAggregate
-      val globalGroupSet = groupSet.indices.toArray
-      val globalAuxGroupSet = (groupSet.length until groupSet.length + auxGroupSet.length).toArray
+      val (globalGroupSet, globalAuxGroupSet) = getGlobalAggGroupSetPair(groupSet, auxGroupSet)
       val globalDistributions = if (agg.getGroupCount != 0) {
         val distributionFields = globalGroupSet.map(Integer.valueOf).toList
         Seq(
@@ -126,6 +118,17 @@ class BatchExecHashAggRule
       } else {
         Seq(FlinkRelDistribution.SINGLETON)
       }
+      // Remove the global agg call filters because the
+      // filter is already done by local aggregation.
+      val aggCallsWithoutFilter = aggCallsWithoutAuxGroupCalls.map {
+        aggCall =>
+          if (aggCall.filterArg > 0) {
+            aggCall.copy(aggCall.getArgList, -1, aggCall.getCollation)
+          } else {
+            aggCall
+          }
+      }
+      val globalAggCallToAggFunction = aggCallsWithoutFilter.zip(aggFunctions)
       globalDistributions.foreach { globalDistribution =>
         val requiredTraitSet = localHashAgg.getTraitSet.replace(globalDistribution)
         val newLocalHashAgg = RelOptRule.convert(localHashAgg, requiredTraitSet)
@@ -139,8 +142,8 @@ class BatchExecHashAggRule
           inputRowType,
           globalGroupSet,
           globalAuxGroupSet,
-          aggCallToAggFunction,
-          true)
+          globalAggCallToAggFunction,
+          isMerge = true)
         call.transformTo(globalHashAgg)
       }
     }
@@ -171,7 +174,7 @@ class BatchExecHashAggRule
           groupSet,
           auxGroupSet,
           aggCallToAggFunction,
-          false)
+          isMerge = false)
         call.transformTo(hashAgg)
       }
     }

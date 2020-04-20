@@ -19,13 +19,17 @@
 package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import java.util.Arrays;
+
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
@@ -34,7 +38,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.minus
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.or;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.throwException;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
+import static org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION;
 
 /**
  * Base class for built-in single value aggregate function.
@@ -42,8 +47,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.throw
 public abstract class SingleValueAggFunction extends DeclarativeAggregateFunction {
 
 	private static final long serialVersionUID = 8850662568341069949L;
-	private static final Expression ZERO = literal(0, DataTypes.INT());
-	private static final Expression ONE = literal(1, DataTypes.INT());
+	private static final Expression ZERO = literal(0, DataTypes.INT().notNull());
+	private static final Expression ONE = literal(1, DataTypes.INT().notNull());
 	private static final String ERROR_MSG = "SingleValueAggFunction received more than one element.";
 	private UnresolvedReferenceExpression value = unresolvedRef("value");
 	private UnresolvedReferenceExpression count = unresolvedRef("count");
@@ -116,6 +121,12 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
 	@Override
 	public Expression getValueExpression() {
 		return value;
+	}
+
+	private static Expression throwException(String msg, DataType type) {
+		// it is the internal function without catalog.
+		// so it can not be find in any catalog or built-in functions.
+		return new CallExpression(THROW_EXCEPTION, Arrays.asList(literal(msg), typeLiteral(type)), type);
 	}
 
 	/**
@@ -274,9 +285,15 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
 
 		private static final long serialVersionUID = 320495723666949978L;
 
+		private final TimestampType type;
+
+		public TimestampSingleValueAggFunction(TimestampType type) {
+			this.type = type;
+		}
+
 		@Override
 		public DataType getResultType() {
-			return DataTypes.TIMESTAMP(3);
+			return DataTypes.TIMESTAMP(type.getPrecision());
 		}
 	}
 }

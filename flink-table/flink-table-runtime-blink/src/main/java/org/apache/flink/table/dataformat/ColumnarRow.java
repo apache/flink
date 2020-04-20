@@ -117,6 +117,11 @@ public final class ColumnarRow implements BaseRow {
 	}
 
 	@Override
+	public SqlTimestamp getTimestamp(int ordinal, int precision) {
+		return vectorizedColumnBatch.getTimestamp(rowId, ordinal, precision);
+	}
+
+	@Override
 	public <T> BinaryGeneric<T> getGeneric(int pos) {
 		throw new UnsupportedOperationException("GenericType is not supported.");
 	}
@@ -135,14 +140,12 @@ public final class ColumnarRow implements BaseRow {
 
 	@Override
 	public BaseRow getRow(int ordinal, int numFields) {
-		// TODO
-		throw new UnsupportedOperationException("Row is not supported.");
+		return vectorizedColumnBatch.getRow(rowId, ordinal);
 	}
 
 	@Override
 	public BaseArray getArray(int ordinal) {
-		// TODO
-		throw new UnsupportedOperationException("Array is not supported.");
+		return vectorizedColumnBatch.getArray(rowId, ordinal);
 	}
 
 	@Override
@@ -193,6 +196,11 @@ public final class ColumnarRow implements BaseRow {
 
 	@Override
 	public void setDecimal(int ordinal, Decimal value, int precision) {
+		throw new UnsupportedOperationException("Not support the operation!");
+	}
+
+	@Override
+	public void setTimestamp(int ordinal, SqlTimestamp value, int precision) {
 		throw new UnsupportedOperationException("Not support the operation!");
 	}
 

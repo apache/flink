@@ -60,10 +60,13 @@ import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -587,7 +590,27 @@ public class DataStream<T> {
 		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType(),
 				Utils.getCallLocationName(), true);
 
-		return transform("Map", outType, new StreamMap<>(clean(mapper)));
+		return map(mapper, outType);
+	}
+
+	/**
+	 * Applies a Map transformation on a {@link DataStream}. The transformation
+	 * calls a {@link MapFunction} for each element of the DataStream. Each
+	 * MapFunction call returns exactly one element. The user can also extend
+	 * {@link RichMapFunction} to gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param mapper
+	 *            The MapFunction that is called for each element of the
+	 *            DataStream.
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <R>
+	 *            output type
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R> map(MapFunction<T, R> mapper, TypeInformation<R> outputType) {
+		return transform("Map", outputType, new StreamMap<>(clean(mapper)));
 	}
 
 	/**
@@ -611,7 +634,28 @@ public class DataStream<T> {
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
 				getType(), Utils.getCallLocationName(), true);
 
-		return transform("Flat Map", outType, new StreamFlatMap<>(clean(flatMapper)));
+		return flatMap(flatMapper, outType);
+	}
+
+	/**
+	 * Applies a FlatMap transformation on a {@link DataStream}. The
+	 * transformation calls a {@link FlatMapFunction} for each element of the
+	 * DataStream. Each FlatMapFunction call can return any number of elements
+	 * including none. The user can also extend {@link RichFlatMapFunction} to
+	 * gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param flatMapper
+	 *            The FlatMapFunction that is called for each element of the
+	 *            DataStream
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <R>
+	 *            output type
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper, TypeInformation<R> outputType) {
+		return transform("Flat Map", outputType, new StreamFlatMap<>(clean(flatMapper)));
 
 	}
 
@@ -1018,7 +1062,11 @@ public class DataStream<T> {
 	 *            The path pointing to the location the text file is written to.
 	 *
 	 * @return The closed DataStream.
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path) {
 		return writeUsingOutputFormat(new TextOutputFormat<T>(new Path(path)));
@@ -1037,7 +1085,11 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return The closed DataStream.
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
 		TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(path));
@@ -1056,7 +1108,11 @@ public class DataStream<T> {
 	 *            the path pointing to the location the text file is written to
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path) {
 		return writeAsCsv(path, null, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1076,7 +1132,11 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
 		return writeAsCsv(path, writeMode, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1100,8 +1160,12 @@ public class DataStream<T> {
 	 *            the delimiter for two fields
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
 	@SuppressWarnings("unchecked")
+	@Deprecated
 	@PublicEvolving
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(
 			String path,
@@ -1153,7 +1217,11 @@ public class DataStream<T> {
 	 *
 	 * @param format The output format
 	 * @return The closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeUsingOutputFormat(OutputFormat<T> format) {
 		return addSink(new OutputFormatSinkFunction<>(format));
@@ -1172,9 +1240,42 @@ public class DataStream<T> {
 	 * @param <R>
 	 *            type of the return stream
 	 * @return the data stream constructed
+	 * @see #transform(String, TypeInformation, OneInputStreamOperatorFactory)
 	 */
 	@PublicEvolving
-	public <R> SingleOutputStreamOperator<R> transform(String operatorName, TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
+	public <R> SingleOutputStreamOperator<R> transform(
+			String operatorName,
+			TypeInformation<R> outTypeInfo,
+			OneInputStreamOperator<T, R> operator) {
+
+		return doTransform(operatorName, outTypeInfo, SimpleOperatorFactory.of(operator));
+	}
+
+	/**
+	 * Method for passing user defined operators created by the given factory along with the type information that will
+	 * transform the DataStream.
+	 *
+	 * <p>This method uses the rather new operator factories and should only be used when custom factories are needed.
+	 *
+	 * @param operatorName name of the operator, for logging purposes
+	 * @param outTypeInfo the output type of the operator
+	 * @param operatorFactory the factory for the operator.
+	 * @param <R> type of the return stream
+	 * @return the data stream constructed.
+	 */
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> transform(
+			String operatorName,
+			TypeInformation<R> outTypeInfo,
+			OneInputStreamOperatorFactory<T, R> operatorFactory) {
+
+		return doTransform(operatorName, outTypeInfo, operatorFactory);
+	}
+
+	protected <R> SingleOutputStreamOperator<R> doTransform(
+			String operatorName,
+			TypeInformation<R> outTypeInfo,
+			StreamOperatorFactory<R> operatorFactory) {
 
 		// read the output type of the input Transform to coax out errors about MissingTypeInfo
 		transformation.getOutputType();
@@ -1182,11 +1283,11 @@ public class DataStream<T> {
 		OneInputTransformation<T, R> resultTransform = new OneInputTransformation<>(
 				this.transformation,
 				operatorName,
-				operator,
+				operatorFactory,
 				outTypeInfo,
 				environment.getParallelism());
 
-		@SuppressWarnings({ "unchecked", "rawtypes" })
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		SingleOutputStreamOperator<R> returnStream = new SingleOutputStreamOperator(environment, resultTransform);
 
 		getExecutionEnvironment().addOperator(resultTransform);

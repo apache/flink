@@ -23,7 +23,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import java.util.Optional;
 
 /**
- * Factory for {@link PartitionTracker}.
+ * Factory for {@link JobMasterPartitionTracker}.
  */
 @FunctionalInterface
 public interface PartitionTrackerFactory {
@@ -34,7 +34,7 @@ public interface PartitionTrackerFactory {
 	 * @param taskExecutorGatewayLookup lookup function to access task executor gateways
 	 * @return created PartitionTracker
 	 */
-	PartitionTracker create(TaskExecutorGatewayLookup taskExecutorGatewayLookup);
+	JobMasterPartitionTracker create(TaskExecutorGatewayLookup taskExecutorGatewayLookup);
 
 	/**
 	 * Lookup function for {@link TaskExecutorGateway}.

@@ -80,12 +80,7 @@ public class JobConfigHandler extends AbstractExecutionGraphHandler<JobConfigInf
 		final JobConfigInfo.ExecutionConfigInfo executionConfigInfo;
 
 		if (executionConfig != null) {
-			executionConfigInfo = new JobConfigInfo.ExecutionConfigInfo(
-				executionConfig.getExecutionMode(),
-				executionConfig.getRestartStrategyDescription(),
-				executionConfig.getParallelism(),
-				executionConfig.getObjectReuseEnabled(),
-				executionConfig.getGlobalJobParameters());
+			executionConfigInfo = JobConfigInfo.ExecutionConfigInfo.from(executionConfig);
 		} else {
 			executionConfigInfo = null;
 		}

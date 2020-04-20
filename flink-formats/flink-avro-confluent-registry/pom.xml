@@ -23,11 +23,15 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-avro-confluent-registry</artifactId>
+
+	<properties>
+		<confluent.schema.registry.version>4.1.0</confluent.schema.registry.version>
+	</properties>
 
 	<repositories>
 		<repository>
@@ -40,7 +44,7 @@ under the License.
 		<dependency>
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-schema-registry-client</artifactId>
-			<version>3.3.1</version>
+			<version>${confluent.schema.registry.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.avro</groupId>

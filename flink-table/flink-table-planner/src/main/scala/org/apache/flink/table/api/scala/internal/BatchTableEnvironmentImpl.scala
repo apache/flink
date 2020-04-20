@@ -25,6 +25,7 @@ import org.apache.flink.table.api.scala.BatchTableEnvironment
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.module.ModuleManager
 
 import _root_.scala.reflect.ClassTag
 
@@ -38,11 +39,13 @@ import _root_.scala.reflect.ClassTag
 class BatchTableEnvironmentImpl(
     execEnv: ExecutionEnvironment,
     config: TableConfig,
-    catalogManager: CatalogManager)
+    catalogManager: CatalogManager,
+    moduleManager: ModuleManager)
   extends BatchTableEnvImpl(
     execEnv.getJavaEnv,
     config,
-    catalogManager)
+    catalogManager,
+    moduleManager)
   with org.apache.flink.table.api.scala.BatchTableEnvironment {
 
   override def fromDataSet[T](dataSet: DataSet[T]): Table = {
@@ -66,11 +69,6 @@ class BatchTableEnvironmentImpl(
     wrap[T](translate(table))(ClassTag.AnyRef.asInstanceOf[ClassTag[T]])
   }
 
-  override def toDataSet[T: TypeInformation](
-    table: Table, queryConfig: BatchQueryConfig): DataSet[T] = {
-    wrap[T](translate(table))(ClassTag.AnyRef.asInstanceOf[ClassTag[T]])
-  }
-
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     registerTableFunctionInternal(name, tf)
   }
@@ -82,12 +80,17 @@ class BatchTableEnvironmentImpl(
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
 
-  override def sqlUpdate(stmt: String, config: BatchQueryConfig): Unit = sqlUpdate(stmt)
+  override def createTemporaryView[T](
+      path: String,
+      dataSet: DataSet[T]): Unit = {
+    createTemporaryView(path, fromDataSet(dataSet))
+  }
 
-  override def insertInto(
-    table: Table,
-    queryConfig: BatchQueryConfig,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit = insertInto(table, sinkPath, sinkPathContinued: _*)
+  override def createTemporaryView[T](
+      path: String,
+      dataSet: DataSet[T],
+      fields: Expression*): Unit = {
+    createTemporaryView(path, fromDataSet(dataSet, fields: _*))
+  }
 }
 

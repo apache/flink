@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -50,7 +51,7 @@ public class NettyPartitionRequestClientTest {
 	public void testRetriggerPartitionRequest() throws Exception {
 		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 
-		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
 		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
@@ -63,9 +64,10 @@ public class NettyPartitionRequestClientTest {
 			.setInitialBackoff(1)
 			.setMaxBackoff(2)
 			.setMemorySegmentProvider(networkBufferPool)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
@@ -109,7 +111,7 @@ public class NettyPartitionRequestClientTest {
 
 	@Test
 	public void testDoublePartitionRequest() throws Exception {
-		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
 		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
@@ -120,6 +122,7 @@ public class NettyPartitionRequestClientTest {
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client, networkBufferPool);
 
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();

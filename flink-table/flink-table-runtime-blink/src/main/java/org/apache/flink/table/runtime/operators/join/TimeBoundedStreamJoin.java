@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
@@ -49,7 +49,7 @@ import java.util.Map;
  * "L.time between R.time + X and R.time + Y" or "R.time between L.time - Y and L.time - X"
  * X and Y might be negative or positive and X <= Y.
  */
-abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow, BaseRow> {
+abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, BaseRow, BaseRow, BaseRow> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TimeBoundedStreamJoin.class);
 	private final FlinkJoinType joinType;
 	protected final long leftRelativeSize;

@@ -32,14 +32,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Encapsulates a container specification, including artifacts, environment variables,
  * system properties, and Flink configuration settings.
  *
- * The specification is mutable.
+ * <p>The specification is mutable.
  *
- * Note that the Flink configuration settings are considered dynamic overrides of whatever
+ * <p>Note that the Flink configuration settings are considered dynamic overrides of whatever
  * static configuration file is present in the container.  For example, a container might be
  * based on a Docker image with a normal Flink installation with customized settings, which these
  * settings would (partially) override.
  *
- * Artifacts are copied into a sandbox directory within the container, which any Flink process
+ * <p>Artifacts are copied into a sandbox directory within the container, which any Flink process
  * launched in the container is assumed to use as a working directory.  This assumption allows
  * for relative paths to be used in certain environment variables.
  */
@@ -51,15 +51,15 @@ public class ContainerSpecification implements java.io.Serializable {
 
 	private final List<Artifact> artifacts;
 
-	private final Map<String,String> environmentVariables;
+	private final Map<String, String> environmentVariables;
 
-	private final Configuration dynamicConfiguration;
+	private final Configuration flinkConfiguration;
 
 	public ContainerSpecification() {
 		this.artifacts = new LinkedList<>();
-		this.environmentVariables = new HashMap<String,String>();
+		this.environmentVariables = new HashMap<String, String>();
 		this.systemProperties = new Configuration();
-		this.dynamicConfiguration = new Configuration();
+		this.flinkConfiguration = new Configuration();
 	}
 
 	/**
@@ -79,8 +79,8 @@ public class ContainerSpecification implements java.io.Serializable {
 	/**
 	 * Get the dynamic configuration.
      */
-	public Configuration getDynamicConfiguration() {
-		return dynamicConfiguration;
+	public Configuration getFlinkConfiguration() {
+		return flinkConfiguration;
 	}
 
 	/**
@@ -91,21 +91,11 @@ public class ContainerSpecification implements java.io.Serializable {
 	}
 
 	@Override
-	protected Object clone() throws CloneNotSupportedException {
-		ContainerSpecification clone = new ContainerSpecification();
-		clone.artifacts.addAll(this.artifacts);
-		clone.environmentVariables.putAll(this.environmentVariables);
-		clone.systemProperties.addAll(this.systemProperties);
-		clone.dynamicConfiguration.addAll(this.dynamicConfiguration);
-		return clone;
-	}
-
-	@Override
 	public String toString() {
 		return "ContainerSpecification{" +
 			"environmentVariables=" + environmentVariables +
 			", systemProperties=" + systemProperties +
-			", dynamicConfiguration=" + dynamicConfiguration +
+			", dynamicConfiguration=" + flinkConfiguration +
 			", artifacts=" + artifacts +
 			'}';
 	}
@@ -142,7 +132,9 @@ public class ContainerSpecification implements java.io.Serializable {
 				'}';
 		}
 
-		public static Builder newBuilder() { return new Builder(); }
+		public static Builder newBuilder() {
+			return new Builder();
+		}
 
 		public static class Builder {
 
@@ -183,24 +175,44 @@ public class ContainerSpecification implements java.io.Serializable {
 		}
 	}
 
+	public static ContainerSpecification from(Configuration flinkConfiguration) {
+		final ContainerSpecification containerSpecification = new ContainerSpecification();
+		containerSpecification.getFlinkConfiguration().addAll(flinkConfiguration);
+		return containerSpecification;
+	}
+
 	/**
 	 * Format the system properties as a shell-compatible command-line argument.
      */
 	public static String formatSystemProperties(Configuration jvmArgs) {
 		StringBuilder sb = new StringBuilder();
-		for(Map.Entry<String,String> entry : jvmArgs.toMap().entrySet()) {
-			if(sb.length() > 0) {
+		for (Map.Entry<String, String> entry : jvmArgs.toMap().entrySet()) {
+			if (sb.length() > 0) {
 				sb.append(" ");
 			}
-			boolean quoted = entry.getValue().contains(" ");
-			if(quoted) {
-				sb.append("\"");
-			}
-			sb.append("-D").append(entry.getKey()).append('=').append(entry.getValue());
-			if(quoted) {
-				sb.append("\"");
-			}
+			final String dynamicProperty = createDynamicProperty(entry.getKey(), entry.getValue());
+			sb.append(dynamicProperty);
 		}
 		return sb.toString();
+	}
+
+	/**
+	 * Create a dynamic property from the given key and value of the format {@code -Dkey=value}.
+	 *
+	 * @param key of the dynamic property
+	 * @param value of the dynamic property
+	 * @return dynamic property
+	 */
+	public static String createDynamicProperty(String key, String value) {
+		final String keyPart = "-D" + key + '=';
+		final String valuePart;
+
+		if (value.contains(" ")) {
+			valuePart = "\"" + value + "\"";
+		} else {
+			valuePart = value;
+		}
+
+		return  keyPart + valuePart;
 	}
 }

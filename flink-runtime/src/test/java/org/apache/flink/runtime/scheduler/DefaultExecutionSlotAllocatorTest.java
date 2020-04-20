@@ -23,8 +23,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -116,21 +118,23 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		final AllocationID allocationId = new AllocationID();
 		final SlotSharingGroupId sharingGroupId = new SlotSharingGroupId();
-		final ResourceProfile resourceProfile = new ResourceProfile(0.5, 250);
+		final ResourceProfile taskResourceProfile = ResourceProfile.fromResources(0.5, 250);
+		final ResourceProfile physicalSlotResourceProfile = ResourceProfile.fromResources(1.0, 300);
 		final CoLocationConstraint coLocationConstraint = new CoLocationGroup().getLocationConstraint(0);
 		final Collection<TaskManagerLocation> taskManagerLocations = Collections.singleton(new LocalTaskManagerLocation());
 
 		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = Arrays.asList(
-				new ExecutionVertexSchedulingRequirements.Builder()
-						.withExecutionVertexId(executionVertexId)
-						.withPreviousAllocationId(allocationId)
-						.withSlotSharingGroupId(sharingGroupId)
-						.withPreferredLocations(taskManagerLocations)
-						.withResourceProfile(resourceProfile)
-						.withCoLocationConstraint(coLocationConstraint)
-						.build()
+			new ExecutionVertexSchedulingRequirements.Builder()
+				.withExecutionVertexId(executionVertexId)
+				.withPreviousAllocationId(allocationId)
+				.withSlotSharingGroupId(sharingGroupId)
+				.withPreferredLocations(taskManagerLocations)
+				.withPhysicalSlotResourceProfile(physicalSlotResourceProfile)
+				.withTaskResourceProfile(taskResourceProfile)
+				.withCoLocationConstraint(coLocationConstraint)
+				.build()
 		);
 
 		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
@@ -143,7 +147,8 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		assertEquals(coLocationConstraint, expectedTask.getCoLocationConstraint());
 		assertThat(expectedSlotProfile.getPreferredAllocations(), contains(allocationId));
 		assertThat(expectedSlotProfile.getPreviousExecutionGraphAllocations(), contains(allocationId));
-		assertEquals(resourceProfile, expectedSlotProfile.getResourceProfile());
+		assertEquals(taskResourceProfile, expectedSlotProfile.getTaskResourceProfile());
+		assertEquals(physicalSlotResourceProfile, expectedSlotProfile.getPhysicalSlotResourceProfile());
 		assertThat(expectedSlotProfile.getPreferredLocations(), contains(taskManagerLocations.toArray()));
 	}
 
@@ -254,12 +259,36 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		assertThat(allPriorAllocationIds, containsInAnyOrder(expectAllocationIds.toArray()));
 	}
 
+	@Test
+	public void testDuplicatedSlotAllocationIsNotAllowed() {
+		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
+		slotProvider.disableSlotAllocation();
+
+		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
+			createSchedulingRequirements(executionVertexId);
+		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+
+		try {
+			executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+			fail("exception should happen");
+		} catch (IllegalStateException e) {
+			// IllegalStateException is expected
+		}
+	}
+
 	private DefaultExecutionSlotAllocator createExecutionSlotAllocator() {
 		return createExecutionSlotAllocator(new TestingInputsLocationsRetriever.Builder().build());
 	}
 
 	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(InputsLocationsRetriever inputsLocationsRetriever) {
-		return new DefaultExecutionSlotAllocator(slotProvider, inputsLocationsRetriever, Time.seconds(10));
+		return new DefaultExecutionSlotAllocator(
+			SlotProviderStrategy.from(
+				ScheduleMode.EAGER,
+				slotProvider,
+				Time.seconds(10)),
+			inputsLocationsRetriever);
 	}
 
 	private List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(ExecutionVertexID... executionVertexIds) {
@@ -296,7 +325,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 				SlotRequestId slotRequestId,
 				ScheduledUnit task,
 				SlotProfile slotProfile,
-				boolean allowQueued,
 				Time timeout) {
 
 			slotAllocationRequests.add(Tuple3.of(slotRequestId, task, slotProfile));

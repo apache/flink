@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -52,12 +52,17 @@ under the License.
 	</dependencies>
 
 	<build>
+		<finalName>KafkaExample</finalName>
 		<plugins>
 			<!-- Use the shade plugin to build a fat jar for the kafka connector test -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>none</phase>
+					</execution>
 					<execution>
 						<id>fat-jar-kafka-example</id>
 						<phase>package</phase>
@@ -73,7 +78,6 @@ under the License.
 									<mainClass>org.apache.flink.streaming.kafka.test.KafkaExample</mainClass>
 								</transformer>
 							</transformers>
-							<finalName>KafkaExample</finalName>
 						</configuration>
 					</execution>
 				</executions>

@@ -34,7 +34,6 @@ trait CommonCalc {
   private[flink] def generateFunction[T <: Function](
       generator: FunctionCodeGenerator,
       ruleDescription: String,
-      inputSchema: RowSchema,
       returnSchema: RowSchema,
       calcProjection: Seq[RexNode],
       calcCondition: Option[RexNode],

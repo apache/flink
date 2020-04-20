@@ -75,13 +75,13 @@ class TemporalTypesTest extends ExpressionTestBase {
     testTableApi(
       Timestamp.valueOf("2040-09-11 00:00:00.000"),
       "'2040-09-11 00:00:00.000'.toTimestamp",
-      "2040-09-11 00:00:00.0")
+      "2040-09-11 00:00:00.000")
 
     testAllApis(
       "1500-04-30 12:00:00".cast(Types.SQL_TIMESTAMP),
       "'1500-04-30 12:00:00'.cast(SQL_TIMESTAMP)",
       "CAST('1500-04-30 12:00:00' AS TIMESTAMP)",
-      "1500-04-30 12:00:00.0")
+      "1500-04-30 12:00:00.000")
   }
 
   @Test
@@ -171,13 +171,13 @@ class TemporalTypesTest extends ExpressionTestBase {
       'f0.cast(Types.SQL_TIMESTAMP),
       "f0.cast(SQL_TIMESTAMP)",
       "CAST(f0 AS TIMESTAMP)",
-      "1990-10-14 00:00:00.0")
+      "1990-10-14 00:00:00.000")
 
     testAllApis(
       'f1.cast(Types.SQL_TIMESTAMP),
       "f1.cast(SQL_TIMESTAMP)",
       "CAST(f1 AS TIMESTAMP)",
-      "1970-01-01 10:20:45.0")
+      "1970-01-01 10:20:45.000")
 
     testAllApis(
       'f2.cast(Types.SQL_DATE),
@@ -220,7 +220,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP),
       "f8.cast(SQL_TIMESTAMP)",
-      "2016-06-27 07:23:33.0")
+      "2016-06-27 07:23:33.000")
 
     testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP).cast(Types.LONG),

@@ -19,15 +19,13 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.StringUtils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
@@ -38,37 +36,20 @@ public abstract class ExecutorBase implements Executor {
 	private static final String DEFAULT_JOB_NAME = "Flink Exec Table Job";
 
 	private final StreamExecutionEnvironment executionEnvironment;
-	protected List<Transformation<?>> transformations = new ArrayList<>();
 	protected TableConfig tableConfig;
 
 	public ExecutorBase(StreamExecutionEnvironment executionEnvironment) {
 		this.executionEnvironment = executionEnvironment;
 	}
 
-	public void setTableConfig(TableConfig tableConfig) {
-		this.tableConfig = tableConfig;
-	}
-
-	@Override
-	public void apply(List<Transformation<?>> transformations) {
-		this.transformations.addAll(transformations);
-	}
-
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return executionEnvironment;
 	}
 
-	/**
-	 * Translates the applied transformations to a stream graph.
-	 */
-	public StreamGraph generateStreamGraph(String jobName) {
-		return generateStreamGraph(transformations, jobName);
+	@Override
+	public JobExecutionResult execute(Pipeline pipeline) throws Exception {
+		return executionEnvironment.execute((StreamGraph) pipeline);
 	}
-
-	/**
-	 * Translates the given transformations to a stream graph.
-	 */
-	public abstract StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName);
 
 	protected String getNonEmptyJobName(String jobName) {
 		if (StringUtils.isNullOrWhitespaceOnly(jobName)) {

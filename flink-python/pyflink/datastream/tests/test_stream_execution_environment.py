@@ -18,6 +18,9 @@
 import os
 import tempfile
 import json
+import time
+
+import unittest
 
 from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
@@ -172,6 +175,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(time_characteristic, TimeCharacteristic.EventTime)
 
+    @unittest.skip("Python API does not support DataStream now. refactor this test later")
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()
         source_path = os.path.join(tmp_dir + '/streaming.csv')
@@ -190,3 +194,22 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         plan = self.env.get_execution_plan()
 
         json.loads(plan)
+
+    def test_execute(self):
+        tmp_dir = tempfile.gettempdir()
+        field_names = ['a', 'b', 'c']
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env = StreamTableEnvironment.create(self.env)
+        t_env.register_table_sink(
+            'Results',
+            CsvTableSink(field_names, field_types,
+                         os.path.join('{}/{}.csv'.format(tmp_dir, round(time.time())))))
+        t_env.insert_into('Results', t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']))
+        execution_result = t_env.execute('test_stream_execute')
+        self.assertIsNotNone(execution_result.get_job_id())
+        self.assertTrue(execution_result.is_job_execution_result())
+        self.assertIsNotNone(execution_result.get_job_execution_result().get_job_id())
+        self.assertIsNotNone(execution_result.get_net_runtime())
+        self.assertEqual(len(execution_result.get_all_accumulator_results()), 0)
+        self.assertIsNone(execution_result.get_accumulator_result('accumulator'))
+        self.assertIsNotNone(execution_result.to_string())

@@ -129,7 +129,7 @@ class SortITCase extends StreamingWithStateTestBase {
     val sql = "INSERT INTO targetTable SELECT a, b, c, rowtime " +
       "FROM sourceTable ORDER BY rowtime, a desc"
     tEnv.sqlUpdate(sql)
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = List(
       "1,1,Hi,1970-01-01 00:00:00.001",

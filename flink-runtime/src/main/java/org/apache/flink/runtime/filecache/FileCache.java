@@ -285,11 +285,13 @@ public class FileCache {
 
 		private final Path filePath;
 		private final Path cachedPath;
-		private boolean executable;
+		private final boolean executable;
+		private final boolean isZipped;
 
 		public CopyFromDFSProcess(DistributedCacheEntry e, Path cachedPath) {
 			this.filePath = new Path(e.filePath);
 			this.executable = e.isExecutable;
+			this.isZipped = e.isZipped;
 
 			String sourceFile = e.filePath;
 			int posOfSep = sourceFile.lastIndexOf("/");
@@ -306,6 +308,9 @@ public class FileCache {
 			// let exceptions propagate. we can retrieve them later from
 			// the future and report them upon access to the result
 			FileUtils.copy(filePath, cachedPath, this.executable);
+			if (isZipped) {
+				return FileUtils.expandDirectory(cachedPath, cachedPath.getParent());
+			}
 			return cachedPath;
 		}
 	}

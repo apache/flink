@@ -20,29 +20,40 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -57,12 +68,17 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
 	private final FunctionCatalog functionCatalog;
+
+	private final DataTypeFactory dataTypeFactory;
+
 	private final FlinkTypeFactory typeFactory;
 
 	public FunctionCatalogOperatorTable(
 			FunctionCatalog functionCatalog,
+			DataTypeFactory dataTypeFactory,
 			FlinkTypeFactory typeFactory) {
 		this.functionCatalog = functionCatalog;
+		this.dataTypeFactory = dataTypeFactory;
 		this.typeFactory = typeFactory;
 	}
 
@@ -73,82 +89,137 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			SqlSyntax syntax,
 			List<SqlOperator> operatorList,
 			SqlNameMatcher nameMatcher) {
-		if (!opName.isSimple()) {
+		if (opName.isStar()) {
 			return;
 		}
 
-		// We lookup only user functions via CatalogOperatorTable. Built in functions should
-		// go through BasicOperatorTable
-		if (isNotUserFunction(category)) {
-			return;
-		}
+		final UnresolvedIdentifier identifier = UnresolvedIdentifier.of(opName.names);
 
-		String name = opName.getSimple();
-		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(name);
-
-		candidateFunction.flatMap(lookupResult ->
-			convertToSqlFunction(category, name, lookupResult.getFunctionDefinition())
-		).ifPresent(operatorList::add);
-	}
-
-	private boolean isNotUserFunction(SqlFunctionCategory category) {
-		return category != null && !category.isUserDefinedNotSpecificFunction();
+		functionCatalog.lookupFunction(identifier)
+			.flatMap(lookupResult ->
+				convertToSqlFunction(
+					category,
+					lookupResult.getFunctionIdentifier(),
+					lookupResult.getFunctionDefinition()))
+			.ifPresent(operatorList::add);
 	}
 
 	private Optional<SqlFunction> convertToSqlFunction(
-			SqlFunctionCategory category,
-			String name,
-			FunctionDefinition functionDefinition) {
-		if (functionDefinition instanceof AggregateFunctionDefinition) {
-			AggregateFunctionDefinition def = (AggregateFunctionDefinition) functionDefinition;
+			@Nullable SqlFunctionCategory category,
+			FunctionIdentifier identifier,
+			FunctionDefinition definition) {
+		// legacy
+		if (definition instanceof AggregateFunctionDefinition) {
+			AggregateFunctionDefinition def = (AggregateFunctionDefinition) definition;
 			if (isHiveFunc(def.getAggregateFunction())) {
 				return Optional.of(new HiveAggSqlFunction(
-						name,
-						name,
-						def.getAggregateFunction(),
-						typeFactory));
+						identifier, def.getAggregateFunction(), typeFactory));
 			} else {
-				return convertAggregateFunction(name, (AggregateFunctionDefinition) functionDefinition);
+				return convertAggregateFunction(identifier, (AggregateFunctionDefinition) definition);
 			}
-		} else if (functionDefinition instanceof ScalarFunctionDefinition) {
-			ScalarFunctionDefinition def = (ScalarFunctionDefinition) functionDefinition;
+		} else if (definition instanceof ScalarFunctionDefinition) {
+			ScalarFunctionDefinition def = (ScalarFunctionDefinition) definition;
 			if (isHiveFunc(def.getScalarFunction())) {
 				return Optional.of(new HiveScalarSqlFunction(
-						name,
-						name,
+						identifier,
 						def.getScalarFunction(),
 						typeFactory));
 			} else {
-				return convertScalarFunction(name, def);
+				return convertScalarFunction(identifier, def);
 			}
-		} else if (functionDefinition instanceof TableFunctionDefinition &&
+		} else if (definition instanceof TableFunctionDefinition &&
 				category != null &&
 				category.isTableFunction()) {
-			TableFunctionDefinition def = (TableFunctionDefinition) functionDefinition;
+			TableFunctionDefinition def = (TableFunctionDefinition) definition;
 			if (isHiveFunc(def.getTableFunction())) {
 				DataType returnType = fromLegacyInfoToDataType(new GenericTypeInfo<>(Row.class));
 				return Optional.of(new HiveTableSqlFunction(
-						name,
-						name,
+						identifier,
 						def.getTableFunction(),
 						returnType,
 						typeFactory,
 						new DeferredTypeFlinkTableFunction(def.getTableFunction(), returnType),
-						HiveTableSqlFunction.operandTypeChecker(name, def.getTableFunction())));
+						HiveTableSqlFunction.operandTypeChecker(identifier.toString(), def.getTableFunction())));
 			} else {
-				return convertTableFunction(name, (TableFunctionDefinition) functionDefinition);
+				return convertTableFunction(identifier, (TableFunctionDefinition) definition);
 			}
 		}
+		// new stack
+		return convertToBridgingSqlFunction(category, identifier, definition);
+	}
 
-		return Optional.empty();
+	private Optional<SqlFunction> convertToBridgingSqlFunction(
+			@Nullable SqlFunctionCategory category,
+			FunctionIdentifier identifier,
+			FunctionDefinition definition) {
+
+		if (!verifyFunctionKind(category, definition)) {
+			return Optional.empty();
+		}
+
+		final TypeInference typeInference;
+		try {
+			typeInference = definition.getTypeInference(dataTypeFactory);
+		} catch (Throwable t) {
+			throw new ValidationException(
+				String.format(
+					"An error occurred in the type inference logic of function '%s'.",
+					identifier.asSummaryString()),
+				t);
+		}
+		if (typeInference.getOutputTypeStrategy() == TypeStrategies.MISSING) {
+			return Optional.empty();
+		}
+
+		final SqlFunction function;
+		if (definition.getKind() == FunctionKind.AGGREGATE ||
+				definition.getKind() == FunctionKind.TABLE_AGGREGATE) {
+			function = BridgingSqlAggFunction.of(
+				dataTypeFactory,
+				typeFactory,
+				SqlKind.OTHER_FUNCTION,
+				identifier,
+				definition,
+				typeInference);
+		} else {
+			function = BridgingSqlFunction.of(
+				dataTypeFactory,
+				typeFactory,
+				SqlKind.OTHER_FUNCTION,
+				identifier,
+				definition,
+				typeInference);
+		}
+		return Optional.of(function);
+	}
+
+	@SuppressWarnings("RedundantIfStatement")
+	private boolean verifyFunctionKind(
+			@Nullable SqlFunctionCategory category,
+			FunctionDefinition definition) {
+
+		// it would be nice to give a more meaningful exception when a scalar function is used instead
+		// of a table function and vice versa, but we can do that only once FLIP-51 is implemented
+
+		if (definition.getKind() == FunctionKind.SCALAR &&
+				(category == SqlFunctionCategory.USER_DEFINED_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+			return true;
+		} else if (definition.getKind() == FunctionKind.TABLE &&
+				(category == SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+			return true;
+		}
+
+		// aggregate function are not supported, because the code generator is not ready yet
+
+		return false;
 	}
 
 	private Optional<SqlFunction> convertAggregateFunction(
-			String name,
+			FunctionIdentifier identifier,
 			AggregateFunctionDefinition functionDefinition) {
 		SqlFunction aggregateFunction = UserDefinedFunctionUtils.createAggregateSqlFunction(
-			name,
-			name,
+			identifier,
+			identifier.toString(),
 			functionDefinition.getAggregateFunction(),
 			TypeConversions.fromLegacyInfoToDataType(functionDefinition.getResultTypeInfo()),
 			TypeConversions.fromLegacyInfoToDataType(functionDefinition.getAccumulatorTypeInfo()),
@@ -157,20 +228,20 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		return Optional.of(aggregateFunction);
 	}
 
-	private Optional<SqlFunction> convertScalarFunction(String name, ScalarFunctionDefinition functionDefinition) {
+	private Optional<SqlFunction> convertScalarFunction(FunctionIdentifier identifier, ScalarFunctionDefinition functionDefinition) {
 		SqlFunction scalarFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
-			name,
-			name,
+			identifier,
+			identifier.toString(),
 			functionDefinition.getScalarFunction(),
 			typeFactory
 		);
 		return Optional.of(scalarFunction);
 	}
 
-	private Optional<SqlFunction> convertTableFunction(String name, TableFunctionDefinition functionDefinition) {
+	private Optional<SqlFunction> convertTableFunction(FunctionIdentifier identifier, TableFunctionDefinition functionDefinition) {
 		SqlFunction tableFunction = UserDefinedFunctionUtils.createTableSqlFunction(
-			name,
-			name,
+			identifier,
+			identifier.toString(),
 			functionDefinition.getTableFunction(),
 			TypeConversions.fromLegacyInfoToDataType(functionDefinition.getResultType()),
 			typeFactory

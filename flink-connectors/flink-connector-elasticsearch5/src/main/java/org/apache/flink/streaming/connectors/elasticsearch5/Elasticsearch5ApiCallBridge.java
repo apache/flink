@@ -67,27 +67,15 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<T
 
 	@Override
 	public TransportClient createClient(Map<String, String> clientConfig) {
-		Settings settings = Settings.builder().put(clientConfig)
+		Settings settings = Settings.builder()
 			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
 			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
+			.put(clientConfig)
 			.build();
 
 		TransportClient transportClient = new PreBuiltTransportClient(settings);
 		for (TransportAddress transport : ElasticsearchUtils.convertInetSocketAddresses(transportAddresses)) {
 			transportClient.addTransportAddress(transport);
-		}
-
-		// verify that we actually are connected to a cluster
-		if (transportClient.connectedNodes().isEmpty()) {
-
-			// close the transportClient here
-			IOUtils.closeQuietly(transportClient);
-
-			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
-		}
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch TransportClient with connected nodes {}", transportClient.connectedNodes());
 		}
 
 		return transportClient;
@@ -131,5 +119,20 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<T
 		}
 
 		builder.setBackoffPolicy(backoffPolicy);
+	}
+
+	@Override
+	public void verifyClientConnection(TransportClient client) {
+		// verify that we actually are connected to a cluster
+		if (client.connectedNodes().isEmpty()) {
+			// close the transportClient here
+			IOUtils.closeQuietly(client);
+
+			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
+		}
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Elasticsearch TransportClient is connected to nodes {}", client.connectedNodes());
+		}
 	}
 }

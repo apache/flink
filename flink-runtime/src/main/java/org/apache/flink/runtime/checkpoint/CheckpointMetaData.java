@@ -27,10 +27,10 @@ public class CheckpointMetaData implements Serializable {
 
 	private static final long serialVersionUID = -2387652345781312442L;
 
-	/** The ID of the checkpoint */
+	/** The ID of the checkpoint. */
 	private final long checkpointId;
 
-	/** The timestamp of the checkpoint */
+	/** The timestamp of the checkpoint. */
 	private final long timestamp;
 
 	public CheckpointMetaData(long checkpointId, long timestamp) {

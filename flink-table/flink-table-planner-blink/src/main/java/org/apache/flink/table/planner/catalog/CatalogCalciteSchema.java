@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogManager;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.schema.Schema;
@@ -39,13 +39,13 @@ import java.util.Set;
 public class CatalogCalciteSchema extends FlinkSchema {
 
 	private final String catalogName;
-	private final Catalog catalog;
+	private final CatalogManager catalogManager;
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
 
-	public CatalogCalciteSchema(String catalogName, Catalog catalog, boolean isStreamingMode) {
+	public CatalogCalciteSchema(String catalogName, CatalogManager catalog, boolean isStreamingMode) {
 		this.catalogName = catalogName;
-		this.catalog = catalog;
+		this.catalogManager = catalog;
 		this.isStreamingMode = isStreamingMode;
 	}
 
@@ -57,8 +57,8 @@ public class CatalogCalciteSchema extends FlinkSchema {
 	 */
 	@Override
 	public Schema getSubSchema(String schemaName) {
-		if (catalog.databaseExists(schemaName)) {
-			return new DatabaseCalciteSchema(schemaName, catalogName, catalog, isStreamingMode);
+		if (catalogManager.schemaExists(catalogName, schemaName)) {
+			return new DatabaseCalciteSchema(schemaName, catalogName, catalogManager, isStreamingMode);
 		} else {
 			return null;
 		}
@@ -66,7 +66,7 @@ public class CatalogCalciteSchema extends FlinkSchema {
 
 	@Override
 	public Set<String> getSubSchemaNames() {
-		return new HashSet<>(catalog.listDatabases());
+		return catalogManager.listSchemas(catalogName);
 	}
 
 	@Override

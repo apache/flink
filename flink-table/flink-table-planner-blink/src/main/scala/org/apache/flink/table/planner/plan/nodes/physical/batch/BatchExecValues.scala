@@ -82,7 +82,7 @@ class BatchExecValues(
       inputFormat.getProducedType).getTransformation
     transformation.setName(getRelDetailedDescription)
     transformation.setParallelism(1)
-    transformation
+    ExecNode.setManagedMemoryWeight(transformation)
   }
 
 }

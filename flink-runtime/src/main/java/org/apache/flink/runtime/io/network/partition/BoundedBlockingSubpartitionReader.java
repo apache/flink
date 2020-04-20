@@ -124,11 +124,6 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		parent.onConsumedSubpartition();
-	}
-
-	@Override
 	public void releaseAllResources() throws IOException {
 		// it is not a problem if this method executes multiple times
 		isReleased = true;
@@ -175,6 +170,6 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	public String toString() {
 		return String.format("Blocking Subpartition Reader: ID=%s, index=%d",
 				parent.parent.getPartitionId(),
-				parent.index);
+				parent.getSubPartitionIndex());
 	}
 }

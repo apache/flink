@@ -19,17 +19,19 @@
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, Types}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 
+import java.nio.charset.StandardCharsets
+
 abstract class ScalarTypesTestBase extends ExpressionTestBase {
 
   override def testData: Row = {
-    val testData = new Row(55)
+    val testData = new Row(59)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -83,8 +85,12 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
     testData.setField(50, localDate("1997-11-11"))
     testData.setField(51, localTime("09:44:55"))
     testData.setField(52, localDateTime("1997-11-11 09:44:55.333"))
-    testData.setField(53, "hello world".getBytes)
-    testData.setField(54, "This is a testing string.".getBytes)
+    testData.setField(53, "hello world".getBytes(StandardCharsets.UTF_8))
+    testData.setField(54, "This is a testing string.".getBytes(StandardCharsets.UTF_8))
+    testData.setField(55, 1)
+    testData.setField(56, 2)
+    testData.setField(57, 1)
+    testData.setField(58, "5L2g5aW9".getBytes(StandardCharsets.UTF_8))
     testData
   }
 
@@ -144,6 +150,10 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
       /* 51 */ Types.LOCAL_TIME,
       /* 52 */ Types.LOCAL_DATE_TIME,
       /* 53 */ Types.PRIMITIVE_ARRAY(Types.BYTE),
-      /* 54 */ Types.PRIMITIVE_ARRAY(Types.BYTE))
+      /* 54 */ Types.PRIMITIVE_ARRAY(Types.BYTE),
+      /* 55 */ new GenericTypeInfo[Integer](classOf[Integer]),
+      /* 56 */ new GenericTypeInfo[Integer](classOf[Integer]),
+      /* 57 */ new GenericTypeInfo[Integer](classOf[Integer]),
+      /* 58 */ Types.PRIMITIVE_ARRAY(Types.BYTE))
   }
 }

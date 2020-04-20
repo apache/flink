@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.table.planner.plan.metadata.FlinkDefaultRelMetadataProvider
+import org.apache.flink.table.planner.plan.metadata.{FlinkDefaultRelMetadataProvider, FlinkRelMetadataQuery}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
-import org.apache.calcite.rel.metadata.{DefaultRelMetadataProvider, JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rel.metadata.{DefaultRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rex.RexBuilder
+
+import java.util.function.Supplier
 
 /**
   * The utility class is to create special [[RelOptCluster]] instance which use
@@ -31,12 +33,11 @@ import org.apache.calcite.rex.RexBuilder
 object FlinkRelOptClusterFactory {
 
   def create(planner: RelOptPlanner, rexBuilder: RexBuilder): RelOptCluster = {
-    val cluster = FlinkRelOptCluster.create(planner, rexBuilder)
+    val cluster = RelOptCluster.create(planner, rexBuilder)
     cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
-    // just set metadataProvider is not enough, see
-    // https://www.mail-archive.com/dev@calcite.apache.org/msg00930.html
-    RelMetadataQuery.THREAD_PROVIDERS.set(
-      JaninoRelMetadataProvider.of(cluster.getMetadataProvider))
+    cluster.setMetadataQuerySupplier(new Supplier[RelMetadataQuery]() {
+      def get: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
+    })
     cluster
   }
 

@@ -19,29 +19,13 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-
-import java.util.Optional;
+import org.apache.flink.runtime.topology.Topology;
 
 /**
  * Topology of {@link SchedulingExecutionVertex}.
  */
-public interface SchedulingTopology {
-
-	/**
-	 * Returns an iterable over all {@link SchedulingExecutionVertex} in topological
-	 * sorted order.
-	 *
-	 * @return Iterable over all scheduling vertices in topological sorted order
-	 */
-	Iterable<SchedulingExecutionVertex> getVertices();
-
-	/**
-	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
-	 *
-	 * @param executionVertexId identifying the respective scheduling vertex
-	 * @return Optional containing the respective scheduling vertex or none if the vertex does not exist
-	 */
-	Optional<SchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId);
+public interface SchedulingTopology
+	extends Topology<ExecutionVertexID, IntermediateResultPartitionID, SchedulingExecutionVertex, SchedulingResultPartition, SchedulingPipelinedRegion> {
 
 	/**
 	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
@@ -50,18 +34,7 @@ public interface SchedulingTopology {
 	 * @return The respective scheduling vertex
 	 * @throws IllegalArgumentException If the vertex does not exist
 	 */
-	default SchedulingExecutionVertex getVertexOrThrow(ExecutionVertexID executionVertexId) {
-		return getVertex(executionVertexId).orElseThrow(
-				() -> new IllegalArgumentException("can not find vertex: " + executionVertexId));
-	}
-
-	/**
-	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
-	 *
-	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
-	 * @return Optional containing the respective scheduling result partition or none if the partition does not exist
-	 */
-	Optional<SchedulingResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
+	SchedulingExecutionVertex getVertex(ExecutionVertexID executionVertexId);
 
 	/**
 	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
@@ -70,8 +43,5 @@ public interface SchedulingTopology {
 	 * @return The respective scheduling result partition
 	 * @throws IllegalArgumentException If the partition does not exist
 	 */
-	default SchedulingResultPartition getResultPartitionOrThrow(IntermediateResultPartitionID intermediateResultPartitionId) {
-		return getResultPartition(intermediateResultPartitionId).orElseThrow(
-				() -> new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId));
-	}
+	SchedulingResultPartition getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
 }

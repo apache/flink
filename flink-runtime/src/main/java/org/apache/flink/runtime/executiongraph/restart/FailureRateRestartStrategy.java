@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -29,9 +28,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.Duration;
 
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} when failure rate exceeded
@@ -92,18 +88,15 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	public static FailureRateRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
-		int maxFailuresPerInterval = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 1);
-		String failuresIntervalString = configuration.getString(
-				ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, Duration.apply(1, TimeUnit.MINUTES).toString()
-		);
-		String timeoutString = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL);
-		String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_DELAY, timeoutString);
+		int maxFailuresPerInterval = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL);
+		long failuresInterval = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL)
+			.toMillis();
+		long delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY).toMillis();
 
-		Duration failuresInterval = Duration.apply(failuresIntervalString);
-		Duration delay = Duration.apply(delayString);
-
-
-		return new FailureRateRestartStrategyFactory(maxFailuresPerInterval, Time.milliseconds(failuresInterval.toMillis()), Time.milliseconds(delay.toMillis()));
+		return new FailureRateRestartStrategyFactory(
+			maxFailuresPerInterval,
+			Time.milliseconds(failuresInterval),
+			Time.milliseconds(delay));
 	}
 
 	public static class FailureRateRestartStrategyFactory extends RestartStrategyFactory {

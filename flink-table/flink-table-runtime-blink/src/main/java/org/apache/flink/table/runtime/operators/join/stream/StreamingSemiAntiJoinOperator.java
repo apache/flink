@@ -66,16 +66,14 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 			LEFT_RECORDS_STATE_NAME,
 			leftInputSideSpec,
 			leftType,
-			minRetentionTime,
-			stateCleaningEnabled);
+			minRetentionTime);
 
 		this.rightRecordStateView = JoinRecordStateViews.create(
 			getRuntimeContext(),
 			RIGHT_RECORDS_STATE_NAME,
 			rightInputSideSpec,
 			rightType,
-			minRetentionTime,
-			stateCleaningEnabled);
+			minRetentionTime);
 	}
 
 	/**

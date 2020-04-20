@@ -946,7 +946,33 @@ public class RowCsvInputFormatTest {
 		assertEquals(333, result.getField(0));
 		assertEquals(777, result.getField(1));
 		assertEquals(0, result.getField(2));
+	}
 
+	@Test
+	public void testEmptyProjection() throws Exception {
+		String fileContent =
+				"111|222|333\n" +
+				"000|999|888";
+		FileInputSplit split = createTempFile(fileContent);
+
+		RowCsvInputFormat format = new RowCsvInputFormat(
+			PATH,
+			new TypeInformation[0],
+			new int[0]);
+
+		format.setFieldDelimiter("|");
+		format.configure(new Configuration());
+		format.open(split);
+
+		Row result = new Row(0);
+
+		// check first row
+		result = format.nextRecord(result);
+		assertNotNull(result);
+
+		// check second row
+		result = format.nextRecord(result);
+		assertNotNull(result);
 	}
 
 	private static FileInputSplit createTempFile(String content) throws IOException {

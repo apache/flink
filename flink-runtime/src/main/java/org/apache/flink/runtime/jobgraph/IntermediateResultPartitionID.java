@@ -18,11 +18,16 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.topology.ResultID;
 import org.apache.flink.util.AbstractID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-public class IntermediateResultPartitionID extends AbstractID {
+/**
+ * Id identifying {@link IntermediateResultPartition}.
+ */
+public class IntermediateResultPartitionID extends AbstractID implements ResultID {
 
 	private static final long serialVersionUID = 1L;
 

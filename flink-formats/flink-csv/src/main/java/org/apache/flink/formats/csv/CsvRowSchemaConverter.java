@@ -66,7 +66,9 @@ public final class CsvRowSchemaConverter {
 	 * and value is not trimmed.
 	 */
 	private static final HashSet<TypeInformation<?>> STRING_TYPES =
-		new HashSet<>(Arrays.asList(Types.STRING, Types.SQL_DATE, Types.SQL_TIME, Types.SQL_TIMESTAMP));
+		new HashSet<>(Arrays.asList(Types.STRING,
+			Types.SQL_DATE, Types.SQL_TIME, Types.SQL_TIMESTAMP,
+			Types.LOCAL_DATE, Types.LOCAL_TIME, Types.LOCAL_DATE_TIME));
 
 	/**
 	 * Types that can be converted to ColumnType.BOOLEAN.

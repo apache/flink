@@ -30,8 +30,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
@@ -70,7 +68,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 	private final FieldList set0 = new FieldList(0);
 
 	@Test
-	public void testCompileKMeansSingleStepWithStats() {
+	public void testCompileKMeansSingleStepWithStats() throws Exception {
 
 		Plan p = getKMeansPlan();
 		p.setExecutionConfig(new ExecutionConfig());
@@ -86,8 +84,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 	}
 
 	@Test
-	public void testCompileKMeansSingleStepWithOutStats() {
-
+	public void testCompileKMeansSingleStepWithOutStats() throws Exception {
 		Plan p = getKMeansPlan();
 		p.setExecutionConfig(new ExecutionConfig());
 		OptimizedPlan plan = compileNoStats(p);
@@ -141,22 +138,11 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
 	}
 
-	public static Plan getKMeansPlan() {
-		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
-		env.setAsContext();
-		try {
-			kmeans(new String[]{IN_FILE, IN_FILE, OUT_FILE, "20"});
-		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
-			// all good.
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("KMeans failed with an exception");
-		}
-		return env.getPlan();
+	public static Plan getKMeansPlan() throws Exception {
+		return kmeans(new String[]{IN_FILE, IN_FILE, OUT_FILE, "20"});
 	}
 
-	public static void kmeans(String[] args) throws Exception {
+	public static Plan kmeans(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Point> points = env.readCsvFile(args[0])
@@ -191,7 +177,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 
 		recomputeClusterCenter.project(0, 1).writeAsCsv(args[2], "\n", " ").name(SINK);
 
-		env.execute("KMeans Example");
+		return env.createProgramPlan("KMeans Example");
 	}
 
 	/**

@@ -35,6 +35,7 @@ public class DashboardConfigurationTest extends RestResponseMarshallingTestBase<
 			"foobar",
 			42,
 			"version",
-			"revision");
+			"revision",
+			new DashboardConfiguration.Features(true));
 	}
 }

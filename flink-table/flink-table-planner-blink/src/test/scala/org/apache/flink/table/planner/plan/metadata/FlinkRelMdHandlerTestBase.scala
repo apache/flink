@@ -19,10 +19,11 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
-import org.apache.flink.table.functions.UserFunctionsTypeHelper
+import ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
@@ -35,11 +36,11 @@ import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalTableAggregate, LogicalWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalTableAggregate, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.planner.plan.utils._
@@ -56,20 +57,21 @@ import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinInfo, JoinRelType, Project, Window}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
+import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, INTEGER, TIME, TIMESTAMP, VARCHAR}
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, OR, PLUS}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
-
 import java.math.BigDecimal
 import java.util
+
+import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConversions._
 
@@ -78,17 +80,16 @@ class FlinkRelMdHandlerTestBase {
   val tableConfig = new TableConfig()
   val rootSchema: SchemaPlus = MetadataTestUtil.initRootSchema()
 
-  val builtinCatalog = "default_catalog"
-  val builtinDatabase = "default_database"
-  val catalogManager = new CatalogManager(
-    builtinCatalog, new GenericInMemoryCatalog(builtinCatalog, builtinDatabase))
+  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
+  val moduleManager = new ModuleManager
 
   // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.
   val plannerContext: PlannerContext =
     new PlannerContext(
       tableConfig,
-      new FunctionCatalog(catalogManager),
+      new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+      catalogManager,
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
         ConventionTraitDef.INSTANCE,
@@ -381,7 +382,7 @@ class FlinkRelMdHandlerTestBase {
       collection, offset, fetch, true)
 
     val streamSort = new StreamExecSortLimit(cluster, streamPhysicalTraits.replace(collection),
-      studentStreamScan, collection, offset, fetch)
+      studentStreamScan, collection, offset, fetch, UndefinedStrategy)
 
     (logicalSortLimit, flinkLogicalSortLimit,
       batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
@@ -462,7 +463,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new ConstantRankRange(1, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -543,7 +545,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new ConstantRankRange(3, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -591,7 +594,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.ROW_NUMBER,
       new ConstantRankRange(3, 6),
       new RelDataTypeFieldImpl("rn", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
@@ -701,7 +705,8 @@ class FlinkRelMdHandlerTestBase {
       RankType.RANK,
       new VariableRankRange(3),
       new RelDataTypeFieldImpl("rk", 7, longType),
-      outputRankNumber = true
+      outputRankNumber = true,
+      UndefinedStrategy
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)
@@ -709,8 +714,8 @@ class FlinkRelMdHandlerTestBase {
 
   protected lazy val tableAggCall = {
     val top3 = new Top3
-    val resultTypeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(top3)
-    val accTypeInfo = UserFunctionsTypeHelper.getAccumulatorTypeOfAggregateFunction(top3)
+    val resultTypeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(top3)
+    val accTypeInfo = UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(top3)
 
     val resultDataType = TypeConversions.fromLegacyInfoToDataType(resultTypeInfo)
     val accDataType = TypeConversions.fromLegacyInfoToDataType(accTypeInfo)
@@ -721,7 +726,14 @@ class FlinkRelMdHandlerTestBase {
     val relDataType = builder.build()
 
     AggregateCall.create(
-      AggSqlFunction("top3", "top3", new Top3, resultDataType, accDataType, typeFactory, false),
+      AggSqlFunction(
+        FunctionIdentifier.of("top3"),
+        "top3",
+        new Top3,
+        resultDataType,
+        accDataType,
+        typeFactory,
+        false),
       false,
       false,
       false,
@@ -768,6 +780,73 @@ class FlinkRelMdHandlerTestBase {
     )
 
     (logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg)
+  }
+
+  // equivalent Table API is
+  // tEnv.scan("TemporalTable1")
+  //  .select("c, a, b, rowtime")
+  //  .window(Tumble.over("15.minutes").on("rowtime").as("w"))
+  //  .groupBy("a, w")
+  //  .flatAggregate("top3(c)")
+  //  .select("a, f0, f1, w.start, w.end, w.rowtime, w.proctime")
+  protected lazy val (
+    logicalWindowTableAgg,
+    flinkLogicalWindowTableAgg,
+    streamWindowTableAgg) = {
+
+    relBuilder.scan("TemporalTable1")
+    val ts = relBuilder.peek()
+    val project = relBuilder.project(relBuilder.fields(Seq[Integer](2, 0, 1, 4).toList))
+      .build().asInstanceOf[Project]
+    val program = RexProgram.create(
+      ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
+    val aggCallOfWindowAgg = Lists.newArrayList(tableAggCall)
+    val logicalWindowAgg = new LogicalWindowTableAggregate(
+      ts.getCluster,
+      ts.getTraitSet,
+      project,
+      ImmutableBitSet.of(1),
+      ImmutableList.of(ImmutableBitSet.of(1)),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val flinkLogicalTs: FlinkLogicalDataStreamTableScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), flinkLogicalTraits)
+    val flinkLogicalWindowAgg = new FlinkLogicalWindowTableAggregate(
+      ts.getCluster,
+      logicalTraits,
+      new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
+      ImmutableBitSet.of(1),
+      ImmutableList.of(ImmutableBitSet.of(1)),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val hash01 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
+
+    val streamTs: StreamExecDataStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
+    val streamCalc = new BatchExecCalc(
+      cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
+    val streamExchange = new StreamExecExchange(
+      cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
+    val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
+    val streamWindowAgg = new StreamExecGroupWindowTableAggregate(
+      cluster,
+      streamPhysicalTraits,
+      streamExchange,
+      flinkLogicalWindowAgg.getRowType,
+      streamExchange.getRowType,
+      Array(1),
+      flinkLogicalWindowAgg.getAggCallList,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg,
+      inputTimeFieldIndex = 2,
+      emitStrategy
+    )
+
+    (logicalWindowAgg, flinkLogicalWindowAgg, streamWindowAgg)
   }
 
   // equivalent SQL is
@@ -2277,8 +2356,11 @@ class FlinkRelMdHandlerTestBase {
 
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {
-    val table = relBuilder.getRelOptSchema.asInstanceOf[CalciteCatalogReader].getTable(tableNames)
-      .asInstanceOf[FlinkRelOptTable]
+    val table = relBuilder
+      .getRelOptSchema
+      .asInstanceOf[CalciteCatalogReader]
+      .getTable(tableNames)
+      .asInstanceOf[FlinkPreparingTableBase]
     val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
     val scan = conventionTrait match {
       case Convention.NONE =>
@@ -2296,7 +2378,7 @@ class FlinkRelMdHandlerTestBase {
     scan.asInstanceOf[T]
   }
 
-  private def createLiteralList(
+  protected def createLiteralList(
       rowType: RelDataType,
       literalValues: Seq[String]): util.List[RexLiteral] = {
     require(literalValues.length == rowType.getFieldCount)
@@ -2309,6 +2391,7 @@ class FlinkRelMdHandlerTestBase {
         } else {
           fieldType.getSqlTypeName match {
             case BIGINT => rexBuilder.makeLiteral(v.toLong, fieldType, true)
+            case INTEGER => rexBuilder.makeLiteral(v.toInt, fieldType, true)
             case BOOLEAN => rexBuilder.makeLiteral(v.toBoolean)
             case DATE => rexBuilder.makeDateLiteral(new DateString(v))
             case TIME => rexBuilder.makeTimeLiteral(new TimeString(v), 0)
@@ -2367,7 +2450,7 @@ class TestRel(
 object FlinkRelMdHandlerTestBase {
   @BeforeClass
   def beforeAll(): Unit = {
-    RelMetadataQuery
+    RelMetadataQueryBase
       .THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
   }

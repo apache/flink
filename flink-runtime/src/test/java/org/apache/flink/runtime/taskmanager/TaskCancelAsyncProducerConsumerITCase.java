@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -32,7 +34,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -40,11 +41,13 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -55,6 +58,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+@Category(AlsoRunWithLegacyScheduler.class)
 public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 	// The Exceptions thrown by the producer/consumer Threads
@@ -73,7 +77,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 	private static Configuration getFlinkConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
+		config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
 		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 9);
 		return config;
 	}
@@ -100,7 +104,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 		consumer.setInvokableClass(AsyncConsumer.class);
 		consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		SlotSharingGroup slot = new SlotSharingGroup(producer.getID(), consumer.getID());
+		SlotSharingGroup slot = new SlotSharingGroup();
 		producer.setSlotSharingGroup(slot);
 		consumer.setSlotSharingGroup(slot);
 
@@ -215,7 +219,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			private final RecordWriter<LongValue> recordWriter;
 
 			public ProducerThread(ResultPartitionWriter partitionWriter) {
-				this.recordWriter = new RecordWriterBuilder().build(partitionWriter);
+				this.recordWriter = new RecordWriterBuilder<LongValue>().build(partitionWriter);
 			}
 
 			@Override

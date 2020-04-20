@@ -56,7 +56,8 @@ object CalcCodeGenerator {
       calcProgram,
       condition,
       eagerInputUnboxingCode = true,
-      retainHeader = retainHeader)
+      retainHeader = retainHeader,
+      allowSplit = true)
 
     val genOperator =
       OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, BaseRow](
@@ -119,7 +120,8 @@ object CalcCodeGenerator {
       collectorTerm: String = CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
       eagerInputUnboxingCode: Boolean,
       retainHeader: Boolean = false,
-      outputDirectly: Boolean = false): String = {
+      outputDirectly: Boolean = false,
+      allowSplit: Boolean = false): String = {
 
     val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
     val exprGenerator = new ExprCodeGenerator(ctx, false)
@@ -151,7 +153,8 @@ object CalcCodeGenerator {
         exprGenerator.generateResultExpression(
           projectionExprs,
           outRowType,
-          outRowClass)
+          outRowClass,
+          allowSplit = allowSplit)
       }
 
       val projectionExpressionCode = projectionExpression.code

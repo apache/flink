@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.resettable;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -54,7 +55,7 @@ public class SpillingResettableMutableObjectIteratorTest {
 	@Before
 	public void startup() {
 		// set up IO and memory manager
-		this.memman = new MemoryManager(MEMORY_CAPACITY, 1);
+		this.memman = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_CAPACITY).build();
 		this.ioman = new IOManagerAsync();
 
 		// create test objects

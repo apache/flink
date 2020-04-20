@@ -22,15 +22,17 @@ import org.apache.flink.api.common.functions.util.ListCollector
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
+import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow, SqlTimestamp}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
 
 import org.apache.calcite.rex.RexNode
 
+import java.time.ZoneId
 import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
@@ -45,7 +47,20 @@ object PartitionPruner {
 
   // current supports partition field type
   val supportedPartitionFieldTypes = Array(
-    VARCHAR, CHAR, BOOLEAN, TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE, DECIMAL
+    VARCHAR,
+    CHAR,
+    BOOLEAN,
+    TINYINT,
+    SMALLINT,
+    INTEGER,
+    BIGINT,
+    FLOAT,
+    DOUBLE,
+    DECIMAL,
+    DATE,
+    TIME_WITHOUT_TIME_ZONE,
+    TIMESTAMP_WITHOUT_TIME_ZONE,
+    TIMESTAMP_WITH_LOCAL_TIME_ZONE
   )
 
   /**
@@ -112,7 +127,8 @@ object PartitionPruner {
       richMapFunction.open(parameters)
       // do filter against all partitions
       allPartitions.foreach { partition =>
-        val row = convertPartitionToRow(partitionFieldNames, partitionFieldTypes, partition)
+        val row = convertPartitionToRow(
+          config.getLocalTimeZone, partitionFieldNames, partitionFieldTypes, partition)
         collector.collect(richMapFunction.map(row))
       }
     } finally {
@@ -122,47 +138,52 @@ object PartitionPruner {
     // get pruned partitions
     allPartitions.zipWithIndex.filter {
       case (_, index) => results.get(index)
-    }.unzip._1
+    }.map(_._1)
   }
 
   /**
     * create new Row from partition, set partition values to corresponding positions of row.
     */
   private def convertPartitionToRow(
+      timeZone: ZoneId,
       partitionFieldNames: Array[String],
       partitionFieldTypes: Array[LogicalType],
       partition: JMap[String, String]): GenericRow = {
     val row = new GenericRow(partitionFieldNames.length)
     partitionFieldNames.zip(partitionFieldTypes).zipWithIndex.foreach {
       case ((fieldName, fieldType), index) =>
-        val value = convertPartitionFieldValue(partition(fieldName), fieldType)
+        val value = convertPartitionFieldValue(timeZone, partition(fieldName), fieldType)
         row.setField(index, value)
     }
     row
   }
 
   private def convertPartitionFieldValue(
-      partitionFieldValue: String,
-      partitionFieldType: LogicalType): Any = {
-    partitionFieldValue match {
-      case null => null
+      timeZone: ZoneId,
+      v: String,
+      t: LogicalType): Any = {
+    if (v == null) {
+      return null
+    }
+    t.getTypeRoot match {
+      case VARCHAR | CHAR => BinaryString.fromString(v)
+      case BOOLEAN => Boolean
+      case TINYINT => v.toByte
+      case SMALLINT => v.toShort
+      case INTEGER => v.toInt
+      case BIGINT => v.toLong
+      case FLOAT => v.toFloat
+      case DOUBLE => v.toDouble
+      case DECIMAL =>
+        val decimalType = t.asInstanceOf[DecimalType]
+        Decimal.castFrom(v, decimalType.getPrecision, decimalType.getScale)
+      case DATE => SqlDateTimeUtils.dateStringToUnixDate(v)
+      case TIME_WITHOUT_TIME_ZONE => SqlDateTimeUtils.timeStringToUnixDate(v)
+      case TIMESTAMP_WITHOUT_TIME_ZONE => SqlDateTimeUtils.toSqlTimestamp(v)
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE => SqlTimestamp.fromInstant(
+        SqlDateTimeUtils.toSqlTimestamp(v).toLocalDateTime.atZone(timeZone).toInstant)
       case _ =>
-        val v = partitionFieldValue
-        partitionFieldType.getTypeRoot match {
-          case VARCHAR | CHAR => BinaryString.fromString(v)
-          case BOOLEAN => Boolean
-          case TINYINT => v.toByte
-          case SMALLINT => v.toShort
-          case INTEGER => v.toInt
-          case BIGINT => v.toLong
-          case FLOAT => v.toFloat
-          case DOUBLE => v.toDouble
-          case DECIMAL =>
-            val decimalType = partitionFieldType.asInstanceOf[DecimalType]
-            Decimal.castFrom(v, decimalType.getPrecision, decimalType.getScale)
-          case _ =>
-            throw new TableException(s"$partitionFieldType is not supported in PartitionPruner")
-        }
+        throw new TableException(s"$t is not supported in PartitionPruner")
     }
   }
 

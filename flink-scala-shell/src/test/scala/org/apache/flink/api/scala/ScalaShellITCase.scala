@@ -20,13 +20,16 @@ package org.apache.flink.api.scala
 
 import java.io._
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.client.deployment.executors.RemoteExecutor
+import org.apache.flink.configuration.{Configuration, DeploymentOptions, JobManagerOptions, RestOptions}
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.minicluster.MiniCluster
-import org.apache.flink.runtime.testutils.{MiniClusterResource, MiniClusterResourceConfiguration}
+import org.apache.flink.runtime.testutils.MiniClusterResource
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler
 import org.apache.flink.util.TestLogger
 import org.junit._
+import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
 
 import scala.tools.nsc.Settings
@@ -39,6 +42,13 @@ class ScalaShellITCase extends TestLogger {
 
   @Rule
   def temporaryFolder = _temporaryFolder
+
+  @After
+  def resetClassLoder(): Unit = {
+    // The Scala interpreter changes current class loader to ScalaClassLoader in every execution
+    // refer to [[ILoop.process()]]. So, we need reset it to original class loader after every Test.
+    Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
+  }
 
   /** Prevent re-creation of environment */
   @Test
@@ -441,6 +451,7 @@ class ScalaShellITCase extends TestLogger {
 
 }
 
+@Category(Array(classOf[AlsoRunWithLegacyScheduler]))
 object ScalaShellITCase {
 
   val configuration = new Configuration()
@@ -454,12 +465,6 @@ object ScalaShellITCase {
 
   @ClassRule
   def clusterResource = _clusterResource
-
-  @AfterClass
-  def afterAll(): Unit = {
-    // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
-    Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
-  }
 
   /**
    * Run the input using a Scala Shell and return the output of the shell.
@@ -478,17 +483,22 @@ object ScalaShellITCase {
     val port: Int = clusterResource.getRestAddres.getPort
     val hostname : String = clusterResource.getRestAddres.getHost
 
+    configuration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME)
+    configuration.setBoolean(DeploymentOptions.ATTACHED, true)
+
+    configuration.setString(JobManagerOptions.ADDRESS, hostname)
+    configuration.setInteger(JobManagerOptions.PORT, port)
+
+    configuration.setString(RestOptions.ADDRESS, hostname)
+    configuration.setInteger(RestOptions.PORT, port)
+
       val repl = externalJars match {
         case Some(ej) => new FlinkILoop(
-          hostname,
-          port,
           configuration,
           Option(Array(ej)),
           in, new PrintWriter(out))
 
         case None => new FlinkILoop(
-          hostname,
-          port,
           configuration,
           in, new PrintWriter(out))
       }

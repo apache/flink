@@ -26,7 +26,6 @@ import org.apache.flink.table.dataformat.{BinaryStringUtil, Decimal, _}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
 import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
@@ -36,10 +35,11 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.types.Row
-
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.util.concurrent.atomic.AtomicInteger
+
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 
 object CodeGenUtils {
 
@@ -97,6 +97,8 @@ object CodeGenUtils {
 
   val STRING_UTIL: String = className[BinaryStringUtil]
 
+  val SQL_TIMESTAMP: String = className[SqlTimestamp]
+
   // ----------------------------------------------------------------------------------------
 
   private val nameCounter = new AtomicInteger
@@ -114,7 +116,28 @@ object CodeGenUtils {
   /**
     * Retrieve the canonical name of a class type.
     */
-  def className[T](implicit m: Manifest[T]): String = m.runtimeClass.getCanonicalName
+  def className[T](implicit m: Manifest[T]): String = {
+    val name = m.runtimeClass.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${m.runtimeClass.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
+    }
+    name
+  }
+
+  /**
+   * Returns a term for representing the given class in Java code.
+   */
+  def typeTerm(clazz: Class[_]): String = {
+    val name = clazz.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${clazz.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
+    }
+    name
+  }
 
   // when casting we first need to unbox Primitives, for example,
   // float a = 1.0f;
@@ -133,7 +156,6 @@ object CodeGenUtils {
 
     case DATE => "int"
     case TIME_WITHOUT_TIME_ZONE => "int"
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => "long"
     case INTERVAL_YEAR_MONTH => "int"
     case INTERVAL_DAY_TIME => "long"
 
@@ -151,7 +173,6 @@ object CodeGenUtils {
 
     case DATE => className[JInt]
     case TIME_WITHOUT_TIME_ZONE => className[JInt]
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[JLong]
     case INTERVAL_YEAR_MONTH => className[JInt]
     case INTERVAL_DAY_TIME => className[JLong]
 
@@ -162,20 +183,9 @@ object CodeGenUtils {
     case ARRAY => className[BaseArray]
     case MULTISET | MAP => className[BaseMap]
     case ROW => className[BaseRow]
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[SqlTimestamp]
 
-    case ANY => className[BinaryGeneric[_]]
-  }
-
-  /**
-    * Gets the boxed type term from external type info.
-    * We only use TypeInformation to store external type info.
-    */
-  def boxedTypeTermForExternalType(t: DataType): String = {
-    if (t.getConversionClass == null) {
-      ClassLogicalTypeConverter.getDefaultExternalClassForType(t.getLogicalType).getCanonicalName
-    } else {
-      t.getConversionClass.getCanonicalName
-    }
+    case RAW => className[BinaryGeneric[_]]
   }
 
   /**
@@ -190,7 +200,6 @@ object CodeGenUtils {
     case VARCHAR | CHAR => s"$BINARY_STRING.EMPTY_UTF8"
 
     case DATE | TIME_WITHOUT_TIME_ZONE => "-1"
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => "-1L"
     case INTERVAL_YEAR_MONTH => "-1"
     case INTERVAL_DAY_TIME => "-1L"
 
@@ -224,7 +233,7 @@ object CodeGenUtils {
     case DATE => s"${className[JInt]}.hashCode($term)"
     case TIME_WITHOUT_TIME_ZONE => s"${className[JInt]}.hashCode($term)"
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-      s"${className[JLong]}.hashCode($term)"
+      s"$term.hashCode()"
     case INTERVAL_YEAR_MONTH => s"${className[JInt]}.hashCode($term)"
     case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
     case ARRAY => throw new IllegalArgumentException(s"Not support type to hash: $t")
@@ -239,8 +248,8 @@ object CodeGenUtils {
       ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
       ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
       s"$hashFunc.hashCode($term)"
-    case ANY =>
-      val gt = t.asInstanceOf[TypeInformationAnyType[_]]
+    case RAW =>
+      val gt = t.asInstanceOf[TypeInformationRawType[_]]
       val serTerm = ctx.addReusableObject(
         gt.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
       s"$BINARY_GENERIC.getJavaObjectFromBinaryGeneric($term, $serTerm).hashCode()"
@@ -322,7 +331,7 @@ object CodeGenUtils {
   def getEnum(genExpr: GeneratedExpression): Enum[_] = {
     val split = genExpr.resultTerm.split('.')
     val value = split.last
-    val clazz = genExpr.resultType.asInstanceOf[TypeInformationAnyType[_]]
+    val clazz = genExpr.resultType.asInstanceOf[TypeInformationRawType[_]]
         .getTypeInformation.getTypeClass
     enumValueOf(clazz, value)
   }
@@ -414,8 +423,12 @@ object CodeGenUtils {
       // temporal types
       case DATE => s"$rowTerm.getInt($indexTerm)"
       case TIME_WITHOUT_TIME_ZONE => s"$rowTerm.getInt($indexTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$rowTerm.getLong($indexTerm)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = t.asInstanceOf[TimestampType]
+        s"$rowTerm.getTimestamp($indexTerm, ${dt.getPrecision})"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = t.asInstanceOf[LocalZonedTimestampType]
+        s"$rowTerm.getTimestamp($indexTerm, ${dt.getPrecision})"
       case INTERVAL_YEAR_MONTH => s"$rowTerm.getInt($indexTerm)"
       case INTERVAL_DAY_TIME => s"$rowTerm.getLong($indexTerm)"
 
@@ -424,7 +437,7 @@ object CodeGenUtils {
       case MULTISET | MAP  => s"$rowTerm.getMap($indexTerm)"
       case ROW => s"$rowTerm.getRow($indexTerm, ${t.asInstanceOf[RowType].getFieldCount})"
 
-      case ANY => s"$rowTerm.getGeneric($indexTerm)"
+      case RAW => s"$rowTerm.getGeneric($indexTerm)"
     }
 
   // -------------------------- BaseRow Set Field -------------------------------
@@ -482,7 +495,7 @@ object CodeGenUtils {
       }
     } else if (rowClass == classOf[GenericRow] || rowClass == classOf[BoxedWrapperRow]) {
       val writeField = if (rowClass == classOf[GenericRow]) {
-        s"$rowTerm.setField($indexTerm, $fieldTerm);"
+        s"$rowTerm.setField($indexTerm, $fieldTerm)"
       } else {
         boxedWrapperRowFieldSetAccess(rowTerm, indexTerm, fieldTerm, fieldType)
       }
@@ -514,6 +527,10 @@ object CodeGenUtils {
   def binaryRowSetNull(indexTerm: String, rowTerm: String, t: LogicalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
       s"$rowTerm.setDecimal($indexTerm, null, ${d.getPrecision})"
+    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
+    case d: LocalZonedTimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$rowTerm.setNullAt($indexTerm)"
   }
 
@@ -539,8 +556,12 @@ object CodeGenUtils {
       case BOOLEAN => s"$binaryRowTerm.setBoolean($index, $fieldValTerm)"
       case DATE =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
       case TIME_WITHOUT_TIME_ZONE =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$binaryRowTerm.setLong($index, $fieldValTerm)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = t.asInstanceOf[TimestampType]
+        s"$binaryRowTerm.setTimestamp($index, $fieldValTerm, ${dt.getPrecision})"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = t.asInstanceOf[LocalZonedTimestampType]
+        s"$binaryRowTerm.setTimestamp($index, $fieldValTerm, ${dt.getPrecision})"
       case INTERVAL_YEAR_MONTH =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
       case INTERVAL_DAY_TIME =>  s"$binaryRowTerm.setLong($index, $fieldValTerm)"
       case DECIMAL =>
@@ -568,8 +589,6 @@ object CodeGenUtils {
       case BOOLEAN => s"$rowTerm.setBoolean($indexTerm, $fieldTerm)"
       case DATE =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
       case TIME_WITHOUT_TIME_ZONE =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$rowTerm.setLong($indexTerm, $fieldTerm)"
       case INTERVAL_YEAR_MONTH => s"$rowTerm.setInt($indexTerm, $fieldTerm)"
       case INTERVAL_DAY_TIME => s"$rowTerm.setLong($indexTerm, $fieldTerm)"
       case _ => s"$rowTerm.setNonPrimitiveValue($indexTerm, $fieldTerm)"
@@ -585,15 +604,11 @@ object CodeGenUtils {
     case TINYINT => s"$arrayTerm.setNullByte($index)"
     case SMALLINT => s"$arrayTerm.setNullShort($index)"
     case INTEGER => s"$arrayTerm.setNullInt($index)"
-    case BIGINT => s"$arrayTerm.setNullLong($index)"
     case FLOAT => s"$arrayTerm.setNullFloat($index)"
     case DOUBLE => s"$arrayTerm.setNullDouble($index)"
     case TIME_WITHOUT_TIME_ZONE => s"$arrayTerm.setNullInt($index)"
     case DATE => s"$arrayTerm.setNullInt($index)"
-    case TIMESTAMP_WITHOUT_TIME_ZONE |
-         TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$arrayTerm.setNullLong($index)"
     case INTERVAL_YEAR_MONTH => s"$arrayTerm.setNullInt($index)"
-    case INTERVAL_DAY_TIME => s"$arrayTerm.setNullLong($index)"
     case _ => s"$arrayTerm.setNullLong($index)"
   }
 
@@ -608,6 +623,10 @@ object CodeGenUtils {
       t: LogicalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
       s"$writerTerm.writeDecimal($indexTerm, null, ${d.getPrecision})"
+    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
+    case d: LocalZonedTimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$writerTerm.setNullAt($indexTerm)"
   }
 
@@ -640,8 +659,12 @@ object CodeGenUtils {
         s"$writerTerm.writeDecimal($indexTerm, $fieldValTerm, ${dt.getPrecision})"
       case DATE => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
       case TIME_WITHOUT_TIME_ZONE => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = t.asInstanceOf[TimestampType]
+        s"$writerTerm.writeTimestamp($indexTerm, $fieldValTerm, ${dt.getPrecision})"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = t.asInstanceOf[LocalZonedTimestampType]
+        s"$writerTerm.writeTimestamp($indexTerm, $fieldValTerm, ${dt.getPrecision})"
       case INTERVAL_YEAR_MONTH => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
       case INTERVAL_DAY_TIME => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
 
@@ -655,8 +678,9 @@ object CodeGenUtils {
       case ROW =>
         val ser = ctx.addReusableTypeSerializer(t)
         s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
-
-      case ANY => s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm)"
+      case RAW =>
+        val ser = ctx.addReusableTypeSerializer(t)
+        s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm, $ser)"
     }
 
   private def isConverterIdentity(t: DataType): Boolean = {
@@ -666,12 +690,18 @@ object CodeGenUtils {
   def genToInternal(ctx: CodeGeneratorContext, t: DataType, term: String): String =
     genToInternal(ctx, t)(term)
 
+  /**
+   * Generates code for converting the given external source data type to the internal data format.
+   *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
   def genToInternal(ctx: CodeGeneratorContext, t: DataType): String => String = {
-    val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
     if (isConverterIdentity(t)) {
-      term => s"($iTerm) $term"
+      term => s"$term"
     } else {
-      val eTerm = boxedTypeTermForExternalType(t)
+      val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
+      val eTerm = typeTerm(t.getConversionClass)
       val converter = ctx.addReusableObject(
         DataFormatConverters.getConverterForDataType(t),
         "converter")
@@ -679,38 +709,71 @@ object CodeGenUtils {
     }
   }
 
+  /**
+   * Generates code for converting the given external source data type to the internal data format.
+   *
+   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
+   * the RESULT CAN BE NULL.
+   */
   def genToInternalIfNeeded(
       ctx: CodeGeneratorContext,
-      t: DataType,
-      term: String): String = {
-    if (isInternalClass(t)) {
-      s"(${boxedTypeTermForType(fromDataTypeToLogicalType(t))}) $term"
+      sourceDataType: DataType,
+      externalTerm: String)
+    : GeneratedExpression = {
+    val sourceType = sourceDataType.getLogicalType
+    val sourceClass = sourceDataType.getConversionClass
+    // convert external source type to internal format
+    val internalResultTerm = if (isInternalClass(sourceDataType)) {
+      s"$externalTerm"
     } else {
-      genToInternal(ctx, t, term)
+      genToInternal(ctx, sourceDataType, externalTerm)
+    }
+    // extract null term from result term
+    if (sourceClass.isPrimitive) {
+      generateNonNullField(sourceType, internalResultTerm)
+    } else {
+      generateInputFieldUnboxing(ctx, sourceType, externalTerm, internalResultTerm)
     }
   }
 
-  def genToExternal(ctx: CodeGeneratorContext, t: DataType, term: String): String = {
-    val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
-    if (isConverterIdentity(t)) {
-      s"($iTerm) $term"
+  def genToExternal(
+      ctx: CodeGeneratorContext,
+      targetType: DataType,
+      internalTerm: String): String = {
+    if (isConverterIdentity(targetType)) {
+      s"$internalTerm"
     } else {
-      val eTerm = boxedTypeTermForExternalType(t)
+      val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(targetType))
+      val eTerm = typeTerm(targetType.getConversionClass)
       val converter = ctx.addReusableObject(
-        DataFormatConverters.getConverterForDataType(t),
+        DataFormatConverters.getConverterForDataType(targetType),
         "converter")
-      s"($eTerm) $converter.toExternal(($iTerm) $term)"
+      s"($eTerm) $converter.toExternal(($iTerm) $internalTerm)"
     }
   }
 
+  /**
+   * Generates code for converting the internal data format to the given external target data type.
+   *
+   * Use this function for converting at the edges of the API.
+   */
   def genToExternalIfNeeded(
       ctx: CodeGeneratorContext,
-      t: DataType,
-      term: String): String = {
-    if (isInternalClass(t)) {
-      s"(${boxedTypeTermForType(fromDataTypeToLogicalType(t))}) $term"
+      targetDataType: DataType,
+      internalExpr: GeneratedExpression)
+    : String = {
+    val targetType = fromDataTypeToLogicalType(targetDataType)
+    // convert internal format to target type
+    val externalResultTerm = if (isInternalClass(targetDataType)) {
+      s"(${boxedTypeTermForType(targetType)}) ${internalExpr.resultTerm}"
     } else {
-      genToExternal(ctx, t, term)
+      genToExternal(ctx, targetDataType, internalExpr.resultTerm)
+    }
+    // merge null term into the result term
+    if (targetDataType.getConversionClass.isPrimitive) {
+      externalResultTerm
+    } else {
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
     }
   }
 

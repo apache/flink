@@ -38,7 +38,7 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, MatchCodeGe
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil._
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, RexDefaultVisitor, SortUtil}
 import org.apache.flink.table.runtime.operators.`match`.{BaseRowEventComparator, RowtimeProcessFunction}
@@ -75,13 +75,10 @@ class StreamExecMatch(
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
-
-  override def producesUpdates: Boolean = false
+  if (logicalMatch.measures.values().exists(containsPythonCall(_)) ||
+    logicalMatch.patternDefinitions.values().exists(containsPythonCall(_))) {
+    throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
+  }
 
   override def requireWatermark: Boolean = {
     val rowtimeFields = getInput.getRowType.getFieldList
@@ -105,7 +102,7 @@ class StreamExecMatch(
     val fieldNames = inputRowType.getFieldNames.toList
     super.explainTerms(pw)
       .itemIf("partitionBy",
-        fieldToString(getPartitionKeyIndexes, inputRowType),
+        fieldToString(logicalMatch.partitionKeys.toArray, inputRowType),
         !logicalMatch.partitionKeys.isEmpty)
       .itemIf("orderBy",
         collationToString(logicalMatch.orderKeys, inputRowType),
@@ -161,14 +158,6 @@ class StreamExecMatch(
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
-
-    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
-
-    if (inputIsAccRetract) {
-      throw new TableException(
-        "Retraction on match recognize is not supported. " +
-          "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
-    }
 
     val config = planner.getTableConfig
     val relBuilder = planner.getRelBuilder
@@ -289,10 +278,11 @@ class StreamExecMatch(
         // copy the rowtime field into the StreamRecord timestamp field
         val timeIdx = timeOrderField.getIndex
         val inputTypeInfo = inputTransform.getOutputType
+        val precision = timeOrderField.getType.getPrecision
         val transformation = new OneInputTransformation(
           inputTransform,
           s"rowtime field: ($timeOrderField)",
-          new ProcessOperator(new RowtimeProcessFunction(timeIdx, inputTypeInfo)),
+          new ProcessOperator(new RowtimeProcessFunction(timeIdx, inputTypeInfo, precision)),
           inputTypeInfo,
           inputTransform.getParallelism)
         if (inputsContainSingleton()) {
@@ -307,16 +297,12 @@ class StreamExecMatch(
     (timestampedInputTransform, eventComparator)
   }
 
-  private def getPartitionKeyIndexes: Array[Int] = {
-    logicalMatch.partitionKeys.map {
-      case inputRef: RexInputRef => inputRef.getIndex
-    }.toArray
-  }
-
   private def setKeySelector(
       transform: OneInputTransformation[BaseRow, _],
       inputTypeInfo: BaseRowTypeInfo): Unit = {
-    val selector = KeySelectorUtil.getBaseRowSelector(getPartitionKeyIndexes, inputTypeInfo)
+    val selector = KeySelectorUtil.getBaseRowSelector(
+      logicalMatch.partitionKeys.toArray,
+      inputTypeInfo)
     transform.setStateKeySelector(selector)
     transform.setStateKeyType(selector.getProducedType)
   }

@@ -18,33 +18,27 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.Function
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
-import org.apache.flink.table.planner.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.runtime.collector.TableFunctionCollector
-import org.apache.flink.table.runtime.generated.GeneratedCollector
-import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.runtime.util.StreamRecordCollector
-import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.{LogicalType, RowType}
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
+import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
+import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
+import org.apache.flink.table.functions.FunctionKind
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.utils.TableSqlFunction
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.util.StreamRecordCollector
+import org.apache.flink.table.types.logical.RowType
+
+import org.apache.calcite.sql.SqlKind
 
 import scala.collection.JavaConversions._
 
@@ -58,44 +52,42 @@ object CorrelateCodeGenerator {
       projectProgram: Option[RexProgram],
       scan: FlinkLogicalTableFunctionScan,
       condition: Option[RexNode],
-      outDataType: RelDataType,
+      outRelType: RelDataType,
       joinType: JoinRelType,
       parallelism: Int,
       retainHeader: Boolean,
       expression: (RexNode, List[String], Option[List[RexNode]]) => String,
-      ruleDescription: String): Transformation[BaseRow] = {
+      opName: String,
+      transformationName: String)
+    : Transformation[BaseRow] = {
+
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    // we need result Type to do code generation
-    val arguments = UserDefinedFunctionUtils.transformRexNodes(rexCall.operands)
-    val operandTypes = rexCall.operands
-        .map(_.getType)
-        .map(FlinkTypeFactory.toLogicalType).toArray
-    val func = sqlFunction.makeFunction(arguments, operandTypes)
-    val argTypes = getEvalMethodSignature(
-      func,
-      rexCall.operands
-        .map(_.getType)
-        .map(FlinkTypeFactory.toLogicalType).toArray)
-    val udtfExternalType = sqlFunction
-        .getFunction
-        .asInstanceOf[FlinkTableFunction]
-        .getExternalResultType(func, arguments, argTypes)
-    val pojoFieldMapping = Some(UserDefinedFunctionUtils.getFieldInfo(udtfExternalType)._2)
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRelType)
-    val (returnType, swallowInputOnly ) = if (projectProgram.isDefined) {
+    val returnType = FlinkTypeFactory.toLogicalRowType(outRelType)
+
+    // according to the SQL standard, every scalar function should also be a table function
+    // but we don't allow that for now
+    rexCall.getOperator match {
+      case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
+      case _: TableSqlFunction => // ok
+      case _ =>
+        throw new ValidationException("Currently, only table functions can emit rows.")
+    }
+
+    val swallowInputOnly = if (projectProgram.isDefined) {
       val program = projectProgram.get
       val selects = program.getProjectList.map(_.getIndex)
       val inputFieldCnt = program.getInputRowType.getFieldCount
       val swallowInputOnly = selects.head > inputFieldCnt &&
-        (inputFieldCnt - outDataType.getFieldCount == inputRelType.getFieldCount)
+        (inputFieldCnt - outRelType.getFieldCount == inputRelType.getFieldCount)
       // partial output or output right only
-      (FlinkTypeFactory.toLogicalRowType(outDataType), swallowInputOnly)
+      swallowInputOnly
     } else {
       // completely output left input + right
-      (FlinkTypeFactory.toLogicalRowType(outDataType), false)
+      false
     }
+
     // adjust indicies of InputRefs to adhere to schema expected by generator
     val changeInputRefIndexShuttle = new RexShuttle {
       override def visitInputRef(inputRef: RexInputRef): RexNode = {
@@ -103,39 +95,23 @@ object CorrelateCodeGenerator {
       }
     }
 
-    val collectorCtx = CodeGeneratorContext(config)
-    val collector = generateCollector(
-      collectorCtx,
-      config,
-      inputType,
-      projectProgram,
-      swallowInputOnly,
-      udtfExternalType,
-      returnType,
-      condition.map(_.accept(changeInputRefIndexShuttle)),
-      pojoFieldMapping,
-      retainHeader)
-
     val substituteStreamOperator = generateOperator(
       operatorCtx,
-      collectorCtx,
       config,
       inputType,
       projectProgram,
       swallowInputOnly,
-      fromDataTypeToLogicalType(udtfExternalType),
+      condition.map(_.accept(changeInputRefIndexShuttle)),
       returnType,
       joinType,
       rexCall,
-      pojoFieldMapping,
-      ruleDescription,
+      opName,
       classOf[ProcessFunction[BaseRow, BaseRow]],
-      collector,
       retainHeader)
 
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       inputTransformation,
-      ruleDescription,
+      transformationName,
       substituteStreamOperator,
       BaseRowTypeInfo.of(returnType),
       parallelism)
@@ -146,48 +122,54 @@ object CorrelateCodeGenerator {
     */
   private[flink] def generateOperator[T <: Function](
       ctx: CodeGeneratorContext,
-      collectorCtx: CodeGeneratorContext,
       config: TableConfig,
       inputType: RowType,
       projectProgram: Option[RexProgram],
       swallowInputOnly: Boolean = false,
-      udtfType: LogicalType,
+      condition: Option[RexNode],
       returnType: RowType,
       joinType: JoinRelType,
       rexCall: RexCall,
-      pojoFieldMapping: Option[Array[Int]],
       ruleDescription: String,
       functionClass: Class[T],
-      udtfCollector: GeneratedCollector[TableFunctionCollector[_]],
-      retainHeader: Boolean = true): CodeGenOperatorFactory[BaseRow] = {
-    ctx.references ++= collectorCtx.references
+      retainHeader: Boolean = true)
+    : CodeGenOperatorFactory[BaseRow] = {
+
+    val functionResultType = FlinkTypeFactory.toLogicalRowType(rexCall.getType)
+
+    // 1. prepare collectors
+
+    // 1.1 compile correlate collector
+    val correlateCollectorTerm = generateCorrelateCollector(
+      ctx,
+      config,
+      inputType,
+      projectProgram,
+      swallowInputOnly,
+      functionResultType,
+      returnType,
+      condition,
+      retainHeader)
+
+    // 1.2 compile result conversion collector
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType)
-      .bindSecondInput(udtfType, inputFieldMapping = pojoFieldMapping)
-
-    // 1.compile and init udtf collector
-    val udtfCollectorTerm = newName("udtfCollectorTerm")
-    ctx.addReusableMember(s"private ${udtfCollector.getClassName} $udtfCollectorTerm = null;")
-    ctx.addReusableInnerClass(udtfCollector.getClassName, udtfCollector.getCode)
-
     val call = exprGenerator.generateExpression(rexCall)
-    val openUDTFCollector =
+    val resultCollectorTerm = call.resultTerm
+    val setCollectors =
       s"""
-         |$udtfCollectorTerm = new ${udtfCollector.getClassName}();
-         |$udtfCollectorTerm.setRuntimeContext(getRuntimeContext());
-         |$udtfCollectorTerm.open(new ${className[Configuration]}());
-         |$udtfCollectorTerm.setCollector(
+         |$correlateCollectorTerm.setCollector(
          | new ${classOf[StreamRecordCollector[_]].getCanonicalName}(
          |     ${CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM }));
-         |${call.resultTerm}.setCollector($udtfCollectorTerm);
+         |$resultCollectorTerm.setCollector($correlateCollectorTerm);
          |""".stripMargin
-    ctx.addReusableOpenStatement(openUDTFCollector)
+    ctx.addReusableOpenStatement(setCollectors)
 
-    // 2. call udtf
+    // 2. call function
     var body =
       s"""
-         |$udtfCollectorTerm.setInput(${exprGenerator.input1Term});
-         |$udtfCollectorTerm.reset();
+         |$correlateCollectorTerm.setInput(${exprGenerator.input1Term});
+         |$correlateCollectorTerm.reset();
          |${call.code}
          |""".stripMargin
 
@@ -196,9 +178,8 @@ object CorrelateCodeGenerator {
       if (swallowInputOnly) {
         // and the returned row table function is empty, collect a null
         val nullRowTerm = CodeGenUtils.newName("nullRow")
-        ctx.addReusableOutputRecord(
-          PlannerTypeUtils.toRowType(udtfType), classOf[GenericRow], nullRowTerm)
-        ctx.addReusableNullRow(nullRowTerm, PlannerTypeUtils.getArity(udtfType))
+        ctx.addReusableOutputRecord(functionResultType, classOf[GenericRow], nullRowTerm)
+        ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
           s"$nullRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
         } else {
@@ -206,10 +187,10 @@ object CorrelateCodeGenerator {
         }
         body +=
           s"""
-             |boolean hasOutput = $udtfCollectorTerm.isCollected();
+             |boolean hasOutput = $correlateCollectorTerm.isCollected();
              |if (!hasOutput) {
              |  $header
-             |  $udtfCollectorTerm.outputResult($nullRowTerm);
+             |  $correlateCollectorTerm.outputResult($nullRowTerm);
              |}
              |""".stripMargin
       } else if (projectProgram.isDefined) {
@@ -226,8 +207,7 @@ object CorrelateCodeGenerator {
           ctx,
           config,
           inputType,
-          udtfType,
-          pojoFieldMapping,
+          functionResultType,
           udtfAlwaysNull = true,
           returnType,
           outputTerm,
@@ -235,11 +215,11 @@ object CorrelateCodeGenerator {
 
         body +=
           s"""
-             |boolean hasOutput = $udtfCollectorTerm.isCollected();
+             |boolean hasOutput = $correlateCollectorTerm.isCollected();
              |if (!hasOutput) {
              |  ${projectionExpression.code}
              |  $header
-             |  $udtfCollectorTerm.outputResult($outputTerm);
+             |  $correlateCollectorTerm.outputResult($outputTerm);
              |}
              |""".stripMargin
 
@@ -250,7 +230,7 @@ object CorrelateCodeGenerator {
         val joinedRowTerm = CodeGenUtils.newName("joinedRow")
         val nullRowTerm = CodeGenUtils.newName("nullRow")
         ctx.addReusableOutputRecord(returnType, classOf[JoinedRow], joinedRowTerm)
-        ctx.addReusableNullRow(nullRowTerm, PlannerTypeUtils.getArity(udtfType))
+        ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
           s"$joinedRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
         } else {
@@ -258,11 +238,11 @@ object CorrelateCodeGenerator {
         }
         body +=
           s"""
-             |boolean hasOutput = $udtfCollectorTerm.isCollected();
+             |boolean hasOutput = $correlateCollectorTerm.isCollected();
              |if (!hasOutput) {
              |  $joinedRowTerm.replace(${exprGenerator.input1Term}, $nullRowTerm);
              |  $header
-             |  $udtfCollectorTerm.outputResult($joinedRowTerm);
+             |  $correlateCollectorTerm.outputResult($joinedRowTerm);
              |}
              |""".stripMargin
 
@@ -280,8 +260,7 @@ object CorrelateCodeGenerator {
       ctx: CodeGeneratorContext,
       config: TableConfig,
       input1Type: RowType,
-      udtfType: LogicalType,
-      udtfPojoFieldMapping: Option[Array[Int]],
+      functionResultType: RowType,
       udtfAlwaysNull: Boolean,
       returnType: RowType,
       outputTerm: String,
@@ -290,16 +269,14 @@ object CorrelateCodeGenerator {
       .bindInput(input1Type, CodeGenUtils.DEFAULT_INPUT1_TERM)
     if (udtfAlwaysNull) {
       val udtfNullRow = CodeGenUtils.newName("udtfNullRow")
-      ctx.addReusableNullRow(udtfNullRow, PlannerTypeUtils.getArity(udtfType))
+      ctx.addReusableNullRow(udtfNullRow, functionResultType.getFieldCount)
 
       projectExprGenerator.bindSecondInput(
-        PlannerTypeUtils.toRowType(udtfType),
-        udtfNullRow,
-        inputFieldMapping = udtfPojoFieldMapping)
+        functionResultType,
+        udtfNullRow)
     } else {
       projectExprGenerator.bindSecondInput(
-        udtfType,
-        inputFieldMapping = udtfPojoFieldMapping)
+        functionResultType)
     }
     val projection = program.getProjectList.map(program.expandLocalRef)
     val projectionExprs = projection.map(projectExprGenerator.generateExpression)
@@ -308,47 +285,43 @@ object CorrelateCodeGenerator {
   }
 
   /**
-    * Generates table function collector.
-    */
-  private[flink] def generateCollector(
+   * Generates a collector that correlates input and converted table function results. Returns a
+   * collector term for referencing the collector.
+   */
+  private def generateCorrelateCollector(
       ctx: CodeGeneratorContext,
       config: TableConfig,
       inputType: RowType,
       projectProgram: Option[RexProgram],
       swallowInputOnly: Boolean,
-      udtfExternalType: DataType,
+      functionResultType: RowType,
       resultType: RowType,
       condition: Option[RexNode],
-      pojoFieldMapping: Option[Array[Int]],
-      retainHeader: Boolean = true): GeneratedCollector[TableFunctionCollector[_]] = {
+      retainHeader: Boolean = true)
+    : String = {
+
+    val correlateCollectorTerm = newName("correlateCollector")
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val udtfType = fromDataTypeToLogicalType(udtfExternalType)
-    val exprGenerator = new ExprCodeGenerator(ctx, false).bindInput(
-      udtfType, inputTerm = udtfInputTerm, inputFieldMapping = pojoFieldMapping)
-
-    val udtfBaseRowType = PlannerTypeUtils.toRowType(udtfType)
-    val udtfResultExpr = exprGenerator.generateConverterResultExpression(
-      udtfBaseRowType, classOf[GenericRow])
+    val collectorCtx = CodeGeneratorContext(config)
 
     val body = if (projectProgram.isDefined) {
       // partial output
       if (swallowInputOnly) {
         // output right only
         val header = if (retainHeader) {
-          s"${udtfResultExpr.resultTerm}.setHeader($inputTerm.getHeader());"
+          s"$udtfInputTerm.setHeader($inputTerm.getHeader());"
         } else {
           ""
         }
         s"""
-           |${udtfResultExpr.code}
            |$header
-           |outputResult(${udtfResultExpr.resultTerm});
+           |outputResult($udtfInputTerm);
         """.stripMargin
       } else {
         val outputTerm = CodeGenUtils.newName("projectOut")
-        ctx.addReusableOutputRecord(resultType, classOf[GenericRow], outputTerm)
+        collectorCtx.addReusableOutputRecord(resultType, classOf[GenericRow], outputTerm)
 
         val header = if (retainHeader) {
           s"$outputTerm.setHeader($inputTerm.getHeader());"
@@ -356,11 +329,10 @@ object CorrelateCodeGenerator {
           ""
         }
         val projectionExpression = generateProjectResultExpr(
-          ctx,
+          collectorCtx,
           config,
           inputType,
-          udtfType,
-          pojoFieldMapping,
+          functionResultType,
           udtfAlwaysNull = false,
           resultType,
           outputTerm,
@@ -375,7 +347,7 @@ object CorrelateCodeGenerator {
     } else {
       // completely output left input + right
       val joinedRowTerm = CodeGenUtils.newName("joinedRow")
-      ctx.addReusableOutputRecord(resultType, classOf[JoinedRow], joinedRowTerm)
+      collectorCtx.addReusableOutputRecord(resultType, classOf[JoinedRow], joinedRowTerm)
 
       val header = if (retainHeader) {
         s"$joinedRowTerm.setHeader($inputTerm.getHeader());"
@@ -383,8 +355,7 @@ object CorrelateCodeGenerator {
         ""
       }
       s"""
-        |${udtfResultExpr.code}
-        |$joinedRowTerm.replace($inputTerm, ${udtfResultExpr.resultTerm});
+        |$joinedRowTerm.replace($inputTerm, $udtfInputTerm);
         |$header
         |outputResult($joinedRowTerm);
       """.stripMargin
@@ -393,10 +364,9 @@ object CorrelateCodeGenerator {
     val collectorCode = if (condition.isEmpty) {
       body
     } else {
-
-      val filterGenerator = new ExprCodeGenerator(ctx, false)
+      val filterGenerator = new ExprCodeGenerator(collectorCtx, false)
         .bindInput(inputType, inputTerm)
-        .bindSecondInput(udtfType, udtfInputTerm, pojoFieldMapping)
+        .bindSecondInput(functionResultType, udtfInputTerm)
       val filterCondition = filterGenerator.generateExpression(condition.get)
 
       s"""
@@ -407,15 +377,17 @@ object CorrelateCodeGenerator {
          |""".stripMargin
     }
 
-    CollectorCodeGenerator.generateTableFunctionCollector(
-      ctx,
+    val correlateCollector = CollectorCodeGenerator.generateTableFunctionCollector(
+      collectorCtx,
       "TableFunctionCollector",
       collectorCode,
       inputType,
-      udtfType,
+      functionResultType,
       inputTerm = inputTerm,
-      collectedTerm = udtfInputTerm,
-      converter = CodeGenUtils.genToInternal(ctx, udtfExternalType))
-  }
+      collectedTerm = udtfInputTerm)
 
+    CollectorCodeGenerator.addToContext(ctx, correlateCollectorTerm, correlateCollector)
+
+    correlateCollectorTerm
+  }
 }

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
@@ -36,7 +35,6 @@ import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkR
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil.getLongBoundary
@@ -47,6 +45,7 @@ import org.apache.flink.table.runtime.operators.over.frame.{InsensitiveOverFrame
 import org.apache.flink.table.runtime.operators.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{BIGINT, INTEGER, SMALLINT}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type._
 import org.apache.calcite.rel._
@@ -60,6 +59,7 @@ import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.flink.configuration.MemorySize
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 
 import java.util
 
@@ -379,7 +379,7 @@ class BatchExecOverAggregate(
       collation.map(_._1),
       collation.map(_._2))
 
-    var managedMemoryInMB: Int = 0
+    var managedMemory: Long = 0L
     val operator = if (!needBufferData) {
       //operator needn't cache data
       val aggHandlers = modeToGroupToAggCallToAggFunction.map { case (_, _, aggCallToAggFunction) =>
@@ -410,24 +410,20 @@ class BatchExecOverAggregate(
       new NonBufferOverWindowOperator(aggHandlers, genComparator, resetAccumulators)
     } else {
       val windowFrames = createOverWindowFrames(config)
-      val memText = config.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-      managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
+      managedMemory = MemorySize.parse(config.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
       new BufferDataOverWindowOperator(
-        managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB,
         windowFrames,
         genComparator,
         inputType.getChildren.forall(t => BinaryRow.isInFixedLengthPart(t)))
     }
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    val ret = new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
       getRelDetailedDescription,
-      operator,
+      SimpleOperatorFactory.of(operator),
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
-    ret.setResources(resource, resource)
-    ret
+      input.getParallelism,
+      managedMemory)
   }
 
   def createOverWindowFrames(config: TableConfig): Array[OverWindowFrame] = {

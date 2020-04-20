@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
-import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, ValidationException}
+import org.apache.flink.table.api.{TableConfig, ValidationException}
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowKeySelector
@@ -63,8 +63,7 @@ class DataStreamJoinToCoProcessTranslator(
   def getJoinOperator(
       joinType: JoinRelType,
       returnFieldNames: Seq[String],
-      ruleDescription: String,
-      queryConfig: StreamQueryConfig): TwoInputStreamOperator[CRow, CRow, CRow] = {
+      ruleDescription: String): TwoInputStreamOperator[CRow, CRow, CRow] = {
     // input must not be nullable, because the runtime join function will make sure
     // the code-generated function won't process null inputs
     val generator = new FunctionCodeGenerator(
@@ -99,12 +98,11 @@ class DataStreamJoinToCoProcessTranslator(
       body,
       returnType)
 
-    createJoinOperator(joinType, queryConfig, genFunction)
+    createJoinOperator(joinType, genFunction)
   }
 
   protected def createJoinOperator(
     joinType: JoinRelType,
-    queryConfig: StreamQueryConfig,
     genFunction: GeneratedFunction[FlatJoinFunction[Row, Row, Row], Row])
     : TwoInputStreamOperator[CRow, CRow, CRow] = {
 
@@ -115,7 +113,8 @@ class DataStreamJoinToCoProcessTranslator(
           rightSchema.typeInfo,
           genFunction.name,
           genFunction.code,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.LEFT | JoinRelType.RIGHT if joinInfo.isEqui =>
         new NonWindowLeftRightJoin(
           leftSchema.typeInfo,
@@ -123,7 +122,8 @@ class DataStreamJoinToCoProcessTranslator(
           genFunction.name,
           genFunction.code,
           joinType == JoinRelType.LEFT,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.LEFT | JoinRelType.RIGHT =>
         new NonWindowLeftRightJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
@@ -131,21 +131,24 @@ class DataStreamJoinToCoProcessTranslator(
           genFunction.name,
           genFunction.code,
           joinType == JoinRelType.LEFT,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.FULL if joinInfo.isEqui =>
         new NonWindowFullJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
           genFunction.name,
           genFunction.code,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case JoinRelType.FULL =>
         new NonWindowFullJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
           genFunction.name,
           genFunction.code,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       case _ => throw new ValidationException(s"$joinType is not supported.")
     }
     new LegacyKeyedCoProcessOperator(joinFunction)

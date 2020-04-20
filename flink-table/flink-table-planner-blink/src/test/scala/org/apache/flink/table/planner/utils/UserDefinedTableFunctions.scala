@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
 import org.apache.flink.types.Row
 
@@ -114,18 +115,16 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
 }
 
 @SerialVersionUID(1L)
-class TableFunc5 extends TableFunction[Tuple2[String, Int]] {
-  def eval(bytes: Array[Byte]) {
-    if (null != bytes) {
-      collect(new Tuple2(new String(bytes), bytes.length))
-    }
-  }
+class MockPythonTableFunction extends TableFunction[Row] with PythonFunction {
 
-  def eval(str: String) {
-    if (null != str) {
-      collect(new Tuple2(str, str.length))
-    }
-  }
+  def eval(x: Int, y: Int) = ???
+
+  override def getResultType: TypeInformation[Row] =
+    new RowTypeInfo(Types.INT, Types.INT)
+
+  override def getSerializedPythonFunction: Array[Byte] = Array[Byte](0)
+
+  override def getPythonEnv: PythonEnv = null
 }
 
 //TODO support dynamic type

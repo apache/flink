@@ -24,7 +24,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.concat;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
@@ -44,7 +44,7 @@ public class ListAggFunction extends DeclarativeAggregateFunction {
 	public ListAggFunction(int operandCount) {
 		this.operandCount = operandCount;
 		if (operandCount == 1) {
-			delimiter = literal(",", DataTypes.STRING());
+			delimiter = literal(",", DataTypes.STRING().notNull());
 			operand = operand(0);
 		} else {
 			delimiter = operand(1);
@@ -75,7 +75,7 @@ public class ListAggFunction extends DeclarativeAggregateFunction {
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* delimiter */ literal(",", DataTypes.STRING()),
+				/* delimiter */ literal(",", DataTypes.STRING().notNull()),
 				/* acc */ nullOf(DataTypes.STRING())
 		};
 	}

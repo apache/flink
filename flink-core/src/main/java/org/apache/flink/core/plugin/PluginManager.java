@@ -63,7 +63,7 @@ public class PluginManager {
 	 * @param <P> Type of the requested plugin service.
 	 * @return Iterator over all implementations of the given service that could be loaded from all known plugins.
 	 */
-	public <P extends Plugin> Iterator<P> load(Class<P> service) {
+	public <P> Iterator<P> load(Class<P> service) {
 		ArrayList<Iterator<P>> combinedIterators = new ArrayList<>(pluginDescriptors.size());
 		for (PluginDescriptor pluginDescriptor : pluginDescriptors) {
 			PluginLoader pluginLoader = PluginLoader.create(pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns);

@@ -41,10 +41,6 @@ public class BufferBuilderTestUtils {
 		return createFilledBufferBuilder(size, 0);
 	}
 
-	public static BufferBuilder createFilledBufferBuilder(int dataSize) {
-		return createFilledBufferBuilder(BUFFER_SIZE, dataSize);
-	}
-
 	public static BufferBuilder createFilledBufferBuilder(int size, int dataSize) {
 		checkArgument(size >= dataSize);
 		BufferBuilder bufferBuilder = new BufferBuilder(
@@ -70,14 +66,26 @@ public class BufferBuilderTestUtils {
 		return buffer;
 	}
 
-	public static BufferConsumer createFilledBufferConsumer(int size, int dataSize) {
-		BufferBuilder bufferBuilder = createFilledBufferBuilder(size, dataSize);
-		bufferBuilder.finish();
-		return bufferBuilder.createBufferConsumer();
+	public static BufferConsumer createFilledFinishedBufferConsumer(int dataSize) {
+		return createFilledBufferConsumer(dataSize, dataSize, true);
 	}
 
-	public static BufferConsumer createFilledBufferConsumer(int dataSize) {
-		return createFilledBufferConsumer(BUFFER_SIZE, dataSize);
+	public static BufferConsumer createFilledUnfinishedBufferConsumer(int dataSize) {
+		return createFilledBufferConsumer(dataSize, dataSize, false);
+	}
+
+	public static BufferConsumer createFilledBufferConsumer(int size, int dataSize, boolean isFinished) {
+		checkArgument(size >= dataSize);
+
+		BufferBuilder bufferBuilder = createBufferBuilder(size);
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+		fillBufferBuilder(bufferBuilder, dataSize);
+
+		if (isFinished) {
+			bufferBuilder.finish();
+		}
+
+		return bufferConsumer;
 	}
 
 	public static BufferConsumer createEventBufferConsumer(int size) {

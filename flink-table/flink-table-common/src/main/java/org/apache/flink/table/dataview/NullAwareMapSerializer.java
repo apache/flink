@@ -175,6 +175,6 @@ public class NullAwareMapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 
 	@Override
 	public TypeSerializerSnapshot<Map<K, V>> snapshotConfiguration() {
-		throw new UnsupportedOperationException();
+		return new NullAwareMapSerializerSnapshot<>(this);
 	}
 }

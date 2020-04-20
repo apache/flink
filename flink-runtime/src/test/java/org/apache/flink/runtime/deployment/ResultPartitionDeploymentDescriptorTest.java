@@ -47,6 +47,7 @@ import static org.junit.Assert.assertThat;
  */
 public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 	private static final IntermediateDataSetID resultId = new IntermediateDataSetID();
+	private static final int numberOfPartitions = 5;
 
 	private static final IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 	private static final ExecutionAttemptID producerExecutionId = new ExecutionAttemptID();
@@ -57,6 +58,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 
 	private static final PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
 		resultId,
+		numberOfPartitions,
 		partitionId,
 		partitionType,
 		numberOfSubpartitions,
@@ -115,6 +117,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 
 	private static void verifyResultPartitionDeploymentDescriptorCopy(ResultPartitionDeploymentDescriptor copy) {
 		assertThat(copy.getResultId(), is(resultId));
+		assertThat(copy.getTotalNumberOfPartitions(), is(numberOfPartitions));
 		assertThat(copy.getPartitionId(), is(partitionId));
 		assertThat(copy.getPartitionType(), is(partitionType));
 		assertThat(copy.getNumberOfSubpartitions(), is(numberOfSubpartitions));

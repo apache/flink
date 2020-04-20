@@ -29,14 +29,14 @@ import org.apache.flink.table.api.internal.{TableEnvImpl, TableEnvironmentImpl, 
 import org.apache.flink.table.api.java.internal.{BatchTableEnvironmentImpl => JavaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => JavaStreamTableEnvironmentImpl}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.{BatchTableEnvironmentImpl => ScalaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => ScalaStreamTableEnvironmentImpl}
-import org.apache.flink.table.api.{Table, TableConfig, TableSchema}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.api.{ApiExpression, Table, TableConfig, TableSchema}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{DataSetQueryOperation, JavaDataStreamQueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.utils.TableTestUtil.createCatalogManager
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
@@ -140,13 +140,6 @@ object TableTestUtil {
 
   val ANY_SUBTREE = "%ANY_SUBTREE%"
 
-  def createCatalogManager(): CatalogManager = {
-    val defaultCatalog = "default_catalog"
-    new CatalogManager(
-      defaultCatalog,
-      new GenericInMemoryCatalog(defaultCatalog, "default_database"))
-  }
-
   private[utils] def toRelNode(expected: Table) = {
     expected.asInstanceOf[TableImpl].getTableEnvironment match {
       case t: TableEnvImpl => t.getRelBuilder.tableOperation(expected.getQueryOperation).build()
@@ -231,12 +224,16 @@ case class BatchTableTestUtil(
   val javaTableEnv = new JavaBatchTableEnvironmentImpl(
     javaEnv,
     new TableConfig,
-    catalogManager.getOrElse(createCatalogManager()))
+    catalogManager
+      .getOrElse(CatalogManagerMocks.createEmptyCatalogManager()),
+    new ModuleManager)
   val env = new ExecutionEnvironment(javaEnv)
   val tableEnv = new ScalaBatchTableEnvironmentImpl(
     env,
     new TableConfig,
-    catalogManager.getOrElse(createCatalogManager()))
+    catalogManager
+      .getOrElse(CatalogManagerMocks.createEmptyCatalogManager()),
+    new ModuleManager)
 
   def addTable[T: TypeInformation](
       name: String,
@@ -252,13 +249,11 @@ case class BatchTableTestUtil(
     tableEnv.registerTable(name, t)
     t
   }
-
-  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
-
+  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: ApiExpression*): Table = {
     val jDs = mock(classOf[JDataSet[T]])
     when(jDs.getType).thenReturn(typeInfo)
 
-    val t = javaTableEnv.fromDataSet(jDs, fields)
+    val t = javaTableEnv.fromDataSet(jDs, fields: _*)
     javaTableEnv.registerTable(name, t)
     t
   }
@@ -327,13 +322,16 @@ case class StreamTableTestUtil(
   javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
   private val tableConfig = new TableConfig
-  private val manager: CatalogManager = catalogManager.getOrElse(createCatalogManager())
+  private val manager: CatalogManager = catalogManager
+    .getOrElse(CatalogManagerMocks.createEmptyCatalogManager())
+  private val moduleManager: ModuleManager = new ModuleManager
   private val executor: StreamExecutor = new StreamExecutor(javaEnv)
-  private val functionCatalog = new FunctionCatalog(manager)
+  private val functionCatalog = new FunctionCatalog(tableConfig, manager, moduleManager)
   private val streamPlanner = new StreamPlanner(executor, tableConfig, functionCatalog, manager)
 
   val javaTableEnv = new JavaStreamTableEnvironmentImpl(
     manager,
+    moduleManager,
     functionCatalog,
     tableConfig,
     javaEnv,
@@ -344,6 +342,7 @@ case class StreamTableTestUtil(
   val env = new StreamExecutionEnvironment(javaEnv)
   val tableEnv = new ScalaStreamTableEnvironmentImpl(
     manager,
+    moduleManager,
     functionCatalog,
     tableConfig,
     env,
@@ -361,9 +360,9 @@ case class StreamTableTestUtil(
     table
   }
 
-  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
+  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: ApiExpression*): Table = {
     val stream = javaEnv.addSource(new EmptySource[T], typeInfo)
-    val table = javaTableEnv.fromDataStream(stream, fields)
+    val table = javaTableEnv.fromDataStream(stream, fields: _*)
     javaTableEnv.registerTable(name, table)
     table
   }

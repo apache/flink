@@ -35,16 +35,18 @@ public class RowtimeProcessFunction
 	private static final long serialVersionUID = 1L;
 
 	private final int rowtimeIdx;
+	private final int precision;
 	private transient TypeInformation<BaseRow> returnType;
 
-	public RowtimeProcessFunction(int rowtimeIdx, TypeInformation<BaseRow> returnType) {
+	public RowtimeProcessFunction(int rowtimeIdx, TypeInformation<BaseRow> returnType, int precision) {
 		this.rowtimeIdx = rowtimeIdx;
 		this.returnType = returnType;
+		this.precision = precision;
 	}
 
 	@Override
 	public void processElement(BaseRow value, Context ctx, Collector<BaseRow> out) throws Exception {
-		long timestamp = value.getLong(rowtimeIdx);
+		long timestamp = value.getTimestamp(rowtimeIdx, precision).getMillisecond();
 		((TimestampedCollector<BaseRow>) out).setAbsoluteTimestamp(timestamp);
 		out.collect(value);
 	}

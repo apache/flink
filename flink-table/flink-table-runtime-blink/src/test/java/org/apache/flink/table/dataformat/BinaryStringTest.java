@@ -54,6 +54,7 @@ import static org.apache.flink.table.dataformat.BinaryStringUtil.trimRight;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -596,25 +597,25 @@ public class BinaryStringTest {
 	@Test
 	public void testEmptyString() {
 		BinaryString str2 = fromString("hahahahah");
-		BinaryString str3 = new BinaryString();
+		BinaryString str3;
 		{
 			MemorySegment[] segments = new MemorySegment[2];
 			segments[0] = MemorySegmentFactory.wrap(new byte[10]);
 			segments[1] = MemorySegmentFactory.wrap(new byte[10]);
-			str3.pointTo(segments, 15, 0);
+			str3 = BinaryString.fromAddress(segments, 15, 0);
 		}
 
 		assertTrue(BinaryString.EMPTY_UTF8.compareTo(str2) < 0);
 		assertTrue(str2.compareTo(BinaryString.EMPTY_UTF8) > 0);
 
-		assertTrue(BinaryString.EMPTY_UTF8.compareTo(str3) == 0);
-		assertTrue(str3.compareTo(BinaryString.EMPTY_UTF8) == 0);
+		assertEquals(0, BinaryString.EMPTY_UTF8.compareTo(str3));
+		assertEquals(0, str3.compareTo(BinaryString.EMPTY_UTF8));
 
-		assertFalse(BinaryString.EMPTY_UTF8.equals(str2));
-		assertFalse(str2.equals(BinaryString.EMPTY_UTF8));
+		assertNotEquals(BinaryString.EMPTY_UTF8, str2);
+		assertNotEquals(str2, BinaryString.EMPTY_UTF8);
 
-		assertTrue(BinaryString.EMPTY_UTF8.equals(str3));
-		assertTrue(str3.equals(BinaryString.EMPTY_UTF8));
+		assertEquals(BinaryString.EMPTY_UTF8, str3);
+		assertEquals(str3, BinaryString.EMPTY_UTF8);
 	}
 
 	@Test
@@ -724,7 +725,7 @@ public class BinaryStringTest {
 		byte[] bytes = new byte[] {(byte) 20122, (byte) 40635, 124, (byte) 38271, (byte) 34966,
 			124, (byte) 36830, (byte) 34915, (byte) 35033, 124, (byte) 55357, 124, (byte) 56407 };
 
-		String str = new String(bytes);
+		String str = new String(bytes, StandardCharsets.UTF_8);
 		assertEquals(str, StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length));
 		assertEquals(str, StringUtf8Utils.decodeUTF8(MemorySegmentFactory.wrap(bytes), 0, bytes.length));
 

@@ -21,6 +21,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.runtime.util.SegmentsUtil;
 
+import static org.apache.flink.table.dataformat.BinaryFormat.readBinaryFieldFromSegments;
 import static org.apache.flink.table.dataformat.BinaryRow.calculateBitSetWidthInBytes;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -32,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * has a possibility to cross the boundary of a segment, while the fixed-length part of {@link BinaryRow}
  * must fit into its first memory segment.
  */
-public final class NestedRow extends BinaryFormat implements BaseRow {
+public final class NestedRow extends BinarySection implements BaseRow {
 
 	private final int arity;
 	private final int nullBitsSizeInBytes;
@@ -144,6 +145,31 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
+	public void setTimestamp(int pos, SqlTimestamp value, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			setLong(pos, value.getMillisecond());
+		} else {
+			int fieldOffset = getFieldOffset(pos);
+			int cursor = (int) (SegmentsUtil.getLong(segments, fieldOffset) >>> 32);
+			assert cursor > 0 : "invalid cursor " + cursor;
+
+			if (value == null) {
+				setNullAt(pos);
+				// zero-out the bytes
+				SegmentsUtil.setLong(segments, offset + cursor, 0L);
+				SegmentsUtil.setLong(segments, fieldOffset, ((long) cursor) << 32);
+			} else {
+				// write millisecond to variable length portion.
+				SegmentsUtil.setLong(segments, offset + cursor, value.getMillisecond());
+				// write nanoOfMillisecond to fixed-length portion.
+				setLong(pos, ((long) cursor << 32) | (long) value.getNanoOfMillisecond());
+			}
+		}
+	}
+
+	@Override
 	public void setBoolean(int pos, boolean value) {
 		assertIndexIsValid(pos);
 		setNotNullAt(pos);
@@ -224,7 +250,7 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndLen = SegmentsUtil.getLong(segments, fieldOffset);
-		return BinaryString.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+		return BinaryFormat.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
 	}
 
 	@Override
@@ -239,6 +265,19 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
 		return Decimal.readDecimalFieldFromSegments(segments, offset, offsetAndSize, precision, scale);
+	}
+
+	@Override
+	public SqlTimestamp getTimestamp(int pos, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			return SqlTimestamp.fromEpochMillis(SegmentsUtil.getLong(segments, getFieldOffset(pos)));
+		}
+
+		int fieldOffset = getFieldOffset(pos);
+		final long offsetAndNanoOfMilli = SegmentsUtil.getLong(segments, fieldOffset);
+		return SqlTimestamp.readTimestampFieldFromSegments(segments, offset, offsetAndNanoOfMilli);
 	}
 
 	@Override

@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.PlanUtil
+import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
@@ -65,9 +65,11 @@ class BatchPlanner(
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
-    overrideEnvParallelism()
+    val planner = createDummyPlanner()
+    planner.overrideEnvParallelism()
+
     execNodes.map {
-      case node: BatchExecNode[_] => node.translateToPlan(this)
+      case node: BatchExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
@@ -85,10 +87,13 @@ class BatchPlanner(
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
+
     val transformations = translateToPlan(execNodes)
-    val batchExecutor = new BatchExecutor(getExecEnv)
-    batchExecutor.setTableConfig(getTableConfig)
-    val streamGraph = batchExecutor.generateStreamGraph(transformations, "")
+
+    val execEnv = getExecEnv
+    ExecutorUtils.setBatchProperties(execEnv, getTableConfig)
+    val streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations)
+    ExecutorUtils.setBatchProperties(streamGraph, getTableConfig)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
@@ -114,4 +119,11 @@ class BatchPlanner(
     sb.append(executionPlan)
     sb.toString()
   }
+
+  private def createDummyPlanner(): BatchPlanner = {
+    val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
+    val executor = new BatchExecutor(dummyExecEnv)
+    new BatchPlanner(executor, config, functionCatalog, catalogManager)
+  }
+
 }

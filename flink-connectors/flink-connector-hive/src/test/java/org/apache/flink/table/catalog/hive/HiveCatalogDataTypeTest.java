@@ -110,7 +110,7 @@ public class HiveCatalogDataTypeTest {
 			DataTypes.STRING(),
 			DataTypes.BYTES(),
 			DataTypes.DATE(),
-			DataTypes.TIMESTAMP(),
+			DataTypes.TIMESTAMP(9),
 			DataTypes.CHAR(HiveChar.MAX_CHAR_LENGTH),
 			DataTypes.VARCHAR(HiveVarchar.MAX_VARCHAR_LENGTH),
 			DataTypes.DECIMAL(5, 3)
@@ -185,7 +185,7 @@ public class HiveCatalogDataTypeTest {
 			DataTypes.ROW(
 				DataTypes.FIELD("3", DataTypes.ARRAY(DataTypes.DECIMAL(5, 3))),
 				DataTypes.FIELD("4", DataTypes.MAP(DataTypes.TINYINT(), DataTypes.SMALLINT())),
-				DataTypes.FIELD("5", DataTypes.ROW(DataTypes.FIELD("3", DataTypes.TIMESTAMP())))
+				DataTypes.FIELD("5", DataTypes.ROW(DataTypes.FIELD("3", DataTypes.TIMESTAMP(9))))
 			)
 		};
 

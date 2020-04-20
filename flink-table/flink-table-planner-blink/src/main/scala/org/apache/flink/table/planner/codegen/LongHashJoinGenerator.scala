@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.dataformat.{BaseRow, JoinedRow, SqlTimestamp}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, baseRowFieldReadAccess, className, newName}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.runtime.generated.{GeneratedJoinCondition, GeneratedProjection}
@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.hashtable.{LongHashPartition, LongHybridHa
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
-import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, _}
 import org.apache.flink.table.types.logical._
 
 /**
@@ -49,8 +49,13 @@ object LongHashJoinGenerator {
         keyType.getFieldCount == 1 && {
       keyType.getTypeAt(0).getTypeRoot match {
         case BIGINT | INTEGER | SMALLINT | TINYINT | FLOAT | DOUBLE | DATE |
-             TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
-             TIMESTAMP_WITH_LOCAL_TIME_ZONE => true
+             TIME_WITHOUT_TIME_ZONE => true
+        case TIMESTAMP_WITHOUT_TIME_ZONE =>
+          val timestampType = keyType.getTypeAt(0).asInstanceOf[TimestampType]
+          SqlTimestamp.isCompact(timestampType.getPrecision)
+        case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+          val lzTs = keyType.getTypeAt(0).asInstanceOf[LocalZonedTimestampType]
+          SqlTimestamp.isCompact(lzTs.getPrecision)
         case _ => false
       }
       // TODO decimal and multiKeys support.
@@ -68,6 +73,8 @@ object LongHashJoinGenerator {
     val term = singleType.getTypeRoot match {
       case FLOAT => s"Float.floatToIntBits($getCode)"
       case DOUBLE => s"Double.doubleToLongBits($getCode)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE => s"$getCode.getMillisecond()"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$getCode.getMillisecond()"
       case _ => getCode
     }
     s"return $term;"
@@ -103,9 +110,6 @@ object LongHashJoinGenerator {
       probeType: RowType,
       buildKeyMapping: Array[Int],
       probeKeyMapping: Array[Int],
-      managedMemorySize: Long,
-      maxMemorySize: Long,
-      perRequestSize: Long,
       buildRowSize: Int,
       buildRowCount: Long,
       reverseJoinFunction: Boolean,
@@ -173,7 +177,7 @@ object LongHashJoinGenerator {
          |    super(getContainingTask().getJobConfiguration(), getContainingTask(),
          |      $buildSerTerm, $probeSerTerm,
          |      getContainingTask().getEnvironment().getMemoryManager(),
-         |      ${managedMemorySize}L, ${maxMemorySize}L, ${perRequestSize}L,
+         |      computeMemorySize(),
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
          |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());

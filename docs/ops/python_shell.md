@@ -1,7 +1,7 @@
 ---
 title: "Python REPL"
 nav-parent_id: ops
-nav-pos: 7
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,15 +24,21 @@ under the License.
 
 Flink comes with an integrated interactive Python Shell.
 It can be used in a local setup as well as in a cluster setup.
+See the [local setup page](deployment/local.html) for more information about how to setup a local Flink.
+You can also [build a local setup from source](../flinkDev/building.html).
 
-To use the shell with an integrated Flink cluster just execute:
+<span class="label label-info">Note</span> The Python Shell will run the command “python”. <span class="label label-info">Note</span> The Python Shell will run the command “python”. Please refer to the Python Table API [installation guide]({{ site.baseurl }}/dev/table/python/installation.html) on how to set up the Python execution environments.
+
+To use the shell with an integrated Flink cluster, you can simply install PyFlink with PyPi and execute the shell directly:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+# install PyFlink
+$ python -m pip install apache-flink
+# execute the shell
+$ pyflink-shell.sh local
 {% endhighlight %}
 
-in the root directory of your binary Flink directory. To run the Shell on a
-cluster, please see the Setup section below.
+To run the shell on a cluster, please see the Setup section below.
 
 ## Usage
 
@@ -67,7 +73,7 @@ The example below is a simple program in the Python shell:
 ...         .field("a", DataTypes.BIGINT())
 ...         .field("b", DataTypes.STRING())
 ...         .field("c", DataTypes.STRING()))\
-...     .register_table_sink("stream_sink")
+...     .create_temporary_table("stream_sink")
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("stream_sink")
 >>> st_env.execute("stream_job")
@@ -99,7 +105,7 @@ The example below is a simple program in the Python shell:
 ...         .field("a", DataTypes.BIGINT())
 ...         .field("b", DataTypes.STRING())
 ...         .field("c", DataTypes.STRING()))\
-...     .register_table_sink("batch_sink")
+...     .create_temporary_table("batch_sink")
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("batch_sink")
 >>> bt_env.execute("batch_job")
@@ -115,7 +121,7 @@ The example below is a simple program in the Python shell:
 To get an overview of what options the Python Shell provides, please use
 
 {% highlight bash %}
-bin/pyflink-shell.sh --help
+pyflink-shell.sh --help
 {% endhighlight %}
 
 ### Local
@@ -123,7 +129,7 @@ bin/pyflink-shell.sh --help
 To use the shell with an integrated Flink cluster just execute:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+pyflink-shell.sh local
 {% endhighlight %}
 
 
@@ -133,13 +139,13 @@ To use it with a running cluster, please start the Python shell with the keyword
 and supply the host and port of the JobManager with:
 
 {% highlight bash %}
-bin/pyflink-shell.sh remote <hostname> <portnumber>
+pyflink-shell.sh remote <hostname> <portnumber>
 {% endhighlight %}
 
 ### Yarn Python Shell cluster
 
 The shell can deploy a Flink cluster to YARN, which is used exclusively by the
-shell. The number of YARN containers can be controlled by the parameter `-n <arg>`.
+shell.
 The shell deploys a new Flink cluster on YARN and connects the
 cluster. You can also specify options for YARN cluster such as memory for
 JobManager, name of YARN application, etc.
@@ -148,7 +154,7 @@ For example, to start a Yarn cluster for the Python Shell with two TaskManagers
 use the following:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn -n 2
+pyflink-shell.sh yarn -n 2
 {% endhighlight %}
 
 For all other options, see the full reference at the bottom.
@@ -160,7 +166,7 @@ If you have previously deployed a Flink cluster using the Flink Yarn Session,
 the Python shell can connect with it using the following command:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn
+pyflink-shell.sh yarn
 {% endhighlight %}
 
 
@@ -190,8 +196,6 @@ usage:
                                      all options.
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container with
                                      optional unit (default: MB)
-     -n,--container <arg>            Number of YARN container to allocate
-                                     (=Number of Task Managers)
      -nm,--name <arg>                Set a custom name for the application on
                                      YARN
      -qu,--queue <arg>               Specify YARN queue.

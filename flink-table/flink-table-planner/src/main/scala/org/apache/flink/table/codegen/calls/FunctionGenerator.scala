@@ -678,12 +678,14 @@ object FunctionGenerator {
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethod.UNIX_TIMESTAMP_FLOOR.method)))
 
+  // TODO: fixme if CALCITE-3199 fixed, use BuiltInMethod.UNIX_DATE_CEIL
+  //  https://issues.apache.org/jira/browse/CALCITE-3199
   addSqlFunction(
     CEIL,
     Seq(SqlTimeTypeInfo.DATE, new GenericTypeInfo(classOf[TimeUnitRange])),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
-      Some(BuiltInMethod.UNIX_DATE_CEIL.method)))
+      Some(BuiltInMethods.UNIX_DATE_CEIL)))
 
   addSqlFunction(
     CEIL,

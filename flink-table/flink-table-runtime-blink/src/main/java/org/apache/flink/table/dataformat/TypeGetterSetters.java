@@ -18,8 +18,10 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 /**
  * Provide type specialized getters and setters to reduce if/else and eliminate box and unbox.
@@ -91,6 +93,11 @@ public interface TypeGetterSetters {
 	Decimal getDecimal(int ordinal, int precision, int scale);
 
 	/**
+	 * Get Timestamp value, internal format is SqlTimestamp.
+	 */
+	SqlTimestamp getTimestamp(int ordinal, int precision);
+
+	/**
 	 * Get generic value, internal format is BinaryGeneric.
 	 */
 	<T> BinaryGeneric<T> getGeneric(int ordinal);
@@ -160,6 +167,16 @@ public interface TypeGetterSetters {
 	 */
 	void setDecimal(int i, Decimal value, int precision);
 
+	/**
+	 * Set Timestamp value.
+	 *
+	 * <p>Note:
+	 * If precision is compact: can call setNullAt when SqlTimestamp value is null.
+	 * Otherwise: can not call setNullAt when SqlTimestamp value is null, must call
+	 * setTimestamp(ordinal, null, precision) because we need to update var-length-part.
+	 */
+	void setTimestamp(int ordinal, SqlTimestamp value, int precision);
+
 	static Object get(TypeGetterSetters row, int ordinal, LogicalType type) {
 		switch (type.getTypeRoot()) {
 			case BOOLEAN:
@@ -174,10 +191,14 @@ public interface TypeGetterSetters {
 			case INTERVAL_YEAR_MONTH:
 				return row.getInt(ordinal);
 			case BIGINT:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				return row.getLong(ordinal);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				TimestampType timestampType = (TimestampType) type;
+				return row.getTimestamp(ordinal, timestampType.getPrecision());
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
+				return row.getTimestamp(ordinal, lzTs.getPrecision());
 			case FLOAT:
 				return row.getFloat(ordinal);
 			case DOUBLE:
@@ -198,7 +219,7 @@ public interface TypeGetterSetters {
 			case BINARY:
 			case VARBINARY:
 				return row.getBinary(ordinal);
-			case ANY:
+			case RAW:
 				return row.getGeneric(ordinal);
 			default:
 				throw new RuntimeException("Not support type: " + type);

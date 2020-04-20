@@ -27,10 +27,10 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.sources.InputFormatTableSource;
@@ -41,7 +41,6 @@ import org.apache.flink.types.Row;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.mapred.JobConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -89,42 +88,17 @@ public class HiveTableSinkTest {
 	public void testInsertIntoNonPartitionTable() throws Exception {
 		String dbName = "default";
 		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
+		RowTypeInfo rowTypeInfo = createHiveDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		List<Row> toWrite = generateRecords(5);
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from src").insertInto("hive.`default`.dest");
 		tableEnv.execute("mytest");
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
-		hiveCatalog.dropTable(tablePath, false);
-	}
-
-	@Test
-	public void testInsertIntoDynamicPartition() throws Exception {
-		String dbName = "default";
-		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
-		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
-
-		List<Row> toWrite = generateRecords(5);
-		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src", src);
-
-		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
-		tableEnv.execute("mytest");
-
-		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
-		assertEquals(toWrite.size(), partitionSpecs.size());
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -143,7 +117,7 @@ public class HiveTableSinkTest {
 				DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
 				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING()))});
 
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
+		RowTypeInfo rowTypeInfo = createHiveDestTable(dbName, tblName, builder.build(), 0);
 		List<Row> toWrite = new ArrayList<>();
 		Row row = new Row(rowTypeInfo.getArity());
 		Object[] array = new Object[]{1, 2, 3};
@@ -160,12 +134,12 @@ public class HiveTableSinkTest {
 		row.setField(2, struct);
 		toWrite.add(row);
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("complexSrc", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive.`default`.dest");
 		tableEnv.execute("mytest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
@@ -186,7 +160,7 @@ public class HiveTableSinkTest {
 		// array of rows
 		builder.fields(new String[]{"a"}, new DataType[]{DataTypes.ARRAY(
 				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING())))});
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
+		RowTypeInfo rowTypeInfo = createHiveDestTable(dbName, tblName, builder.build(), 0);
 		Row row = new Row(rowTypeInfo.getArity());
 		Object[] array = new Object[3];
 		row.setField(0, array);
@@ -199,12 +173,12 @@ public class HiveTableSinkTest {
 		List<Row> toWrite = new ArrayList<>();
 		toWrite.add(row);
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive.`default`.dest");
 		tableEnv.execute("mytest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
@@ -214,79 +188,41 @@ public class HiveTableSinkTest {
 	}
 
 	@Test
-	public void testInsertIntoStaticPartition() throws Exception {
-		String dbName = "default";
-		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
-		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+	public void testWriteNullValues() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			// 17 data types
+			hiveShell.execute("create table db1.src" +
+					"(t tinyint,s smallint,i int,b bigint,f float,d double,de decimal(10,5),ts timestamp,dt date," +
+					"str string,ch char(5),vch varchar(8),bl boolean,bin binary,arr array<int>,mp map<int,string>,strt struct<f1:int,f2:string>)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null})
+					.commit();
+			hiveShell.execute("create table db1.dest like db1.src");
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+			tableEnv.useCatalog(hiveCatalog.getName());
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
-		List<Row> toWrite = generateRecords(1);
-		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src", src);
-
-		Map<String, String> partSpec = new HashMap<>();
-		partSpec.put("s", "a");
-
-		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
-		HiveTableSink hiveTableSink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
-		hiveTableSink.setStaticPartition(partSpec);
-		tableEnv.registerTableSink("destSink", hiveTableSink);
-		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		tableEnv.execute("mytest");
-
-		// make sure new partition is created
-		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
-		hiveCatalog.dropTable(tablePath, false);
+			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
+			tableEnv.execute("write to dest");
+			List<String> results = hiveShell.executeQuery("select * from db1.dest");
+			assertEquals(1, results.size());
+			String[] cols = results.get(0).split("\t");
+			assertEquals(17, cols.length);
+			assertEquals("NULL", cols[0]);
+			assertEquals(1, new HashSet<>(Arrays.asList(cols)).size());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
 	}
 
-	@Test
-	public void testInsertOverwrite() throws Exception {
-		String dbName = "default";
-		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
-		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
-
-		// write some data and verify
-		List<Row> toWrite = generateRecords(5);
-		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src", src);
-
-		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
-		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		tableEnv.execute("mytest");
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
-		// write some data to overwrite existing data and verify
-		toWrite = generateRecords(3);
-		Table src1 = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src1", src1);
-
-		HiveTableSink sink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
-		sink.setOverwrite(true);
-		tableEnv.registerTableSink("destSink1", sink);
-		tableEnv.sqlQuery("select * from src1").insertInto("destSink1");
-		tableEnv.execute("mytest");
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
-		hiveCatalog.dropTable(tablePath, false);
-	}
-
-	private RowTypeInfo createDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
-		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
+	private RowTypeInfo createHiveDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
+		CatalogTable catalogTable = createHiveCatalogTable(tableSchema, numPartCols);
 		hiveCatalog.createTable(new ObjectPath(dbName, tblName), catalogTable, false);
 		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
 
-	private RowTypeInfo createDestTable(String dbName, String tblName, int numPartCols) throws Exception {
+	private RowTypeInfo createHiveDestTable(String dbName, String tblName, int numPartCols) throws Exception {
 		TableSchema.Builder builder = new TableSchema.Builder();
 		builder.fields(new String[]{"i", "l", "d", "s"},
 				new DataType[]{
@@ -294,16 +230,29 @@ public class HiveTableSinkTest {
 						DataTypes.BIGINT(),
 						DataTypes.DOUBLE(),
 						DataTypes.STRING()});
-		return createDestTable(dbName, tblName, builder.build(), numPartCols);
+		return createHiveDestTable(dbName, tblName, builder.build(), numPartCols);
 	}
 
-	private CatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
+	private CatalogTable createHiveCatalogTable(TableSchema tableSchema, int numPartCols) {
 		if (numPartCols == 0) {
-			return new CatalogTableImpl(tableSchema, new HashMap<>(), "");
+			return new CatalogTableImpl(
+				tableSchema,
+				new HashMap<String, String>() {{
+					// creating a hive table needs explicit is_generic=false flag
+					put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+				}},
+				"");
 		}
 		String[] partCols = new String[numPartCols];
 		System.arraycopy(tableSchema.getFieldNames(), tableSchema.getFieldNames().length - numPartCols, partCols, 0, numPartCols);
-		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
+		return new CatalogTableImpl(
+			tableSchema,
+			Arrays.asList(partCols),
+			new HashMap<String, String>() {{
+				// creating a hive table needs explicit is_generic=false flag
+				put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+			}},
+			"");
 	}
 
 	private void verifyWrittenData(List<Row> expected, List<String> results) throws Exception {

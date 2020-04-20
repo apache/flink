@@ -27,12 +27,10 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator.generateRowConverterOperator
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
@@ -56,15 +54,6 @@ class StreamExecSink[T](
   extends Sink(cluster, traitSet, inputRel, sink, sinkName)
   with StreamPhysicalRel
   with StreamExecNode[Any] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean =
-    sink.isInstanceOf[RetractStreamTableSink[_]]
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
@@ -94,21 +83,11 @@ class StreamExecSink[T](
 
           case upsertSink: UpsertStreamTableSink[T] =>
             // check for append only table
-            val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(this)
+            val isAppendOnlyTable = ChangelogPlanUtils.inputInsertOnly(this)
             upsertSink.setIsAppendOnly(isAppendOnlyTable)
 
-            // extract unique key fields
-            // Now we pick shortest one to sink
-            // TODO UpsertStreamTableSink setKeyFields interface should be Array[Array[String]]
-            val tableKeys = {
-              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner) match {
-                case Some(keys) => keys.sortBy(_.length).headOption
-                case None => None
-              }
-            }
-
             // check that we have keys if the table has changes (is not append-only)
-            tableKeys match {
+            UpdatingPlanChecker.getUniqueKeyForUpsertSink(this, planner, upsertSink) match {
               case Some(keys) => upsertSink.setKeyFields(keys)
               case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
               case None if !isAppendOnlyTable => throw new TableException(
@@ -120,15 +99,9 @@ class StreamExecSink[T](
 
           case _: AppendStreamTableSink[T] =>
             // verify table is an insert-only (append-only) table
-            if (!UpdatingPlanChecker.isAppendOnly(this)) {
+            if (!ChangelogPlanUtils.inputInsertOnly(this)) {
               throw new TableException(
                 "AppendStreamTableSink requires that Table has only insert changes.")
-            }
-
-            val accMode = this.getTraitSet.getTrait(AccModeTraitDef.INSTANCE).getAccMode
-            if (accMode == AccMode.AccRetract) {
-              throw new TableException(
-                "AppendStreamTableSink can not be used to output retraction messages.")
             }
             translateToTransformation(withChangeFlag = false, planner)
 
@@ -172,7 +145,7 @@ class StreamExecSink[T](
     val config = planner.getTableConfig
     val inputNode = getInput
     // if no change flags are requested, verify table is an insert-only (append-only) table.
-    if (!withChangeFlag && !UpdatingPlanChecker.isAppendOnly(inputNode)) {
+    if (!withChangeFlag && !ChangelogPlanUtils.inputInsertOnly(this)) {
       throw new TableException(
         "Table is not an append-only table. " +
           "Use the toRetractStream() in order to handle add and retract messages.")
@@ -210,24 +183,22 @@ class StreamExecSink[T](
     } else {
       parTransformation.getOutputType
     }
+
     val resultDataType = sink.getConsumedDataType
-    val resultType = TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(resultDataType)
     if (CodeGenUtils.isInternalClass(resultDataType)) {
       parTransformation.asInstanceOf[Transformation[T]]
     } else {
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(config),
         config,
-        convType.asInstanceOf[BaseRowTypeInfo],
-        "SinkConversion",
-        None,
+        convType.asInstanceOf[BaseRowTypeInfo].toRowType,
+        sink,
         withChangeFlag,
-        resultType,
-        sink
+        "SinkConversion"
       )
       new OneInputTransformation(
         parTransformation,
-        s"SinkConversionTo${resultType.getTypeClass.getSimpleName}",
+        s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",
         converterOperator,
         outputTypeInfo,
         parTransformation.getParallelism)

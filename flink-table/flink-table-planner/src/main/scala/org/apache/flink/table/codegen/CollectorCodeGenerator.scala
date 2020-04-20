@@ -73,20 +73,6 @@ class CollectorCodeGenerator(
     val input1TypeClass = boxedTypeTermForTypeInfo(input1)
     val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
 
-    // declaration in case of code splits
-    val recordMember = if (hasCodeSplits) {
-      s"private $input2TypeClass $input2Term;"
-    } else {
-      ""
-    }
-
-    // assignment in case of code splits
-    val recordAssignment = if (hasCodeSplits) {
-      s"$input2Term" // use member
-    } else {
-      s"$input2TypeClass $input2Term" // local variable
-    }
-
     reusableMemberStatements ++= filterGenerator.reusableMemberStatements
     reusableInitStatements ++= filterGenerator.reusableInitStatements
     reusablePerRecordStatements ++= filterGenerator.reusablePerRecordStatements
@@ -94,7 +80,9 @@ class CollectorCodeGenerator(
     val funcCode = j"""
       |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
       |
-      |  $recordMember
+      |  private $input1TypeClass $input1Term;
+      |  private $input2TypeClass $input2Term;
+      |
       |  ${reuseMemberCode()}
       |
       |  public $className() throws Exception {
@@ -109,8 +97,8 @@ class CollectorCodeGenerator(
       |  @Override
       |  public void collect(Object record) throws Exception {
       |    super.collect(record);
-      |    $input1TypeClass $input1Term = ($input1TypeClass) getInput();
-      |    $recordAssignment = ($input2TypeClass) record;
+      |    $input1Term = ($input1TypeClass) getInput();
+      |    $input2Term = ($input2TypeClass) record;
       |    ${reuseInputUnboxingCode()}
       |    ${reusePerRecordCode()}
       |    $bodyCode

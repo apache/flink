@@ -821,47 +821,10 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
+	 * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written.
 	 */
-	void insertInto(String tablePath, String... tablePathContinued);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name
-	 * in the built-in catalog.
-	 *
-	 * <p>A batch {@link Table} can only be written to a
-	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
-	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
-	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
-	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
-	 *
-	 * @param tableName The name of the {@link TableSink} to which the {@link Table} is written.
-	 * @param conf The {@link QueryConfig} to use.
-	 * @deprecated use {@link #insertInto(QueryConfig, String, String...)}
-	 */
-	@Deprecated
-	void insertInto(String tableName, QueryConfig conf);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
-	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
-	 *
-	 * <p>A batch {@link Table} can only be written to a
-	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
-	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
-	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
-	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
-	 *
-	 * @param conf The {@link QueryConfig} to use.
-	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
-	 */
-	void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued);
+	void insertInto(String tablePath);
 
 	/**
 	 * Groups the records of a table by assigning them to windows defined by a time or row interval.

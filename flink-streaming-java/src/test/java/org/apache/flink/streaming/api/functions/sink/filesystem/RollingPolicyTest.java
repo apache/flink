@@ -47,7 +47,7 @@ public class RollingPolicyTest {
 
 		final RollingPolicy<String, String> originalRollingPolicy =
 				DefaultRollingPolicy
-						.create()
+						.builder()
 						.withMaxPartSize(10L)
 						.withInactivityInterval(4L)
 						.withRolloverInterval(11L)
@@ -85,6 +85,19 @@ public class RollingPolicyTest {
 		// we take a checkpoint but we should not roll.
 		buckets.snapshotState(1L, new TestUtils.MockListState<>(), new TestUtils.MockListState<>());
 		rollingPolicy.verifyCallCounters(0L, 0L, 2L, 1L, 3L, 2L);
+	}
+
+	@Test
+	public void testDefaultRollingPolicyDeprecatedCreate() throws Exception {
+		DefaultRollingPolicy policy = DefaultRollingPolicy.create()
+			.withInactivityInterval(10)
+			.withMaxPartSize(20)
+			.withRolloverInterval(30)
+			.build();
+
+		Assert.assertEquals(10, policy.getInactivityInterval());
+		Assert.assertEquals(20, policy.getMaxPartSize());
+		Assert.assertEquals(30, policy.getRolloverInterval());
 	}
 
 	@Test
@@ -191,7 +204,7 @@ public class RollingPolicyTest {
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicyToTest,
 				0,
-				new PartFileConfig()
+				OutputFileConfig.builder().build()
 		);
 	}
 

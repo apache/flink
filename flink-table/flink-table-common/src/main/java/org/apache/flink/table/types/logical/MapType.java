@@ -40,7 +40,7 @@ import java.util.Set;
 @PublicEvolving
 public final class MapType extends LogicalType {
 
-	private static final String FORMAT = "MAP<%s, %s>";
+	public static final String FORMAT = "MAP<%s, %s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		Map.class.getName(),
@@ -91,6 +91,9 @@ public final class MapType extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
+		if (Map.class.isAssignableFrom(clazz)) {
+			return true;
+		}
 		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
 	}
 

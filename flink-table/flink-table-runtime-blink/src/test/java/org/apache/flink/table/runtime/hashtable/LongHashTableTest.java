@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -60,7 +61,7 @@ public class LongHashTableTest {
 	private IOManager ioManager;
 	private BinaryRowSerializer buildSideSerializer;
 	private BinaryRowSerializer probeSideSerializer;
-	private MemoryManager memManager = new MemoryManager(896 * PAGE_SIZE, 1);
+	private MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 
 	private boolean useCompress;
 	private Configuration conf;
@@ -88,9 +89,8 @@ public class LongHashTableTest {
 	private class MyHashTable extends LongHybridHashTable {
 
 		public MyHashTable(long memorySize) {
-			super(conf, LongHashTableTest.this, buildSideSerializer, probeSideSerializer, memManager, memorySize,
-					memorySize, 0, LongHashTableTest.this.ioManager,
-					24, 200000);
+			super(conf, LongHashTableTest.this, buildSideSerializer, probeSideSerializer, memManager,
+					memorySize, LongHashTableTest.this.ioManager, 24, 200000);
 		}
 
 		@Override

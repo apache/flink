@@ -74,7 +74,8 @@ make_binary_release() {
   # enable release profile here (to check for the maven version)
   $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
-  cd flink-dist/target/flink-*-bin/
+  cd flink-dist/target/flink-${RELEASE_VERSION}-bin
+  ${FLINK_DIR}/tools/releasing/collect_license_files.sh ./flink-${RELEASE_VERSION} ./flink-${RELEASE_VERSION}
   tar czf "${dir_name}.tgz" flink-*
 
   cp flink-*.tgz ${RELEASE_DIR}
@@ -89,9 +90,41 @@ make_binary_release() {
   cd ${FLINK_DIR}
 }
 
+make_python_release() {
+  cd flink-python/
+  # use lint-python.sh script to create a python environment.
+  dev/lint-python.sh -s basic
+  source dev/.conda/bin/activate
+  python setup.py sdist
+  conda deactivate
+  cd dist/
+  pyflink_actual_name=`echo *.tar.gz`
+  PYFLINK_VERSION=${RELEASE_VERSION/-SNAPSHOT/.dev0}
+  pyflink_release_name="apache-flink-${PYFLINK_VERSION}.tar.gz"
+
+  if [[ "$pyflink_actual_name" != "$pyflink_release_name" ]] ; then
+    echo -e "\033[31;1mThe file name of the python package: ${pyflink_actual_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+    exit 1
+  fi
+
+  cp ${pyflink_actual_name} "${RELEASE_DIR}/${pyflink_release_name}"
+
+  cd ${RELEASE_DIR}
+
+  # Sign sha the tgz
+  if [ "$SKIP_GPG" == "false" ] ; then
+    gpg --armor --detach-sig "${pyflink_release_name}"
+  fi
+  $SHASUM "${pyflink_release_name}" > "${pyflink_release_name}.sha512"
+
+  cd ${FLINK_DIR}
+}
+
 if [ "$SCALA_VERSION" == "none" ]; then
   make_binary_release "2.12"
   make_binary_release "2.11"
+  make_python_release
 else
   make_binary_release "$SCALA_VERSION"
+  make_python_release
 fi

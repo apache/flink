@@ -36,6 +36,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
@@ -50,8 +51,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import scala.concurrent.Await;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -272,7 +271,7 @@ public class AkkaRpcActorTest extends TestLogger {
 			terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		} finally {
 			rpcActorSystem.terminate();
-			Await.ready(rpcActorSystem.whenTerminated(), FutureUtils.toFiniteDuration(timeout));
+			FutureUtils.toJava(rpcActorSystem.whenTerminated()).get(timeout.getSize(), timeout.getUnit());
 		}
 	}
 
@@ -394,6 +393,38 @@ public class AkkaRpcActorTest extends TestLogger {
 			fail("Expected that the rpc endpoint failed onStart and thus has terminated.");
 		} catch (ExecutionException ee) {
 			assertThat(ExceptionUtils.findThrowable(ee, exception -> exception.equals(testException)).isPresent(), is(true));
+		}
+	}
+
+	/**
+	 * Tests that multiple termination calls won't trigger the onStop action multiple times.
+	 * Note that this test is a probabilistic test which only fails sometimes without the fix.
+	 * See FLINK-16703.
+	 */
+	@Test
+	public void callsOnStopOnlyOnce() throws Exception {
+		final CompletableFuture<Void> onStopFuture = new CompletableFuture<>();
+		final OnStopCountingRpcEndpoint endpoint = new OnStopCountingRpcEndpoint(akkaRpcService, onStopFuture);
+
+		try {
+			endpoint.start();
+
+			final AkkaBasedEndpoint selfGateway = endpoint.getSelfGateway(AkkaBasedEndpoint.class);
+
+			// try to terminate the actor twice
+			selfGateway.getActorRef().tell(ControlMessages.TERMINATE, ActorRef.noSender());
+			selfGateway.getActorRef().tell(ControlMessages.TERMINATE, ActorRef.noSender());
+
+			endpoint.waitUntilOnStopHasBeenCalled();
+
+			onStopFuture.complete(null);
+
+			endpoint.getTerminationFuture().get();
+
+			assertThat(endpoint.getNumOnStopCalls(), is(1));
+		} finally {
+			onStopFuture.complete(null);
+			RpcUtils.terminateRpcEndpoint(endpoint, timeout);
 		}
 	}
 
@@ -609,6 +640,37 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		public void awaitUntilOnStartCalled() throws InterruptedException {
 			countDownLatch.await();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static final class OnStopCountingRpcEndpoint extends RpcEndpoint {
+
+		private final AtomicInteger numOnStopCalls = new AtomicInteger(0);
+
+		private final OneShotLatch onStopHasBeenCalled = new OneShotLatch();
+
+		private final CompletableFuture<Void> onStopFuture;
+
+		private OnStopCountingRpcEndpoint(RpcService rpcService, CompletableFuture<Void> onStopFuture) {
+			super(rpcService);
+			this.onStopFuture = onStopFuture;
+		}
+
+		@Override
+		protected CompletableFuture<Void> onStop() {
+			onStopHasBeenCalled.trigger();
+			numOnStopCalls.incrementAndGet();
+			return onStopFuture;
+		}
+
+		private int getNumOnStopCalls() {
+			return numOnStopCalls.get();
+		}
+
+		private void waitUntilOnStopHasBeenCalled() throws InterruptedException {
+			onStopHasBeenCalled.await();
 		}
 	}
 }

@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
-import org.apache.flink.table.types.logical.{DecimalType, DoubleType, LogicalType}
-
+import org.apache.flink.table.types.logical.{DecimalType, LocalZonedTimestampType, LogicalType, TimestampType}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 
 /**
   * Custom type system for Flink.
@@ -41,9 +40,14 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     case SqlTypeName.VARCHAR | SqlTypeName.VARBINARY =>
       Int.MaxValue
 
-    // we currently support only timestamps with milliseconds precision
-    case SqlTypeName.TIMESTAMP | SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-      3
+    // by default we support timestamp with microseconds precision (Timestamp(6))
+    case SqlTypeName.TIMESTAMP =>
+      TimestampType.DEFAULT_PRECISION
+
+    // by default we support timestamp with local time zone with microseconds precision
+    // Timestamp(6) with local time zone
+    case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+      LocalZonedTimestampType.DEFAULT_PRECISION
 
     case _ =>
       super.getDefaultPrecision(typeName)
@@ -52,6 +56,14 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
   override def getMaxPrecision(typeName: SqlTypeName): Int = typeName match {
     case SqlTypeName.VARCHAR | SqlTypeName.CHAR | SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
       Int.MaxValue
+
+    // The maximum precision of TIMESTAMP is 3 in Calcite,
+    // change it to 9 to support nanoseconds precision
+    case SqlTypeName.TIMESTAMP => TimestampType.MAX_PRECISION
+
+    // The maximum precision of TIMESTAMP_WITH_LOCAL_TIME_ZONE is 3 in Calcite,
+    // change it to 9 to support nanoseconds precision
+    case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE => LocalZonedTimestampType.MAX_PRECISION
 
     case _ =>
       super.getMaxPrecision(typeName)
@@ -76,6 +88,29 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     val sumType = FlinkTypeSystem.deriveSumType(argTypeInfo)
     typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
       sumType.copy(argType.isNullable))
+  }
+
+  /**
+    * Calcite's default impl for division is apparently borrowed from T-SQL,
+    * but the details are a little different, e.g. when Decimal(34,0)/Decimal(10,0)
+    * To avoid confusion, follow the exact T-SQL behavior.
+    * Note that for (+-*), Calcite is also different from T-SQL;
+    * however, Calcite conforms to SQL2003 while T-SQL does not.
+    * therefore we keep Calcite's behavior on (+-*).
+    */
+  override def deriveDecimalDivideType(
+      typeFactory: RelDataTypeFactory,
+      type1: RelDataType,
+      type2: RelDataType): RelDataType = {
+    if (SqlTypeUtil.isExactNumeric(type1) && SqlTypeUtil.isExactNumeric(type2) &&
+      (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
+      val result = FlinkTypeSystem.inferDivisionType(
+        type1.getPrecision, type1.getScale,
+        type2.getPrecision, type2.getScale)
+      typeFactory.createSqlType(SqlTypeName.DECIMAL, result.getPrecision, result.getScale)
+    } else {
+      null
+    }
   }
 }
 

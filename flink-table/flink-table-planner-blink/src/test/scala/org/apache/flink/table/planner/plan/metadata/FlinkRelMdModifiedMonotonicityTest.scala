@@ -149,6 +149,16 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetRelMonotonicityOnWindowTableAggregate(): Unit = {
+    Array(logicalWindowTableAgg, flinkLogicalWindowTableAgg, streamWindowTableAgg).foreach {
+      agg =>
+        assertEquals(
+          new RelModifiedMonotonicity(Array.fill(agg.getRowType.getFieldCount)(CONSTANT)),
+          mq.getRelModifiedMonotonicity(agg))
+    }
+  }
+
+  @Test
   def testGetRelMonotonicityOnAggregate(): Unit = {
     // select b, sum(a) from (select a + 10 as a, b from MyTable3) t group by b
     val aggWithSum = relBuilder.scan("MyTable3")

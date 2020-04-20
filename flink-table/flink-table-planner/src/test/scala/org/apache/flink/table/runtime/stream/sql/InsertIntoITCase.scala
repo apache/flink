@@ -46,7 +46,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val input = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(r => r._2)
 
-    tEnv.registerDataStream("sourceTable", input, 'a, 'b, 'c, 't.rowtime)
+    tEnv.createTemporaryView("sourceTable", input, 'a, 'b, 'c, 't.rowtime)
 
     val fieldNames = Array("d", "e", "t")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
@@ -61,7 +61,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |WHERE a < 3 OR a > 19
        """.stripMargin)
 
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = Seq(
       "Hi,1970-01-01 00:00:00.001,1",
@@ -82,7 +82,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text)
     tEnv.registerTableSink(
       "targetTable",
       new TestRetractSink().configure(
@@ -96,7 +96,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY len
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     val retracted = RowCollector.retractResults(results).sorted
@@ -122,7 +122,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestRetractSink().configure(
@@ -141,7 +141,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND)
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -170,7 +170,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(Array("cnt", "cTrue"), false).configure(
@@ -190,7 +190,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY cnt, cTrue
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertTrue(
@@ -217,7 +217,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(Array("wend", "num"), true).configure(
@@ -236,7 +236,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -268,7 +268,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(Array("wstart", "wend", "num"), true).configure(
@@ -288,7 +288,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -320,7 +320,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(null, true).configure(
@@ -338,7 +338,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -370,7 +370,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
-    tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.createTemporaryView("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
       new TestUpsertSink(null, true).configure(
@@ -388,7 +388,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND), num
        """.stripMargin)
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(

@@ -19,8 +19,8 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
@@ -62,7 +62,7 @@ public class ResettableExternalBufferTest {
 
 	@Before
 	public void before() {
-		this.memManager = new MemoryManager(MEMORY_SIZE, 1);
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.ioManager = new IOManagerAsync();
 		this.random = new Random();
 		this.serializer = new BinaryRowSerializer(1);
@@ -70,15 +70,15 @@ public class ResettableExternalBufferTest {
 		this.multiColumnVariableLengthSerializer = new BinaryRowSerializer(5);
 	}
 
-	private ResettableExternalBuffer newBuffer(long memorySize) throws MemoryAllocationException {
+	private ResettableExternalBuffer newBuffer(long memorySize) {
 		return newBuffer(memorySize, this.serializer, true);
 	}
 
 	private ResettableExternalBuffer newBuffer(long memorySize,
-			BinaryRowSerializer serializer, boolean isRowAllInFixedPart) throws MemoryAllocationException {
+			BinaryRowSerializer serializer, boolean isRowAllInFixedPart) {
 		return new ResettableExternalBuffer(
-				memManager, ioManager,
-				memManager.allocatePages(this, (int) (memorySize / memManager.getPageSize())),
+				ioManager,
+				new LazyMemorySegmentPool(this, memManager, (int) (memorySize / memManager.getPageSize())),
 				serializer, isRowAllInFixedPart);
 	}
 
@@ -177,8 +177,8 @@ public class ResettableExternalBufferTest {
 	public void testHugeRecord() throws Exception {
 		thrown.expect(IOException.class);
 		try (ResettableExternalBuffer buffer = new ResettableExternalBuffer(
-				memManager, ioManager,
-				memManager.allocatePages(this, 3 * DEFAULT_PAGE_SIZE / memManager.getPageSize()),
+				ioManager,
+				new LazyMemorySegmentPool(this, memManager, 3 * DEFAULT_PAGE_SIZE / memManager.getPageSize()),
 				new BinaryRowSerializer(1),
 				false)) {
 			writeHuge(buffer, 10);

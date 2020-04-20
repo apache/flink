@@ -31,10 +31,11 @@ cd "${TEST_DATA_DIR}"
 ARTIFACT_ID=flink-walkthrough-table-${TEST_TYPE}
 ARTIFACT_VERSION=0.1
 
-mvn archetype:generate                                          \
+run_mvn archetype:generate                                          \
     -DarchetypeGroupId=org.apache.flink                         \
     -DarchetypeArtifactId=flink-walkthrough-table-${TEST_TYPE}  \
     -DarchetypeVersion=${FLINK_VERSION}                         \
+    -DarchetypeCatalog=local                                    \
     -DgroupId=org.apache.flink.walkthrough                      \
     -DartifactId=${ARTIFACT_ID}                                 \
     -Dversion=${ARTIFACT_VERSION}                               \
@@ -43,10 +44,11 @@ mvn archetype:generate                                          \
 
 cd "${ARTIFACT_ID}"
 
-mvn clean package -nsu > compile-output.txt
+run_mvn clean package > compile-output.txt
 
 if [[ `grep -c "BUILD FAILURE" compile-output.txt` -eq '1' ]]; then
     echo "Failure: The walk-through did not successfully compile"
+    cat compile-output.txt
     exit 1
 fi
 

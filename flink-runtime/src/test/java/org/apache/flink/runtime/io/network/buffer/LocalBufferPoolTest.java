@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -40,7 +42,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -306,7 +310,8 @@ public class LocalBufferPoolTest extends TestLogger {
 
 				// Request all available buffers
 				for (int i = 0; i < numberOfBuffers; i++) {
-					requested.add(localBufferPool.requestBufferBlocking());
+					final Buffer buffer = checkNotNull(localBufferPool.requestBuffer());
+					requested.add(buffer);
 				}
 
 				// Notify that we've requested all buffers
@@ -315,7 +320,7 @@ public class LocalBufferPoolTest extends TestLogger {
 				// Try to request the next buffer (but pool should be destroyed either right before
 				// the request or more likely during the request).
 				try {
-					localBufferPool.requestBufferBlocking();
+					localBufferPool.requestBufferBuilderBlocking();
 					fail("Call should have failed with an IllegalStateException");
 				}
 				catch (IllegalStateException e) {
@@ -401,6 +406,46 @@ public class LocalBufferPoolTest extends TestLogger {
 		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
 	}
 
+	@Test
+	public void testIsAvailableOrNot() throws Exception {
+
+		// the local buffer pool should be in available state initially
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+
+		// request one buffer
+		final BufferBuilder bufferBuilder = checkNotNull(localBufferPool.requestBufferBuilderBlocking());
+		CompletableFuture<?> availableFuture = localBufferPool.getAvailableFuture();
+		assertFalse(availableFuture.isDone());
+
+		// set the pool size
+		localBufferPool.setNumBuffers(2);
+		assertTrue(availableFuture.isDone());
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+
+		// drain the global buffer pool
+		final List<MemorySegment> segments = new ArrayList<>(numBuffers);
+		while (networkBufferPool.getNumberOfAvailableMemorySegments() > 0) {
+			segments.add(checkNotNull(networkBufferPool.requestMemorySegment()));
+		}
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+
+		// recycle the requested segments to global buffer pool
+		for (final MemorySegment segment: segments) {
+			networkBufferPool.recycle(segment);
+		}
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+
+		// reset the pool size
+		localBufferPool.setNumBuffers(1);
+		availableFuture = localBufferPool.getAvailableFuture();
+		assertFalse(availableFuture.isDone());
+
+		// recycle the requested buffer
+		bufferBuilder.createBufferConsumer().close();
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+		assertTrue(availableFuture.isDone());
+	}
+
 	// ------------------------------------------------------------------------
 	// Helpers
 	// ------------------------------------------------------------------------
@@ -445,7 +490,7 @@ public class LocalBufferPoolTest extends TestLogger {
 		public Boolean call() throws Exception {
 			try {
 				for (int i = 0; i < numBuffersToRequest; i++) {
-					Buffer buffer = bufferProvider.requestBufferBlocking();
+					Buffer buffer = checkNotNull(bufferProvider.requestBuffer());
 					buffer.recycleBuffer();
 				}
 			}

@@ -20,9 +20,9 @@ package org.apache.flink.table.runtime.operators.aggregate;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
@@ -95,7 +95,10 @@ public class BytesHashMapTest {
 				rowLength(RowType.of(keyTypes)),
 				PAGE_SIZE);
 		int memorySize = numMemSegments * PAGE_SIZE;
-		MemoryManager memoryManager = new MemoryManager(numMemSegments * PAGE_SIZE, 32);
+		MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(numMemSegments * PAGE_SIZE)
+			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				memorySize, keyTypes, new LogicalType[]{});
@@ -117,7 +120,10 @@ public class BytesHashMapTest {
 				rowLength(RowType.of(keyTypes)),
 				PAGE_SIZE);
 		int memorySize = numMemSegments * PAGE_SIZE;
-		MemoryManager memoryManager = new MemoryManager(memorySize, 32);
+		MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(memorySize)
+			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				memorySize, keyTypes, valueTypes);
@@ -141,7 +147,10 @@ public class BytesHashMapTest {
 				PAGE_SIZE);
 		int memorySize = numMemSegments * PAGE_SIZE;
 
-		MemoryManager memoryManager = new MemoryManager(memorySize, 32);
+		MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(memorySize)
+			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				memorySize, keyTypes, valueTypes);
@@ -165,7 +174,10 @@ public class BytesHashMapTest {
 
 		int memorySize = numMemSegments * PAGE_SIZE;
 
-		MemoryManager memoryManager = new MemoryManager(memorySize, 32);
+		MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(memorySize)
+			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				memorySize, keyTypes, valueTypes);
@@ -191,9 +203,10 @@ public class BytesHashMapTest {
 
 		int minMemorySize = reservedMemSegments * PAGE_SIZE;
 
-		MemoryManager memoryManager = new MemoryManager(
-				minMemorySize, 32, MemoryManager.DEFAULT_PAGE_SIZE,
-				MemoryType.HEAP, true);
+		MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(minMemorySize)
+			.build();
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				minMemorySize, keyTypes, valueTypes, true);
 
@@ -265,7 +278,10 @@ public class BytesHashMapTest {
 				PAGE_SIZE);
 
 		int memorySize = numMemSegments * PAGE_SIZE;
-		MemoryManager memoryManager = new MemoryManager(memorySize, 32);
+		MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(memorySize)
+			.build();
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				memorySize, keyTypes, valueTypes);
 		final Random rnd = new Random(RANDOM_SEED);

@@ -18,12 +18,17 @@
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
@@ -32,8 +37,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.io.PrintStream;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -58,7 +61,7 @@ public enum StreamingFileSinkProgram {
 
 		env.setParallelism(4);
 		env.enableCheckpointing(5000L);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, Time.of(10L, TimeUnit.SECONDS)));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, Time.of(10L, TimeUnit.SECONDS)));
 
 		final StreamingFileSink<Tuple2<Integer, Integer>> sink = StreamingFileSink
 			.forRowFormat(new Path(outputPath), (Encoder<Tuple2<Integer, Integer>>) (element, stream) -> {
@@ -99,7 +102,7 @@ public enum StreamingFileSinkProgram {
 	/**
 	 * Data-generating source function.
 	 */
-	public static final class Generator implements SourceFunction<Tuple2<Integer, Integer>>, ListCheckpointed<Integer> {
+	public static final class Generator implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
 
 		private static final long serialVersionUID = -2819385275681175792L;
 
@@ -109,6 +112,8 @@ public enum StreamingFileSinkProgram {
 
 		private volatile int numRecordsEmitted = 0;
 		private volatile boolean canceled = false;
+
+		private ListState<Integer> state = null;
 
 		Generator(final int numKeys, final int idlenessMs, final int durationSeconds) {
 			this.numKeys = numKeys;
@@ -141,15 +146,19 @@ public enum StreamingFileSinkProgram {
 		}
 
 		@Override
-		public List<Integer> snapshotState(final long checkpointId, final long timestamp) {
-			return Collections.singletonList(numRecordsEmitted);
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			state = context.getOperatorStateStore().getListState(
+					new ListStateDescriptor<Integer>("state", IntSerializer.INSTANCE));
+
+			for (Integer i : state.get()) {
+				numRecordsEmitted += i;
+			}
 		}
 
 		@Override
-		public void restoreState(final List<Integer> states) {
-			for (final Integer state : states) {
-				numRecordsEmitted += state;
-			}
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			state.clear();
+			state.add(numRecordsEmitted);
 		}
 	}
 }

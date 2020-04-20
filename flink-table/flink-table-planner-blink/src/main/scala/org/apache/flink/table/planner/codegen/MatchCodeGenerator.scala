@@ -47,6 +47,7 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.ImmutableBitSet
 
 import java.lang.{Long => JLong}
 import java.util
@@ -200,7 +201,7 @@ class MatchCodeGenerator(
     */
   def generateOneRowPerMatchExpression(
       returnType: RowType,
-      partitionKeys: util.List[RexNode],
+      partitionKeys: ImmutableBitSet,
       measures: util.Map[String, RexNode])
     : PatternProcessFunctionRunner = {
     val resultExpression = generateOneRowPerMatchExpression(
@@ -296,7 +297,7 @@ class MatchCodeGenerator(
   }
 
   private def generateOneRowPerMatchExpression(
-      partitionKeys: java.util.List[RexNode],
+      partitionKeys: ImmutableBitSet,
       measures: java.util.Map[String, RexNode],
       returnType: RowType): GeneratedExpression = {
 
@@ -304,11 +305,12 @@ class MatchCodeGenerator(
     // 1) the partition columns;
     // 2) the columns defined in the measures clause.
     val resultExprs =
-    partitionKeys.asScala.map { case inputRef: RexInputRef =>
-      generatePartitionKeyAccess(inputRef)
-    } ++ returnType.getFieldNames.filter(measures.containsKey(_)).map { fieldName =>
-      generateExpression(measures.get(fieldName))
-    }
+    partitionKeys.toArray.map(generatePartitionKeyAccess) ++
+      returnType.getFieldNames
+        .filter(measures.containsKey(_))
+        .map { fieldName =>
+          generateExpression(measures.get(fieldName))
+        }
 
     val resultCodeGenerator = new ExprCodeGenerator(ctx, nullableInput)
       .bindInput(input1Type, inputTerm = input1Term)
@@ -386,28 +388,30 @@ class MatchCodeGenerator(
   }
 
   private def generateProctimeTimestamp(): GeneratedExpression = {
-    val resultTerm = ctx.addReusableLocalVariable("long", "result")
+    val resultType = new TimestampType(3)
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
       s"""
-         |$resultTerm = $contextTerm.currentProcessingTime();
+         |$resultTerm = $SQL_TIMESTAMP.fromEpochMillis($contextTerm.currentProcessingTime());
          |""".stripMargin.trim
     // the proctime has been materialized, so it's TIMESTAMP now, not PROCTIME_INDICATOR
-    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, new TimestampType(3))
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, resultType)
   }
 
   /**
     * Extracts partition keys from any element of the match
     *
-    * @param partitionKey partition key to be extracted
+    * @param partitionKeyIdx partition key index
     * @return generated code for the given key
     */
-  private def generatePartitionKeyAccess(partitionKey: RexInputRef): GeneratedExpression = {
+  private def generatePartitionKeyAccess(partitionKeyIdx: Int): GeneratedExpression = {
     val keyRow = generateKeyRow()
     GenerateUtils.generateFieldAccess(
       ctx,
       keyRow.resultType,
       keyRow.resultTerm,
-      partitionKey.getIndex
+      partitionKeyIdx
     )
   }
 

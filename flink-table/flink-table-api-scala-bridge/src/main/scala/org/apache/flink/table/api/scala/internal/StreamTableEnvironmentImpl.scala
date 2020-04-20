@@ -29,13 +29,14 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
-import org.apache.flink.table.operations.{OutputConversionModifyOperation, ScalaDataStreamQueryOperation}
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.operations.{OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
@@ -52,6 +53,7 @@ import _root_.scala.collection.JavaConverters._
 @Internal
 class StreamTableEnvironmentImpl (
     catalogManager: CatalogManager,
+    moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     config: TableConfig,
     scalaExecutionEnvironment: StreamExecutionEnvironment,
@@ -60,17 +62,13 @@ class StreamTableEnvironmentImpl (
     isStreaming: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
+    moduleManager,
     config,
     executor,
     functionCatalog,
     planner,
     isStreaming)
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
-
-  if (!isStreaming) {
-    throw new TableException(
-      "StreamTableEnvironment is not supported on batch mode now, please use TableEnvironment.")
-  }
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
     val queryOperation = asQueryOperation(dataStream, None)
@@ -104,16 +102,6 @@ class StreamTableEnvironmentImpl (
     toDataStream[T](table, modifyOperation)
   }
 
-  override def toAppendStream[T: TypeInformation](
-      table: Table,
-      queryConfig: StreamQueryConfig)
-    : DataStream[T] = {
-    tableConfig.setIdleStateRetentionTime(
-      Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
-      Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
-    toAppendStream(table)
-  }
-
   override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
     val returnType = createTypeInformation[(Boolean, T)]
 
@@ -124,20 +112,10 @@ class StreamTableEnvironmentImpl (
     toDataStream(table, modifyOperation)
   }
 
-  override def toRetractStream[T: TypeInformation](
-      table: Table,
-      queryConfig: StreamQueryConfig)
-    : DataStream[(Boolean, T)] = {
-    tableConfig.setIdleStateRetentionTime(
-        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
-        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
-    toRetractStream(table)
-  }
-
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
-    val typeInfo = UserFunctionsTypeHelper
+    val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfTableFunction(tf, implicitly[TypeInformation[T]])
-    functionCatalog.registerTableFunction(
+    functionCatalog.registerTempSystemTableFunction(
       name,
       tf,
       typeInfo
@@ -148,11 +126,11 @@ class StreamTableEnvironmentImpl (
       name: String,
       f: AggregateFunction[T, ACC])
     : Unit = {
-    val typeInfo = UserFunctionsTypeHelper
+    val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserFunctionsTypeHelper
+    val accTypeInfo = UserDefinedFunctionHelper
       .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerAggregateFunction(
+    functionCatalog.registerTempSystemAggregateFunction(
       name,
       f,
       typeInfo,
@@ -164,11 +142,11 @@ class StreamTableEnvironmentImpl (
       name: String,
       f: TableAggregateFunction[T, ACC])
     : Unit = {
-    val typeInfo = UserFunctionsTypeHelper
+    val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserFunctionsTypeHelper
+    val accTypeInfo = UserDefinedFunctionHelper
       .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerAggregateFunction(
+    functionCatalog.registerTempSystemAggregateFunction(
       name,
       f,
       typeInfo,
@@ -190,8 +168,6 @@ class StreamTableEnvironmentImpl (
           "environment. But is: %s}", scalaExecutionEnvironment.getStreamTimeCharacteristic))
     }
   }
-
-  override protected def isEagerOperationTranslation(): Boolean = true
 
   private def toDataStream[T](
       table: Table,
@@ -245,24 +221,31 @@ class StreamTableEnvironmentImpl (
       typeInfoSchema.toTableSchema)
   }
 
-  override def sqlUpdate(stmt: String, config: StreamQueryConfig): Unit = {
-    tableConfig
-      .setIdleStateRetentionTime(
-        Time.milliseconds(config.getMinIdleStateRetentionTime),
-        Time.milliseconds(config.getMaxIdleStateRetentionTime))
-    sqlUpdate(stmt)
+  override protected def qualifyQueryOperation(
+    identifier: ObjectIdentifier,
+    queryOperation: QueryOperation): QueryOperation = queryOperation match {
+    case qo: ScalaDataStreamQueryOperation[Any] =>
+      new ScalaDataStreamQueryOperation[Any](
+        identifier,
+        qo.getDataStream,
+        qo.getFieldIndices,
+        qo.getTableSchema
+      )
+    case _ =>
+      queryOperation
   }
 
-  override def insertInto(
-      table: Table,
-      queryConfig: StreamQueryConfig,
-      sinkPath: String,
-      sinkPathContinued: String*): Unit = {
-    tableConfig
-      .setIdleStateRetentionTime(
-        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
-        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
-    insertInto(table, sinkPath, sinkPathContinued: _*)
+  override def createTemporaryView[T](
+      path: String,
+      dataStream: DataStream[T]): Unit = {
+    createTemporaryView(path, fromDataStream(dataStream))
+  }
+
+  override def createTemporaryView[T](
+      path: String,
+      dataStream: DataStream[T],
+      fields: Expression*): Unit = {
+    createTemporaryView(path, fromDataStream(dataStream, fields: _*))
   }
 }
 
@@ -274,11 +257,28 @@ object StreamTableEnvironmentImpl {
       tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
 
-    val catalogManager = new CatalogManager(
-      settings.getBuiltInCatalogName,
-      new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
+    if (!settings.isStreamingMode) {
+      throw new TableException(
+        "StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.")
+    }
 
-    val functionCatalog = new FunctionCatalog(catalogManager)
+    // temporary solution until FLINK-15635 is fixed
+    val classLoader = Thread.currentThread.getContextClassLoader
+
+    val moduleManager = new ModuleManager
+
+    val catalogManager = CatalogManager.newBuilder
+      .classLoader(classLoader)
+      .config(tableConfig.getConfiguration)
+      .defaultCatalog(
+        settings.getBuiltInCatalogName,
+        new GenericInMemoryCatalog(
+          settings.getBuiltInCatalogName,
+          settings.getBuiltInDatabaseName))
+      .executionConfig(executionEnvironment.getConfig)
+      .build
+
+    val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
     val executorProperties = settings.toExecutorProperties
     val executor = lookupExecutor(executorProperties, executionEnvironment)
@@ -294,6 +294,7 @@ object StreamTableEnvironmentImpl {
 
     new StreamTableEnvironmentImpl(
       catalogManager,
+      moduleManager,
       functionCatalog,
       tableConfig,
       executionEnvironment,

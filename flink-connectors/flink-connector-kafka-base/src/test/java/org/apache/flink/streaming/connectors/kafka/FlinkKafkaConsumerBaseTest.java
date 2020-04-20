@@ -18,13 +18,18 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -54,6 +59,7 @@ import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -664,6 +670,38 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			false,
 			0,
 			1);
+	}
+
+	/**
+	 * Before using an explicit TypeSerializer for the partition state the {@link
+	 * FlinkKafkaConsumerBase} was creating a serializer using a {@link TypeHint}. Here, we verify
+	 * that the two methods create compatible serializers.
+	 */
+	@Test
+	public void testExplicitStateSerializerCompatibility() throws Exception {
+		ExecutionConfig executionConfig = new ExecutionConfig();
+
+		Tuple2<KafkaTopicPartition, Long> tuple =
+				new Tuple2<>(new KafkaTopicPartition("dummy", 0), 42L);
+
+		// This is how the KafkaConsumerBase used to create the TypeSerializer
+		TypeInformation<Tuple2<KafkaTopicPartition, Long>> originalTypeHintTypeInfo =
+				new TypeHint<Tuple2<KafkaTopicPartition, Long>>() {}.getTypeInfo();
+		TypeSerializer<Tuple2<KafkaTopicPartition, Long>> serializerFromTypeHint =
+				originalTypeHintTypeInfo.createSerializer(executionConfig);
+		byte[] bytes = InstantiationUtil.serializeToByteArray(serializerFromTypeHint, tuple);
+
+		// Directly use the Consumer to create the TypeSerializer (using the new method)
+		TupleSerializer<Tuple2<KafkaTopicPartition, Long>> kafkaConsumerSerializer =
+				FlinkKafkaConsumerBase.createStateSerializer(executionConfig);
+		Tuple2<KafkaTopicPartition, Long> actualTuple =
+				InstantiationUtil.deserializeFromByteArray(kafkaConsumerSerializer, bytes);
+
+		Assert.assertEquals(
+				"Explicit Serializer is not compatible with previous method of creating Serializer using TypeHint.",
+				tuple,
+				actualTuple
+		);
 	}
 
 	@Test

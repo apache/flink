@@ -1,5 +1,5 @@
 ---
-title: "Time Attributes"
+title: "时间属性"
 nav-parent_id: streaming_tableapi
 nav-pos: 2
 ---
@@ -22,29 +22,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink is able to process streaming data based on different notions of *time*. 
+Flink 可以基于几种不同的 *时间* 概念来处理数据。
 
-- *Processing time* refers to the system time of the machine (also known as "wall-clock time") that is executing the respective operation.
-- *Event time* refers to the processing of streaming data based on timestamps which are attached to each row. The timestamps can encode when an event happened.
-- *Ingestion time* is the time that events enter Flink; internally, it is treated similarly to event time.
+- *处理时间* 指的是执行具体操作时的机器时间（也称作"挂钟时间"）
+- *事件时间* 指的是数据本身携带的时间。这个时间是在事件产生时的时间。
+- *摄入时间* 指的是数据进入 Flink 的时间；在系统内部，会把它当做事件时间来处理。
 
-For more information about time handling in Flink, see the introduction about [Event Time and Watermarks]({{ site.baseurl }}/dev/event_time.html).
+对于时间相关的更多信息，可以参考 [事件时间和Watermark]({{ site.baseurl }}/zh/dev/event_time.html)。
 
-This page explains how time attributes can be defined for time-based operations in Flink's Table API & SQL.
+本页面说明了如何在 Flink Table API & SQL 里面定义时间以及相关的操作。
 
 * This will be replaced by the TOC
 {:toc}
 
-Introduction to Time Attributes
+时间属性介绍
 -------------------------------
 
-Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql.html#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
+像窗口（在 [Table API]({{ site.baseurl }}/zh/dev/table/tableApi.html#group-windows) 和 [SQL]({{ site.baseurl }}/zh/dev/table/sql/queries.html#group-windows) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
 
-Time attributes can be part of every table schema. They are defined when creating a table from a `DataStream` or are pre-defined when using a `TableSource`. Once a time attribute has been defined at the beginning, it can be referenced as a field and can be used in time-based operations.
+每种类型的表都可以有时间属性，可以在用CREATE TABLE DDL创建表的时候指定、也可以在 `DataStream` 中指定、也可以在定义 `TableSource` 时指定。一旦时间属性定义好，它就可以像普通列一样使用，也可以在时间相关的操作中使用。
 
-As long as a time attribute is not modified and is simply forwarded from one part of the query to another, it remains a valid time attribute. Time attributes behave like regular timestamps and can be accessed for calculations. If a time attribute is used in a calculation, it will be materialized and becomes a regular timestamp. Regular timestamps do not cooperate with Flink's time and watermarking system and thus can not be used for time-based operations anymore.
+只要时间属性没有被修改，而是简单地从一个表传递到另一个表，它就仍然是一个有效的时间属性。时间属性可以像普通的时间戳的列一样被使用和计算。一旦时间属性被用在了计算中，它就会被物化，进而变成一个普通的时间戳。普通的时间戳是无法跟 Flink 的时间以及watermark等一起使用的，所以普通的时间戳就无法用在时间相关的操作中。
 
-Table programs require that the corresponding time characteristic has been specified for the streaming environment:
+Table API 程序需要在 streaming environment 中指定时间属性：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -53,7 +53,7 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 
 env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime); // default
 
-// alternatively:
+// 或者:
 // env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 {% endhighlight %}
@@ -64,7 +64,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 
 env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime) // default
 
-// alternatively:
+// 或者:
 // env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 {% endhighlight %}
@@ -75,60 +75,81 @@ env = StreamExecutionEnvironment.get_execution_environment()
 
 env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
 
-# alternatively:
+# 或者:
 # env.set_stream_time_characteristic(TimeCharacteristic.IngestionTime)
 # env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 {% endhighlight %}
 </div>
 </div>
 
-Processing time
+处理时间
 ---------------
 
-Processing time allows a table program to produce results based on the time of the local machine. It is the simplest notion of time but does not provide determinism. It neither requires timestamp extraction nor watermark generation.
+处理时间是基于机器的本地时间来处理数据，它是最简单的一种时间概念，但是它不能提供确定性。它既不需要从数据里获取时间，也不需要生成 watermark。
 
-There are two ways to define a processing time attribute.
+共有三种方法可以定义处理时间。
 
-### During DataStream-to-Table Conversion
+### 在创建表的 DDL 中定义
 
-The processing time attribute is defined with the `.proctime` property during schema definition. The time attribute must only extend the physical schema by an additional logical field. Thus, it can only be defined at the end of the schema definition.
+处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html#create-table) 
+
+{% highlight sql %}
+
+CREATE TABLE user_actions (
+  user_name STRING,
+  data STRING,
+  user_action_time AS PROCTIME() -- 声明一个额外的列作为处理时间属性
+) WITH (
+  ...
+);
+
+SELECT TUMBLE_START(user_action_time, INTERVAL '10' MINUTE), COUNT(DISTINCT user_name)
+FROM user_actions
+GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
+
+{% endhighlight %}
+
+
+### 在 DataStream 到 Table 转换时定义
+
+处理时间属性可以在 schema 定义的时候用 `.proctime` 后缀来定义。时间属性一定不能定义在一个已有字段上，所以它只能定义在 schem 定义的最后。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<Tuple2<String, String>> stream = ...;
 
-// declare an additional logical field as a processing time attribute
-Table table = tEnv.fromDataStream(stream, "Username, Data, UserActionTime.proctime");
+// 声明一个额外的字段作为时间属性字段
+Table table = tEnv.fromDataStream(stream, "user_name, data, user_action_time.proctime");
 
-WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("UserActionTime").as("userActionWindow"));
+WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val stream: DataStream[(String, String)] = ...
 
-// declare an additional logical field as a processing time attribute
-val table = tEnv.fromDataStream(stream, 'UserActionTimestamp, 'Username, 'Data, 'UserActionTime.proctime)
+// 声明一个额外的字段作为时间属性字段
+val table = tEnv.fromDataStream(stream, 'UserActionTimestamp, 'user_name, 'data, 'user_action_time.proctime)
 
-val windowedTable = table.window(Tumble over 10.minutes on 'UserActionTime as 'userActionWindow)
+val windowedTable = table.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
 {% endhighlight %}
 </div>
 </div>
 
-### Using a TableSource
+### 使用 TableSource 定义
 
-The processing time attribute is defined by a `TableSource` that implements the `DefinedProctimeAttribute` interface. The logical time attribute is appended to the physical schema defined by the return type of the `TableSource`.
+处理时间属性可以在实现了 `DefinedProctimeAttribute` 的 `TableSource` 中定义。逻辑的时间属性会放在 `TableSource` 已有物理字段的最后
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// define a table source with a processing attribute
+// 定义一个由处理时间属性的 table source
 public class UserActionSource implements StreamTableSource<Row>, DefinedProctimeAttribute {
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		String[] names = new String[] {"Username" , "Data"};
+		String[] names = new String[] {"user_name" , "data"};
 		TypeInformation[] types = new TypeInformation[] {Types.STRING(), Types.STRING()};
 		return Types.ROW(names, types);
 	}
@@ -142,26 +163,26 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedProctime
 
 	@Override
 	public String getProctimeAttribute() {
-		// field with this name will be appended as a third field
-		return "UserActionTime";
+		// 这个名字的列会被追加到最后，作为第三列
+		return "user_action_time";
 	}
 }
 
 // register table source
-tEnv.registerTableSource("UserActions", new UserActionSource());
+tEnv.registerTableSource("user_actions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
-	.scan("UserActions")
-	.window(Tumble.over("10.minutes").on("UserActionTime").as("userActionWindow"));
+	.from("user_actions")
+	.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// define a table source with a processing attribute
+// 定义一个由处理时间属性的 table source
 class UserActionSource extends StreamTableSource[Row] with DefinedProctimeAttribute {
 
 	override def getReturnType = {
-		val names = Array[String]("Username" , "Data")
+		val names = Array[String]("user_name" , "data")
 		val types = Array[TypeInformation[_]](Types.STRING, Types.STRING)
 		Types.ROW(names, types)
 	}
@@ -173,42 +194,65 @@ class UserActionSource extends StreamTableSource[Row] with DefinedProctimeAttrib
 	}
 
 	override def getProctimeAttribute = {
-		// field with this name will be appended as a third field
-		"UserActionTime"
+		// 这个名字的列会被追加到最后，作为第三列
+		"user_action_time"
 	}
 }
 
 // register table source
-tEnv.registerTableSource("UserActions", new UserActionSource)
+tEnv.registerTableSource("user_actions", new UserActionSource)
 
 val windowedTable = tEnv
-	.scan("UserActions")
-	.window(Tumble over 10.minutes on 'UserActionTime as 'userActionWindow)
+	.from("user_actions")
+	.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
 {% endhighlight %}
 </div>
 </div>
 
-Event time
+事件时间
 ----------
 
-Event time allows a table program to produce results based on the time that is contained in every record. This allows for consistent results even in case of out-of-order events or late events. It also ensures replayable results of the table program when reading records from persistent storage.
+事件时间允许程序按照数据中包含的时间来处理，这样可以在有乱序或者晚到的数据的情况下产生一致的处理结果。它可以保证从外部存储读取数据后产生可以复现（replayable）的结果。
 
-Additionally, event time allows for unified syntax for table programs in both batch and streaming environments. A time attribute in a streaming environment can be a regular field of a record in a batch environment.
+除此之外，事件时间可以让程序在流式和批式作业中使用同样的语法。在流式程序中的事件时间属性，在批式程序中就是一个正常的时间字段。
 
-In order to handle out-of-order events and distinguish between on-time and late events in streaming, Flink needs to extract timestamps from events and make some kind of progress in time (so-called [watermarks]({{ site.baseurl }}/dev/event_time.html)).
+为了能够处理乱序的事件，并且区分正常到达和晚到的事件，Flink 需要从事件中获取事件时间并且产生 watermark（[watermarks]({{ site.baseurl }}/zh/dev/event_time.html)）。
 
-An event time attribute can be defined either during DataStream-to-Table conversion or by using a TableSource.
+事件时间属性也有类似于处理时间的三种定义方式：在DDL中定义、在 DataStream 到 Table 转换时定义、用 TableSource 定义。
 
-### During DataStream-to-Table Conversion
+### 在 DDL 中定义
 
-The event time attribute is defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{ site.baseurl }}/dev/event_time.html) must have been assigned in the `DataStream` that is converted.
+事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html#create-table)
 
-There are two ways of defining the time attribute when converting a `DataStream` into a `Table`. Depending on whether the specified `.rowtime` field name exists in the schema of the `DataStream` or not, the timestamp field is either
+{% highlight sql %}
 
-- appended as a new field to the schema or
-- replaces an existing field.
+CREATE TABLE user_actions (
+  user_name STRING,
+  data STRING,
+  user_action_time TIMESTAMP(3),
+  -- 声明 user_action_time 是事件时间属性，并且用 延迟 5 秒的策略来生成 watermark
+  WATERMARK FOR user_action_time AS user_action_time - INTERVAL '5' SECOND
+) WITH (
+  ...
+);
 
-In either case the event time timestamp field will hold the value of the `DataStream` event time timestamp.
+SELECT TUMBLE_START(user_action_time, INTERVAL '10' MINUTE), COUNT(DISTINCT user_name)
+FROM user_actions
+GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
+
+{% endhighlight %}
+
+
+### 在 DataStream 到 Table 转换时定义
+
+事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{ site.baseurl }}/zh/dev/event_time.html) 在这之前一定是在 `DataStream` 上已经定义好了。
+
+在从 `DataStream` 到 `Table` 转换时定义事件时间属性有两种方式。取决于用 `.rowtime` 后缀修饰的字段名字是否是已有字段，事件时间字段可以是：
+
+- 在 schema 的结尾追加一个新的字段
+- 替换一个已经存在的字段。
+
+不管在哪种情况下，事件时间字段都表示 `DataStream` 中定义的事件的时间戳。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -216,25 +260,24 @@ In either case the event time timestamp field will hold the value of the `DataSt
 
 // Option 1:
 
-// extract timestamp and assign watermarks based on knowledge of the stream
+// 基于 stream 中的事件产生时间戳和 watermark
 DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
-// declare an additional logical field as an event time attribute
-Table table = tEnv.fromDataStream(stream, "Username, Data, UserActionTime.rowtime");
+// 声明一个额外的逻辑字段作为事件时间属性
+Table table = tEnv.fromDataStream(stream, "user_name, data, user_action_time.rowtime");
 
 
 // Option 2:
 
-// extract timestamp from first field, and assign watermarks based on knowledge of the stream
+// 从第一个字段获取事件时间，并且产生 watermark
 DataStream<Tuple3<Long, String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
-// the first field has been used for timestamp extraction, and is no longer necessary
-// replace first field with a logical event time attribute
-Table table = tEnv.fromDataStream(stream, "UserActionTime.rowtime, Username, Data");
+// 第一个字段已经用作事件时间抽取了，不用再用一个新字段来表示事件时间了
+Table table = tEnv.fromDataStream(stream, "user_action_time.rowtime, user_name, data");
 
 // Usage:
 
-WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("UserActionTime").as("userActionWindow"));
+WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -242,47 +285,45 @@ WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("UserAct
 
 // Option 1:
 
-// extract timestamp and assign watermarks based on knowledge of the stream
+// 基于 stream 中的事件产生时间戳和 watermark
 val stream: DataStream[(String, String)] = inputStream.assignTimestampsAndWatermarks(...)
 
-// declare an additional logical field as an event time attribute
-val table = tEnv.fromDataStream(stream, 'Username, 'Data, 'UserActionTime.rowtime)
+// 声明一个额外的逻辑字段作为事件时间属性
+val table = tEnv.fromDataStream(stream, 'user_name, 'data, 'user_action_time.rowtime)
 
 
 // Option 2:
 
-// extract timestamp from first field, and assign watermarks based on knowledge of the stream
+// 从第一个字段获取事件时间，并且产生 watermark
 val stream: DataStream[(Long, String, String)] = inputStream.assignTimestampsAndWatermarks(...)
 
-// the first field has been used for timestamp extraction, and is no longer necessary
-// replace first field with a logical event time attribute
-val table = tEnv.fromDataStream(stream, 'UserActionTime.rowtime, 'Username, 'Data)
+// 第一个字段已经用作事件时间抽取了，不用再用一个新字段来表示事件时间了
+val table = tEnv.fromDataStream(stream, 'user_action_time.rowtime, 'user_name, 'data)
 
 // Usage:
 
-val windowedTable = table.window(Tumble over 10.minutes on 'UserActionTime as 'userActionWindow)
+val windowedTable = table.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
 {% endhighlight %}
 </div>
 </div>
 
-### Using a TableSource
+### 使用 TableSource 定义
 
-The event time attribute is defined by a `TableSource` that implements the `DefinedRowtimeAttributes` interface. The `getRowtimeAttributeDescriptors()` method returns a list of `RowtimeAttributeDescriptor` for describing the final name of a time attribute, a timestamp extractor to derive the values of the attribute, and the watermark strategy associated with the attribute.
+事件时间属性可以在实现了 `DefinedRowTimeAttributes` 的 `TableSource` 中定义。`getRowtimeAttributeDescriptors()` 方法返回 `RowtimeAttributeDescriptor` 的列表，包含了描述事件时间属性的字段名字、如何计算事件时间、以及 watermark 生成策略等信息。
 
-Please make sure that the `DataStream` returned by the `getDataStream()` method is aligned with the defined time attribute.
-The timestamps of the `DataStream` (the ones which are assigned by a `TimestampAssigner`) are only considered if a `StreamRecordTimestamp` timestamp extractor is defined.
-Watermarks of a `DataStream` are only preserved if a `PreserveWatermarks` watermark strategy is defined.
-Otherwise, only the values of the `TableSource`'s rowtime attribute are relevant.
+同时需要确保 `getDataStream` 返回的 `DataStream` 已经定义好了时间属性。
+只有在定义了 `StreamRecordTimestamp` 时间戳分配器的时候，才认为 `DataStream` 是有时间戳信息的。 
+只有定义了 `PreserveWatermarks` watermark 生成策略的 `DataStream` 的 watermark 才会被保留。反之，则只有时间字段的值是生效的。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// define a table source with a rowtime attribute
+// 定义一个有事件时间属性的 table source
 public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeAttributes {
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		String[] names = new String[] {"Username", "Data", "UserActionTime"};
+		String[] names = new String[] {"user_name", "data", "user_action_time"};
 		TypeInformation[] types =
 		    new TypeInformation[] {Types.STRING(), Types.STRING(), Types.LONG()};
 		return Types.ROW(names, types);
@@ -290,20 +331,20 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeA
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		// create stream
+		// 构造 DataStream
 		// ...
-		// assign watermarks based on the "UserActionTime" attribute
+		// 基于 "user_action_time" 定义 watermark
 		DataStream<Row> stream = inputStream.assignTimestampsAndWatermarks(...);
 		return stream;
 	}
 
 	@Override
 	public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
-		// Mark the "UserActionTime" attribute as event-time attribute.
-		// We create one attribute descriptor of "UserActionTime".
+		// 标记 "user_action_time" 字段是事件时间字段
+		// 给 "user_action_time" 构造一个时间属性描述符
 		RowtimeAttributeDescriptor rowtimeAttrDescr = new RowtimeAttributeDescriptor(
-			"UserActionTime",
-			new ExistingField("UserActionTime"),
+			"user_action_time",
+			new ExistingField("user_action_time"),
 			new AscendingTimestamps());
 		List<RowtimeAttributeDescriptor> listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr);
 		return listRowtimeAttrDescr;
@@ -311,38 +352,38 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeA
 }
 
 // register the table source
-tEnv.registerTableSource("UserActions", new UserActionSource());
+tEnv.registerTableSource("user_actions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
-	.scan("UserActions")
-	.window(Tumble.over("10.minutes").on("UserActionTime").as("userActionWindow"));
+	.from("user_actions")
+	.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// define a table source with a rowtime attribute
+// 定义一个有事件时间属性的 table source
 class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttributes {
 
 	override def getReturnType = {
-		val names = Array[String]("Username" , "Data", "UserActionTime")
+		val names = Array[String]("user_name" , "data", "user_action_time")
 		val types = Array[TypeInformation[_]](Types.STRING, Types.STRING, Types.LONG)
 		Types.ROW(names, types)
 	}
 
 	override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-		// create stream
+		// 构造 DataStream
 		// ...
-		// assign watermarks based on the "UserActionTime" attribute
+		// 基于 "user_action_time" 定义 watermark
 		val stream = inputStream.assignTimestampsAndWatermarks(...)
 		stream
 	}
 
 	override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
-		// Mark the "UserActionTime" attribute as event-time attribute.
-		// We create one attribute descriptor of "UserActionTime".
+		// 标记 "user_action_time" 字段是事件时间字段
+		// 给 "user_action_time" 构造一个时间属性描述符
 		val rowtimeAttrDescr = new RowtimeAttributeDescriptor(
-			"UserActionTime",
-			new ExistingField("UserActionTime"),
+			"user_action_time",
+			new ExistingField("user_action_time"),
 			new AscendingTimestamps)
 		val listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr)
 		listRowtimeAttrDescr
@@ -350,11 +391,11 @@ class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribu
 }
 
 // register the table source
-tEnv.registerTableSource("UserActions", new UserActionSource)
+tEnv.registerTableSource("user_actions", new UserActionSource)
 
 val windowedTable = tEnv
-	.scan("UserActions")
-	.window(Tumble over 10.minutes on 'UserActionTime as 'userActionWindow)
+	.from("user_actions")
+	.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
 {% endhighlight %}
 </div>
 </div>

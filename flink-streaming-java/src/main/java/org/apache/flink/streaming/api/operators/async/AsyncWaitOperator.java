@@ -32,28 +32,28 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
-import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
-import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
 import org.apache.flink.streaming.api.operators.async.queue.UnorderedStreamElementQueue;
-import org.apache.flink.streaming.api.operators.async.queue.WatermarkQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collection;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The {@link AsyncWaitOperator} allows to asynchronously process incoming stream records. For that
@@ -77,7 +77,7 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public class AsyncWaitOperator<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, OperatorActions, BoundedOneInput {
+		implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 	private static final long serialVersionUID = 1L;
 
 	private static final String STATE_NAME = "_async_wait_operator_state_";
@@ -91,38 +91,30 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Timeout for the async collectors. */
 	private final long timeout;
 
-	protected transient Object checkpointingLock;
-
 	/** {@link TypeSerializer} for inputs while making snapshots. */
 	private transient StreamElementSerializer<IN> inStreamElementSerializer;
 
 	/** Recovered input stream elements. */
 	private transient ListState<StreamElement> recoveredStreamElements;
 
-	/** Queue to store the currently in-flight stream elements into. */
-	private transient StreamElementQueue queue;
+	/** Queue, into which to store the currently in-flight stream elements. */
+	private transient StreamElementQueue<OUT> queue;
 
-	/** Pending stream element which could not yet added to the queue. */
-	private transient StreamElementQueueEntry<?> pendingStreamElementQueueEntry;
+	/** Mailbox executor used to yield while waiting for buffers to empty. */
+	private final transient MailboxExecutor mailboxExecutor;
 
-	private transient ExecutorService executor;
-
-	/** Emitter for the completed stream element queue entries. */
-	private transient Emitter<OUT> emitter;
-
-	/** Thread running the emitter. */
-	private transient Thread emitterThread;
+	private transient TimestampedCollector<OUT> timestampedCollector;
 
 	public AsyncWaitOperator(
-			AsyncFunction<IN, OUT> asyncFunction,
+			@Nonnull AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,
 			int capacity,
-			AsyncDataStream.OutputMode outputMode) {
+			@Nonnull AsyncDataStream.OutputMode outputMode,
+			@Nonnull ProcessingTimeService processingTimeService,
+			@Nonnull MailboxExecutor mailboxExecutor) {
 		super(asyncFunction);
 
-		// TODO this is a temporary fix for the problems described under FLINK-13063 at the cost of breaking chains for
-		//  AsyncOperators.
-		setChainingStrategy(ChainingStrategy.HEAD);
+		setChainingStrategy(ChainingStrategy.ALWAYS);
 
 		Preconditions.checkArgument(capacity > 0, "The number of concurrent async operation should be greater than 0.");
 		this.capacity = capacity;
@@ -130,54 +122,37 @@ public class AsyncWaitOperator<IN, OUT>
 		this.outputMode = Preconditions.checkNotNull(outputMode, "outputMode");
 
 		this.timeout = timeout;
+
+		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+
+		this.mailboxExecutor = mailboxExecutor;
 	}
 
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
 
-		this.checkpointingLock = getContainingTask().getCheckpointLock();
-
 		this.inStreamElementSerializer = new StreamElementSerializer<>(
 			getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
 
-		// create the operators executor for the complete operations of the queue entries
-		this.executor = Executors.newSingleThreadExecutor();
-
 		switch (outputMode) {
 			case ORDERED:
-				queue = new OrderedStreamElementQueue(
-					capacity,
-					executor,
-					this);
+				queue = new OrderedStreamElementQueue<>(capacity);
 				break;
 			case UNORDERED:
-				queue = new UnorderedStreamElementQueue(
-					capacity,
-					executor,
-					this);
+				queue = new UnorderedStreamElementQueue<>(capacity);
 				break;
 			default:
 				throw new IllegalStateException("Unknown async mode: " + outputMode + '.');
 		}
+
+		this.timestampedCollector = new TimestampedCollector<>(output);
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
 
-		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
-
-		// start the emitter thread
-		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
-		emitterThread.setDaemon(true);
-		emitterThread.start();
-
-		// process stream elements from state, since the Emit thread will start as soon as all
-		// elements from previous state are in the StreamElementQueue, we have to make sure that the
-		// order to open all operators in the operator chain proceeds from the tail operator to the
-		// head operator.
 		if (recoveredStreamElements != null) {
 			for (StreamElement element : recoveredStreamElements.get()) {
 				if (element.isRecord()) {
@@ -201,40 +176,33 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		final StreamRecordQueueEntry<OUT> streamRecordBufferEntry = new StreamRecordQueueEntry<>(element);
+		// add element first to the queue
+		final ResultFuture<OUT> entry = addToWorkQueue(element);
 
+		final ResultHandler resultHandler = new ResultHandler(element, entry);
+
+		// register a timeout for the entry if timeout is configured
 		if (timeout > 0L) {
-			// register a timeout for this AsyncStreamRecordBufferEntry
-			long timeoutTimestamp = timeout + getProcessingTimeService().getCurrentProcessingTime();
+			final long timeoutTimestamp = timeout + getProcessingTimeService().getCurrentProcessingTime();
 
-			final ScheduledFuture<?> timerFuture = getProcessingTimeService().registerTimer(
+			final ScheduledFuture<?> timeoutTimer = getProcessingTimeService().registerTimer(
 				timeoutTimestamp,
-				new ProcessingTimeCallback() {
-					@Override
-					public void onProcessingTime(long timestamp) throws Exception {
-						userFunction.timeout(element.getValue(), streamRecordBufferEntry);
-					}
-				});
+				timestamp -> userFunction.timeout(element.getValue(), resultHandler));
 
-			// Cancel the timer once we've completed the stream record buffer entry. This will remove
-			// the register trigger task
-			streamRecordBufferEntry.onComplete(
-				(StreamElementQueueEntry<Collection<OUT>> value) -> {
-					timerFuture.cancel(true);
-				},
-				executor);
+			resultHandler.setTimeoutTimer(timeoutTimer);
 		}
 
-		addAsyncBufferEntry(streamRecordBufferEntry);
-
-		userFunction.asyncInvoke(element.getValue(), streamRecordBufferEntry);
+		userFunction.asyncInvoke(element.getValue(), resultHandler);
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		WatermarkQueueEntry watermarkBufferEntry = new WatermarkQueueEntry(mark);
+		addToWorkQueue(mark);
 
-		addAsyncBufferEntry(watermarkBufferEntry);
+		// watermarks are always completed
+		// if there is no prior element, we can directly emit them
+		// this also avoids watermarks being held back until the next element has been processed
+		outputCompletedElement();
 	}
 
 	@Override
@@ -245,17 +213,8 @@ public class AsyncWaitOperator<IN, OUT>
 			getOperatorStateBackend().getListState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 		partitionableState.clear();
 
-		Collection<StreamElementQueueEntry<?>> values = queue.values();
-
 		try {
-			for (StreamElementQueueEntry<?> value : values) {
-				partitionableState.add(value.getStreamElement());
-			}
-
-			// add the pending stream element queue entry if the stream element queue is currently full
-			if (pendingStreamElementQueueEntry != null) {
-				partitionableState.add(pendingStreamElementQueueEntry.getStreamElement());
-			}
+			partitionableState.addAll(queue.values());
 		} catch (Exception e) {
 			partitionableState.clear();
 
@@ -275,152 +234,139 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void endInput() throws Exception {
+		// we should wait here for the data in flight to be finished. the reason is that the
+		// timer not in running will be forbidden to fire after this, so that when the async
+		// operation is stuck, it results in deadlock due to what the timeout timer is not fired
 		waitInFlightInputsFinished();
 	}
 
-	@Override
-	public void close() throws Exception {
-		try {
-			waitInFlightInputsFinished();
-		}
-		finally {
-			Exception exception = null;
-
-			try {
-				super.close();
-			} catch (InterruptedException interrupted) {
-				exception = interrupted;
-
-				Thread.currentThread().interrupt();
-			} catch (Exception e) {
-				exception = e;
-			}
-
-			try {
-				// terminate the emitter, the emitter thread and the executor
-				stopResources(true);
-			} catch (InterruptedException interrupted) {
-				exception = ExceptionUtils.firstOrSuppressed(interrupted, exception);
-
-				Thread.currentThread().interrupt();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			if (exception != null) {
-				LOG.warn("Errors occurred while closing the AsyncWaitOperator.", exception);
-			}
-		}
-	}
-
-	@Override
-	public void dispose() throws Exception {
-		Exception exception = null;
-
-		try {
-			super.dispose();
-		} catch (InterruptedException interrupted) {
-			exception = interrupted;
-
-			Thread.currentThread().interrupt();
-		} catch (Exception e) {
-			exception = e;
-		}
-
-		try {
-			stopResources(false);
-		} catch (InterruptedException interrupted) {
-			exception = ExceptionUtils.firstOrSuppressed(interrupted, exception);
-
-			Thread.currentThread().interrupt();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		if (exception != null) {
-			throw exception;
-		}
-	}
-
 	/**
-	 * Close the operator's resources. They include the emitter thread and the executor to run
-	 * the queue's complete operation.
+	 * Add the given stream element to the operator's stream element queue. This operation blocks until the element
+	 * has been added.
 	 *
-	 * @param waitForShutdown is true if the method should wait for the resources to be freed;
-	 *                           otherwise false.
-	 * @throws InterruptedException if current thread has been interrupted
+	 * <p>Between two insertion attempts, this method yields the execution to the mailbox, such that events as well
+	 * as asynchronous results can be processed.
+	 *
+	 * @param streamElement to add to the operator's queue
+	 * @throws InterruptedException if the current thread has been interrupted while yielding to mailbox
+	 * @return a handle that allows to set the result of the async computation for the given element.
 	 */
-	private void stopResources(boolean waitForShutdown) throws InterruptedException {
-		emitter.stop();
-		emitterThread.interrupt();
+	private ResultFuture<OUT> addToWorkQueue(StreamElement streamElement) throws InterruptedException {
 
-		executor.shutdown();
-
-		if (waitForShutdown) {
-			try {
-				if (!executor.awaitTermination(365L, TimeUnit.DAYS)) {
-					executor.shutdownNow();
-				}
-			} catch (InterruptedException e) {
-				executor.shutdownNow();
-
-				Thread.currentThread().interrupt();
-			}
-
-			/*
-			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
-			 * that the emitter thread can complete/react to the interrupt signal.
-			 */
-			if (Thread.holdsLock(checkpointingLock)) {
-				while (emitterThread.isAlive()) {
-					checkpointingLock.wait(100L);
-				}
-			}
-
-			emitterThread.join();
-		} else {
-			executor.shutdownNow();
-		}
-	}
-
-	/**
-	 * Add the given stream element queue entry to the operator's stream element queue. This
-	 * operation blocks until the element has been added.
-	 *
-	 * <p>For that it tries to put the element into the queue and if not successful then it waits on
-	 * the checkpointing lock. The checkpointing lock is also used by the {@link Emitter} to output
-	 * elements. The emitter is also responsible for notifying this method if the queue has capacity
-	 * left again, by calling notifyAll on the checkpointing lock.
-	 *
-	 * @param streamElementQueueEntry to add to the operator's queue
-	 * @param <T> Type of the stream element queue entry's result
-	 * @throws InterruptedException if the current thread has been interrupted
-	 */
-	private <T> void addAsyncBufferEntry(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
-
-		pendingStreamElementQueueEntry = streamElementQueueEntry;
-
-		while (!queue.tryPut(streamElementQueueEntry)) {
-			// we wait for the emitter to notify us if the queue has space left again
-			checkpointingLock.wait();
+		Optional<ResultFuture<OUT>> queueEntry;
+		while (!(queueEntry = queue.tryPut(streamElement)).isPresent()) {
+			mailboxExecutor.yield();
 		}
 
-		pendingStreamElementQueueEntry = null;
+		return queueEntry.get();
 	}
 
 	private void waitInFlightInputsFinished() throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
 
 		while (!queue.isEmpty()) {
-			// wait for the emitter thread to output the remaining elements
-			// for that he needs the checkpointing lock and thus we have to free it
-			checkpointingLock.wait();
+			mailboxExecutor.yield();
 		}
 	}
 
-	@Override
-	public void failOperator(Throwable throwable) {
-		getContainingTask().getEnvironment().failExternally(throwable);
+	/**
+	 * Outputs one completed element. Watermarks are always completed if it's their turn to be processed.
+	 *
+	 * <p>This method will be called from {@link #processWatermark(Watermark)} and from a mail processing the result
+	 * of an async function call.
+	 */
+	private void outputCompletedElement() {
+		if (queue.hasCompletedElements()) {
+			// emit only one element to not block the mailbox thread unnecessarily
+			queue.emitCompletedElement(timestampedCollector);
+			// if there are more completed elements, emit them with subsequent mails
+			if (queue.hasCompletedElements()) {
+				mailboxExecutor.execute(this::outputCompletedElement, "AsyncWaitOperator#outputCompletedElement");
+			}
+		}
+	}
+
+	/**
+	 * A handler for the results of a specific input record.
+	 */
+	private class ResultHandler implements ResultFuture<OUT> {
+		/**
+		 * Optional timeout timer used to signal the timeout to the AsyncFunction.
+		 */
+		private ScheduledFuture<?> timeoutTimer;
+		/**
+		 * Record for which this result handler exists. Used only to report errors.
+		 */
+		private final StreamRecord<IN> inputRecord;
+		/**
+		 * The handle received from the queue to update the entry. Should only be used to inject the result;
+		 * exceptions are handled here.
+		 */
+		private final ResultFuture<OUT> resultFuture;
+		/**
+		 * A guard against ill-written AsyncFunction. Additional (parallel) invokations of
+		 * {@link #complete(Collection)} or {@link #completeExceptionally(Throwable)} will be ignored. This guard
+		 * also helps for cases where proper results and timeouts happen at the same time.
+		 */
+		private final AtomicBoolean completed = new AtomicBoolean(false);
+
+		ResultHandler(StreamRecord<IN> inputRecord, ResultFuture<OUT> resultFuture) {
+			this.inputRecord = inputRecord;
+			this.resultFuture = resultFuture;
+		}
+
+		void setTimeoutTimer(ScheduledFuture<?> timeoutTimer) {
+			this.timeoutTimer = timeoutTimer;
+		}
+
+		@Override
+		public void complete(Collection<OUT> results) {
+			Preconditions.checkNotNull(results, "Results must not be null, use empty collection to emit nothing");
+
+			// already completed (exceptionally or with previous complete call from ill-written AsyncFunction), so
+			// ignore additional result
+			if (!completed.compareAndSet(false, true)) {
+				return;
+			}
+
+			processInMailbox(results);
+		}
+
+		private void processInMailbox(Collection<OUT> results) {
+			// move further processing into the mailbox thread
+			mailboxExecutor.execute(
+				() -> processResults(results),
+				"Result in AsyncWaitOperator of input %s", results);
+		}
+
+		private void processResults(Collection<OUT> results) {
+			// Cancel the timer once we've completed the stream record buffer entry. This will remove the registered
+			// timer task
+			if (timeoutTimer != null) {
+				// canceling in mailbox thread avoids https://issues.apache.org/jira/browse/FLINK-13635
+				timeoutTimer.cancel(true);
+			}
+
+			// update the queue entry with the result
+			resultFuture.complete(results);
+			// now output all elements from the queue that have been completed (in the correct order)
+			outputCompletedElement();
+		}
+
+		@Override
+		public void completeExceptionally(Throwable error) {
+			// already completed, so ignore exception
+			if (!completed.compareAndSet(false, true)) {
+				return;
+			}
+
+			// signal failure through task
+			getContainingTask().getEnvironment().failExternally(new Exception(
+					"Could not complete the stream element: " + inputRecord + '.',
+					error));
+
+			// complete with empty result, so that we remove timer and move ahead processing (to leave potentially
+			// blocking section in #addToWorkQueue or #waitInFlightInputsFinished)
+			processInMailbox(Collections.emptyList());
+		}
 	}
 }

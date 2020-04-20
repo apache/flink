@@ -25,6 +25,8 @@ import org.apache.flink.table.runtime.util.JsonUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.ThreadLocalCache;
 
+import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -486,7 +488,7 @@ public class SqlFunctionUtils {
 			}
 		}
 		if (byteArray == null) {
-			byteArray = str.getBytes();
+			byteArray = str.getBytes(StandardCharsets.UTF_8);
 		}
 		return byteArray;
 	}
@@ -571,11 +573,11 @@ public class SqlFunctionUtils {
 
 	public static String subString(String str, long start, long len) {
 		if (len < 0) {
-			LOG.error("len of 'substring(str, start, len)' must be >= 0 and Int type, but len = {0}", len);
+			LOG.error("len of 'substring(str, start, len)' must be >= 0 and Int type, but len = {}", len);
 			return null;
 		}
 		if (len > Integer.MAX_VALUE || start > Integer.MAX_VALUE) {
-			LOG.error("len or start of 'substring(str, start, len)' must be Int type, but len = {0}, start = {0}", len, start);
+			LOG.error("len or start of 'substring(str, start, len)' must be Int type, but len = {}, start = {}", len, start);
 			return null;
 		}
 		int length = (int) len;
@@ -1063,8 +1065,12 @@ public class SqlFunctionUtils {
 		return Base64.getEncoder().encodeToString(bytes);
 	}
 
-	public static byte[] fromBase64(BinaryString bs){
-		return Base64.getDecoder().decode(bs.getBytes());
+	public static BinaryString fromBase64(BinaryString bs) {
+		return BinaryString.fromBytes(Base64.getDecoder().decode(bs.getBytes()));
+	}
+
+	public static BinaryString fromBase64(byte[] bytes) {
+		return BinaryString.fromBytes(Base64.getDecoder().decode(bytes));
 	}
 
 	public static String uuid(){
@@ -1104,5 +1110,90 @@ public class SqlFunctionUtils {
 
 	public static float struncate(float b0, int b1) {
 		return (float) struncate(Decimal.castFrom((double) b0, 38, 18), b1).doubleValue();
+	}
+
+	/** TODO: remove addMonths and subtractMonths if CALCITE-3881 fixed.
+	 *   https://issues.apache.org/jira/browse/CALCITE-3881
+	 **/
+	public static long addMonths(long timestamp, int m) {
+		final long millis =
+			DateTimeUtils.floorMod(timestamp, DateTimeUtils.MILLIS_PER_DAY);
+		timestamp -= millis;
+		final long x =
+			addMonths((int) (timestamp / DateTimeUtils.MILLIS_PER_DAY), m);
+		return x * DateTimeUtils.MILLIS_PER_DAY + millis;
+	}
+
+	public static int addMonths(int date, int m) {
+		int y0 = (int) DateTimeUtils.unixDateExtract(TimeUnitRange.YEAR, date);
+		int m0 = (int) DateTimeUtils.unixDateExtract(TimeUnitRange.MONTH, date);
+		int d0 = (int) DateTimeUtils.unixDateExtract(TimeUnitRange.DAY, date);
+		m0 += m;
+		int deltaYear = (int) DateTimeUtils.floorDiv(m0, 12);
+		y0 += deltaYear;
+		m0 = (int) DateTimeUtils.floorMod(m0, 12);
+		if (m0 == 0) {
+			y0 -= 1;
+			m0 += 12;
+		}
+		int last = lastDay(y0, m0);
+		if (d0 > last) {
+			d0 = last;
+		}
+		return DateTimeUtils.ymdToUnixDate(y0, m0, d0);
+	}
+
+	private static int lastDay(int y, int m) {
+		switch (m) {
+			case 2:
+				return y % 4 == 0
+					&& (y % 100 != 0
+					|| y % 400 == 0)
+					? 29 : 28;
+			case 4:
+			case 6:
+			case 9:
+			case 11:
+				return 30;
+			default:
+				return 31;
+		}
+	}
+
+	public static int subtractMonths(int date0, int date1) {
+		if (date0 < date1) {
+			return -subtractMonths(date1, date0);
+		}
+		// Start with an estimate.
+		// Since no month has more than 31 days, the estimate is <= the true value.
+		int m = (date0 - date1) / 31;
+		while (true) {
+			int date2 = addMonths(date1, m);
+			if (date2 >= date0) {
+				return m;
+			}
+			int date3 = addMonths(date1, m + 1);
+			if (date3 > date0) {
+				return m;
+			}
+			++m;
+		}
+	}
+
+	public static int subtractMonths(long t0, long t1) {
+		final long millis0 =
+			DateTimeUtils.floorMod(t0, DateTimeUtils.MILLIS_PER_DAY);
+		final int d0 = (int) DateTimeUtils.floorDiv(t0 - millis0,
+			DateTimeUtils.MILLIS_PER_DAY);
+		final long millis1 =
+			DateTimeUtils.floorMod(t1, DateTimeUtils.MILLIS_PER_DAY);
+		final int d1 = (int) DateTimeUtils.floorDiv(t1 - millis1,
+			DateTimeUtils.MILLIS_PER_DAY);
+		int x = subtractMonths(d0, d1);
+		final long d2 = addMonths(d1, x);
+		if (d2 == d0 && millis0 < millis1) {
+			--x;
+		}
+		return x;
 	}
 }

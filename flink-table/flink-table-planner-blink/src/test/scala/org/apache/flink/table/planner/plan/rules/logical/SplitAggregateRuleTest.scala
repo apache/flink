@@ -80,7 +80,7 @@ class SplitAggregateRuleTest extends TableTestBase {
   }
 
   @Test
-  def testSingleConcatAggWithDistinctAgg(): Unit = {
+  def testSingleListAggWithDistinctAgg(): Unit = {
     util.verifyPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 

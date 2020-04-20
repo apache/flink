@@ -84,19 +84,21 @@ public class ParquetMapInputFormat extends ParquetInputFormat<Map> {
 	private void convert(Map<String, Object> target, Map<String, Object> source, MapTypeInfo mapTypeInfo) {
 		TypeInformation valueTypeInfp = mapTypeInfo.getValueTypeInfo();
 
-		for (String key : source.keySet()) {
+		for (Map.Entry<String, Object> entry : source.entrySet()) {
+			String key = entry.getKey();
+			Object value = entry.getValue();
 			if (valueTypeInfp instanceof RowTypeInfo) {
 				Map<String, Object> nestedRow = new HashMap<>();
-				convert(nestedRow, (Row) source.get(key),
+				convert(nestedRow, (Row) value,
 					((RowTypeInfo) valueTypeInfp).getFieldTypes(), ((RowTypeInfo) valueTypeInfp).getFieldNames());
 				target.put(key, nestedRow);
 			} else if (valueTypeInfp instanceof MapTypeInfo) {
 				Map<String, Object> nestedMap = new HashMap<>();
-				convert(nestedMap, (Map<String, Object>) source.get(key), (MapTypeInfo) valueTypeInfp);
+				convert(nestedMap, (Map<String, Object>) value, (MapTypeInfo) valueTypeInfp);
 				target.put(key, nestedMap);
 			} else if (valueTypeInfp instanceof ObjectArrayTypeInfo) {
 				List<Object> nestedObjectList = new ArrayList<>();
-				convert(nestedObjectList, (Object[]) source.get(key), (ObjectArrayTypeInfo) valueTypeInfp);
+				convert(nestedObjectList, (Object[]) value, (ObjectArrayTypeInfo) valueTypeInfp);
 				target.put(key, nestedObjectList);
 			}
 		}

@@ -1,7 +1,7 @@
 ---
 title: "SQL 客户端"
 nav-parent_id: tableapi
-nav-pos: 100
+nav-pos: 90
 is_beta: true
 ---
 <!--
@@ -211,12 +211,11 @@ catalogs:
      property-version: 1
      default-database: mydb2
      hive-conf-dir: ...
-     hive-version: 1.2.1
 
 # Properties that change the fundamental execution behavior of a table program.
 
 execution:
-  planner: old                      # optional: either 'old' (default) or 'blink'
+  planner: blink                    # optional: either 'blink' (default) or 'old'
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
   max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
@@ -254,7 +253,7 @@ This configuration:
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
 - connects to two Hive catalogs and uses `catalog_1` as the current catalog with `mydb1` as the current database of the catalog,
-- uses the old planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,
+- uses the blink planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,
 - runs exploratory queries in the `table` result mode,
 - and makes some planner adjustments around join reordering and spilling via configuration options.
 
@@ -318,25 +317,21 @@ tables:
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-        - key: group.id
-          value: testGroup
+        bootstrap.servers: localhost:9092
+        group.id: testGroup
     format:
       property-version: 1
       type: json
       schema: "ROW<rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP>"
     schema:
       - name: rideId
-        type: LONG
+        data-type: BIGINT
       - name: lon
-        type: FLOAT
+        data-type: FLOAT
       - name: lat
-        type: FLOAT
+        data-type: FLOAT
       - name: rowTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: "from-field"
@@ -345,7 +340,7 @@ tables:
             type: "periodic-bounded"
             delay: "60000"
       - name: procTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         proctime: true
 {% endhighlight %}
 
@@ -359,7 +354,7 @@ Both `connector` and `format` allow to define a property version (which is curre
 
 The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
 
-In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 
@@ -372,12 +367,12 @@ functions:
   - name: ...               # required: name of the function
     from: class             # required: source of the function (can only be "class" for now)
     class: ...              # required: fully qualified class name of the function
-    constructor:            # optimal: constructor parameters of the function class
-      - ...                 # optimal: a literal parameter with implicit type
-      - class: ...          # optimal: full class name of the parameter
-        constructor:        # optimal: constructor parameters of the parameter's class
-          - type: ...       # optimal: type of the literal parameter
-            value: ...      # optimal: value of the literal parameter
+    constructor:            # optional: constructor parameters of the function class
+      - ...                 # optional: a literal parameter with implicit type
+      - class: ...          # optional: full class name of the parameter
+        constructor:        # optional: constructor parameters of the parameter's class
+          - type: ...       # optional: type of the literal parameter
+            value: ...      # optional: value of the literal parameter
 {% endhighlight %}
 
 Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
@@ -451,7 +446,6 @@ catalogs:
      type: hive
      property-version: 1
      default-database: mydb2
-     hive-version: 1.2.1
      hive-conf-dir: <path of Hive conf directory>
    - name: catalog_2
      type: hive
@@ -464,7 +458,7 @@ execution:
    current-database: mydb1
 {% endhighlight %}
 
-For more information about catalog, see [Catalogs]({{ site.baseurl }}/dev/table/catalog.html).
+For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
 
 Detached SQL Queries
 --------------------
@@ -488,25 +482,21 @@ tables:
       version: "0.11"
       topic: OutputTopic
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-        - key: group.id
-          value: testGroup
+        bootstrap.servers: localhost:9092
+        group.id: testGroup
     format:
       property-version: 1
       type: json
       derive-schema: true
     schema:
       - name: rideId
-        type: LONG
+        data-type: BIGINT
       - name: lon
-        type: FLOAT
+        data-type: FLOAT
       - name: lat
-        type: FLOAT
+        data-type: FLOAT
       - name: rideTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
 {% endhighlight %}
 
 The SQL Client makes sure that a statement is successfully submitted to the cluster. Once the query is submitted, the CLI will show information about the Flink job.
@@ -582,11 +572,11 @@ tables:
     format: # ...
     schema:
       - name: integerField
-        type: INT
+        data-type: INT
       - name: stringField
-        type: VARCHAR
+        data-type: STRING
       - name: rowtimeField
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: from-field

@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -29,20 +29,19 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, LongHashJoi
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
-import org.apache.flink.table.planner.plan.nodes.{ExpressionFormat, FlinkConventions}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 import org.apache.flink.table.types.logical.RowType
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.Util
-import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -200,11 +199,8 @@ class BatchExecHashJoin(
     val lType = lInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
     val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
 
-    val keyType = RowType.of(leftKeys.map(lType.getChildren().get(_)): _*)
-    val memText = config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)
-    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
-    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+    val keyType = RowType.of(leftKeys.map(lType.getTypeAt): _*)
+
     val condFunc = JoinUtil.generateConditionFunction(
       config, cluster.getRexBuilder, getJoinInfo, lType, rType)
 
@@ -236,18 +232,12 @@ class BatchExecHashJoin(
         pType,
         buildKeys,
         probeKeys,
-        managedMemory,
-        0,
-        0,
         buildRowSize,
         buildRowCount,
         reverseJoin,
         condFunc)
     } else {
       SimpleOperatorFactory.of(HashJoinOperator.newHashJoinOperator(
-        managedMemory,
-        0,
-        0,
         hashJoinType,
         condFunc,
         reverseJoin,
@@ -262,15 +252,15 @@ class BatchExecHashJoin(
       ))
     }
 
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val managedMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)).getBytes
+    ExecNode.createTwoInputTransformation(
       build,
       probe,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
-      probe.getParallelism)
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      probe.getParallelism,
+      managedMemory)
   }
 }
