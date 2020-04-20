@@ -63,7 +63,7 @@ class WindowEmitStrategy(
 
   def produceUpdates: Boolean = {
     if (isEventTime) {
-      allowLateness > 0 || earlyFireDelayEnabled || lateFireDelayEnabled
+      earlyFireDelayEnabled || lateFireDelayEnabled
     } else {
       earlyFireDelayEnabled
     }
