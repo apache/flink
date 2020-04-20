@@ -18,9 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -43,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * CREATE VIEW DDL sql call.
  */
-public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
+public class SqlCreateView extends SqlCreate {
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW);
 
 	private final SqlIdentifier viewName;
@@ -119,10 +116,5 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		writer.sep(",", false);
 		writer.newlineAndIndent();
 		writer.print("  ");
-	}
-
-	@Override
-	public void validate() throws SqlValidateException {
-		// no-op
 	}
 }

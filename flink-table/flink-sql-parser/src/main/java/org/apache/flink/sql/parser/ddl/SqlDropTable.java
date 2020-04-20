@@ -18,8 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-
 import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -35,7 +33,7 @@ import java.util.List;
 /**
  * DROP TABLE DDL sql call.
  */
-public class SqlDropTable extends SqlDrop implements ExtendedSqlNode {
+public class SqlDropTable extends SqlDrop {
 	private static final SqlOperator OPERATOR =
 		new SqlSpecialOperator("DROP TABLE", SqlKind.DROP_TABLE);
 
@@ -77,10 +75,6 @@ public class SqlDropTable extends SqlDrop implements ExtendedSqlNode {
 			writer.keyword("IF EXISTS");
 		}
 		tableName.unparse(writer, leftPrec, rightPrec);
-	}
-
-	public void validate() {
-		// no-op
 	}
 
 	public String[] fullTableName() {

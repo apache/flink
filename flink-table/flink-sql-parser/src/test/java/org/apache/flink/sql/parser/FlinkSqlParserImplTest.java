@@ -616,11 +616,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			+ "select 'nom', 0, timestamp '1970-01-01 00:00:00',\n"
 			+ "  1, 1, 1, false\n"
 			+ "from (values 'a')";
-		sql(sql2).node(new ValidationMatcher());
+		sql(sql2).ok("INSERT INTO `EMP` (`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`," +
+			" `COMM`, `DEPTNO`, `SLACKER`)\n"
+			+ "PARTITION (`EMPNO` = '1', `JOB` = 'job')\n"
+			+ "(SELECT 'nom', 0, TIMESTAMP '1970-01-01 00:00:00', 1, 1, 1, FALSE\n"
+			+ "FROM (VALUES (ROW('a'))))");
 		final String sql3 = "insert into empnullables (empno, ename)\n"
 			+ "partition(ename='b')\n"
 			+ "select 1 from (values 'a')";
-		sql(sql3).node(new ValidationMatcher());
+		sql(sql3).ok("INSERT INTO `EMPNULLABLES` (`EMPNO`, `ENAME`)\n"
+			+ "PARTITION (`ENAME` = 'b')\n"
+			+ "(SELECT 1\n"
+			+ "FROM (VALUES (ROW('a'))))");
 	}
 
 	@Test
@@ -757,7 +764,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testCreateViewWithEmptyFields() {
 		String sql = "CREATE VIEW v1 AS SELECT 1";
-		sql(sql).node(new ValidationMatcher());
+		sql(sql).ok(
+			"CREATE VIEW `V1`\n"
+				+ "AS\n"
+				+ "SELECT 1"
+		);
 	}
 
 	@Test
