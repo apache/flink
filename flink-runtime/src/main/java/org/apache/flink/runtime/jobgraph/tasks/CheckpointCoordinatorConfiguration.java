@@ -159,6 +159,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			", minPauseBetweenCheckpoints=" + minPauseBetweenCheckpoints +
 			", maxConcurrentCheckpoints=" + maxConcurrentCheckpoints +
 			", checkpointRetentionPolicy=" + checkpointRetentionPolicy +
+			", isExactlyOnce=" + isExactlyOnce +
+			", isPreferCheckpointForRecovery=" + isPreferCheckpointForRecovery +
 			", tolerableCheckpointFailureNumber=" + tolerableCheckpointFailureNumber +
 			'}';
 	}
