@@ -157,20 +157,20 @@ class StreamExecGroupAggregate(
         accTypes,
         inputRowType,
         inputCountIndex,
-        generateUpdateBefore)
+        generateUpdateBefore,
+        tableConfig.getMinIdleStateRetentionTime)
 
       new KeyedMapBundleOperator(
         aggFunction,
         AggregateUtil.createMiniBatchTrigger(tableConfig))
     } else {
       val aggFunction = new GroupAggFunction(
-        tableConfig.getMinIdleStateRetentionTime,
-        tableConfig.getMaxIdleStateRetentionTime,
         aggsHandler,
         recordEqualiser,
         accTypes,
         inputCountIndex,
-        generateUpdateBefore)
+        generateUpdateBefore,
+        tableConfig.getMinIdleStateRetentionTime)
 
       val operator = new KeyedProcessOperator[RowData, RowData, RowData](aggFunction)
       operator

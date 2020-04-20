@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -32,6 +33,8 @@ import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
  * Aggregate Function used for the incremental groupby (without window) aggregate in miniBatch mode.
@@ -56,6 +59,11 @@ public class MiniBatchIncrementalGroupAggFunction extends MapBundleFunction<RowD
 	private final KeySelector<RowData, RowData> finalKeySelector;
 
 	/**
+	 * State idle retention time which unit is MILLISECONDS.
+	 */
+	private final long stateRetentionTime;
+
+	/**
 	 * Reused output row.
 	 */
 	private transient JoinedRowData resultRow = new JoinedRowData();
@@ -69,21 +77,24 @@ public class MiniBatchIncrementalGroupAggFunction extends MapBundleFunction<RowD
 	public MiniBatchIncrementalGroupAggFunction(
 			GeneratedAggsHandleFunction genPartialAggsHandler,
 			GeneratedAggsHandleFunction genFinalAggsHandler,
-			KeySelector<RowData, RowData> finalKeySelector) {
+			KeySelector<RowData, RowData> finalKeySelector,
+			long stateRetentionTime) {
 		this.genPartialAggsHandler = genPartialAggsHandler;
 		this.genFinalAggsHandler = genFinalAggsHandler;
 		this.finalKeySelector = finalKeySelector;
+		this.stateRetentionTime = stateRetentionTime;
 	}
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
 		ClassLoader classLoader = ctx.getRuntimeContext().getUserCodeClassLoader();
+		StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
 		partialAgg = genPartialAggsHandler.newInstance(classLoader);
 		partialAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
 		finalAgg = genFinalAggsHandler.newInstance(classLoader);
-		finalAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
+		finalAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext(), ttlConfig));
 
 		resultRow = new JoinedRowData();
 	}

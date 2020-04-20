@@ -138,12 +138,11 @@ class StreamExecGroupTableAggregate(
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
     val aggFunction = new GroupTableAggFunction(
-      tableConfig.getMinIdleStateRetentionTime,
-      tableConfig.getMaxIdleStateRetentionTime,
       aggsHandler,
       accTypes,
       inputCountIndex,
-      generateUpdateBefore)
+      generateUpdateBefore,
+      tableConfig.getMinIdleStateRetentionTime)
     val operator = new KeyedProcessOperator[RowData, RowData, RowData](aggFunction)
 
     val selector = KeySelectorUtil.getRowDataSelector(

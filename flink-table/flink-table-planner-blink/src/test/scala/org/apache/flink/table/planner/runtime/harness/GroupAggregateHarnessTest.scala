@@ -76,8 +76,8 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    // register cleanup timer with 3001
-    testHarness.setProcessingTime(1)
+    // set TtlTimeProvider with 1
+    testHarness.setStateTtlProcessingTime(1)
 
     // insertion
     testHarness.processElement(binaryRecord(INSERT,"aaa", 1L: JLong))
@@ -101,8 +101,8 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.processElement(binaryRecord(INSERT, "ccc", 3L: JLong))
     expectedOutput.add(binaryRecord(INSERT, "ccc", 3L: JLong))
 
-    // trigger cleanup timer and register cleanup timer with 6002
-    testHarness.setProcessingTime(3002)
+    // set TtlTimeProvider with 3002 to trigger expired state cleanup
+    testHarness.setStateTtlProcessingTime(3002)
 
     // retract after clean up
     testHarness.processElement(binaryRecord(UPDATE_BEFORE, "ccc", 3L: JLong))
