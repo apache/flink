@@ -146,7 +146,8 @@ class HashCode(ScalarFunction):
   def eval(self, s):
     return hash(s) * self.factor
 
-table_env = BatchTableEnvironment.create(env)
+# use StreamTableEnvironment since Python UDF is not supported in the old planner under batch mode
+table_env = StreamTableEnvironment.create(env)
 
 # register the Python function
 table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
