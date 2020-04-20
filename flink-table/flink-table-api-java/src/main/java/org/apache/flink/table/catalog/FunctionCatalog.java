@@ -646,6 +646,9 @@ public final class FunctionCatalog {
 		return FunctionDefinitionUtil.createFunctionDefinition(name, function.getClassName());
 	}
 
+	/**
+	 * The CatalogFunction which holds a instantiated UDF.
+	 */
 	private static class InlineCatalogFunction implements CatalogFunction {
 
 		private final FunctionDefinition definition;
