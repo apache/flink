@@ -56,7 +56,12 @@ import java.util.Map;
  * <p>If all partition keys get a value assigned in the {@code PARTITION} clause, the operation is considered
  * as an "insertion into a static partition". In the above example, the query result should be written
  * into the static partition {@code region='europe', month='2020-01'} which will be passed by the planner
- * into {@link #applyStaticPartition(Map)}.
+ * into {@link #applyStaticPartition(Map)}. The planner is also able to derived static partitions from
+ * literals of a query:
+ *
+ * <pre>{@code
+ *     INSERT INTO t SELECT a, b, c, 'asia' AS region, '2020-01' AS month FROM my_view;
+ * }</pre>
  *
  * <p>Alternatively, we can insert data into <i>dynamic table partitions</i> using the SQL syntax:
  * <pre>{@code
@@ -71,7 +76,7 @@ import java.util.Map;
  * partition key.
  *
  * <p>If the {@code PARTITION} clause contains no static assignments or is omitted entirely, all values
- * for partition keys are obtained dynamically.
+ * for partition keys are either derived from static parts of the query or obtained dynamically.
  */
 @PublicEvolving
 public interface SupportsPartitioning {
