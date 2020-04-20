@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.table.data.RowData;
@@ -37,6 +38,8 @@ import org.apache.flink.util.Collector;
 import javax.annotation.Nullable;
 
 import java.util.Map;
+
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
  * Aggregate Function used for the global groupby (without window) aggregate in miniBatch mode.
@@ -77,6 +80,11 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<RowData, 
 	private final boolean generateUpdateBefore;
 
 	/**
+	 * State idle retention time which unit is MILLISECONDS.
+	 */
+	private final long stateRetentionTime;
+
+	/**
 	 * Reused output row.
 	 */
 	private transient JoinedRowData resultRow = new JoinedRowData();
@@ -104,6 +112,7 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<RowData, 
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain UPDATE_BEFORE or DELETE messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains UPDATE_BEFORE or DELETE messages.
 	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
+	 * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
 	 */
 	public MiniBatchGlobalGroupAggFunction(
 			GeneratedAggsHandleFunction genLocalAggsHandler,
@@ -111,28 +120,34 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<RowData, 
 			GeneratedRecordEqualiser genRecordEqualiser,
 			LogicalType[] accTypes,
 			int indexOfCountStar,
-			boolean generateUpdateBefore) {
+			boolean generateUpdateBefore,
+			long stateRetentionTime) {
 		this.genLocalAggsHandler = genLocalAggsHandler;
 		this.genGlobalAggsHandler = genGlobalAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.accTypes = accTypes;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
 		this.generateUpdateBefore = generateUpdateBefore;
+		this.stateRetentionTime = stateRetentionTime;
 	}
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
+		StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
 		localAgg = genLocalAggsHandler.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
 		localAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
 		globalAgg = genGlobalAggsHandler.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
-		globalAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
+		globalAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext(), ttlConfig));
 
 		equaliser = genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
 
 		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		if (ttlConfig.isEnabled()){
+			accDesc.enableTimeToLive(ttlConfig);
+		}
 		accState = ctx.getRuntimeContext().getState(accDesc);
 
 		resultRow = new JoinedRowData();

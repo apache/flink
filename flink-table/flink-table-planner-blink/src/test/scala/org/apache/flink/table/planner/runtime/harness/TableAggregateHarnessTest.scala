@@ -72,8 +72,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    // register cleanup timer with 3001
-    testHarness.setProcessingTime(1)
+    // set TtlTimeProvider with 1
+    testHarness.setStateTtlProcessingTime(1)
 
     // input with two columns: key and value
     testHarness.processElement(insertRecord(1: JInt, 1: JInt))
@@ -104,8 +104,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.processElement(insertRecord(2: JInt, 2: JInt))
     expectedOutput.add(insertRecord(2: JInt, 2: JInt, 2: JInt))
 
-    // trigger cleanup timer
-    testHarness.setProcessingTime(3002)
+    //set TtlTimeProvider with 3002 to trigger expired state cleanup
+    testHarness.setStateTtlProcessingTime(3002)
     testHarness.processElement(insertRecord(1: JInt, 2: JInt))
     expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
 
@@ -136,8 +136,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    // register cleanup timer with 3001
-    testHarness.setProcessingTime(1)
+    // set TtlTimeProvider with 1
+    testHarness.setStateTtlProcessingTime(1)
 
     // input with two columns: key and value
     testHarness.processElement(insertRecord(1: JInt))
