@@ -67,39 +67,30 @@ class UserDefinedTableFunctionTests(object):
         self.assert_equals(actual, ["1,1,0", "2,2,0", "3,3,0", "3,3,1"])
 
     def _register_table_sink(self, field_names: list, field_types: list):
-        pass
+        table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
+        self.t_env.register_table_sink("Results", table_sink)
 
     def _get_output(self, t):
-        pass
+        t.insert_into("Results")
+        self.t_env.execute("test")
+        return source_sink_utils.results()
 
 
 class PyFlinkStreamUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
                                                  PyFlinkStreamTableTestCase):
-
-    def _register_table_sink(self, field_names: list, field_types: list):
-        table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
-        self.t_env.register_table_sink("Results", table_sink)
-
-    def _get_output(self, t):
-        t.insert_into("Results")
-        self.t_env.execute("test")
-        return source_sink_utils.results()
+    pass
 
 
 class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
                                                  PyFlinkBlinkStreamTableTestCase):
-    def _register_table_sink(self, field_names: list, field_types: list):
-        table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
-        self.t_env.register_table_sink("Results", table_sink)
-
-    def _get_output(self, t):
-        t.insert_into("Results")
-        self.t_env.execute("test")
-        return source_sink_utils.results()
+    pass
 
 
 class PyFlinkBatchUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
                                                 PyFlinkBatchTableTestCase):
+    def _register_table_sink(self, field_names: list, field_types: list):
+        pass
+
     def _get_output(self, t):
         return self.collect(t)
 

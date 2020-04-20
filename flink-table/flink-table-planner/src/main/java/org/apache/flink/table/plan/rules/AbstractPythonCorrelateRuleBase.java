@@ -40,7 +40,7 @@ import scala.Option;
 import scala.Some;
 
 /**
- * The abstract physical rule base is responsible for convert {@link FlinkLogicalCorrelate} to physical
+ * The abstract physical rule base is responsible for converting {@link FlinkLogicalCorrelate} to physical
  * Python correlate RelNode.
  */
 public abstract class AbstractPythonCorrelateRuleBase extends ConverterRule {
@@ -68,7 +68,7 @@ public abstract class AbstractPythonCorrelateRuleBase extends ConverterRule {
 	}
 
 	/**
-	 * The abstract factory is responsible to creating {@link DataSetPythonCorrelate} or {@link DataStreamPythonCorrelate}.
+	 * The abstract factory is responsible for creating {@link DataSetPythonCorrelate} or {@link DataStreamPythonCorrelate}.
 	 */
 	public abstract static class PythonCorrelateFactoryBase {
 		protected final RelNode correlateRel;

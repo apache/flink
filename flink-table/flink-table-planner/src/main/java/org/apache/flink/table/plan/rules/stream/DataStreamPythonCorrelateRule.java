@@ -32,7 +32,7 @@ import org.apache.calcite.rex.RexNode;
 import scala.Option;
 
 /**
- * The physical rule is responsible for convert {@link FlinkLogicalCorrelate} to
+ * The physical rule is responsible for converting {@link FlinkLogicalCorrelate} to
  * {@link DataStreamPythonCorrelate}.
  */
 public class DataStreamPythonCorrelateRule extends AbstractPythonCorrelateRuleBase {
@@ -50,9 +50,9 @@ public class DataStreamPythonCorrelateRule extends AbstractPythonCorrelateRuleBa
 	}
 
 	/**
-	 * The factory is responsible to creating {@link DataStreamPythonCorrelate}.
+	 * The factory is responsible for creating {@link DataStreamPythonCorrelate}.
 	 */
-	private static class DataStreamPythonCorrelateFactory extends PythonCorrelateFactoryBase{
+	private static class DataStreamPythonCorrelateFactory extends PythonCorrelateFactoryBase {
 		private DataStreamPythonCorrelateFactory(RelNode rel) {
 			super(rel, FlinkConventions.DATASTREAM());
 		}
