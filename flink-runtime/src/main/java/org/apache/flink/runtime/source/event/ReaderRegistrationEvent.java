@@ -40,4 +40,9 @@ public class ReaderRegistrationEvent implements OperatorEvent {
 	public String location() {
 		return location;
 	}
+
+	@Override
+	public String toString() {
+		return String.format("ReaderRegistrationEvent[subtaskId = %d, location = %s)", subtaskId, location);
+	}
 }

@@ -37,4 +37,9 @@ public class SourceEventWrapper implements OperatorEvent {
 	public SourceEvent getSourceEvent() {
 		return sourceEvent;
 	}
+
+	@Override
+	public String toString() {
+		return String.format("SourceEventWrapper[%s]", sourceEvent);
+	}
 }

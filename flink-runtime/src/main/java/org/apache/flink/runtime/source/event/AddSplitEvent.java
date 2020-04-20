@@ -20,6 +20,7 @@ package org.apache.flink.runtime.source.event;
 
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -36,5 +37,10 @@ public class AddSplitEvent<SplitT> implements OperatorEvent {
 
 	public List<SplitT> splits() {
 		return splits;
+	}
+
+	@Override
+	public String toString() {
+		return String.format("AddSplitEvents[%s]", splits);
 	}
 }
