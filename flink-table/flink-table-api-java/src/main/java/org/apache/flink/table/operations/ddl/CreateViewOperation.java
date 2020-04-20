@@ -26,8 +26,6 @@ import org.apache.flink.table.operations.OperationUtils;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Operation to describe a CREATE VIEW statement.
