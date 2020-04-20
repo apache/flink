@@ -697,6 +697,27 @@ class Table(object):
         """
         self._j_table.printSchema()
 
+    def execute_insert(self, table_path, overwrite=False):
+        """
+        Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
+        registered under the specified name, and then execute the insert operation.
+        For the path resolution algorithm see :func:`~TableEnvironment.use_database`.
+
+        Example:
+        ::
+
+            >>> tab.execute_insert("sink")
+
+        :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
+               the :class:`~pyflink.table.Table` is written.
+        :type table_path: str
+        :param overwrite: The flag that indicates whether the insert should overwrite
+               existing data or not.
+        :type overwrite: bool
+        :return: The table result.
+        """
+        self._j_table.executeInsert(table_path, overwrite)
+
     def __str__(self):
         return self._j_table.toString()
 

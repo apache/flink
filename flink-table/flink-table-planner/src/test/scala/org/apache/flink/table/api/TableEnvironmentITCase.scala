@@ -325,6 +325,20 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertFileNotExist(sink1Path)
   }
 
+  @Test
+  def testExecuteInsert(): Unit = {
+    val sinkPath = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink")
+    checkEmptyFile(sinkPath)
+    val table = tEnv.sqlQuery("select first from MyTable")
+    val tableResult = table.executeInsert("MySink")
+    checkInsertTableResult(tableResult)
+    // wait job finished
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+  }
+
   private def registerCsvTableSink(
       tEnv: TableEnvironment,
       fieldNames: Array[String],

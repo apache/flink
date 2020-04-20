@@ -370,6 +370,31 @@ class TableEnvironmentITCase(
     assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
+  @Test
+  def testExecuteInsert(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+    MemoryTableSourceSinkUtil.clear()
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val fieldNames = Array("d", "e", "f")
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getFieldTypes
+    val sink1 = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", sink1.configure(fieldNames, fieldTypes))
+
+    val table = tEnv.sqlQuery("SELECT a, b, c FROM sourceTable")
+    val tableResult = table.executeInsert("targetTable")
+    checkInsertTableResult(tableResult)
+    // wait job finished
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+  }
+
   private def registerCsvTableSink(
       tEnv: TableEnvironment,
       fieldNames: Array[String],

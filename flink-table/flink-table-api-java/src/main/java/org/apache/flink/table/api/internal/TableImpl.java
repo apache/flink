@@ -29,17 +29,22 @@ import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
+import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
@@ -63,7 +68,7 @@ public class TableImpl implements Table {
 
 	private static final AtomicInteger uniqueId = new AtomicInteger(0);
 
-	private final TableEnvironment tableEnvironment;
+	private final TableEnvironmentInternal tableEnvironment;
 	private final QueryOperation operationTree;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final LookupCallResolver lookupResolver;
@@ -75,7 +80,7 @@ public class TableImpl implements Table {
 	}
 
 	private TableImpl(
-			TableEnvironment tableEnvironment,
+			TableEnvironmentInternal tableEnvironment,
 			QueryOperation operationTree,
 			OperationTreeBuilder operationTreeBuilder,
 			LookupCallResolver lookupResolver) {
@@ -86,7 +91,7 @@ public class TableImpl implements Table {
 	}
 
 	public static TableImpl createTable(
-			TableEnvironment tableEnvironment,
+			TableEnvironmentInternal tableEnvironment,
 			QueryOperation operationTree,
 			OperationTreeBuilder operationTreeBuilder,
 			FunctionLookup functionLookup) {
@@ -536,6 +541,27 @@ public class TableImpl implements Table {
 	@Override
 	public FlatAggregateTable flatAggregate(Expression tableAggregateFunction) {
 		return groupBy().flatAggregate(tableAggregateFunction);
+	}
+
+	@Override
+	public TableResult executeInsert(String tablePath) {
+		return executeInsert(tablePath, false);
+	}
+
+	@Override
+	public TableResult executeInsert(String tablePath, boolean overwrite) {
+		UnresolvedIdentifier unresolvedIdentifier = tableEnvironment.getParser().parseIdentifier(tablePath);
+		ObjectIdentifier objectIdentifier = tableEnvironment.getCatalogManager()
+				.qualifyIdentifier(unresolvedIdentifier);
+
+		ModifyOperation operation = new CatalogSinkModifyOperation(
+				objectIdentifier,
+				getQueryOperation(),
+				Collections.emptyMap(),
+				overwrite,
+				Collections.emptyMap());
+
+		return tableEnvironment.executeOperations(Collections.singletonList(operation));
 	}
 
 	@Override

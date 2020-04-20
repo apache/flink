@@ -64,7 +64,7 @@ abstract class TableEnvImpl(
     val config: TableConfig,
     private val catalogManager: CatalogManager,
     private val moduleManager: ModuleManager)
-  extends TableEnvironment {
+  extends TableEnvironmentInternal {
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog =
@@ -576,6 +576,13 @@ abstract class TableEnvImpl(
     executeOperation(operations.get(0))
   }
 
+  override def executeOperations(operations: JList[ModifyOperation]): TableResult = {
+    if (operations.size() != 1) {
+      throw new TableException("Only one ModifyOperation is supported now.");
+    }
+    executeOperation(operations.get(0))
+  }
+
   override def sqlUpdate(stmt: String): Unit = {
     val operations = parser.parse(stmt)
 
@@ -915,6 +922,10 @@ abstract class TableEnvImpl(
     val dataSink = writeToSinkAndTranslate(table.getQueryOperation, insertOptions, sinkIdentifier)
     addToBuffer(dataSink)
   }
+
+  override def getParser: Parser = parser
+
+  override def getCatalogManager: CatalogManager = catalogManager
 
   private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))

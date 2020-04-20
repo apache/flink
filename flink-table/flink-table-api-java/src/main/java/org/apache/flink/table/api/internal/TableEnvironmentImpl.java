@@ -121,7 +121,7 @@ import java.util.stream.StreamSupport;
  * not bind to any particular {@code StreamExecutionEnvironment}.
  */
 @Internal
-public class TableEnvironmentImpl implements TableEnvironment {
+public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	// Flag that tells if the TableSource/TableSink used in this environment is stream table source/sink,
 	// and this should always be true. This avoids too many hard code.
 	private static final boolean IS_STREAM_TABLE = true;
@@ -635,6 +635,15 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public TableResult executeOperations(List<ModifyOperation> operations) {
+		if (operations.size() != 1) {
+			throw new TableException("Only one ModifyOperation is supported now.");
+		}
+
+		return executeOperation(operations.get(0));
+	}
+
+	@Override
 	public void sqlUpdate(String stmt) {
 		List<Operation> operations = parser.parse(stmt);
 
@@ -905,6 +914,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Pipeline pipeline = execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
 		return execEnv.execute(pipeline);
+	}
+
+	@Override
+	public Parser getParser() {
+		return parser;
+	}
+
+	@Override
+	public CatalogManager getCatalogManager() {
+		return catalogManager;
 	}
 
 	/**
