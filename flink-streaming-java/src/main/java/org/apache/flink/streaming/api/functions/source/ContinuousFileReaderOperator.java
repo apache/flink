@@ -78,7 +78,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * </ol></p>
  * <p>Using {@link MailboxExecutor} allows to avoid explicit synchronization. At most one mail should be enqueued at any
  * given time.</p>
- * <p>Using FSM approach allows to explicitly define states and enforce {@link ReaderState#TRANSITIONS transitions} between them.</p>
+ * <p>Using FSM approach allows to explicitly define states and enforce {@link ReaderState#VALID_TRANSITIONS transitions} between them.</p>
  */
 @Internal
 class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
@@ -166,7 +166,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		/**
 		 * Possible transition FROM each state.
 		 */
-		private static final Map<ReaderState, Set<ReaderState>> TRANSITIONS;
+		private static final Map<ReaderState, Set<ReaderState>> VALID_TRANSITIONS;
 		static {
 			Map<ReaderState, Set<ReaderState>> tmpTransitions = new HashMap<>();
 			tmpTransitions.put(IDLE, EnumSet.of(OPENING, CLOSED, FAILED));
@@ -175,7 +175,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 			tmpTransitions.put(CLOSING, EnumSet.of(CLOSED, FAILED));
 			tmpTransitions.put(FAILED, EnumSet.of(CLOSED));
 			tmpTransitions.put(CLOSED, EnumSet.noneOf(ReaderState.class));
-			TRANSITIONS = new EnumMap<>(tmpTransitions);
+			VALID_TRANSITIONS = new EnumMap<>(tmpTransitions);
 		}
 
 		public boolean isAcceptingSplits() {
@@ -187,7 +187,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		}
 
 		public boolean canSwitchTo(ReaderState next) {
-			return TRANSITIONS
+			return VALID_TRANSITIONS
 					.getOrDefault(this, EnumSet.noneOf(ReaderState.class))
 					.contains(next);
 		}
