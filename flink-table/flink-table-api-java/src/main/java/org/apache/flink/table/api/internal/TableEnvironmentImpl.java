@@ -138,7 +138,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
 			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
 			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, " +
-			"DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG.";
+			"DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, CREATE VIEW, DROP VIEW.";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
@@ -705,7 +705,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				boolean dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier());
 				if (!dropped && !dropViewOperation.isIfExists()) {
 					throw new ValidationException(String.format(
-							"Temporary views with identifier %s doesn't exist",
+							"Temporary views with identifier '%s' doesn't exist",
 							dropViewOperation.getViewIdentifier().asSummaryString()));
 				}
 			} else {
