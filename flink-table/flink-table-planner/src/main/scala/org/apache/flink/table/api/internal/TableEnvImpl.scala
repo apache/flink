@@ -584,6 +584,7 @@ abstract class TableEnvImpl(
           InsertOptions(op.getStaticPartitions, op.isOverwrite),
           op.getTableIdentifier)
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
+           _: CreateViewOperation | _: DropViewOperation |
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
@@ -705,6 +706,7 @@ abstract class TableEnvImpl(
             createViewOperation.getViewIdentifier,
             createViewOperation.isIgnoreIfExists)
         }
+        TableResultImpl.TABLE_RESULT_OK
       case dropViewOperation: DropViewOperation =>
         if (dropViewOperation.isTemporary) {
           val dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier)
@@ -718,6 +720,7 @@ abstract class TableEnvImpl(
             dropViewOperation.getViewIdentifier,
             dropViewOperation.isIfExists)
         }
+        TableResultImpl.TABLE_RESULT_OK
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }
