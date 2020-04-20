@@ -39,6 +39,16 @@ import static org.junit.Assert.fail;
 public class ContinuousFileReaderOperatorTest {
 
 	@Test(expected = ExpectedTestException.class)
+	public void testExceptionRethrownFromClose() throws Exception {
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = createHarness(failingFormat());
+		harness.getExecutionConfig().setAutoWatermarkInterval(10);
+		harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+		try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = harness) {
+			tester.open();
+		}
+	}
+
+	@Test(expected = ExpectedTestException.class)
 	public void testExceptionRethrownFromProcessElement() throws Exception {
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = createHarness(failingFormat());
 		harness.getExecutionConfig().setAutoWatermarkInterval(10);
