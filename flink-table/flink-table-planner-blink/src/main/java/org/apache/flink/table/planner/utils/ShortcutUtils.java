@@ -28,6 +28,7 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.tools.RelBuilder;
 
 /**
  * Utilities for quick access of commonly used instances (like {@link FlinkTypeFactory}) without
@@ -50,6 +51,10 @@ public final class ShortcutUtils {
 
 	public static FlinkTypeFactory unwrapTypeFactory(RelDataTypeFactory typeFactory) {
 		return (FlinkTypeFactory) typeFactory;
+	}
+
+	public static FlinkContext unwrapContext(RelBuilder relBuilder) {
+		return unwrapContext(relBuilder.getCluster());
 	}
 
 	public static FlinkContext unwrapContext(RelNode relNode) {

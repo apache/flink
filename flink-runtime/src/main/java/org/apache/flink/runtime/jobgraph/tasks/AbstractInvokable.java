@@ -28,7 +28,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.ThrowingRunnable;
 
+import java.io.IOException;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -138,7 +140,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return The environment of this task.
 	 */
-	public Environment getEnvironment() {
+	public final Environment getEnvironment() {
 		return this.environment;
 	}
 
@@ -147,7 +149,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return user code class loader of this invokable.
 	 */
-	public ClassLoader getUserCodeClassLoader() {
+	public final ClassLoader getUserCodeClassLoader() {
 		return getEnvironment().getUserClassLoader();
 	}
 
@@ -174,7 +176,7 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}
 	 */
-	public Configuration getTaskConfiguration() {
+	public final Configuration getTaskConfiguration() {
 		return this.environment.getTaskConfiguration();
 	}
 
@@ -231,8 +233,22 @@ public abstract class AbstractInvokable {
 	 *
 	 * @throws Exception Exceptions thrown as the result of triggering a checkpoint are forwarded.
 	 */
-	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
+	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws IOException {
 		throw new UnsupportedOperationException(String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+	}
+
+	/**
+	 * This method performs some action asynchronously in the task thread.
+	 *
+	 * @param runnable the action to perform
+	 * @param descriptionFormat the optional description for the command that is used for debugging and error-reporting.
+	 * @param descriptionArgs the parameters used to format the final description string.
+	 */
+	public <E extends Exception> void executeInTaskThread(
+			ThrowingRunnable<E> runnable,
+			String descriptionFormat,
+			Object... descriptionArgs) throws E {
+		throw new UnsupportedOperationException(String.format("runInTaskThread not supported by %s", this.getClass().getName()));
 	}
 
 	/**
@@ -245,7 +261,7 @@ public abstract class AbstractInvokable {
 	 * @param checkpointId The ID of the checkpoint to be aborted.
 	 * @param cause The reason why the checkpoint was aborted during alignment
 	 */
-	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
 		throw new UnsupportedOperationException(String.format("abortCheckpointOnBarrier not supported by %s", this.getClass().getName()));
 	}
 

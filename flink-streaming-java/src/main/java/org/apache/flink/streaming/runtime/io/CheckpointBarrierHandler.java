@@ -24,7 +24,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.util.function.ThrowingRunnable;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -33,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Different implementations may either simply track barriers, or block certain inputs on
  * barriers.
  */
-public abstract class CheckpointBarrierHandler {
+public abstract class CheckpointBarrierHandler implements Closeable {
 
 	/** The listener to be notified on complete checkpoints. */
 	private final AbstractInvokable toNotifyOnCheckpoint;
@@ -53,6 +59,10 @@ public abstract class CheckpointBarrierHandler {
 	 * @return True if the channel is blocked, false if not.
 	 */
 	public abstract boolean isBlocked(int channelIndex);
+
+	@Override
+	public void close() throws IOException {
+	}
 
 	/**
 	 * @return true if some blocked data should be unblocked/rolled over.
@@ -79,7 +89,11 @@ public abstract class CheckpointBarrierHandler {
 
 	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
 
-	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws Exception {
+	public Optional<BufferReceivedListener> getBufferReceivedListener() {
+		return Optional.empty();
+	}
+
+	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws IOException {
 		CheckpointMetaData checkpointMetaData =
 			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
@@ -94,12 +108,12 @@ public abstract class CheckpointBarrierHandler {
 			checkpointMetrics);
 	}
 
-	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws Exception {
+	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws IOException {
 		notifyAbort(checkpointId,
 			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
 	}
 
-	protected void notifyAbort(long checkpointId, CheckpointException cause) throws Exception {
+	protected void notifyAbort(long checkpointId, CheckpointException cause) throws IOException {
 		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
 	}
 
@@ -107,5 +121,12 @@ public abstract class CheckpointBarrierHandler {
 		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
 			0,
 			System.currentTimeMillis() - checkpointCreationTimestamp);
+	}
+
+	protected <E extends Exception> void executeInTaskThread(
+			ThrowingRunnable<E> runnable,
+			String descriptionFormat,
+			Object... descriptionArgs) throws E {
+		toNotifyOnCheckpoint.executeInTaskThread(runnable, descriptionFormat, descriptionArgs);
 	}
 }

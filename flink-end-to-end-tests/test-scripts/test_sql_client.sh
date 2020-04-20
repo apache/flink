@@ -110,7 +110,7 @@ function prepare_elasticsearch {
     exit 1
   fi
 
-  setup_elasticsearch $DOWNLOAD_URL
+  setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
   wait_elasticsearch_working
 }
 

@@ -43,8 +43,8 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 	private TypeSerializer<BaseRow> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
 
-	private MiniBatchDeduplicateKeepLastRowFunction createFunction(boolean generateRetraction) {
-		return new MiniBatchDeduplicateKeepLastRowFunction(inputRowType, generateRetraction, typeSerializer);
+	private MiniBatchDeduplicateKeepLastRowFunction createFunction(boolean generateUpdateBefore, long minRetentionTime) {
+		return new MiniBatchDeduplicateKeepLastRowFunction(inputRowType, generateUpdateBefore, typeSerializer, minRetentionTime);
 	}
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
@@ -56,8 +56,8 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 	}
 
 	@Test
-	public void testWithoutGenerateRetraction() throws Exception {
-		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(false);
+	public void testWithoutGenerateUpdateBefore() throws Exception {
+		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(false, minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 1L, 10));
@@ -84,8 +84,8 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 	}
 
 	@Test
-	public void testWithGenerateRetraction() throws Exception {
-		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(true);
+	public void testWithGenerateUpdateBefore() throws Exception {
+		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 1L, 10));
@@ -111,6 +111,33 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 		expectedOutput.add(record("book", 2L, 11));
 		expectedOutput.add(record("book", 3L, 11));
 		testHarness.close();
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
+	public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
+		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, minTime.toMilliseconds());
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.processElement(record("book", 1L, 10));
+		testHarness.processElement(record("book", 2L, 11));
+		// output is empty because bundle not trigger yet.
+		Assert.assertTrue(testHarness.getOutput().isEmpty());
+		testHarness.processElement(record("book", 1L, 13));
+
+		testHarness.setStateTtlProcessingTime(30);
+		testHarness.processElement(record("book", 1L, 17));
+		testHarness.processElement(record("book", 2L, 18));
+		testHarness.processElement(record("book", 1L, 19));
+
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(record("book", 1L, 13));
+		// because (2L,11), (1L,13) retired, so there is no retract message send to downstream
+		expectedOutput.add(record("book", 1L, 19));
+		expectedOutput.add(record("book", 2L, 18));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 }

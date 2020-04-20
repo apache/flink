@@ -167,14 +167,14 @@ LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)],
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[b], select=[b, FIRST_VALUE_RETRACT(c) AS EXPR$1, LAST_VALUE_RETRACT(c) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[b, c], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[a], select=[a, COUNT(DISTINCT b) AS b, MAX(b) AS c], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-            +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-               +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[b], select=[b, FIRST_VALUE_RETRACT(c) AS EXPR$1, LAST_VALUE_RETRACT(c) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
+   +- Calc(select=[b, c], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[a], select=[a, COUNT(DISTINCT b) AS b, MAX(b) AS c], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a]], changelogMode=[I])
+            +- Calc(select=[a, b], changelogMode=[I])
+               +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -202,15 +202,15 @@ LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)],
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[b], select=[b, FIRST_VALUE_RETRACT(c) AS EXPR$1, LAST_VALUE_RETRACT(c) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[b, c], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS b, MAX(max$1) AS c], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-            +- LocalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 b) AS count$0, MAX(b) AS max$1, DISTINCT(b) AS distinct$0], updateAsRetraction=[true], accMode=[Acc])
-               +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[b], select=[b, FIRST_VALUE_RETRACT(c) AS EXPR$1, LAST_VALUE_RETRACT(c) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
+   +- Calc(select=[b, c], changelogMode=[I,UB,UA])
+      +- GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS b, MAX(max$1) AS c], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a]], changelogMode=[I])
+            +- LocalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 b) AS count$0, MAX(b) AS max$1, DISTINCT(b) AS distinct$0], changelogMode=[I])
+               +- Calc(select=[a, b], changelogMode=[I])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -238,18 +238,18 @@ LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)],
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, FIRST_VALUE_RETRACT($f2_0) AS $f1, LAST_VALUE_RETRACT($f3) AS $f2, $SUM0_RETRACT($f4) AS $f3], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, FIRST_VALUE_RETRACT(c) AS $f2_0, LAST_VALUE_RETRACT(c) AS $f3, COUNT_RETRACT(DISTINCT c) AS $f4], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[b, $f2]], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Calc(select=[b, c, MOD(HASH_CODE(c), 1024) AS $f2], updateAsRetraction=[true], accMode=[AccRetract])
-            +- GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS $f1, MAX($f3) AS $f2], updateAsRetraction=[true], accMode=[AccRetract])
-               +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[AccRetract])
-                  +- GroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(DISTINCT b) AS $f2_0, MAX(b) AS $f3], updateAsRetraction=[true], accMode=[AccRetract])
-                     +- Exchange(distribution=[hash[a, $f2]], updateAsRetraction=[true], accMode=[Acc])
-                        +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2], updateAsRetraction=[true], accMode=[Acc])
-                           +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, FIRST_VALUE_RETRACT($f2_0) AS $f1, LAST_VALUE_RETRACT($f3) AS $f2, $SUM0_RETRACT($f4) AS $f3], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA,D])
+   +- GroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, FIRST_VALUE_RETRACT(c) AS $f2_0, LAST_VALUE_RETRACT(c) AS $f3, COUNT_RETRACT(DISTINCT c) AS $f4], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[b, $f2]], changelogMode=[I,UB,UA,D])
+         +- Calc(select=[b, c, MOD(HASH_CODE(c), 1024) AS $f2], changelogMode=[I,UB,UA,D])
+            +- GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS $f1, MAX($f3) AS $f2], changelogMode=[I,UB,UA,D])
+               +- Exchange(distribution=[hash[a]], changelogMode=[I,UB,UA])
+                  +- GroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(DISTINCT b) AS $f2_0, MAX(b) AS $f3], changelogMode=[I,UB,UA])
+                     +- Exchange(distribution=[hash[a, $f2]], changelogMode=[I])
+                        +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2], changelogMode=[I])
+                           +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -277,20 +277,20 @@ LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)],
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, FIRST_VALUE_RETRACT($f2_0) AS $f1, LAST_VALUE_RETRACT($f3) AS $f2, $SUM0_RETRACT($f4) AS $f3], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, FIRST_VALUE_RETRACT(c) AS $f2_0, LAST_VALUE_RETRACT(c) AS $f3, COUNT_RETRACT(DISTINCT c) AS $f4], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[b, $f2]], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Calc(select=[b, c, MOD(HASH_CODE(c), 1024) AS $f2], updateAsRetraction=[true], accMode=[AccRetract])
-            +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT(sum$0) AS $f1, MAX(max$1) AS $f2], updateAsRetraction=[true], accMode=[AccRetract])
-               +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-                  +- LocalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS sum$0, MAX($f3) AS max$1, COUNT_RETRACT(*) AS count1$2], updateAsRetraction=[true], accMode=[Acc])
-                     +- GlobalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 count$0) AS $f2_0, MAX(max$1) AS $f3], updateAsRetraction=[true], accMode=[AccRetract])
-                        +- Exchange(distribution=[hash[a, $f2]], updateAsRetraction=[true], accMode=[Acc])
-                           +- LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 b) AS count$0, MAX(b) AS max$1, DISTINCT(b) AS distinct$0], updateAsRetraction=[true], accMode=[Acc])
-                              +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2], updateAsRetraction=[true], accMode=[Acc])
-                                 +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, FIRST_VALUE_RETRACT($f2_0) AS $f1, LAST_VALUE_RETRACT($f3) AS $f2, $SUM0_RETRACT($f4) AS $f3], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA,D])
+   +- GroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, FIRST_VALUE_RETRACT(c) AS $f2_0, LAST_VALUE_RETRACT(c) AS $f3, COUNT_RETRACT(DISTINCT c) AS $f4], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[b, $f2]], changelogMode=[I,UB,UA,D])
+         +- Calc(select=[b, c, MOD(HASH_CODE(c), 1024) AS $f2], changelogMode=[I,UB,UA,D])
+            +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT(sum$0) AS $f1, MAX(max$1) AS $f2], changelogMode=[I,UB,UA,D])
+               +- Exchange(distribution=[hash[a]], changelogMode=[I])
+                  +- LocalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS sum$0, MAX($f3) AS max$1, COUNT_RETRACT(*) AS count1$2], changelogMode=[I])
+                     +- GlobalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 count$0) AS $f2_0, MAX(max$1) AS $f3], changelogMode=[I,UB,UA])
+                        +- Exchange(distribution=[hash[a, $f2]], changelogMode=[I])
+                           +- LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 b) AS count$0, MAX(b) AS max$1, DISTINCT(b) AS distinct$0], changelogMode=[I])
+                              +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2], changelogMode=[I])
+                                 +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -317,12 +317,12 @@ LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[c], select=[c, MIN_RETRACT(b) AS EXPR$1, MAX_RETRACT(b) AS EXPR$2, SUM_RETRACT(b) AS EXPR$3, COUNT_RETRACT(*) AS EXPR$4, COUNT_RETRACT(DISTINCT a) AS EXPR$5], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a], select=[a, AVG(b) AS b, MAX(c) AS c], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[c], select=[c, MIN_RETRACT(b) AS EXPR$1, MAX_RETRACT(b) AS EXPR$2, SUM_RETRACT(b) AS EXPR$3, COUNT_RETRACT(*) AS EXPR$4, COUNT_RETRACT(DISTINCT a) AS EXPR$5], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[c]], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[a], select=[a, AVG(b) AS b, MAX(c) AS c], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[a]], changelogMode=[I])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -349,14 +349,14 @@ LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[c], select=[c, MIN_RETRACT(min$0) AS EXPR$1, MAX_RETRACT(max$1) AS EXPR$2, SUM_RETRACT((sum$2, count$3)) AS EXPR$3, COUNT_RETRACT(count1$4) AS EXPR$4, COUNT_RETRACT(distinct$0 count$5) AS EXPR$5], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[Acc])
-   +- LocalGroupAggregate(groupBy=[c], select=[c, MIN_RETRACT(b) AS min$0, MAX_RETRACT(b) AS max$1, SUM_RETRACT(b) AS (sum$2, count$3), COUNT_RETRACT(*) AS count1$4, COUNT_RETRACT(distinct$0 a) AS count$5, DISTINCT(a) AS distinct$0], updateAsRetraction=[true], accMode=[Acc])
-      +- GlobalGroupAggregate(groupBy=[a], select=[a, AVG((sum$0, count$1)) AS b, MAX(max$2) AS c], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-            +- LocalGroupAggregate(groupBy=[a], select=[a, AVG(b) AS (sum$0, count$1), MAX(c) AS max$2], updateAsRetraction=[true], accMode=[Acc])
-               +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GlobalGroupAggregate(groupBy=[c], select=[c, MIN_RETRACT(min$0) AS EXPR$1, MAX_RETRACT(max$1) AS EXPR$2, SUM_RETRACT((sum$2, count$3)) AS EXPR$3, COUNT_RETRACT(count1$4) AS EXPR$4, COUNT_RETRACT(distinct$0 count$5) AS EXPR$5], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[c]], changelogMode=[I])
+   +- LocalGroupAggregate(groupBy=[c], select=[c, MIN_RETRACT(b) AS min$0, MAX_RETRACT(b) AS max$1, SUM_RETRACT(b) AS (sum$2, count$3), COUNT_RETRACT(*) AS count1$4, COUNT_RETRACT(distinct$0 a) AS count$5, DISTINCT(a) AS distinct$0], changelogMode=[I])
+      +- GlobalGroupAggregate(groupBy=[a], select=[a, AVG((sum$0, count$1)) AS b, MAX(max$2) AS c], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a]], changelogMode=[I])
+            +- LocalGroupAggregate(groupBy=[a], select=[a, AVG(b) AS (sum$0, count$1), MAX(c) AS max$2], changelogMode=[I])
+               +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -383,17 +383,17 @@ LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRACT($f3_0) AS $f1, MAX_RETRACT($f4_0) AS $f2, SUM_RETRACT($f5) AS $f3, $SUM0_RETRACT($f6) AS $f4, $SUM0_RETRACT($f7) AS $f5], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, MIN_RETRACT(b) FILTER $g_2 AS $f3_0, MAX_RETRACT(b) FILTER $g_2 AS $f4_0, SUM_RETRACT(b) FILTER $g_3 AS $f5, COUNT_RETRACT(*) FILTER $g_3 AS $f6, COUNT_RETRACT(DISTINCT a) FILTER $g_1 AS $f7], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[c, $f3, $f4]], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Calc(select=[a, b, c, $f3, $f4, =($e, 2) AS $g_2, =($e, 3) AS $g_3, =($e, 1) AS $g_1], updateAsRetraction=[true], accMode=[AccRetract])
-            +- Expand(projects=[a, b, c, $f3, $f4, $e], updateAsRetraction=[true], accMode=[AccRetract])
-               +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4], updateAsRetraction=[true], accMode=[AccRetract])
-                  +- GroupAggregate(groupBy=[a], select=[a, AVG(b) AS b, MAX(c) AS c], updateAsRetraction=[true], accMode=[AccRetract])
-                     +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-                        +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRACT($f3_0) AS $f1, MAX_RETRACT($f4_0) AS $f2, SUM_RETRACT($f5) AS $f3, $SUM0_RETRACT($f6) AS $f4, $SUM0_RETRACT($f7) AS $f5], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[c]], changelogMode=[I,UB,UA,D])
+   +- GroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, MIN_RETRACT(b) FILTER $g_2 AS $f3_0, MAX_RETRACT(b) FILTER $g_2 AS $f4_0, SUM_RETRACT(b) FILTER $g_3 AS $f5, COUNT_RETRACT(*) FILTER $g_3 AS $f6, COUNT_RETRACT(DISTINCT a) FILTER $g_1 AS $f7], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[c, $f3, $f4]], changelogMode=[I,UB,UA])
+         +- Calc(select=[a, b, c, $f3, $f4, =($e, 2) AS $g_2, =($e, 3) AS $g_3, =($e, 1) AS $g_1], changelogMode=[I,UB,UA])
+            +- Expand(projects=[a, b, c, $f3, $f4, $e], changelogMode=[I,UB,UA])
+               +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4], changelogMode=[I,UB,UA])
+                  +- GroupAggregate(groupBy=[a], select=[a, AVG(b) AS b, MAX(c) AS c], changelogMode=[I,UB,UA])
+                     +- Exchange(distribution=[hash[a]], changelogMode=[I])
+                        +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -420,20 +420,20 @@ LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRACT(min$0) AS $f1, MAX_RETRACT(max$1) AS $f2, SUM_RETRACT((sum$2, count$3)) AS $f3, $SUM0_RETRACT(sum$4) AS $f4, $SUM0_RETRACT(sum$5) AS $f5], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[Acc])
-   +- LocalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRACT($f3_0) AS min$0, MAX_RETRACT($f4_0) AS max$1, SUM_RETRACT($f5) AS (sum$2, count$3), $SUM0_RETRACT($f6) AS sum$4, $SUM0_RETRACT($f7) AS sum$5, COUNT_RETRACT(*) AS count1$6], updateAsRetraction=[true], accMode=[Acc])
-      +- GlobalGroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, MIN_RETRACT(min$0) AS $f3_0, MAX_RETRACT(max$1) AS $f4_0, SUM_RETRACT((sum$2, count$3)) AS $f5, COUNT_RETRACT(count1$4) AS $f6, COUNT_RETRACT(distinct$0 count$5) AS $f7], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[c, $f3, $f4]], updateAsRetraction=[true], accMode=[Acc])
-            +- LocalGroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, MIN_RETRACT(b) FILTER $g_2 AS min$0, MAX_RETRACT(b) FILTER $g_2 AS max$1, SUM_RETRACT(b) FILTER $g_3 AS (sum$2, count$3), COUNT_RETRACT(*) FILTER $g_3 AS count1$4, COUNT_RETRACT(distinct$0 a) FILTER $g_1 AS count$5, COUNT_RETRACT(*) AS count1$6, DISTINCT(a) AS distinct$0], updateAsRetraction=[true], accMode=[Acc])
-               +- Calc(select=[a, b, c, $f3, $f4, =($e, 2) AS $g_2, =($e, 3) AS $g_3, =($e, 1) AS $g_1], updateAsRetraction=[true], accMode=[AccRetract])
-                  +- Expand(projects=[a, b, c, $f3, $f4, $e], updateAsRetraction=[true], accMode=[AccRetract])
-                     +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4], updateAsRetraction=[true], accMode=[AccRetract])
-                        +- GlobalGroupAggregate(groupBy=[a], select=[a, AVG((sum$0, count$1)) AS b, MAX(max$2) AS c], updateAsRetraction=[true], accMode=[AccRetract])
-                           +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-                              +- LocalGroupAggregate(groupBy=[a], select=[a, AVG(b) AS (sum$0, count$1), MAX(c) AS max$2], updateAsRetraction=[true], accMode=[Acc])
-                                 +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GlobalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRACT(min$0) AS $f1, MAX_RETRACT(max$1) AS $f2, SUM_RETRACT((sum$2, count$3)) AS $f3, $SUM0_RETRACT(sum$4) AS $f4, $SUM0_RETRACT(sum$5) AS $f5], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[c]], changelogMode=[I])
+   +- LocalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRACT($f3_0) AS min$0, MAX_RETRACT($f4_0) AS max$1, SUM_RETRACT($f5) AS (sum$2, count$3), $SUM0_RETRACT($f6) AS sum$4, $SUM0_RETRACT($f7) AS sum$5, COUNT_RETRACT(*) AS count1$6], changelogMode=[I])
+      +- GlobalGroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, MIN_RETRACT(min$0) AS $f3_0, MAX_RETRACT(max$1) AS $f4_0, SUM_RETRACT((sum$2, count$3)) AS $f5, COUNT_RETRACT(count1$4) AS $f6, COUNT_RETRACT(distinct$0 count$5) AS $f7], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[c, $f3, $f4]], changelogMode=[I])
+            +- LocalGroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, MIN_RETRACT(b) FILTER $g_2 AS min$0, MAX_RETRACT(b) FILTER $g_2 AS max$1, SUM_RETRACT(b) FILTER $g_3 AS (sum$2, count$3), COUNT_RETRACT(*) FILTER $g_3 AS count1$4, COUNT_RETRACT(distinct$0 a) FILTER $g_1 AS count$5, COUNT_RETRACT(*) AS count1$6, DISTINCT(a) AS distinct$0], changelogMode=[I])
+               +- Calc(select=[a, b, c, $f3, $f4, =($e, 2) AS $g_2, =($e, 3) AS $g_3, =($e, 1) AS $g_1], changelogMode=[I,UB,UA])
+                  +- Expand(projects=[a, b, c, $f3, $f4, $e], changelogMode=[I,UB,UA])
+                     +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4], changelogMode=[I,UB,UA])
+                        +- GlobalGroupAggregate(groupBy=[a], select=[a, AVG((sum$0, count$1)) AS b, MAX(max$2) AS c], changelogMode=[I,UB,UA])
+                           +- Exchange(distribution=[hash[a]], changelogMode=[I])
+                              +- LocalGroupAggregate(groupBy=[a], select=[a, AVG(b) AS (sum$0, count$1), MAX(c) AS max$2], changelogMode=[I])
+                                 +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1089,13 +1089,13 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(DISTINCT b) AS EXPR$1, COUNT_RETRACT(*) AS EXPR$2], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a, b, 1 AS $f2], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[c], select=[c, AVG(a) AS a, AVG(b) AS b], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[Acc])
-            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(DISTINCT b) AS EXPR$1, COUNT_RETRACT(*) AS EXPR$2], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I,UB,UA])
+   +- Calc(select=[a, b, 1 AS $f2], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[c], select=[c, AVG(a) AS a, AVG(b) AS b], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[c]], changelogMode=[I])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1121,15 +1121,15 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(distinct$0 count$0) AS EXPR$1, COUNT_RETRACT(count1$1) AS EXPR$2], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-   +- LocalGroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(distinct$0 b) AS count$0, COUNT_RETRACT(*) AS count1$1, DISTINCT(b) AS distinct$0], updateAsRetraction=[true], accMode=[Acc])
-      +- Calc(select=[a, b, 1 AS $f2], updateAsRetraction=[true], accMode=[AccRetract])
-         +- GlobalGroupAggregate(groupBy=[c], select=[c, AVG((sum$0, count$1)) AS a, AVG((sum$2, count$3)) AS b], updateAsRetraction=[true], accMode=[AccRetract])
-            +- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[Acc])
-               +- LocalGroupAggregate(groupBy=[c], select=[c, AVG(a) AS (sum$0, count$1), AVG(b) AS (sum$2, count$3)], updateAsRetraction=[true], accMode=[Acc])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GlobalGroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(distinct$0 count$0) AS EXPR$1, COUNT_RETRACT(count1$1) AS EXPR$2], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I])
+   +- LocalGroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(distinct$0 b) AS count$0, COUNT_RETRACT(*) AS count1$1, DISTINCT(b) AS distinct$0], changelogMode=[I])
+      +- Calc(select=[a, b, 1 AS $f2], changelogMode=[I,UB,UA])
+         +- GlobalGroupAggregate(groupBy=[c], select=[c, AVG((sum$0, count$1)) AS a, AVG((sum$2, count$3)) AS b], changelogMode=[I,UB,UA])
+            +- Exchange(distribution=[hash[c]], changelogMode=[I])
+               +- LocalGroupAggregate(groupBy=[c], select=[c, AVG(a) AS (sum$0, count$1), AVG(b) AS (sum$2, count$3)], changelogMode=[I])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1155,17 +1155,17 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2) AS $f1, $SUM0_RETRACT($f3_0) AS $f2], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a, $f3], partialFinalType=[PARTIAL], select=[a, $f3, COUNT_RETRACT(DISTINCT b) FILTER $g_0 AS $f2, COUNT_RETRACT(*) FILTER $g_1 AS $f3_0], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[a, $f3]], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Calc(select=[a, b, $f2, $f3, =($e, 0) AS $g_0, =($e, 1) AS $g_1], updateAsRetraction=[true], accMode=[AccRetract])
-            +- Expand(projects=[a, b, $f2, $f3, $e], updateAsRetraction=[true], accMode=[AccRetract])
-               +- Calc(select=[a, b, 1 AS $f2, MOD(HASH_CODE(b), 1024) AS $f3], updateAsRetraction=[true], accMode=[AccRetract])
-                  +- GroupAggregate(groupBy=[c], select=[c, AVG(a) AS a, AVG(b) AS b], updateAsRetraction=[true], accMode=[AccRetract])
-                     +- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[Acc])
-                        +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2) AS $f1, $SUM0_RETRACT($f3_0) AS $f2], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I,UB,UA,D])
+   +- GroupAggregate(groupBy=[a, $f3], partialFinalType=[PARTIAL], select=[a, $f3, COUNT_RETRACT(DISTINCT b) FILTER $g_0 AS $f2, COUNT_RETRACT(*) FILTER $g_1 AS $f3_0], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[a, $f3]], changelogMode=[I,UB,UA])
+         +- Calc(select=[a, b, $f2, $f3, =($e, 0) AS $g_0, =($e, 1) AS $g_1], changelogMode=[I,UB,UA])
+            +- Expand(projects=[a, b, $f2, $f3, $e], changelogMode=[I,UB,UA])
+               +- Calc(select=[a, b, 1 AS $f2, MOD(HASH_CODE(b), 1024) AS $f3], changelogMode=[I,UB,UA])
+                  +- GroupAggregate(groupBy=[c], select=[c, AVG(a) AS a, AVG(b) AS b], changelogMode=[I,UB,UA])
+                     +- Exchange(distribution=[hash[c]], changelogMode=[I])
+                        +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1191,20 +1191,20 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT(sum$0) AS $f1, $SUM0_RETRACT(sum$1) AS $f2], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-   +- LocalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2) AS sum$0, $SUM0_RETRACT($f3_0) AS sum$1, COUNT_RETRACT(*) AS count1$2], updateAsRetraction=[true], accMode=[Acc])
-      +- GlobalGroupAggregate(groupBy=[a, $f3], partialFinalType=[PARTIAL], select=[a, $f3, COUNT_RETRACT(distinct$0 count$0) AS $f2, COUNT_RETRACT(count1$1) AS $f3_0], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[a, $f3]], updateAsRetraction=[true], accMode=[Acc])
-            +- LocalGroupAggregate(groupBy=[a, $f3], partialFinalType=[PARTIAL], select=[a, $f3, COUNT_RETRACT(distinct$0 b) FILTER $g_0 AS count$0, COUNT_RETRACT(*) FILTER $g_1 AS count1$1, COUNT_RETRACT(*) AS count1$2, DISTINCT(b) AS distinct$0], updateAsRetraction=[true], accMode=[Acc])
-               +- Calc(select=[a, b, $f2, $f3, =($e, 0) AS $g_0, =($e, 1) AS $g_1], updateAsRetraction=[true], accMode=[AccRetract])
-                  +- Expand(projects=[a, b, $f2, $f3, $e], updateAsRetraction=[true], accMode=[AccRetract])
-                     +- Calc(select=[a, b, 1 AS $f2, MOD(HASH_CODE(b), 1024) AS $f3], updateAsRetraction=[true], accMode=[AccRetract])
-                        +- GlobalGroupAggregate(groupBy=[c], select=[c, AVG((sum$0, count$1)) AS a, AVG((sum$2, count$3)) AS b], updateAsRetraction=[true], accMode=[AccRetract])
-                           +- Exchange(distribution=[hash[c]], updateAsRetraction=[true], accMode=[Acc])
-                              +- LocalGroupAggregate(groupBy=[c], select=[c, AVG(a) AS (sum$0, count$1), AVG(b) AS (sum$2, count$3)], updateAsRetraction=[true], accMode=[Acc])
-                                 +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT(sum$0) AS $f1, $SUM0_RETRACT(sum$1) AS $f2], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I])
+   +- LocalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2) AS sum$0, $SUM0_RETRACT($f3_0) AS sum$1, COUNT_RETRACT(*) AS count1$2], changelogMode=[I])
+      +- GlobalGroupAggregate(groupBy=[a, $f3], partialFinalType=[PARTIAL], select=[a, $f3, COUNT_RETRACT(distinct$0 count$0) AS $f2, COUNT_RETRACT(count1$1) AS $f3_0], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[a, $f3]], changelogMode=[I])
+            +- LocalGroupAggregate(groupBy=[a, $f3], partialFinalType=[PARTIAL], select=[a, $f3, COUNT_RETRACT(distinct$0 b) FILTER $g_0 AS count$0, COUNT_RETRACT(*) FILTER $g_1 AS count1$1, COUNT_RETRACT(*) AS count1$2, DISTINCT(b) AS distinct$0], changelogMode=[I])
+               +- Calc(select=[a, b, $f2, $f3, =($e, 0) AS $g_0, =($e, 1) AS $g_1], changelogMode=[I,UB,UA])
+                  +- Expand(projects=[a, b, $f2, $f3, $e], changelogMode=[I,UB,UA])
+                     +- Calc(select=[a, b, 1 AS $f2, MOD(HASH_CODE(b), 1024) AS $f3], changelogMode=[I,UB,UA])
+                        +- GlobalGroupAggregate(groupBy=[c], select=[c, AVG((sum$0, count$1)) AS a, AVG((sum$2, count$3)) AS b], changelogMode=[I,UB,UA])
+                           +- Exchange(distribution=[hash[c]], changelogMode=[I])
+                              +- LocalGroupAggregate(groupBy=[c], select=[c, AVG(a) AS (sum$0, count$1), AVG(b) AS (sum$2, count$3)], changelogMode=[I])
+                                 +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

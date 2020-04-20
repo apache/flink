@@ -58,10 +58,11 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 	@SuppressWarnings("unchecked")
 	public StreamTestSingleInputGate(
-		int numInputChannels,
-		int bufferSize,
-		TypeSerializer<T> serializer) {
-		super(numInputChannels, false);
+			int numInputChannels,
+			int gateIndex,
+			TypeSerializer<T> serializer,
+			int bufferSize) {
+		super(numInputChannels, gateIndex, false);
 
 		this.bufferSize = bufferSize;
 		this.serializer = serializer;
@@ -122,9 +123,8 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			};
 
 			inputChannels[channelIndex].addBufferAndAvailability(answer);
-
-			inputGate.setInputChannel(inputChannels[channelIndex]);
 		}
+		inputGate.setInputChannels(inputChannels);
 	}
 
 	public void sendElement(Object element, int channel) {

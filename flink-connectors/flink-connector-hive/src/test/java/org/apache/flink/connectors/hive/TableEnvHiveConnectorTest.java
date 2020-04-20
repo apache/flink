@@ -583,6 +583,23 @@ public class TableEnvHiveConnectorTest {
 		}
 	}
 
+	@Test
+	public void testUpdatePartitionSD() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.dest (x int) partitioned by (p string) stored as rcfile");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert overwrite db1.dest partition (p='1') select 1");
+			tableEnv.execute(null);
+			hiveShell.execute("alter table db1.dest set fileformat sequencefile");
+			tableEnv.sqlUpdate("insert overwrite db1.dest partition (p='1') select 1");
+			tableEnv.execute(null);
+			assertEquals("[1,1]", TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.dest")).toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);

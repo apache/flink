@@ -25,7 +25,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.ArbitraryWorkerResourceSpecFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesCo
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 
 import javax.annotation.Nullable;
 
@@ -54,7 +57,8 @@ public enum StandaloneResourceManagerWithUUIDFactory implements ResourceManagerF
 		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl,
 		ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
+		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration =
+			ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, ArbitraryWorkerResourceSpecFactory.INSTANCE);
 		final ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			resourceManagerRuntimeServicesConfiguration,
 			highAvailabilityServices,
@@ -69,10 +73,12 @@ public enum StandaloneResourceManagerWithUUIDFactory implements ResourceManagerF
 			highAvailabilityServices,
 			heartbeatServices,
 			resourceManagerRuntimeServices.getSlotManager(),
+			NoOpResourceManagerPartitionTracker::get,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
 			resourceManagerMetricGroup,
-			standaloneClusterStartupPeriodTime);
+			standaloneClusterStartupPeriodTime,
+			RpcUtils.INF_TIMEOUT);
 	}
 }

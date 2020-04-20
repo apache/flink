@@ -109,13 +109,6 @@ under the License.
 			<version>3.9.0</version>
 		</dependency>
 
-		<!-- Tools to unify display format for different languages -->
-		<dependency>
-			<groupId>com.ibm.icu</groupId>
-			<artifactId>icu4j</artifactId>
-			<version>65.1</version>
-		</dependency>
-
 		<!-- configuration -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -528,7 +521,6 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.jline:*</include>
-									<include>com.ibm.icu:icu4j</include>
 								</includes>
 							</artifactSet>
 						</configuration>

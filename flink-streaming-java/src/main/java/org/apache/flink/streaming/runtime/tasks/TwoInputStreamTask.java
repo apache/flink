@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -46,21 +47,22 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 
 	@Override
 	protected void createInputProcessor(
-		Collection<InputGate> inputGates1,
-		Collection<InputGate> inputGates2,
+		Collection<IndexedInputGate> inputGates1,
+		Collection<IndexedInputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
 		TypeSerializer<IN2> inputDeserializer2) {
 
 		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
 			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
 
-		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new InputGate[0]));
-		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new InputGate[0]));
+		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new IndexedInputGate[0]));
+		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new IndexedInputGate[0]));
 
 		// create an input instance for each input
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
 			this,
-			getConfiguration().getCheckpointMode(),
+			getConfiguration(),
+			getChannelStateWriter(),
 			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),

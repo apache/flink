@@ -22,7 +22,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.kubernetes.KubernetesTestBase;
+import org.apache.flink.kubernetes.KubernetesClientTestBase;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
@@ -30,37 +30,32 @@ import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
-import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceBuilder;
-import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for Fabric implementation of {@link FlinkKubeClient}.
  */
-public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
-	private static final int REST_PORT = 9081;
+public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 	private static final int RPC_PORT = 7123;
 	private static final int BLOB_SERVER_PORT = 8346;
 
@@ -68,6 +63,8 @@ public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 	private static final int JOB_MANAGER_MEMORY = 768;
 
 	private static final String SERVICE_ACCOUNT_NAME = "service-test";
+
+	private static final String TASKMANAGER_POD_NAME = "mock-task-manager-pod";
 
 	private static final String ENTRY_POINT_CLASS = KubernetesSessionClusterEntrypoint.class.getCanonicalName();
 
@@ -147,10 +144,10 @@ public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 			.editOrNewSpec()
 			.endSpec()
 			.build());
-		this.flinkKubeClient.createTaskManagerPod(kubernetesPod);
+		this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
 		final Pod resultTaskManagerPod =
-			this.kubeClient.pods().inNamespace(NAMESPACE).withName("mock-task-manager-pod").get();
+			this.kubeClient.pods().inNamespace(NAMESPACE).withName(TASKMANAGER_POD_NAME).get();
 
 		assertEquals(
 			this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().get(0).getMetadata().getUid(),
@@ -158,7 +155,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 	}
 
 	@Test
-	public void testStopPod() {
+	public void testStopPod() throws ExecutionException, InterruptedException {
 		final String podName = "pod-for-delete";
 		final Pod pod = new PodBuilder()
 			.editOrNewMetadata()
@@ -171,35 +168,54 @@ public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 		this.kubeClient.pods().inNamespace(NAMESPACE).create(pod);
 		assertNotNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
 
-		this.flinkKubeClient.stopPod(podName);
+		this.flinkKubeClient.stopPod(podName).get();
 		assertNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
 	}
 
 	@Test
 	public void testServiceLoadBalancerWithNoIP() {
 		final String hostName = "test-host-name";
-		mockRestServiceWithLB(hostName, "");
+		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(hostName, ""));
 
-		final Endpoint resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
 
-		assertEquals(hostName, resultEndpoint.getAddress());
-		assertEquals(REST_PORT, resultEndpoint.getPort());
+		assertThat(resultEndpoint.isPresent(), is(true));
+		assertThat(resultEndpoint.get().getAddress(), is(hostName));
+		assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
 	}
 
 	@Test
 	public void testServiceLoadBalancerEmptyHostAndIP() {
-		mockRestServiceWithLB("", "");
+		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer("", ""));
 
-		final Endpoint resultEndpoint1 = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertNull(resultEndpoint1);
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(false));
 	}
 
 	@Test
 	public void testServiceLoadBalancerNullHostAndIP() {
-		mockRestServiceWithLB(null, null);
+		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(null, null));
 
-		final Endpoint resultEndpoint2 = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertNull(resultEndpoint2);
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(false));
+	}
+
+	@Test
+	public void testNodePortService() {
+		mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(true));
+		assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
+	}
+
+	@Test
+	public void testClusterIPService() {
+		mockExpectedServiceFromServerSide(buildExternalServiceWithClusterIP());
+
+		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+		assertThat(resultEndpoint.isPresent(), is(true));
+		assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
 	}
 
 	@Test
@@ -208,12 +224,12 @@ public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 
 		final KubernetesPod kubernetesPod = new KubernetesPod(new PodBuilder()
 			.editOrNewMetadata()
-			.withName("mock-task-manager-pod")
+			.withName(TASKMANAGER_POD_NAME)
 			.endMetadata()
 			.editOrNewSpec()
 			.endSpec()
 			.build());
-		this.flinkKubeClient.createTaskManagerPod(kubernetesPod);
+		this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
 		assertEquals(1, this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().size());
 		assertEquals(1, this.kubeClient.configMaps().inNamespace(NAMESPACE).list().getItems().size());
@@ -222,32 +238,5 @@ public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 
 		this.flinkKubeClient.stopAndCleanupCluster(CLUSTER_ID);
 		assertTrue(this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().isEmpty());
-	}
-
-	private void mockRestServiceWithLB(@Nullable String hostname, @Nullable String ip) {
-		final String restServiceName = KubernetesUtils.getRestServiceName(CLUSTER_ID);
-
-		final String path = String.format("/api/v1/namespaces/%s/services/%s", NAMESPACE, restServiceName);
-		server.expect()
-			.withPath(path)
-			.andReturn(200, buildMockRestServiceWithLB(hostname, ip))
-			.always();
-
-		final Service resultService = kubeClient.services()
-			.inNamespace(NAMESPACE)
-			.withName(KubernetesUtils.getRestServiceName(CLUSTER_ID))
-			.get();
-		assertNotNull(resultService);
-	}
-
-	private Service buildMockRestServiceWithLB(@Nullable String hostname, @Nullable String ip) {
-		final Service service = new ServiceBuilder()
-			.build();
-
-		service.setStatus(new ServiceStatusBuilder()
-			.withLoadBalancer(new LoadBalancerStatus(Collections.singletonList(
-				new LoadBalancerIngress(hostname, ip)))).build());
-
-		return service;
 	}
 }

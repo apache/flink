@@ -99,14 +99,6 @@ public final class TypeInferenceUtil {
 			TypeInference typeInference,
 			CallContext callContext,
 			@Nullable DataType outputType) {
-		return adaptArguments(typeInference, callContext, outputType, false);
-	}
-
-	private static AdaptedCallContext adaptArguments(
-			TypeInference typeInference,
-			CallContext callContext,
-			@Nullable DataType outputType,
-			boolean allowUnknownInputTypes) {
 		final List<DataType> actualTypes = callContext.getArgumentDataTypes();
 
 		typeInference.getTypedArguments()
@@ -123,8 +115,8 @@ public final class TypeInferenceUtil {
 		final AdaptedCallContext adaptedCallContext = inferInputTypes(
 			typeInference,
 			callContext,
-			outputType,
-			allowUnknownInputTypes);
+			outputType
+		);
 
 		// final check if the call is valid after casting
 		final List<DataType> expectedTypes = adaptedCallContext.getArgumentDataTypes();
@@ -274,7 +266,7 @@ public final class TypeInferenceUtil {
 
 			// We might not be able to infer the input types at this moment, if the surrounding function
 			// does not provide an explicit input type strategy. Skip the check for unknown types in input types.
-			final AdaptedCallContext adaptedContext = adaptArguments(typeInference, callContext, null, true);
+			final AdaptedCallContext adaptedContext = adaptArguments(typeInference, callContext, null);
 			return typeInference.getInputTypeStrategy()
 				.inferInputTypes(adaptedContext, false)
 				.map(dataTypes -> dataTypes.get(innerCallPosition));
@@ -448,8 +440,7 @@ public final class TypeInferenceUtil {
 	private static AdaptedCallContext inferInputTypes(
 			TypeInference typeInference,
 			CallContext callContext,
-			@Nullable DataType outputType,
-			boolean allowUnknownInputTypes) {
+			@Nullable DataType outputType) {
 
 		final AdaptedCallContext adaptedCallContext = new AdaptedCallContext(callContext, outputType);
 
@@ -459,11 +450,6 @@ public final class TypeInferenceUtil {
 		final List<DataType> inferredDataTypes = typeInference.getInputTypeStrategy()
 			.inferInputTypes(adaptedCallContext, true)
 			.orElseThrow(() -> new ValidationException("Invalid input arguments."));
-
-		if (!allowUnknownInputTypes && inferredDataTypes.stream().anyMatch(TypeInferenceUtil::isUnknown)) {
-			// input must not contain unknown types at this point
-			throw new ValidationException("Invalid use of untyped NULL in arguments.");
-		}
 
 		adaptedCallContext.setExpectedArguments(inferredDataTypes);
 

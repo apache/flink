@@ -47,8 +47,8 @@ import static org.apache.flink.table.planner.functions.InternalFunctionDefinitio
 public abstract class SingleValueAggFunction extends DeclarativeAggregateFunction {
 
 	private static final long serialVersionUID = 8850662568341069949L;
-	private static final Expression ZERO = literal(0, DataTypes.INT());
-	private static final Expression ONE = literal(1, DataTypes.INT());
+	private static final Expression ZERO = literal(0, DataTypes.INT().notNull());
+	private static final Expression ONE = literal(1, DataTypes.INT().notNull());
 	private static final String ERROR_MSG = "SingleValueAggFunction received more than one element.";
 	private UnresolvedReferenceExpression value = unresolvedRef("value");
 	private UnresolvedReferenceExpression count = unresolvedRef("count");

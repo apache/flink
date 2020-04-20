@@ -98,7 +98,7 @@ public class CheckpointStateRestoreTest {
 			tasks.add(stateful);
 			tasks.add(stateless);
 
-			ManuallyTriggeredScheduledExecutor mainThreadExecutor =
+			ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
 				new ManuallyTriggeredScheduledExecutor();
 
 			CheckpointCoordinator coord =
@@ -107,13 +107,13 @@ public class CheckpointStateRestoreTest {
 					.setTasksToTrigger(new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 })
 					.setTasksToWaitFor(new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 })
 					.setTasksToCommitTo(new ExecutionVertex[0])
-					.setMainThreadExecutor(mainThreadExecutor)
+					.setTimer(manuallyTriggeredScheduledExecutor)
 					.build();
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
 			coord.triggerCheckpoint(timestamp, false);
-			mainThreadExecutor.triggerAll();
+			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			PendingCheckpoint pending = coord.getPendingCheckpoints().values().iterator().next();
 			final long checkpointId = pending.getCheckpointId();
@@ -133,8 +133,6 @@ public class CheckpointStateRestoreTest {
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec2.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
-			// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-			mainThreadExecutor.triggerAll();
 
 			assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());

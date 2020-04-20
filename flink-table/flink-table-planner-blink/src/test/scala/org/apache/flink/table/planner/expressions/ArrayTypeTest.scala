@@ -30,6 +30,15 @@ import org.junit.Test
 class ArrayTypeTest extends ArrayTypeTestBase {
 
   @Test
+  def testInputTypeGeneralization(): Unit = {
+    testAllApis(
+      array(1, 2.0, 3.0),
+      "array(1, 2.0, 3.0)",
+      "ARRAY[1, cast(2.0 AS DOUBLE), cast(3.0 AS DOUBLE)]",
+      "[1.0, 2.0, 3.0]")
+  }
+
+  @Test
   def testArrayLiterals(): Unit = {
     // primitive literals
     testAllApis(array(1, 2, 3), "array(1, 2, 3)", "ARRAY[1, 2, 3]", "[1, 2, 3]")

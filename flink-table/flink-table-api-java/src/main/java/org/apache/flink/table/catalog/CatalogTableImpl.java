@@ -82,6 +82,11 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 		return descriptor.asMap();
 	}
 
+	@Override
+	public CatalogTable copy(Map<String, String> options) {
+		return new CatalogTableImpl(getSchema(), getPartitionKeys(), options, getComment());
+	}
+
 	/**
 	 * Construct a {@link CatalogTableImpl} from complete properties that contains table schema.
 	 */

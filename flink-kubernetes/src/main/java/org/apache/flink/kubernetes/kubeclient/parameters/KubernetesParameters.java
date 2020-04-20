@@ -22,6 +22,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -53,6 +54,11 @@ public interface KubernetesParameters {
 	Map<String, String> getLabels();
 
 	/**
+	 * A collection of node selector to constrain a pod to only be able to run on particular node(s).
+	 */
+	Map<String, String> getNodeSelector();
+
+	/**
 	 * A collection of customized environments that are attached to the JobManager and TaskManager Container(s).
 	 */
 	Map<String, String> getEnvironments();
@@ -61,6 +67,12 @@ public interface KubernetesParameters {
 	 *	A map of user-specified annotations that are set to the JobManager and TaskManager pods.
 	 */
 	Map<String, String> getAnnotations();
+
+	/**
+	 * A collection of tolerations that are set to the JobManager and TaskManager Pod(s). Kubernetes taints and
+	 * tolerations work together to ensure that pods are not scheduled onto inappropriate nodes.
+	 */
+	List<Map<String, String>> getTolerations();
 
 	/**
 	 * Directory in Pod that stores the flink-conf.yaml, log4j.properties, and the logback.xml.

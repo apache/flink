@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -261,6 +262,7 @@ public class ResourceManagerTest extends TestLogger {
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
+			NoOpResourceManagerPartitionTracker::get,
 			jobLeaderIdService,
 			testingFatalErrorHandler,
 			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());

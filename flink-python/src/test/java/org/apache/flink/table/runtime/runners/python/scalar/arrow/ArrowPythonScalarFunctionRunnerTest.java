@@ -25,7 +25,7 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
-import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.RowBigIntWriter;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -64,7 +64,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 
 		ArrowFieldWriter<Row>[] fieldWriters = runner.arrowWriter.getFieldWriters();
 		assertEquals(1, fieldWriters.length);
-		assertTrue(fieldWriters[0] instanceof BigIntWriter);
+		assertTrue(fieldWriters[0] instanceof RowBigIntWriter);
 	}
 
 	@Test
@@ -74,9 +74,9 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 
 		ArrowFieldWriter<Row>[] fieldWriters = runner.arrowWriter.getFieldWriters();
 		assertEquals(3, fieldWriters.length);
-		assertTrue(fieldWriters[0] instanceof BigIntWriter);
-		assertTrue(fieldWriters[1] instanceof BigIntWriter);
-		assertTrue(fieldWriters[2] instanceof BigIntWriter);
+		assertTrue(fieldWriters[0] instanceof RowBigIntWriter);
+		assertTrue(fieldWriters[1] instanceof RowBigIntWriter);
+		assertTrue(fieldWriters[2] instanceof RowBigIntWriter);
 	}
 
 	@Test
@@ -86,11 +86,11 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 
 		ArrowFieldWriter<Row>[] fieldWriters = runner.arrowWriter.getFieldWriters();
 		assertEquals(5, fieldWriters.length);
-		assertTrue(fieldWriters[0] instanceof BigIntWriter);
-		assertTrue(fieldWriters[1] instanceof BigIntWriter);
-		assertTrue(fieldWriters[2] instanceof BigIntWriter);
-		assertTrue(fieldWriters[3] instanceof BigIntWriter);
-		assertTrue(fieldWriters[4] instanceof BigIntWriter);
+		assertTrue(fieldWriters[0] instanceof RowBigIntWriter);
+		assertTrue(fieldWriters[1] instanceof RowBigIntWriter);
+		assertTrue(fieldWriters[2] instanceof RowBigIntWriter);
+		assertTrue(fieldWriters[3] instanceof RowBigIntWriter);
+		assertTrue(fieldWriters[4] instanceof RowBigIntWriter);
 	}
 
 	@Test
@@ -162,7 +162,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 
 		final PythonEnvironmentManager environmentManager =
 			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
 				new String[] {System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 

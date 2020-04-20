@@ -27,7 +27,6 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.BatchQueryConfig
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.python.PythonFunctionInfo
@@ -65,11 +64,9 @@ class DataSetPythonCalc(
     new DataSetPythonCalc(cluster, traitSet, child, getRowType, program, ruleDescription)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvImpl,
-      queryConfig: BatchQueryConfig): DataSet[Row] = {
+  override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
 
-    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val flatMapFunctionResultTypeInfo = new RowTypeInfo(
       getForwardedFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
@@ -81,7 +78,7 @@ class DataSetPythonCalc(
     val flatMapFunctionOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       flatMapFunctionResultTypeInfo).getLogicalType.asInstanceOf[RowType]
     val flatMapFunction = getPythonScalarFunctionFlatMap(
-      getConfig(tableEnv.getConfig),
+      getConfig(tableEnv.execEnv, tableEnv.getConfig),
       flatMapFunctionInputRowType,
       flatMapFunctionOutputRowType,
       calcProgram)

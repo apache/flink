@@ -27,8 +27,7 @@ import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.{AppendFastStrategy, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UpdateFastStrategy}
+import org.apache.flink.table.planner.plan.utils.{AppendFastStrategy, ChangelogPlanUtils, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UpdateFastStrategy}
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
 import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction, UpdatableTopNFunction}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -38,7 +37,6 @@ import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
@@ -55,34 +53,14 @@ class StreamExecSortLimit(
     inputRel: RelNode,
     sortCollation: RelCollation,
     offset: RexNode,
-    fetch: RexNode)
+    fetch: RexNode,
+    rankStrategy: RankProcessStrategy)
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
   private val limitStart: Long = SortUtil.getLimitStart(offset)
   private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
-
-  /** please uses [[getStrategy]] instead of this field */
-  private var strategy: RankProcessStrategy = _
-
-  def getStrategy(forceRecompute: Boolean = false): RankProcessStrategy = {
-    if (strategy == null || forceRecompute) {
-      strategy = RankProcessStrategy.analyzeRankProcessStrategy(
-        inputRel, ImmutableBitSet.of(), sortCollation, cluster.getMetadataQuery)
-    }
-    strategy
-  }
-
-  override def producesUpdates = true
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
-    getStrategy(forceRecompute = true) == RetractStrategy
-  }
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
@@ -92,7 +70,11 @@ class StreamExecSortLimit(
       newCollation: RelCollation,
       offset: RexNode,
       fetch: RexNode): Sort = {
-    new StreamExecSortLimit(cluster, traitSet, newInput, newCollation, offset, fetch)
+    new StreamExecSortLimit(cluster, traitSet, newInput, newCollation, offset, fetch, rankStrategy)
+  }
+
+  def copy(newStrategy: RankProcessStrategy): StreamExecSortLimit = {
+    new StreamExecSortLimit(cluster, traitSet, input, sortCollation, offset, fetch, newStrategy)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -100,6 +82,7 @@ class StreamExecSortLimit(
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
       .item("offset", limitStart)
       .item("fetch", RelExplainUtil.fetchToString(fetch))
+      .item("strategy", rankStrategy)
   }
 
   override def estimateRowCount(mq: RelMetadataQuery): Double = {
@@ -150,7 +133,7 @@ class StreamExecSortLimit(
       sortKeyType.getLogicalTypes,
       sortDirections,
       nullsIsLast)
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
@@ -161,7 +144,7 @@ class StreamExecSortLimit(
     val outputRankNumber = false
 
     // Use RankFunction underlying StreamExecSortLimit
-    val processFunction = getStrategy(true) match {
+    val processFunction = rankStrategy match {
       case AppendFastStrategy =>
         new AppendOnlyTopNFunction(
           minIdleStateRetentionTime,
@@ -171,7 +154,7 @@ class StreamExecSortLimit(
           sortKeySelector,
           rankType,
           rankRange,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber,
           cacheSize)
 
@@ -186,7 +169,7 @@ class StreamExecSortLimit(
           sortKeySelector,
           rankType,
           rankRange,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber,
           cacheSize)
 
@@ -203,7 +186,7 @@ class StreamExecSortLimit(
           rankType,
           rankRange,
           generatedEqualiser,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber)
     }
     val operator = new KeyedProcessOperator(processFunction)

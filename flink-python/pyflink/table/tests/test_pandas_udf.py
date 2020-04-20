@@ -21,7 +21,7 @@ import unittest
 
 import pytz
 
-from pyflink.table import DataTypes
+from pyflink.table import DataTypes, Row
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
@@ -153,6 +153,24 @@ class PandasUDFITTests(object):
                                                                       timestamp_value)
             return timestamp_param
 
+        def array_func(array_param):
+            assert isinstance(array_param, pd.Series)
+            assert isinstance(array_param[0], np.ndarray), \
+                'array_param of wrong type %s !' % type(array_param[0])
+            return array_param
+
+        def nested_array_func(nested_array_param):
+            assert isinstance(nested_array_param, pd.Series)
+            assert isinstance(nested_array_param[0], np.ndarray), \
+                'nested_array_param of wrong type %s !' % type(nested_array_param[0])
+            return pd.Series(nested_array_param[0])
+
+        def row_func(row_param):
+            assert isinstance(row_param, pd.Series)
+            assert isinstance(row_param[0], dict), \
+                'row_param of wrong type %s !' % type(row_param[0])
+            return row_param
+
         self.t_env.register_function(
             "tinyint_func",
             udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT(), udf_type="pandas"))
@@ -207,12 +225,45 @@ class PandasUDFITTests(object):
             udf(timestamp_func, [DataTypes.TIMESTAMP(3)], DataTypes.TIMESTAMP(3),
                 udf_type="pandas"))
 
+        self.t_env.register_function(
+            "array_str_func",
+            udf(array_func, [DataTypes.ARRAY(DataTypes.STRING())],
+                DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
+
+        self.t_env.register_function(
+            "array_timestamp_func",
+            udf(array_func, [DataTypes.ARRAY(DataTypes.TIMESTAMP(3))],
+                DataTypes.ARRAY(DataTypes.TIMESTAMP(3)), udf_type="pandas"))
+
+        self.t_env.register_function(
+            "array_int_func",
+            udf(array_func, [DataTypes.ARRAY(DataTypes.INT())],
+                DataTypes.ARRAY(DataTypes.INT()), udf_type="pandas"))
+
+        self.t_env.register_function(
+            "nested_array_func",
+            udf(nested_array_func, [DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))],
+                DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
+
+        row_type = DataTypes.ROW(
+            [DataTypes.FIELD("f1", DataTypes.INT()),
+             DataTypes.FIELD("f2", DataTypes.STRING()),
+             DataTypes.FIELD("f3", DataTypes.TIMESTAMP(3)),
+             DataTypes.FIELD("f4", DataTypes.ARRAY(DataTypes.INT()))])
+        self.t_env.register_function(
+            "row_func",
+            udf(row_func, [row_type], row_type, udf_type="pandas"))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
+             'r', 's', 't', 'u'],
             [DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT(), DataTypes.BIGINT(),
              DataTypes.BOOLEAN(), DataTypes.BOOLEAN(), DataTypes.FLOAT(), DataTypes.DOUBLE(),
              DataTypes.STRING(), DataTypes.STRING(), DataTypes.BYTES(), DataTypes.DECIMAL(38, 18),
-             DataTypes.DECIMAL(38, 18), DataTypes.DATE(), DataTypes.TIME(), DataTypes.TIMESTAMP(3)])
+             DataTypes.DECIMAL(38, 18), DataTypes.DATE(), DataTypes.TIME(), DataTypes.TIMESTAMP(3),
+             DataTypes.ARRAY(DataTypes.STRING()), DataTypes.ARRAY(DataTypes.TIMESTAMP(3)),
+             DataTypes.ARRAY(DataTypes.INT()),
+             DataTypes.ARRAY(DataTypes.STRING()), row_type])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
@@ -220,7 +271,8 @@ class PandasUDFITTests(object):
               bytearray(b'flink'), decimal.Decimal('1000000000000000000.05'),
               decimal.Decimal('1000000000000000000.05999999999999999899999999999'),
               datetime.date(2014, 9, 13), datetime.time(hour=1, minute=0, second=1),
-              timestamp_value)],
+              timestamp_value, ['hello', '中文', None], [timestamp_value], [1, 2],
+              [['hello', '中文', None]], Row(1, 'hello', timestamp_value, [1, 2]))],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
@@ -237,7 +289,12 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("m", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("n", DataTypes.DATE()),
                  DataTypes.FIELD("o", DataTypes.TIME()),
-                 DataTypes.FIELD("p", DataTypes.TIMESTAMP(3))]))
+                 DataTypes.FIELD("p", DataTypes.TIMESTAMP(3)),
+                 DataTypes.FIELD("q", DataTypes.ARRAY(DataTypes.STRING())),
+                 DataTypes.FIELD("r", DataTypes.ARRAY(DataTypes.TIMESTAMP(3))),
+                 DataTypes.FIELD("s", DataTypes.ARRAY(DataTypes.INT())),
+                 DataTypes.FIELD("t", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
+                 DataTypes.FIELD("u", row_type)]))
 
         t.select("tinyint_func(a),"
                  "smallint_func(b),"
@@ -254,7 +311,12 @@ class PandasUDFITTests(object):
                  "decimal_func(m),"
                  "date_func(n),"
                  "time_func(o),"
-                 "timestamp_func(p)") \
+                 "timestamp_func(p),"
+                 "array_str_func(q),"
+                 "array_timestamp_func(r),"
+                 "array_int_func(s),"
+                 "nested_array_func(t),"
+                 "row_func(u)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
@@ -262,7 +324,8 @@ class PandasUDFITTests(object):
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
                             "[102, 108, 105, 110, 107],1000000000000000000.050000000000000000,"
                             "1000000000000000000.059999999999999999,2014-09-13,01:00:01,"
-                            "1970-01-01 00:00:00.123"])
+                            "1970-01-01 00:00:00.123,[hello, 中文, null],[1970-01-01 00:00:00.123],"
+                            "[1, 2],[hello, 中文, null],1,hello,1970-01-01 00:00:00.123,[1, 2]"])
 
 
 class BlinkPandasUDFITTests(object):

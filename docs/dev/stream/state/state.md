@@ -533,8 +533,8 @@ in that:
 
 ## Using Operator State
 
-To use operator state, a stateful function can implement either the more general `CheckpointedFunction`
-interface, or the `ListCheckpointed<T extends Serializable>` interface.
+To use operator state, a stateful function can implement the `CheckpointedFunction`
+interface.
 
 
 #### CheckpointedFunction
@@ -729,22 +729,6 @@ of all objects included by the previous checkpoint, and is then filled with the 
 As a side note, the keyed state can also be initialized in the `initializeState()` method. This can be done
 using the provided `FunctionInitializationContext`.
 
-#### ListCheckpointed
-
-The `ListCheckpointed` interface is a more limited variant of `CheckpointedFunction`,
-which only supports list-style state with even-split redistribution scheme on restore.
-It also requires the implementation of two methods:
-
-{% highlight java %}
-List<T> snapshotState(long checkpointId, long timestamp) throws Exception;
-
-void restoreState(List<T> state) throws Exception;
-{% endhighlight %}
-
-On `snapshotState()` the operator should return a list of objects to checkpoint and
-`restoreState` has to handle such a list upon recovery. If the state is not re-partitionable, you can always
-return a `Collections.singletonList(MY_STATE)` in the `snapshotState()`.
-
 ### Stateful Source Functions
 
 Stateful sources require a bit more care as opposed to other operators.
@@ -756,13 +740,16 @@ on failure/recovery), the user is required to get a lock from the source's conte
 {% highlight java %}
 public static class CounterSource
         extends RichParallelSourceFunction<Long>
-        implements ListCheckpointed<Long> {
+        implements CheckpointedFunction {
 
     /**  current offset for exactly once semantics */
     private Long offset = 0L;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;
+    
+    /** Our state object. */
+    private ListState<Long> state;
 
     @Override
     public void run(SourceContext<Long> ctx) {
@@ -783,14 +770,22 @@ public static class CounterSource
     }
 
     @Override
-    public List<Long> snapshotState(long checkpointId, long checkpointTimestamp) {
-        return Collections.singletonList(offset);
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
+                "state",
+                LongSerializer.INSTANCE));
+                
+        // restore any state that we might already have to our fields, initialize state
+        // is also called in case of restore.
+        for (Long l : state.get()) {
+            offset = l;
+        }
     }
 
     @Override
-    public void restoreState(List<Long> state) {
-        for (Long s : state)
-            offset = s;
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        state.clear();
+        state.add(offset);
     }
 }
 {% endhighlight %}
@@ -800,12 +795,13 @@ public static class CounterSource
 {% highlight scala %}
 class CounterSource
        extends RichParallelSourceFunction[Long]
-       with ListCheckpointed[Long] {
+       with CheckpointedFunction {
 
   @volatile
   private var isRunning = true
 
   private var offset = 0L
+  private var state: ListState[Long] = _
 
   override def run(ctx: SourceFunction.SourceContext[Long]): Unit = {
     val lock = ctx.getCheckpointLock
@@ -821,15 +817,20 @@ class CounterSource
   }
 
   override def cancel(): Unit = isRunning = false
+  
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    state = context.getOperatorStateStore.getListState(
+      new ListStateDescriptor[Long]("state", classOf[Long]))
 
-  override def restoreState(state: util.List[Long]): Unit =
-    for (s <- state) {
-      offset = s
+    for (l <- state.get().asScala) {
+      offset = l
     }
+  }
 
-  override def snapshotState(checkpointId: Long, timestamp: Long): util.List[Long] =
-    Collections.singletonList(offset)
-
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    state.clear()
+    state.add(offset)
+  }
 }
 {% endhighlight %}
 </div>

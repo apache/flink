@@ -21,8 +21,10 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -52,7 +54,7 @@ public class OperatorSnapshotUtil {
 		try (DataOutputStream dos = new DataOutputStream(out)) {
 
 			// required for backwards compatibility.
-			dos.writeInt(0);
+			dos.writeInt(MetadataV3Serializer.VERSION);
 
 			// still required for compatibility
 			MetadataV3Serializer.serializeStreamStateHandle(null, dos);
@@ -101,6 +103,18 @@ public class OperatorSnapshotUtil {
 				dos.writeInt(-1);
 			}
 
+			Collection<InputChannelStateHandle> inputChannelStateHandles  = state.getInputChannelState();
+			dos.writeInt(inputChannelStateHandles.size());
+			for (InputChannelStateHandle inputChannelStateHandle : inputChannelStateHandles) {
+				MetadataV3Serializer.INSTANCE.serializeInputChannelStateHandle(inputChannelStateHandle, dos);
+			}
+
+			Collection<ResultSubpartitionStateHandle> resultSubpartitionStateHandles  = state.getResultSubpartitionState();
+			dos.writeInt(inputChannelStateHandles.size());
+			for (ResultSubpartitionStateHandle resultSubpartitionStateHandle : resultSubpartitionStateHandles) {
+				MetadataV3Serializer.INSTANCE.serializeResultSubpartitionStateHandle(resultSubpartitionStateHandle, dos);
+			}
+
 			dos.flush();
 		}
 	}
@@ -110,7 +124,7 @@ public class OperatorSnapshotUtil {
 		try (DataInputStream dis = new DataInputStream(in)) {
 
 			// required for backwards compatibility.
-			dis.readInt();
+			final int v = dis.readInt();
 
 			// still required for compatibility to consume the bytes.
 			MetadataV3Serializer.deserializeStreamStateHandle(dis);
@@ -159,11 +173,23 @@ public class OperatorSnapshotUtil {
 				}
 			}
 
+			final StateObjectCollection<InputChannelStateHandle> inputChannelStateHandles =
+				v == MetadataV3Serializer.VERSION ?
+					MetadataV3Serializer.INSTANCE.deserializeInputChannelStateHandle(dis) :
+					StateObjectCollection.empty();
+
+			final StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionStateHandles =
+				v == MetadataV3Serializer.VERSION ?
+					MetadataV3Serializer.INSTANCE.deserializeResultSubpartitionStateHandle(dis) :
+					StateObjectCollection.empty();
+
 			return new OperatorSubtaskState(
 				new StateObjectCollection<>(managedOperatorState),
 				new StateObjectCollection<>(rawOperatorState),
 				new StateObjectCollection<>(managedKeyedState),
-				new StateObjectCollection<>(rawKeyedState));
+				new StateObjectCollection<>(rawKeyedState),
+				inputChannelStateHandles,
+				resultSubpartitionStateHandles);
 		}
 	}
 }

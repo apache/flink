@@ -21,6 +21,9 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -44,7 +47,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 	private static final long RESTART_DELAY_MS = 1234L;
 
-	private FailoverTopology<?, ?> failoverTopology;
+	private SchedulingTopology schedulingTopology;
 
 	private TestFailoverStrategy failoverStrategy;
 
@@ -54,13 +57,13 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 	@Before
 	public void setUp() {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
-		topologyBuilder.newVertex();
-		failoverTopology = topologyBuilder.build();
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
+		topology.newExecutionVertex();
+		schedulingTopology = topology;
 
 		failoverStrategy = new TestFailoverStrategy();
 		backoffTimeStrategy = new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS);
-		executionFailureHandler = new ExecutionFailureHandler(failoverTopology, failoverStrategy, backoffTimeStrategy);
+		executionFailureHandler = new ExecutionFailureHandler(schedulingTopology, failoverStrategy, backoffTimeStrategy);
 	}
 
 	/**
@@ -173,8 +176,8 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 			new Exception("test failure"));
 
 		assertEquals(
-			IterableUtils.toStream(failoverTopology.getVertices())
-			.map(FailoverVertex::getId)
+			IterableUtils.toStream(schedulingTopology.getVertices())
+			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet()),
 			result.getVerticesToRestart());
 	}

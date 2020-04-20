@@ -142,6 +142,17 @@ public final class StringUtils {
 		if (array instanceof Object[]) {
 			return Arrays.toString((Object[]) array);
 		}
+		// for array of byte array
+		if (array instanceof byte[][]) {
+			byte[][] b = (byte[][]) array;
+			String[] strs = new String[b.length];
+
+			for (int i = 0; i < b.length; i++) {
+				strs[i] = Arrays.toString(b[i]);
+			}
+
+			return Arrays.toString(strs);
+		}
 		if (array instanceof byte[]) {
 			return Arrays.toString((byte[]) array);
 		}

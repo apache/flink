@@ -1,7 +1,7 @@
 ---
-title: "Connect to External Systems"
-nav-parent_id: tableapi
-nav-pos: 50
+title: "Table API Connectors"
+nav-parent_id: connectors-root
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -43,21 +43,22 @@ The following tables list all available connectors and formats. Their mutual com
 | Name              | Version             | Maven dependency             | SQL Client JAR         |
 | :---------------- | :------------------ | :--------------------------- | :----------------------|
 | Filesystem        |                     | Built-in                     | Built-in               |
-| Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| HBase             | 1.4.3               | `flink-hbase`                | [Download](http://central.maven.org/maven2/org/apache/flink/flink-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| JDBC              |                     | `flink-jdbc`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| Elasticsearch     | 7                   | `flink-connector-elasticsearch7` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| HBase             | 1.4.3               | `flink-hbase`                | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| JDBC              |                     | `flink-jdbc`                 | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) |
 
 ### Formats
 
 | Name                       | Maven dependency             | SQL Client JAR         |
 | :------------------------- | :--------------------------- | :--------------------- |
 | Old CSV (for files)        | Built-in                     | Built-in               |
-| CSV (for Kafka)            | `flink-csv`                  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-csv/{{site.version}}/flink-csv-{{site.version}}-sql-jar.jar) |
-| JSON                       | `flink-json`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
-| Apache Avro                | `flink-avro`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
+| CSV (for Kafka)            | `flink-csv`                  | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-csv/{{site.version}}/flink-csv-{{site.version}}-sql-jar.jar) |
+| JSON                       | `flink-json`                 | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
+| Apache Avro                | `flink-avro`                 | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
 
 {% else %}
 
@@ -159,7 +160,6 @@ CREATE TABLE MyUserTable (
   'connector.version' = '0.10',
   'connector.topic' = 'topic_name',
   'connector.startup-mode' = 'earliest-offset',
-  'connector.properties.zookeeper.connect' = 'localhost:2181',
   'connector.properties.bootstrap.servers' = 'localhost:9092',
 
   -- declare a format for this system
@@ -177,7 +177,6 @@ tableEnvironment
       .version("0.10")
       .topic("test-input")
       .startFromEarliest()
-      .property("zookeeper.connect", "localhost:2181")
       .property("bootstrap.servers", "localhost:9092")
   )
 
@@ -211,7 +210,6 @@ table_environment \
         .version("0.10")
         .topic("test-input")
         .start_from_earliest()
-        .property("zookeeper.connect", "localhost:2181")
         .property("bootstrap.servers", "localhost:9092")
     ) \
     .with_format(  # declare a format for this system
@@ -246,7 +244,6 @@ tables:
       topic: test-input
       startup-mode: earliest-offset
       properties:
-        zookeeper.connect: localhost:2181
         bootstrap.servers: localhost:9092
 
     # declare a format for this system
@@ -773,8 +770,6 @@ CREATE TABLE MyUserTable (
 
   'connector.topic' = 'topic_name', -- required: topic name from which the table is read
 
-  -- required: specify the ZooKeeper connection string
-  'connector.properties.zookeeper.connect' = 'localhost:2181',
   -- required: specify the Kafka server connection string
   'connector.properties.bootstrap.servers' = 'localhost:9092',
   -- required for Kafka source, optional for Kafka sink, specify consumer group
@@ -814,7 +809,6 @@ CREATE TABLE MyUserTable (
     .topic("...")       // required: topic name from which the table is read
 
     // optional: connector specific properties
-    .property("zookeeper.connect", "localhost:2181")
     .property("bootstrap.servers", "localhost:9092")
     .property("group.id", "testGroup")
 
@@ -844,7 +838,6 @@ CREATE TABLE MyUserTable (
     .topic("...")     # required: topic name from which the table is read
 
     # optional: connector specific properties
-    .property("zookeeper.connect", "localhost:2181")
     .property("bootstrap.servers", "localhost:9092")
     .property("group.id", "testGroup")
 
@@ -874,7 +867,6 @@ connector:
   topic: ...          # required: topic name from which the table is read
 
   properties:
-    zookeeper.connect: localhost:2181  # required: specify the ZooKeeper connection string
     bootstrap.servers: localhost:9092  # required: specify the Kafka server connection string
     group.id: testGroup                # optional: required in Kafka consumer, specify consumer group
 
@@ -936,7 +928,17 @@ CREATE TABLE MyUserTable (
 
   'connector.hosts' = 'http://host_name:9092;http://host_name:9093',  -- required: one or more Elasticsearch hosts to connect to
 
-  'connector.index' = 'MyUsers',       -- required: Elasticsearch index
+  'connector.index' = 'myusers',       -- required: Elasticsearch index. Flink supports both static index and dynamic index.
+                                       -- If you want to have a static index, this option value should be a plain string, 
+                                       -- e.g. 'myusers', all the records will be consistently written into "myusers" index.
+                                       -- If you want to have a dynamic index, you can use '{field_name}' to reference a field
+                                       -- value in the record to dynamically generate a target index. You can also use 
+                                       -- '{field_name|date_format_string}' to convert a field value of TIMESTAMP/DATE/TIME type
+                                       -- into the format specified by date_format_string. The date_format_string is 
+                                       -- compatible with Java's [DateTimeFormatter](https://docs.oracle.com/javase/8/docs/api/index.html).
+                                       -- For example, if the option value is 'myusers-{log_ts|yyyy-MM-dd}', then a 
+                                       -- record with log_ts field value 2020-03-27 12:25:55 will be written into 
+                                       -- "myusers-2020-03-27" index.
 
   'connector.document-type' = 'user',  -- required: Elasticsearch document type
 
@@ -1250,7 +1252,7 @@ To use JDBC connector, need to choose an actual driver to use. Here are drivers 
 
 | Name        |      Group Id      |      Artifact Id     |      JAR         |
 | :-----------| :------------------| :--------------------| :----------------|
-| MySQL       |        mysql       | mysql-connector-java | [Download](http://central.maven.org/maven2/mysql/mysql-connector-java/) |
+| MySQL       |        mysql       | mysql-connector-java | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
 | PostgreSQL  |   org.postgresql   |      postgresql      | [Download](https://jdbc.postgresql.org/download.html) |
 | Derby       |  org.apache.derby  |        derby         | [Download](http://db.apache.org/derby/derby_downloads.html) |
 

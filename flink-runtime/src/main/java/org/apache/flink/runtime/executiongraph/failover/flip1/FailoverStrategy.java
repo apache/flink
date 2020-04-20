@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.Set;
 
@@ -52,7 +53,7 @@ public interface FailoverStrategy {
 		 * @return The instantiated failover strategy.
 		 */
 		FailoverStrategy create(
-			FailoverTopology<?, ?> topology,
+			SchedulingTopology topology,
 			ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker);
 	}
 }

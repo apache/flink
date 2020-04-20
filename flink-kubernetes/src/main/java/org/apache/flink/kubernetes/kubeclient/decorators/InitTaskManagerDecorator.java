@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesToleration;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -59,6 +60,10 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 				.endMetadata()
 			.editOrNewSpec()
 				.withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
+				.withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
+				.withTolerations(kubernetesTaskManagerParameters.getTolerations().stream()
+					.map(e -> KubernetesToleration.fromMap(e).getInternalResource())
+					.collect(Collectors.toList()))
 				.endSpec()
 			.build();
 

@@ -66,7 +66,7 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			resourceManagerMetricGroup);
 	}
 
-	public static Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
+	private static Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
 		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
 			originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}

@@ -184,17 +184,18 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	}
 
 	@Override
-	public Collection<ResultPartition> createResultPartitionWriters(
+	public List<ResultPartition> createResultPartitionWriters(
 			ShuffleIOOwnerContext ownerContext,
 			List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
 		synchronized (lock) {
 			Preconditions.checkState(!isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
-			int counter = 0;
-			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
-				resultPartitions[counter] = resultPartitionFactory.create(ownerContext.getOwnerName(), counter, rpdd);
-				counter++;
+			for (int partitionIndex = 0; partitionIndex < resultPartitions.length; partitionIndex++) {
+				resultPartitions[partitionIndex] = resultPartitionFactory.create(
+					ownerContext.getOwnerName(),
+					partitionIndex,
+					resultPartitionDeploymentDescriptors.get(partitionIndex));
 			}
 
 			registerOutputMetrics(config.isNetworkDetailedMetrics(), ownerContext.getOutputGroup(), resultPartitions);
@@ -203,7 +204,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	}
 
 	@Override
-	public Collection<SingleInputGate> createInputGates(
+	public List<SingleInputGate> createInputGates(
 			ShuffleIOOwnerContext ownerContext,
 			PartitionProducerStateProvider partitionProducerStateProvider,
 			List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
@@ -215,18 +216,18 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			InputChannelMetrics inputChannelMetrics = new InputChannelMetrics(networkInputGroup, ownerContext.getParentGroup());
 
 			SingleInputGate[] inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
-			int counter = 0;
-			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
+			for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
+				final InputGateDeploymentDescriptor igdd = inputGateDeploymentDescriptors.get(gateIndex);
 				SingleInputGate inputGate = singleInputGateFactory.create(
 					ownerContext.getOwnerName(),
-					counter,
+					gateIndex,
 					igdd,
 					partitionProducerStateProvider,
 					inputChannelMetrics);
 				InputGateID id = new InputGateID(igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());
 				inputGatesById.put(id, inputGate);
 				inputGate.getCloseFuture().thenRun(() -> inputGatesById.remove(id));
-				inputGates[counter++] = inputGate;
+				inputGates[gateIndex] = inputGate;
 			}
 
 			registerInputMetrics(config.isNetworkDetailedMetrics(), networkInputGroup, inputGates);

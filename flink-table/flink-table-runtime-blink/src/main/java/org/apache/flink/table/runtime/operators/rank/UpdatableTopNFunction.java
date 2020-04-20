@@ -96,11 +96,11 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			boolean generateRetraction,
+			boolean generateUpdateBefore,
 			boolean outputRankNumber,
 			long cacheSize) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
-				rankRange, generateRetraction, outputRankNumber);
+				rankRange, generateUpdateBefore, outputRankNumber);
 		this.rowKeyType = rowKeySelector.getProducedType();
 		this.cacheSize = cacheSize;
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());

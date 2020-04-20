@@ -35,6 +35,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -45,6 +46,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
@@ -70,6 +73,7 @@ public class TaskManagerServices {
 	private final JobLeaderService jobLeaderService;
 	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
 	private final TaskEventDispatcher taskEventDispatcher;
+	private final ExecutorService ioExecutor;
 
 	TaskManagerServices(
 		UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
@@ -82,7 +86,8 @@ public class TaskManagerServices {
 		JobManagerTable jobManagerTable,
 		JobLeaderService jobLeaderService,
 		TaskExecutorLocalStateStoresManager taskManagerStateStore,
-		TaskEventDispatcher taskEventDispatcher) {
+		TaskEventDispatcher taskEventDispatcher,
+		ExecutorService ioExecutor) {
 
 		this.unresolvedTaskManagerLocation = Preconditions.checkNotNull(unresolvedTaskManagerLocation);
 		this.managedMemorySize = managedMemorySize;
@@ -95,6 +100,7 @@ public class TaskManagerServices {
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
 		this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
 		this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
+		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -145,6 +151,10 @@ public class TaskManagerServices {
 		return taskEventDispatcher;
 	}
 
+	public Executor getIOExecutor() {
+		return ioExecutor;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Shut down method
 	// --------------------------------------------------------------------------------------------
@@ -188,6 +198,12 @@ public class TaskManagerServices {
 
 		try {
 			jobLeaderService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			ioExecutor.shutdown();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -268,6 +284,8 @@ public class TaskManagerServices {
 			stateRootDirectoryFiles,
 			taskIOExecutor);
 
+		final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(new ExecutorThreadFactory("taskexecutor-io"));
+
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
 			taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
@@ -279,7 +297,8 @@ public class TaskManagerServices {
 			jobManagerTable,
 			jobLeaderService,
 			taskStateManager,
-			taskEventDispatcher);
+			taskEventDispatcher,
+			ioExecutor);
 	}
 
 	private static TaskSlotTable<Task> createTaskSlotTable(

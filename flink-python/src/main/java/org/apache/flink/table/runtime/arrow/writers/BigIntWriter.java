@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.dataformat.TypeGetterSetters;
 
 import org.apache.arrow.vector.BigIntVector;
 
@@ -27,18 +27,18 @@ import org.apache.arrow.vector.BigIntVector;
  * {@link ArrowFieldWriter} for BigInt.
  */
 @Internal
-public final class BigIntWriter extends ArrowFieldWriter<Row> {
+public final class BigIntWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
 
 	public BigIntWriter(BigIntVector bigIntVector) {
 		super(bigIntVector);
 	}
 
 	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
+	public void doWrite(T row, int ordinal) {
+		if (row.isNullAt(ordinal)) {
 			((BigIntVector) getValueVector()).setNull(getCount());
 		} else {
-			((BigIntVector) getValueVector()).setSafe(getCount(), (long) value.getField(ordinal));
+			((BigIntVector) getValueVector()).setSafe(getCount(), row.getLong(ordinal));
 		}
 	}
 }

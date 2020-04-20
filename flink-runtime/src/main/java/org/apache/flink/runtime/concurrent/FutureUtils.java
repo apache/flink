@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -70,6 +71,21 @@ public class FutureUtils {
 	 */
 	public static CompletableFuture<Void> completedVoidFuture() {
 		return COMPLETED_VOID_FUTURE;
+	}
+
+	/**
+	 * Fakes asynchronous execution by immediately executing the operation and returns a (exceptionally) completed
+	 * future.
+	 *
+	 * @param operation to executed
+	 * @param <T> type of the result
+	 */
+	public static <T> CompletableFuture<T> runSync(Callable<T> operation) {
+		try {
+			return CompletableFuture.completedFuture(operation.call());
+		} catch (Exception e) {
+			return completedExceptionally(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------

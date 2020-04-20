@@ -31,6 +31,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -41,7 +43,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
+import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -51,6 +53,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -357,5 +360,15 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	@Override
 	public String getHostname() {
 		return hostname;
+	}
+
+	@Override
+	public CompletableFuture<Map<IntermediateDataSetID, DataSetMetaInfo>> listDataSets() {
+		return CompletableFuture.completedFuture(Collections.emptyMap());
+	}
+
+	@Override
+	public CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetToRelease) {
+		return CompletableFuture.completedFuture(null);
 	}
 }

@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.runtime.stream.table
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{StreamQueryConfig, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.{Top3, Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
@@ -33,8 +32,6 @@ import org.junit.Test
   * Tests of groupby (without window) table aggregations
   */
 class TableAggregateITCase extends StreamingWithStateTestBase {
-  private val queryConfig = new StreamQueryConfig()
-  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
   @Test
   def testGroupByFlatAggregate(): Unit = {
@@ -50,7 +47,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       .select('b, 'f0, 'f1)
       .as('category, 'v1, 'v2)
 
-    val results = resultTable.toRetractStream[Row](queryConfig)
+    val results = resultTable.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -88,7 +85,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       .select('b, 'f0, 'f1)
       .as('category, 'v1, 'v2)
 
-    val results = resultTable.toRetractStream[Row](queryConfig)
+    val results = resultTable.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -126,7 +123,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       .select('f0, 'f1)
       .as('v1, 'v2)
 
-    val results = resultTable.toRetractStream[Row](queryConfig)
+    val results = resultTable.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -153,7 +150,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       .flatAggregate(top3('a) as ('v1, 'v2))
       .select('v1, 'v2)
 
-    val results = resultTable.toRetractStream[Row](queryConfig)
+    val results = resultTable.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 

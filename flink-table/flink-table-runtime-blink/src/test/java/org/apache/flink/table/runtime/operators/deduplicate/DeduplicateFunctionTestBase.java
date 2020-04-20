@@ -33,8 +33,6 @@ import org.apache.flink.table.types.logical.VarCharType;
 abstract class DeduplicateFunctionTestBase {
 
 	Time minTime = Time.milliseconds(10);
-	Time maxTime = Time.milliseconds(20);
-
 	BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
 			new IntType());
 

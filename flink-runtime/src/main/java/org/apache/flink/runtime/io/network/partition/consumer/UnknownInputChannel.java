@@ -122,11 +122,11 @@ class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress),
+		return new RemoteInputChannel(inputGate, getChannelIndex(), partitionId, checkNotNull(producerAddress),
 			connectionManager, initialBackoff, maxBackoff, metrics, memorySegmentProvider);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, initialBackoff, maxBackoff, metrics);
+		return new LocalInputChannel(inputGate, getChannelIndex(), partitionId, partitionManager, taskEventPublisher, initialBackoff, maxBackoff, metrics);
 	}
 }

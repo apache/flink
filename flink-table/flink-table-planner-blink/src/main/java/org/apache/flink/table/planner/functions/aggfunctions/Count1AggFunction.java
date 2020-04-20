@@ -59,7 +59,7 @@ public class Count1AggFunction extends DeclarativeAggregateFunction {
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* count1 = */ literal(0L, getResultType())
+				/* count1 = */ literal(0L, getResultType().notNull())
 		};
 	}
 

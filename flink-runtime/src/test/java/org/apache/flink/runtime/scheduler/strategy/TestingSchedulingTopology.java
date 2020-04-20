@@ -31,20 +31,20 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A simple scheduling topology for testing purposes.
  */
-public class TestingSchedulingTopology
-	implements SchedulingTopology<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
+public class TestingSchedulingTopology implements SchedulingTopology {
 
 	// Use linked map here to so we can get the values in inserted order
 	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> schedulingExecutionVertices = new LinkedHashMap<>();
 
 	private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition> schedulingResultPartitions = new HashMap<>();
+
+	private boolean containsCoLocationConstraints;
 
 	@Override
 	public Iterable<TestingSchedulingExecutionVertex> getVertices() {
@@ -53,18 +53,29 @@ public class TestingSchedulingTopology
 
 	@Override
 	public boolean containsCoLocationConstraints() {
-		return false;
+		return containsCoLocationConstraints;
+	}
+
+	public void setContainsCoLocationConstraints(final boolean containsCoLocationConstraints) {
+		this.containsCoLocationConstraints = containsCoLocationConstraints;
 	}
 
 	@Override
-	public Optional<TestingSchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId)  {
-		return Optional.ofNullable(schedulingExecutionVertices.get(executionVertexId));
+	public TestingSchedulingExecutionVertex getVertex(final ExecutionVertexID executionVertexId) {
+		final TestingSchedulingExecutionVertex executionVertex = schedulingExecutionVertices.get(executionVertexId);
+		if (executionVertex == null) {
+			throw new IllegalArgumentException("can not find vertex: " + executionVertexId);
+		}
+		return executionVertex;
 	}
 
 	@Override
-	public Optional<TestingSchedulingResultPartition> getResultPartition(
-			IntermediateResultPartitionID intermediateResultPartitionId) {
-		return Optional.of(schedulingResultPartitions.get(intermediateResultPartitionId));
+	public TestingSchedulingResultPartition getResultPartition(final IntermediateResultPartitionID intermediateResultPartitionId) {
+		final TestingSchedulingResultPartition resultPartition = schedulingResultPartitions.get(intermediateResultPartitionId);
+		if (resultPartition == null) {
+			throw new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId);
+		}
+		return resultPartition;
 	}
 
 	void addSchedulingExecutionVertex(TestingSchedulingExecutionVertex schedulingExecutionVertex) {
@@ -93,6 +104,33 @@ public class TestingSchedulingTopology
 
 	public SchedulingExecutionVerticesBuilder addExecutionVertices() {
 		return new SchedulingExecutionVerticesBuilder();
+	}
+
+	public TestingSchedulingExecutionVertex newExecutionVertex() {
+		final TestingSchedulingExecutionVertex newVertex = new TestingSchedulingExecutionVertex(new JobVertexID(), 0);
+		addSchedulingExecutionVertex(newVertex);
+		return newVertex;
+	}
+
+	public TestingSchedulingTopology connect(
+		TestingSchedulingExecutionVertex producer,
+		TestingSchedulingExecutionVertex consumer,
+		ResultPartitionType resultPartitionType) {
+
+		final TestingSchedulingResultPartition resultPartition = new TestingSchedulingResultPartition.Builder()
+			.withResultPartitionType(resultPartitionType)
+			.build();
+
+		resultPartition.addConsumer(consumer);
+		resultPartition.setProducer(producer);
+
+		producer.addProducedPartition(resultPartition);
+		consumer.addConsumedPartition(resultPartition);
+
+		updateVertexResultPartitions(producer);
+		updateVertexResultPartitions(consumer);
+
+		return this;
 	}
 
 	public ProducerConsumerConnectionBuilder connectPointwise(

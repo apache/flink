@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.runtime.stream.table
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{StreamQueryConfig, Tumble, Types}
-import org.apache.flink.table.expressions.Literal
+import org.apache.flink.table.api.{Tumble, Types}
 import org.apache.flink.table.expressions.utils.Func20
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
@@ -36,9 +34,6 @@ import org.junit.Test
 import scala.collection.mutable
 
 class JoinITCase extends StreamingWithStateTestBase {
-
-  private val queryConfig = new StreamQueryConfig()
-  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
   @Test
   def testInnerJoinOutputWithPk(): Unit = {
@@ -96,7 +91,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     leftTableWithPk
       .join(rightTableWithPk, 'b === 'bb)
       .select('a, 'b, 'c)
-      .insertInto("upsertSink", queryConfig)
+      .insertInto("upsertSink")
 
     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
@@ -156,7 +151,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     leftTableWithPk
       .join(rightTable, 'a === 'bb && ('a < 4 || 'a > 4))
       .select('a, 'b, 'c, 'd)
-      .insertInto("retractSink", queryConfig)
+      .insertInto("retractSink")
 
     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues

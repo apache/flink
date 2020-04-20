@@ -23,7 +23,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.BatchQueryConfig
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.runtime.IntersectCoGroupFunction
 import org.apache.flink.types.Row
@@ -75,12 +74,10 @@ class DataSetIntersect(
     }
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvImpl,
-      queryConfig: BatchQueryConfig): DataSet[Row] = {
+  override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val coGroupedDs = leftDataSet.coGroup(rightDataSet)
 

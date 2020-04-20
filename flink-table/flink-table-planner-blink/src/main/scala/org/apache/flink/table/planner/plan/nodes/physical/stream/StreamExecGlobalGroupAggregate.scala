@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCo
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchGlobalGroupAggFunction
@@ -63,14 +62,6 @@ class StreamExecGlobalGroupAggregate(
     val partialFinalType: PartialFinalType)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
   with StreamExecNode[BaseRow] {
-
-  override def producesUpdates = true
-
-  override def needsUpdatesAsRetraction(input: RelNode) = true
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
@@ -129,7 +120,7 @@ class StreamExecGlobalGroupAggregate(
 
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
 
     val localAggsHandler = generateAggsHandler(
       "LocalGroupAggsHandler",
@@ -171,7 +162,7 @@ class StreamExecGlobalGroupAggregate(
         recordEqualiser,
         globalAccTypes,
         indexOfCountStar,
-        generateRetraction)
+        generateUpdateBefore)
 
       new KeyedMapBundleOperator(
         aggFunction,
@@ -223,6 +214,5 @@ class StreamExecGlobalGroupAggregate(
       .needMerge(mergedAccOffset, mergedAccOnHeap, mergedAccExternalTypes)
       .generateAggsHandler(name, aggInfoList)
   }
-
 
 }

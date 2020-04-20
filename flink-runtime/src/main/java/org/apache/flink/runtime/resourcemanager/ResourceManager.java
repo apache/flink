@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -38,6 +37,10 @@ import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
+import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -54,7 +57,7 @@ import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistrat
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
+import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
@@ -77,6 +80,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -127,6 +131,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** The slot manager maintains the available slots. */
 	private final SlotManager slotManager;
 
+	private final ResourceManagerPartitionTracker clusterPartitionTracker;
+
 	private final ClusterInformation clusterInformation;
 
 	private final ResourceManagerMetricGroup resourceManagerMetricGroup;
@@ -155,10 +161,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
+			ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) {
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			Time rpcTimeout) {
 
 		super(rpcService, resourceManagerEndpointId, null);
 
@@ -178,6 +186,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		this.jobManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 		this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
+
+		this.clusterPartitionTracker = checkNotNull(clusterPartitionTrackerFactory).get(
+			(taskExecutorResourceId, dataSetIds) -> taskExecutors.get(taskExecutorResourceId).getTaskExecutorGateway()
+				.releaseClusterPartitions(dataSetIds, rpcTimeout)
+				.exceptionally(throwable -> {
+					log.debug("Request for release of cluster partitions belonging to data sets {} was not successful.", dataSetIds, throwable);
+					throw new CompletionException(throwable);
+				})
+		);
 	}
 
 
@@ -621,6 +638,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
+	@Override
+	public CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetId) {
+		return clusterPartitionTracker.releaseClusterPartitions(dataSetId);
+	}
+
+	@Override
+	public CompletableFuture<Map<IntermediateDataSetID, DataSetMetaInfo>> listDataSets() {
+		return CompletableFuture.completedFuture(clusterPartitionTracker.listDataSets());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal methods
 	// ------------------------------------------------------------------------
@@ -818,6 +845,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			// TODO :: suggest failed task executor to stop itself
 			slotManager.unregisterTaskManager(workerRegistration.getInstanceID(), cause);
+			clusterPartitionTracker.processTaskExecutorShutdown(resourceID);
 
 			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
 		} else {
@@ -1051,13 +1079,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Nullable String optionalDiagnostics) throws ResourceManagerException;
 
 	/**
-	 * Allocates a resource using the resource profile.
+	 * Allocates a resource using the worker resource specification.
 	 *
-	 * @param resourceProfile The resource description
-	 * @return Collection of {@link ResourceProfile} describing the launched slots
+	 * @param workerResourceSpec workerResourceSpec specifies the size of the to be allocated resource
+	 * @return whether the resource can be allocated
 	 */
 	@VisibleForTesting
-	public abstract Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile);
+	public abstract boolean startNewWorker(WorkerResourceSpec workerResourceSpec);
 
 	/**
 	 * Callback when a worker was started.
@@ -1095,9 +1123,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 
 		@Override
-		public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) {
+		public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
 			validateRunsInMainThread();
-			return startNewWorker(resourceProfile);
+			return startNewWorker(workerResourceSpec);
 		}
 
 		@Override
@@ -1164,6 +1192,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				InstanceID instanceId = workerRegistration.getInstanceID();
 
 				slotManager.reportSlotStatus(instanceId, payload.getSlotReport());
+				clusterPartitionTracker.processTaskExecutorClusterPartitionReport(resourceID, payload.getClusterPartitionReport());
 			}
 		}
 
@@ -1206,8 +1235,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	//  Resource Management
 	// ------------------------------------------------------------------------
 
-	protected int getNumberRequiredTaskManagerSlots() {
-		return slotManager.getNumberPendingTaskManagerSlots();
+	protected int getNumberRequiredTaskManagers() {
+		return getRequiredResources().values().stream().reduce(0, Integer::sum);
+	}
+
+	protected Map<WorkerResourceSpec, Integer> getRequiredResources() {
+		return slotManager.getRequiredResources();
 	}
 }
 

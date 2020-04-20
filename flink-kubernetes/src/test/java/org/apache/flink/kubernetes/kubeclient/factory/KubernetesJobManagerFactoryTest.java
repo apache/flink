@@ -51,6 +51,7 @@ import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILE
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -179,8 +180,9 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		final Service resultInternalService = internalServiceCandidates.get(0);
 		assertEquals(2, resultInternalService.getMetadata().getLabels().size());
 
-		assertEquals(resultInternalService.getSpec().getType(), "ClusterIP");
-		assertEquals(3, resultInternalService.getSpec().getPorts().size());
+		assertNull(resultInternalService.getSpec().getType());
+		assertEquals(Constants.HEADLESS_SERVICE_CLUSTER_IP, resultInternalService.getSpec().getClusterIP());
+		assertEquals(2, resultInternalService.getSpec().getPorts().size());
 		assertEquals(5, resultInternalService.getSpec().getSelector().size());
 
 		final Service resultRestService = restServiceCandidates.get(0);

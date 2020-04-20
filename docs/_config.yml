@@ -85,7 +85,6 @@ previous_docs:
 
 exclude:
   - "build_docs.sh"
-  - "build_docs.bat"
   - "check_links.sh"
 
 # Used in some documents to initialize arrays. Don't delete.

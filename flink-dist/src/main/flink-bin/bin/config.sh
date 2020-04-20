@@ -110,6 +110,7 @@ DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_JAVA_OPTS_JM=""                         # Optional JVM args (JobManager)
 DEFAULT_ENV_JAVA_OPTS_TM=""                         # Optional JVM args (TaskManager)
 DEFAULT_ENV_JAVA_OPTS_HS=""                         # Optional JVM args (HistoryServer)
+DEFAULT_ENV_JAVA_OPTS_CLI=""                        # Optional JVM args (Client)
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
 DEFAULT_YARN_CONF_DIR=""                            # YARN Configuration Directory, if necessary
 DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Directory, if necessary
@@ -133,6 +134,7 @@ KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_JAVA_OPTS_HS="env.java.opts.historyserver"
+KEY_ENV_JAVA_OPTS_CLI="env.java.opts.client"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
@@ -430,6 +432,12 @@ if [ -z "${FLINK_ENV_JAVA_OPTS_HS}" ]; then
     FLINK_ENV_JAVA_OPTS_HS="$( echo "${FLINK_ENV_JAVA_OPTS_HS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
+if [ -z "${FLINK_ENV_JAVA_OPTS_CLI}" ]; then
+    FLINK_ENV_JAVA_OPTS_CLI=$(readFromConfig ${KEY_ENV_JAVA_OPTS_CLI} "${DEFAULT_ENV_JAVA_OPTS_CLI}" "${YAML_CONF}")
+    # Remove leading and ending double quotes (if present) of value
+    FLINK_ENV_JAVA_OPTS_CLI="$( echo "${FLINK_ENV_JAVA_OPTS_CLI}" | sed -e 's/^"//'  -e 's/"$//' )"
+fi
+
 if [ -z "${FLINK_SSH_OPTS}" ]; then
     FLINK_SSH_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
 fi
@@ -636,10 +644,16 @@ extractExecutionParams() {
     local execution_config=$1
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
-    if ! [[ $execution_config =~ ^${EXECUTION_PREFIX}.* ]]; then
+    local num_lines=$(echo "$execution_config" | wc -l)
+    if ! [[ ${num_lines} == 1 ]]; then
+        echo "[ERROR] Unexpected result ($num_lines lines): $execution_config" 1>&2
+        echo "[ERROR] extractExecutionParams only accepts exactly one line as the input" 1>&2
+        exit 1
+    fi
+
+    if ! [[ ${execution_config} =~ ^${EXECUTION_PREFIX}.* ]]; then
         echo "[ERROR] Unexpected result: $execution_config" 1>&2
-        echo "[ERROR] The last line of the BashJavaUtils outputs is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
-        echo "$output" 1>&2
+        echo "[ERROR] The output of BashJavaUtils is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
         exit 1
     fi
 

@@ -66,9 +66,9 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	private final RecordCounter recordCounter;
 
 	/**
-	 * Whether this operator will generate retraction.
+	 * Whether this operator will generate UPDATE_BEFORE messages.
 	 */
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	/**
 	 * Reused output row.
@@ -95,7 +95,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
-	 * @param generateRetraction Whether this operator will generate retraction.
+	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
 	 */
 	public GroupAggFunction(
 			long minRetentionTime,
@@ -104,13 +104,13 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 			GeneratedRecordEqualiser genRecordEqualiser,
 			LogicalType[] accTypes,
 			int indexOfCountStar,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		super(minRetentionTime, maxRetentionTime);
 		this.genAggsHandler = genAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.accTypes = accTypes;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
@@ -189,7 +189,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 					return;
 				} else {
 					// retract previous result
-					if (generateRetraction) {
+					if (generateUpdateBefore) {
 						// prepare retraction message for previous row
 						resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
 						out.collect(resultRow);

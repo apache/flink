@@ -102,16 +102,6 @@ class StreamTableEnvironmentImpl (
     toDataStream[T](table, modifyOperation)
   }
 
-  override def toAppendStream[T: TypeInformation](
-      table: Table,
-      queryConfig: StreamQueryConfig)
-    : DataStream[T] = {
-    tableConfig.setIdleStateRetentionTime(
-      Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
-      Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
-    toAppendStream(table)
-  }
-
   override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
     val returnType = createTypeInformation[(Boolean, T)]
 
@@ -120,16 +110,6 @@ class StreamTableEnvironmentImpl (
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.RETRACT)
     toDataStream(table, modifyOperation)
-  }
-
-  override def toRetractStream[T: TypeInformation](
-      table: Table,
-      queryConfig: StreamQueryConfig)
-    : DataStream[(Boolean, T)] = {
-    tableConfig.setIdleStateRetentionTime(
-        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
-        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
-    toRetractStream(table)
   }
 
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
@@ -253,26 +233,6 @@ class StreamTableEnvironmentImpl (
       )
     case _ =>
       queryOperation
-  }
-
-  override def sqlUpdate(stmt: String, config: StreamQueryConfig): Unit = {
-    tableConfig
-      .setIdleStateRetentionTime(
-        Time.milliseconds(config.getMinIdleStateRetentionTime),
-        Time.milliseconds(config.getMaxIdleStateRetentionTime))
-    sqlUpdate(stmt)
-  }
-
-  override def insertInto(
-      table: Table,
-      queryConfig: StreamQueryConfig,
-      sinkPath: String,
-      sinkPathContinued: String*): Unit = {
-    tableConfig
-      .setIdleStateRetentionTime(
-        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
-        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
-    insertInto(table, sinkPath, sinkPathContinued: _*)
   }
 
   override def createTemporaryView[T](

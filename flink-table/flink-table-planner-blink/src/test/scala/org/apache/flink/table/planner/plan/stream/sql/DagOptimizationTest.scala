@@ -38,8 +38,8 @@ class DagOptimizationTest extends TableTestBase {
   @Test
   def testSingleSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT c, COUNT(a) AS cnt FROM MyTable GROUP BY c")
-    val appendSink = util.createAppendTableSink(Array("c", "cnt"), Array(STRING, LONG))
-    util.writeToSink(table, appendSink, "appendSink")
+    val retractSink = util.createRetractTableSink(Array("c", "cnt"), Array(STRING, LONG))
+    util.writeToSink(table, retractSink, "retractSink")
     util.verifyPlanWithTrait()
   }
 
@@ -141,11 +141,11 @@ class DagOptimizationTest extends TableTestBase {
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(sum_a) AS total_sum FROM table1")
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
-    val appendSink1 = util.createAppendTableSink(Array("total_sum"), Array(INT))
-    util.writeToSink(table2, appendSink1, "appendSink1")
+    val retractSink1 = util.createRetractTableSink(Array("total_sum"), Array(INT))
+    util.writeToSink(table2, retractSink1, "retractSink1")
 
-    val appendSink2 = util.createAppendTableSink(Array("total_min"), Array(INT))
-    util.writeToSink(table3, appendSink2, "appendSink2")
+    val retractSink2 = util.createRetractTableSink(Array("total_min"), Array(INT))
+    util.writeToSink(table3, retractSink2, "retractSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -226,11 +226,11 @@ class DagOptimizationTest extends TableTestBase {
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM table1")
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM table1")
 
-    val appendSink1 = util.createAppendTableSink(Array("total_sum"), Array(INT))
-    util.writeToSink(table2, appendSink1, "appendSink1")
+    val retractSink1 = util.createRetractTableSink(Array("total_sum"), Array(INT))
+    util.writeToSink(table2, retractSink1, "retractSink1")
 
-    val appendSink2 = util.createAppendTableSink(Array("total_min"), Array(INT))
-    util.writeToSink(table3, appendSink2, "appendSink2")
+    val retractSink2 = util.createRetractTableSink(Array("total_min"), Array(INT))
+    util.writeToSink(table3, retractSink2, "retractSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -263,13 +263,13 @@ class DagOptimizationTest extends TableTestBase {
 
     val sqlQuery5 = "SELECT * FROM table4 WHERE a > 50"
     val table5 = util.tableEnv.sqlQuery(sqlQuery5)
-    val appendSink1 = util.createAppendTableSink(Array("a", "total_c"), Array(INT, LONG))
-    util.writeToSink(table5, appendSink1, "appendSink1")
+    val retractSink1 = util.createRetractTableSink(Array("a", "total_c"), Array(INT, LONG))
+    util.writeToSink(table5, retractSink1, "retractSink1")
 
     val sqlQuery6 = "SELECT * FROM table4 WHERE a < 50"
     val table6 = util.tableEnv.sqlQuery(sqlQuery6)
-    val appendSink2 = util.createAppendTableSink(Array("a", "total_c"), Array(INT, LONG))
-    util.writeToSink(table6, appendSink2, "appendSink2")
+    val retractSink2 = util.createRetractTableSink(Array("a", "total_c"), Array(INT, LONG))
+    util.writeToSink(table6, retractSink2, "retractSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -314,12 +314,12 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.registerTable("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
-    val appendSink1 = util.createAppendTableSink(Array("total_sum"), Array(INT))
-    util.writeToSink(table1, appendSink1, "appendSink1")
+    val retractSink1 = util.createRetractTableSink(Array("total_sum"), Array(INT))
+    util.writeToSink(table1, retractSink1, "retractSink1")
 
     val table2 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable")
-    val appendSink2 = util.createAppendTableSink(Array("total_min"), Array(INT))
-    util.writeToSink(table2, appendSink2, "appendSink2")
+    val retractSink2 = util.createRetractTableSink(Array("total_min"), Array(INT))
+    util.writeToSink(table2, retractSink2, "retractSink2")
 
     val sqlQuery2 = "SELECT a FROM (SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
     val table3 = util.tableEnv.sqlQuery(sqlQuery2)

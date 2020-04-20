@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -71,7 +72,8 @@ public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<Re
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
+		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration =
+			ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, MesosWorkerResourceSpecFactory.INSTANCE);
 		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			rmServicesConfiguration,
 			highAvailabilityServices,
@@ -87,6 +89,7 @@ public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<Re
 			highAvailabilityServices,
 			heartbeatServices,
 			rmRuntimeServices.getSlotManager(),
+			ResourceManagerPartitionTrackerImpl::new,
 			rmRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,

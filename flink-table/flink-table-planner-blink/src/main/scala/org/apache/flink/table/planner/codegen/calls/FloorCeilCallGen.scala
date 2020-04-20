@@ -69,7 +69,7 @@ class FloorCeilCallGen(
             case YEAR | QUARTER | MONTH | DAY | HOUR
               if terms.length + 1 == method.getParameterCount &&
                 method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
-              val timeZone = ctx.addReusableTimeZone()
+              val timeZone = ctx.addReusableSessionTimeZone()
               val longTerm = s"${terms.head}.getMillisecond()"
               s"""
                  |$SQL_TIMESTAMP.fromEpochMillis(

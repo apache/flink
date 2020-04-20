@@ -93,10 +93,22 @@
             <td>The labels to be set for JobManager pod. Specified as key:value pairs separated by commas. For example, version:alphav1,deploy:test.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.jobmanager.node-selector</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The node selector to be set for JobManager pod. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
             <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>
             <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.tolerations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified tolerations to be set to the JobManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
         </tr>
         <tr>
             <td><h5>kubernetes.namespace</h5></td>
@@ -109,12 +121,6 @@
             <td style="word-wrap: break-word;">LoadBalancer</td>
             <td><p>Enum</p>Possible values: [ClusterIP, NodePort, LoadBalancer]</td>
             <td>The type of the rest service (ClusterIP or NodePort or LoadBalancer). When set to ClusterIP, the rest service will not be created.</td>
-        </tr>
-        <tr>
-            <td><h5>kubernetes.service.create-timeout</h5></td>
-            <td style="word-wrap: break-word;">"1 min"</td>
-            <td>String</td>
-            <td>Timeout used for creating the service. The timeout value requires a time-unit specifier (ms/s/min/h/d).</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.annotations</h5></td>
@@ -133,6 +139,18 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>The labels to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, version:alphav1,deploy:test.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.node-selector</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The node selector to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.tolerations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
         </tr>
     </tbody>
 </table>

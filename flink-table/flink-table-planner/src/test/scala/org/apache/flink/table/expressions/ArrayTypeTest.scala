@@ -29,6 +29,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
 
   @Test
   def testArrayLiterals(): Unit = {
+
     // primitive literals
     testAllApis(array(1, 2, 3), "array(1, 2, 3)", "ARRAY[1, 2, 3]", "[1, 2, 3]")
 

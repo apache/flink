@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.MultiArgCount
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
@@ -199,9 +198,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
   @Test
   def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
-    val queryConfig =
-      new StreamQueryConfig().withIdleStateRetentionTime(Time.hours(2), Time.hours(3))
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
     val tEnv = StreamTableEnvironment.create(env)
@@ -220,7 +216,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "sum(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row](queryConfig)
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 

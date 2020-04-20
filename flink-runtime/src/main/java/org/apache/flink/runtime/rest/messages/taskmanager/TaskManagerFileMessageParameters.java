@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
+import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
 import java.util.Arrays;

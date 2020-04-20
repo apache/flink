@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -35,11 +36,9 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
@@ -239,18 +238,14 @@ public class LocalExecutor implements Executor {
 			}
 		});
 		// Remove the session's ExecutionContext from contextMap.
-		try {
-			this.contextMap.remove(sessionId).close();
-		} catch (IOException e) {
-			LOG.debug("Error while closing execution context.", e);
-			// ignore any throwable to keep the clean up running
-		}
+		this.contextMap.remove(sessionId);
 	}
 
 	/**
 	 * Get the existed {@link ExecutionContext} from contextMap, or thrown exception if does not exist.
 	 */
-	private ExecutionContext<?> getExecutionContext(String sessionId) throws SqlExecutionException {
+	@VisibleForTesting
+	protected ExecutionContext<?> getExecutionContext(String sessionId) throws SqlExecutionException {
 		ExecutionContext<?> context = this.contextMap.get(sessionId);
 		if (context == null) {
 			throw new SqlExecutionException("Invalid session identifier: " + sessionId);
@@ -286,6 +281,7 @@ public class LocalExecutor implements Executor {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
+
 		// Renew the ExecutionContext by new environment.
 		// Book keep all the session states of current ExecutionContext then
 		// re-register them into the new one.
@@ -629,9 +625,7 @@ public class LocalExecutor implements Executor {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
 				context.getTableEnvironment().registerTableSink(tableName, result.getTableSink());
-				table.insertInto(
-						context.getQueryConfig(),
-						tableName);
+				table.insertInto(tableName);
 			});
 			pipeline = context.createPipeline(jobName);
 		} catch (Throwable t) {
@@ -691,13 +685,7 @@ public class LocalExecutor implements Executor {
 	private <C> void applyUpdate(ExecutionContext<C> context, String updateStatement) {
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		try {
-			context.wrapClassLoader(() -> {
-				if (tableEnv instanceof StreamTableEnvironment) {
-					((StreamTableEnvironment) tableEnv).sqlUpdate(updateStatement, (StreamQueryConfig) context.getQueryConfig());
-				} else {
-					tableEnv.sqlUpdate(updateStatement);
-				}
-			});
+			context.wrapClassLoader(() -> tableEnv.sqlUpdate(updateStatement));
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL update statement.", t);

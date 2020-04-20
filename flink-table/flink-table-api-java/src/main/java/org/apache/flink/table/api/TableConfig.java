@@ -145,14 +145,55 @@ public class TableConfig {
 	}
 
 	/**
-	 * Returns the zone id for timestamp with local time zone.
+	 * Returns the current session time zone id. It is used when converting to/from
+	 * {@code TIMESTAMP WITH LOCAL TIME ZONE}. See {@link #setLocalTimeZone(ZoneId)} for more
+	 * details.
+	 *
+	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public ZoneId getLocalTimeZone() {
 		return localZoneId;
 	}
 
 	/**
-	 * Sets the zone id for timestamp with local time zone.
+	 * Sets the current session time zone id. It is used when converting to/from
+	 * {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}. Internally, timestamps with local time zone are
+	 * always represented in the UTC time zone. However, when converting to data types that
+	 * don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), the session time zone
+	 * is used during conversion.
+	 *
+	 * <p>Example:
+	 * <pre>{@code
+	 * TableEnvironment tEnv = ...
+	 * TableConfig config = tEnv.getConfig
+	 * config.setLocalTimeZone(ZoneOffset.ofHours(2));
+	 * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
+	 * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
+	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
+	 * }</pre>
+	 * should produce:
+	 * <pre>
+	 * =============================
+	 *    id   |       tmstmp
+	 * =============================
+	 *    1    | 2000-01-01 2:00:00'
+	 *    2    | 2000-01-01 2:00:00'
+	 * </pre>
+	 * If we change the local time zone and query the same table:
+	 * <pre>{@code
+	 * config.setLocalTimeZone(ZoneOffset.ofHours(0));
+	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
+	 * }</pre>
+	 * we should get:
+	 * <pre>
+	 * =============================
+	 *    id   |       tmstmp
+	 * =============================
+	 *    1    | 2000-01-01 0:00:00'
+	 *    2    | 2000-01-01 0:00:00'
+	 * </pre>
+	 *
+	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public void setLocalTimeZone(ZoneId zoneId) {
 		this.localZoneId = Preconditions.checkNotNull(zoneId);

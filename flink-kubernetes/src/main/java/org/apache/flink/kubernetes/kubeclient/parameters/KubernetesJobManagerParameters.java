@@ -29,9 +29,11 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -63,6 +65,12 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 	}
 
 	@Override
+	public Map<String, String> getNodeSelector() {
+		return Collections.unmodifiableMap(
+			flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_NODE_SELECTOR).orElse(Collections.emptyMap()));
+	}
+
+	@Override
 	public Map<String, String> getEnvironments() {
 		return ConfigurationUtils.getPrefixedKeyValuePairs(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfig);
 	}
@@ -70,6 +78,11 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 	@Override
 	public Map<String, String> getAnnotations() {
 		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
+	}
+
+	@Override
+	public List<Map<String, String>> getTolerations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
 	}
 
 	public String getJobManagerMainContainerName() {
@@ -86,6 +99,10 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
 	public int getRestPort() {
 		return flinkConfig.getInteger(RestOptions.PORT);
+	}
+
+	public int getRestBindPort() {
+		return Integer.valueOf(flinkConfig.getString(RestOptions.BIND_PORT));
 	}
 
 	public int getRPCPort() {
@@ -111,5 +128,9 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
 	public KubernetesConfigOptions.ServiceExposedType getRestServiceExposedType() {
 		return flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+	}
+
+	public boolean isInternalServiceEnabled() {
+		return !HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig);
 	}
 }

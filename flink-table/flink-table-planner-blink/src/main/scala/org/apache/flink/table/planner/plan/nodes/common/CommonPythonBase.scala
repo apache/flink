@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
@@ -85,9 +86,33 @@ trait CommonPythonBase {
     }
   }
 
-  protected def getConfig(tableConfig: TableConfig): Configuration = {
-    val config = new Configuration(tableConfig.getConfiguration)
+  protected def getConfig(
+      env: StreamExecutionEnvironment,
+      tableConfig: TableConfig): Configuration = {
+    val clazz = loadClass(CommonPythonBase.PYTHON_DEPENDENCY_UTILS_CLASS)
+    val method = clazz.getDeclaredMethod(
+      "configurePythonDependencies", classOf[java.util.List[_]], classOf[Configuration])
+    val config = method.invoke(null, env.getCachedFiles, getMergedConfiguration(env, tableConfig))
+      .asInstanceOf[Configuration]
     config.setString("table.exec.timezone", tableConfig.getLocalTimeZone.getId)
     config
   }
+
+  private def getMergedConfiguration(
+      env: StreamExecutionEnvironment,
+      tableConfig: TableConfig): Configuration = {
+    // As the python dependency configurations may appear in both
+    // `StreamExecutionEnvironment#getConfiguration` (e.g. parsed from flink-conf.yaml and command
+    // line) and `TableConfig#getConfiguration` (e.g. user specified), we need to merge them and
+    // ensure the user specified configuration has priority over others.
+    val method = classOf[StreamExecutionEnvironment].getDeclaredMethod("getConfiguration")
+    method.setAccessible(true)
+    val config = new Configuration(method.invoke(env).asInstanceOf[Configuration])
+    config.addAll(tableConfig.getConfiguration)
+    config
+  }
+}
+
+object CommonPythonBase {
+  val PYTHON_DEPENDENCY_UTILS_CLASS = "org.apache.flink.python.util.PythonDependencyUtils"
 }

@@ -102,7 +102,7 @@ public class CatalogManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testReplaceTemporaryTable() throws Exception {
+	public void testIgnoreTemporaryTableExists() throws Exception {
 		ObjectIdentifier tempIdentifier = ObjectIdentifier.of(
 			BUILTIN_CATALOG_NAME,
 			BUILTIN_DEFAULT_DATABASE_NAME,
@@ -110,11 +110,12 @@ public class CatalogManagerTest extends TestLogger {
 		CatalogManager manager = root()
 			.builtin(
 				database(BUILTIN_DEFAULT_DATABASE_NAME))
-			.temporaryTable(tempIdentifier)
 			.build();
 
 		CatalogTest.TestTable table = new CatalogTest.TestTable();
 		manager.createTemporaryTable(table, tempIdentifier, true);
+		CatalogTest.TestTable anotherTable = new CatalogTest.TestTable();
+		manager.createTemporaryTable(anotherTable, tempIdentifier, true);
 		assertThat(manager.getTable(tempIdentifier).get().isTemporary(), equalTo(true));
 		assertThat(manager.getTable(tempIdentifier).get().getTable(), equalTo(table));
 	}
@@ -159,7 +160,7 @@ public class CatalogManagerTest extends TestLogger {
 				database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
+		boolean dropped = manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")));
 
 		assertThat(dropped, is(false));
 	}
@@ -173,7 +174,7 @@ public class CatalogManagerTest extends TestLogger {
 			.temporaryTable(identifier)
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
+		boolean dropped = manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")));
 
 		assertThat(dropped, is(true));
 	}

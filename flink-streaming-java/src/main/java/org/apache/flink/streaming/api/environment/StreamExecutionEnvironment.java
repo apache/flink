@@ -47,7 +47,6 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.ReadableConfigToConfigurationAdapter;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -790,7 +789,7 @@ public class StreamExecutionEnvironment {
 	private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
 		try {
 			return StateBackendLoader.loadStateBackendFromConfig(
-				new ReadableConfigToConfigurationAdapter(configuration),
+				configuration,
 				classLoader,
 				null);
 		} catch (DynamicCodeLoadingException | IOException e) {
@@ -1752,7 +1751,7 @@ public class StreamExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		CompletableFuture<JobClient> jobClientFuture = executorFactory
+		CompletableFuture<? extends JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);
 

@@ -39,7 +39,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
+import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -120,8 +120,9 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	 *
 	 * @param dataSetsToRelease data sets for which all cluster partitions should be released
 	 * @param timeout for the partitions release operation
+	 * @return Future acknowledge that the request was received
 	 */
-	void releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Time timeout);
+	CompletableFuture<Acknowledge> releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Time timeout);
 
 	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID

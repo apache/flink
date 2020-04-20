@@ -82,16 +82,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 				"left-records",
 				leftInputSideSpec,
 				leftType,
-				minRetentionTime,
-				stateCleaningEnabled);
+				minRetentionTime);
 		} else {
 			this.leftRecordStateView = JoinRecordStateViews.create(
 				getRuntimeContext(),
 				"left-records",
 				leftInputSideSpec,
 				leftType,
-				minRetentionTime,
-				stateCleaningEnabled);
+				minRetentionTime);
 		}
 
 		if (rightIsOuter) {
@@ -100,16 +98,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 				"right-records",
 				rightInputSideSpec,
 				rightType,
-				minRetentionTime,
-				stateCleaningEnabled);
+				minRetentionTime);
 		} else {
 			this.rightRecordStateView = JoinRecordStateViews.create(
 				getRuntimeContext(),
 				"right-records",
 				rightInputSideSpec,
 				rightType,
-				minRetentionTime,
-				stateCleaningEnabled);
+				minRetentionTime);
 		}
 	}
 

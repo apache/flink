@@ -119,9 +119,9 @@ class StreamPlanner(
   override def explain(operations: util.List[Operation], extended: Boolean): String = {
     operations.asScala.map {
       case queryOperation: QueryOperation =>
-        explain(queryOperation, unwrapQueryConfig)
+        explain(queryOperation)
       case modifyOperation: ModifyOperation =>
-        explain(modifyOperation.getChild, unwrapQueryConfig)
+        explain(modifyOperation.getChild)
       case operation =>
         throw new TableException(s"${operation.getClass.getCanonicalName} is not supported")
     }.mkString(s"${System.lineSeparator}${System.lineSeparator}")
@@ -139,7 +139,7 @@ class StreamPlanner(
     : Transformation[_] = {
     tableOperation match {
       case s : UnregisteredSinkModifyOperation[_] =>
-        writeToSink(s.getChild, s.getSink, unwrapQueryConfig)
+        writeToSink(s.getChild, s.getSink)
 
       case catalogSink: CatalogSinkModifyOperation =>
         getTableSink(catalogSink.getTableIdentifier)
@@ -164,7 +164,7 @@ class StreamPlanner(
                   s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
                   sink.getClass.getName)
             }
-            writeToSink(catalogSink.getChild, sink, unwrapQueryConfig)
+            writeToSink(catalogSink.getChild, sink)
           }) match {
           case Some(t) => t
           case None =>
@@ -180,7 +180,6 @@ class StreamPlanner(
 
         translateToType(
           tableOperation.getChild,
-          unwrapQueryConfig,
           isRetract,
           withChangeFlag,
           TypeConversions.fromDataTypeToLegacyInfo(outputConversion.getType)).getTransformation
@@ -190,18 +189,11 @@ class StreamPlanner(
     }
   }
 
-  private def unwrapQueryConfig = {
-    new StreamQueryConfig(
-      config.getMinIdleStateRetentionTime,
-      config.getMaxIdleStateRetentionTime
-    )
-  }
-
-  private def explain(tableOperation: QueryOperation, queryConfig: StreamQueryConfig) = {
+  private def explain(tableOperation: QueryOperation) = {
     val ast = getRelBuilder.tableOperation(tableOperation).build()
     val optimizedPlan = optimizer
       .optimize(ast, updatesAsRetraction = false, getRelBuilder)
-    val dataStream = translateToCRow(optimizedPlan, queryConfig)
+    val dataStream = translateToCRow(optimizedPlan)
 
     val env = dataStream.getExecutionEnvironment
     val jsonSqlPlan = env.getExecutionPlan
@@ -240,9 +232,7 @@ class StreamPlanner(
   private[flink] def getExecutionEnvironment: StreamExecutionEnvironment =
     executor.asInstanceOf[StreamExecutor].getExecutionEnvironment
 
-  private def translateToCRow(
-    logicalPlan: RelNode,
-    queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  private def translateToCRow(logicalPlan: RelNode): DataStream[CRow] = {
     val planner = createDummyPlanner()
 
     logicalPlan match {
@@ -250,7 +240,7 @@ class StreamPlanner(
         getExecutionEnvironment.configure(
           config.getConfiguration,
           Thread.currentThread().getContextClassLoader)
-        node.translateToPlan(planner, queryConfig)
+        node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -259,8 +249,7 @@ class StreamPlanner(
 
   private def writeToSink[T](
       tableOperation: QueryOperation,
-      sink: TableSink[T],
-      queryConfig: StreamQueryConfig)
+      sink: TableSink[T])
     : Transformation[_] = {
 
     val resultSink = sink match {
@@ -271,7 +260,7 @@ class StreamPlanner(
               "is not supported yet!")
           case _ =>
         }
-        writeToRetractSink(retractSink, tableOperation, queryConfig)
+        writeToRetractSink(retractSink, tableOperation)
 
       case upsertSink: UpsertStreamTableSink[T] =>
         upsertSink match {
@@ -280,10 +269,10 @@ class StreamPlanner(
               "is not supported yet!")
           case _ =>
         }
-        writeToUpsertSink(upsertSink, tableOperation, queryConfig)
+        writeToUpsertSink(upsertSink, tableOperation)
 
       case appendSink: AppendStreamTableSink[T] =>
-        writeToAppendSink(appendSink, tableOperation, queryConfig)
+        writeToAppendSink(appendSink, tableOperation)
 
       case _ =>
         throw new ValidationException("Stream Tables can only be emitted by AppendStreamTableSink, "
@@ -299,8 +288,7 @@ class StreamPlanner(
 
   private def writeToRetractSink[T](
       sink: RetractStreamTableSink[T],
-      tableOperation: QueryOperation,
-      streamQueryConfig: StreamQueryConfig)
+      tableOperation: QueryOperation)
     : DataStreamSink[_]= {
     // retraction sink can always be used
     val outputType = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType)
@@ -309,7 +297,6 @@ class StreamPlanner(
     val result: DataStream[JTuple2[JBool, T]] =
       translateToType(
         tableOperation,
-        streamQueryConfig,
         updatesAsRetraction = true,
         withChangeFlag = true,
         outputType)
@@ -319,8 +306,7 @@ class StreamPlanner(
 
   private def writeToAppendSink[T](
       sink: AppendStreamTableSink[T],
-      tableOperation: QueryOperation,
-      streamQueryConfig: StreamQueryConfig)
+      tableOperation: QueryOperation)
     : DataStreamSink[_]= {
     // optimize plan
     val relNode = getRelBuilder.tableOperation(tableOperation).build()
@@ -339,7 +325,6 @@ class StreamPlanner(
         optimizedPlan,
         resultType,
         outputType,
-        streamQueryConfig,
         withChangeFlag = false)
     // Give the DataStream to the TableSink to emit it.
     sink.consumeDataStream(result)
@@ -347,8 +332,7 @@ class StreamPlanner(
 
   private def writeToUpsertSink[T](
       sink: UpsertStreamTableSink[T],
-      tableOperation: QueryOperation,
-      streamQueryConfig: StreamQueryConfig)
+      tableOperation: QueryOperation)
     : DataStreamSink[_] = {
     // optimize plan
     val relNode = getRelBuilder.tableOperation(tableOperation).build()
@@ -376,7 +360,6 @@ class StreamPlanner(
         optimizedPlan,
         resultType,
         outputType,
-        streamQueryConfig,
         withChangeFlag = true)
     // Give the DataStream to the TableSink to emit it.
     sink.consumeDataStream(result)
@@ -384,7 +367,6 @@ class StreamPlanner(
 
   private def translateToType[A](
       table: QueryOperation,
-      queryConfig: StreamQueryConfig,
       updatesAsRetraction: Boolean,
       withChangeFlag: Boolean,
       tpe: TypeInformation[A])
@@ -401,17 +383,16 @@ class StreamPlanner(
     }
 
     // get CRow plan
-    translateOptimized(dataStreamPlan, rowType, tpe, queryConfig, withChangeFlag)
+    translateOptimized(dataStreamPlan, rowType, tpe, withChangeFlag)
   }
 
   private def translateOptimized[A](
       optimizedPlan: RelNode,
       logicalSchema: TableSchema,
       tpe: TypeInformation[A],
-      queryConfig: StreamQueryConfig,
       withChangeFlag: Boolean)
     : DataStream[A] = {
-    val dataStream = translateToCRow(optimizedPlan, queryConfig)
+    val dataStream = translateToCRow(optimizedPlan)
     DataStreamConversions.convert(dataStream, logicalSchema, withChangeFlag, tpe, config)
   }
 
@@ -437,7 +418,7 @@ class StreamPlanner(
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
         val context = new TableSinkFactoryContextImpl(
-          objectIdentifier, catalogTable, config.getConfiguration)
+          objectIdentifier, catalogTable, config.getConfiguration, false)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {

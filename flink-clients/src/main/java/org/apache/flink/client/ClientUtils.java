@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -54,7 +53,7 @@ public enum ClientUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
-	public static URLClassLoader buildUserCodeClassLoader(
+	public static ClassLoader buildUserCodeClassLoader(
 			List<URL> jars,
 			List<URL> classpaths,
 			ClassLoader parent,
@@ -120,7 +119,9 @@ public enum ClientUtils {
 	public static void executeProgram(
 			PipelineExecutorServiceLoader executorServiceLoader,
 			Configuration configuration,
-			PackagedProgram program) throws ProgramInvocationException {
+			PackagedProgram program,
+			boolean enforceSingleJobExecution,
+			boolean forbidBlockingJobClient) throws ProgramInvocationException {
 		checkNotNull(executorServiceLoader);
 		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -132,12 +133,16 @@ public enum ClientUtils {
 			ContextEnvironment.setAsContext(
 				executorServiceLoader,
 				configuration,
-				userCodeClassLoader);
+				userCodeClassLoader,
+				enforceSingleJobExecution,
+				forbidBlockingJobClient);
 
 			StreamContextEnvironment.setAsContext(
 				executorServiceLoader,
 				configuration,
-				userCodeClassLoader);
+				userCodeClassLoader,
+				enforceSingleJobExecution,
+				forbidBlockingJobClient);
 
 			try {
 				program.invokeInteractiveModeForExecution();

@@ -58,7 +58,7 @@ class BatchExecPythonCalc(
       inputTransform,
       calcProgram,
       "BatchExecPythonCalc",
-      getConfig(planner.getTableConfig))
+      getConfig(planner.getExecEnv, planner.getTableConfig))
 
     ExecNode.setManagedMemoryWeight(
       ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration))

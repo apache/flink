@@ -57,7 +57,7 @@ class StreamExecPythonCalc(
       inputTransform,
       calcProgram,
       "StreamExecPythonCalc",
-      getConfig(planner.getTableConfig))
+      getConfig(planner.getExecEnv, planner.getTableConfig))
 
     if (inputsContainSingleton()) {
       ret.setParallelism(1)

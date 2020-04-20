@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import java.util.{LinkedList => JLinkedList, Map => JMap}
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.io.RichOutputFormat
@@ -31,7 +32,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.scala.BatchTableEnvironment
-import org.apache.flink.table.api.{DataTypes, SqlDialect, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory.TestCollectionInputFormat
 import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.sinks.{BatchTableSink, PartitionableTableSink, TableSink}

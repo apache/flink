@@ -29,16 +29,18 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilde
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,6 +91,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 			inputGate,
 			new TestingPartitionRequestClient(),
 			networkBufferPool);
+		inputGate.setInputChannels(inputChannel);
 		inputGate.assignExclusiveSegments();
 		inputChannel.requestSubpartition(0);
 		handler.addInputChannel(inputChannel);
@@ -97,7 +100,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 		SingleInputGate releasedInputGate = createSingleInputGate(1);
 		RemoteInputChannel releasedInputChannel = new InputChannelBuilder()
 			.setMemorySegmentProvider(networkBufferPool)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 		releasedInputGate.close();
 		handler.addInputChannel(releasedInputChannel);
 		releasedInputChannelId = releasedInputChannel.getInputChannelId();

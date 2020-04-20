@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.dataformat.TypeGetterSetters;
 
 import org.apache.arrow.vector.Float4Vector;
 
@@ -27,18 +27,18 @@ import org.apache.arrow.vector.Float4Vector;
  * {@link ArrowFieldWriter} for Float.
  */
 @Internal
-public final class FloatWriter extends ArrowFieldWriter<Row> {
+public final class FloatWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
 
 	public FloatWriter(Float4Vector floatVector) {
 		super(floatVector);
 	}
 
 	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
+	public void doWrite(T row, int ordinal) {
+		if (row.isNullAt(ordinal)) {
 			((Float4Vector) getValueVector()).setNull(getCount());
 		} else {
-			((Float4Vector) getValueVector()).setSafe(getCount(), (float) value.getField(ordinal));
+			((Float4Vector) getValueVector()).setSafe(getCount(), row.getFloat(ordinal));
 		}
 	}
 }
