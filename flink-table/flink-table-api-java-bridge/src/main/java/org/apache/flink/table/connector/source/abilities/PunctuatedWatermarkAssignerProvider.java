@@ -30,12 +30,5 @@ import org.apache.flink.table.data.RowData;
 @PublicEvolving
 public interface PunctuatedWatermarkAssignerProvider extends SupportsWatermarkPushDown.WatermarkProvider {
 
-	/**
-	 * Helper method for creating a static provider.
-	 */
-	static PunctuatedWatermarkAssignerProvider of(AssignerWithPunctuatedWatermarks<RowData> punctuatedAssigner) {
-		return () -> punctuatedAssigner;
-	}
-
 	AssignerWithPunctuatedWatermarks<RowData> getPunctuatedWatermarkAssigner();
 }

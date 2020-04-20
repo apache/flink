@@ -30,12 +30,5 @@ import org.apache.flink.table.data.RowData;
 @PublicEvolving
 public interface PeriodicWatermarkAssignerProvider extends SupportsWatermarkPushDown.WatermarkProvider {
 
-	/**
-	 * Helper method for creating a static provider.
-	 */
-	static PeriodicWatermarkAssignerProvider of(AssignerWithPeriodicWatermarks<RowData> periodicAssigner) {
-		return () -> periodicAssigner;
-	}
-
 	AssignerWithPeriodicWatermarks<RowData> getPeriodicWatermarkAssigner();
 }
