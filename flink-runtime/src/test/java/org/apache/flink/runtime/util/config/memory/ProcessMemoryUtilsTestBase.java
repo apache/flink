@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -118,7 +117,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 	@Test
 	public void testExceptionShouldContainRequiredConfigOptions() {
 		try {
-			JobManagerProcessUtils.processSpecFromConfig(new Configuration());
+			processSpecFromConfig(new Configuration());
 		} catch (IllegalConfigurationException e) {
 			options.getRequiredFineGrainedOptions().forEach(option -> assertThat(e.getMessage(), containsString(option.key())));
 			assertThat(e.getMessage(), containsString(options.getTotalFlinkMemoryOption().key()));
