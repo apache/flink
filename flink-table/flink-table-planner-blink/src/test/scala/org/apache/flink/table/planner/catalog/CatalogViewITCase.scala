@@ -239,6 +239,89 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     execJob("testJob")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
+
+  @Test
+  def testTemporaryViewMaskPermanentViewWithSameName(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val permanentView =
+      """
+        |CREATE VIEW IF NOT EXISTS T3 AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    val permanentViewData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    val temporaryView =
+      """
+        |CREATE TEMPORARY VIEW IF NOT EXISTS T3 AS SELECT a, b, c+1 FROM T1
+      """.stripMargin
+
+    val temporaryViewData = List(
+      toRow(1, "1000", 3),
+      toRow(2, "1", 4),
+      toRow(3, "2000", 5),
+      toRow(1, "2", 3),
+      toRow(2, "3000", 4))
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(permanentView)
+    tableEnv.executeSql(temporaryView)
+
+    TestCollectionTableFactory.initData(sourceData)
+
+    val query = "SELECT * FROM T3"
+
+    tableEnv.sqlQuery(query).insertInto("T2")
+    execJob("testJob")
+    // temporary view T3 masks permanent view T3
+    assertEquals(temporaryViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
+
+    TestCollectionTableFactory.reset()
+    TestCollectionTableFactory.initData(sourceData)
+
+    val dropTemporaryView =
+      """
+        |DROP TEMPORARY VIEW IF EXISTS T3
+      """.stripMargin
+    tableEnv.executeSql(dropTemporaryView)
+    tableEnv.sqlQuery(query).insertInto("T2")
+    execJob("testJob")
+    // now we only have permanent view T3
+    assertEquals(permanentViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
 }
 
 object CatalogViewITCase {
