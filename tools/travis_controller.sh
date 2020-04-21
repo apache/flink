@@ -148,6 +148,8 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-elasticsearch-base/target/flink-*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-kafka-base/target/flink-*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-python/target/func1/flink-python*-tests.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-python/target/func2/flink-python*-tests.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-table/flink-table-planner/target/flink-table-planner*tests.jar" | xargs rm -rf
     
             # .git directory

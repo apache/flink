@@ -98,3 +98,30 @@ def is_local_deployment(j_configuration):
     JDeploymentOptions = jvm.org.apache.flink.configuration.DeploymentOptions
     return j_configuration.containsKey(JDeploymentOptions.TARGET.key()) \
         and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) == "local"
+
+
+def add_jars_to_context_class_loader(jar_urls):
+    """
+    Add jars to Python gateway server for local compilation and local execution (i.e. minicluster).
+    There are many component in Flink which won't be added to classpath by default. e.g. Kafka
+    connector, JDBC connector, CSV format etc. This utility function can be used to hot load the
+    jars.
+
+    :param jar_urls: The list of jar urls.
+    """
+    gateway = get_gateway()
+    # validate and normalize
+    jar_urls = [gateway.jvm.java.net.URL(url).toString() for url in jar_urls]
+    context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
+    existing_urls = []
+    if context_classloader.getClass().getName() == "java.net.URLClassLoader":
+        existing_urls = set([url.toString() for url in context_classloader.getURLs()])
+    if all([url in existing_urls for url in jar_urls]):
+        # if urls all existed, no need to create new class loader.
+        return
+    jar_urls.extend(existing_urls)
+    # remove duplicates and create Java objects.
+    j_urls = [gateway.jvm.java.net.URL(url) for url in set(jar_urls)]
+    new_classloader = gateway.jvm.java.net.URLClassLoader(
+        to_jarray(gateway.jvm.java.net.URL, j_urls), context_classloader)
+    gateway.jvm.Thread.currentThread().setContextClassLoader(new_classloader)
