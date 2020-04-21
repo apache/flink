@@ -51,7 +51,7 @@ Flink's native serializer can operate efficiently on tuples and POJOs.
 For Java, Flink defines its own Tuple1 thru Tuple25 types.
 
 {% highlight java %}
-Tuple2<String, Integer> person = Tuple2.of("Fred", 35);
+Tuple2<String, Integer> person = Tuple2.of("Fred", 35);
 
 // zero based index!  
 String name = person.f0;
@@ -60,12 +60,13 @@ Integer age = person.f1;
 
 #### POJOs
 
-A POJO (plain old Java object) is any Java class that
+Flink recognizes a data type as a POJO type (and allows “by-name” field referencing) if the following conditions are fulfilled:
 
-- has an empty default constructor
-- all fields are either
-  - public, or
-  - have a default getter and setter
+- The class is public and standalone (no non-static inner class)
+- The class has a public no-argument constructor
+- All non-static, non-transient fields in the class (and all superclasses) are either public (and
+  non-final) or have public getter- and setter- methods that follow the Java beans naming
+  conventions for getters and setters.
 
 Example:
 
@@ -142,7 +143,7 @@ public class Example {
 ### Stream execution environment
 
 Every Flink application needs an execution environment, `env` in this example. Streaming
-applications should use a `StreamExecutionEnvironment`.
+applications need to use a `StreamExecutionEnvironment`.
 
 The DataStream API calls made in your application build a job graph that is attached to the
 `StreamExecutionEnvironment`. When `env.execute()` is called this graph is packaged up and sent to
@@ -202,25 +203,8 @@ The output looks something like this
 
 where 1> and 2> indicate which sub-task (i.e., thread) produced the output.
 
-You can also write to a text file
-
-{% highlight java %}
-stream.writeAsText("/path/to/file")
-{% endhighlight %}
-
-or a CSV file
-
-{% highlight java %}
-stream.writeAsCsv("/path/to/file")
-{% endhighlight %}
-
-or a socket
-
-{% highlight java %}
-stream.writeToSocket(host, port, SerializationSchema)
-{% endhighlight %}
-
-In production, commonly used sinks include Kafka as well as various databases and filesystems.
+In production, commonly used sinks include the StreamingFileSink, various databases,
+and several pub-sub systems.
 
 ### Debugging
 
@@ -237,7 +221,8 @@ curious to see how Flink works.
 
 At this point you know enough to get started coding and running a simple DataStream application.
 Clone the [flink-training repo](https://github.com/apache/flink-training), and after following the
-instructions in the README, do the first exercise. 
+instructions in the README, do the first exercise:
+[Filtering a Stream (Ride Cleansing)](https://github.com/apache/flink-training/tree/master/ride-cleansing).
 
 {% top %}
 
