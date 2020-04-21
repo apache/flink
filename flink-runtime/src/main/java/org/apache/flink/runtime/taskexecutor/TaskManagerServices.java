@@ -267,7 +267,7 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
 			taskManagerServicesConfiguration.getPageSize());
 
-		final JobManagerTable jobManagerTable = new JobManagerTable();
+		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
 
 		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 

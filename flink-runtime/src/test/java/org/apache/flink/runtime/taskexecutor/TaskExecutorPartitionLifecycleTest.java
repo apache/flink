@@ -154,7 +154,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		final JobManagerConnection jobManagerConnection = TaskSubmissionTestEnvironment.createJobManagerConnection(
 			jobId, jobMasterGateway, rpc, new NoOpTaskManagerActions(), timeout);
 
-		final JobManagerTable jobManagerTable = new JobManagerTable();
+		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
 		jobManagerTable.put(jobId, jobManagerConnection);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
