@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import io
 import os
+import platform
 import sys
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
@@ -40,24 +41,36 @@ def remove_if_exists(file_path):
             rmtree(file_path)
 
 
-try:
-    from Cython.Build import cythonize
-    extensions = cythonize([
-        Extension(
-            name="pyflink.fn_execution.fast_coder_impl",
-            sources=["pyflink/fn_execution/fast_coder_impl.pyx"],
-            include_dirs=["pyflink/fn_execution/"])
-    ])
-except ImportError:
-    if os.path.exists("pyflink/fn_execution/fast_coder_impl.c"):
-        extensions = ([
+# Currently Cython optimizing doesn't support Windows.
+if platform.system() == 'Windows':
+    extensions = ([])
+else:
+    try:
+        from Cython.Build import cythonize
+        extensions = cythonize([
             Extension(
                 name="pyflink.fn_execution.fast_coder_impl",
-                sources=["pyflink/fn_execution/fast_coder_impl.c"],
+                sources=["pyflink/fn_execution/fast_coder_impl.pyx"],
+                include_dirs=["pyflink/fn_execution/"]),
+            Extension(
+                name="pyflink.fn_execution.fast_operations",
+                sources=["pyflink/fn_execution/fast_operations.pyx"],
                 include_dirs=["pyflink/fn_execution/"])
         ])
-    else:
-        extensions = ([])
+    except ImportError:
+        if os.path.exists("pyflink/fn_execution/fast_coder_impl.c"):
+            extensions = ([
+                Extension(
+                    name="pyflink.fn_execution.fast_coder_impl",
+                    sources=["pyflink/fn_execution/fast_coder_impl.c"],
+                    include_dirs=["pyflink/fn_execution/"]),
+                Extension(
+                    name="pyflink.fn_execution.fast_operations",
+                    sources=["pyflink/fn_execution/fast_operations.c"],
+                    include_dirs=["pyflink/fn_execution/"])
+            ])
+        else:
+            extensions = ([])
 
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
