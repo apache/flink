@@ -143,7 +143,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS.";
+			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -797,7 +797,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof ShowFunctionsOperation) {
 			return buildShowResult(listFunctions());
 		} else {
-			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
+			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
 		}
 	}
 
