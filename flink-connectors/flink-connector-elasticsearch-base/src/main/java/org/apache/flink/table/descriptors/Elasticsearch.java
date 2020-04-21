@@ -96,12 +96,12 @@ public class Elasticsearch extends ConnectorDescriptor {
 	}
 
 	/**
-	 * The Elasticsearch Cluster userName.
+	 * The Elasticsearch Cluster username.
 	 *
-	 * @param userName Elasticsearch userName
+	 * @param username Elasticsearch username
 	 */
-	public Elasticsearch userName(String userName) {
-		internalProperties.putString(CONNECTOR_USERNAME, userName);
+	public Elasticsearch username(String username) {
+		internalProperties.putString(CONNECTOR_USERNAME, username);
 		return this;
 	}
 

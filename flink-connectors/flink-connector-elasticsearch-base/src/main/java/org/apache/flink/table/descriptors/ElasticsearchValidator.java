@@ -86,8 +86,10 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 	}
 
 	private void validateAuth(DescriptorProperties properties) {
-		properties.validateString(CONNECTOR_USERNAME, true);
-		properties.validateString(CONNECTOR_PASSWORD, true);
+		if (properties.containsKey(CONNECTOR_USERNAME) || properties.containsKey(CONNECTOR_PASSWORD)) {
+			properties.validateString(CONNECTOR_USERNAME, false, 1);
+			properties.validateString(CONNECTOR_PASSWORD, false, 1);
+		}
 	}
 
 	private void validateVersion(DescriptorProperties properties) {

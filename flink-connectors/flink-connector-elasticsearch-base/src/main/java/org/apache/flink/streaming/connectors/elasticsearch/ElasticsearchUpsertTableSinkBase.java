@@ -319,8 +319,8 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 	 * Keys for optional parameterization of the sink.
 	 */
 	public enum SinkOption {
-		CONNECTOR_USERNAME,
-		CONNECTOR_PASSWORD,
+		USERNAME,
+		PASSWORD,
 		DISABLE_FLUSH_ON_CHECKPOINT,
 		BULK_FLUSH_MAX_ACTIONS,
 		BULK_FLUSH_MAX_SIZE,

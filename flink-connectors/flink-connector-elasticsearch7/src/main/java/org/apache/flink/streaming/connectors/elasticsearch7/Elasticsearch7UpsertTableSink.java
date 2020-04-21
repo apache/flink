@@ -56,8 +56,8 @@ import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchU
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_INTERVAL;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_MAX_ACTIONS;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_MAX_SIZE;
-import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_USERNAME;
-import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_PASSWORD;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.USERNAME;
+import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.PASSWORD;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.DISABLE_FLUSH_ON_CHECKPOINT;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.REST_PATH_PREFIX;
 
@@ -191,17 +191,14 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_DELAY))
 			.ifPresent(v -> builder.setBulkFlushBackoffDelay(Long.valueOf(v)));
 
-		if (Optional.ofNullable(sinkOptions.get(CONNECTOR_USERNAME)).isPresent() &&
-			Optional.ofNullable(sinkOptions.get(CONNECTOR_PASSWORD)).isPresent()) {
-			builder.setRestClientFactory(new AuthRestClientFactory(
-				sinkOptions.get(CONNECTOR_USERNAME),
-				sinkOptions.get(CONNECTOR_PASSWORD),
-				sinkOptions.get(REST_PATH_PREFIX)
-			));
+		String username = sinkOptions.get(USERNAME);
+		String password = sinkOptions.get(PASSWORD);
+		String pathPrefix = sinkOptions.get(REST_PATH_PREFIX);
+
+		if (Optional.ofNullable(username).isPresent() && Optional.ofNullable(password).isPresent()) {
+			builder.setRestClientFactory(new AuthRestClientFactory(username, password, pathPrefix));
 		} else {
-			builder.setRestClientFactory(
-				new DefaultRestClientFactory(
-					sinkOptions.get(REST_PATH_PREFIX)));
+			builder.setRestClientFactory(new DefaultRestClientFactory(pathPrefix));
 		}
 
 		final ElasticsearchSink<Tuple2<Boolean, Row>> sink = builder.build();

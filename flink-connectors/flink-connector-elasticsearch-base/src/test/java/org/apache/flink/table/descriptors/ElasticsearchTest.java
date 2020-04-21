@@ -86,7 +86,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 				.host("host2", 1234, "https")
 				.index("MyIndex")
 				.documentType("MyType")
-				.userName("elastic")
+				.username("elastic")
 				.password("123456")
 				.keyDelimiter("#")
 				.keyNullLiteral("")

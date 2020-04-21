@@ -196,7 +196,7 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
         self.assertEqual(expected, properties)
 
     def test_username(self):
-        elasticsearch = Elasticsearch().userName("elastic")
+        elasticsearch = Elasticsearch().username("elastic")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.username': 'elastic',
