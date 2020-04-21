@@ -23,7 +23,7 @@
 
 schedules:
 - cron: "0 0 * * *"
-  displayName: nightly build
+  displayName: Nightly build
   branches:
     include:
     - master
