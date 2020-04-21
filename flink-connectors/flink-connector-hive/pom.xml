@@ -126,9 +126,9 @@ under the License.
 			thus override the default hadoop version from 2.4.1 to 2.7.5
 		-->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-			<version>${hivemetastore.hadoop.version}-${flink.shaded.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>${hivemetastore.hadoop.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
