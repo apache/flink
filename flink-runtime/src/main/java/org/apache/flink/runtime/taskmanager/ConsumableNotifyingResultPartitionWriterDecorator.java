@@ -66,13 +66,13 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		return partitionWriter.getBufferBuilder();
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		return partitionWriter.getBufferBuilder(targetChannel);
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
-		return partitionWriter.tryGetBufferBuilder();
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		return partitionWriter.tryGetBufferBuilder(targetChannel);
 	}
 
 	@Override

@@ -22,6 +22,7 @@ import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -136,7 +137,7 @@ public class LocalBufferPoolDestroyTest {
 				String msg = "Test assumption violated: expected no available buffer";
 				assertNull(msg, bufferPool.requestBuffer());
 
-				bufferPool.requestBufferBuilderBlocking();
+				bufferPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL);
 			} catch (Exception t) {
 				asyncException.set(t);
 			}

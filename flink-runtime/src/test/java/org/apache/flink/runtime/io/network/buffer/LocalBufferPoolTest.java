@@ -42,6 +42,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -320,7 +321,7 @@ public class LocalBufferPoolTest extends TestLogger {
 				// Try to request the next buffer (but pool should be destroyed either right before
 				// the request or more likely during the request).
 				try {
-					localBufferPool.requestBufferBuilderBlocking();
+					localBufferPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL);
 					fail("Call should have failed with an IllegalStateException");
 				}
 				catch (IllegalStateException e) {
@@ -407,13 +408,39 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
+	public void testMaxBuffersPerChannelAndAvailability() throws IOException, InterruptedException {
+		localBufferPool.setNumBuffers(3);
+		localBufferPool.setMaxBuffersPerChannel(1);
+		localBufferPool.setNumSubpartitions(2);
+
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+
+		// request one segment from subpartitin-0 and subpartition-1 respectively
+		final BufferBuilder bufferBuilder0 = localBufferPool.requestBufferBuilderBlocking(0);
+		final BufferBuilder bufferBuilder1 = localBufferPool.requestBufferBuilderBlocking(1);
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+
+		// request one segment from subpartition-0
+		final BufferBuilder bufferBuilder2 = localBufferPool.requestBufferBuilderBlocking(0);
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+
+		// recycle segments
+		bufferBuilder1.getRecycler().recycle(bufferBuilder1.getMemorySegment());
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder0.getRecycler().recycle(bufferBuilder0.getMemorySegment());
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder2.getRecycler().recycle(bufferBuilder2.getMemorySegment());
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+	}
+
+	@Test
 	public void testIsAvailableOrNot() throws Exception {
 
 		// the local buffer pool should be in available state initially
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
 
 		// request one buffer
-		final BufferBuilder bufferBuilder = checkNotNull(localBufferPool.requestBufferBuilderBlocking());
+		final BufferBuilder bufferBuilder = checkNotNull(localBufferPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL));
 		CompletableFuture<?> availableFuture = localBufferPool.getAvailableFuture();
 		assertFalse(availableFuture.isDone());
 

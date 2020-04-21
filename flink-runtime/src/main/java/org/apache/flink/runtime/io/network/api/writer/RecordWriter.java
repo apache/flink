@@ -290,11 +290,11 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	@VisibleForTesting
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		BufferBuilder builder = targetPartition.tryGetBufferBuilder();
+	public BufferBuilder getNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		BufferBuilder builder = targetPartition.tryGetBufferBuilder(targetChannel);
 		if (builder == null) {
 			long start = System.currentTimeMillis();
-			builder = targetPartition.getBufferBuilder();
+			builder = targetPartition.getBufferBuilder(targetChannel);
 			idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
 		}
 		return builder;

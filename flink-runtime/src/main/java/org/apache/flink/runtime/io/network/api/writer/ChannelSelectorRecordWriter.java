@@ -100,7 +100,7 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkState(bufferBuilders[targetChannel] == null || bufferBuilders[targetChannel].isFinished());
 
-		BufferBuilder bufferBuilder = getBufferBuilder();
+		BufferBuilder bufferBuilder = getNewBufferBuilder(targetChannel);
 		addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel);
 		bufferBuilders[targetChannel] = bufferBuilder;
 		return bufferBuilder;

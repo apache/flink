@@ -67,7 +67,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder() throws IOException {
+	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
 		Buffer buffer = requestBuffer();
 		if (buffer != null) {
 			return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
@@ -90,7 +90,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
 		Buffer buffer = requestBufferBlocking();
 		return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
 	}

@@ -64,6 +64,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
+import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -955,7 +956,7 @@ public class RemoteInputChannelTest {
 
 			final Callable<Void> bufferPoolInteractionsTask = () -> {
 				for (int i = 0; i < retries; ++i) {
-					Buffer buffer = buildSingleBuffer(bufferPool.requestBufferBuilderBlocking());
+					Buffer buffer = buildSingleBuffer(bufferPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL));
 					buffer.recycleBuffer();
 				}
 				return null;

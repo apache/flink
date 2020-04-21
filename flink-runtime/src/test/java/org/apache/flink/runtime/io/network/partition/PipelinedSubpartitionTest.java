@@ -47,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -159,7 +160,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 					return null;
 				}
 
-				final BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking();
+				final BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking(UNKNOWN_CHANNEL);
 				final BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 				int segmentSize = bufferBuilder.getMaxCapacity();
 

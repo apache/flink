@@ -42,7 +42,7 @@ public interface BufferProvider extends AvailabilityProvider {
 	 *
 	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
 	 */
-	BufferBuilder requestBufferBuilder() throws IOException;
+	BufferBuilder requestBufferBuilder(int targetChannel) throws IOException;
 
 	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider.
@@ -50,7 +50,7 @@ public interface BufferProvider extends AvailabilityProvider {
 	 * <p>If there is no buffer available, the call will block until one becomes available again or the
 	 * buffer provider has been destroyed.
 	 */
-	BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException;
+	BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException;
 
 	/**
 	 * Adds a buffer availability listener to the buffer provider.

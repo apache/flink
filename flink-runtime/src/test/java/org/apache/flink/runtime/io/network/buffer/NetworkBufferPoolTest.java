@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -672,7 +673,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 				executorService.submit(() -> {
 					try {
 						for (int num = localPoolMaxSize; num > 0; --num) {
-							segmentsRequested.add(localPool.requestBufferBuilderBlocking());
+							segmentsRequested.add(localPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL));
 						}
 					} catch (Exception e) {
 						cause.set(e);

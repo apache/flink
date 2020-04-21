@@ -430,7 +430,7 @@ public class RecordWriterTest {
 			assertTrue(recordWriter.getAvailableFuture().isDone());
 
 			// request one buffer from the local pool to make it unavailable afterwards
-			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder();
+			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder(0);
 			assertNotNull(bufferBuilder);
 			assertFalse(recordWriter.getAvailableFuture().isDone());
 
@@ -484,7 +484,8 @@ public class RecordWriterTest {
 				while ((bufferAndBacklog = view.getNextBuffer()) != null) {
 					Buffer buffer = bufferAndBacklog.buffer();
 					int[] expected = numConsumedBuffers < totalStates ? states : expectedRecordsInBuffer[numConsumedBuffers - totalStates];
-					BufferBuilderAndConsumerTest.assertContent(buffer, partition.getBufferPool(), expected);
+					BufferBuilderAndConsumerTest.assertContent(buffer, partition.getBufferPool()
+							.getSubpartitionBufferRecyclers()[subpartition.getSubPartitionIndex()], expected);
 
 					buffer.recycleBuffer();
 					numConsumedBuffers++;
@@ -514,7 +515,7 @@ public class RecordWriterTest {
 			resultPartition,
 			new NoOpResultPartitionConsumableNotifier());
 		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
-		BufferBuilder builder = recordWriter.getBufferBuilder();
+		BufferBuilder builder = recordWriter.getNewBufferBuilder(0);
 
 		// idle time is zero when there is buffer available.
 		assertEquals(0, recordWriter.getIdleTimeMsPerSecond().getCount());
@@ -530,7 +531,7 @@ public class RecordWriterTest {
 						runningLock.notify();
 					}
 					// wait for buffer.
-					asyncRequestResult.set(recordWriter.getBufferBuilder());
+					asyncRequestResult.set(recordWriter.getNewBufferBuilder(0));
 				} catch (Exception e) {
 				}
 			}
@@ -637,13 +638,13 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder tryGetBufferBuilder() throws IOException {
-			return bufferProvider.requestBufferBuilder();
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 
 		@Override
@@ -675,13 +676,13 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder tryGetBufferBuilder() throws IOException {
-			return bufferProvider.requestBufferBuilder();
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 	}
 
@@ -694,13 +695,13 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder tryGetBufferBuilder() throws IOException {
-			return bufferProvider.requestBufferBuilder();
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 
 		@Override

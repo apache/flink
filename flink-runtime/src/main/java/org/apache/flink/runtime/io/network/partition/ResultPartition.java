@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -109,11 +108,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	@Nullable
 	protected final BufferCompressor bufferCompressor;
 
-	private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
-
 	private final int maxBuffersPerChannel;
-
-	private int unavailableSubpartitionsCount;
 
 	public ResultPartition(
 		String owningTaskName,
@@ -138,7 +133,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.bufferCompressor = bufferCompressor;
 		this.bufferPoolFactory = bufferPoolFactory;
 		this.maxBuffersPerChannel = maxBuffersPerChannel;
-		this.unavailableSubpartitionsCount = 0;
 	}
 
 	/**
@@ -157,6 +151,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
 			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
 
+		// initialize subpartitions and maxBuffersPerChannel
+		bufferPool.setNumSubpartitions(subpartitions.length);
+		bufferPool.setMaxBuffersPerChannel(maxBuffersPerChannel);
 		this.bufferPool = bufferPool;
 		partitionManager.registerResultPartition(this);
 	}
@@ -216,15 +213,15 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkInProduceState();
 
-		return bufferPool.requestBufferBuilderBlocking();
+		return bufferPool.requestBufferBuilderBlocking(targetChannel);
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
-		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder();
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
 		return bufferBuilder;
 	}
 
@@ -342,11 +339,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return numTargetKeyGroups;
 	}
 
-	@VisibleForTesting
-	public int getUnavailableSubpartitionsCount() {
-		return unavailableSubpartitionsCount;
-	}
-
 	/**
 	 * Releases buffers held by this result partition.
 	 *
@@ -377,16 +369,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return isReleased.get();
 	}
 
-	/**
-	 * Whether this partition is available.
-	 *
-	 * <p>A partition is available only when buffer pool is available and there isn't any unavailable subpartition.</p>
-	 */
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		CompletableFuture<?> poolAvailabeFuture = bufferPool.getAvailableFuture();
-		return unavailableSubpartitionsCount == 0 ? poolAvailabeFuture : CompletableFuture.allOf(
-				poolAvailabeFuture, availabilityHelper.getAvailableFuture());
+		return bufferPool.getAvailableFuture();
 	}
 
 	@Override
@@ -418,30 +403,5 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
-	}
-
-	/**
-	 * Check whether all subpartitions' backlogs are less than the limitation of max backlogs, and make this partition
-	 * available again if yes.
-	 */
-	public void notifyDecreaseBacklog(int buffersInBacklog) {
-		if (buffersInBacklog == maxBuffersPerChannel) {
-			if (--unavailableSubpartitionsCount == 0) {
-				CompletableFuture<?> toNotify = availabilityHelper.getUnavailableToResetAvailable();
-				toNotify.complete(null);
-			}
-		}
-	}
-
-	/**
-	 * Check whether any subpartition's backlog exceeds the limitation of max backlogs, and make this partition
-	 * unavailabe if yes.
-	 */
-	public void notifyIncreaseBacklog(int buffersInBacklog) {
-		if (buffersInBacklog == maxBuffersPerChannel + 1) {
-			if (++unavailableSubpartitionsCount == 1) {
-				availabilityHelper.resetUnavailable();
-			}
-		}
 	}
 }
