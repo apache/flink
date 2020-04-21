@@ -56,13 +56,13 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 
 	// --------------------------------------------------------------------------------------------
 
-	/** The global lock to synchronize operations */
+	/** The global lock to synchronize operations. */
 	private final Object lockObject = new Object();
 
-	/** Registered entries per job */
+	/** Registered entries per job. */
 	private final Map<JobID, LibraryCacheEntry> cacheEntries = new HashMap<>();
 
-	/** The blob service to download libraries */
+	/** The blob service to download libraries. */
 	private final PermanentBlobService blobService;
 
 	/** The resolve order to use when creating a {@link ClassLoader}. */
