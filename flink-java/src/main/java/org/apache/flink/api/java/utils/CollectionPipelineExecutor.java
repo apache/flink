@@ -44,7 +44,7 @@ public class CollectionPipelineExecutor implements PipelineExecutor {
 	public static final String NAME = "collection";
 
 	@Override
-	public CompletableFuture<? extends JobClient> execute(
+	public CompletableFuture<JobClient> execute(
 			Pipeline pipeline,
 			Configuration configuration) throws Exception {
 		Plan plan = (Plan) pipeline;

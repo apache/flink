@@ -1751,7 +1751,7 @@ public class StreamExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		CompletableFuture<? extends JobClient> jobClientFuture = executorFactory
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);
 
