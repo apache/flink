@@ -286,7 +286,7 @@ as a `KeyedCoProcessFunction`, and a timer could be used to detect and clear any
 ## Hands-on
 
 The hands-on exercise that goes with this section is the [Long Ride Alerts
-Exercise](https://github.com/apache/flink-training/tree/master/long-ride-alerts).
+Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/long-ride-alerts).
 
 {% top %}
 
