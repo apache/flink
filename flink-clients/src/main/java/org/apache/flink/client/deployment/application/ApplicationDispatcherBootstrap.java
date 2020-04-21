@@ -29,6 +29,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.AbstractDispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -119,7 +120,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	/**
 	 * Runs the user program entrypoint using {@link #runApplicationAsync(DispatcherGateway,
 	 * ScheduledExecutor, boolean)} and shuts down the given dispatcher when the application
-	 * completes (either succesfully or in case of failure).
+	 * completes (either successfully or in case of failure).
 	 */
 	@VisibleForTesting
 	CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
@@ -130,12 +131,15 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 		return applicationCompletionFuture
 				.handle((r, t) -> {
+					final ApplicationStatus applicationStatus;
 					if (t != null) {
-						LOG.warn("Application FAILED: ", t);
+						applicationStatus = ApplicationStatus.FAILED;
+						LOG.warn("Application {}: ", applicationStatus, t);
 					} else {
+						applicationStatus = ApplicationStatus.SUCCEEDED;
 						LOG.info("Application completed SUCCESSFULLY");
 					}
-					return dispatcher.shutDownCluster();
+					return dispatcher.shutDownCluster(applicationStatus);
 				})
 				.thenCompose(Function.identity());
 	}
