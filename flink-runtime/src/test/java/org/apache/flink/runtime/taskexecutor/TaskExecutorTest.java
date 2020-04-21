@@ -708,7 +708,7 @@ public class TaskExecutorTest extends TestLogger {
 	@Test
 	public void testJobLeaderDetection() throws Exception {
 		final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
-		final JobManagerTable jobManagerTable = new JobManagerTable();
+		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
 		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -963,7 +963,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setJobLeaderService(new DefaultJobLeaderService(
 				unresolvedTaskManagerLocation,
 				RetryingRegistrationConfiguration.defaultConfiguration()))
-			.setJobManagerTable(new JobManagerTable())
+			.setJobManagerTable(new DefaultJobManagerTable())
 			.setTaskStateManager(createTaskExecutorLocalStateStoresManager())
 			.build();
 	}
@@ -1026,7 +1026,7 @@ public class TaskExecutorTest extends TestLogger {
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 		when(jobMasterGateway.getHostname()).thenReturn("localhost");
 		final JMTMRegistrationSuccess registrationMessage = new JMTMRegistrationSuccess(ResourceID.generate());
-		final JobManagerTable jobManagerTableMock = spy(new JobManagerTable());
+		final JobManagerTable jobManagerTableMock = spy(new DefaultJobManagerTable());
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
 

@@ -64,7 +64,7 @@ public class TaskManagerServicesBuilder {
 		broadcastVariableManager = new BroadcastVariableManager();
 		taskEventDispatcher = new TaskEventDispatcher();
 		taskSlotTable = TestingTaskSlotTable.<Task>newBuilder().closeAsyncReturns(CompletableFuture.completedFuture(null)).build();
-		jobManagerTable = new JobManagerTable();
+		jobManagerTable = new DefaultJobManagerTable();
 		jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 		ioExecutor = TestingUtils.defaultExecutor();

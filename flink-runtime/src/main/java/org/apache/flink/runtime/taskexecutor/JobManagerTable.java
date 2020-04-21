@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,40 +20,45 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 
-import java.util.HashMap;
-import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Container for multiple {@link JobManagerConnection} registered under their respective job id.
  */
-public class JobManagerTable {
-	private final Map<JobID, JobManagerConnection> jobManagerConnections;
+public interface JobManagerTable {
 
-	public JobManagerTable() {
-		jobManagerConnections = new HashMap<>(4);
-	}
+	/**
+	 * Checks whether a {@link JobManagerConnection} for the given {@link JobID} is contained.
+	 *
+	 * @param jobId jobId which identifies the {@link JobManagerConnection}
+	 * @return true if a {@link JobManagerConnection} for the given {@link JobID} is contained
+	 */
+	boolean contains(JobID jobId);
 
-	public boolean contains(JobID jobId) {
-		return jobManagerConnections.containsKey(jobId);
-	}
+	/**
+	 * Puts a {@link JobManagerConnection} under the given {@link JobID} into the table.
+	 *
+	 * @param jobId jobId identifying the {@link JobManagerConnection}
+	 * @param jobManagerConnection jobManagerConnection which is stored under the given {@link JobID}
+	 * @return true if the {@link JobManagerConnection} could be added to the table; otherwise false
+	 */
+	boolean put(JobID jobId, JobManagerConnection jobManagerConnection);
 
-	public boolean put(JobID jobId, JobManagerConnection jobManagerConnection) {
-		JobManagerConnection previousJMC = jobManagerConnections.put(jobId, jobManagerConnection);
+	/**
+	 * Removes the {@link JobManagerConnection} stored under the given {@link JobID}.
+	 *
+	 * @param jobId jobId identifying the {@link JobManagerConnection} to remove
+	 * @return the removed {@link JobManagerConnection}; {@code null} if none has been contained
+	 */
+	@Nullable
+	JobManagerConnection remove(JobID jobId);
 
-		if (previousJMC != null) {
-			jobManagerConnections.put(jobId, previousJMC);
-
-			return false;
-		} else {
-			return true;
-		}
-	}
-
-	public JobManagerConnection remove(JobID jobId) {
-		return jobManagerConnections.remove(jobId);
-	}
-
-	public JobManagerConnection get(JobID jobId) {
-		return jobManagerConnections.get(jobId);
-	}
+	/**
+	 * Gets the {@link JobManagerConnection} stored under the given {@link JobID}.
+	 *
+	 * @param jobId jobId identifying the {@link JobManagerConnection} to return
+	 * @return the {@link JobManagerConnection} stored under jobId; {@code null} if non has been stored
+	 */
+	@Nullable
+	JobManagerConnection get(JobID jobId);
 }
