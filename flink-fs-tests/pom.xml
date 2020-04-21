@@ -38,7 +38,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-hdfs</artifactId>
+			<artifactId>hadoop-common</artifactId>
 			<scope>test</scope>
 		</dependency>
 		
