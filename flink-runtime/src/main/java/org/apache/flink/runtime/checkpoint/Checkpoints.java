@@ -189,7 +189,7 @@ public class Checkpoints {
 		}
 
 		// (3) convert to checkpoint so the system can fall back to it
-		CheckpointProperties props = CheckpointProperties.forSavepoint();
+		CheckpointProperties props = CheckpointProperties.forSavepoint(false);
 
 		return new CompletedCheckpoint(
 				jobId,

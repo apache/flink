@@ -112,8 +112,7 @@ public class CheckpointStateRestoreTest {
 					.build();
 
 			// create ourselves a checkpoint with state
-			final long timestamp = 34623786L;
-			coord.triggerCheckpoint(timestamp, false);
+			coord.triggerCheckpoint(false);
 			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			PendingCheckpoint pending = coord.getPendingCheckpoints().values().iterator().next();

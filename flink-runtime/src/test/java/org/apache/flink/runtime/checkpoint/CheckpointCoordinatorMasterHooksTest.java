@@ -198,8 +198,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statefulHook2);
 
 		// trigger a checkpoint
-		final CompletableFuture<CompletedCheckpoint> checkpointFuture =
-			cc.triggerCheckpoint(System.currentTimeMillis(), false);
+		final CompletableFuture<CompletedCheckpoint> checkpointFuture = cc.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(checkpointFuture.isCompletedExceptionally());
 		assertEquals(1, cc.getNumberOfPendingCheckpoints());
@@ -394,8 +393,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(hook);
 
 		// trigger a checkpoint
-		final CompletableFuture<CompletedCheckpoint> checkpointFuture =
-			cc.triggerCheckpoint(System.currentTimeMillis(), false);
+		final CompletableFuture<CompletedCheckpoint> checkpointFuture = cc.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(checkpointFuture.isCompletedExceptionally());
 	}

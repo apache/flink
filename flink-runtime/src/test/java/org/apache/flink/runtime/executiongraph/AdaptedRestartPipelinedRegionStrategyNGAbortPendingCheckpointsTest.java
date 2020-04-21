@@ -94,7 +94,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 		checkState(checkpointCoordinator != null);
 
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
+		checkpointCoordinator.triggerCheckpoint(false);
 		checkpointTriggeredLatch.await();
 		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 		long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();

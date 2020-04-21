@@ -38,6 +38,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
@@ -576,95 +577,13 @@ public class CheckpointCoordinatorTestingUtils {
 	}
 
 	/**
-	 * A helper builder for {@link CheckpointCoordinatorConfiguration} to deduplicate test codes.
-	 */
-	public static class CheckpointCoordinatorConfigurationBuilder {
-		private long checkpointInterval = 600000;
-
-		private long checkpointTimeout = 600000;
-
-		private long minPauseBetweenCheckpoints = 0;
-
-		private int maxConcurrentCheckpoints = Integer.MAX_VALUE;
-
-		private CheckpointRetentionPolicy checkpointRetentionPolicy =
-			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
-
-		private boolean isExactlyOnce = true;
-
-		private boolean isUnalignedCheckpoint = false;
-
-		private boolean isPreferCheckpointForRecovery = false;
-
-		private int tolerableCpFailureNumber = 0;
-
-		public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(long checkpointInterval) {
-			this.checkpointInterval = checkpointInterval;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setCheckpointTimeout(long checkpointTimeout) {
-			this.checkpointTimeout = checkpointTimeout;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
-			this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
-			this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setCheckpointRetentionPolicy(
-			CheckpointRetentionPolicy checkpointRetentionPolicy) {
-			this.checkpointRetentionPolicy = checkpointRetentionPolicy;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setExactlyOnce(boolean exactlyOnce) {
-			isExactlyOnce = exactlyOnce;
-			return this;
-		}
-
-		public void setUnalignedCheckpoint(boolean unalignedCheckpoint) {
-			isUnalignedCheckpoint = unalignedCheckpoint;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
-			isPreferCheckpointForRecovery = preferCheckpointForRecovery;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setTolerableCpFailureNumber(int tolerableCpFailureNumber) {
-			this.tolerableCpFailureNumber = tolerableCpFailureNumber;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfiguration build() {
-			return new CheckpointCoordinatorConfiguration(
-				checkpointInterval,
-				checkpointTimeout,
-				minPauseBetweenCheckpoints,
-				maxConcurrentCheckpoints,
-				checkpointRetentionPolicy,
-				isExactlyOnce,
-				isUnalignedCheckpoint,
-				isPreferCheckpointForRecovery,
-				tolerableCpFailureNumber);
-		}
-	}
-
-	/**
 	 * A helper builder for {@link CheckpointCoordinator} to deduplicate test codes.
 	 */
 	public static class CheckpointCoordinatorBuilder {
 		private JobID jobId = new JobID();
 
 		private CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
-			new CheckpointCoordinatorConfigurationBuilder().build();
+			new CheckpointCoordinatorConfigurationBuilder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build();
 
 		private ExecutionVertex[] tasksToTrigger;
 

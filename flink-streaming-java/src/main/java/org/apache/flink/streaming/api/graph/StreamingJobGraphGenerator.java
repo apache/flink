@@ -957,16 +957,17 @@ public class StreamingJobGraphGenerator {
 			triggerVertices,
 			ackVertices,
 			commitVertices,
-			new CheckpointCoordinatorConfiguration(
-				interval,
-				cfg.getCheckpointTimeout(),
-				cfg.getMinPauseBetweenCheckpoints(),
-				cfg.getMaxConcurrentCheckpoints(),
-				retentionAfterTermination,
-				getCheckpointingMode(cfg) == CheckpointingMode.EXACTLY_ONCE,
-				cfg.isUnalignedCheckpointsEnabled(),
-				cfg.isPreferCheckpointForRecovery(),
-				cfg.getTolerableCheckpointFailureNumber()),
+			CheckpointCoordinatorConfiguration.builder()
+				.setCheckpointInterval(interval)
+				.setCheckpointTimeout(cfg.getCheckpointTimeout())
+				.setMinPauseBetweenCheckpoints(cfg.getMinPauseBetweenCheckpoints())
+				.setMaxConcurrentCheckpoints(cfg.getMaxConcurrentCheckpoints())
+				.setCheckpointRetentionPolicy(retentionAfterTermination)
+				.setExactlyOnce(getCheckpointingMode(cfg) == CheckpointingMode.EXACTLY_ONCE)
+				.setPreferCheckpointForRecovery(cfg.isPreferCheckpointForRecovery())
+				.setTolerableCheckpointFailureNumber(cfg.getTolerableCheckpointFailureNumber())
+				.setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
+				.build(),
 			serializedStateBackend,
 			serializedHooks);
 

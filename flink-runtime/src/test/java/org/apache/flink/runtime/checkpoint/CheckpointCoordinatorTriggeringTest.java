@@ -22,13 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -117,6 +117,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 				new CheckpointCoordinatorConfigurationBuilder()
 					.setCheckpointInterval(10) // periodic interval is 10 ms
 					.setCheckpointTimeout(200000) // timeout is very long (200 s)
+					.setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
 					.build();
 			CheckpointCoordinator checkpointCoordinator =
 				new CheckpointCoordinatorBuilder()
@@ -272,7 +273,6 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
 		// Not periodic
 		final CompletableFuture<CompletedCheckpoint> onCompletionPromise2 = checkpointCoordinator.triggerCheckpoint(
-			System.currentTimeMillis(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			null,
 			false,
@@ -546,7 +546,6 @@ checkpointCoordinator.startCheckpointScheduler();
 		CheckpointCoordinator checkpointCoordinator) {
 
 		return checkpointCoordinator.triggerCheckpoint(
-			System.currentTimeMillis(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			null,
 			true,
@@ -557,7 +556,6 @@ checkpointCoordinator.startCheckpointScheduler();
 		CheckpointCoordinator checkpointCoordinator) {
 
 		return checkpointCoordinator.triggerCheckpoint(
-			System.currentTimeMillis(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			null,
 			false,

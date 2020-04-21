@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -84,10 +84,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for restoring checkpoint.
@@ -121,7 +119,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	@Test
 	public void testRestoreLatestCheckpointedState() throws Exception {
 		final JobID jid = new JobID();
-		final long timestamp = System.currentTimeMillis();
 
 		final JobVertexID jobVertexID1 = new JobVertexID();
 		final JobVertexID jobVertexID2 = new JobVertexID();
@@ -159,7 +156,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.build();
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp, false);
+		coord.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
@@ -246,7 +243,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	private void testRestoreLatestCheckpointIsPreferSavepoint(boolean isPreferCheckpoint) {
 		try {
 			final JobID jid = new JobID();
-			long timestamp = System.currentTimeMillis();
 			StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
 
 			final JobVertexID statefulId = new JobVertexID();
@@ -285,7 +281,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 			//trigger a checkpoint and wait to become a completed checkpoint
 			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
-				coord.triggerCheckpoint(timestamp, false);
+				coord.triggerCheckpoint(false);
 			manuallyTriggeredScheduledExecutor.triggerAll();
 			assertFalse(checkpointFuture.isCompletedExceptionally());
 
@@ -313,8 +309,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 			// trigger a savepoint and wait it to be finished
 			String savepointDir = tmpFolder.newFolder().getAbsolutePath();
-			timestamp = System.currentTimeMillis();
-			CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
+			CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(savepointDir);
 
 			KeyGroupRange keyGroupRangeForSavepoint = KeyGroupRange.of(1, 1);
 			List<SerializableObject> testStatesForSavepoint = Collections.singletonList(new SerializableObject());
@@ -384,7 +379,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	 */
 	private void testRestoreLatestCheckpointedStateWithChangingParallelism(boolean scaleOut) throws Exception {
 		final JobID jid = new JobID();
-		final long timestamp = System.currentTimeMillis();
 
 		final JobVertexID jobVertexID1 = new JobVertexID();
 		final JobVertexID jobVertexID2 = new JobVertexID();
@@ -422,7 +416,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.build();
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp, false);
+		coord.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
@@ -551,7 +545,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	@Test(expected = IllegalStateException.class)
 	public void testRestoreLatestCheckpointFailureWhenMaxParallelismChanges() throws Exception {
 		final JobID jid = new JobID();
-		final long timestamp = System.currentTimeMillis();
 
 		final JobVertexID jobVertexID1 = new JobVertexID();
 		final JobVertexID jobVertexID2 = new JobVertexID();
@@ -585,7 +578,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.build();
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp, false);
+		coord.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
@@ -801,8 +794,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		tasks.add(newJobVertex2);
 
 		JobID jobID = new JobID();
-		StandaloneCompletedCheckpointStore standaloneCompletedCheckpointStore =
-			spy(new StandaloneCompletedCheckpointStore(1));
 
 		CompletedCheckpoint completedCheckpoint = new CompletedCheckpoint(
 			jobID,
@@ -814,13 +805,11 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			new TestCompletedCheckpointStorageLocation());
 
-		when(standaloneCompletedCheckpointStore.getLatestCheckpoint(false)).thenReturn(completedCheckpoint);
-
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord =
 			new CheckpointCoordinatorBuilder()
 				.setTasks(newJobVertex1.getTaskVertices())
-				.setCompletedCheckpointStore(standaloneCompletedCheckpointStore)
+				.setCompletedCheckpointStore(CompletedCheckpointStore.storeFor(completedCheckpoint))
 				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 

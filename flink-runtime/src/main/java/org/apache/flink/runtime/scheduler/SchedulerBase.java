@@ -746,7 +746,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 
 		return checkpointCoordinator
-			.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+			.triggerSavepoint(targetDirectory)
 			.thenApply(CompletedCheckpoint::getExternalPointer)
 			.handleAsync((path, throwable) -> {
 				if (throwable != null) {
@@ -857,9 +857,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 		// will be restarted by the CheckpointCoordinatorDeActivator.
 		checkpointCoordinator.stopCheckpointScheduler();
 
-		final long now = System.currentTimeMillis();
 		final CompletableFuture<String> savepointFuture = checkpointCoordinator
-			.triggerSynchronousSavepoint(now, advanceToEndOfEventTime, targetDirectory)
+			.triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
 			.thenApply(CompletedCheckpoint::getExternalPointer);
 
 		final CompletableFuture<JobStatus> terminationFuture = executionGraph

@@ -27,6 +27,8 @@ public enum CheckpointFailureReason {
 
 	TOO_MANY_CONCURRENT_CHECKPOINTS(true, "The maximum number of concurrent checkpoints is exceeded"),
 
+	TOO_MANY_CHECKPOINT_REQUESTS(true, "The maximum number of queued checkpoint requests exceeded"),
+
 	MINIMUM_TIME_BETWEEN_CHECKPOINTS(true, "The minimum time between checkpoints is still pending. " +
 			"Checkpoint will be triggered after the minimum time."),
 

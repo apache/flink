@@ -120,13 +120,13 @@ public class PendingCheckpointTest {
 		// Non-forced checkpoints can be subsumed
 		CheckpointProperties subsumed = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		pending = createPendingCheckpoint(subsumed);
-		assertTrue(pending.canBeSubsumed());
+		assertFalse(pending.canBeSubsumed());
 	}
 
 	@Test
 	public void testSyncSavepointCannotBeSubsumed() throws Exception {
 		// Forced checkpoints cannot be subsumed
-		CheckpointProperties forced = CheckpointProperties.forSyncSavepoint();
+		CheckpointProperties forced = CheckpointProperties.forSyncSavepoint(true);
 		PendingCheckpoint pending = createPendingCheckpoint(forced);
 		assertFalse(pending.canBeSubsumed());
 
@@ -198,7 +198,7 @@ public class PendingCheckpointTest {
 	 */
 	@Test
 	public void testAbortDiscardsState() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.CHECKPOINT, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
 
 		OperatorState state = mock(OperatorState.class);
