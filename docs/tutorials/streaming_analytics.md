@@ -110,7 +110,7 @@ watermark arrives with a timestamp of 2, or greater.
 
 Each event arrives after some delay, and these delays vary, so some events are delayed more than
 others. One simple approach is to assume that these delays are bounded by some maximum delay. Flink
-refers to this strategy as *bounded-out-of-orderness* watermarking. It's easy to imagine more
+refers to this strategy as *bounded-out-of-orderness* watermarking. It is easy to imagine more
 complex approaches to watermarking, but for most applications a fixed delay works well enough.
 
 ### Latency vs. Completeness
@@ -152,7 +152,7 @@ DataStream<Event> withTimestampsAndWatermarks =
     stream.assignTimestampsAndWatermarks(new TimestampsAndWatermarks(Time.seconds(10)));
 
 public static class TimestampsAndWatermarks
-        extends BoundedOutOfOrdernessTimestampExtractor<MyEvent> {
+        extends BoundedOutOfOrdernessTimestampExtractor<Event> {
 
     public TimestampsAndWatermarks(Time t) {
         super(t);
@@ -178,11 +178,11 @@ In this section you will learn:
 
 * how windows are used to compute aggregates on unbounded streams,
 * which types of windows Flink supports, and
-* how to implement a DataStream program with a window aggregation
+* how to implement a DataStream program with a windowed aggregation
 
 ### Introduction
 
-It's natural when doing stream processing to want to compute aggregated analytics on bounded subsets
+It is natural when doing stream processing to want to compute aggregated analytics on bounded subsets
 of the streams in order to answer questions like these:
 
 * number of page views per minute
@@ -238,7 +238,7 @@ The time-based window assigners (including session windows) come in both event t
 time flavors. There are significant tradeoffs between these two types of time windows. With
 processing time windowing you have to accept these limitations:
 
-* can not process historic data,
+* can not correctly process historic data,
 * can not correctly handle out-of-order data,
 * results will be non-deterministic,
 
@@ -290,9 +290,9 @@ public static class MyWastefulMax extends ProcessWindowFunction<
 
         int max = 0;
         for (SensorReading event : events) {
-            if (event.value > max) max = event.value;
+            max = Math.max(event.value, max);
         }
-        out.collect(new Tuple3<>(key, context.window().getEnd(), max));
+        out.collect(Tuple3.of(key, context.window().getEnd(), max));
     }
 }
 {% endhighlight %}
@@ -301,7 +301,7 @@ A couple of things to note in this implementation:
 
 * All of the events assigned to the window have to be buffered in keyed Flink state until the window
   is triggered. This is potentially quite expensive.
-* Our ProcessWindowFunction is being passed a Context object from which contains information about
+* Our `ProcessWindowFunction` is being passed a `Context` object from which contains information about
   the window. Its interface looks like this:
 
 {% highlight java %}
@@ -317,7 +317,8 @@ public abstract class Context implements java.io.Serializable {
 {% endhighlight %}
 
 `windowState` and `globalState` are places where you can store per-key, per-window, or global
-per-key information. This might be useful, for example, if you want to record something about the
+per-key information for all windows of that key. This might be useful, for example, if you want to
+record something about the
 current window and use that when processing a subsequent window.
 
 #### Incremental Aggregation Example
@@ -347,7 +348,7 @@ private static class MyWindowFunction extends ProcessWindowFunction<
             Collector<Tuple3<String, Long, SensorReading>> out) {
 
         SensorReading max = maxReading.iterator().next();
-        out.collect(new Tuple3<String, Long, SensorReading>(key, context.window().getEnd(), max));
+        out.collect(Tuple3.of(key, context.window().getEnd(), max));
     }
 }
 {% endhighlight %}
@@ -362,7 +363,7 @@ the window API that give you more control over this.
 
 You can arrange for the events that would be dropped to be collected to an alternate output stream
 instead, using a mechanism called [Side Outputs]({{ site.baseurl }}{% link tutorials/event_driven.md
-%}#side-outputs). Here's an example of what that might look like:
+%}#side-outputs). Here is an example of what that might look like:
 
 {% highlight java %}
 OutputTag<Event> lateTag = new OutputTag<Event>("late"){};
