@@ -616,7 +616,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	@Override
 	public CompletableFuture<Acknowledge> shutDownCluster() {
-		shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
+		return shutDownCluster(ApplicationStatus.SUCCEEDED);
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> shutDownCluster(final ApplicationStatus applicationStatus) {
+		shutDownFuture.complete(applicationStatus);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
