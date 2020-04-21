@@ -70,8 +70,8 @@ public interface LibraryCacheManager {
 
 	/**
 	 * Unregisters a job task execution from the library cache manager.
-	 * <p>
-	 * <strong>Note:</strong> this is the counterpart of {@link #registerTask(JobID,
+	 *
+	 * <p><strong>Note:</strong> this is the counterpart of {@link #registerTask(JobID,
 	 * ExecutionAttemptID, Collection, Collection)} and it will not remove any job added via
 	 * {@link #registerJob(JobID, Collection, Collection)}!
 	 *
@@ -83,8 +83,8 @@ public interface LibraryCacheManager {
 
 	/**
 	 * Unregisters a job from the library cache manager.
-	 * <p>
-	 * <strong>Note:</strong> this is the counterpart of {@link #registerJob(JobID, Collection,
+	 *
+	 * <p><strong>Note:</strong> this is the counterpart of {@link #registerJob(JobID, Collection,
 	 * Collection)} and it will not remove any job task execution added via {@link
 	 * #registerTask(JobID, ExecutionAttemptID, Collection, Collection)}!
 	 *
