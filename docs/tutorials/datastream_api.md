@@ -222,7 +222,7 @@ curious to see how Flink works.
 At this point you know enough to get started coding and running a simple DataStream application.
 Clone the [flink-training repo](https://github.com/apache/flink-training), and after following the
 instructions in the README, do the first exercise:
-[Filtering a Stream (Ride Cleansing)](https://github.com/apache/flink-training/tree/master/ride-cleansing).
+[Filtering a Stream (Ride Cleansing)](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/ride-cleansing).
 
 {% top %}
 
