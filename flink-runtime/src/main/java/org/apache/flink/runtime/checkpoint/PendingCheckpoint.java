@@ -234,7 +234,7 @@ public class PendingCheckpoint {
 	 */
 	public boolean canBeSubsumed() {
 		// If the checkpoint is forced, it cannot be subsumed.
-		return !props.forceCheckpoint();
+		return !props.isSavepoint();
 	}
 
 	CheckpointProperties getProps() {
@@ -505,7 +505,7 @@ public class PendingCheckpoint {
 	}
 
 	private void assertAbortSubsumedForced(CheckpointFailureReason reason) {
-		if (props.forceCheckpoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
+		if (props.isSavepoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
 			throw new IllegalStateException("Bug: forced checkpoints must never be subsumed, " +
 				"the abort reason is : " + reason.message());
 		}

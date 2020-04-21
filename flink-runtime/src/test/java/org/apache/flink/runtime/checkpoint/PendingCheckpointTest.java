@@ -125,7 +125,7 @@ public class PendingCheckpointTest {
 	@Test
 	public void testSyncSavepointCannotBeSubsumed() throws Exception {
 		// Forced checkpoints cannot be subsumed
-		CheckpointProperties forced = CheckpointProperties.forSyncSavepoint();
+		CheckpointProperties forced = CheckpointProperties.forSyncSavepoint(true);
 		PendingCheckpoint pending = createPendingCheckpoint(forced);
 		assertFalse(pending.canBeSubsumed());
 

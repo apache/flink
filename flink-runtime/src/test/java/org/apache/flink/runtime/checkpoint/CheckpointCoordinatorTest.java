@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
@@ -77,6 +77,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -652,6 +653,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			CheckpointCoordinator coord =
 				new CheckpointCoordinatorBuilder()
 					.setJobId(jid)
+					.setCheckpointCoordinatorConfiguration(CheckpointCoordinatorConfiguration.builder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
 					.setTasksToTrigger(new ExecutionVertex[] { triggerVertex1, triggerVertex2 })
 					.setTasksToWaitFor(new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 })
 					.setTasksToCommitTo(new ExecutionVertex[] { commitVertex })
@@ -783,6 +785,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			CheckpointCoordinator coord =
 				new CheckpointCoordinatorBuilder()
 					.setJobId(jid)
+					.setCheckpointCoordinatorConfiguration(CheckpointCoordinatorConfiguration.builder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
 					.setTasksToTrigger(new ExecutionVertex[] { triggerVertex1, triggerVertex2 })
 					.setTasksToWaitFor(new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 })
 					.setTasksToCommitTo(new ExecutionVertex[] { commitVertex })
@@ -1333,6 +1336,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		CheckpointCoordinator coord =
 			new CheckpointCoordinatorBuilder()
 				.setJobId(jid)
+				.setCheckpointCoordinatorConfiguration(CheckpointCoordinatorConfiguration.builder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
 				.setTasks(new ExecutionVertex[]{ vertex1, vertex2 })
 				.setCheckpointIDCounter(counter)
 				.setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(10))
@@ -2242,6 +2246,51 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testSavepointScheduledInUnalignedMode() throws Exception {
+		int maxConcurrentCheckpoints = 1;
+		int checkpointRequestsToSend = 10;
+		int activeRequests = 0;
+		JobID jobId = new JobID();
+		CheckpointCoordinator coordinator = new CheckpointCoordinatorBuilder()
+			.setCheckpointCoordinatorConfiguration(CheckpointCoordinatorConfiguration
+				.builder()
+				.setUnalignedCheckpointsEnabled(true)
+				.setMaxConcurrentCheckpoints(maxConcurrentCheckpoints)
+				.build())
+			.setJobId(jobId)
+			.setTimer(manuallyTriggeredScheduledExecutor)
+			.build();
+		try {
+			List<Future<?>> checkpointFutures = new ArrayList<>(checkpointRequestsToSend);
+			coordinator.startCheckpointScheduler();
+			while (activeRequests < checkpointRequestsToSend) {
+				checkpointFutures.add(coordinator.triggerCheckpoint(activeRequests++, true));
+			}
+			assertEquals(activeRequests - maxConcurrentCheckpoints, coordinator.getTriggerRequestQueue().size());
+
+			Future<?> savepointFuture = coordinator.triggerSavepoint(0L, "/tmp");
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertEquals(++activeRequests - maxConcurrentCheckpoints, coordinator.getTriggerRequestQueue().size());
+
+			coordinator.receiveDeclineMessage(new DeclineCheckpoint(jobId, new ExecutionAttemptID(), 1L), "none");
+			manuallyTriggeredScheduledExecutor.triggerAll();
+
+			activeRequests--; // savepoint triggered
+			activeRequests--; // onTriggerSuccess dropped one enqueued checkpoint request (can't be executed now)
+			assertEquals(activeRequests - maxConcurrentCheckpoints , coordinator.getTriggerRequestQueue().size());
+			assertEquals(2, checkpointFutures.stream().filter(Future::isDone).count());
+
+			assertFalse(savepointFuture.isDone());
+			assertEquals(maxConcurrentCheckpoints, coordinator.getNumberOfPendingCheckpoints());
+			CheckpointProperties props = coordinator.getPendingCheckpoints().values().iterator().next().getProps();
+			assertTrue(props.isSavepoint());
+			assertFalse(props.forceCheckpoint());
+		} finally {
+			coordinator.shutdown(JobStatus.FINISHED);
+		}
+	}
+
 	private CheckpointCoordinator getCheckpointCoordinator(
 		JobID jobId,
 		ExecutionVertex vertex1,
@@ -2250,6 +2299,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		return new CheckpointCoordinatorBuilder()
 			.setJobId(jobId)
 			.setTasks(new ExecutionVertex[]{ vertex1, vertex2 })
+			.setCheckpointCoordinatorConfiguration(CheckpointCoordinatorConfiguration.builder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
 			.setTimer(manuallyTriggeredScheduledExecutor)
 			.build();
 	}

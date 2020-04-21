@@ -112,7 +112,6 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 		// the currentPeriodicTrigger would been assigned as null.
 		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(), false);
 		manualThreadExecutor.triggerAll();
-		assertFalse(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
 		assertEquals(maxConcurrentCheckpoints, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
 		checkpointCoordinator.abortPendingCheckpoints(
