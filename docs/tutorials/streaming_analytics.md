@@ -72,7 +72,11 @@ below. The numbers shown are timestamps that indicate when these events actually
 event to arrive happened at time 4, and it is followed by an event that happened earlier, at time 2,
 and so on:
 
-    ··· 23 19 22 24 21 14 17 13 12 15 9 11 7 2 4 →
+<div class="text-center">
+<h3>··· 12&nbsp;&nbsp;15&nbsp;&nbsp;9&nbsp;&nbsp;11&nbsp;&nbsp;7&nbsp;&nbsp;2&nbsp;&nbsp;4 →</h3>
+<br />
+<br />
+</div>
 
 Now imagine that you are trying create a stream sorter. This is meant to be an application that
 processes each event from a stream as it arrives, and emits a new stream containing the same events,
@@ -250,8 +254,8 @@ that behavior yourself with a custom Trigger.
 
 A global window assigner assigns every event (with the same key) to the same global window. This is
 only useful if you are going to do your own custom windowing, with a custom Trigger. In many cases
-where this might seem useful you will be better off using a `ProcessFunction` as described [in
-another section]({{ site.baseurl }}{% link tutorials/event_driven.md %}#process-functions).
+where this might seem useful you will be better off using a `ProcessFunction` as described
+[in another section]({{ site.baseurl }}{% link tutorials/event_driven.md %}#process-functions).
 
 ### Window Functions
 
@@ -353,7 +357,7 @@ private static class MyWindowFunction extends ProcessWindowFunction<
 }
 {% endhighlight %}
 
-This implementation uses a more robust `KeySelector`. Notice also that the `Iterable<SensorReading>`
+Notice that the `Iterable<SensorReading>`
 will contain exactly one reading -- the pre-aggregated maximum computed by `MyReducingMax`.
 
 ### Late Events
@@ -362,8 +366,9 @@ By default, when using event time windows, late events are dropped. There are tw
 the window API that give you more control over this.
 
 You can arrange for the events that would be dropped to be collected to an alternate output stream
-instead, using a mechanism called [Side Outputs]({{ site.baseurl }}{% link tutorials/event_driven.md
-%}#side-outputs). Here is an example of what that might look like:
+instead, using a mechanism called
+[Side Outputs]({{ site.baseurl }}{% link tutorials/event_driven.md %}#side-outputs).
+Here is an example of what that might look like:
 
 {% highlight java %}
 OutputTag<Event> lateTag = new OutputTag<Event>("late"){};
@@ -379,7 +384,7 @@ DataStream<Event> lateStream = result.getSideOutput(lateTag);
 
 You can also specify an interval of _allowed lateness_ during which the late events will continue to
 be assigned to the appropriate window(s) (whose state will have been retained). By default each late
-event will cause a late firing of the window function.
+event will cause the window function to be called again (sometimes called a _late firing_).
 
 By default the allowed lateness is 0. In other words, elements behind the watermark are dropped (or
 sent to the side output).
@@ -416,6 +421,11 @@ Just because you are using hour-long processing-time windows and start your appl
 12:05 does not mean that the first window will close at 1:05. The first window will be 55 minutes
 long and close at 1:00.
 
+Note, however, that the tumbling and sliding window assigners take an optional offset parameter
+that can be used to change the alignment of the windows. See
+[Tumbling Windows]({{ site.baseurl }}{% link dev/stream/operators/windows.md %}#tumbling-windows) and
+[Sliding Windows]({{ site.baseurl }}{% link dev/stream/operators/windows.md %}#sliding-windows) for details.
+
 #### Windows Can Follow Windows
 
 For example, it works to do this:
@@ -431,6 +441,12 @@ stream
 
 You might expect Flink's runtime to be smart enough to do this parallel pre-aggregation for you
 (provided you are using a ReduceFunction or AggregateFunction), but it's not.
+
+The reason why this works is that the events produced by a time window are assigned timestamps
+based on the time at the end of the window. So, for example, all of the events produced
+by an hour-long window will have timestamps marking the end of an hour. Any subsequent window
+consuming those events should have a duration that is the same as, or a multiple of, the
+previous window.
 
 #### No Results for Empty TimeWindows
 
