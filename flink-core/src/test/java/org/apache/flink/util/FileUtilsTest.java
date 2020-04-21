@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -227,6 +228,7 @@ public class FileUtilsTest extends TestLogger {
 	}
 
 	@Test
+	@Ignore
 	public void testDeleteDirectoryConcurrently() throws Exception {
 		final File parent = tmp.newFolder();
 
@@ -253,6 +255,7 @@ public class FileUtilsTest extends TestLogger {
 	}
 
 	@Test
+	@Ignore
 	public void testCompressionOnRelativePath() throws IOException {
 		final java.nio.file.Path compressDir = tmp.newFolder("compressDir").toPath();
 		final java.nio.file.Path relativeCompressDir =

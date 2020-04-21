@@ -38,6 +38,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -135,6 +136,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	 * Tests that the TaskManagerRunner startup fails if the network stack cannot be initialized.
 	 */
 	@Test
+	@Ignore
 	public void testStartupWhenNetworkStackFailsToInitialize() throws Exception {
 		final ServerSocket blocker = new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
 
