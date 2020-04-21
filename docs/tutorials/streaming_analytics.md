@@ -448,7 +448,7 @@ producing a late merge.
 ## Hands-on
 
 The hands-on exercise that goes with this section is the [Hourly Tips
-Exercise](https://github.com/apache/flink-training/tree/master/hourly-tips).
+Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/hourly-tips).
 
 {% top %}
 
