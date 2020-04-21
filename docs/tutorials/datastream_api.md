@@ -48,7 +48,7 @@ Flink's native serializer can operate efficiently on tuples and POJOs.
 
 #### Tuples
 
-For Java, Flink defines its own Tuple1 thru Tuple25 types.
+For Java, Flink defines its own Tuple0 thru Tuple25 types.
 
 {% highlight java %}
 Tuple2<String, Integer> person = Tuple2.of("Fred", 35);
