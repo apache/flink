@@ -259,7 +259,7 @@ public class TaskExecutorTest extends TestLogger {
 	public void testShouldShutDownTaskManagerServicesInPostStop() throws Exception {
 		final TaskSlotTableImpl<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
 
-		final JobLeaderService jobLeaderService = new JobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
+		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final IOManager ioManager = new IOManagerAsync(tmp.newFolder().getAbsolutePath());
 
@@ -300,7 +300,7 @@ public class TaskExecutorTest extends TestLogger {
 	public void testHeartbeatTimeoutWithJobManager() throws Exception {
 		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
 
-		final JobLeaderService jobLeaderService = new JobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
+		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final long heartbeatInterval = 1L;
 		final long heartbeatTimeout = 3L;
@@ -709,7 +709,7 @@ public class TaskExecutorTest extends TestLogger {
 	public void testJobLeaderDetection() throws Exception {
 		final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
-		final JobLeaderService jobLeaderService = new JobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
+		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		CompletableFuture<Void> initialSlotReportFuture = new CompletableFuture<>();
@@ -960,7 +960,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
 			.setShuffleEnvironment(nettyShuffleEnvironment)
 			.setTaskSlotTable(taskSlotTable)
-			.setJobLeaderService(new JobLeaderService(
+			.setJobLeaderService(new DefaultJobLeaderService(
 				unresolvedTaskManagerLocation,
 				RetryingRegistrationConfiguration.defaultConfiguration()))
 			.setJobManagerTable(new JobManagerTable())
@@ -1021,7 +1021,7 @@ public class TaskExecutorTest extends TestLogger {
 	@Test
 	public void testFilterOutDuplicateJobMasterRegistrations() throws Exception {
 		final long verificationTimeout = 500L;
-		final JobLeaderService jobLeaderService = mock(JobLeaderService.class);
+		final JobLeaderService jobLeaderService = mock(DefaultJobLeaderService.class);
 
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 		when(jobMasterGateway.getHostname()).thenReturn("localhost");
@@ -1929,7 +1929,7 @@ public class TaskExecutorTest extends TestLogger {
 			}).build();
 		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-		final JobLeaderService jobLeaderService = new JobLeaderService(
+		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(
 			unresolvedTaskManagerLocation,
 			RetryingRegistrationConfiguration.defaultConfiguration());
 

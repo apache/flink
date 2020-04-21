@@ -48,9 +48,9 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the {@link JobLeaderService}.
+ * Tests for the {@link DefaultJobLeaderService}.
  */
-public class JobLeaderServiceTest extends TestLogger {
+public class DefaultJobLeaderServiceTest extends TestLogger {
 
 	@Rule
 	public final TestingRpcServiceResource rpcServiceResource = new TestingRpcServiceResource();
@@ -61,7 +61,7 @@ public class JobLeaderServiceTest extends TestLogger {
 	 */
 	@Test
 	public void handlesConcurrentJobAdditionsAndLeaderChanges() throws Exception {
-		final JobLeaderService jobLeaderService = new JobLeaderService(
+		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(
 			new LocalUnresolvedTaskManagerLocation(),
 			RetryingRegistrationConfiguration.defaultConfiguration());
 
@@ -185,7 +185,7 @@ public class JobLeaderServiceTest extends TestLogger {
 	}
 
 	private JobLeaderService createAndStartJobLeaderService(HighAvailabilityServices haServices, JobLeaderListener testingJobLeaderListener) {
-		final JobLeaderService jobLeaderService = new JobLeaderService(
+		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(
 			new LocalUnresolvedTaskManagerLocation(),
 			RetryingRegistrationConfiguration.defaultConfiguration());
 
