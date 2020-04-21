@@ -24,13 +24,25 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+One very common use case for Apache Flink is to implement ETL (extract, transform, load) pipelines
+that take data from one or more sources, perform some transformations and/or enrichments, and
+then store the results somewhere. In this tutorial we're going to look at how to use Flink's
+DataStream API to implement this kind of application.
+
+Note that Flink's [Table and SQL APIs]({{ site.baseurl }}{% link dev/table/index.md %})
+are well suited for many ETL use cases. But regardless of whether you ultimately use
+the DataStream API directly, or not, having a solid understanding the basics presented here will
+prove valuable.
+
 * This will be replaced by the TOC
 {:toc}
 
 ## Stateless Transformations
 
-The examples in this section assume you are familiar with the Taxi Ride data used in the hands-on
-exercises in the [flink-training repo](https://github.com/apache/flink-training).
+This section covers `map()` and `flatmap()`, the basic operations used to implement
+stateless transformations. The examples in this section assume you are familiar with the
+Taxi Ride data used in the hands-on exercises in the
+[flink-training repo](https://github.com/apache/flink-training).
 
 ### `map()`
 
@@ -71,7 +83,7 @@ You can then create an application that transforms the stream
 DataStream<TaxiRide> rides = env.addSource(new TaxiRideSource(...));
 
 DataStream<EnrichedRide> enrichedNYCRides = rides
-    .filter(new RideCleansing.NYCFilter())
+    .filter(new RideCleansingSolution.NYCFilter())
     .map(new Enrichment());
 
 enrichedNYCRides.print();
@@ -92,7 +104,7 @@ public static class Enrichment implements MapFunction<TaxiRide, EnrichedRide> {
 ### `flatmap()`
 
 A `MapFunction` is suitable only when performing a one-to-one transformation: for each and every
-stream element coming in, `map()` will emit one transformed element. Otherwise, you'll want to use
+stream element coming in, `map()` will emit one transformed element. Otherwise, you will want to use
 `flatmap()`
 
 {% highlight java %}
@@ -140,7 +152,7 @@ rides
     .keyBy("startCell")
 {% endhighlight %}
 
-Every keyBy causes a network shuffle that repartitions the stream. In general this is pretty
+Every `keyBy` causes a network shuffle that repartitions the stream. In general this is pretty
 expensive, since it involves network communication along with serialization and deserialization.
 
 <img src="{{ site.baseurl }}/fig/keyBy.png" alt="keyBy and network shuffle" class="offset" width="45%" />
@@ -183,7 +195,7 @@ follow these same rules.
 The keys must be produced in a deterministic way, because they are recomputed whenever they
 are needed, rather than being attached to the stream records.
 
-For example, rather than creating a new EnrichedRide class with a startCell field that we then use
+For example, rather than creating a new `EnrichedRide` class with a `startCell` field that we then use
 as a key via 
 
 {% highlight java %}
@@ -202,6 +214,8 @@ This bit of code creates a new stream of tuples containing the `startCell` and d
 for each end-of-ride event:
 
 {% highlight java %}
+import org.joda.time.Interval;
+
 DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
     .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Minutes>>() {
 
@@ -221,8 +235,8 @@ Now it is possible to produce a stream that contains only those rides that are t
 ever seen (to that point) for each `startCell`.
 
 There are a variety of ways that the field to use as the key can be expressed. Earlier you saw an
-example with an EnrichedRide POJO, where the field to use as the key was specified with its name.
-This case involves Tuple2 objects, and the index within the tuple (starting from 0) is used to
+example with an `EnrichedRide` POJO, where the field to use as the key was specified with its name.
+This case involves `Tuple2` objects, and the index within the tuple (starting from 0) is used to
 specify the key.
 
 {% highlight java %}
@@ -251,13 +265,13 @@ The output stream now contains a record for each key every time the duration rea
 ### (Implicit) State
 
 This is the first example in these tutorials that involves stateful streaming. Though the state is
-being handled transparently, Flink is having to keep track of the maximum duration for each distinct
+being handled transparently, Flink has to keep track of the maximum duration for each distinct
 key.
 
 Whenever state gets involved in your application, you should think about how large the state might
 become. Whenever the key space is unbounded, then so is the amount of state Flink will need.
 
-When working with streams it generally makes more sense to think in terms of aggregations over
+When working with streams, it generally makes more sense to think in terms of aggregations over
 finite windows, rather than over the entire stream.
 
 ### `reduce()` and other aggregators
@@ -275,17 +289,17 @@ implement your own custom aggregations.
 Your applications are certainly capable of using state without getting Flink involved in managing it
 -- but Flink offers some compelling features for the state it manages:
 
-* local: Flink state is kept local to the machine that processes it, and can be accessed at memory speed
-* durable: Flink state is automatically checkpointed and restored
-* vertically scalable: Flink state can be kept in embedded RocksDB instances that scale by adding more local disk
-* horizontally scalable: Flink state is redistributed as your cluster grows and shrinks
-* queryable: Flink state can be queried via a REST API
+* **local**: Flink state is kept local to the machine that processes it, and can be accessed at memory speed
+* **durable**: Flink state is fault-tolerant, i.e., it is automatically checkpointed at regular intervals, and is restored upon failure
+* **vertically scalable**: Flink state can be kept in embedded RocksDB instances that scale by adding more local disk
+* **horizontally scalable**: Flink state is redistributed as your cluster grows and shrinks
+* **queryable**: Flink state can be queried externally via the [Queryable State API]({{ site.baseurl }}{% link dev/stream/state/queryable_state.md %}).
 
 In this section you will learn how to work with Flink's APIs that manage keyed state.
 
 ### Rich Functions
 
-At this point you've already seen several of Flink's function interfaces, including
+At this point you have already seen several of Flink's function interfaces, including
 `FilterFunction`, `MapFunction`, and `FlatMapFunction`. These are all examples of the Single
 Abstract Method pattern.
 
@@ -328,7 +342,7 @@ public static void main(String[] args) throws Exception {
 {% endhighlight %}
 
 To accomplish this, `Deduplicator` will need to somehow remember, for each key, whether or not there
-has already been an event for that key. It will do using Flink's _keyed state_ interface.
+has already been an event for that key. It will do so using Flink's _keyed state_ interface.
 
 When you are working with a keyed stream like this one, Flink will maintain a key/value store for
 each item of state being managed.
@@ -396,8 +410,8 @@ keyHasBeenSeen.clear()
 {% endhighlight %}
 
 You might want to do this, for example, after a period of inactivity for a given key. You'll see how
-to use Timers to do this when you learn about `ProcessFunction`s in the section on [event-driven
-applications]({{ site.baseurl }}{% link tutorials/event_driven.md %}#process-functions).
+to use Timers to do this when you learn about `ProcessFunction`s in the tutorial on event-driven
+applications.
 
 There's also a [State Time-to-Live (TTL)]({{ site.baseurl }}{% link dev/stream/state/state.md
 %}#state-time-to-live-ttl) option that you can configure with the state descriptor that specifies
@@ -429,7 +443,7 @@ Connected streams can also be used to implement streaming joins.
 
 ### Example
 
-In this example a control stream is used to specify words which must be filtered out of the
+In this example, a control stream is used to specify words which must be filtered out of the
 `streamOfWords`. A `RichCoFlatMapFunction` called `ControlFunction` is applied to the connected
 streams to get this done. 
 
@@ -449,9 +463,13 @@ public static void main(String[] args) throws Exception {
 }
 {% endhighlight %}
 
-Note that the two streams being connected must be keyed in compatible ways -- either both streams
-are not keyed, or both are keyed, and if they are both keyed, the key values have to be the same. In
-this case the streams are both of type `DataStream<String>`, and both streams are keyed by the
+Note that the two streams being connected must be keyed in compatible ways.
+The role of a `keyBy` is to partition a stream's data, and when keyed streams are connected, they
+must be partitioned in the same way. This ensures that all of the events from both streams with the
+same key are sent to the same instance. This makes it possible, then, to join the two streams on 
+that key, for example.
+
+In this case the streams are both of type `DataStream<String>`, and both streams are keyed by the
 string. As you will see below, this `RichCoFlatMapFunction` is storing a Boolean value in keyed
 state, and this Boolean is shared by the two streams.
 
