@@ -46,7 +46,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -73,11 +72,9 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse.Decline;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -114,8 +111,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -160,14 +155,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link TaskExecutor}.
@@ -591,28 +578,28 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Test
 	public void testTriggerRegistrationOnLeaderChange() throws Exception {
-		final String address1 = "/resource/manager/address/one";
-		final String address2 = "/resource/manager/address/two";
 		final UUID leaderId1 = UUID.randomUUID();
 		final UUID leaderId2 = UUID.randomUUID();
-		final ResourceID rmResourceId1 = new ResourceID(address1);
-		final ResourceID rmResourceId2 = new ResourceID(address2);
 
 		// register the mock resource manager gateways
-		ResourceManagerGateway rmGateway1 = mock(ResourceManagerGateway.class);
-		ResourceManagerGateway rmGateway2 = mock(ResourceManagerGateway.class);
+		final CompletableFuture<TaskExecutorRegistration> rmGateway1TaskExecutorRegistration = new CompletableFuture<>();
+		TestingResourceManagerGateway rmGateway1 = new TestingResourceManagerGateway();
+		rmGateway1.setRegisterTaskExecutorFunction(
+			taskExecutorRegistration -> {
+				rmGateway1TaskExecutorRegistration.complete(taskExecutorRegistration);
+				return createRegistrationResponse(rmGateway1);
+			});
 
-		when(rmGateway1.registerTaskExecutor(
-					any(TaskExecutorRegistration.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(
-				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId1, new ClusterInformation("localhost", 1234))));
-		when(rmGateway2.registerTaskExecutor(
-					any(TaskExecutorRegistration.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(
-				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId2, new ClusterInformation("localhost", 1234))));
+		final CompletableFuture<TaskExecutorRegistration> rmGateway2TaskExecutorRegistration = new CompletableFuture<>();
+		TestingResourceManagerGateway rmGateway2 = new TestingResourceManagerGateway();
+		rmGateway2.setRegisterTaskExecutorFunction(
+			taskExecutorRegistration -> {
+				rmGateway2TaskExecutorRegistration.complete(taskExecutorRegistration);
+				return createRegistrationResponse(rmGateway2);
+			});
 
-		rpc.registerGateway(address1, rmGateway1);
-		rpc.registerGateway(address2, rmGateway2);
+		rpc.registerGateway(rmGateway1.getAddress(), rmGateway1);
+		rpc.registerGateway(rmGateway2.getAddress(), rmGateway2);
 
 		final TaskSlotTable<Task> taskSlotTable = TestingTaskSlotTable
 			.<Task>newBuilder()
@@ -638,30 +625,34 @@ public class TaskExecutorTest extends TestLogger {
 			assertNull(taskManager.getResourceManagerConnection());
 
 			// define a leader and see that a registration happens
-			resourceManagerLeaderRetriever.notifyListener(address1, leaderId1);
-			verify(rmGateway1, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-				argThat(taskExecutorRegistration ->
-					taskExecutorRegistration.getTaskExecutorAddress().equals(taskManagerAddress) &&
-					taskExecutorRegistration.getResourceId().equals(unresolvedTaskManagerLocation.getResourceID())),
-				any(Time.class));
+			resourceManagerLeaderRetriever.notifyListener(rmGateway1.getAddress(), leaderId1);
+			final TaskExecutorRegistration taskExecutorRegistration1 = rmGateway1TaskExecutorRegistration.join();
+			assertThat(taskExecutorRegistration1.getTaskExecutorAddress(), is(taskManagerAddress));
+			assertThat(taskExecutorRegistration1.getResourceId(), is(unresolvedTaskManagerLocation.getResourceID()));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// cancel the leader
 			resourceManagerLeaderRetriever.notifyListener(null, null);
 
 			// set a new leader, see that a registration happens
-			resourceManagerLeaderRetriever.notifyListener(address2, leaderId2);
+			resourceManagerLeaderRetriever.notifyListener(rmGateway2.getAddress(), leaderId2);
 
-			verify(rmGateway2, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-				argThat(taskExecutorRegistration ->
-					taskExecutorRegistration.getTaskExecutorAddress().equals(taskManagerAddress) &&
-					taskExecutorRegistration.getResourceId().equals(unresolvedTaskManagerLocation.getResourceID())),
-				any(Time.class));
+			final TaskExecutorRegistration taskExecutorRegistration2 = rmGateway2TaskExecutorRegistration.join();
+			assertThat(taskExecutorRegistration2.getTaskExecutorAddress(), is(taskManagerAddress));
+			assertThat(taskExecutorRegistration2.getResourceId(), is(unresolvedTaskManagerLocation.getResourceID()));
 			assertNotNull(taskManager.getResourceManagerConnection());
 		}
 		finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
+	}
+
+	private CompletableFuture<RegistrationResponse> createRegistrationResponse(TestingResourceManagerGateway rmGateway1) {
+		return CompletableFuture.completedFuture(
+			new TaskExecutorRegistrationSuccess(
+				new InstanceID(),
+				rmGateway1.getOwnResourceId(),
+				new ClusterInformation("localhost", 1234)));
 	}
 
 	@Test
@@ -1020,13 +1011,21 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	@Test
 	public void testFilterOutDuplicateJobMasterRegistrations() throws Exception {
-		final long verificationTimeout = 500L;
-		final JobLeaderService jobLeaderService = mock(DefaultJobLeaderService.class);
+		final CompletableFuture<JobLeaderListener> jobLeaderListenerFuture = new CompletableFuture<>();
+		final TestingJobLeaderService jobLeaderService = TestingJobLeaderService.newBuilder()
+			.setStartConsumer((s, rpcService, highAvailabilityServices, jobLeaderListener) -> jobLeaderListenerFuture.complete(jobLeaderListener))
+			.build();
 
-		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
-		when(jobMasterGateway.getHostname()).thenReturn("localhost");
+		final JobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder().setHostname("localhost").build();
 		final JMTMRegistrationSuccess registrationMessage = new JMTMRegistrationSuccess(ResourceID.generate());
-		final JobManagerTable jobManagerTableMock = spy(new DefaultJobManagerTable());
+
+		final CompletableFuture<JobManagerConnection> jobManagerConnectionFuture = new CompletableFuture<>();
+		final TestingJobManagerTable jobManagerTableMock = TestingJobManagerTable.newBuilder()
+			.setPutFunction((jobID, jobManagerConnection) -> {
+				jobManagerConnectionFuture.complete(jobManagerConnection);
+				return true;
+			})
+			.build();
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
 
@@ -1043,22 +1042,14 @@ public class TaskExecutorTest extends TestLogger {
 			taskExecutor.start();
 			taskExecutor.waitUntilStarted();
 
-			ArgumentCaptor<JobLeaderListener> jobLeaderListenerArgumentCaptor = ArgumentCaptor.forClass(JobLeaderListener.class);
-
-			verify(jobLeaderService).start(anyString(), any(RpcService.class), any(HighAvailabilityServices.class), jobLeaderListenerArgumentCaptor.capture());
-
-			JobLeaderListener taskExecutorListener = jobLeaderListenerArgumentCaptor.getValue();
+			final JobLeaderListener taskExecutorListener = jobLeaderListenerFuture.join();
 
 			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, registrationMessage);
 
 			// duplicate job manager gained leadership message
 			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, registrationMessage);
 
-			ArgumentCaptor<JobManagerConnection> jobManagerConnectionArgumentCaptor = ArgumentCaptor.forClass(JobManagerConnection.class);
-
-			verify(jobManagerTableMock, Mockito.timeout(verificationTimeout).times(1)).put(eq(jobId), jobManagerConnectionArgumentCaptor.capture());
-
-			JobManagerConnection jobManagerConnection = jobManagerConnectionArgumentCaptor.getValue();
+			JobManagerConnection jobManagerConnection = jobManagerConnectionFuture.join();
 
 			assertEquals(jobMasterGateway, jobManagerConnection.getJobManagerGateway());
 		} finally {
@@ -1237,10 +1228,7 @@ public class TaskExecutorTest extends TestLogger {
 			testingResourceManagerGateway.setRegisterTaskExecutorFunction(
 				taskExecutorRegistration -> {
 					if (registrationFuture.complete(taskExecutorRegistration.getResourceId())) {
-						return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
-							new InstanceID(),
-							testingResourceManagerGateway.getOwnResourceId(),
-							new ClusterInformation("localhost", 1234)));
+						return createRegistrationResponse(testingResourceManagerGateway);
 					} else {
 						secondRegistration.trigger();
 						return CompletableFuture.completedFuture(new Decline("Only the first registration should succeed."));
