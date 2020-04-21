@@ -690,8 +690,7 @@ public final class FunctionCatalog {
 
 		@Override
 		public FunctionLanguage getFunctionLanguage() {
-			throw new UnsupportedOperationException(
-				"This CatalogFunction is a InlineCatalogFunction. This method should not be called.");
+			return FunctionLanguage.JAVA;
 		}
 
 		public FunctionDefinition getDefinition() {
