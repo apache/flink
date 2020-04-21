@@ -158,19 +158,33 @@ public final class TypeMappingUtils {
 			String physicalFieldName,
 			String logicalFieldName,
 			boolean isSource) {
-		checkIfCompatible(
-			physicalFieldType,
-			logicalFieldType,
-			(cause) -> new ValidationException(
-				String.format(
-					"Type %s of table field '%s' does not match with " +
-						"the physical type %s of the '%s' field of the %s.",
-					logicalFieldType,
-					logicalFieldName,
+		if (isSource) {
+			checkIfCompatible(
 					physicalFieldType,
-					physicalFieldName,
-					isSource ? "TableSource return type" : "TableSink consumed type"),
-				cause));
+					logicalFieldType,
+					(cause) -> new ValidationException(
+								String.format("Type %s of table field '%s' does not match with " +
+									"the physical type %s of the '%s' field of the %s.",
+										logicalFieldType,
+										logicalFieldName,
+										physicalFieldType,
+										physicalFieldName,
+										"TableSource return type"),
+								cause));
+		} else {
+			checkIfCompatible(
+					logicalFieldType,
+					physicalFieldType,
+					(cause) -> new ValidationException(
+								String.format("Type %s of table field '%s' does not match with " +
+									"the physical type %s of the '%s' field of the %s.",
+									logicalFieldType,
+									logicalFieldName,
+									physicalFieldType,
+									physicalFieldName,
+									"TableSink consumed type"),
+								cause));
+		}
 	}
 
 	private static void verifyTimeAttributeType(TableColumn logicalColumn, String rowtimeOrProctime) {
@@ -245,22 +259,32 @@ public final class TypeMappingUtils {
 	}
 
 	private static void checkIfCompatible(
-			LogicalType physicalFieldType,
-			LogicalType logicalFieldType,
+			LogicalType sourceType,
+			LogicalType targetType,
 			Function<Throwable, ValidationException> exceptionSupplier) {
-		if (supportsAvoidingCast(physicalFieldType, logicalFieldType)) {
+		if (supportsAvoidingCast(sourceType, targetType)) {
 			return;
 		}
 
-		physicalFieldType.accept(new LogicalTypeDefaultVisitor<Void>() {
+		sourceType.accept(new LogicalTypeDefaultVisitor<Void>() {
+			@Override
+			public Void visit(DecimalType sourceType) {
+				//When targetType is a legacy decimal type, pass the check.
+				if (targetType instanceof LegacyTypeInformationType
+					&& targetType.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
+					return null;
+				}
+				return defaultMethod(sourceType);
+			}
+
 			@Override
 			public Void visit(LogicalType other) {
 				if (other instanceof LegacyTypeInformationType && other.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
-					if (!(logicalFieldType instanceof DecimalType)) {
+					if (!(targetType instanceof DecimalType)) {
 						throw exceptionSupplier.apply(null);
 					}
 
-					DecimalType logicalDecimalType = (DecimalType) logicalFieldType;
+					DecimalType logicalDecimalType = (DecimalType) targetType;
 					if (logicalDecimalType.getPrecision() != DecimalType.MAX_PRECISION ||
 							logicalDecimalType.getScale() != 18) {
 						throw exceptionSupplier.apply(new ValidationException(
