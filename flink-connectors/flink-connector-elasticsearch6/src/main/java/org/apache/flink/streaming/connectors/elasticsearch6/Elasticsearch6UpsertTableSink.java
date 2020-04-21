@@ -216,7 +216,7 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 
 		private transient CredentialsProvider credentialsProvider;
 
-		public AuthRestClientFactory(@Nullable String userName, @Nullable String password,
+		public AuthRestClientFactory(String userName, String password,
 									 @Nullable Integer maxRetryTimeout, @Nullable String pathPrefix) {
 			this.userName = userName;
 			this.password = password;
