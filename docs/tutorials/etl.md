@@ -516,7 +516,7 @@ cases where timing and/or ordering matter, you may find it necessary to buffer e
 Flink state until your application is ready to process them. (Note: if you are truly desperate, it
 is possible to exert some limited control over the order in which a two-input operator consumes its
 inputs by using a custom Operator that implements the
-[InputSelectable](https://ci.apache.org/projects/flink/flink-docs-stable/api/java/org/apache/flink/streaming/api/operators/InputSelectable.html)
+[InputSelectable]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/operators/InputSelectable.html)
 interface.)
 
 {% top %}
@@ -524,7 +524,7 @@ interface.)
 ## Hands-on
 
 The hands-on exercise that goes with this section is the [Rides and Fares
-Exercise](https://github.com/apache/flink-training/tree/master/rides-and-fares).
+Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/rides-and-fares).
 
 {% top %}
 
