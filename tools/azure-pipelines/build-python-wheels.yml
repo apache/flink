@@ -18,41 +18,25 @@ jobs:
     pool:
       vmImage: 'ubuntu-16.04'
     container: flink-build-container
-    timeoutInMinutes: 240
-    cancelTimeoutInMinutes: 1
     workspace:
-      clean: all # this cleans the entire workspace directory before running a new job
-      # It is necessary because the custom build machines are reused for tests.
-      # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
-
+      clean: all
     steps:
-      # The cache task is persisting the .m2 directory between builds, so that
-      # we do not have to re-download all dependencies from maven central for
-      # each build. The hope is that downloading the cache is faster than
-      # all dependencies individually.
-      # In this configuration, we use a hash over all committed (not generated) .pom files
-      # as a key for the build cache (CACHE_KEY). If we have a cache miss on the hash
-      # (usually because a pom file has changed), we'll fall back to a key without
-      # the pom files (CACHE_FALLBACK_KEY).
-      # Offical documentation of the Cache task: https://docs.microsoft.com/en-us/azure/devops/pipelines/caching/?view=azure-devops
-      - task: Cache@2
-        inputs:
-          key: $(CACHE_KEY)
-          restoreKeys: $(CACHE_FALLBACK_KEY)
-          path: $(MAVEN_CACHE_FOLDER)
-        continueOnError: true # continue the build even if the cache fails.
-        displayName: Cache Maven local repo
       # Compile
       - script: STAGE=compile ${{parameters.environment}} ./tools/azure_controller.sh compile
         displayName: Build
 
-      # upload artifacts for next stage
+      # upload artifacts for building wheels
       - task: PublishPipelineArtifact@1
         inputs:
           path: $(CACHE_FLINK_DIR)
           artifact: FlinkCompileCacheDir
 
-  - job: BuildWheels
+      - script: |
+          VERSION=$(mvn --file pom.xml org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "##vso[task.setvariable variable=VERSION;isOutput=true]$VERSION"
+        name: set_version
+
+  - job: build_wheels
     dependsOn: compile_${{parameters.stage_name}}
     strategy:
       matrix:
@@ -62,6 +46,8 @@ jobs:
           vm-label: 'macOS-10.15'
     pool:
       vmImage: $(vm-label)
+    variables:
+      VERSION: $[ dependencies.compile_${{parameters.stage_name}}.outputs['set_version.VERSION'] ]
     steps:
       # download artifacts
       - task: DownloadPipelineArtifact@2
