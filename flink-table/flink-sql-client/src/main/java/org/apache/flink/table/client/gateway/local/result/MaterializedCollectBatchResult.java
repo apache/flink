@@ -34,7 +34,6 @@ import org.apache.flink.util.AbstractID;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -78,8 +77,7 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	@Override
 	public void startRetrieval(JobClient jobClient) {
-		CompletableFuture.completedFuture(jobClient)
-				.thenCompose(client -> client.getJobExecutionResult(classLoader))
+		jobClient.getJobExecutionResult(classLoader)
 				.thenAccept(new ResultRetrievalHandler())
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {

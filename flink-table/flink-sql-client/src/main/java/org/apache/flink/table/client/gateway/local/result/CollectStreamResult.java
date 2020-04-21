@@ -90,8 +90,7 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 		// start listener thread
 		retrievalThread.start();
 
-		jobExecutionResultFuture = CompletableFuture.completedFuture(jobClient)
-				.thenCompose(client -> client.getJobExecutionResult(classLoader))
+		jobExecutionResultFuture = jobClient.getJobExecutionResult(classLoader)
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {
 						executionException.compareAndSet(
