@@ -39,7 +39,7 @@ own serializer is used for
 - basic types, i.e., String, Long, Integer, Boolean, Array
 - composite types: Tuples, POJOs, and Scala case classes
 
-and Flink falls back to Kryo for other types. It's also possible to use other serializers with
+and Flink falls back to Kryo for other types. It is also possible to use other serializers with
 Flink. Avro, in particular, is well supported.
 
 ### Java tuples and POJOs
@@ -51,7 +51,7 @@ Flink's native serializer can operate efficiently on tuples and POJOs.
 For Java, Flink defines its own Tuple1 thru Tuple25 types.
 
 {% highlight java %}
-Tuple2<String, Integer> person = new Tuple2<>("Fred", 35);
+Tuple2<String, Integer> person = Tuple2.of("Fred", 35);
 
 // zero based index!  
 String name = person.f0;
@@ -224,9 +224,9 @@ In production, commonly used sinks include Kafka as well as various databases an
 
 ### Debugging
 
-In production your application will run in a remote cluster or set of containers. And if it fails,
+In production, your application will run in a remote cluster or set of containers. And if it fails,
 it will fail remotely. The Flink Master and Task Manager logs can be very helpful in debugging such
-failures, but it's much easier to do local debugging inside an IDE, which is something that Flink
+failures, but it is much easier to do local debugging inside an IDE, which is something that Flink
 supports. You can set breakpoints, examine local variables, and step through your code. You can also
 step into Flink's code, which can be a great way to learn more about its internals if you are
 curious to see how Flink works.
