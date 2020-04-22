@@ -47,6 +47,8 @@ import org.junit.{Assert, Before}
 import java.lang.{Iterable => JIterable}
 import java.util.regex.Pattern
 
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
+
 import scala.collection.JavaConverters._
 import scala.collection.Seq
 import scala.collection.mutable.ArrayBuffer
@@ -475,6 +477,8 @@ object BatchTestBase {
 
   def configForMiniCluster(conf: TableConfig): Unit = {
     conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration.setString(TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
+    conf.getConfiguration.setString(
+      TABLE_EXEC_SHUFFLE_MODE,
+      GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
   }
 }

@@ -28,9 +28,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 import java.util.List;
 
@@ -67,7 +65,7 @@ public class ExecutorUtils {
 		executionConfig.setLatencyTrackingInterval(-1);
 		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		execEnv.setBufferTimeout(-1);
-		if (isShuffleModeAllBatch(tableConfig)) {
+		if (isShuffleModeAllBlocking(tableConfig)) {
 			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
 		}
 	}
@@ -85,19 +83,14 @@ public class ExecutorUtils {
 		if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
 			throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
 		}
-		if (ExecutorUtils.isShuffleModeAllBatch(tableConfig)) {
-			streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
-		}
+		streamGraph.setGlobalDataExchangeMode(getGlobalDataExchangeMode(tableConfig));
 	}
 
-	private static boolean isShuffleModeAllBatch(TableConfig tableConfig) {
-		String value = tableConfig.getConfiguration().getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE);
-		if (value.equalsIgnoreCase(ShuffleMode.BATCH.toString())) {
-			return true;
-		} else if (!value.equalsIgnoreCase(ShuffleMode.PIPELINED.toString())) {
-			throw new IllegalArgumentException(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.key() +
-					" can only be set to " + ShuffleMode.BATCH.toString() + " or " + ShuffleMode.PIPELINED.toString());
-		}
-		return false;
+	private static boolean isShuffleModeAllBlocking(TableConfig tableConfig) {
+		return getGlobalDataExchangeMode(tableConfig) == GlobalDataExchangeMode.ALL_EDGES_BLOCKING;
+	}
+
+	private static GlobalDataExchangeMode getGlobalDataExchangeMode(TableConfig tableConfig) {
+		return ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(tableConfig.getConfiguration());
 	}
 }
