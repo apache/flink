@@ -49,8 +49,8 @@ DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .process(new AddTips());
 {% endhighlight %}
 
-It's reasonably straightforward, and educational, to do the same thing with a
-`KeyedProcessFunction`. Let's begin by replacing the code above with this:
+It is reasonably straightforward, and educational, to do the same thing with a
+`KeyedProcessFunction`. Let us begin by replacing the code above with this:
 
 {% highlight java %}
 // compute the sum of the tips per hour for each driver
@@ -61,7 +61,7 @@ DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
 
 In this code snippet a `KeyedProcessFunction` called `PseudoWindow` is being applied to a keyed
 stream, the result of which is a `DataStream<Tuple3<Long, Long, Float>>` (the same kind of stream
-produced by the implementation that uses Flink's built-in TimeWindows).
+produced by the implementation that uses Flink's built-in time windows).
 
 The overall outline of `PseudoWindow` has this shape:
 
@@ -106,11 +106,11 @@ public static class PseudoWindow extends
 
 Things to be aware of:
 
-* There are several types of ProcessFunctions -- this is a KeyedProcessFunction, but there are also
-  CoProcessFunctions, BroadcastProcessFunctions, etc. 
+* There are several types of ProcessFunctions -- this is a `KeyedProcessFunction`, but there are also
+  `CoProcessFunctions`, `BroadcastProcessFunctions`, etc. 
 
-* A KeyedProcessFunction is a kind of RichFunction. Being a RichFunction, it has access to the open
-  and getRuntimeContext methods needed for working with managed keyed state.
+* A `KeyedProcessFunction` is a kind of `RichFunction`. Being a `RichFunction`, it has access to the `open`
+  and `getRuntimeContext` methods needed for working with managed keyed state.
 
 * There are two callbacks to implement: `processElement` and `onTimer`. `processElement` is called
   with each incoming event; `onTimer` is called when timers fire. These can be either event time or
@@ -134,10 +134,10 @@ public void open(Configuration conf) {
 }
 {% endhighlight %}
 
-Because the fare events can arrive out-of-order, it will sometimes be necessary to process events
+Because the fare events can arrive out of order, it will sometimes be necessary to process events
 for one hour before having finished computing the results for the previous hour. In fact, if the
 watermarking delay is much longer than the window length, then there may be many windows open
-simultaneously, rather than just two. This implementation supports this by using `MapState` that
+simultaneously, rather than just two. This implementation supports this by using a `MapState` that
 maps the timestamp for the end of each window to the sum of the tips for that window.
 
 #### The `processElement()` method
@@ -178,7 +178,7 @@ Things to consider:
   explained in the [next section]({{ site.baseurl }}{% link tutorials/event_driven.md
   %}#side-outputs).
 
-* This example uses `MapState` where the keys are timestamps, and sets a `Timer` for that same
+* This example uses a `MapState` where the keys are timestamps, and sets a `Timer` for that same
   timestamp. This is a common pattern; it makes it easy and efficient to lookup relevant information
   when the timer fires.
 
@@ -194,7 +194,7 @@ public void onTimer(
     // Look up the result for the hour that just ended.
     Float sumOfTips = this.sumOfTips.get(timestamp);
 
-    Tuple3 result = new Tuple3(driverId, timestamp, sumOfTips);
+    Tuple3<Long, Long, Float> result = Tuple3.of(driverId, timestamp, sumOfTips);
     out.collect(result);
     this.sumOfTips.remove(timestamp);
 }
@@ -213,7 +213,7 @@ Observations:
 
 Flink provides `MapState` and `ListState` types that are optimized for RocksDB. Where possible,
 these should be used instead of a `ValueState` object holding some sort of collection. The RocksDB
-state backend can append to `ListState` without going through ser/de, and for `MapState`, each
+state backend can append to `ListState` without going through (de)serialization, and for `MapState`, each
 key/value pair is a separate RocksDB object, so `MapState` can be efficiently accessed and updated.
 
 {% top %}
@@ -232,7 +232,7 @@ There are several good reasons to want to have more than one output stream from 
 Side outputs are a convenient way to do this. 
 
 Each side output channel is associated with an `OutputTag<T>`. The tags have generic types that
-correspond to the type of the side output's DataStream, and they have names. Two OutputTags with the
+correspond to the type of the side output's `DataStream`, and they have names. Two `OutputTag`s with the
 same name should have the same type, and will refer to the same side output.
 
 ### Example
@@ -266,19 +266,19 @@ hourlyTips.getSideOutput(lateFares).print();
 
 ## Closing Remarks
 
-In this example you've seen how a ProcessFunction can be used to reimplement a straightforward time
+In this example you have seen how a `ProcessFunction` can be used to reimplement a straightforward time
 window. Of course, if Flink's built-in windowing API meets your needs, by all means, go ahead and
 use it. But if you find yourself considering doing something contorted with Flink's windows, don't
 be afraid to roll your own.
 
-Also, ProcessFunctions are useful for many other use cases beyond computing analytics. The hands-on
+Also, `ProcessFunctions` are useful for many other use cases beyond computing analytics. The hands-on
 exercise below provides an example of something completely different.
 
 Another common use case for ProcessFunctions is for expiring stale state. If you think back to the
 [Rides and Fares Exercise](https://github.com/apache/flink-training/tree/master/rides-and-fares),
 where a `RichCoFlatMapFunction` is used to compute a simple join, the sample solution assumes that
-the TaxiRides and TaxiFares are perfectly matched, one-to-one for each rideId. If an event is lost,
-the other event for the same rideId will be held in state forever. This could instead be implemented
+the TaxiRides and TaxiFares are perfectly matched, one-to-one for each `rideId`. If an event is lost,
+the other event for the same `rideId` will be held in state forever. This could instead be implemented
 as a `KeyedCoProcessFunction`, and a timer could be used to detect and clear any stale state.
 
 {% top %}
