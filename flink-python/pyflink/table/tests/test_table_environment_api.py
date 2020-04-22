@@ -297,6 +297,15 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             "org.apache.flink.table.planner.delegation.StreamPlanner")
 
         t_env = StreamTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().build())
+
+        planner = t_env._j_tenv.getPlanner()
+
+        self.assertEqual(
+            planner.getClass().getName(),
+            "org.apache.flink.table.planner.StreamPlanner")
+
+        t_env = StreamTableEnvironment.create(
             environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
 
         planner = t_env._j_tenv.getPlanner()
