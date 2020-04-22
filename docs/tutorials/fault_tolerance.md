@@ -44,13 +44,65 @@ disk, and another heap-based state backend that keeps its working state in memor
 This heap-based state backend comes in two flavors: the FsStateBackend that persists its state
 snapshots to a distributed file system, and the MemoryStateBackend that uses the JobManager's heap.
 
-<img src="{{ site.baseurl }}/fig/state-backends.png" alt="State backends" class="center" width="90%" />
+<table class="table table-bordered">
+  <thead>
+    <tr class="alert alert-info">
+      <th class="text-left">Name</th>
+      <th class="text-left">Working State</th>
+      <th class="text-left">State Backup</th>
+      <th class="text-left">Snapshotting</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th class="text-left">RocksDBStateBackend</th>
+      <td class="text-left">Local disk (tmp dir)</td>
+      <td class="text-left">Distributed file system</td>
+      <td class="text-left">Full / Incremental</td>
+    </tr>
+    <tr>
+      <td colspan="4" class="text-left">
+        <ul>
+          <li>Supports state larger than available memory</li>
+          <li>Rule of thumb: 10x slower than heap-based backends</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <th class="text-left">FsStateBackend</th>
+      <td class="text-left">JVM Heap</td>
+      <td class="text-left">Distributed file system</td>
+      <td class="text-left">Full</td>
+    </tr>
+    <tr>
+      <td colspan="4" class="text-left">
+        <ul>
+          <li>Fast, requires large heap</li>
+          <li>Subject to GC</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <th class="text-left">MemoryStateBackend</th>
+      <td class="text-left">JVM Heap</td>
+      <td class="text-left">JobManager JVM Heap</td>
+      <td class="text-left">Full</td>
+    </tr>
+    <tr>
+      <td colspan="4" class="text-left">
+        <ul>
+          <li>Good for testing and experimentation with small state (locally)</li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 When working with state kept in a heap-based state backend, accesses and updates involve reading and
-writing objects on the heap. But for objects kept in the RocksDBStateBackend, accesses and updates
+writing objects on the heap. But for objects kept in the `RocksDBStateBackend`, accesses and updates
 involve serialization and deserialization, and so are much more expensive. But the amount of state
 you can have with RocksDB is limited only by the size of the local disk. Note also that only the
-RocksDBStateBackend is able to do incremental snapshotting, which is a significant benefit for
+`RocksDBStateBackend` is able to do incremental snapshotting, which is a significant benefit for
 applications with large amounts of slowly changing state.
 
 Both state backends are able to do asynchronous snapshotting, meaning that they can take a snapshot without impeding the ongoing stream processing.
@@ -92,7 +144,7 @@ Checkpoint _n_ will contain the state of each operator that resulted from having
 event before checkpoint barrier _n_, and none of the events after it**.
 
 As each operator in the job graph receives one of these barriers, it records its state. Operators
-with two input streams (such as a CoProcessFunction) perform _barrier alignment_ so that the
+with two input streams (such as a `CoProcessFunction`) perform _barrier alignment_ so that the
 snapshot will reflect the state resulting from consuming events from both input streams up to (but
 not past) both barriers.
 
@@ -104,7 +156,7 @@ snapshots have been durably persisted will these older versions of the state be 
 
 ### Exactly Once Guarantees
 
-When things go wrong in a stream processing application, it's possible to have either lost, or
+When things go wrong in a stream processing application, it is possible to have either lost, or
 duplicated results. With Flink, depending on the choices you make for your application and the
 cluster you run it on, any of these outcomes is possible:
 
