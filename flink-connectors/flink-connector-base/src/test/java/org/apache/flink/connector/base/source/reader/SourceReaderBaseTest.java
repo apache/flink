@@ -54,7 +54,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		FutureNotifier futureNotifier = new FutureNotifier();
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
 				new FutureCompletingBlockingQueue<>(futureNotifier);
-		MockSourceReader reader = new MockSourceReader(
+		// We have to handle split changes first, otherwise fetch will not be called.
+		try (MockSourceReader reader = new MockSourceReader(
 				futureNotifier,
 				elementsQueue,
 				() -> new SplitReader<int[], MockSourceSplit>() {
@@ -70,18 +71,21 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 					}
 
 					@Override
-					public void wakeUp() {}
+					public void wakeUp() {
+					}
 				},
 				getConfig(),
-				null);
-
-		ValidatingSourceOutput output = new ValidatingSourceOutput();
-		reader.addSplits(Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED)));
-		// This is not a real infinite loop, it is supposed to throw exception after two polls.
-		while (true) {
-			reader.pollNext(output);
-			// Add a sleep to avoid tight loop.
-			Thread.sleep(1);
+				null)) {
+			ValidatingSourceOutput output = new ValidatingSourceOutput();
+			reader.addSplits(Collections.singletonList(getSplit(0,
+					NUM_RECORDS_PER_SPLIT,
+					Boundedness.CONTINUOUS_UNBOUNDED)));
+			// This is not a real infinite loop, it is supposed to throw exception after two polls.
+			while (true) {
+				reader.pollNext(output);
+				// Add a sleep to avoid tight loop.
+				Thread.sleep(1);
+			}
 		}
 	}
 

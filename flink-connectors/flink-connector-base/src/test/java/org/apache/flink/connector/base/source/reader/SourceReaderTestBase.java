@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -52,6 +53,15 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
+
+	@After
+	public void ensureNoDangling() {
+		for (Thread t : Thread.getAllStackTraces().keySet()) {
+			if (t.getName().equals("SourceFetcher")) {
+				System.out.println("Dangling thread.");
+			}
+		}
+	}
 
 	/**
 	 * Simply test the reader reads all the splits fine.
@@ -102,15 +112,13 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 
 	@Test (timeout = 30000L)
 	public void testAvailableOnEmptyQueue() throws Exception {
-		ValidatingSourceOutput output = new ValidatingSourceOutput();
-		List<SplitT> splits = Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
 		// Consumer all the records in the split.
-		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, NUM_RECORDS_PER_SPLIT)) {
+		try (SourceReader<Integer, SplitT> reader = createReader()) {
 			CompletableFuture<?> future = reader.isAvailable();
 			assertFalse("There should be no records ready for poll.", future.isDone());
 			// Add a split to the reader so there are more records to be read.
-			reader.addSplits(Collections.singletonList(getSplit(1, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED)));
-			// THe future should be completed fairly soon. Otherwise the test will hit timeout and fail.
+			reader.addSplits(Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED)));
+			// The future should be completed fairly soon. Otherwise the test will hit timeout and fail.
 			future.get();
 		}
 	}

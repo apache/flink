@@ -41,6 +41,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	private static final Logger LOG = LoggerFactory.getLogger(SplitFetcher.class);
+	private static final SplitFetcherTask WAKEUP_TASK = new DummySplitFetcherTask("WAKEUP_TASK");
+
 	private final int id;
 	private final BlockingDeque<SplitFetcherTask> taskQueue;
 	// track the assigned splits so we can suspend the reader when there is no splits assigned.
@@ -140,8 +142,12 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 			// Set the running task to null. It is necessary for the shutdown method to avoid
 			// unnecessarily interrupt the running task.
 			runningTask = null;
+			// Clean the interrupt flag in case the running task was interrupted after it finishes
+			// running but before it was set to null.
+			Thread.interrupted();
 			// Set the wakeUp flag to false.
 			wakeUp.set(false);
+			LOG.debug("Cleaned wakeup flag.");
 		}
 	}
 
@@ -236,31 +242,61 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 		// Synchronize to make sure the wake up only works for the current invocation of runOnce().
 		synchronized (wakeUp) {
 			// Do not wake up repeatedly.
-			if (wakeUp.compareAndSet(false, true)) {
-				// Now the wakeUp flag is set.
-				SplitFetcherTask currentTask = runningTask;
-				if (currentTask != null) {
-					// The running task may have missed our wakeUp flag and running, wake it up.
-					LOG.debug("Waking up running task {}", currentTask);
-					currentTask.wakeUp();
-				} else if (!taskOnly && runningThread != null) {
-					// The task has not started running yet, and it will not run for this
-					// runOnce() invocation due to the wakeUp flag. But we might have to
-					// interrupt the fetcher thread in case it is blocking on the task queue.
-					LOG.debug("Interrupting fetcher thread.");
-					// Only interrupt when the thread has started and there is no running task.
-					runningThread.interrupt();
-				}
+			wakeUp.set(true);
+			// Now the wakeUp flag is set.
+			SplitFetcherTask currentTask = runningTask;
+			if (isRunningTask(currentTask)) {
+				// The running task may have missed our wakeUp flag and running, wake it up.
+				LOG.debug("Waking up running task {}", currentTask);
+				currentTask.wakeUp();
+			} else if (!taskOnly) {
+				// The task has not started running yet, and it will not run for this
+				// runOnce() invocation due to the wakeUp flag. But we might have to
+				// wake up the fetcher thread in case it is blocking on the task queue.
+				// Only wake up when the thread has started and there is no running task.
+				LOG.debug("Waking up fetcher thread.");
+				taskQueue.add(WAKEUP_TASK);
 			}
 		}
 	}
 
 	private void maybeEnqueueTask(SplitFetcherTask task) {
 		// Only enqueue unfinished non-fetch task.
-		if (!closed.get() && task != null && task != fetchTask && !taskQueue.offerFirst(task)) {
+		if (!closed.get() && isRunningTask(task) && task != fetchTask && !taskQueue.offerFirst(task)) {
 			throw new RuntimeException(
 					"The task queue is full. This is only theoretically possible when really bad thing happens.");
 		}
-		LOG.debug("Enqueued task {}", task);
+		if (task != null) {
+			LOG.debug("Enqueued task {}", task);
+		}
+	}
+
+	private boolean isRunningTask(SplitFetcherTask task) {
+		return task != null && task != WAKEUP_TASK;
+	}
+
+	//--------------------- Helper class ------------------
+
+	private static class DummySplitFetcherTask implements SplitFetcherTask {
+		private final String name;
+
+		private DummySplitFetcherTask(String name) {
+			this.name = name;
+		}
+
+		@Override
+		public boolean run() throws InterruptedException {
+			return false;
+		}
+
+		@Override
+		public void wakeUp() {
+
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
 	}
 }
