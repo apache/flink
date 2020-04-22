@@ -48,6 +48,7 @@ import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscoverer;
@@ -55,6 +56,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.TestSourceContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockDeserializationSchema;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
@@ -835,6 +837,20 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		assertThat(mockFetchedPartitionsOnStartup, everyItem(isIn(restoredGlobalSubscribedPartitions.keySet())));
 	}
 
+	@Test
+	public void testOpen() throws Exception {
+		MockDeserializationSchema<Object> deserializationSchema = new MockDeserializationSchema<>();
+
+		AbstractStreamOperatorTestHarness<Object> testHarness = createTestHarness(
+			new DummyFlinkKafkaConsumer<>(new KafkaDeserializationSchemaWrapper<>(deserializationSchema)),
+			1,
+			0
+		);
+
+		testHarness.open();
+		assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static <T> AbstractStreamOperatorTestHarness<T> createTestHarness(
@@ -1029,13 +1045,25 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		}
 
 		@SuppressWarnings("unchecked")
+		DummyFlinkKafkaConsumer(KafkaDeserializationSchema<T> kafkaDeserializationSchema) {
+			this(
+				() -> mock(AbstractFetcher.class),
+				mock(AbstractPartitionDiscoverer.class),
+				false,
+				PARTITION_DISCOVERY_DISABLED,
+				Collections.singletonList("dummy-topic"),
+				kafkaDeserializationSchema);
+		}
+
+		@SuppressWarnings("unchecked")
 		DummyFlinkKafkaConsumer(List<String> topics, AbstractPartitionDiscoverer abstractPartitionDiscoverer) {
 			this(
 				() -> mock(AbstractFetcher.class),
 				abstractPartitionDiscoverer,
 				false,
 				PARTITION_DISCOVERY_DISABLED,
-				topics);
+				topics,
+				(KeyedDeserializationSchema<T>) mock(KeyedDeserializationSchema.class));
 		}
 
 		@SuppressWarnings("unchecked")
@@ -1079,8 +1107,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 				testPartitionDiscoverer,
 				isAutoCommitEnabled,
 				discoveryIntervalMillis,
-				Collections.singletonList("dummy-topic")
-				);
+				Collections.singletonList("dummy-topic"),
+				(KeyedDeserializationSchema<T>) mock(KeyedDeserializationSchema.class)
+			);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -1089,12 +1118,13 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			AbstractPartitionDiscoverer testPartitionDiscoverer,
 			boolean isAutoCommitEnabled,
 			long discoveryIntervalMillis,
-			List<String> topics) {
+			List<String> topics,
+			KafkaDeserializationSchema<T> mock) {
 
 			super(
 				topics,
 				null,
-				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
+				mock,
 				discoveryIntervalMillis,
 				false);
 
