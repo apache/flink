@@ -57,18 +57,10 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
 	@Override
 	public RecordsWithSplitIds<int[]> fetch() throws InterruptedException {
-		try {
-			if (runningThread == null) {
-				runningThread = Thread.currentThread();
-			}
-			return getRecords();
-		} catch (InterruptedException ie) {
-			if (!blockingFetch) {
-				throw new RuntimeException("Caught unexpected interrupted exception.");
-			} else {
-				throw ie;
-			}
+		if (runningThread == null) {
+			runningThread = Thread.currentThread();
 		}
+		return getRecords();
 	}
 
 	@Override
@@ -83,23 +75,31 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
 	@Override
 	public void wakeUp() {
-		if (blockingFetch) {
+		if (blockingFetch && runningThread != null) {
 			runningThread.interrupt();
 		}
 	}
 
-	private RecordsBySplits<int[]> getRecords() throws InterruptedException {
+	private RecordsBySplits<int[]> getRecords() {
 		RecordsBySplits<int[]> records = new RecordsBySplits<>();
-		for (Map.Entry<String, MockSourceSplit> entry : splits.entrySet()) {
-			MockSourceSplit split = entry.getValue();
-			for (int i = 0; i < numRecordsPerSplitPerFetch && !split.isFinished(); i++) {
-				int[] record = split.getNext(blockingFetch);
-				if (record != null) {
-					records.add(entry.getKey(), record);
-					if (split.isFinished()) {
-						records.addFinishedSplit(entry.getKey());
+		try {
+			for (Map.Entry<String, MockSourceSplit> entry : splits.entrySet()) {
+				MockSourceSplit split = entry.getValue();
+				for (int i = 0; i < numRecordsPerSplitPerFetch && !split.isFinished(); i++) {
+					// This call may throw InterruptedException.
+					int[] record = split.getNext(blockingFetch);
+					if (record != null) {
+						records.add(entry.getKey(), record);
+						if (split.isFinished()) {
+							records.addFinishedSplit(entry.getKey());
+						}
 					}
 				}
+			}
+		} catch (InterruptedException ie) {
+			// Catch the exception and return the records that are already read.
+			if (!blockingFetch) {
+				throw new RuntimeException("Caught unexpected interrupted exception.");
 			}
 		}
 		return records;

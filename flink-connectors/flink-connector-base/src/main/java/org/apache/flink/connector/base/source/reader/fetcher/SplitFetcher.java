@@ -233,7 +233,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 * synchronize to ensure the wake up logic do not touch a different invocation.
 	 */
 	void wakeUp(boolean taskOnly) {
-		// Synchronize to make sure the wake up only work for the current invocation of runOnce().
+		// Synchronize to make sure the wake up only works for the current invocation of runOnce().
 		synchronized (wakeUp) {
 			// Do not wake up repeatedly.
 			if (wakeUp.compareAndSet(false, true)) {
