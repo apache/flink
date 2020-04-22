@@ -19,33 +19,39 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.jobmaster.slotpool.DualKeyLinkedMap;
 
 import javax.annotation.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collection;
 
 /**
  * Default implementation of {@link JobManagerTable}.
  */
 public class DefaultJobManagerTable implements JobManagerTable {
-	private final Map<JobID, JobManagerConnection> jobManagerConnections;
+	private final DualKeyLinkedMap<JobID, ResourceID, JobManagerConnection> jobManagerConnections;
 
 	public DefaultJobManagerTable() {
-		jobManagerConnections = new HashMap<>(4);
+		jobManagerConnections = new DualKeyLinkedMap<>(4);
 	}
 
 	@Override
 	public boolean contains(JobID jobId) {
-		return jobManagerConnections.containsKey(jobId);
+		return jobManagerConnections.containsKeyA(jobId);
 	}
 
 	@Override
-	public boolean put(JobID jobId, JobManagerConnection jobManagerConnection) {
-		JobManagerConnection previousJMC = jobManagerConnections.put(jobId, jobManagerConnection);
+	public boolean contains(ResourceID resourceId) {
+		return jobManagerConnections.containsKeyB(resourceId);
+	}
+
+	@Override
+	public boolean put(JobID jobId, ResourceID resourceId, JobManagerConnection jobManagerConnection) {
+		JobManagerConnection previousJMC = jobManagerConnections.put(jobId, resourceId, jobManagerConnection);
 
 		if (previousJMC != null) {
-			jobManagerConnections.put(jobId, previousJMC);
+			jobManagerConnections.put(jobId, resourceId, previousJMC);
 
 			return false;
 		} else {
@@ -56,12 +62,23 @@ public class DefaultJobManagerTable implements JobManagerTable {
 	@Override
 	@Nullable
 	public JobManagerConnection remove(JobID jobId) {
-		return jobManagerConnections.remove(jobId);
+		return jobManagerConnections.removeKeyA(jobId);
 	}
 
 	@Override
 	@Nullable
 	public JobManagerConnection get(JobID jobId) {
-		return jobManagerConnections.get(jobId);
+		return jobManagerConnections.getKeyA(jobId);
+	}
+
+	@Nullable
+	@Override
+	public JobManagerConnection get(ResourceID resourceId) {
+		return jobManagerConnections.getKeyB(resourceId);
+	}
+
+	@Override
+	public Collection<JobManagerConnection> values() {
+		return jobManagerConnections.values();
 	}
 }

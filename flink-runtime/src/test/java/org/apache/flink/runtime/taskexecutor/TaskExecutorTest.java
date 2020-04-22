@@ -1021,7 +1021,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		final CompletableFuture<JobManagerConnection> jobManagerConnectionFuture = new CompletableFuture<>();
 		final TestingJobManagerTable jobManagerTableMock = TestingJobManagerTable.newBuilder()
-			.setPutFunction((jobID, jobManagerConnection) -> {
+			.setPutFunction((jobID, resourceID, jobManagerConnection) -> {
 				jobManagerConnectionFuture.complete(jobManagerConnection);
 				return true;
 			})

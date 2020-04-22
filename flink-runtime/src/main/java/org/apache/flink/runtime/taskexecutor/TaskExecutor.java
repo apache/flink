@@ -205,10 +205,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final Executor ioExecutor;
 
-	// --------- job manager connections -----------
-
-	private final Map<ResourceID, JobManagerConnection> jobManagerConnections;
-
 	// --------- task slot allocation table -----------
 
 	private final TaskSlotTable<Task> taskSlotTable;
@@ -287,8 +283,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.kvStateService = taskExecutorServices.getKvStateService();
 		this.ioExecutor = taskExecutorServices.getIOExecutor();
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
-
-		this.jobManagerConnections = new HashMap<>(4);
 
 		this.hardwareDescription = HardwareDescription.extractFromSystem(taskExecutorServices.getManagedMemorySize());
 
@@ -399,7 +393,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		closeResourceManagerConnection(cause);
 
-		for (JobManagerConnection jobManagerConnection : jobManagerConnections.values()) {
+		for (JobManagerConnection jobManagerConnection : jobManagerTable.values()) {
 			try {
 				disassociateFromJobManager(jobManagerConnection, cause);
 			} catch (Throwable t) {
@@ -1318,8 +1312,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				jobId,
 				jobManagerResourceID,
 				jobMasterGateway);
-		jobManagerConnections.put(jobManagerResourceID, newJobManagerConnection);
-		jobManagerTable.put(jobId, newJobManagerConnection);
+		jobManagerTable.put(jobId, jobManagerResourceID, newJobManagerConnection);
 
 		// monitor the job manager as heartbeat target
 		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<AccumulatorReport>() {
@@ -1377,8 +1370,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (jobManagerConnection != null) {
 			try {
 				jobManagerHeartbeatManager.unmonitorTarget(jobManagerConnection.getResourceID());
-
-				jobManagerConnections.remove(jobManagerConnection.getResourceID());
 				disassociateFromJobManager(jobManagerConnection, cause);
 			} catch (IOException e) {
 				log.warn("Could not properly disassociate from JobManager {}.",
@@ -1902,8 +1893,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			validateRunsInMainThread();
 			log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
 
-			if (jobManagerConnections.containsKey(resourceID)) {
-				JobManagerConnection jobManagerConnection = jobManagerConnections.get(resourceID);
+			if (jobManagerTable.contains(resourceID)) {
+				JobManagerConnection jobManagerConnection = jobManagerTable.get(resourceID);
 
 				if (jobManagerConnection != null) {
 					closeJobManagerConnection(
@@ -1924,7 +1915,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		@Override
 		public AccumulatorReport retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
-			JobManagerConnection jobManagerConnection = jobManagerConnections.get(resourceID);
+			JobManagerConnection jobManagerConnection = jobManagerTable.get(resourceID);
 			if (jobManagerConnection != null) {
 				JobID jobId = jobManagerConnection.getJobID();
 
