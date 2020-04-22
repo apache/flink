@@ -61,6 +61,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -91,6 +92,9 @@ import org.apache.flink.util.StringUtils;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlExplain;
+import org.apache.calcite.sql.SqlExplainFormat;
+import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -187,6 +191,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertDropView((SqlDropView) validated));
 		} else if (validated instanceof SqlShowViews) {
 			return Optional.of(converter.convertShowViews((SqlShowViews) validated));
+		} else if (validated instanceof SqlExplain) {
+			return Optional.of(converter.convertExplain((SqlExplain) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -532,6 +538,19 @@ public class SqlToOperationConverter {
 	/** Convert SHOW VIEWS statement. */
 	private Operation convertShowViews(SqlShowViews sqlShowViews) {
 		return new ShowViewsOperation();
+	}
+
+	/** Convert EXPLAIN statement. */
+	private Operation convertExplain(SqlExplain sqlExplain) {
+		Operation operation = convertSqlQuery(sqlExplain.getExplicandum());
+
+		if (sqlExplain.getDetailLevel() != SqlExplainLevel.EXPPLAN_ATTRIBUTES ||
+				sqlExplain.getDepth() != SqlExplain.Depth.PHYSICAL ||
+				sqlExplain.getFormat() != SqlExplainFormat.TEXT) {
+			throw new TableException("Only default behavior is supported now, EXPLAIN PLAN FOR xx");
+		}
+
+		return new ExplainOperation(operation);
 	}
 
 	/**

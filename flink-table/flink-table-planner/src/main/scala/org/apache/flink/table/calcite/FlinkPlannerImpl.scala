@@ -28,7 +28,7 @@ import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
-import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
+import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 import _root_.java.lang.{Boolean => JBoolean}
@@ -127,7 +127,14 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowViews]) {
         return sqlNode
       }
-      validator.validate(sqlNode)
+      sqlNode match {
+        case explain: SqlExplain =>
+          val validated = validator.validate(explain.getExplicandum)
+          explain.setOperand(0, validated)
+          explain
+        case _ =>
+          validator.validate(sqlNode)
+      }
     }
     catch {
       case e: RuntimeException =>
