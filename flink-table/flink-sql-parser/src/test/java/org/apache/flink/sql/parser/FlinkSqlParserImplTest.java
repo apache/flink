@@ -464,21 +464,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
-	public void testCreateTableWithInvalidWatermark() {
-		String sql = "CREATE TABLE tbl1 (\n" +
-			"  f1 row<q1 bigint, q2 varchar, q3 boolean>,\n" +
-			"  WATERMARK FOR f1.q0 AS NOW()\n" +
-			")\n" +
-			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
-			"    'kafka.topic' = 'log.test'\n" +
-			")\n";
-		sql(sql).node(new ValidationMatcher()
-			.fails("The rowtime attribute field \"F1.Q0\" is not defined in columns, at line 3, column 17"));
-
-	}
-
-	@Test
 	public void testCreateTableWithMultipleWatermark() {
 		String sql = "CREATE TABLE tbl1 (\n" +
 			"  f0 bigint,\n" +
@@ -630,20 +615,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			+ "`PROCTIME`() AS `PROC`, `C`";
 		sql(sql).node(new ValidationMatcher()
 			.expectColumnSql(expected));
-	}
-
-	@Test
-	public void testCreateInvalidPartitionedTable() {
-		final String sql = "create table sls_stream1(\n" +
-			"  a bigint,\n" +
-			"  b VARCHAR,\n" +
-			"  PRIMARY KEY(a, b)\n" +
-			") PARTITIONED BY (\n" +
-			"  c,\n" +
-			"  d\n" +
-			") with ( 'x' = 'y', 'asd' = 'dada')";
-		sql(sql).node(new ValidationMatcher()
-			.fails("Partition column [C] not defined in columns, at line 6, column 3"));
 	}
 
 	@Test

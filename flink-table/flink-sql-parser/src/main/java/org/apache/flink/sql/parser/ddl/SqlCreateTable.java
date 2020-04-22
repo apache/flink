@@ -21,20 +21,17 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
-import org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec;
 
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -45,7 +42,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -163,66 +159,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	@Override
 	public void validate() throws SqlValidateException {
-		ColumnValidator validator = new ColumnValidator();
-		for (SqlNode column : columnList) {
-			validator.addColumn(column);
-		}
-
-		// Validate table constraints.
-		boolean pkDefined = false;
-		Set<String> constraintNames = new HashSet<>();
-		for (SqlTableConstraint constraint : getFullConstraints()) {
-			Optional<String> constraintName = constraint.getConstraintName();
-			// Validate constraint name should be unique.
-			if (constraintName.isPresent() && !constraintNames.add(constraintName.get())) {
-				throw new SqlValidateException(constraint.getParserPosition(),
-						String.format("Duplicate definition for constraint [%s]",
-								constraintName.get()));
-			}
-			// Validate primary key definition should be unique.
-			if (constraint.isPrimaryKey()) {
-				if (pkDefined) {
-					throw new SqlValidateException(constraint.getParserPosition(),
-							"Duplicate primary key definition");
-				} else {
-					pkDefined = true;
-				}
-			}
-			// Validate the key field exists.
-			if (constraint.isTableConstraint()) {
-				for (SqlNode column : constraint.getColumns()) {
-					String columnName = ((SqlIdentifier) column).getSimple();
-					if (!validator.contains(columnName)) {
-						String prefix = constraint.isPrimaryKey() ? "Primary" : "Unique";
-						throw new SqlValidateException(
-								constraint.getParserPosition(),
-								String.format("%s key column [%s] not defined", prefix, columnName));
-					}
-				}
-			}
-		}
-
-		for (SqlNode partitionKeyNode : this.partitionKeyList.getList()) {
-			String partitionKey = ((SqlIdentifier) partitionKeyNode).getSimple();
-			if (!validator.contains(partitionKey)) {
-				throw new SqlValidateException(
-					partitionKeyNode.getParserPosition(),
-					"Partition column [" + partitionKey + "] not defined in columns, at "
-						+ partitionKeyNode.getParserPosition());
-			}
-		}
-
-		if (this.watermark != null) {
-			// SqlIdentifier.toString() returns a qualified identifier string using "." separator
-			String rowtimeField = watermark.getEventTimeColumnName().toString();
-			if (!validator.contains(rowtimeField)) {
-				throw new SqlValidateException(
-					watermark.getEventTimeColumnName().getParserPosition(),
-					"The rowtime attribute field \"" + rowtimeField + "\" is not defined in columns, at " +
-						watermark.getEventTimeColumnName().getParserPosition());
-			}
-		}
-
 		if (tableLike != null) {
 			tableLike.validate();
 		}
@@ -408,60 +344,4 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return tableName.names.toArray(new String[0]);
 	}
 
-	// -------------------------------------------------------------------------------------
-
-	private static final class ColumnValidator {
-
-		private final Set<String> allColumnNames = new HashSet<>();
-
-		/**
-		 * Adds column name to the registered column set. This will add nested column names recursive.
-		 * Nested column names are qualified using "." separator.
-		 */
-		public void addColumn(SqlNode column) throws SqlValidateException {
-			String columnName;
-			if (column instanceof SqlTableColumn) {
-				SqlTableColumn tableColumn = (SqlTableColumn) column;
-				columnName = tableColumn.getName().getSimple();
-				addNestedColumn(columnName, tableColumn.getType());
-			} else if (column instanceof SqlBasicCall) {
-				SqlBasicCall tableColumn = (SqlBasicCall) column;
-				columnName = tableColumn.getOperands()[1].toString();
-			} else {
-				throw new UnsupportedOperationException("Unsupported column:" + column);
-			}
-
-			addColumnName(columnName, column.getParserPosition());
-		}
-
-		/**
-		 * Returns true if the column name is existed in the registered column set.
-		 * This supports qualified column name using "." separator.
-		 */
-		public boolean contains(String columnName) {
-			return allColumnNames.contains(columnName);
-		}
-
-		private void addNestedColumn(String columnName, SqlDataTypeSpec columnType) throws SqlValidateException {
-			SqlTypeNameSpec typeName = columnType.getTypeNameSpec();
-			// validate composite type
-			if (typeName instanceof ExtendedSqlRowTypeNameSpec) {
-				ExtendedSqlRowTypeNameSpec rowType = (ExtendedSqlRowTypeNameSpec) typeName;
-				for (int i = 0; i < rowType.getFieldNames().size(); i++) {
-					SqlIdentifier fieldName = rowType.getFieldNames().get(i);
-					String fullName = columnName + "." + fieldName;
-					addColumnName(fullName, fieldName.getParserPosition());
-					SqlDataTypeSpec fieldType = rowType.getFieldTypes().get(i);
-					addNestedColumn(fullName, fieldType);
-				}
-			}
-		}
-
-		private void addColumnName(String columnName, SqlParserPos pos) throws SqlValidateException {
-			if (!allColumnNames.add(columnName)) {
-				throw new SqlValidateException(pos,
-					"Duplicate column name [" + columnName + "], at " + pos);
-			}
-		}
-	}
 }

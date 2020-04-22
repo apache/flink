@@ -32,6 +32,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -196,7 +197,8 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
 		}
 
 		for (SqlTableLikeOption option : options) {
-			if (invalidCombinations.get(option.featureOption).contains(option.mergingStrategy)) {
+			if (invalidCombinations.getOrDefault(option.featureOption, Collections.emptyList())
+				.contains(option.mergingStrategy)) {
 				throw new SqlValidateException(
 					pos,
 					String.format(
