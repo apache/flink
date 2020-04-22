@@ -105,4 +105,10 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 				Arrays.equals(records.toArray(new Integer[0]), that.records.toArray(new Integer[0])) &&
 				endIndex == that.endIndex;
 	}
+
+	@Override
+	public String toString() {
+		return String.format("MockSourceSplit(id=%d, num_records=%d, endIndex=%d, currentIndex=%d)",
+				id, records.size(), endIndex, index);
+	}
 }
