@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
@@ -79,7 +80,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
 				NoOpMetricRegistry.INSTANCE,
 				UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup(),
 				new JobVertexID(),
-				new AbstractID(),
+				new ExecutionAttemptID(),
 				"task",
 				0,
 				0))

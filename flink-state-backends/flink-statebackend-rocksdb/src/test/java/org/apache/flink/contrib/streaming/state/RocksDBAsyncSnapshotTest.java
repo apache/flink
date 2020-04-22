@@ -193,7 +193,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		};
 
 		JobID jobID = new JobID();
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID(0L, 0L);
+		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 		TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager(
 			jobID,
 			executionAttemptID,
