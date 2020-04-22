@@ -1,7 +1,7 @@
 ---
 title: Event-driven Applications
-nav-id: etl
-nav-pos: 6
+nav-id: event-driven
+nav-pos: 5
 nav-title: Event-driven Applications
 nav-parent_id: tutorials
 ---
@@ -37,15 +37,17 @@ with Flink. It is very similar to a `RichFlatMapFunction`, but with the addition
 
 ### Example
 
-If you've done the [HourlyTips exercise]() in the [Streaming Analytics]() section, you will recall
-that it uses a `TumblingEventTimeWindow` to compute the sum of the tips for each driver during each
-hour, like this:
+If you've done the
+[hands-on exercise]({{ site.baseurl }}{% link tutorials/streaming_analytics.md %}#hands-on)
+in the [Streaming Analytics tutorial]({{ site.baseurl }}{% link tutorials/streaming_analytics.md %}),
+you will recall that it uses a `TumblingEventTimeWindow` to compute the sum of the tips for
+each driver during each hour, like this:
 
 {% highlight java %}
 // compute the sum of the tips per hour for each driver
 DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
-        .timeWindow(Time.hours(1))
+        .window(TumblingEventTimeWindows.of(Time.hours(1)))
         .process(new AddTips());
 {% endhighlight %}
 
@@ -229,28 +231,34 @@ There are several good reasons to want to have more than one output stream from 
 * late events
 * operational alerts, such as timed-out connections to external services
 
-Side outputs are a convenient way to do this. 
-
-Each side output channel is associated with an `OutputTag<T>`. The tags have generic types that
-correspond to the type of the side output's `DataStream`, and they have names. Two `OutputTag`s with the
-same name should have the same type, and will refer to the same side output.
+Side outputs are a convenient way to do this. Beyond error reporting, side outputs are also
+a good way to implement an n-way split of a stream.
 
 ### Example
 
 You are now in a position to do something with the late events that were ignored in the previous
-section. In the `processElement` method of `PseudoWindow` you can now do this:
+section.
+
+A side output channel is associated with an `OutputTag<T>`. These tags have generic types that
+correspond to the type of the side output's `DataStream`, and they have names.
+
+{% highlight java %}
+private static final OutputTag<TaxiFare> lateFares = new OutputTag<TaxiFare>("lateFares") {};
+{% endhighlight %}
+
+Shown above is a static `OutputTag<TaxiFare>` that can be referenced both when emitting
+late events in the `processElement` method of the `PseudoWindow`:
 
 {% highlight java %}
 if (eventTime <= timerService.currentWatermark()) {
     // This event is late; its window has already been triggered.
-    OutputTag<TaxiFare> lateFares = new OutputTag<TaxiFare>("lateFares") {};
     ctx.output(lateFares, fare);
 } else {
     . . .
 }
 {% endhighlight %}
 
-And the job can access this side output:
+and when accessing the stream from this side output in the `main` method of the job:
 
 {% highlight java %}
 // compute the sum of the tips per hour for each driver
@@ -258,9 +266,11 @@ SingleOutputStreamOperator hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
         .process(new PseudoWindow(Time.hours(1)));
 
-OutputTag<TaxiFare> lateFares = new OutputTag<TaxiFare>("lateFares") {};
 hourlyTips.getSideOutput(lateFares).print();
 {% endhighlight %}
+
+Alternatively, you can use two OutputTags with the
+same name to refer to the same side output, but if you do, they must have the same type.
 
 {% top %}
 
