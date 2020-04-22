@@ -111,7 +111,7 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
-	public static final String EXECUTION_SQL_DIALECT = "sql-dialect";
+	public static final String EXECUTION_SQL_DIALECT = "dialect";
 
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);

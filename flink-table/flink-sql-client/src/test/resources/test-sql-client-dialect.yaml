@@ -25,7 +25,7 @@ execution:
   planner: blink
   type: batch
   result-mode: table
-  sql-dialect: "$VAR_DIALECT"
+  dialect: "$VAR_DIALECT"
 
 configuration:
   table.exec.sort.default-limit: 100

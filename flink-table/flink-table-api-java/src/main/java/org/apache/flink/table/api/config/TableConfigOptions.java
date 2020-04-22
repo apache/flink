@@ -43,7 +43,7 @@ public class TableConfigOptions {
 							"if any OPTIONS hint is specified");
 
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-	public static final ConfigOption<String> TABLE_SQL_DIALECT = key("table.sql.dialect")
+	public static final ConfigOption<String> TABLE_SQL_DIALECT = key("table.sql-dialect")
 			.stringType()
 			.defaultValue(SqlDialect.DEFAULT.name().toLowerCase())
 			.withDescription("The SQL dialect defines how to parse a SQL query. " +
