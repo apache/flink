@@ -58,8 +58,6 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
 	private static final String LOCAL_HOST = "localhost";
 
-	private static final int TOTAL_FLINK_MEMORY_MB = 1024;
-
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
