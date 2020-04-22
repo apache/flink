@@ -20,7 +20,4 @@
 bin=$(dirname "$0")
 bin=$(cd "${bin}" || exit; pwd)
 
-# get Flink config
-. "${bin}"/config.sh
-
-exec "${FLINK_BIN_DIR}"/mesos-jobmanager.sh "org.apache.flink.mesos.entrypoint.MesosSessionClusterEntrypoint" "$@"
+exec "${bin}"/mesos-jobmanager.sh "org.apache.flink.mesos.entrypoint.MesosSessionClusterEntrypoint" "$@"
