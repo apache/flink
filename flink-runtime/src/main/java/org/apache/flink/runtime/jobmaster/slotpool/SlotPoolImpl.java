@@ -319,9 +319,10 @@ public class SlotPoolImpl implements SlotPool {
 		checkNotNull(resourceManagerGateway);
 		checkNotNull(pendingRequest);
 
-		log.info("Requesting new slot [{}] and profile {} from resource manager.", pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile());
-
 		final AllocationID allocationId = new AllocationID();
+
+		log.info("Requesting new slot [{}] and profile {} with AllocationID {} from resource manager.",
+			pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile(), allocationId);
 
 		pendingRequests.put(pendingRequest.getSlotRequestId(), allocationId, pendingRequest);
 
