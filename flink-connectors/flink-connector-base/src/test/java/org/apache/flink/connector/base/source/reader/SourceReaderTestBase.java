@@ -75,7 +75,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		// Add a split to start the fetcher.
 		List<SplitT> splits = Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
 		// Poll 5 records and let it block on the element queue which only have capacity of 1;
-		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, 5, Boundedness.BOUNDED)) {
+		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, 5)) {
 			List<SplitT> newSplits = new ArrayList<>();
 			for (int i = 1; i < NUM_SPLITS; i++) {
 				newSplits.add(getSplit(i, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
@@ -94,7 +94,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		ValidatingSourceOutput output = new ValidatingSourceOutput();
 		List<SplitT> splits = Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
 		// Consumer all the records in the s;oit.
-		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED)) {
+		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, NUM_RECORDS_PER_SPLIT)) {
 			// Now let the main thread poll again.
 			assertEquals("The status should be ", SourceReader.Status.AVAILABLE_LATER, reader.pollNext(output));
 		}
@@ -105,7 +105,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		ValidatingSourceOutput output = new ValidatingSourceOutput();
 		List<SplitT> splits = Collections.singletonList(getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
 		// Consumer all the records in the split.
-		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED)) {
+		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, NUM_RECORDS_PER_SPLIT)) {
 			CompletableFuture<?> future = reader.isAvailable();
 			assertFalse("There should be no records ready for poll.", future.isDone());
 			// Add a split to the reader so there are more records to be read.
@@ -122,7 +122,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		List<SplitT> splits = getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED);
 		// Poll 5 records. That means split 0 and 1 will at index 2, split 1 will at index 1.
 		try (SourceReader<Integer, SplitT> reader =
-				consumeRecords(splits, output, NUM_SPLITS * NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED)) {
+				consumeRecords(splits, output, NUM_SPLITS * NUM_RECORDS_PER_SPLIT)) {
 			List<SplitT> state = reader.snapshotState();
 			assertEquals("The snapshot should only have 10 splits. ", NUM_SPLITS, state.size());
 			for (int i = 0; i < NUM_SPLITS; i++) {
@@ -145,8 +145,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 	private SourceReader<Integer, SplitT> consumeRecords(
 			List<SplitT> splits,
 			ValidatingSourceOutput output,
-			int n,
-			Boundedness boundedness) throws Exception {
+			int n) throws Exception {
 		SourceReader<Integer, SplitT> reader = createReader();
 		// Add splits to start the fetcher.
 		reader.addSplits(splits);
