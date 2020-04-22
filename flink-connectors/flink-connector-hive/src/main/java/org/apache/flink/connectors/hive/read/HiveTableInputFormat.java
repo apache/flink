@@ -148,18 +148,13 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		jobConf.set(IOConstants.COLUMNS, String.join(",", fieldNames));
 		jobConf.set(IOConstants.COLUMNS_TYPES, String.join(",", typeStrs));
 		// set schema evolution -- excluding partition cols
-		int numPartCol = partitionKeys != null ? partitionKeys.size() : 0;
-		int firstPartColIndex = fieldNames.length - numPartCol;
-		if (numPartCol == 0) {
-			jobConf.set(SCHEMA_EVOLUTION_COLUMNS, jobConf.get(IOConstants.COLUMNS));
-			jobConf.set(SCHEMA_EVOLUTION_COLUMNS_TYPES, jobConf.get(IOConstants.COLUMNS_TYPES));
-		} else {
-			jobConf.set(SCHEMA_EVOLUTION_COLUMNS, String.join(",", Arrays.copyOfRange(fieldNames, 0, firstPartColIndex)));
-			jobConf.set(SCHEMA_EVOLUTION_COLUMNS_TYPES, String.join(",", typeStrs.subList(0, firstPartColIndex)));
-		}
+		int numNonPartCol = fieldNames.length - partitionKeys.size();
+		jobConf.set(SCHEMA_EVOLUTION_COLUMNS, String.join(",", Arrays.copyOfRange(fieldNames, 0, numNonPartCol)));
+		jobConf.set(SCHEMA_EVOLUTION_COLUMNS_TYPES, String.join(",", typeStrs.subList(0, numNonPartCol)));
+
 		// in older versions, parquet reader also expects the selected col indices in conf, excluding part cols
 		String readColIDs = Arrays.stream(selectedFields)
-				.filter(i -> i < firstPartColIndex)
+				.filter(i -> i < numNonPartCol)
 				.mapToObj(String::valueOf)
 				.collect(Collectors.joining(","));
 		jobConf.set(ColumnProjectionUtils.READ_COLUMN_IDS_CONF_STR, readColIDs);
