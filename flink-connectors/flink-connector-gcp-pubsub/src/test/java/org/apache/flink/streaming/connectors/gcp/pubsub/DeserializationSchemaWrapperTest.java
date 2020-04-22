@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.DeserializationSchema.InitializationContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import com.google.protobuf.ByteString;
@@ -26,11 +27,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.internal.verification.VerificationModeFactory;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -73,6 +77,14 @@ public class DeserializationSchemaWrapperTest {
 
 		assertThat(deserializationSchemaWrapper.deserialize(pubSubMessage(inputAsString)), is(inputAsString));
 		verify(deserializationSchema, times(1)).deserialize(inputAsBytes);
+	}
+
+	@Test
+	public void testOpen() throws Exception {
+		InitializationContext initContext = mock(InitializationContext.class);
+		deserializationSchemaWrapper.open(initContext);
+
+		verify(deserializationSchema, VerificationModeFactory.times(1)).open(eq(initContext));
 	}
 
 	private PubsubMessage pubSubMessage(String message) {
