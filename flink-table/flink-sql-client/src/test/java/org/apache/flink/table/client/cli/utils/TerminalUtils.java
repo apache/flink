@@ -54,6 +54,9 @@ public class TerminalUtils {
 		}
 	}
 
+	/**
+	 * A mock OutputStream for testing.
+	 */
 	public static class MockOutputStream extends OutputStream {
 
 		@Override
