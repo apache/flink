@@ -105,7 +105,8 @@ you can have with RocksDB is limited only by the size of the local disk. Note al
 `RocksDBStateBackend` is able to do incremental snapshotting, which is a significant benefit for
 applications with large amounts of slowly changing state.
 
-Both state backends are able to do asynchronous snapshotting, meaning that they can take a snapshot without impeding the ongoing stream processing.
+All of these state backends are able to do asynchronous snapshotting, meaning that they can take a
+snapshot without impeding the ongoing stream processing.
 
 {% top %}
 
@@ -148,7 +149,7 @@ with two input streams (such as a `CoProcessFunction`) perform _barrier alignmen
 snapshot will reflect the state resulting from consuming events from both input streams up to (but
 not past) both barriers.
 
-<img src="{{ site.baseurl }}/fig/stream_aligning.svg" alt="Barrier alignment" class="center" width="80%" />
+<img src="{{ site.baseurl }}/fig/stream_aligning.svg" alt="Barrier alignment" class="center" width="100%" />
 
 Flink's state backends use a copy-on-write mechanism to allow stream processing to continue
 unimpeded while older versions of the state are being asynchronously snapshotted. Only when the
@@ -169,8 +170,9 @@ ideal situation is described as **exactly once** this does *not* mean that every
 processed exactly once. Instead, it means that _every event will affect the state being managed by
 Flink exactly once_. 
 
-If you don't need exactly once semantics, you can gain some performance by disabling barrier
-alignment. This is done by configuring Flink to use `CheckpointingMode.AT_LEAST_ONCE`.
+Barrier alignment is only needed for providing exactly once guarantees. If you don't need this, you
+can gain some performance by configuring Flink to use `CheckpointingMode.AT_LEAST_ONCE`, which has
+the effect of disabling barrier alignment.
 
 ### Exactly Once End-to-end
 
