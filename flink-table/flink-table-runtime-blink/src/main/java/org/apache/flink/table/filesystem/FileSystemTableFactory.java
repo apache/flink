@@ -81,6 +81,13 @@ public class FileSystemTableFactory implements
 			.defaultValue(60L * 1000L)
 			.withDescription("The maximum time duration a part file can stay open before rolling (by default 60 sec).");
 
+	public static final ConfigOption<Boolean> SINK_SHUFFLE_BY_PARTITION = key("sink.shuffle-by-partition.enable")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription("The option to enable shuffle data by dynamic partition fields in sink" +
+					" phase, this can greatly reduce the number of file for filesystem sink but may" +
+					" lead data skew, the default value is disabled.");
+
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
@@ -105,6 +112,8 @@ public class FileSystemTableFactory implements
 		properties.add(PARTITION_DEFAULT_NAME.key());
 		properties.add(SINK_ROLLING_POLICY_FILE_SIZE.key());
 		properties.add(SINK_ROLLING_POLICY_TIME_INTERVAL.key());
+
+		properties.add(SINK_SHUFFLE_BY_PARTITION.key());
 
 		// format
 		properties.add(FORMAT);
