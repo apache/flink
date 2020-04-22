@@ -1107,13 +1107,10 @@ class StreamTableEnvironment(TableEnvironment):
         super(StreamTableEnvironment, self).__init__(j_tenv)
 
     def _get_j_env(self):
-        if "getPlanner" in dir(self._j_tenv):
-            if self._is_blink_planner:
-                return self._j_tenv.getPlanner().getExecEnv()
-            else:
-                return self._j_tenv.getPlanner().getExecutionEnvironment()
+        if self._is_blink_planner:
+            return self._j_tenv.getPlanner().getExecEnv()
         else:
-            return self._j_tenv.execEnv()
+            return self._j_tenv.getPlanner().getExecutionEnvironment()
 
     def get_config(self):
         """
