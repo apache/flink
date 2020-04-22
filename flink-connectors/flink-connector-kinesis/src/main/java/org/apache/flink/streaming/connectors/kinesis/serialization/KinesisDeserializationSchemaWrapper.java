@@ -39,6 +39,11 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
 	}
 
 	@Override
+	public void open(DeserializationSchema.InitializationContext context) throws Exception {
+		this.deserializationSchema.open(context);
+	}
+
+	@Override
 	public T deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId)
 		throws IOException {
 		return deserializationSchema.deserialize(recordValue);

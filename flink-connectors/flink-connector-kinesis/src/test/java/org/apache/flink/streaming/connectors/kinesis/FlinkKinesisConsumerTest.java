@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,6 +29,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -92,6 +94,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
@@ -845,7 +848,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		subscribedStreamsToLastDiscoveredShardIds.put(streamName, null);
 
 		final KinesisDeserializationSchema<String> deserializationSchema =
-			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema());
+			new KinesisDeserializationSchemaWrapper<>(new OpenCheckingStringSchema());
 		Properties props = new Properties();
 		props.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
 		props.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, Long.toString(10L));
@@ -1031,6 +1034,24 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		Deadline deadline  = Deadline.fromNow(Duration.ofSeconds(10));
 		while (deadline.hasTimeLeft() && queue.size() < count) {
 			Thread.sleep(10);
+		}
+	}
+
+	private static class OpenCheckingStringSchema extends SimpleStringSchema {
+		private boolean opened = false;
+
+		@Override
+		public void open(DeserializationSchema.InitializationContext context) throws Exception {
+			assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
+			this.opened = true;
+		}
+
+		@Override
+		public String deserialize(byte[] message) {
+			if (!opened) {
+				throw new AssertionError("DeserializationSchema was not opened before deserialization.");
+			}
+			return super.deserialize(message);
 		}
 	}
 
