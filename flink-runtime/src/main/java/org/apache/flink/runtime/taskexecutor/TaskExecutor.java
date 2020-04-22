@@ -643,7 +643,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 			taskMetricGroup.gauge(MetricNames.IS_BACKPRESSURED, task::isBackPressured);
 
-			log.info("Received task {}.", task.getTaskInfo().getTaskNameWithSubtasks());
+			log.info("Received task {} ({}), deploy into slot with allocation id {}.",
+				task.getTaskInfo().getTaskNameWithSubtasks(), tdd.getExecutionAttemptId(), tdd.getAllocationId());
 
 			boolean taskAdded;
 
