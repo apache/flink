@@ -343,6 +343,18 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 				}
 			}
 			numAddedBuffers = bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
+
+			if (bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
+
+				// There might be case that another thread recycling buffer to the
+				// buffer provider has picked this listener out and is ready to
+				// notify buffer availability. In this case we could not actually
+				// remove the listener, if we still reset the flag, we may end
+				// up adding the listener twice in the buffer provider.
+				if (inputGate.getBufferProvider().removeBufferListener(this)) {
+					isWaitingForFloatingBuffers = false;
+				}
+			}
 		}
 
 		if (numAddedBuffers > 0 && unannouncedCredit.getAndAdd(numAddedBuffers) == 0) {

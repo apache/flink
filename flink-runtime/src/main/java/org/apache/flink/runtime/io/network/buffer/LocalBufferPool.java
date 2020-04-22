@@ -380,6 +380,13 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
+	public boolean removeBufferListener(BufferListener listener) {
+		synchronized (availableMemorySegments) {
+			return registeredListeners.remove(listener);
+		}
+	}
+
+	@Override
 	public void setNumBuffers(int numBuffers) throws IOException {
 		int numExcessBuffers;
 		CompletableFuture<?> toNotify = null;

@@ -61,6 +61,13 @@ public interface BufferProvider extends AvailabilityProvider {
 	boolean addBufferListener(BufferListener listener);
 
 	/**
+	 * Removes a buffer availability listener from the buffer provider.
+	 *
+	 * <p>Returns <code>true</code> if the listener is actually removed from the buffer provider.
+	 */
+	boolean removeBufferListener(BufferListener listener);
+
+	/**
 	 * Returns whether the buffer provider has been destroyed.
 	 */
 	boolean isDestroyed();

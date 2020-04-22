@@ -101,6 +101,11 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
+	public boolean removeBufferListener(BufferListener listener) {
+		return bufferRecycler.removeListener(listener);
+	}
+
+	@Override
 	public boolean isDestroyed() {
 		return false;
 	}
@@ -156,6 +161,12 @@ public class TestPooledBufferProvider implements BufferProvider {
 				}
 
 				return false;
+			}
+		}
+
+		boolean removeListener(BufferListener listener) {
+			synchronized (listenerRegistrationLock) {
+				return registeredListeners.remove(listener);
 			}
 		}
 	}

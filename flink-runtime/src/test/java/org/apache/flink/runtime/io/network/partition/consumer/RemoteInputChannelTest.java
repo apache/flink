@@ -552,6 +552,49 @@ public class RemoteInputChannelTest {
 	}
 
 	/**
+	 * Tests to verify that when the required buffers are fulfilled on recycling exclusive buffer,
+	 * the channel will stop waiting for buffers from the buffer provide.
+	 */
+	@Test
+	public void testExclusiveBufferFulfillsRequired() throws Exception {
+		// Setup
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 32, 2);
+		int numFloatingBuffers = 2;
+
+		SingleInputGate inputGate = createSingleInputGate(1);
+		RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		inputGate.setInputChannels(inputChannel);
+		Throwable thrown = null;
+
+		try {
+			BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+			inputGate.setBufferPool(bufferPool);
+			inputGate.assignExclusiveSegments();
+			inputChannel.requestSubpartition(0);
+
+			Buffer exclusiveBuffer = inputChannel.requestBuffer();
+			assertNotNull(exclusiveBuffer);
+
+			// On sending backlog, the channel will require 4 buffers.
+			// It will then request 2 buffers from the buffer provider
+			// and has 1 buffers not fulfilled, thus it will wait on
+			// the buffer provider.
+			inputChannel.onSenderBacklog(2);
+			assertTrue(inputChannel.isWaitingForFloatingBuffers());
+
+			// Recycling the exclusive buffer fulfills the required
+			// buffers and the channel will stop waiting on the buffer
+			// provider.
+			exclusiveBuffer.recycleBuffer();
+			assertFalse(inputChannel.isWaitingForFloatingBuffers());
+		} catch (Throwable t) {
+			thrown = t;
+		} finally {
+			cleanup(networkBufferPool, null, null, thrown, inputChannel);
+		}
+	}
+
+	/**
 	 * Tests to verify the behaviours of recycling floating and exclusive buffers if the number of available
 	 * buffers is more than required buffers by decreasing the sender's backlog.
 	 */
