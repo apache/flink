@@ -33,8 +33,8 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 	private final SplitReader<E, SplitT> splitReader;
 	private final BlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 	private final Consumer<Collection<String>> splitFinishedCallback;
-	private RecordsWithSplitIds<E> lastRecords;
-	private Thread runningThread;
+	private final Thread runningThread;
+	private volatile RecordsWithSplitIds<E> lastRecords;
 	private volatile boolean wakeup;
 
 	FetchTask(
@@ -52,16 +52,28 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 
 	@Override
 	public boolean run() throws InterruptedException {
-		if (lastRecords == null) {
-			lastRecords = splitReader.fetch();
-		}
-		if (!wakeup) {
-			elementsQueue.put(lastRecords);
-			splitFinishedCallback.accept(lastRecords.finishedSplits());
-		}
-		synchronized (this) {
-			wakeup = false;
-			lastRecords = null;
+		try {
+			if (!isWakenUp() && lastRecords == null) {
+				lastRecords = splitReader.fetch();
+			}
+
+			if (!isWakenUp()) {
+				// The order matters here. We must first put the last records into the queue.
+				// This ensures the handling of the fetched records is atomic to wakeup.
+				elementsQueue.put(lastRecords);
+				// The callback does not throw InterruptedException.
+				splitFinishedCallback.accept(lastRecords.finishedSplits());
+				lastRecords = null;
+			}
+		} finally {
+			// clean up the potential wakeup effect. It is possible that the fetcher is waken up
+			// after the clean up. In that case, either the wakeup flag will be set or the
+			// running thread will be interrupted. The next invocation of run() will see that and
+			// just skip.
+			if (isWakenUp()) {
+				Thread.interrupted();
+				wakeup = false;
+			}
 		}
 		// The return value of fetch task does not matter.
 		return true;
@@ -69,14 +81,23 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 
 	@Override
 	public void wakeUp() {
-		synchronized (this) {
-			wakeup = true;
-			if (lastRecords == null) {
-				splitReader.wakeUp();
-			} else {
-				runningThread.interrupt();
-			}
+		// Set the wakeup flag first.
+		wakeup = true;
+		if (lastRecords == null) {
+			// Two possible cases:
+			// 1. The splitReader is reading or is about to read the records.
+			// 2. The records has been enqueued and set to null.
+			// In case 1, we just wakeup the split reader. In case 2, the next run might be skipped.
+			// In any case, the records won't be enqueued in the ongoing run().
+			splitReader.wakeUp();
+		} else {
+			// The task might be blocking on enqueuing the records, just interrupt.
+			runningThread.interrupt();
 		}
+	}
+
+	private boolean isWakenUp() {
+		return wakeup || runningThread.isInterrupted();
 	}
 
 	@Override
