@@ -48,9 +48,9 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
-import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
+import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
@@ -65,6 +65,8 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -84,7 +86,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 	private final TestingRpcService testingRpcService;
-	private final BlobCacheService blobCacheService= new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
+	private final BlobCacheService blobCacheService = new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
 	private final Time timeout = Time.milliseconds(10000L);
 	private final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 	private final TimerService<AllocationID> timerService = new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
@@ -103,7 +105,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			TestingJobMasterGateway testingJobMasterGateway,
 			Configuration configuration,
 			List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners,
-			String metricQueryServiceAddress,
+			@Nullable String metricQueryServiceAddress,
 			TestingRpcService testingRpcService,
 			ShuffleEnvironment<?, ?> shuffleEnvironment) throws Exception {
 
@@ -191,7 +193,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	}
 
 	@Nonnull
-	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, String metricQueryServiceAddress, Configuration configuration) {
+	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, @Nullable String metricQueryServiceAddress, Configuration configuration) {
 		final Configuration copiedConf = new Configuration(configuration);
 
 		return new TestingTaskExecutor(
@@ -282,6 +284,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 		private Optional<ShuffleEnvironment<?, ?>> optionalShuffleEnvironment = Optional.empty();
 		private ResourceID resourceID = ResourceID.generate();
+		@Nullable
 		private String metricQueryServiceAddress;
 
 		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
