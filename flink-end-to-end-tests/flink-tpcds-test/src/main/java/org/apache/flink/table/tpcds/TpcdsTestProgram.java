@@ -47,7 +47,7 @@ import java.util.stream.Stream;
  */
 public class TpcdsTestProgram {
 
-	private static final List<String> TCPDS_TABLES = Arrays.asList(
+	private static final List<String> TPCDS_TABLES = Arrays.asList(
 			"catalog_sales", "catalog_returns", "inventory", "store_sales",
 			"store_returns", "web_sales", "web_returns", "call_center", "catalog_page",
 			"customer", "customer_address", "customer_demographics", "date_dim",
@@ -133,7 +133,7 @@ public class TpcdsTestProgram {
 				.setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
 		//register TPC-DS tables
-		TCPDS_TABLES.forEach(table -> {
+		TPCDS_TABLES.forEach(table -> {
 			TpcdsSchema schema = TpcdsSchemaProvider.getTableSchema(table);
 			CsvTableSource.Builder builder = CsvTableSource.builder();
 			builder.path(sourceTablePath + FILE_SEPARATOR + table + DATA_SUFFIX);
