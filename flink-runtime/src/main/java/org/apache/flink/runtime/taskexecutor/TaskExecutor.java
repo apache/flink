@@ -882,21 +882,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskManagerException(message);
 			}
 
-			if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
-				if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, resourceProfile, taskManagerConfiguration.getTimeout())) {
-					log.info("Allocated slot for {}.", allocationId);
-				} else {
-					log.info("Could not allocate slot for {}.", allocationId);
-					throw new SlotAllocationException("Could not allocate slot.");
-				}
-			} else if (!taskSlotTable.isAllocated(slotId.getSlotNumber(), jobId, allocationId)) {
-				final String message = "The slot " + slotId + " has already been allocated for a different job.";
-
-				log.info(message);
-
-				final AllocationID allocationID = taskSlotTable.getCurrentAllocation(slotId.getSlotNumber());
-				throw new SlotOccupiedException(message, allocationID, taskSlotTable.getOwningJob(allocationID));
-			}
+			allocateSlot(slotId, jobId, allocationId, resourceProfile);
 
 			if (jobManagerTable.contains(jobId)) {
 				offerSlotsToJobManager(jobId);
@@ -929,6 +915,24 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	private void allocateSlot(SlotID slotId, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile) throws SlotAllocationException {
+		if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
+			if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, resourceProfile, taskManagerConfiguration.getTimeout())) {
+				log.info("Allocated slot for {}.", allocationId);
+			} else {
+				log.info("Could not allocate slot for {}.", allocationId);
+				throw new SlotAllocationException("Could not allocate slot.");
+			}
+		} else if (!taskSlotTable.isAllocated(slotId.getSlotNumber(), jobId, allocationId)) {
+			final String message = "The slot " + slotId + " has already been allocated for a different job.";
+
+			log.info(message);
+
+			final AllocationID allocationID = taskSlotTable.getCurrentAllocation(slotId.getSlotNumber());
+			throw new SlotOccupiedException(message, allocationID, taskSlotTable.getOwningJob(allocationID));
+		}
 	}
 
 	@Override
