@@ -143,6 +143,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		try {
 			final Configuration cfg = createFlinkConfiguration();
 			cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
+			cfg.setString(TaskManagerOptions.BIND_HOST, LOCAL_HOST);
 
 			startTaskManager(
 				cfg,
