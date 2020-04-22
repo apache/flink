@@ -260,7 +260,7 @@ public class StreamTaskStateInitializerImplTest {
 		boolean createTimerServiceManager) {
 
 		JobID jobID = new JobID(42L, 43L);
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID(23L, 24L);
+		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 		TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
 		TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
