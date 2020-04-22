@@ -324,11 +324,9 @@ public class SlotPoolImpl implements SlotPool {
 		checkNotNull(resourceManagerGateway);
 		checkNotNull(pendingRequest);
 
-		log.info("Requesting new slot [{}] and profile {} from resource manager.", pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile());
-
 		final AllocationID allocationId = new AllocationID();
-
 		pendingRequest.setAllocationId(allocationId);
+
 		pendingRequests.put(pendingRequest.getSlotRequestId(), allocationId, pendingRequest);
 
 		pendingRequest.getAllocatedSlotFuture().whenComplete(
@@ -344,6 +342,9 @@ public class SlotPoolImpl implements SlotPool {
 					}
 				}
 			});
+
+		log.info("Requesting new slot [{}] and profile {} with allocation id {} from resource manager.",
+			pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile(), allocationId);
 
 		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
 			jobMasterId,
