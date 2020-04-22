@@ -26,13 +26,13 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.util.AbstractID;
 
 import com.mashape.unirest.http.exceptions.UnirestException;
 import io.prometheus.client.CollectorRegistry;
@@ -67,10 +67,10 @@ public class PrometheusReporterTaskScopeTest {
 
 	private final JobID jobId = new JobID();
 	private final JobVertexID taskId1 = new JobVertexID();
-	private final AbstractID taskAttemptId1 = new AbstractID();
+	private final ExecutionAttemptID taskAttemptId1 = new ExecutionAttemptID();
 	private final String[] labelValues1 = {jobId.toString(), taskId1.toString(), taskAttemptId1.toString(), TASK_MANAGER_HOST, TASK_NAME, "" + ATTEMPT_NUMBER, JOB_NAME, TASK_MANAGER_ID, "" + SUBTASK_INDEX_1};
 	private final JobVertexID taskId2 = new JobVertexID();
-	private final AbstractID taskAttemptId2 = new AbstractID();
+	private final ExecutionAttemptID taskAttemptId2 = new ExecutionAttemptID();
 	private final String[] labelValues2 = {jobId.toString(), taskId2.toString(), taskAttemptId2.toString(), TASK_MANAGER_HOST, TASK_NAME, "" + ATTEMPT_NUMBER, JOB_NAME, TASK_MANAGER_ID, "" + SUBTASK_INDEX_2};
 
 	private TaskMetricGroup taskMetricGroup1;
