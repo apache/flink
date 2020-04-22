@@ -26,7 +26,7 @@ from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase
+    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase
 
 
 class PandasUDFTests(unittest.TestCase):
@@ -372,6 +372,26 @@ class BlinkPandasUDFITTests(object):
 class StreamPandasUDFITTests(PandasUDFITTests,
                              PyFlinkStreamTableTestCase):
     pass
+
+
+class BatchPandasUDFITTests(PyFlinkBatchTableTestCase):
+
+    def test_basic_functionality(self):
+        self.t_env.register_function(
+            "add_one",
+            udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT(), udf_type="pandas"))
+
+        self.t_env.register_function("add", add)
+
+        # general Python UDF
+        self.t_env.register_function(
+            "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+        t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
+        t = t.where("add_one(b) <= 3") \
+            .select("a, b + 1, add(a + 1, subtract_one(c)) + 2, add(add_one(a), 1L)")
+        result = self.collect(t)
+        self.assert_equals(result, ["1,3,6,3", "3,2,14,5"])
 
 
 class BlinkBatchPandasUDFITTests(PandasUDFITTests,

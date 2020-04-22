@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions.python;
+package org.apache.flink.table.runtime.functions.python.arrow;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -27,23 +27,29 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.scalar.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.arrow.ArrowReader;
+import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.functions.python.AbstractPythonStatelessFunctionFlatMap;
+import org.apache.flink.table.runtime.runners.python.scalar.arrow.ArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * The {@link RichFlatMapFunction} used to invoke Python {@link ScalarFunction} functions for the
- * old planner.
+ * The {@link RichFlatMapFunction} used to invoke Arrow Python {@link ScalarFunction} functions for
+ * the old planner.
  */
 @Internal
-public final class PythonScalarFunctionFlatMap extends AbstractPythonStatelessFunctionFlatMap {
+public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonStatelessFunctionFlatMap {
 
 	private static final long serialVersionUID = 1L;
 
@@ -57,7 +63,23 @@ public final class PythonScalarFunctionFlatMap extends AbstractPythonStatelessFu
 	 */
 	private final int[] forwardedFields;
 
-	public PythonScalarFunctionFlatMap(
+	/**
+	 * Allocator which is used for byte buffer allocation.
+	 */
+	private transient BufferAllocator allocator;
+
+	/**
+	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
+	 */
+	private transient ArrowReader<Row> arrowReader;
+
+	/**
+	 * Reader which is responsible for convert the execution result from
+	 * byte array to arrow format.
+	 */
+	private transient ArrowStreamReader reader;
+
+	public ArrowPythonScalarFunctionFlatMap(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
@@ -81,6 +103,18 @@ public final class PythonScalarFunctionFlatMap extends AbstractPythonStatelessFu
 				.map(TypeConversions::fromDataTypeToLegacyInfo)
 				.toArray(TypeInformation[]::new));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("reader", 0, Long.MAX_VALUE);
+		reader = new ArrowStreamReader(bais, allocator);
+	}
+
+	@Override
+	public void close() throws Exception {
+		try {
+			super.close();
+		} finally {
+			reader.close();
+			allocator.close();
+		}
 	}
 
 	@Override
@@ -90,18 +124,19 @@ public final class PythonScalarFunctionFlatMap extends AbstractPythonStatelessFu
 
 	@Override
 	public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
-		FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
+		final FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
 			// handover to queue, do not block the result receiver thread
 			userDefinedFunctionResultQueue.put(input);
 		};
 
-		return new PythonScalarFunctionRunner(
+		return new ArrowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			userDefinedFunctionResultReceiver,
 			scalarFunctions,
 			createPythonEnvironmentManager(),
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType,
+			getPythonConfig().getMaxArrowBatchSize(),
 			jobOptions,
 			getFlinkMetricContainer());
 	}
@@ -117,12 +152,17 @@ public final class PythonScalarFunctionFlatMap extends AbstractPythonStatelessFu
 
 	@Override
 	public void emitResults() throws IOException {
-		byte[] rawUdfResult;
-		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			Row input = forwardedInputQueue.poll();
-			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
-			Row udfResult = userDefinedFunctionTypeSerializer.deserialize(baisWrapper);
-			this.resultCollector.collect(Row.join(input, udfResult));
+		byte[] udfResult;
+		while ((udfResult = userDefinedFunctionResultQueue.poll()) != null) {
+			bais.setBuffer(udfResult, 0, udfResult.length);
+			reader.loadNextBatch();
+			VectorSchemaRoot root = reader.getVectorSchemaRoot();
+			if (arrowReader == null) {
+				arrowReader = ArrowUtils.createRowArrowReader(root, userDefinedFunctionOutputType);
+			}
+			for (int i = 0; i < root.getRowCount(); i++) {
+				resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowReader.read(i)));
+			}
 		}
 	}
 
