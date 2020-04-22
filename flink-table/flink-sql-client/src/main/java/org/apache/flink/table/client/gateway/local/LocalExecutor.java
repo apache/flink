@@ -37,6 +37,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
@@ -602,17 +604,18 @@ public class LocalExecutor implements Executor {
 		// for update savepoint config
 		ExecutionEntry execution = context.getEnvironment().getExecution();
 		Optional<String> savepoint = execution.getSavepointPath();
+		StreamGraph graph = (StreamGraph) pipeline;
 		savepoint.ifPresent(s -> {
 			Boolean ignoreUnclaimedState = execution.getSavepointIgnoreUnclaimedState();
 			Log.info("SAVEPOINT_PATH is {}", s);
 			Log.info("SAVEPOINT_IGNORE_UNCLAIMED_STATE is {}", ignoreUnclaimedState.toString());
 			configuration.set(SavepointConfigOptions.SAVEPOINT_PATH, s);
 			configuration.set(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, ignoreUnclaimedState);
+			graph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(s, ignoreUnclaimedState));
 		});
 
-
 		// create execution
-		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
+		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, graph);
 
 		// blocking deployment
 		try {
