@@ -152,7 +152,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		this.testingRpcService = testingRpcService;
 		final JobManagerConnection jobManagerConnection = createJobManagerConnection(jobId, jobMasterGateway, testingRpcService, taskManagerActions, timeout);
 		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
-		jobManagerTable.put(jobId, jobManagerConnection);
+		jobManagerTable.put(jobId, jobManagerConnection.getResourceID(), jobManagerConnection);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,

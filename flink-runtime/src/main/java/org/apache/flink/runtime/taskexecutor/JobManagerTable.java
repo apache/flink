@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 import javax.annotation.Nullable;
+
+import java.util.Collection;
 
 /**
  * Container for multiple {@link JobManagerConnection} registered under their respective job id.
@@ -36,13 +39,22 @@ public interface JobManagerTable {
 	boolean contains(JobID jobId);
 
 	/**
-	 * Puts a {@link JobManagerConnection} under the given {@link JobID} into the table.
+	 * Checks whether a {@link JobManagerConnection} for the given {@link ResourceID} is contained.
+	 *
+	 * @param resourceId resourceId identifying the job manager connection
+	 * @return true if a {@link JobManagerConnection} for the given {@link ResourceID} is contained
+	 */
+	boolean contains(ResourceID resourceId);
+
+	/**
+	 * Puts a {@link JobManagerConnection} under the given {@link JobID} and {@link ResourceID} into the table.
 	 *
 	 * @param jobId jobId identifying the {@link JobManagerConnection}
+	 * @param resourceId resourceId identifying the {@link JobManagerConnection}
 	 * @param jobManagerConnection jobManagerConnection which is stored under the given {@link JobID}
 	 * @return true if the {@link JobManagerConnection} could be added to the table; otherwise false
 	 */
-	boolean put(JobID jobId, JobManagerConnection jobManagerConnection);
+	boolean put(JobID jobId, ResourceID resourceId, JobManagerConnection jobManagerConnection);
 
 	/**
 	 * Removes the {@link JobManagerConnection} stored under the given {@link JobID}.
@@ -61,4 +73,20 @@ public interface JobManagerTable {
 	 */
 	@Nullable
 	JobManagerConnection get(JobID jobId);
+
+	/**
+	 * Gets the {@link JobManagerConnection} stored under the given {@link ResourceID}.
+	 *
+	 * @param resourceId resourceId identifying the {@link JobManagerConnection} to return
+	 * @return the {@link JobManagerConnection} stored under resourceId; {@code null} otherwise
+	 */
+	@Nullable
+	JobManagerConnection get(ResourceID resourceId);
+
+	/**
+	 * Returns a collection of all contained {@link JobManagerConnection}.
+	 *
+	 * @return collection of all contained {@link JobManagerConnection}
+	 */
+	Collection<JobManagerConnection> values();
 }

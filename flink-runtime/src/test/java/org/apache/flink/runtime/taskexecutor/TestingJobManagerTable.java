@@ -19,53 +19,82 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.util.function.TriFunction;
 
 import javax.annotation.Nullable;
 
-import java.util.function.BiFunction;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Testing implementation of {@link JobManagerTable}.
  */
 public class TestingJobManagerTable implements JobManagerTable {
 
-	private final Function<JobID, Boolean> containsFunction;
-	private final BiFunction<JobID, JobManagerConnection, Boolean> putFunction;
-	private final Function<JobID, JobManagerConnection> removeFunction;
-	private final Function<JobID, JobManagerConnection> getFunction;
+	private final TriFunction<JobID, ResourceID, JobManagerConnection, Boolean> putFunction;
+	private final Function<JobID, Boolean> containsJobIdFunction;
+	private final Function<JobID, JobManagerConnection> removeJobIdFunction;
+	private final Function<JobID, JobManagerConnection> getJobIdFunction;
+	private final Function<ResourceID, Boolean> containsResourceIdFunction;
+	private final Function<ResourceID, JobManagerConnection> getResourceIdFunction;
+	private final Supplier<Collection<JobManagerConnection>> valuesSupplier;
 
 	private TestingJobManagerTable(
-			Function<JobID, Boolean> containsFunction,
-			BiFunction<JobID, JobManagerConnection, Boolean> putFunction,
-			Function<JobID, JobManagerConnection> removeFunction,
-			Function<JobID, JobManagerConnection> getFunction) {
-		this.containsFunction = containsFunction;
+			Function<JobID, Boolean> containsJobIdFunction,
+			TriFunction<JobID, ResourceID, JobManagerConnection, Boolean> putFunction,
+			Function<JobID, JobManagerConnection> removeJobIdFunction,
+			Function<JobID, JobManagerConnection> getJobIdFunction,
+			Function<ResourceID, Boolean> containsResourceIdFunction,
+			Function<ResourceID, JobManagerConnection> getResourceIdFunction,
+			Supplier<Collection<JobManagerConnection>> valuesSupplier) {
+		this.containsJobIdFunction = containsJobIdFunction;
 		this.putFunction = putFunction;
-		this.removeFunction = removeFunction;
-		this.getFunction = getFunction;
+		this.removeJobIdFunction = removeJobIdFunction;
+		this.getJobIdFunction = getJobIdFunction;
+		this.containsResourceIdFunction = containsResourceIdFunction;
+		this.getResourceIdFunction = getResourceIdFunction;
+		this.valuesSupplier = valuesSupplier;
 	}
 
 	@Override
 	public boolean contains(JobID jobId) {
-		return containsFunction.apply(jobId);
+		return containsJobIdFunction.apply(jobId);
 	}
 
 	@Override
-	public boolean put(JobID jobId, JobManagerConnection jobManagerConnection) {
-		return putFunction.apply(jobId, jobManagerConnection);
+	public boolean contains(ResourceID resourceId) {
+		return containsResourceIdFunction.apply(resourceId);
+	}
+
+	@Override
+	public boolean put(JobID jobId, ResourceID resourceId, JobManagerConnection jobManagerConnection) {
+		return putFunction.apply(jobId, resourceId, jobManagerConnection);
 	}
 
 	@Nullable
 	@Override
 	public JobManagerConnection remove(JobID jobId) {
-		return removeFunction.apply(jobId);
+		return removeJobIdFunction.apply(jobId);
 	}
 
 	@Nullable
 	@Override
 	public JobManagerConnection get(JobID jobId) {
-		return getFunction.apply(jobId);
+		return getJobIdFunction.apply(jobId);
+	}
+
+	@Nullable
+	@Override
+	public JobManagerConnection get(ResourceID resourceId) {
+		return getResourceIdFunction.apply(resourceId);
+	}
+
+	@Override
+	public Collection<JobManagerConnection> values() {
+		return valuesSupplier.get();
 	}
 
 	public static Builder newBuilder() {
@@ -73,35 +102,45 @@ public class TestingJobManagerTable implements JobManagerTable {
 	}
 
 	public static final class Builder {
-		private Function<JobID, Boolean> containsFunction = (ignored) -> false;
-		private BiFunction<JobID, JobManagerConnection, Boolean> putFunction = (ignoredA, ignoredB) -> false;
-		private Function<JobID, JobManagerConnection> removeFunction = (ignored) -> null;
-		private Function<JobID, JobManagerConnection> getFunction = (ignored) -> null;
+		private TriFunction<JobID, ResourceID, JobManagerConnection, Boolean> putFunction = (ignoredA, ignoredB, ignoredC) -> false;
+		private Function<JobID, Boolean> containsJobIdFunction = (ignored) -> false;
+		private Function<JobID, JobManagerConnection> removeJobIdFunction = (ignored) -> null;
+		private Function<JobID, JobManagerConnection> getJobIdFunction = (ignored) -> null;
+		private Function<ResourceID, Boolean> containsResourceIdFunction = (ignored) -> false;
+		private Function<ResourceID, JobManagerConnection> getResourceIdFunction = (ignored) -> null;
+		private Supplier<Collection<JobManagerConnection>> valuesSupplier = () -> Collections.emptyList();
 
 		private Builder() {}
 
-		public Builder setContainsFunction(Function<JobID, Boolean> containsFunction) {
-			this.containsFunction = containsFunction;
+		public Builder setContainsJobIdFunction(Function<JobID, Boolean> containsJobIdFunction) {
+			this.containsJobIdFunction = containsJobIdFunction;
 			return this;
 		}
 
-		public Builder setPutFunction(BiFunction<JobID, JobManagerConnection, Boolean> putFunction) {
+		public Builder setPutFunction(TriFunction<JobID, ResourceID, JobManagerConnection, Boolean> putFunction) {
 			this.putFunction = putFunction;
 			return this;
 		}
 
-		public Builder setRemoveFunction(Function<JobID, JobManagerConnection> removeFunction) {
-			this.removeFunction = removeFunction;
+		public Builder setRemoveJobIdFunction(Function<JobID, JobManagerConnection> removeJobIdFunction) {
+			this.removeJobIdFunction = removeJobIdFunction;
 			return this;
 		}
 
-		public Builder setGetFunction(Function<JobID, JobManagerConnection> getFunction) {
-			this.getFunction = getFunction;
+		public Builder setGetJobIdFunction(Function<JobID, JobManagerConnection> getJobIdFunction) {
+			this.getJobIdFunction = getJobIdFunction;
 			return this;
 		}
 
 		public TestingJobManagerTable build() {
-			return new TestingJobManagerTable(containsFunction, putFunction, removeFunction, getFunction);
+			return new TestingJobManagerTable(
+				containsJobIdFunction,
+				putFunction,
+				removeJobIdFunction,
+				getJobIdFunction,
+				containsResourceIdFunction,
+				getResourceIdFunction,
+				valuesSupplier);
 		}
 	}
 }
