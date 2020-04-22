@@ -65,7 +65,6 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Dependency tests for {@link LocalExecutor}. Mainly for testing classloading of dependencies.
@@ -234,10 +233,6 @@ public class DependencyTest {
 
 		@Override
 		public Catalog createCatalog(String name, Map<String, String> properties) {
-			// Test HiveCatalogFactory.createCatalog
-			// But not use it for testing purpose
-			assertTrue(super.createCatalog(name, properties) != null);
-
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here
