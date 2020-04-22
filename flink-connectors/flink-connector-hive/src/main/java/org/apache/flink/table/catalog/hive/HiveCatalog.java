@@ -65,6 +65,7 @@ import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
@@ -555,12 +556,11 @@ public class HiveCatalog extends AbstractCatalog {
 			DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
 			tableSchemaProps.putProperties(properties);
 			ObjectPath tablePath = new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName());
-			tableSchema = tableSchemaProps.getOptionalTableSchema(HiveCatalogConfig.GENERIC_TABLE_SCHEMA_PREFIX)
+			tableSchema = tableSchemaProps.getOptionalTableSchema(Schema.SCHEMA)
 					.orElseThrow(() -> new CatalogException("Failed to get table schema from properties for generic table " + tablePath));
+			partitionKeys = tableSchemaProps.getPartitionKeys();
 			// remove the schema from properties
-			properties = properties.entrySet().stream()
-					.filter(e -> !e.getKey().startsWith(HiveCatalogConfig.GENERIC_TABLE_SCHEMA_PREFIX))
-					.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+			properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);
 		} else {
 			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 			// Table schema
@@ -637,16 +637,13 @@ public class HiveCatalog extends AbstractCatalog {
 
 		if (isGeneric) {
 			DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
-			tableSchemaProps.putTableSchema(HiveCatalogConfig.GENERIC_TABLE_SCHEMA_PREFIX, table.getSchema());
-			properties.putAll(tableSchemaProps.asMap());
+			tableSchemaProps.putTableSchema(Schema.SCHEMA, table.getSchema());
 
-			if (table instanceof CatalogTableImpl) {
-				List<String> partColNames = ((CatalogTableImpl) table).getPartitionKeys();
-				if (!partColNames.isEmpty()) {
-					throw new CatalogException("Partitioned generic table is not supported yet by HiveCatalog");
-				}
+			if (table instanceof CatalogTable) {
+				tableSchemaProps.putPartitionKeys(((CatalogTable) table).getPartitionKeys());
 			}
 
+			properties.putAll(tableSchemaProps.asMap());
 			properties = maskFlinkProperties(properties);
 		} else {
 			List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
