@@ -96,9 +96,7 @@ public class ConfigUtils {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toCollection(ArrayList::new));
 
-		if (!encodedOption.isEmpty()) {
-			configuration.set(key, encodedOption);
-		}
+		configuration.set(key, encodedOption);
 	}
 
 	/**
