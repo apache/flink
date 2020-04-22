@@ -59,6 +59,7 @@ public class ChannelStateReaderImpl implements ChannelStateReader {
 
 	private final Map<InputChannelInfo, ChannelStateStreamReader> inputChannelHandleReaders;
 	private final Map<ResultSubpartitionInfo, ChannelStateStreamReader> resultSubpartitionHandleReaders;
+	private boolean isClosed = false;
 
 	public ChannelStateReaderImpl(TaskStateSnapshot snapshot) {
 		this(snapshot, new ChannelStateSerializerImpl());
@@ -88,23 +89,23 @@ public class ChannelStateReaderImpl implements ChannelStateReader {
 
 	@Override
 	public ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException {
+		Preconditions.checkState(!isClosed, "reader is closed");
 		log.debug("readInputData, resultSubpartitionInfo: {} , buffer {}", info, buffer);
-		return getReader(info, inputChannelHandleReaders).readInto(buffer);
+		ChannelStateStreamReader reader = inputChannelHandleReaders.get(info);
+		return reader == null ? ReadResult.NO_MORE_DATA : reader.readInto(buffer);
 	}
 
 	@Override
 	public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) throws IOException {
+		Preconditions.checkState(!isClosed, "reader is closed");
 		log.debug("readOutputData, resultSubpartitionInfo: {} , bufferBuilder {}", info, bufferBuilder);
-		return getReader(info, resultSubpartitionHandleReaders).readInto(bufferBuilder);
-	}
-
-	private <K> ChannelStateStreamReader getReader(K info, Map<K, ChannelStateStreamReader> readerMap) {
-		Preconditions.checkArgument(readerMap.containsKey(info), String.format("unknown channel %s. Known channels: %s", info, readerMap.keySet()));
-		return readerMap.get(info);
+		ChannelStateStreamReader reader = resultSubpartitionHandleReaders.get(info);
+		return reader == null ? ReadResult.NO_MORE_DATA : reader.readInto(bufferBuilder);
 	}
 
 	@Override
 	public void close() throws Exception {
+		isClosed = true;
 		try (Closer closer = Closer.create()) {
 			for (Map<?, ChannelStateStreamReader> map : asList(inputChannelHandleReaders, resultSubpartitionHandleReaders)) {
 				for (ChannelStateStreamReader reader : map.values()) {

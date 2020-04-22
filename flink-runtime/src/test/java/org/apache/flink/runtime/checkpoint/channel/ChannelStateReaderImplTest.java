@@ -91,16 +91,16 @@ public class ChannelStateReaderImplTest {
 		reader.readInputData(CHANNEL, getBuffer(DATA.length));
 	}
 
-	@Test(expected = Exception.class)
+	@Test(expected = IllegalStateException.class)
 	public void testReadClosed() throws Exception {
 		reader.close();
 		reader.readInputData(CHANNEL, getBuffer(DATA.length));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testReadWrongChannelState() throws IOException {
-		InputChannelInfo wrongChannel = new InputChannelInfo(CHANNEL.getGateIdx() + 1, CHANNEL.getInputChannelIdx() + 1);
-		reader.readInputData(wrongChannel, getBuffer(DATA.length));
+	@Test
+	public void testReadUnknownChannelState() throws IOException {
+		InputChannelInfo unknownChannel = new InputChannelInfo(CHANNEL.getGateIdx() + 1, CHANNEL.getInputChannelIdx() + 1);
+		assertEquals(NO_MORE_DATA, reader.readInputData(unknownChannel, getBuffer(DATA.length)));
 	}
 
 	private TaskStateSnapshot taskStateSnapshot(Collection<InputChannelStateHandle> inputChannelStateHandles) {
