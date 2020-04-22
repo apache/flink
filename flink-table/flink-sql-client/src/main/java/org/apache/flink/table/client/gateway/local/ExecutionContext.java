@@ -278,6 +278,11 @@ public class ExecutionContext<ClusterID> {
 				serviceLoader, commandLineOptions, commandLines);
 	}
 
+	/** Close resources associated with this ExecutionContext, e.g. catalogs. */
+	public void close() {
+		wrapClassLoader(() -> getCatalogs().values().forEach(Catalog::close));
+	}
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Non-public methods
 	//------------------------------------------------------------------------------------------------------------------

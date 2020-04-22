@@ -149,7 +149,7 @@ public class ExecutionContextTest {
 			allCatalogs
 		);
 
-		closeCatalogs(tableEnv);
+		context.close();
 	}
 
 	@Test
@@ -182,7 +182,7 @@ public class ExecutionContextTest {
 
 		assertEquals(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, tableEnv.getCurrentDatabase());
 
-		closeCatalogs(tableEnv);
+		context.close();
 	}
 
 	@Test
@@ -337,10 +337,6 @@ public class ExecutionContextTest {
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 		return createExecutionContext(CATALOGS_ENVIRONMENT_FILE, replaceVars);
-	}
-
-	private static void closeCatalogs(TableEnvironment tableEnv) {
-		Arrays.stream(tableEnv.listCatalogs()).forEach(catName -> tableEnv.getCatalog(catName).ifPresent(Catalog::close));
 	}
 
 	private <T> ExecutionContext<T> createStreamingExecutionContext() throws Exception {
