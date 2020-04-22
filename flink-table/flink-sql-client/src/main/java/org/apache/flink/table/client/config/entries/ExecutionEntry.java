@@ -110,6 +110,10 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
+	public static final String SAVEPOINT_PATH = "savepoint-path";
+
+	public static final String SAVEPOINT_IGNORE_UNCLAIMED_STATE = "savepoint-ignore-unclaimed-state";
+
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
 	}
@@ -154,6 +158,8 @@ public class ExecutionEntry extends ConfigEntry {
 		properties.validateInt(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL, true, 1);
 		properties.validateString(EXECUTION_CURRENT_CATALOG, true, 1);
 		properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
+		properties.validateString(SAVEPOINT_PATH, true, 1);
+		properties.validateBoolean(SAVEPOINT_IGNORE_UNCLAIMED_STATE, true);
 	}
 
 	public EnvironmentSettings getEnvironmentSettings() {
@@ -311,6 +317,16 @@ public class ExecutionEntry extends ConfigEntry {
 	public Optional<String> getCurrentDatabase() {
 		return properties.getOptionalString(EXECUTION_CURRENT_DATABASE);
 	}
+
+	public Optional<String> getSavepointPath() {
+		return properties.getOptionalString(SAVEPOINT_PATH);
+	}
+
+	public Boolean getSavepointIgnoreUnclaimedState() {
+		Optional<Boolean> value = properties.getOptionalBoolean(SAVEPOINT_IGNORE_UNCLAIMED_STATE);
+		return value.orElse(true);
+	}
+
 
 	public boolean isChangelogMode() {
 		return properties.getOptionalString(EXECUTION_RESULT_MODE)

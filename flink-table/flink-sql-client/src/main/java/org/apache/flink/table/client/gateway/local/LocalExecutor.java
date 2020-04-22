@@ -36,12 +36,14 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.TableEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
@@ -62,6 +64,7 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
+import com.esotericsoftware.minlog.Log;
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +79,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
@@ -595,6 +599,17 @@ public class LocalExecutor implements Executor {
 		Configuration configuration = new Configuration(context.getFlinkConfig());
 		// for update queries we don't wait for the job result, so run in detached mode
 		configuration.set(DeploymentOptions.ATTACHED, false);
+		// for update savepoint config
+		ExecutionEntry execution = context.getEnvironment().getExecution();
+		Optional<String> savepoint = execution.getSavepointPath();
+		savepoint.ifPresent(s -> {
+			Boolean ignoreUnclaimedState = execution.getSavepointIgnoreUnclaimedState();
+			Log.info("SAVEPOINT_PATH is {}", s);
+			Log.info("SAVEPOINT_IGNORE_UNCLAIMED_STATE is {}", ignoreUnclaimedState.toString());
+			configuration.set(SavepointConfigOptions.SAVEPOINT_PATH, s);
+			configuration.set(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, ignoreUnclaimedState);
+		});
+
 
 		// create execution
 		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);

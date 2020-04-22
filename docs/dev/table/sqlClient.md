@@ -231,6 +231,8 @@ execution:
                                     #   (default database of the current catalog by default)
   restart-strategy:                 # optional: restart strategy
     type: fallback                  #   "fallback" to global restart strategy by default
+  savepoint-path: hdfs://tmp/savepoint  # optional : savepoint path 
+  savepoint-ignore-unclaimed-state   # optional savepoint ignore unclaimed state
 
 # Configuration options for adjusting and tuning table programs.
 
