@@ -171,6 +171,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
 					+ rmqConnectionConfig.getHost(), e);
 		}
+		this.schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 		running = true;
 	}
 
