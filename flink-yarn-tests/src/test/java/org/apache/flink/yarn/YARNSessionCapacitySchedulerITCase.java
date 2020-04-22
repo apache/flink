@@ -573,7 +573,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			String expected = "Starting TaskManagers";
 			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log: '" + jobmanagerLog + "'",
 				content.contains(expected));
-			expected = " (2/2) (attempt #0) to ";
+			expected = " (2/2) (attempt #0) with attempt id ";
 			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log." +
 					"This string checks that the job has been started with a parallelism of 2. Log contents: '" + jobmanagerLog + "'",
 				content.contains(expected));
