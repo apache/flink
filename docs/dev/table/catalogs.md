@@ -49,7 +49,15 @@ The `JDBCCatalog` enables users to connect Flink to relational databases over JD
 
 `PostgresCatalog` is the only implementation of JDBC Catalog at the moment.
 
-To set a `JDBCcatalog`,
+#### Usage of JDBCCatalog
+
+Set a `JDBCatalog` with the following parameters:
+
+- name: required, name of the catalog
+- default database: required, default database to connect to
+- username: required, username of Postgres account
+- password: required, password of the account
+- base url: required, should be of format "jdbc:postgresql://<ip>:<port>", and should not contain database name here
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -62,7 +70,7 @@ String name            = "mypg";
 String defaultDatabase = "mydb";
 String username        = "...";
 String password        = "...";
-String baseUrl         = "jdbc:postgresql://<ip>:<port>"; # should not contain database name here
+String baseUrl         = "..."
 
 JDBCCatalog catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
 tableEnv.registerCatalog("mypg", catalog);
@@ -77,17 +85,17 @@ tableEnv.useCatalog("mypg");
 val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
 val tableEnv = TableEnvironment.create(settings)
 
-val name            = "mypg";
-val defaultDatabase = "mydb";
-val username        = "...";
-val password        = "...";
-val baseUrl         = "jdbc:postgresql://<ip>:<port>"; # should not contain database name here
+val name            = "mypg"
+val defaultDatabase = "mydb"
+val username        = "..."
+val password        = "..."
+val baseUrl         = "..."
 
-val catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
-tableEnv.registerCatalog("mypg", catalog);
+val catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl)
+tableEnv.registerCatalog("mypg", catalog)
 
 // set the JDBCCatalog as the current catalog of the session
-tableEnv.useCatalog("mypg");
+tableEnv.useCatalog("mypg")
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">
@@ -105,7 +113,20 @@ catalogs:
      default-database: mydb
      username: ...
      password: ...
-     base-url: jdbc:postgresql://<ip>:<port>
+     base-url: ...
+{% endhighlight %}
+</div>
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE CATALOG mypg WITH(
+    'type'='jdbc',
+    'default-database'='...',
+    'username'='...',
+    'password'='...',
+    'base-url'='...'
+);
+
+USE CATALOG mypg;
 {% endhighlight %}
 </div>
 </div>
