@@ -553,6 +553,16 @@ public class TableSchema {
 		}
 
 		/**
+		 * Adds a {@link TableColumn} to this builder.
+		 *
+		 * <p>The call order of this method determines the order of fields in the schema.
+		 */
+		public Builder add(TableColumn column) {
+			columns.add(column);
+			return this;
+		}
+
+		/**
 		 * Add an array of fields with names and data types.
 		 *
 		 * <p>The call order of this method determines the order of fields in the schema.
@@ -605,6 +615,17 @@ public class TableSchema {
 				rowtimeAttribute,
 				watermarkExpressionString,
 				watermarkExprOutputType));
+			return this;
+		}
+
+		/**
+		 * Adds the given {@link WatermarkSpec} to this builder.
+		 */
+		public Builder watermark(WatermarkSpec watermarkSpec) {
+			if (!this.watermarkSpecs.isEmpty()) {
+				throw new IllegalStateException("Multiple watermark definition is not supported yet.");
+			}
+			this.watermarkSpecs.add(watermarkSpec);
 			return this;
 		}
 
