@@ -545,8 +545,6 @@ abstract class TableEnvImpl(
 
   override def listFunctions(): Array[String] = functionCatalog.getFunctions
 
-  override def explain(table: Table): String
-
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
     val planner = getFlinkPlanner
     planner.getCompletionHints(statement, position)
@@ -763,6 +761,15 @@ abstract class TableEnvImpl(
         TableResultImpl.TABLE_RESULT_OK
       case _: ShowViewsOperation =>
         buildShowResult(listViews())
+      case explainOperation: ExplainOperation =>
+        val explanation = explain(
+          JCollections.singletonList(explainOperation.getChild),
+          extended = false)
+        TableResultImpl.builder.
+          resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+          .tableSchema(TableSchema.builder.field("result", DataTypes.STRING).build)
+          .data(JCollections.singletonList(Row.of(explanation)))
+          .build
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
     }
   }
@@ -1127,6 +1134,8 @@ abstract class TableEnvImpl(
         throw new TableException(exMsg, e)
     }
   }
+
+  protected def explain(operations: JList[Operation], extended: Boolean): String
 
   override def fromValues(values: Expression*): Table = {
     createTable(operationTreeBuilder.values(values: _*))

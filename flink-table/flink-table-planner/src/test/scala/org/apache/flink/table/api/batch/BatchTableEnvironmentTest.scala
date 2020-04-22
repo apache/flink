@@ -25,10 +25,11 @@ import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.types.Row
 
 import org.hamcrest.Matchers.containsString
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.Test
 
 import java.util
@@ -339,6 +340,123 @@ class BatchTableEnvironmentTest extends TableTestBase {
     checkData(
       util.tableEnv.listViews().map(Row.of(_)).toList.asJava.iterator(),
       tableResult4.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithExplainSelect(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val tableResult2 = util.tableEnv.executeSql(
+      "explain plan for select * from MyTable where a > 10")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    val it = tableResult2.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(1, row.getArity)
+    val actual = row.getField(0).toString
+    val expected = readFromResource("testExecuteSqlWithExplainSelect1.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+    assertFalse(it.hasNext)
+  }
+
+  @Test
+  def testExecuteSqlWithExplainInsert(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt1 =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt1)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE MySink (
+        |  d bigint,
+        |  e int
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult2 = util.tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = util.tableEnv.executeSql(
+      "explain plan for insert into MySink select a, b from MyTable where a > 10")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    val it = tableResult3.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(1, row.getArity)
+    val actual = row.getField(0).toString
+    val expected = readFromResource("testExecuteSqlWithExplainInsert1.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+    assertFalse(it.hasNext)
+  }
+
+  @Test
+  def testExecuteSqlWithUnsupportedExplain(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    // TODO we can support them later
+    testUnsupportedExplain(util.tableEnv,
+      "explain plan excluding attributes for select * from MyTable")
+    testUnsupportedExplain(util.tableEnv,
+      "explain plan including all attributes for select * from MyTable")
+    testUnsupportedExplain(util.tableEnv,
+      "explain plan with type for select * from MyTable")
+    testUnsupportedExplain(util.tableEnv,
+      "explain plan without implementation for select * from MyTable")
+    testUnsupportedExplain(util.tableEnv,
+      "explain plan as xml for select * from MyTable")
+    testUnsupportedExplain(util.tableEnv,
+      "explain plan as json for select * from MyTable")
+  }
+
+  private def testUnsupportedExplain(tableEnv: BatchTableEnvironment, explain: String): Unit = {
+    try {
+      tableEnv.executeSql(explain)
+      fail("This should not happen")
+    } catch {
+      case e: TableException =>
+        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e =>
+        fail("This should not happen, " + e.getMessage)
+    }
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

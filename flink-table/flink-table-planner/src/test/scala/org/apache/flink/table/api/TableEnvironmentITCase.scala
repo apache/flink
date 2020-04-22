@@ -24,13 +24,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
-import org.apache.flink.table.api.TableEnvironmentITCase.{getPersonCsvTableSource, getPersonData, readFromResource, replaceStageId}
+import org.apache.flink.table.api.TableEnvironmentITCase.{getPersonCsvTableSource, getPersonData}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
+import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.table.utils.TestingOverwritableTableSink
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
@@ -46,7 +47,6 @@ import _root_.java.lang.{Long => JLong}
 import _root_.java.util
 
 import _root_.scala.collection.mutable
-import _root_.scala.io.Source
 
 
 @RunWith(classOf[Parameterized])
@@ -450,15 +450,6 @@ object TableEnvironmentITCase {
       Array("TableEnvironment"),
       Array("StreamTableEnvironment")
     )
-  }
-
-  def readFromResource(file: String): String = {
-    val source = s"${getClass.getResource("/").getFile}../../src/test/scala/resources/$file"
-    Source.fromFile(source).mkString
-  }
-
-  def replaceStageId(s: String): String = {
-    s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
   }
 
   def getPersonCsvTableSource: CsvTableSource = {

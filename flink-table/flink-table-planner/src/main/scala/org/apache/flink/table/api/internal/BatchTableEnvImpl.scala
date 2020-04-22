@@ -31,14 +31,14 @@ import org.apache.flink.configuration.DeploymentOptions
 import org.apache.flink.core.execution.{DetachedJobExecutionResult, JobClient}
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
-import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager}
+import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager, ObjectIdentifier}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor
 import org.apache.flink.table.expressions.{Expression, UnresolvedCallExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, DataSetQueryOperation, ModifyOperation, Operation, QueryOperation}
+import org.apache.flink.table.operations.{CatalogSinkModifyOperation, DataSetQueryOperation, ModifyOperation, Operation, PlannerQueryOperation, QueryOperation}
 import org.apache.flink.table.plan.BatchOptimizer
 import org.apache.flink.table.plan.nodes.LogicalSink
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
@@ -57,6 +57,7 @@ import org.apache.flink.util.Preconditions.checkNotNull
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.LogicalTableModify
 
 import _root_.java.util.{ArrayList => JArrayList, Collections => JCollections, List => JList}
 
@@ -225,11 +226,25 @@ abstract class BatchTableEnvImpl(
     explain(bufferedModifyOperations.asScala.map(_.asInstanceOf[Operation]).asJava, extended)
   }
 
-  private def explain(operations: JList[Operation], extended: Boolean): String = {
+   protected def explain(operations: JList[Operation], extended: Boolean): String = {
     require(operations.asScala.nonEmpty, "operations should not be empty")
     val astList = operations.asScala.map {
       case queryOperation: QueryOperation =>
-        getRelBuilder.tableOperation(queryOperation).build()
+        val relNode = getRelBuilder.tableOperation(queryOperation).build()
+        relNode match {
+          // SQL: explain plan for insert into xx
+          case modify: LogicalTableModify =>
+            // convert LogicalTableModify to CatalogSinkModifyOperation
+            val qualifiedName = modify.getTable.getQualifiedName
+            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
+            val modifyOperation = new CatalogSinkModifyOperation(
+              ObjectIdentifier.of(qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2)),
+              new PlannerQueryOperation(modify.getInput)
+            )
+            translateToRel(modifyOperation, addLogicalSink = true)
+          case _ =>
+            relNode
+        }
       case modifyOperation: ModifyOperation =>
         translateToRel(modifyOperation, addLogicalSink = true)
       case o => throw new TableException(s"Unsupported operation: ${o.asSummaryString()}")
@@ -237,27 +252,33 @@ abstract class BatchTableEnvImpl(
 
     val optimizedNodes = astList.map(optimizer.optimize)
 
-    val batchTableEnv = createDummyBatchTableEnv()
-    val dataSinks = optimizedNodes.zip(operations.asScala).map {
-      case (optimizedNode, operation) =>
-        operation match {
-          case queryOperation: QueryOperation =>
-            val dataSet = translate[Row](
-              optimizedNode,
-              getTableSchema(queryOperation.getTableSchema.getFieldNames, optimizedNode))(
-              new GenericTypeInfo(classOf[Row]))
-            dataSet.output(new DiscardingOutputFormat[Row])
-          case modifyOperation: ModifyOperation =>
-            val tableSink = getTableSink(modifyOperation)
-            translate(
-              batchTableEnv,
-              optimizedNode,
-              tableSink,
-              getTableSchema(modifyOperation.getChild.getTableSchema.getFieldNames, optimizedNode))
-          case o =>
-            throw new TableException("Unsupported Operation: " + o.asSummaryString())
-        }
-    }
+     val batchTableEnv = createDummyBatchTableEnv()
+     val dataSinks = optimizedNodes.zip(operations.asScala).map {
+       case (optimizedNode, operation) =>
+         operation match {
+           case queryOperation: QueryOperation =>
+             val fieldNames = queryOperation match {
+               case o: PlannerQueryOperation if o.getCalciteTree.isInstanceOf[LogicalTableModify] =>
+                 o.getCalciteTree.getInput(0).getRowType.getFieldNames.asScala.toArray[String]
+               case _ =>
+                 queryOperation.getTableSchema.getFieldNames
+             }
+             val dataSet = translate[Row](
+               optimizedNode,
+               getTableSchema(fieldNames, optimizedNode))(
+               new GenericTypeInfo(classOf[Row]))
+             dataSet.output(new DiscardingOutputFormat[Row])
+           case modifyOperation: ModifyOperation =>
+             val tableSink = getTableSink(modifyOperation)
+             translate(
+               batchTableEnv,
+               optimizedNode,
+               tableSink,
+               getTableSchema(modifyOperation.getChild.getTableSchema.getFieldNames, optimizedNode))
+           case o =>
+             throw new TableException("Unsupported Operation: " + o.asSummaryString())
+         }
+     }
 
     val astPlan = astList.map(RelOptUtil.toString).mkString(System.lineSeparator)
     val optimizedPlan = optimizedNodes.map(RelOptUtil.toString).mkString(System.lineSeparator)
