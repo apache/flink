@@ -57,9 +57,9 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   var tEnv: TableEnvironment = _
 
   private val settings = if (isStreaming) {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    EnvironmentSettings.newInstance().inStreamingMode().build()
   } else {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    EnvironmentSettings.newInstance().inBatchMode().build()
   }
 
   @Before

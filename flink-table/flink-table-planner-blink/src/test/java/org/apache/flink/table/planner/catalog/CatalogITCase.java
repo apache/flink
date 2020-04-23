@@ -47,7 +47,7 @@ public class CatalogITCase {
 	}
 
 	private TableEnvironment getTableEnvironment() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		return StreamTableEnvironment.create(env, settings);
 	}

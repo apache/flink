@@ -48,7 +48,7 @@ public class TableUtilsStreamingITCase extends TestLogger {
 		env.setParallelism(4);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
 		tEnv = StreamTableEnvironment.create(env, settings);
 	}
 
