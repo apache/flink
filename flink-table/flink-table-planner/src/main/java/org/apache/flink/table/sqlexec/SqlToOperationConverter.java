@@ -40,6 +40,7 @@ import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
+import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -66,6 +67,7 @@ import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
@@ -183,6 +185,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertCreateView((SqlCreateView) validated));
 		} else if (validated instanceof SqlDropView) {
 			return Optional.of(converter.convertDropView((SqlDropView) validated));
+		} else if (validated instanceof SqlShowViews) {
+			return Optional.of(converter.convertShowViews((SqlShowViews) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -521,6 +525,11 @@ public class SqlToOperationConverter {
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 		return new DropViewOperation(identifier, sqlDropView.getIfExists(), sqlDropView.isTemporary());
+	}
+
+	/** Convert SHOW VIEWS statement. */
+	private Operation convertShowViews(SqlShowViews sqlShowViews) {
+		return new ShowViewsOperation();
 	}
 
 	/**
