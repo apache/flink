@@ -22,8 +22,8 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -39,6 +39,8 @@ object ExpandCodeGenerator {
       retainHeader: Boolean = false,
       opName: String): CodeGenOperatorFactory[BaseRow] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+    val inputTypeTerm = boxedTypeTermForType(inputType)
+    val inputTermConverter: String  => String = term => s"($inputTypeTerm) $term"
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = inputTerm)
@@ -67,7 +69,8 @@ object ExpandCodeGenerator {
       processCode,
       inputType,
       inputTerm = inputTerm,
-      lazyInputUnboxingCode = false)
+      lazyInputUnboxingCode = false,
+      converter = inputTermConverter)
 
     new CodeGenOperatorFactory(genOperator)
   }

@@ -251,8 +251,11 @@ object CorrelateCodeGenerator {
       throw new TableException(s"Unsupported JoinRelType: $joinType for correlate join.")
     }
 
+    val inputTypeTerm = boxedTypeTermForType(inputType)
+    val inputTermConverter: String  => String = term => s"($inputTypeTerm) $term"
+
     val genOperator = OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, BaseRow](
-      ctx, ruleDescription, body, inputType)
+      ctx, ruleDescription, body, inputType, converter = inputTermConverter)
     new CodeGenOperatorFactory(genOperator)
   }
 

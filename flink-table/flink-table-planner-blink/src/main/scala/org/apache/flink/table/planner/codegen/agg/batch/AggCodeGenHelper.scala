@@ -666,12 +666,15 @@ object AggCodeGenHelper {
       inputType: RowType): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
     ctx.addReusableMember("private boolean hasInput = false;")
     ctx.addReusableMember(s"$STREAM_RECORD element = new $STREAM_RECORD((Object)null);")
+    val inputTypeTerm = boxedTypeTermForType(inputType)
+    val inputTermConverter: String  => String = term => s"($inputTypeTerm) $term"
     OperatorCodeGenerator.generateOneInputStreamOperator(
       ctx,
       name,
       processCode,
       inputType,
       endInputCode = Some(endInputCode),
-      lazyInputUnboxingCode = true)
+      lazyInputUnboxingCode = true,
+      converter = inputTermConverter)
   }
 }

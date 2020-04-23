@@ -697,10 +697,10 @@ object CodeGenUtils {
    * and NO NULL CHECKING is required as it might have been done by surrounding layers.
    */
   def genToInternal(ctx: CodeGeneratorContext, t: DataType): String => String = {
+    val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
     if (isConverterIdentity(t)) {
-      term => s"$term"
+      term => s"($iTerm) $term"
     } else {
-      val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
       val eTerm = typeTerm(t.getConversionClass)
       val converter = ctx.addReusableObject(
         DataFormatConverters.getConverterForDataType(t),

@@ -28,7 +28,7 @@ import org.apache.flink.api.scala.createTuple2TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.util.BaseRowUtil
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternal
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{boxedTypeTermForType, genToExternal}
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.sinks.TableSinkUtils
@@ -70,6 +70,8 @@ object SinkCodeGenerator {
     }
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+    val inputTypeTerm = boxedTypeTermForType(inputRowType)
+    val inputTermConverter: String  => String = term => s"($inputTypeTerm) $term"
     var afterIndexModify = inputTerm
     val fieldIndexProcessCode = outputTypeInfo match {
       case pojo: PojoTypeInfo[_] =>
@@ -148,7 +150,8 @@ object SinkCodeGenerator {
          |$fieldIndexProcessCode
          |$retractProcessCode
          |""".stripMargin,
-      inputRowType)
+      inputRowType,
+      converter = inputTermConverter)
     (new CodeGenOperatorFactory[OUT](generated), outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
   }
 }

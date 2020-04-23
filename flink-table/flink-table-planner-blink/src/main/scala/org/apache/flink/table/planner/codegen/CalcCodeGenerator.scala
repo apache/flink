@@ -25,9 +25,9 @@ import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rex._
+import org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType
 
 import scala.collection.JavaConversions._
 
@@ -46,6 +46,8 @@ object CalcCodeGenerator {
     val inputType = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
     // filter out time attributes
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+    val inputTypeTerm = boxedTypeTermForType(inputType)
+    val inputTermConverter: String  => String = term => s"($inputTypeTerm) $term"
     val processCode = generateProcessCode(
       ctx,
       inputType,
@@ -66,7 +68,8 @@ object CalcCodeGenerator {
         processCode,
         inputType,
         inputTerm = inputTerm,
-        lazyInputUnboxingCode = true)
+        lazyInputUnboxingCode = true,
+        converter = inputTermConverter)
 
     new CodeGenOperatorFactory(genOperator)
   }

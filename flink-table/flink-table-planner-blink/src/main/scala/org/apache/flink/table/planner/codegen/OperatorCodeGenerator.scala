@@ -100,7 +100,7 @@ object OperatorCodeGenerator extends Logging {
 
         @Override
         public void processElement($STREAM_RECORD $ELEMENT) throws Exception {
-          $inputTypeTerm $inputTerm = ($inputTypeTerm) ${converter(s"$ELEMENT.getValue()")};
+          $inputTypeTerm $inputTerm = ${converter(s"$ELEMENT.getValue()")};
           ${ctx.reusePerRecordCode()}
           ${ctx.reuseLocalVariableCode()}
           ${if (lazyInputUnboxingCode) "" else ctx.reuseInputUnboxingCode()}
