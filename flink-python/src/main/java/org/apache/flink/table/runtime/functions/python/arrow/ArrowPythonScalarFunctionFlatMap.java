@@ -20,21 +20,16 @@ package org.apache.flink.table.runtime.functions.python.arrow;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
-import org.apache.flink.table.runtime.functions.python.AbstractPythonStatelessFunctionFlatMap;
+import org.apache.flink.table.runtime.functions.python.AbstractPythonScalarFunctionFlatMap;
 import org.apache.flink.table.runtime.runners.python.scalar.arrow.ArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -42,26 +37,15 @@ import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * The {@link RichFlatMapFunction} used to invoke Arrow Python {@link ScalarFunction} functions for
  * the old planner.
  */
 @Internal
-public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonStatelessFunctionFlatMap {
+public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalarFunctionFlatMap {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * The Python {@link ScalarFunction}s to be executed.
-	 */
-	private final PythonFunctionInfo[] scalarFunctions;
-
-	/**
-	 * The offset of the fields which should be forwarded.
-	 */
-	private final int[] forwardedFields;
 
 	/**
 	 * Allocator which is used for byte buffer allocation.
@@ -86,23 +70,13 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonStatel
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		super(config, inputType, outputType, udfInputOffsets);
-		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
-		this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
+		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		RowTypeInfo forwardedInputTypeInfo = new RowTypeInfo(
-			Arrays.stream(forwardedFields)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.map(RowType.RowField::getType)
-				.map(TypeConversions::fromLogicalToDataType)
-				.map(TypeConversions::fromDataTypeToLegacyInfo)
-				.toArray(TypeInformation[]::new));
-		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("reader", 0, Long.MAX_VALUE);
 		reader = new ArrowStreamReader(bais, allocator);
 	}
@@ -115,11 +89,6 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonStatel
 			reader.close();
 			allocator.close();
 		}
-	}
-
-	@Override
-	public PythonEnv getPythonEnv() {
-		return scalarFunctions[0].getPythonFunction().getPythonEnv();
 	}
 
 	@Override
@@ -142,15 +111,6 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonStatel
 	}
 
 	@Override
-	public void bufferInput(Row input) {
-		Row forwardedFieldsRow = Row.project(input, forwardedFields);
-		if (getRuntimeContext().getExecutionConfig().isObjectReuseEnabled()) {
-			forwardedFieldsRow = forwardedInputSerializer.copy(forwardedFieldsRow);
-		}
-		forwardedInputQueue.add(forwardedFieldsRow);
-	}
-
-	@Override
 	public void emitResults() throws IOException {
 		byte[] udfResult;
 		while ((udfResult = userDefinedFunctionResultQueue.poll()) != null) {
@@ -164,10 +124,5 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonStatel
 				resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowReader.read(i)));
 			}
 		}
-	}
-
-	@Override
-	public int getForwardedFieldsCount() {
-		return forwardedFields.length;
 	}
 }

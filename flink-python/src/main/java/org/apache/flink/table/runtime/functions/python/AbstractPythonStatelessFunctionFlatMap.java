@@ -169,7 +169,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		this.jobOptions = buildJobOptions(config);
 	}
 
-	public PythonConfig getPythonConfig() {
+	protected PythonConfig getPythonConfig() {
 		return config;
 	}
 
