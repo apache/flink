@@ -84,7 +84,7 @@ public class StreamSQLTestProgram {
 
 		ParameterTool params = ParameterTool.fromArgs(args);
 		String outputPath = params.getRequired("outputPath");
-		String planner = params.get("planner", "old");
+		String planner = params.get("planner", "blink");
 
 		final EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance();
 		builder.inStreamingMode();
