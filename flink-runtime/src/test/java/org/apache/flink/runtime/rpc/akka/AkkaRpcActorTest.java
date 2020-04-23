@@ -470,8 +470,8 @@ public class AkkaRpcActorTest extends TestLogger {
 	public void resolvesRunningAkkaRpcActor() throws Exception {
 		final String endpointName = "foobar";
 
-		try (SimpleRpcEndpoint simpleRpcEndpoint1 = new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(endpointName));
-			SimpleRpcEndpoint simpleRpcEndpoint2 = new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(endpointName))) {
+		try (RpcEndpoint simpleRpcEndpoint1 = createRpcEndpointWithRandomNameSuffix(endpointName);
+			RpcEndpoint simpleRpcEndpoint2 = createRpcEndpointWithRandomNameSuffix(endpointName)) {
 
 			simpleRpcEndpoint1.closeAsync().join();
 
@@ -481,6 +481,10 @@ public class AkkaRpcActorTest extends TestLogger {
 
 			assertThat(rpcGateway.getAddress(), is(equalTo(simpleRpcEndpoint2.getAddress())));
 		}
+	}
+
+	private RpcEndpoint createRpcEndpointWithRandomNameSuffix(String prefix) {
+		return new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(prefix));
 	}
 
 	// ------------------------------------------------------------------------
