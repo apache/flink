@@ -19,13 +19,14 @@
 package org.apache.flink.client.python;
 
 import py4j.GatewayServer;
+import py4j.Py4JPythonClient;
 
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.nio.file.Files;
+import java.util.concurrent.ExecutionException;
 
 /**
  * The Py4j Gateway Server provides RPC service for user's python process.
@@ -40,15 +41,13 @@ public class PythonGatewayServer {
 	 * See: py4j.GatewayServer.main()
 	 * </p>
 	 */
-	public static void main(String[] args) throws IOException {
-		InetAddress localhost = InetAddress.getLoopbackAddress();
-		GatewayServer gatewayServer = new GatewayServer.GatewayServerBuilder()
-			.javaPort(0)
-			.javaAddress(localhost)
-			.build();
-		gatewayServer.start();
+	public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
+		GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();
+		PythonEnvUtils.setGatewayServer(gatewayServer);
 
 		int boundPort = gatewayServer.getListeningPort();
+		Py4JPythonClient callbackClient = gatewayServer.getCallbackClient();
+		int callbackPort = callbackClient.getPort();
 		if (boundPort == -1) {
 			System.out.println("GatewayServer failed to bind; exiting");
 			System.exit(1);
@@ -62,6 +61,7 @@ public class PythonGatewayServer {
 		FileOutputStream fileOutputStream = new FileOutputStream(tmpPath);
 		DataOutputStream stream = new DataOutputStream(fileOutputStream);
 		stream.writeInt(boundPort);
+		stream.writeInt(callbackPort);
 		stream.close();
 		fileOutputStream.close();
 
