@@ -18,16 +18,16 @@
 package org.apache.flink.table.runtime.stream.table
 
 import java.lang.{Boolean => JBoolean}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, Types, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -36,7 +36,8 @@ import scala.collection.mutable
 class CorrelateITCase extends AbstractTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
+  val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
   @Before
   def clear(): Unit = {
@@ -307,10 +308,6 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testFlatMap(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val func2 = new TableFunc2
     val ds = testData(env).toTable(tEnv, 'a, 'b, 'c)
       // test non alias

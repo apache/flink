@@ -40,7 +40,8 @@ public class StreamTableEnvironmentTest {
 	@Test
 	public void testPassingExecutionParameters() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 
 		tEnv.getConfig().addConfiguration(
 			new Configuration()

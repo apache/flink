@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.stream.table
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
-
 import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
@@ -30,25 +29,32 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, TableSchema, Tumble, Types}
+import org.apache.flink.table.api.{EnvironmentSettings, TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.runtime.utils.{CommonTestData, StreamITCase}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
+
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Before, Test}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class TableSourceITCase extends AbstractTestBase {
 
+  @Before
+  def setup(): Unit = {
+    StreamITCase.clear
+  }
+
   @Test(expected = classOf[TableException])
   def testInvalidDatastreamType(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val tableSource = new StreamTableSource[Row]() {
       private val fieldNames: Array[String] = Array("name", "id", "value")
@@ -76,12 +82,10 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testUnregisteredCsvTableSource(): Unit = {
-
     val csvTable = CommonTestData.getCsvTableSource
-    StreamITCase.testResults = mutable.MutableList()
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     tEnv.fromTableSource(csvTable)
       .where('id > 4)
@@ -101,12 +105,10 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testCsvTableSource(): Unit = {
-
     val csvTable = CommonTestData.getCsvTableSource
-    StreamITCase.testResults = mutable.MutableList()
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     tEnv.registerTableSource("csvTable", csvTable)
     tEnv.scan("csvTable")
@@ -127,10 +129,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testCsvTableSourceWithFilterable(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
+
     tEnv.registerTableSource(tableName, TestFilterableTableSource())
     tEnv.scan(tableName)
       .where("amount > 4 && price < 9")
@@ -145,11 +148,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testRowtimeRowTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -182,11 +185,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testProctimeRowTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -221,11 +224,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testRowtimeProctimeRowTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -260,11 +263,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testRowtimeAsTimestampRowTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of("Mary", toTimestamp(1L), new JInt(10)),
@@ -297,11 +300,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testRowtimeLongTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(new JLong(1L), new JLong(2L), new JLong(2L), new JLong(2001L), new JLong(4001L))
 
@@ -327,11 +330,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testRowtimeStringTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       "1970-01-01 00:00:00",
@@ -363,11 +366,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testProctimeStringTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq("Mary", "Peter", "Bob", "Liz")
 
@@ -389,11 +392,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testRowtimeProctimeLongTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(new JLong(1L), new JLong(2L), new JLong(2L), new JLong(2001L), new JLong(4001L))
 
@@ -422,11 +425,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testFieldMappingTableSource(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -459,10 +462,10 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testProjectWithoutRowtimeProctime(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
@@ -497,10 +500,10 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testProjectWithoutProctime(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
@@ -535,10 +538,10 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testProjectWithoutRowtime(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
@@ -573,10 +576,10 @@ class TableSourceITCase extends AbstractTestBase {
   }
 
   def testProjectOnlyProctime(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
@@ -607,10 +610,10 @@ class TableSourceITCase extends AbstractTestBase {
   }
 
   def testProjectOnlyRowtime(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
@@ -645,10 +648,10 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testProjectWithMapping(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of(new JLong(1), new JInt(1), "Mary", new JLong(10)),
@@ -684,11 +687,10 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testNestedProject(): Unit = {
-
-    StreamITCase.testResults = mutable.MutableList()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val data = Seq(
       Row.of(new JLong(1),
@@ -756,11 +758,11 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testRowtimeTableSourcePreserveWatermarks(): Unit = {
-    StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     // rows with timestamps and watermarks
     val data = Seq(
