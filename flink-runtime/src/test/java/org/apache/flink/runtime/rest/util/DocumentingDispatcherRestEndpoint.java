@@ -82,7 +82,7 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint im
 			handlerConfig,
 			resourceManagerGatewayRetriever,
 			NoOpTransientBlobService.INSTANCE,
-			Executors.newFixedThreadPool(1),
+			Executors.newScheduledThreadPool(1),
 			VoidMetricFetcher.INSTANCE,
 			NoOpElectionService.INSTANCE,
 			NoOpFatalErrorHandler.INSTANCE);

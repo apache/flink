@@ -29,7 +29,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * {@link WebMonitorEndpoint} factory.
@@ -43,7 +43,7 @@ public interface RestEndpointFactory<T extends RestfulGateway> {
 		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 		LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		TransientBlobService transientBlobService,
-		ExecutorService executor,
+		ScheduledExecutorService executor,
 		MetricFetcher metricFetcher,
 		LeaderElectionService leaderElectionService,
 		FatalErrorHandler fatalErrorHandler) throws Exception;
