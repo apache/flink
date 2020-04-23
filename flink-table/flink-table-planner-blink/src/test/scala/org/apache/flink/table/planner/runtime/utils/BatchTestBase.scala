@@ -56,7 +56,7 @@ import scala.util.Sorting
 
 class BatchTestBase extends BatchAbstractTestBase {
 
-  private val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+  private val settings = EnvironmentSettings.newInstance().inBatchMode().build()
   private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
     .create(settings, catalogManager = None, new TableConfig)
   val tEnv: TableEnvironment = testingTableEnv

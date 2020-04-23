@@ -40,9 +40,9 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   //~ Instance fields --------------------------------------------------------
 
   private val settings = if (isStreamingMode) {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    EnvironmentSettings.newInstance().inStreamingMode().build()
   } else {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    EnvironmentSettings.newInstance().inBatchMode().build()
   }
 
   private val tableEnv: TableEnvironment = TableEnvironmentImpl.create(settings)

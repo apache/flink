@@ -51,7 +51,7 @@ class StreamingTestBase extends AbstractTestBase {
     if (enableObjectReuse) {
       this.env.getConfig.enableObjectReuse()
     }
-    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
     this.tEnv = StreamTableEnvironment.create(env, setting)
   }
 }
