@@ -24,7 +24,7 @@ under the License.
 
 In this section you will learn about the APIs that Flink provides for writing
 stateful programs. Please take a look at [Stateful Stream
-Processing]({{site.baseurl}}{% link concepts/stateful-stream-processing.md %})
+Processing]({% link concepts/stateful-stream-processing.md %})
 to learn about the concepts behind stateful stream processing.
 
 * ToC
@@ -499,7 +499,7 @@ val counts: DataStream[(String, Int)] = stream
 ## Operator State
 
 *Operator State* (or *non-keyed state*) is state that is is bound to one
-parallel operator instance. The [Kafka Connector]({{ site.baseurl }}{% link
+parallel operator instance. The [Kafka Connector]({% link
 dev/connectors/kafka.md %}) is a good motivating example for the use of
 Operator State in Flink. Each parallel instance of the Kafka consumer maintains
 a map of topic partitions and offsets as its Operator State.

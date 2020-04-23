@@ -59,7 +59,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 If you want to use event time, you will also need to supply a Timestamp Extractor and Watermark
 Generator that Flink will use to track the progress of event time. This will be covered in the
-section below on [Working with Watermarks]({{ site.baseurl }}{% link
+section below on [Working with Watermarks]({% link
 tutorials/streaming_analytics.zh.md %}#working-with-watermarks), but first we should explain what
 watermarks are.
 
@@ -253,7 +253,7 @@ that behavior yourself with a custom Trigger.
 A global window assigner assigns every event (with the same key) to the same global window. This is
 only useful if you are going to do your own custom windowing, with a custom Trigger. In many cases
 where this might seem useful you will be better off using a `ProcessFunction` as described
-[in another section]({{ site.baseurl }}{% link tutorials/event_driven.zh.md %}#process-functions).
+[in another section]({% link tutorials/event_driven.zh.md %}#process-functions).
 
 ### Window Functions
 
@@ -365,7 +365,7 @@ the window API that give you more control over this.
 
 You can arrange for the events that would be dropped to be collected to an alternate output stream
 instead, using a mechanism called
-[Side Outputs]({{ site.baseurl }}{% link tutorials/event_driven.zh.md %}#side-outputs).
+[Side Outputs]({% link tutorials/event_driven.zh.md %}#side-outputs).
 Here is an example of what that might look like:
 
 {% highlight java %}
@@ -421,8 +421,8 @@ long and close at 1:00.
 
 Note, however, that the tumbling and sliding window assigners take an optional offset parameter
 that can be used to change the alignment of the windows. See
-[Tumbling Windows]({{ site.baseurl }}{% link dev/stream/operators/windows.zh.md %}#tumbling-windows) and
-[Sliding Windows]({{ site.baseurl }}{% link dev/stream/operators/windows.zh.md %}#sliding-windows) for details.
+[Tumbling Windows]({% link dev/stream/operators/windows.zh.md %}#tumbling-windows) and
+[Sliding Windows]({% link dev/stream/operators/windows.zh.md %}#sliding-windows) for details.
 
 #### Windows Can Follow Windows
 
@@ -469,7 +469,7 @@ Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}r
 
 ## Further Reading
 
-- [Timely Stream Processing]({{ site.baseurl }}{% link concepts/timely-stream-processing.zh.md %})
-- [Windows]({{ site.baseurl }}{% link dev/stream/operators/windows.zh.md %})
+- [Timely Stream Processing]({% link concepts/timely-stream-processing.zh.md %})
+- [Windows]({% link dev/stream/operators/windows.zh.md %})
 
 {% top %}

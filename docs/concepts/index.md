@@ -27,13 +27,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The [Hands-on Tutorials]({{ site.baseurl }}{% link tutorials/index.md %}) explain the basic concepts
+The [Hands-on Tutorials]({% link tutorials/index.md %}) explain the basic concepts
 of stateful and timely stream processing that underlie Flink's APIs, and provide examples of how
 these mechanisms are used in applications. Stateful stream processing is introduced in the context
-of [Data Pipelines & ETL]({{ site.baseurl }}{% link tutorials/etl.md %}#stateful-transformations)
-and is further developed in the section on [Fault Tolerance]({{ site.baseurl }}{% link
+of [Data Pipelines & ETL]({% link tutorials/etl.md %}#stateful-transformations)
+and is further developed in the section on [Fault Tolerance]({% link
 tutorials/fault_tolerance.md %}). Timely stream processing is introduced in the section on
-[Streaming Analytics]({{ site.baseurl }}{% link tutorials/streaming_analytics.md %}).
+[Streaming Analytics]({% link tutorials/streaming_analytics.md %}).
 
 This _Concepts in Depth_ section provides a deeper understanding of how Flink's architecture and runtime 
 implement these concepts.
@@ -45,17 +45,16 @@ Flink offers different levels of abstraction for developing streaming/batch appl
 <img src="{{ site.baseurl }}/fig/levels_of_abstraction.svg" alt="Programming levels of abstraction" class="offset" width="80%" />
 
   - The lowest level abstraction simply offers **stateful and timely stream processing**. It is
-    embedded into the [DataStream API]({{ site.baseurl}}{% link
-    dev/datastream_api.md %}) via the [Process Function]({{ site.baseurl }}{%
-    link dev/stream/operators/process_function.md %}). It allows users to freely
-    process events from one or more streams, and provides consistent, fault tolerant
-    *state*. In addition, users can register event time and processing time
-    callbacks, allowing programs to realize sophisticated computations.
+    embedded into the [DataStream API]({% link dev/datastream_api.md %}) via the [Process
+    Function]({% link dev/stream/operators/process_function.md %}). It allows
+    users to freely process events from one or more streams, and provides consistent, fault tolerant
+    *state*. In addition, users can register event time and processing time callbacks, allowing
+    programs to realize sophisticated computations.
 
   - In practice, many applications do not need the low-level
     abstractions described above, and can instead program against the **Core APIs**: the
-    [DataStream API]({{ site.baseurl }}{% link dev/datastream_api.md %})
-    (bounded/unbounded streams) and the [DataSet API]({{ site.baseurl }}{% link
+    [DataStream API]({% link dev/datastream_api.md %})
+    (bounded/unbounded streams) and the [DataSet API]({% link
     dev/batch/index.md %}) (bounded data sets). These fluent APIs offer the
     common building blocks for data processing, like various forms of
     user-specified transformations, joins, aggregations, windows, state, etc.
@@ -69,7 +68,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
 
   - The **Table API** is a declarative DSL centered around *tables*, which may
     be dynamically changing tables (when representing streams).  The [Table
-    API]({{ site.baseurl }}{% link dev/table/index.md %}) follows the
+    API]({% link dev/table/index.md %}) follows the
     (extended) relational model: Tables have a schema attached (similar to
     tables in relational databases) and the API offers comparable operations,
     such as select, project, join, group-by, aggregate, etc.  Table API
