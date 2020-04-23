@@ -54,10 +54,10 @@ The Flink runtime consists of two types of processes:
     There must always be at least one TaskManager.
 
 The Flink Master and TaskManagers can be started in various ways: directly on
-the machines as a [standalone cluster]({{ site.baseurl }}{% link
+the machines as a [standalone cluster]({% link
 ops/deployment/cluster_setup.md %}), in containers, or managed by resource
-frameworks like [YARN]({{ site.baseurl }}{% link ops/deployment/yarn_setup.md
-%}) or [Mesos]({{ site.baseurl }}{% link ops/deployment/mesos.md %}).
+frameworks like [YARN]({% link ops/deployment/yarn_setup.md
+%}) or [Mesos]({% link ops/deployment/mesos.md %}).
 TaskManagers connect to Flink Masters, announcing themselves as available, and
 are assigned work.
 

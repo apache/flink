@@ -186,23 +186,23 @@ once, the following must be true:
 
 ## Hands-on
 
-The [Flink Operations Playground]({{ site.baseurl }}{% link
+The [Flink Operations Playground]({% link
 getting-started/docker-playgrounds/flink-operations-playground.md %}) includes a section on
-[Observing Failure & Recovery]({{ site.baseurl }}{% link
+[Observing Failure & Recovery]({% link
 getting-started/docker-playgrounds/flink-operations-playground.md %}#observing-failure--recovery).
 
 {% top %}
 
 ## Further Reading
 
-- [Stateful Stream Processing]({{ site.baseurl }}{% link concepts/stateful-stream-processing.md %})
-- [State Backends]({{ site.baseurl }}{% link ops/state/state_backends.md %})
-- [Fault Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}{% link dev/connectors/guarantees.md %})
-- [Enabling and Configuring Checkpointing]({{ site.baseurl }}{% link dev/stream/state/checkpointing.md %})
-- [Checkpoints]({{ site.baseurl }}{% link ops/state/checkpoints.md %})
-- [Savepoints]({{ site.baseurl }}{% link ops/state/savepoints.md %})
-- [Tuning Checkpoints and Large State]({{ site.baseurl }}{% link ops/state/large_state_tuning.md %})
-- [Monitoring Checkpointing]({{ site.baseurl }}{% link monitoring/checkpoint_monitoring.md %})
-- [Task Failure Recovery]({{ site.baseurl }}{% link dev/task_failure_recovery.md %})
+- [Stateful Stream Processing]({% link concepts/stateful-stream-processing.md %})
+- [State Backends]({% link ops/state/state_backends.md %})
+- [Fault Tolerance Guarantees of Data Sources and Sinks]({% link dev/connectors/guarantees.md %})
+- [Enabling and Configuring Checkpointing]({% link dev/stream/state/checkpointing.md %})
+- [Checkpoints]({% link ops/state/checkpoints.md %})
+- [Savepoints]({% link ops/state/savepoints.md %})
+- [Tuning Checkpoints and Large State]({% link ops/state/large_state_tuning.md %})
+- [Monitoring Checkpointing]({% link monitoring/checkpoint_monitoring.md %})
+- [Task Failure Recovery]({% link dev/task_failure_recovery.md %})
 
 {% top %}
