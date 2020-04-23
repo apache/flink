@@ -183,7 +183,7 @@ evaluation of event time windows.
 For this reason, streaming programs may explicitly expect some *late* elements.
 Late elements are elements that arrive after the system's event time clock (as
 signaled by the watermarks) has already passed the time of the late element's
-timestamp. See [Allowed Lateness]({{ site.baseurl }}{% link
+timestamp. See [Allowed Lateness]({% link
 dev/stream/operators/windows.md %}#allowed-lateness) for more information on
 how to work with late elements in event time windows.
 

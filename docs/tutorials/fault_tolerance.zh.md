@@ -186,23 +186,23 @@ once, the following must be true:
 
 ## Hands-on
 
-The [Flink Operations Playground]({{ site.baseurl }}{% link
+The [Flink Operations Playground]({% link
 getting-started/docker-playgrounds/flink-operations-playground.zh.md %}) includes a section on
-[Observing Failure & Recovery]({{ site.baseurl }}{% link
+[Observing Failure & Recovery]({% link
 getting-started/docker-playgrounds/flink-operations-playground.zh.md %}#observing-failure--recovery).
 
 {% top %}
 
 ## Further Reading
 
-- [Stateful Stream Processing]({{ site.baseurl }}{% link concepts/stateful-stream-processing.zh.md %})
-- [State Backends]({{ site.baseurl }}{% link ops/state/state_backends.zh.md %})
-- [Fault Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}{% link dev/connectors/guarantees.zh.md %})
-- [Enabling and Configuring Checkpointing]({{ site.baseurl }}{% link dev/stream/state/checkpointing.zh.md %})
-- [Checkpoints]({{ site.baseurl }}{% link ops/state/checkpoints.zh.md %})
-- [Savepoints]({{ site.baseurl }}{% link ops/state/savepoints.zh.md %})
-- [Tuning Checkpoints and Large State]({{ site.baseurl }}{% link ops/state/large_state_tuning.zh.md %})
-- [Monitoring Checkpointing]({{ site.baseurl }}{% link monitoring/checkpoint_monitoring.zh.md %})
-- [Task Failure Recovery]({{ site.baseurl }}{% link dev/task_failure_recovery.zh.md %})
+- [Stateful Stream Processing]({% link concepts/stateful-stream-processing.zh.md %})
+- [State Backends]({% link ops/state/state_backends.zh.md %})
+- [Fault Tolerance Guarantees of Data Sources and Sinks]({% link dev/connectors/guarantees.zh.md %})
+- [Enabling and Configuring Checkpointing]({% link dev/stream/state/checkpointing.zh.md %})
+- [Checkpoints]({% link ops/state/checkpoints.zh.md %})
+- [Savepoints]({% link ops/state/savepoints.zh.md %})
+- [Tuning Checkpoints and Large State]({% link ops/state/large_state_tuning.zh.md %})
+- [Monitoring Checkpointing]({% link monitoring/checkpoint_monitoring.zh.md %})
+- [Task Failure Recovery]({% link dev/task_failure_recovery.zh.md %})
 
 {% top %}
