@@ -99,6 +99,13 @@ public class EntropyInjector {
 			if (delegate instanceof EntropyInjectingFileSystem) {
 				return (EntropyInjectingFileSystem) delegate;
 			}
+			else if (delegate instanceof PluginFileSystemFactory.ClassLoaderFixingFileSystem) {
+				FileSystem innerFs = ((PluginFileSystemFactory.ClassLoaderFixingFileSystem) delegate).getInner();
+				if (innerFs instanceof EntropyInjectingFileSystem) {
+					return (EntropyInjectingFileSystem) innerFs;
+				}
+				return null;
+			}
 			else {
 				return null;
 			}
