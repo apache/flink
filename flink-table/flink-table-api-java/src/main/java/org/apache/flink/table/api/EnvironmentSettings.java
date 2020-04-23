@@ -159,8 +159,8 @@ public class EnvironmentSettings {
 		private static final String BLINK_PLANNER_FACTORY = "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
 		private static final String BLINK_EXECUTOR_FACTORY = "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
 
-		private String plannerClass = OLD_PLANNER_FACTORY;
-		private String executorClass = OLD_EXECUTOR_FACTORY;
+		private String plannerClass = BLINK_PLANNER_FACTORY;
+		private String executorClass = BLINK_EXECUTOR_FACTORY;
 		private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
 		private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
 		private boolean isStreamingMode = true;
