@@ -43,16 +43,16 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.client.python.PythonDriverEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
-import static org.apache.flink.client.python.PythonDriverEnvUtils.preparePythonEnvironment;
+import static org.apache.flink.client.python.PythonEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
+import static org.apache.flink.client.python.PythonEnvUtils.preparePythonEnvironment;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 
 /**
- * Tests for the {@link PythonDriverEnvUtils}.
+ * Tests for the {@link PythonEnvUtils}.
  */
-public class PythonDriverEnvUtilsTest {
+public class PythonEnvUtilsTest {
 
 	private String tmpDirPath;
 
@@ -100,7 +100,7 @@ public class PythonDriverEnvUtilsTest {
 		Configuration config = new Configuration();
 		config.set(PYTHON_FILES, pyFiles);
 
-		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
+		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 
 		String base = replaceUUID(env.tempDirectory);
 		Set<String> expectedPythonPaths = new HashSet<>();
@@ -110,14 +110,14 @@ public class PythonDriverEnvUtilsTest {
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "c.zip"));
 
 		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
-			.map(PythonDriverEnvUtilsTest::replaceUUID)
+			.map(PythonEnvUtilsTest::replaceUUID)
 			.collect(Collectors.toSet());
 		Assert.assertEquals(expectedPythonPaths, actualPaths);
 	}
 
 	@Test
 	public void testStartPythonProcess() {
-		PythonDriverEnvUtils.PythonEnvironment pythonEnv = new PythonDriverEnvUtils.PythonEnvironment();
+		PythonEnvUtils.PythonEnvironment pythonEnv = new PythonEnvUtils.PythonEnvironment();
 		pythonEnv.tempDirectory = tmpDirPath;
 		pythonEnv.pythonPath = tmpDirPath;
 		List<String> commands = new ArrayList<>();
@@ -140,7 +140,7 @@ public class PythonDriverEnvUtilsTest {
 			String result = String.join(File.separator, tmpDirPath, "python_working_directory.txt");
 			commands.add(pyPath);
 			commands.add(result);
-			Process pythonProcess = PythonDriverEnvUtils.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
@@ -160,7 +160,7 @@ public class PythonDriverEnvUtilsTest {
 	public void testSetPythonExecutable() throws IOException {
 		Configuration config = new Configuration();
 
-		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
+		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 		Assert.assertEquals("python", env.pythonExec);
 
 		Map<String, String> systemEnv = new HashMap<>(System.getenv());
@@ -187,13 +187,13 @@ public class PythonDriverEnvUtilsTest {
 		String entryFilePath = entryFile.getAbsolutePath();
 
 		Configuration config = new Configuration();
-		PythonDriverEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, entryFilePath, tmpDirPath);
+		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, entryFilePath, tmpDirPath);
 
 		Set<String> expectedPythonPaths = new HashSet<>();
 		expectedPythonPaths.add(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}"));
 
 		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
-			.map(PythonDriverEnvUtilsTest::replaceUUID)
+			.map(PythonEnvUtilsTest::replaceUUID)
 			.collect(Collectors.toSet());
 		Assert.assertEquals(expectedPythonPaths, actualPaths);
 	}
