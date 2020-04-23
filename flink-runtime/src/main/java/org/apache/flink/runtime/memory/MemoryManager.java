@@ -304,7 +304,6 @@ public class MemoryManager {
 			// if not, we can change it to the simpler approach for the better readability.
 			Iterator<MemorySegment> segmentsIterator = segments.iterator();
 
-			//noinspection ProhibitedExceptionCaught
 			try {
 				MemorySegment segment = null;
 				while (segment == null && segmentsIterator.hasNext()) {
@@ -576,7 +575,6 @@ public class MemoryManager {
 	 * @return The size of the pages handled by the memory manager.
 	 */
 	public int getPageSize() {
-		//noinspection NumericCastThatLosesPrecision
 		return (int) pageSize;
 	}
 
@@ -611,7 +609,6 @@ public class MemoryManager {
 			throw new IllegalArgumentException("The fraction of memory to allocate must within (0, 1].");
 		}
 
-		//noinspection NumericCastThatLosesPrecision
 		return (int) (totalNumberOfPages * fraction);
 	}
 
@@ -626,7 +623,6 @@ public class MemoryManager {
 			fraction > 0 && fraction <= 1,
 			"The fraction of memory to allocate must within (0, 1], was: %s", fraction);
 
-		//noinspection NumericCastThatLosesPrecision
 		return (long) Math.floor(memoryBudget.getTotalMemorySize() * fraction);
 	}
 
