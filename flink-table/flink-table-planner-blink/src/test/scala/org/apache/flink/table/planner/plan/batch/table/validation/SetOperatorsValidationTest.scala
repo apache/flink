@@ -52,7 +52,7 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnvs(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
 
@@ -76,7 +76,7 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testMinusAllTablesFromDifferentEnvs(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
 
@@ -100,7 +100,7 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testIntersectTablesFromDifferentEnvs(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
 

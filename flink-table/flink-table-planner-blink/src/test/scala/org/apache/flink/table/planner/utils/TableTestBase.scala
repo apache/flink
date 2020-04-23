@@ -127,9 +127,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   protected lazy val diffRepository: DiffRepository = DiffRepository.lookup(test.getClass)
 
   protected val setting: EnvironmentSettings = if (isStreamingMode) {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    EnvironmentSettings.newInstance().inStreamingMode().build()
   } else {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    EnvironmentSettings.newInstance().inBatchMode().build()
   }
 
   // a counter for unique table names
@@ -1117,10 +1117,9 @@ object TestingTableEnvironment {
 
 object TableTestUtil {
 
-  val STREAM_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance()
-    .useBlinkPlanner().inStreamingMode().build()
-  val BATCH_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance()
-    .useBlinkPlanner().inBatchMode().build()
+  val STREAM_SETTING: EnvironmentSettings =
+    EnvironmentSettings.newInstance().inStreamingMode().build()
+  val BATCH_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance().inBatchMode().build()
 
   /**
     * Converts operation tree in the given table to a RelNode tree.

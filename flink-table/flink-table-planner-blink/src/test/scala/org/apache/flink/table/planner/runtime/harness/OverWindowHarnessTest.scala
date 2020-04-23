@@ -45,7 +45,7 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   @Before
   override def before(): Unit = {
     super.before()
-    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
     val config = new TestTableConfig
     this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
   }

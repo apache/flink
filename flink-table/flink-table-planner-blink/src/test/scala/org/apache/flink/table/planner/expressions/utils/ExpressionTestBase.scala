@@ -61,8 +61,7 @@ abstract class ExpressionTestBase {
   // (originalExpr, optimizedExpr, expectedResult)
   private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
-  private val setting = EnvironmentSettings.newInstance()
-    .useBlinkPlanner().inStreamingMode().build()
+  private val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
   private val tEnv = StreamTableEnvironmentImpl.create(env, setting, config)

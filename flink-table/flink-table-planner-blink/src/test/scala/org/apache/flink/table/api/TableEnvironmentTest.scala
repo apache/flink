@@ -91,7 +91,7 @@ class TableEnvironmentTest {
   @Test
   def testStreamTableEnvironmentExplain(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
     tEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
