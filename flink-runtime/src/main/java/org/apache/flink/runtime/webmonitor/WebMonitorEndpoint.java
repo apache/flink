@@ -185,6 +185,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			ScheduledExecutorService executor,
 			MetricFetcher metricFetcher,
 			LeaderElectionService leaderElectionService,
+			ExecutionGraphCache executionGraphCache,
 			FatalErrorHandler fatalErrorHandler) throws IOException {
 		super(endpointConfiguration);
 		this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
@@ -194,9 +195,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		this.transientBlobService = Preconditions.checkNotNull(transientBlobService);
 		this.executor = Preconditions.checkNotNull(executor);
 
-		this.executionGraphCache = new ExecutionGraphCache(
-			restConfiguration.getTimeout(),
-			Time.milliseconds(restConfiguration.getRefreshInterval()));
+		this.executionGraphCache = executionGraphCache;
 
 		this.checkpointStatsCache = new CheckpointStatsCache(
 			restConfiguration.getMaxCheckpointStatisticCacheEntries());
