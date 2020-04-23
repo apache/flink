@@ -26,7 +26,8 @@ import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
 import org.apache.flink.types.Row
-import org.junit.{Ignore, Test}
+
+import org.junit.Test
 
 class DecimalTypeTest extends ExpressionTestBase {
 
@@ -127,23 +128,6 @@ class DecimalTypeTest extends ExpressionTestBase {
       s"(${Long.MinValue}L).cast(LONG)",
       s"CAST(${Long.MinValue} AS BIGINT)",
       Long.MinValue.toString)
-  }
-
-  @Ignore
-  @Test
-  def testDefaultDecimalCasting(): Unit = {
-    // from String
-    testTableApi(
-      "123456789123456789123456789".cast(DataTypes.DECIMAL(38, 0)),
-      "'123456789123456789123456789'.cast(DECIMAL)",
-      "123456789123456789123456789")
-
-    // from double
-    testAllApis(
-      'f3.cast(DataTypes.DECIMAL(38, 0)),
-      "f3.cast(DECIMAL)",
-      "CAST(f3 AS DECIMAL)",
-      "4")
   }
 
   @Test
