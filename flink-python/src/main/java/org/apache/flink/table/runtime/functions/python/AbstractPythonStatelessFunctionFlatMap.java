@@ -169,6 +169,10 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		this.jobOptions = buildJobOptions(config);
 	}
 
+	protected PythonConfig getPythonConfig() {
+		return config;
+	}
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
@@ -200,6 +204,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		bais = new ByteArrayInputStreamWithPos();
 		baisWrapper = new DataInputViewStreamWrapper(bais);
 
+		userDefinedFunctionOutputType = new RowType(outputType.getFields().subList(getForwardedFieldsCount(), outputType.getFieldCount()));
 		userDefinedFunctionTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 
 		this.pythonFunctionRunner = createPythonFunctionRunner();
@@ -247,6 +252,8 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	public abstract void bufferInput(Row input);
 
 	public abstract void emitResults() throws IOException;
+
+	public abstract int getForwardedFieldsCount();
 
 	protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
 		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(
