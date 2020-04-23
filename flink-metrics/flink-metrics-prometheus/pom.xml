@@ -120,12 +120,6 @@ under the License.
 									<include>io.prometheus:*</include>
 								</includes>
 							</artifactSet>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>io.prometheus.client</pattern>
-									<shadedPattern>org.apache.flink.shaded.io.prometheus.client</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 				</executions>
