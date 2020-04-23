@@ -20,8 +20,10 @@ package org.apache.flink.api.java.io.jdbc.source.row.converter;
 
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.postgresql.jdbc.PgArray;
 import org.postgresql.util.PGobject;
@@ -41,9 +43,9 @@ public class PostgresRowConverter extends AbstractJDBCRowConverter {
 
 		if (root == LogicalTypeRoot.ARRAY) {
 			ArrayType arrayType = (ArrayType) type;
-			LogicalTypeRoot elemType = arrayType.getElementType().getTypeRoot();
 
-			if (elemType == LogicalTypeRoot.VARBINARY) {
+			// PG's bytea[] is wrapped in PGobject, rather than primitive byte arrays
+			if (LogicalTypeChecks.hasFamily(arrayType.getElementType(), LogicalTypeFamily.BINARY_STRING)) {
 
 				return v -> {
 					PgArray pgArray = (PgArray) v;
