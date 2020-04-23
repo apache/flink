@@ -60,6 +60,7 @@ public enum SessionRestEndpointFactory implements RestEndpointFactory<Dispatcher
 			executor,
 			metricFetcher,
 			leaderElectionService,
+			RestEndpointFactory.createExecutionGraphCache(restHandlerConfiguration),
 			fatalErrorHandler);
 	}
 }
