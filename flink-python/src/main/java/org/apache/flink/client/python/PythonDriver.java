@@ -28,10 +28,10 @@ import org.slf4j.LoggerFactory;
 import py4j.GatewayServer;
 
 import java.io.File;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A main class used to launch Python applications. It executes python as a
@@ -40,7 +40,7 @@ import java.util.UUID;
 public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ExecutionException, InterruptedException {
 		// The python job needs at least 2 args.
 		// e.g. py a.py [user args]
 		// e.g. pym a.b [user args]
@@ -67,7 +67,8 @@ public final class PythonDriver {
 		Configuration config = ExecutionEnvironment.getExecutionEnvironment().getConfiguration();
 
 		// start gateway server
-		GatewayServer gatewayServer = startGatewayServer();
+		GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();
+		PythonEnvUtils.setGatewayServer(gatewayServer);
 
 		// commands which will be exec in python progress.
 		final List<String> commands = constructPythonCommands(pythonDriverOptions);
@@ -75,12 +76,13 @@ public final class PythonDriver {
 			// prepare the exec environment of python progress.
 			String tmpDir = System.getProperty("java.io.tmpdir") +
 				File.separator + "pyflink" + File.separator + UUID.randomUUID();
-			PythonDriverEnvUtils.PythonEnvironment pythonEnv = PythonDriverEnvUtils.preparePythonEnvironment(
-				config, pythonDriverOptions.getEntryPointScript().orElse(null), tmpDir);
-			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
-			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
-			Process pythonProcess = PythonDriverEnvUtils.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonEnvUtils.launchPy4jPythonClient(
+				gatewayServer,
+				config,
+				commands,
+				pythonDriverOptions.getEntryPointScript().orElse(null),
+				tmpDir);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
@@ -92,32 +94,9 @@ public final class PythonDriver {
 			// there is no harm to throw ProgramAbortException even if it is not the case.
 			throw new ProgramAbortException();
 		} finally {
+			PythonEnvUtils.setGatewayServer(null);
 			gatewayServer.shutdown();
 		}
-	}
-
-	/**
-	 * Creates a GatewayServer run in a daemon thread.
-	 *
-	 * @return The created GatewayServer
-	 */
-	static GatewayServer startGatewayServer() {
-		InetAddress localhost = InetAddress.getLoopbackAddress();
-		GatewayServer gatewayServer = new GatewayServer.GatewayServerBuilder()
-			.javaPort(0)
-			.javaAddress(localhost)
-			.build();
-		Thread thread = new Thread(gatewayServer::start);
-		thread.setName("py4j-gateway");
-		thread.setDaemon(true);
-		thread.start();
-		try {
-			thread.join();
-		} catch (InterruptedException e) {
-			LOG.error("The gateway server thread join failed.", e);
-			System.exit(1);
-		}
-		return gatewayServer;
 	}
 
 	/**
