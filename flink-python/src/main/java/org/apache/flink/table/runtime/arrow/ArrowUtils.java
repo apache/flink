@@ -20,9 +20,19 @@ package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.internal.TableEnvImpl;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.sinks.SelectTableSinkSchemaConverter;
 import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
@@ -113,6 +123,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.types.Row;
 
 import org.apache.arrow.flatbuf.MessageHeader;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -135,6 +146,7 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageMetadataResult;
@@ -146,7 +158,10 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -157,6 +172,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -165,6 +181,8 @@ import java.util.stream.Collectors;
  */
 @Internal
 public final class ArrowUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ArrowUtils.class);
 
 	private static RootAllocator rootAllocator;
 
@@ -586,6 +604,102 @@ public final class ArrowUtils {
 					expected));
 			}
 		}
+	}
+
+	/**
+	 * Convert Flink table to Pandas DataFrame.
+	 */
+	public static CustomIterator<byte[]> collectAsPandasDataFrame(Table table, int maxArrowBatchSize) throws Exception {
+		BufferAllocator allocator = getRootAllocator().newChildAllocator("collectAsPandasDataFrame", 0, Long.MAX_VALUE);
+		RowType rowType = (RowType) table.getSchema().toRowDataType().getLogicalType();
+		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
+		arrowStreamWriter.start();
+
+		ArrowWriter arrowWriter;
+		Iterator<Row> results = table.execute().collect();
+		Iterator convertedResults;
+		if (isBlinkPlanner(table)) {
+			arrowWriter = createRowDataArrowWriter(root, rowType);
+			convertedResults = new Iterator<RowData>() {
+				@Override
+				public boolean hasNext() {
+					return results.hasNext();
+				}
+
+				@Override
+				public RowData next() {
+					// The SelectTableSink of blink planner will convert the table schema and we
+					// need to keep the table schema used here be consistent with the converted table schema
+					TableSchema convertedTableSchema =
+						SelectTableSinkSchemaConverter.changeDefaultConversionClass(table.getSchema());
+					DataFormatConverters.DataFormatConverter converter =
+						DataFormatConverters.getConverterForDataType(convertedTableSchema.toRowDataType());
+					return (RowData) converter.toInternal(results.next());
+				}
+			};
+		} else {
+			arrowWriter = createRowArrowWriter(root, rowType);
+			convertedResults = results;
+		}
+
+		return new CustomIterator<byte[]>() {
+			@Override
+			public boolean hasNext() {
+				return convertedResults.hasNext();
+			}
+
+			@Override
+			public byte[] next() {
+				try {
+					int i = 0;
+					while (convertedResults.hasNext() && i < maxArrowBatchSize) {
+						i++;
+						arrowWriter.write(convertedResults.next());
+					}
+					arrowWriter.finish();
+					arrowStreamWriter.writeBatch();
+					return baos.toByteArray();
+				} catch (Throwable t) {
+					String msg = "Failed to serialize the data of the table";
+					LOG.error(msg, t);
+					throw new RuntimeException(msg, t);
+				} finally {
+					arrowWriter.reset();
+					baos.reset();
+
+					if (!hasNext()) {
+						root.close();
+						allocator.close();
+					}
+				}
+			}
+		};
+	}
+
+	private static boolean isBlinkPlanner(Table table) {
+		TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
+		if (tableEnv instanceof TableEnvImpl) {
+			return false;
+		} else if (tableEnv instanceof TableEnvironmentImpl) {
+			Planner planner = ((TableEnvironmentImpl) tableEnv).getPlanner();
+			return planner instanceof PlannerBase;
+		} else {
+			throw new RuntimeException(String.format(
+				"Could not determine the planner type for table environment class %s", tableEnv.getClass()));
+		}
+	}
+
+	/**
+	 * A custom iterator to bypass the Py4J Java collection as the next method of
+	 * py4j.java_collections.JavaIterator will eat all the exceptions thrown in Java
+	 * which makes it difficult to debug in case of errors.
+	 */
+	private interface CustomIterator<T> {
+		boolean hasNext();
+
+		T next();
 	}
 
 	private static class LogicalTypeToArrowTypeConverter extends LogicalTypeDefaultVisitor<ArrowType> {

@@ -19,8 +19,12 @@
 import warnings
 
 from py4j.java_gateway import get_method
+
 from pyflink.java_gateway import get_gateway
+from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_schema import TableSchema
+from pyflink.table.types import create_arrow_schema
+from pyflink.table.utils import tz_convert_from_internal
 
 from pyflink.util.utils import to_jarray
 from pyflink.util.utils import to_j_explain_detail_arr
@@ -691,6 +695,46 @@ class Table(object):
                       "use TableTableEnvironment#create_statement_set for multiple sinks.",
                       DeprecationWarning)
         self._j_table.insertInto(table_path)
+
+    def to_pandas(self):
+        """
+        Converts the table to a pandas DataFrame.
+
+        Example:
+        ::
+
+            >>> pdf = pd.DataFrame(np.random.rand(1000, 2))
+            >>> table = table_env.from_pandas(pdf, ["a", "b"])
+            >>> table.filter("a > 0.5").to_pandas()
+
+        :return: the result pandas DataFrame.
+        """
+        gateway = get_gateway()
+        max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig().getConfiguration()\
+            .getInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
+        batches = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
+            .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
+        if batches.hasNext():
+            import pytz
+            timezone = pytz.timezone(
+                self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
+            serializer = ArrowSerializer(
+                create_arrow_schema(self.get_schema().get_field_names(),
+                                    self.get_schema().get_field_data_types()),
+                self.get_schema().to_row_data_type(),
+                timezone)
+            import pyarrow as pa
+            table = pa.Table.from_batches(serializer.load_from_iterator(batches))
+            pdf = table.to_pandas()
+
+            schema = self.get_schema()
+            for field_name in schema.get_field_names():
+                pdf[field_name] = tz_convert_from_internal(
+                    pdf[field_name], schema.get_field_data_type(field_name), timezone)
+            return pdf
+        else:
+            import pandas as pd
+            return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
     def get_schema(self):
         """
