@@ -50,19 +50,23 @@ public class StreamSQLExample {
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		String planner = params.has("planner") ? params.get("planner") : "flink";
+		String planner = params.has("planner") ? params.get("planner") : "blink";
 
 		// set up execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv;
 		if (Objects.equals(planner, "blink")) {	// use blink planner in streaming mode
 			EnvironmentSettings settings = EnvironmentSettings.newInstance()
-				.useBlinkPlanner()
-				.inStreamingMode()
-				.build();
+					.inStreamingMode()
+					.useBlinkPlanner()
+					.build();
 			tEnv = StreamTableEnvironment.create(env, settings);
 		} else if (Objects.equals(planner, "flink")) {	// use flink planner in streaming mode
-			tEnv = StreamTableEnvironment.create(env);
+			EnvironmentSettings settings = EnvironmentSettings.newInstance()
+					.inStreamingMode()
+					.useOldPlanner()
+					.build();
+			tEnv = StreamTableEnvironment.create(env, settings);
 		} else {
 			System.err.println("The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', " +
 				"where planner (it is either flink or blink, and the default is flink) indicates whether the " +
