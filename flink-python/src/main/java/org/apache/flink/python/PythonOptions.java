@@ -33,7 +33,7 @@ public class PythonOptions {
 	 */
 	public static final ConfigOption<Integer> MAX_BUNDLE_SIZE = ConfigOptions
 		.key("python.fn-execution.bundle.size")
-		.defaultValue(1000)
+		.defaultValue(100000)
 		.withDescription("The maximum number of elements to include in a bundle for Python " +
 			"user-defined function execution. The elements are processed asynchronously. " +
 			"One bundle of elements are processed before processing the next bundle of elements. " +
@@ -54,7 +54,7 @@ public class PythonOptions {
 	 */
 	public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE = ConfigOptions
 		.key("python.fn-execution.arrow.batch.size")
-		.defaultValue(1000)
+		.defaultValue(10000)
 		.withDescription("The maximum number of elements to include in an arrow batch for Python " +
 			"user-defined function execution. The arrow batch size should not exceed the " +
 			"bundle size. Otherwise, the bundle size will be used as the arrow batch size.");
