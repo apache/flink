@@ -24,7 +24,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -87,7 +87,7 @@ public class JobVertexWatermarksHandlerTest {
 			Time.seconds(1),
 			Collections.emptyMap(),
 			metricFetcher,
-			Mockito.mock(ExecutionGraphCache.class),
+			Mockito.mock(DefaultExecutionGraphCache.class),
 			Mockito.mock(Executor.class));
 
 		final Map<String, String> pathParameters = new HashMap<>();
