@@ -68,7 +68,7 @@ public class ExecutionContextTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 	private static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
-	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
+	public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 	private static final String CONFIGURATION_ENVIRONMENT_FILE = "test-sql-client-configuration.yaml";
 
@@ -148,6 +148,8 @@ public class ExecutionContextTest {
 			),
 			allCatalogs
 		);
+
+		context.close();
 	}
 
 	@Test
@@ -179,6 +181,8 @@ public class ExecutionContextTest {
 		tableEnv.useDatabase(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
 
 		assertEquals(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, tableEnv.getCurrentDatabase());
+
+		context.close();
 	}
 
 	@Test

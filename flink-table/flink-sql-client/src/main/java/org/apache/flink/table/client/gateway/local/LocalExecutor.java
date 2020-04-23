@@ -236,8 +236,11 @@ public class LocalExecutor implements Executor {
 				// ignore any throwable to keep the clean up running
 			}
 		});
-		// Remove the session's ExecutionContext from contextMap.
-		this.contextMap.remove(sessionId);
+		// Remove the session's ExecutionContext from contextMap and close it.
+		ExecutionContext<?> context = this.contextMap.remove(sessionId);
+		if (context != null) {
+			context.close();
+		}
 	}
 
 	/**
