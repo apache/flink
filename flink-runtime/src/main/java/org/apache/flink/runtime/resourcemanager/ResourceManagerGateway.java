@@ -36,6 +36,7 @@ import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.FileType;
@@ -238,4 +239,13 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * @return Future which is completed with the historical log list
 	 */
 	CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the thread dump from the given {@link TaskExecutor}.
+	 *
+	 * @param taskManagerId taskManagerId identifying the {@link TaskExecutor} to get the thread dump from
+	 * @param timeout timeout of the asynchronous operation
+	 * @return Future containing the thread dump information
+	 */
+	CompletableFuture<ThreadDumpInfo> requestThreadDump(ResourceID taskManagerId, @RpcTimeout Time timeout);
 }

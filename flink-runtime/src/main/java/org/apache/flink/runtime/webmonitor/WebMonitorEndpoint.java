@@ -85,7 +85,7 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandl
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
@@ -124,7 +124,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHead
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
-import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -717,20 +717,18 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			resourceManagerRetriever
 		);
 
-		final TaskManagerThreadDumpFileHandler taskManagerThreadDumpFileHandler = new TaskManagerThreadDumpFileHandler(
+		final TaskManagerThreadDumpHandler taskManagerThreadDumpFileHandler = new TaskManagerThreadDumpHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			TaskManagerThreadDumpFileHeaders.getInstance(),
-			resourceManagerRetriever,
-			transientBlobService,
-			cacheEntryDuration);
+			TaskManagerThreadDumpHeaders.getInstance(),
+			resourceManagerRetriever);
 
 		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
 		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
 		handlers.add(Tuple2.of(TaskManagerCustomLogHeaders.getInstance(), taskManagerCustomLogHandler));
 		handlers.add(Tuple2.of(TaskManagerLogsHeaders.getInstance(), taskManagerLogListHandler));
-		handlers.add(Tuple2.of(TaskManagerThreadDumpFileHeaders.getInstance(), taskManagerThreadDumpFileHandler));
+		handlers.add(Tuple2.of(TaskManagerThreadDumpHeaders.getInstance(), taskManagerThreadDumpFileHandler));
 
 		handlers.stream()
 			.map(tuple -> tuple.f1)

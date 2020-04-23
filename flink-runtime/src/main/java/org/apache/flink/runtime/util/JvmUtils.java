@@ -18,16 +18,11 @@
 
 package org.apache.flink.runtime.util;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.io.SequenceInputStream;
 import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Collection;
 
 /**
  * Utilities for {@link java.lang.management.ManagementFactory}.
@@ -35,20 +30,14 @@ import java.util.stream.Collectors;
 public final class JvmUtils {
 
 	/**
-	 * Returns the thread info for all live threads with stack trace and synchronization information.
+	 * Creates a thread dump of the current JVM.
 	 *
-	 * @return the thread dump stream of current JVM
+	 * @return the thread dump of current JVM
 	 */
-	public static InputStream threadDumpStream() {
+	public static Collection<ThreadInfo> createThreadDump() {
 		ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
 
-		List<InputStream> streams = Arrays
-			.stream(threadMxBean.dumpAllThreads(true, true))
-			.map((v) -> v.toString().getBytes(StandardCharsets.UTF_8))
-			.map(ByteArrayInputStream::new)
-			.collect(Collectors.toList());
-
-		return new SequenceInputStream(Collections.enumeration(streams));
+		return Arrays.asList(threadMxBean.dumpAllThreads(true, true));
 	}
 
 	/**

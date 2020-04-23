@@ -46,6 +46,7 @@ import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
@@ -100,6 +101,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	private volatile Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer;
 
 	private volatile Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction;
+
+	private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction;
 
 	public TestingResourceManagerGateway() {
 		this(
@@ -177,6 +180,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	public void setNotifySlotAvailableConsumer(Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer) {
 		this.notifySlotAvailableConsumer = notifySlotAvailableConsumer;
+	}
+
+	public void setRequestThreadDumpFunction(Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction) {
+		this.requestThreadDumpFunction = requestThreadDumpFunction;
 	}
 
 	@Override
@@ -341,6 +348,17 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	@Override
 	public CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
 		final Function<ResourceID, CompletableFuture<Collection<LogInfo>>> function = this.requestTaskManagerLogListFunction;
+		if (function != null) {
+			return function.apply(taskManagerId);
+		} else {
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		}
+	}
+
+	@Override
+	public CompletableFuture<ThreadDumpInfo> requestThreadDump(ResourceID taskManagerId, Time timeout) {
+		final Function<ResourceID, CompletableFuture<ThreadDumpInfo>> function = this.requestThreadDumpFunction;
+
 		if (function != null) {
 			return function.apply(taskManagerId);
 		} else {

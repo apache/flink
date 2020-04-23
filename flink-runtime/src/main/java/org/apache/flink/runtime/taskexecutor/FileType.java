@@ -31,9 +31,4 @@ public enum FileType {
 	 * The stdout file type for taskmanager.
 	 */
 	STDOUT,
-
-	/**
-	 * Thread dump for taskmanager.
-	 */
-	THREAD_DUMP,
 }

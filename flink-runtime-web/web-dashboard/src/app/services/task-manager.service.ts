@@ -21,7 +21,7 @@ import { Injectable } from '@angular/core';
 import { EMPTY, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { BASE_URL } from 'config';
-import { TaskManagerListInterface, TaskManagerDetailInterface, TaskManagerLogInterface } from 'interfaces';
+import { TaskManagerListInterface, TaskManagerDetailInterface, TaskManagerLogInterface, TaskManagerThreadDumpInterface } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -88,10 +88,12 @@ export class TaskManagerService {
    * Load TM thread dump
    */
   loadThreadDump(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`, {
-      responseType: 'text',
-      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
-    });
+    return this.httpClient
+      .get<TaskManagerThreadDumpInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
+      .pipe(
+        map(taskManagerThreadDump => {
+          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+        }));
   }
 
   constructor(private httpClient: HttpClient) {}
