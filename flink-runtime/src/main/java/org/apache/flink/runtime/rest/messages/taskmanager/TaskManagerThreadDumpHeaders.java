@@ -19,20 +19,22 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Headers for the {@link TaskManagerThreadDumpFileHandler}.
+ * Headers for the {@link TaskManagerThreadDumpHandler}.
  */
-public class TaskManagerThreadDumpFileHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
+public class TaskManagerThreadDumpHeaders implements MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
 
-	private static final TaskManagerThreadDumpFileHeaders INSTANCE = new TaskManagerThreadDumpFileHeaders();
+	private static final TaskManagerThreadDumpHeaders INSTANCE = new TaskManagerThreadDumpHeaders();
 
 	private static final String URL = String.format("/taskmanagers/:%s/thread-dump", TaskManagerIdPathParameter.KEY);
 
-	private TaskManagerThreadDumpFileHeaders() {}
+	private TaskManagerThreadDumpHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -54,7 +56,22 @@ public class TaskManagerThreadDumpFileHeaders implements UntypedResponseMessageH
 		return URL;
 	}
 
-	public static TaskManagerThreadDumpFileHeaders getInstance() {
+	public static TaskManagerThreadDumpHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public Class<ThreadDumpInfo> getResponseClass() {
+		return ThreadDumpInfo.class;
+	}
+
+	@Override
+	public HttpResponseStatus getResponseStatusCode() {
+		return HttpResponseStatus.OK;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the thread dump of the requested TaskManager.";
 	}
 }

@@ -85,6 +85,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -136,6 +137,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.management.ThreadInfo;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -946,8 +948,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			case STDOUT:
 				filePath = taskManagerConfiguration.getTaskManagerStdoutPath();
 				break;
-			case THREAD_DUMP:
-				return putTransientBlobStream(JvmUtils.threadDumpStream(), fileType.toString());
 			default:
 				filePath = null;
 		}
@@ -1014,6 +1014,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			ExceptionUtils.rethrowIfFatalError(t);
 			return FutureUtils.completedExceptionally(t);
 		}
+	}
+
+	@Override
+	public CompletableFuture<ThreadDumpInfo> requestThreadDump(Time timeout) {
+		final Collection<ThreadInfo> threadDump = JvmUtils.createThreadDump();
+
+		final Collection<ThreadDumpInfo.ThreadInfo> threadInfos = threadDump.stream()
+			.map(threadInfo -> ThreadDumpInfo.ThreadInfo.create(threadInfo.getThreadName(), threadInfo.toString()))
+			.collect(Collectors.toList());
+
+		return CompletableFuture.completedFuture(ThreadDumpInfo.create(threadInfos));
 	}
 
 	// ------------------------------------------------------------------------

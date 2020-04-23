@@ -60,6 +60,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -655,6 +656,19 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	@Override
 	public CompletableFuture<Map<IntermediateDataSetID, DataSetMetaInfo>> listDataSets() {
 		return CompletableFuture.completedFuture(clusterPartitionTracker.listDataSets());
+	}
+
+	@Override
+	public CompletableFuture<ThreadDumpInfo> requestThreadDump(ResourceID taskManagerId, Time timeout) {
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+
+		if (taskExecutor == null) {
+			log.debug("Requested thread dump from unregistered TaskExecutor {}.", taskManagerId);
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		} else {
+			return taskExecutor.getTaskExecutorGateway().requestThreadDump(timeout);
+		}
+
 	}
 
 	// ------------------------------------------------------------------------

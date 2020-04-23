@@ -2936,5 +2936,42 @@
     "response" : {
       "type" : "any"
     }
+  }, {
+    "url" : "/taskmanagers/:taskmanagerid/thread-dump",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "taskmanagerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo",
+      "properties" : {
+        "threadInfos" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo:ThreadInfo",
+            "properties" : {
+              "threadName" : {
+                "type" : "string"
+              },
+              "stringifiedThreadInfo" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      }
+    }
   } ]
 }
