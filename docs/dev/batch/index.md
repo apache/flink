@@ -2123,8 +2123,6 @@ Passing Parameters to Functions
 
 Parameters can be passed to functions using either the constructor or the `withParameters(Configuration)` method. The parameters are serialized as part of the function object and shipped to all parallel task instances.
 
-Check also the [best practices guide on how to pass command line arguments to functions]({{ site.baseurl }}/dev/best_practices.html#parsing-command-line-arguments-and-passing-them-around-in-your-flink-application).
-
 #### Via Constructor
 
 <div class="codetabs" markdown="1">
