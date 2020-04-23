@@ -135,8 +135,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -151,7 +151,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
 	private final TransientBlobService transientBlobService;
-	protected final ExecutorService executor;
+	protected final ScheduledExecutorService executor;
 
 	private final ExecutionGraphCache executionGraphCache;
 	private final CheckpointStatsCache checkpointStatsCache;
@@ -173,7 +173,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
 			TransientBlobService transientBlobService,
-			ExecutorService executor,
+			ScheduledExecutorService executor,
 			MetricFetcher metricFetcher,
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler) throws IOException {
@@ -738,7 +738,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		return archivedJson;
 	}
 
-	public static ExecutorService createExecutorService(int numThreads, int threadPriority, String componentName) {
+	public static ScheduledExecutorService createExecutorService(int numThreads, int threadPriority, String componentName) {
 		if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
 			throw new IllegalArgumentException(
 				String.format(
@@ -748,7 +748,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 					threadPriority));
 		}
 
-		return Executors.newFixedThreadPool(
+		return Executors.newScheduledThreadPool(
 			numThreads,
 			new ExecutorThreadFactory.Builder()
 				.setThreadPriority(threadPriority)
