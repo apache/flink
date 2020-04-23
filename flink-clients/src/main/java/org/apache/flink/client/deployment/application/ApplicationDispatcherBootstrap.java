@@ -28,6 +28,7 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.SerializedThrowable;
@@ -71,6 +73,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ApplicationDispatcherBootstrap.class);
+
+	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
 	private final PackagedProgram application;
 
@@ -127,7 +131,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			final DispatcherGateway dispatcher,
 			final ScheduledExecutor scheduledExecutor) {
 
-		applicationCompletionFuture = runApplicationAsync(dispatcher, scheduledExecutor, false);
+		applicationCompletionFuture = fixJobIdAndRunApplicationAsync(dispatcher, scheduledExecutor);
 
 		return applicationCompletionFuture
 				.handle((r, t) -> {
@@ -144,13 +148,30 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 				.thenCompose(Function.identity());
 	}
 
+	@VisibleForTesting
+	CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
+			final DispatcherGateway dispatcher,
+			final ScheduledExecutor scheduledExecutor) {
+
+		final Optional<String> configuredJobId =
+				configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
+
+		if (!HighAvailabilityMode.isHighAvailabilityModeActivated(configuration) && !configuredJobId.isPresent()) {
+			return runApplicationAsync(dispatcher, scheduledExecutor, false);
+		}
+
+		if (!configuredJobId.isPresent()) {
+			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, ZERO_JOB_ID.toHexString());
+		}
+		return runApplicationAsync(dispatcher, scheduledExecutor, true);
+	}
+
 	/**
 	 * Runs the user program entrypoint by scheduling a task on the given {@code scheduledExecutor}.
 	 * The returned {@link CompletableFuture} completes when all jobs of the user application
 	 * succeeded. if any of them fails, or if job submission fails.
 	 */
-	@VisibleForTesting
-	CompletableFuture<Void> runApplicationAsync(
+	private CompletableFuture<Void> runApplicationAsync(
 			final DispatcherGateway dispatcher,
 			final ScheduledExecutor scheduledExecutor,
 			final boolean enforceSingleJobExecution) {
@@ -159,7 +180,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		// we need to hand in a future as return value because we need to get those JobIs out
 		// from the scheduled task that executes the user program
 		applicationExecutionTask = scheduledExecutor.schedule(
-				() -> runApplicationEntrypoint(
+				() -> runApplicationEntryPoint(
 						applicationExecutionFuture,
 						dispatcher,
 						scheduledExecutor,
@@ -177,7 +198,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	 *
 	 * <p>This should be executed in a separate thread (or task).
 	 */
-	private void runApplicationEntrypoint(
+	private void runApplicationEntryPoint(
 			final CompletableFuture<List<JobID>> jobIdsFuture,
 			final DispatcherGateway dispatcher,
 			final ScheduledExecutor scheduledExecutor,
