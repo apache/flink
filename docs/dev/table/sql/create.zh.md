@@ -210,6 +210,24 @@ CREATE TABLE Orders (
 
 {% top %}
 
+## CREATE CATALOG
+
+{% highlight sql %}
+CREATE CATALOG catalog_name
+  WITH (key1=val1, key2=val2, ...)
+{% endhighlight %}
+
+Create a catalog with the given catalog properties. If a catalog with the same name already exists, an exception is thrown.
+
+**WITH OPTIONS**
+
+Catalog properties used to store extra information related to this catalog.
+The key and value of expression `key1=val1` should both be string literal.
+
+Check out more details at [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
+
+{% top %}
+
 ## CREATE DATABASE
 
 {% highlight sql %}
