@@ -354,25 +354,25 @@ public class HiveInspectors {
 		if (clazz.equals(String.class) || clazz.equals(Text.class)) {
 
 			typeInfo = TypeInfoFactory.stringTypeInfo;
-		} else if (clazz.equals(Boolean.class) || clazz.equals(BooleanWritable.class)) {
+		} else if (clazz.equals(boolean.class) || clazz.equals(Boolean.class) || clazz.equals(BooleanWritable.class)) {
 
 			typeInfo = TypeInfoFactory.booleanTypeInfo;
-		} else if (clazz.equals(Byte.class) || clazz.equals(ByteWritable.class)) {
+		} else if (clazz.equals(byte.class) || clazz.equals(Byte.class) || clazz.equals(ByteWritable.class)) {
 
 			typeInfo = TypeInfoFactory.byteTypeInfo;
-		} else if (clazz.equals(Short.class) || clazz.equals(ShortWritable.class)) {
+		} else if (clazz.equals(short.class) || clazz.equals(Short.class) || clazz.equals(ShortWritable.class)) {
 
 			typeInfo = TypeInfoFactory.shortTypeInfo;
-		} else if (clazz.equals(Integer.class) || clazz.equals(IntWritable.class)) {
+		} else if (clazz.equals(int.class) || clazz.equals(Integer.class) || clazz.equals(IntWritable.class)) {
 
 			typeInfo = TypeInfoFactory.intTypeInfo;
-		} else if (clazz.equals(Long.class) || clazz.equals(LongWritable.class)) {
+		} else if (clazz.equals(long.class) || clazz.equals(Long.class) || clazz.equals(LongWritable.class)) {
 
 			typeInfo = TypeInfoFactory.longTypeInfo;
-		} else if (clazz.equals(Float.class) || clazz.equals(FloatWritable.class)) {
+		} else if (clazz.equals(float.class) || clazz.equals(Float.class) || clazz.equals(FloatWritable.class)) {
 
 			typeInfo = TypeInfoFactory.floatTypeInfo;
-		} else if (clazz.equals(Double.class) || clazz.equals(DoubleWritable.class)) {
+		} else if (clazz.equals(double.class) || clazz.equals(Double.class) || clazz.equals(DoubleWritable.class)) {
 
 			typeInfo = TypeInfoFactory.doubleTypeInfo;
 		} else if (clazz.equals(hiveShim.getDateDataTypeClass()) || clazz.equals(DateWritable.class)) {
