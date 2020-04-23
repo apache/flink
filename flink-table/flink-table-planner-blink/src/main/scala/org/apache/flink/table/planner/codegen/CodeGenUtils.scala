@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.planner.codegen
 
+import java.lang.reflect.Method
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
+import java.util.concurrent.atomic.AtomicInteger
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
-import org.apache.flink.table.data.binary.{BinaryArrayData, BinaryMapData, BinaryRawValueData, BinaryRowData, BinaryStringData, BinaryStringDataUtil}
+import org.apache.flink.table.data.binary._
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -36,12 +40,9 @@ import org.apache.flink.table.runtime.util.MurmurHashUtil
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.types.{Row, RowKind}
-
-import java.lang.reflect.Method
-import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
-import java.util.concurrent.atomic.AtomicInteger
 
 object CodeGenUtils {
 
@@ -201,6 +202,9 @@ object CodeGenUtils {
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[TimestampData]
 
     case RAW => className[BinaryRawValueData[_]]
+
+    // special case for untyped null literals
+    case NULL => className[JObject]
   }
 
   /**
@@ -784,9 +788,16 @@ object CodeGenUtils {
       internalExpr: GeneratedExpression)
     : String = {
     val targetType = fromDataTypeToLogicalType(targetDataType)
+    val targetTypeTerm = boxedTypeTermForType(targetType)
+
+    // untyped null literal
+    if (hasRoot(internalExpr.resultType, NULL)) {
+      return s"($targetTypeTerm) null"
+    }
+
     // convert internal format to target type
     val externalResultTerm = if (isInternalClass(targetDataType)) {
-      s"(${boxedTypeTermForType(targetType)}) ${internalExpr.resultTerm}"
+      s"($targetTypeTerm) ${internalExpr.resultTerm}"
     } else {
       genToExternal(ctx, targetDataType, internalExpr.resultTerm)
     }

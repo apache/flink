@@ -184,6 +184,10 @@ public final class LogicalTypeGeneralization {
 
 		if (foundType != null) {
 			final LogicalType typeWithNullability = foundType.copy(hasNullableTypes);
+			// NULL is reserved for untyped literals only
+			if (hasRoot(typeWithNullability, NULL)) {
+				return Optional.empty();
+			}
 			return Optional.of(typeWithNullability);
 		}
 		return Optional.empty();
