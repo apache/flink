@@ -28,6 +28,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rest.RestEndpointFactory;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -85,6 +86,7 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint im
 			Executors.newScheduledThreadPool(1),
 			VoidMetricFetcher.INSTANCE,
 			NoOpElectionService.INSTANCE,
+			RestEndpointFactory.createExecutionGraphCache(handlerConfig),
 			NoOpFatalErrorHandler.INSTANCE);
 	}
 
