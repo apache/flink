@@ -36,6 +36,7 @@ import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
@@ -62,6 +63,7 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -193,6 +195,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertShowViews((SqlShowViews) validated));
 		} else if (validated instanceof SqlExplain) {
 			return Optional.of(converter.convertExplain((SqlExplain) validated));
+		} else if (validated instanceof SqlRichDescribeTable) {
+			return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -553,6 +557,14 @@ public class SqlToOperationConverter {
 		}
 
 		return new ExplainOperation(operation);
+	}
+
+	/** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
+	private Operation convertDescribeTable(SqlRichDescribeTable sqlRichDescribeTable) {
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlRichDescribeTable.fullTableName());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+		return new DescribeTableOperation(identifier, sqlRichDescribeTable.isExtended());
 	}
 
 	/**

@@ -140,7 +140,7 @@ abstract class TableEnvImpl(
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
       "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, " +
-      "SHOW VIEWS, INSERT."
+      "SHOW VIEWS, INSERT, DESCRIBE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -809,6 +809,15 @@ abstract class TableEnvImpl(
           .data(JCollections.singletonList(Row.of(explanation)))
           .setPrintStyle(PrintStyle.rawContent())
           .build
+      case descOperation: DescribeTableOperation =>
+        val result = catalogManager.getTable(descOperation.getSqlIdentifier)
+        if (result.isPresent) {
+          buildShowResult(Array(result.get().getTable.getSchema.toString))
+        } else {
+          throw new ValidationException(String.format(
+            "Table or view with identifier '%s' doesn't exist",
+            descOperation.getSqlIdentifier.asSummaryString()))
+        }
       case queryOperation: QueryOperation =>
         executeInternal(queryOperation)
 

@@ -76,6 +76,7 @@ import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -156,7 +157,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
 			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, SHOW VIEWS, " +
-			"INSERT.";
+			"INSERT, DESCRIBE.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -966,6 +967,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.data(Collections.singletonList(Row.of(explanation)))
 					.setPrintStyle(TableResultImpl.PrintStyle.rawContent())
 					.build();
+		} else if (operation instanceof DescribeTableOperation) {
+			DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
+			Optional<CatalogManager.TableLookupResult> result =
+					catalogManager.getTable(describeTableOperation.getSqlIdentifier());
+			if (result.isPresent()) {
+				return buildShowResult(new String[]{ result.get().getTable().getSchema().toString() });
+			} else {
+				throw new ValidationException(String.format(
+						"Tables or views with the identifier '%s' doesn't exist",
+						describeTableOperation.getSqlIdentifier().asSummaryString()));
+			}
 		} else if (operation instanceof QueryOperation) {
 			return executeInternal((QueryOperation) operation);
 		} else {

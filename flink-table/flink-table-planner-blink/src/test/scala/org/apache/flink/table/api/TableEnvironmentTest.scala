@@ -975,6 +975,52 @@ class TableEnvironmentTest {
     }
   }
 
+  @Test
+  def testDescribeTableOrView(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+
+    val tableResult1 = tableEnv.executeSql("describe T1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(
+      util.Arrays.asList(Row.of("root\n |-- a: INT\n |-- b: STRING\n |-- c: INT\n")).iterator(),
+      tableResult1.collect())
+
+    val tableResult2 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    checkData(
+      util.Arrays.asList(Row.of("root\n |-- d: INT\n |-- e: STRING\n |-- f: INT\n")).iterator(),
+      tableResult2.collect())
+
+    // temporary view T2(x, y) masks permanent view T2(d, e, f)
+    val temporaryViewDDL =
+      """
+        |CREATE TEMPORARY VIEW IF NOT EXISTS T2(x, y) AS SELECT a, b FROM T1
+      """.stripMargin
+    tableEnv.executeSql(temporaryViewDDL)
+
+    val tableResult3 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(
+      util.Arrays.asList(Row.of("root\n |-- x: INT\n |-- y: STRING\n")).iterator(),
+      tableResult3.collect())
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())
