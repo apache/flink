@@ -25,6 +25,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -52,7 +53,7 @@ public interface RestEndpointFactory<T extends RestfulGateway> {
 		FatalErrorHandler fatalErrorHandler) throws Exception;
 
 	static ExecutionGraphCache createExecutionGraphCache(RestHandlerConfiguration restConfiguration) {
-		return new ExecutionGraphCache(
+		return new DefaultExecutionGraphCache(
 			restConfiguration.getTimeout(),
 			Time.milliseconds(restConfiguration.getRefreshInterval()));
 	}
