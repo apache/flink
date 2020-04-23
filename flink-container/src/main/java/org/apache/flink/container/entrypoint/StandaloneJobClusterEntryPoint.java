@@ -34,7 +34,6 @@ import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -45,7 +44,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Optional;
 
 import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
 
@@ -55,8 +53,6 @@ import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLi
  */
 @Internal
 public final class StandaloneJobClusterEntryPoint extends ApplicationClusterEntryPoint {
-
-	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
 	private StandaloneJobClusterEntryPoint(
 			final Configuration configuration,
@@ -127,20 +123,9 @@ public final class StandaloneJobClusterEntryPoint extends ApplicationClusterEntr
 	}
 
 	private static void setStaticJobId(StandaloneJobClusterConfiguration clusterConfiguration, Configuration configuration) {
-		final JobID jobId = resolveJobIdForCluster(Optional.ofNullable(clusterConfiguration.getJobId()), configuration);
-		configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
-	}
-
-	@VisibleForTesting
-	static JobID resolveJobIdForCluster(Optional<JobID> optionalJobID, Configuration configuration) {
-		return optionalJobID.orElseGet(() -> createJobIdForCluster(configuration));
-	}
-
-	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
-			return ZERO_JOB_ID;
-		} else {
-			return JobID.generate();
+		final JobID jobId = clusterConfiguration.getJobId();
+		if (jobId != null) {
+			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
 		}
 	}
 }

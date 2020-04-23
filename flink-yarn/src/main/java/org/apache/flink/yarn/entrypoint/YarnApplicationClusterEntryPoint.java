@@ -19,7 +19,6 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
@@ -30,9 +29,7 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -58,8 +55,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEntryPoint {
-
-	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
 	private YarnApplicationClusterEntryPoint(
 			final Configuration configuration,
@@ -96,9 +91,6 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 			LOG.error("Could not create application program.", e);
 			System.exit(1);
 		}
-
-		final JobID  jobId = createJobIdForCluster(configuration);
-		configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
 
 		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
@@ -146,13 +138,5 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 				YarnConfigOptions.UserJarInclusion.DISABLED);
 
 		return userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir : Optional.empty();
-	}
-
-	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
-			return ZERO_JOB_ID;
-		} else {
-			return JobID.generate();
-		}
 	}
 }
