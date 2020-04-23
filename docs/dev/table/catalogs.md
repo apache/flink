@@ -98,6 +98,19 @@ tableEnv.registerCatalog("mypg", catalog)
 tableEnv.useCatalog("mypg")
 {% endhighlight %}
 </div>
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE CATALOG mypg WITH(
+    'type'='jdbc',
+    'default-database'='...',
+    'username'='...',
+    'password'='...',
+    'base-url'='...'
+);
+
+USE CATALOG mypg;
+{% endhighlight %}
+</div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 
@@ -114,19 +127,6 @@ catalogs:
      username: ...
      password: ...
      base-url: ...
-{% endhighlight %}
-</div>
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE CATALOG mypg WITH(
-    'type'='jdbc',
-    'default-database'='...',
-    'username'='...',
-    'password'='...',
-    'base-url'='...'
-);
-
-USE CATALOG mypg;
 {% endhighlight %}
 </div>
 </div>
