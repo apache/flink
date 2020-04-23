@@ -36,8 +36,6 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * The {@link RichFlatMapFunction} used to invoke Python {@link TableFunction} functions for the
@@ -75,15 +73,11 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+
 		RowTypeInfo forwardedInputTypeInfo = (RowTypeInfo) TypeConversions.fromDataTypeToLegacyInfo(
 			TypeConversions.fromLogicalToDataType(inputType));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
-
-		List<RowType.RowField> udtfOutputDataFields = new ArrayList<>(
-			outputType.getFields().subList(inputType.getFieldCount(), outputType.getFieldCount()));
-		userDefinedFunctionOutputType = new RowType(udtfOutputDataFields);
-
-		super.open(parameters);
 	}
 
 	@Override
@@ -145,6 +139,11 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 			}
 			lastIsFinishResult = isFinishResult;
 		}
+	}
+
+	@Override
+	public int getForwardedFieldsCount() {
+		return inputType.getFieldCount();
 	}
 
 	private boolean isFinishResult(byte[] rawUdtfResult) {
