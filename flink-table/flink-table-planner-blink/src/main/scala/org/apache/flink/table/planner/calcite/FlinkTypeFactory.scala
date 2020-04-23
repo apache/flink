@@ -32,11 +32,12 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
 import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Nothing
@@ -65,6 +66,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
     */
   def createFieldTypeFromLogicalType(t: LogicalType): RelDataType = {
     def newRelDataType(): RelDataType = t.getTypeRoot match {
+      case LogicalTypeRoot.NULL => createSqlType(NULL)
       case LogicalTypeRoot.BOOLEAN => createSqlType(BOOLEAN)
       case LogicalTypeRoot.TINYINT => createSqlType(TINYINT)
       case LogicalTypeRoot.SMALLINT => createSqlType(SMALLINT)
@@ -225,7 +227,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
     val fields = fieldNames.zip(fieldTypes)
     fields foreach {
       case (fieldName, fieldType) =>
-        b.add(fieldName, createFieldTypeFromLogicalType(fieldType))
+        val fieldRelDataType = createFieldTypeFromLogicalType(fieldType)
+        checkForNullType(fieldRelDataType)
+        b.add(fieldName, fieldRelDataType)
     }
     b.build
   }
@@ -256,12 +260,14 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
 
   override def createArrayType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
     // Just validate type, make sure there is a failure in validate phase.
+    checkForNullType(elementType)
     toLogicalType(elementType)
     super.createArrayType(elementType, maxCardinality)
   }
 
   override def createMapType(keyType: RelDataType, valueType: RelDataType): RelDataType = {
     // Just validate type, make sure there is a failure in validate phase.
+    checkForNullType(keyType, valueType)
     toLogicalType(keyType)
     toLogicalType(valueType)
     super.createMapType(keyType, valueType)
@@ -269,6 +275,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
 
   override def createMultisetType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
     // Just validate type, make sure there is a failure in validate phase.
+    checkForNullType(elementType)
     toLogicalType(elementType)
     super.createMultisetType(elementType, maxCardinality)
   }
@@ -326,8 +333,14 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
   }
 
   override def leastRestrictive(types: util.List[RelDataType]): RelDataType = {
-    resolveAllIdenticalTypes(types)
+    val leastRestrictive = resolveAllIdenticalTypes(types)
       .getOrElse(super.leastRestrictive(types))
+    // NULL is reserved for untyped literals only
+    if (leastRestrictive == null || leastRestrictive.getSqlTypeName == NULL) {
+      null
+    } else {
+      leastRestrictive
+    }
   }
 
   private def resolveAllIdenticalTypes(types: util.List[RelDataType]): Option[RelDataType] = {
@@ -356,6 +369,20 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
 
   override def getDefaultCharset: Charset = {
     Charset.forName(ConversionUtil.NATIVE_UTF16_CHARSET_NAME)
+  }
+
+  /**
+   * This is a safety check in case the null type ends up in the type factory for other use cases
+   * than untyped NULL literals.
+   */
+  private def checkForNullType(childTypes: RelDataType*): Unit = {
+    childTypes.foreach { t =>
+      if (t.getSqlTypeName == NULL) {
+        throw new ValidationException(
+          "The null type is reserved for representing untyped NULL literals. It should not be " +
+            "used in constructed types. Please cast NULL literals to a more explicit type.")
+      }
+    }
   }
 }
 
@@ -467,8 +494,7 @@ object FlinkTypeFactory {
         DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
 
       case NULL =>
-        throw new TableException(
-          "Type NULL is not supported. Null values must have a supported type.")
+        new NullType()
 
       // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
       // are represented as Enum

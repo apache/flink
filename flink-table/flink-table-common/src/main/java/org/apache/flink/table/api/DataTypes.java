@@ -718,6 +718,10 @@ public final class DataTypes {
 	 *
 	 * <p>The null type is an extension to the SQL standard.
 	 *
+	 * <p>Note: The runtime does not support this type. It is a pure helper type during translation and
+	 * planning. Table columns cannot be declared with this type. Functions cannot declare return types
+	 * of this type.
+	 *
 	 * @see NullType
 	 */
 	public static DataType NULL() {
