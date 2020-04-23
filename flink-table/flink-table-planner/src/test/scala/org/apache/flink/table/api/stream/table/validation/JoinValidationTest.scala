@@ -22,11 +22,12 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.stream.table.validation.JoinValidationTest.WithoutEqualsHashCode
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableException, ValidationException}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
+
 import org.hamcrest.Matchers
 import org.junit.Test
 
@@ -38,7 +39,8 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidStateTypes(): Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val tenv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tenv = StreamTableEnvironment.create(env, settings)
     val ds = env.fromElements(new WithoutEqualsHashCode) // no equals/hashCode
     val t = tenv.fromDataStream(ds)
 
@@ -207,8 +209,9 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvs(): Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = StreamTableEnvironment.create(env)
-    val tEnv2 = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv1 = StreamTableEnvironment.create(env, settings)
+    val tEnv2 = StreamTableEnvironment.create(env, settings)
     val ds1 = StreamTestData.get3TupleDataStream(env)
     val ds2 = StreamTestData.get5TupleDataStream(env)
     val in1 = tEnv1.fromDataStream(ds1, 'a, 'b, 'c)
@@ -221,8 +224,9 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvsJava() {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = StreamTableEnvironment.create(env)
-    val tEnv2 = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv1 = StreamTableEnvironment.create(env, settings)
+    val tEnv2 = StreamTableEnvironment.create(env, settings)
     val ds1 = StreamTestData.get3TupleDataStream(env)
     val ds2 = StreamTestData.get5TupleDataStream(env)
     val in1 = tEnv1.fromDataStream(ds1, 'a, 'b, 'c)

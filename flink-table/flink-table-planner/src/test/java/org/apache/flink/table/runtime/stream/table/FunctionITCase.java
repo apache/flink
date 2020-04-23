@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.stream.table;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -50,7 +51,9 @@ public class FunctionITCase extends AbstractTestBase {
 		thrown.expectMessage("The new type inference for functions is only supported in the Blink planner.");
 
 		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(streamExecEnvironment);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(
+				streamExecEnvironment, settings);
 
 		Table table = tableEnvironment
 			.sqlQuery("SELECT * FROM (VALUES (1)) AS TableName(f0)")
@@ -66,7 +69,9 @@ public class FunctionITCase extends AbstractTestBase {
 		thrown.expectMessage("The new type inference for functions is only supported in the Blink planner.");
 
 		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(streamExecEnvironment);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(
+				streamExecEnvironment, settings);
 
 		Table table = tableEnvironment
 			.sqlQuery("SELECT * FROM (VALUES ('A,B,C')) AS TableName(f0)")

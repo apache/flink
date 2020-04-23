@@ -21,24 +21,30 @@ package org.apache.flink.table.runtime.stream.table
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{EnvironmentSettings, ValidationException}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.{Top3, Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Before, Test}
 
 /**
   * Tests of groupby (without window) table aggregations
   */
 class TableAggregateITCase extends StreamingWithStateTestBase {
 
+  @Before
+  def setup(): Unit = {
+    StreamITCase.clear
+  }
+
   @Test
   def testGroupByFlatAggregate(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val top3 = new Top3
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
@@ -75,8 +81,8 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
   def testEmitRetractValueIncrementally(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val top3 = new Top3WithEmitRetractValue
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
@@ -113,8 +119,8 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
   def testNonkeyedFlatAggregate(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val top3 = new Top3
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
@@ -139,8 +145,8 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
   def testWithMapViewAndInputWithRetraction(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val top3 = new Top3WithMapView
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
@@ -171,8 +177,8 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val top3 = new Top3
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)

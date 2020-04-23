@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.stream.sql;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
@@ -456,7 +457,9 @@ public class FunctionITCase extends AbstractTestBase {
 		thrown.expectMessage("The new type inference for functions is only supported in the Blink planner.");
 
 		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(streamExecEnvironment);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(
+				streamExecEnvironment, settings);
 
 		tableEnvironment.createTemporarySystemFunction("func", SimpleScalarFunction.class);
 		Table table = tableEnvironment
@@ -477,6 +480,7 @@ public class FunctionITCase extends AbstractTestBase {
 
 	private TableEnvironment getTableEnvironment() {
 		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		return StreamTableEnvironment.create(streamExecEnvironment);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		return StreamTableEnvironment.create(streamExecEnvironment, settings);
 	}
 }

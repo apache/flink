@@ -20,10 +20,11 @@ package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.{EnvironmentSettings, Table}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestUtil.streamTableNode
 import org.apache.flink.test.util.AbstractTestBase
+
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -34,7 +35,8 @@ class ExplainTest extends AbstractTestBase {
   @Test
   def testFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val scan = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
     val table = scan.filter("a % 2 = 0")
@@ -50,7 +52,8 @@ class ExplainTest extends AbstractTestBase {
   @Test
   def testUnion(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)

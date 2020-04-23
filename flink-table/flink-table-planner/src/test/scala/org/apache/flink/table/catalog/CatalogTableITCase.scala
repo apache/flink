@@ -21,15 +21,16 @@ package org.apache.flink.table.catalog
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Ignore, Test}
-import java.util
 
+import java.util
 import org.apache.flink.test.util.AbstractTestBase
 
 import scala.collection.JavaConversions._
@@ -43,6 +44,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
   private val streamExec: StreamExecutionEnvironment = StreamExecutionEnvironment
     .getExecutionEnvironment
   private var streamEnv: StreamTableEnvironment = _
+  private val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
 
   private val SOURCE_DATA = List(
       toRow(1, "a"),
@@ -67,7 +69,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     batchExec.setParallelism(4)
     streamExec.setParallelism(4)
     batchEnv = BatchTableEnvironment.create(batchExec)
-    streamEnv = StreamTableEnvironment.create(streamExec)
+    streamEnv = StreamTableEnvironment.create(streamExec, settings)
     TestCollectionTableFactory.reset()
     TestCollectionTableFactory.isStreaming = isStreaming
   }

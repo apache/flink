@@ -22,11 +22,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{EnvironmentSettings, Types}
 import org.apache.flink.table.runtime.stream.table.{RowCollector, TestRetractSink, TestUpsertSink}
 import org.apache.flink.table.runtime.utils.{StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
+
 import org.junit.Assert._
 import org.junit.Test
 
@@ -34,13 +35,14 @@ import scala.collection.JavaConverters._
 
 class InsertIntoITCase extends StreamingWithStateTestBase {
 
+  val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+  env.getConfig.enableObjectReuse()
+  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+  val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
+
   @Test
   def testInsertIntoAppendStreamToTableSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-    val tEnv = StreamTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
     val input = StreamTestData.get3TupleDataStream(env)
@@ -74,11 +76,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoUpdatingTableToRetractSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
@@ -114,11 +111,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoAppendTableToRetractSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
@@ -162,11 +154,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoUpdatingTableWithFullKeyToUpsertSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
@@ -209,11 +196,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoAppendingTableWithFullKey1ToUpsertSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
@@ -260,11 +242,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoAppendingTableWithFullKey2ToUpsertSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
@@ -312,11 +289,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoAppendingTableWithoutFullKey1ToUpsertSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
@@ -362,11 +334,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoAppendingTableWithoutFullKey2ToUpsertSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
 
