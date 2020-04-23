@@ -107,7 +107,7 @@ public class LogicalTypeGeneralizationTest {
 				// NULL only
 				{
 					Arrays.asList(new NullType(), new NullType()),
-					new NullType()
+					null
 				},
 
 				// NULL with other types

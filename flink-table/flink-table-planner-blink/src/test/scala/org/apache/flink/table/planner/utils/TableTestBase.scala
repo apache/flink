@@ -259,6 +259,20 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     getTableEnv.registerFunction(name, function)
   }
 
+  /**
+   * Registers a [[UserDefinedFunction]] according to FLIP-65.
+   */
+  def addTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = {
+    getTableEnv.createTemporarySystemFunction(name, function)
+  }
+
+  /**
+   * Registers a [[UserDefinedFunction]] class according to FLIP-65.
+   */
+  def addTemporarySystemFunction(name: String, function: Class[_ <: UserDefinedFunction]): Unit = {
+    getTableEnv.createTemporarySystemFunction(name, function)
+  }
+
   def verifyPlan(sql: String): Unit = {
     doVerifyPlan(
       sql,
@@ -562,13 +576,6 @@ abstract class TableTestUtil(
     val table = testingTableEnv.createTable(operation)
     testingTableEnv.registerTable(name, table)
     testingTableEnv.scan(name)
-  }
-
-  /**
-   * Registers a [[UserDefinedFunction]] according to FLIP-65.
-   */
-  def addTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = {
-    testingTableEnv.createTemporarySystemFunction(name, function)
   }
 
   /**

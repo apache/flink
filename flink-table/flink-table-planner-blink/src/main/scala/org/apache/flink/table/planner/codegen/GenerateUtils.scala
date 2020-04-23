@@ -18,12 +18,18 @@
 
 package org.apache.flink.table.planner.codegen
 
+import java.math.{BigDecimal => JBigDecimal}
+import java.time.ZoneOffset
+
+import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.util.TimestampString
+import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
-import org.apache.flink.table.data._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
@@ -33,13 +39,6 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterStrin
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
-
-import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.util.TimestampString
-import org.apache.commons.lang3.StringEscapeUtils
-
-import java.math.{BigDecimal => JBigDecimal}
-import java.time.ZoneOffset
 
 import scala.collection.mutable
 
@@ -248,18 +247,17 @@ object GenerateUtils {
   def generateNullLiteral(
       resultType: LogicalType,
       nullCheck: Boolean): GeneratedExpression = {
-    val defaultValue = primitiveDefaultValue(resultType)
-    val resultTypeTerm = primitiveTypeTermForType(resultType)
-    if (nullCheck) {
-      GeneratedExpression(
-        s"(($resultTypeTerm) $defaultValue)",
-        ALWAYS_NULL,
-        NO_CODE,
-        resultType,
-        literalValue = Some(null))  // the literal is null
-    } else {
+    if (!nullCheck) {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
+    val defaultValue = primitiveDefaultValue(resultType)
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    GeneratedExpression(
+      s"(($resultTypeTerm) $defaultValue)",
+      ALWAYS_NULL,
+      NO_CODE,
+      resultType,
+      literalValue = Some(null))
   }
 
   def generateNonNullLiteral(

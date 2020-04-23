@@ -452,6 +452,12 @@ public class InputTypeStrategiesTest {
 				.expectErrorMessage("Invalid number of arguments. At least 1 arguments expected but 0 passed."),
 
 			TestSpec.forStrategy(
+				"Array strategy fails for null arguments",
+				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+				.calledWithArgumentTypes(DataTypes.NULL())
+				.expectErrorMessage("Invalid input arguments."),
+
+			TestSpec.forStrategy(
 				"Map strategy infers common types",
 				InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes(
