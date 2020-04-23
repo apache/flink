@@ -275,10 +275,17 @@ public class SqlToOperationConverter {
 			return new CreateTempSystemFunctionOperation(
 				unresolvedIdentifier.getObjectName(),
 				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
-				sqlCreateFunction.isIfNotExists()
+				sqlCreateFunction.isIfNotExists(),
+				parseLanguage(sqlCreateFunction.getFunctionLanguage())
 			);
 		} else {
 			FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
+			if (language == FunctionLanguage.PYTHON && !sqlCreateFunction.isTemporary()) {
+				throw new ValidationException(String.format(
+					"Unsupported function type for Python function %s, " +
+					"only temporary function is supported.",
+					sqlCreateFunction.getFunctionClassName().getValueAs(String.class)));
+			}
 			CatalogFunction catalogFunction = new CatalogFunctionImpl(
 				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
 				language);
@@ -351,10 +358,6 @@ public class SqlToOperationConverter {
 		} catch (IllegalArgumentException e) {
 			throw new UnsupportedOperationException(
 				String.format("Unrecognized function language string %s", languageString), e);
-		}
-
-		if (language.equals(FunctionLanguage.PYTHON)) {
-			throw new UnsupportedOperationException("Only function language JAVA and SCALA are supported for now.");
 		}
 
 		return language;
