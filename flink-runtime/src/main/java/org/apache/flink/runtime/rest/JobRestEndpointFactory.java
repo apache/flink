@@ -61,6 +61,7 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
 			executor,
 			metricFetcher,
 			leaderElectionService,
+			RestEndpointFactory.createExecutionGraphCache(restHandlerConfiguration),
 			fatalErrorHandler);
 	}
 }
