@@ -28,12 +28,12 @@ import org.apache.flink.table.types.logical.TimestampType;
 /**
  * An utility class that provides abilities to change {@link TableSchema}.
  */
-class SelectTableSinkSchemaConverter {
+public class SelectTableSinkSchemaConverter {
 
 	/**
 	 * Change to default conversion class and build a new {@link TableSchema}.
 	 */
-	static TableSchema changeDefaultConversionClass(TableSchema tableSchema) {
+	public static TableSchema changeDefaultConversionClass(TableSchema tableSchema) {
 		DataType[] oldTypes = tableSchema.getFieldDataTypes();
 		String[] fieldNames = tableSchema.getFieldNames();
 

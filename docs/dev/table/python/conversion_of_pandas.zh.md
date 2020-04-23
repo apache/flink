@@ -57,3 +57,24 @@ table = t_env.from_pandas(pdf,
                           DataTypes.ROW([DataTypes.FIELD("f0", DataTypes.DOUBLE()),
                                          DataTypes.FIELD("f1", DataTypes.DOUBLE())])
 {% endhighlight %}
+
+## Convert PyFlink Table to Pandas DataFrame
+
+It also supports to convert a PyFlink Table to a Pandas DataFrame. Internally, it will materialize the results of the 
+table and serialize them into multiple arrow batches of Arrow columnar format at client side. The maximum arrow batch size
+is determined by the config option [python.fn-execution.arrow.batch.size]({{ site.baseurl }}/zh/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size).
+The serialized data will then be converted to Pandas DataFrame.
+
+The following example shows how to convert a PyFlink Table to a Pandas DataFrame:
+
+{% highlight python %}
+import pandas as pd
+import numpy as np
+
+# Create a PyFlink Table
+pdf = pd.DataFrame(np.random.rand(1000, 2))
+table = t_env.from_pandas(pdf, ["a", "b"]).filter("a > 0.5")
+
+# Convert the PyFlink Table to a Pandas DataFrame
+pdf = table.to_pandas()
+{% endhighlight %}
