@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.StreamITCase;
@@ -64,7 +65,9 @@ public class ValuesITCase extends AbstractTestBase {
 		);
 
 		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(streamExecEnvironment);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(
+				streamExecEnvironment, settings);
 
 		Table t = tableEnvironment.fromValues(
 			rowType,
