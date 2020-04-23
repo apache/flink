@@ -758,6 +758,10 @@ public class FlinkKafkaProducer<IN>
 			};
 		}
 
+		if (kafkaSchema != null) {
+			kafkaSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		}
+
 		super.open(configuration);
 	}
 
