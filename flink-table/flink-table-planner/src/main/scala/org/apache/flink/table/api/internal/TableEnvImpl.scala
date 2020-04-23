@@ -129,12 +129,12 @@ abstract class TableEnvImpl(
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
       "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, " +
-      "ALTER FUNCTION."
+      "ALTER FUNCTION, CREATE VIEW, DROP VIEW."
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
       "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
-      "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS."
+      "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -563,6 +563,7 @@ abstract class TableEnvImpl(
     val operation = operations.get(0)
     operation match {
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
+           _: CreateViewOperation | _: DropViewOperation |
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
