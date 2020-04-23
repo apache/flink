@@ -18,13 +18,35 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.catalog.FunctionLanguage;
+
+import java.lang.reflect.InvocationTargetException;
+
 /**
  * A util to instantiate {@link FunctionDefinition} in the default way.
  */
 public class FunctionDefinitionUtil {
 
 	public static FunctionDefinition createFunctionDefinition(String name, String className) {
-		// Currently only handles Java class-based functions
+		return createJavaFunctionDefinition(name, className);
+	}
+
+	public static FunctionDefinition createFunctionDefinition(
+			String name,
+			String className,
+			FunctionLanguage functionLanguage,
+			ReadableConfig config) {
+		if (functionLanguage == FunctionLanguage.PYTHON) {
+			return createPythonFunctionDefinition(name, className, config);
+		} else {
+			return createJavaFunctionDefinition(name, className);
+		}
+	}
+
+	private static FunctionDefinition createJavaFunctionDefinition(
+			String name,
+			String className) {
 		Object func;
 		try {
 			func = Thread.currentThread().getContextClassLoader().loadClass(className).newInstance();
@@ -33,8 +55,35 @@ public class FunctionDefinitionUtil {
 				String.format("Failed instantiating '%s'", className), e);
 		}
 
+		return createFunctionDefinitionInternal(name, (UserDefinedFunction) func);
+	}
+
+	private static FunctionDefinition createPythonFunctionDefinition(
+			String name,
+			String fullyQualifiedName,
+			ReadableConfig config) {
+		Object func;
+		try {
+			Class pythonFunctionFactory = Class.forName(
+				"org.apache.flink.client.python.PythonFunctionFactory",
+				true,
+				Thread.currentThread().getContextClassLoader());
+			func = pythonFunctionFactory.getMethod(
+				"getPythonFunction",
+				String.class,
+				ReadableConfig.class)
+				.invoke(null, fullyQualifiedName, config);
+		} catch (IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
+			throw new IllegalStateException(
+				String.format("Failed instantiating '%s', flink-python jar is required.", fullyQualifiedName), e);
+		}
+
 		UserDefinedFunction udf = (UserDefinedFunction) func;
 
+		return createFunctionDefinitionInternal(name, udf);
+	}
+
+	private static FunctionDefinition createFunctionDefinitionInternal(String name, UserDefinedFunction udf) {
 		if (udf instanceof ScalarFunction) {
 			return new ScalarFunctionDefinition(
 				name,
@@ -67,7 +116,8 @@ public class FunctionDefinitionUtil {
 			);
 		} else {
 			throw new UnsupportedOperationException(
-				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or TableAggregateFunction", className)
+				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or "
+					+ "TableAggregateFunction", udf.getClass().getName())
 			);
 		}
 	}

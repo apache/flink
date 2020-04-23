@@ -999,6 +999,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			if (alterCatalogFunctionOperation.isTemporary()) {
 				throw new ValidationException(
 					"Alter temporary catalog function is not supported");
+			} else if (function.getFunctionLanguage() == FunctionLanguage.PYTHON) {
+				throw new ValidationException(
+					"Alter Python catalog function is not supported");
 			} else {
 				Catalog catalog = getCatalogOrThrowException(
 					alterCatalogFunctionOperation.getFunctionIdentifier().getCatalogName());
@@ -1050,7 +1053,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					functionCatalog.registerTemporarySystemFunction(
 						operation.getFunctionName(),
 						operation.getFunctionClass(),
-						FunctionLanguage.JAVA,
+						operation.getFunctionLanguage(),
 						false);
 				} else if (!operation.isIgnoreIfExists()) {
 					throw new ValidationException(

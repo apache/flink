@@ -643,7 +643,8 @@ public final class FunctionCatalog {
 		// so using FunctionDefinitionUtil to instantiate them and wrap them with `ScalarFunctionDefinition`,
 		// `TableFunctionDefinition`, etc. If the new type inference is fully functional, this should be
 		// changed to use `UserDefinedFunctionHelper#instantiateFunction`.
-		return FunctionDefinitionUtil.createFunctionDefinition(name, function.getClassName());
+		return FunctionDefinitionUtil.createFunctionDefinition(
+			name, function.getClassName(), function.getFunctionLanguage(), config);
 	}
 
 	/**
