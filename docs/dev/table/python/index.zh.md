@@ -35,3 +35,4 @@ Apache Flink has provided Python Table API support since 1.9.0.
 - [PyFlink Table 和 Pandas DataFrame 互转]({{ site.baseurl }}/zh/dev/table/python/conversion_of_pandas.html): Explanation of how to convert between PyFlink Table and Pandas DataFrame.
 - [依赖管理]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html): Specification of how to use third-part dependencies in a Python Table API program.
 - [配置]({{ site.baseurl }}/zh/dev/table/python/python_config.html): Description of the config options available for Python Table API programs.
+- [常见问题]({{ site.baseurl }}/zh/dev/table/python/common_questions.html)
