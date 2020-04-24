@@ -567,13 +567,13 @@ public final class FunctionCatalog {
 					new ObjectPath(oi.getDatabaseName(), oi.getObjectName()));
 
 				FunctionDefinition fd;
-				if (catalog.getFunctionDefinitionFactory().isPresent()) {
+				if (catalog.getFunctionDefinitionFactory().isPresent() &&
+					catalogFunction.getFunctionLanguage() != FunctionLanguage.PYTHON) {
 					fd = catalog.getFunctionDefinitionFactory().get()
 						.createFunctionDefinition(oi.getObjectName(), catalogFunction);
 				} else {
 					// TODO update the FunctionDefinitionUtil once we drop the old function stack in DDL
-					fd = FunctionDefinitionUtil.createFunctionDefinition(
-						oi.getObjectName(), catalogFunction.getClassName());
+					fd = getFunctionDefinition(oi.getObjectName(), catalogFunction);
 				}
 
 				return Optional.of(
