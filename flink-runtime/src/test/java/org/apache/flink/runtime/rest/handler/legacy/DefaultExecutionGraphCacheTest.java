@@ -61,7 +61,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link DefaultExecutionGraphCache}.
  */
-public class ExecutionGraphCacheTest extends TestLogger {
+public class DefaultExecutionGraphCacheTest extends TestLogger {
 
 	private static ArchivedExecutionGraph expectedExecutionGraph;
 	private static final JobID expectedJobId = new JobID();
@@ -286,7 +286,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		public SuspendableAccessExecutionGraph(JobID jobId) {
 			super(
 				jobId,
-				"ExecutionGraphCacheTest",
+				"DefaultExecutionGraphCacheTest",
 				Collections.emptyMap(),
 				Collections.emptyList(),
 				new long[0],
