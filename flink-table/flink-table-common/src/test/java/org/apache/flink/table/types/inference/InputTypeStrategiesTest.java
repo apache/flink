@@ -142,9 +142,9 @@ public class InputTypeStrategiesTest {
 				.calledWithArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
 				.expectErrorMessage("Invalid number of arguments. At most 1 arguments expected but 2 passed."),
 
-			// OR with bridging class
 			TestSpec
 				.forStrategy(
+					"OR with bridging class",
 					or(
 						explicitSequence(DataTypes.STRING()),
 						explicitSequence(DataTypes.INT().bridgedTo(int.class)),
@@ -154,9 +154,9 @@ public class InputTypeStrategiesTest {
 				.expectSignature("f(STRING)\nf(INT)\nf(BOOLEAN)")
 				.expectArgumentTypes(DataTypes.INT().bridgedTo(int.class)),
 
-			// OR with implicit casting
 			TestSpec
 				.forStrategy(
+					"OR with implicit casting",
 					or(
 						explicitSequence(DataTypes.TINYINT()),
 						explicitSequence(DataTypes.INT()),
@@ -164,9 +164,40 @@ public class InputTypeStrategiesTest {
 				.calledWithArgumentTypes(DataTypes.SMALLINT())
 				.expectArgumentTypes(DataTypes.INT()),
 
-			// invalid type in OR
 			TestSpec
-				.forStrategy(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.STRING())))
+				.forStrategy(
+					"OR with implicit casting of null",
+					or(
+						explicitSequence(DataTypes.STRING().notNull()),
+						explicitSequence(DataTypes.INT().notNull()),
+						explicitSequence(DataTypes.BIGINT())))
+				.calledWithArgumentTypes(DataTypes.NULL())
+				.expectArgumentTypes(DataTypes.BIGINT()),
+
+			TestSpec
+				.forStrategy(
+					"OR with implicit casting using first match",
+					or(
+						explicitSequence(DataTypes.VARCHAR(20)),
+						explicitSequence(DataTypes.VARCHAR(10))))
+				.calledWithArgumentTypes(DataTypes.VARCHAR(1))
+				.expectArgumentTypes(DataTypes.VARCHAR(20)),
+
+			TestSpec
+				.forStrategy(
+					"OR with invalid implicit casting of null",
+					or(
+						explicitSequence(DataTypes.STRING().notNull()),
+						explicitSequence(DataTypes.INT().notNull()),
+						explicitSequence(DataTypes.BIGINT().notNull())))
+				.calledWithArgumentTypes(DataTypes.NULL())
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\n" +
+					"f(STRING NOT NULL)\nf(INT NOT NULL)\nf(BIGINT NOT NULL)"),
+
+			TestSpec
+				.forStrategy(
+					"OR with invalid type",
+					or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.STRING())))
 				.calledWithArgumentTypes(DataTypes.BOOLEAN())
 				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(INT)\nf(STRING)"),
 
@@ -537,7 +568,7 @@ public class InputTypeStrategiesTest {
 
 	private static class TestSpec {
 
-		private @Nullable final String description;
+		private final @Nullable String description;
 
 		private final InputTypeStrategy strategy;
 
