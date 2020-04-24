@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -196,6 +197,13 @@ public class SavepointEnvironment implements Environment {
 	@Override
 	public GlobalAggregateManager getGlobalAggregateManager() {
 		throw new UnsupportedOperationException(ERROR_MSG);
+	}
+
+	@Override
+	public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
+		// We will still construct a StreamingRuntimeContext from this SavepointEnvironment at the moment. So, throwing
+		// Exception here would cause issue. When there is a bounded DataStream API, this class would be removed.
+		return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
 	}
 
 	@Override

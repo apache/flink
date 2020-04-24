@@ -143,7 +143,8 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 			operatorMetricGroup,
 			getOperatorID(),
 			processingTimeService,
-			null);
+			null,
+			environment.getExternalResourceInfoProvider());
 	}
 
 	private LatencyStats createLatencyStats(Configuration taskManagerConfig, int indexInSubtaskGroup) {

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -208,6 +209,7 @@ public class JvmExitOnFatalErrorTest {
 						new KvStateService(new KvStateRegistry(), null, null),
 						new BroadcastVariableManager(),
 						new TaskEventDispatcher(),
+						ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 						slotStateManager,
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
