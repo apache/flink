@@ -400,8 +400,9 @@ class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase
         t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
         t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
 
-        with self.assertRaises(TableException):
-            t_env.explain(extended=True)
+        actual = t_env.explain(extended=True)
+
+        assert isinstance(actual, str)
 
     def test_create_table_environment(self):
         table_config = TableConfig()

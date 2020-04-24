@@ -41,6 +41,8 @@ class InsertIntoValidationTest extends TableTestBase {
     util.tableEnv.scan("sourceTable")
       .select('a, 'b, 'c)
       .insertInto("targetTable")
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -57,5 +59,7 @@ class InsertIntoValidationTest extends TableTestBase {
     util.tableEnv.scan("sourceTable")
       .select('a, 'b, 'c)
       .insertInto("targetTable")
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 }

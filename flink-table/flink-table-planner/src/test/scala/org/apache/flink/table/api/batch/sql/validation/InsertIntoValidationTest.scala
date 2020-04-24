@@ -41,6 +41,8 @@ class InsertIntoValidationTest extends TableTestBase {
 
     // must fail because table sink schema has too few fields
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -57,6 +59,8 @@ class InsertIntoValidationTest extends TableTestBase {
 
     // must fail because types of table sink do not match query result
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -73,6 +77,8 @@ class InsertIntoValidationTest extends TableTestBase {
 
     // must fail because partial insert is not supported yet.
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 
   @Test
@@ -92,5 +98,7 @@ class InsertIntoValidationTest extends TableTestBase {
     val sql = "INSERT INTO targetTable SELECT a, b FROM sourceTable"
 
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 }
