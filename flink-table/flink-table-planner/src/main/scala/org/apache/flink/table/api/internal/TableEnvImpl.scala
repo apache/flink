@@ -37,7 +37,7 @@ import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
-import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
+import org.apache.flink.table.sinks.{BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
@@ -878,11 +878,11 @@ abstract class TableEnvImpl(
       tableSink: TableSink[T]): DataSink[_]
 
   /**
-    * Add the given [[DataSink]] into the buffer.
+    * Add the given [[ModifyOperation]] into the buffer.
     *
-    * @param dataSink The [[DataSink]] to add the buffer to.
+    * @param modifyOperation The [[ModifyOperation]] to add the buffer to.
     */
-  protected def addToBuffer(dataSink: DataSink[_]): Unit
+  protected def addToBuffer[T](modifyOperation: ModifyOperation): Unit
 
   override def insertInto(path: String, table: Table): Unit = {
     val parser = planningConfigurationBuilder.createCalciteParser()
@@ -919,15 +919,64 @@ abstract class TableEnvImpl(
       table: Table,
       insertOptions: InsertOptions,
       sinkIdentifier: ObjectIdentifier): Unit = {
-    val dataSink = writeToSinkAndTranslate(table.getQueryOperation, insertOptions, sinkIdentifier)
-    addToBuffer(dataSink)
+    val operation = new CatalogSinkModifyOperation(
+      sinkIdentifier,
+      table.getQueryOperation,
+      insertOptions.staticPartitions,
+      insertOptions.overwrite,
+      new JHashMap[String, String]())
+    addToBuffer(operation)
   }
 
   override def getParser: Parser = parser
 
   override def getCatalogManager: CatalogManager = catalogManager
 
-  private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
+  protected def getTableSink(modifyOperation: ModifyOperation): TableSink[_] = {
+    modifyOperation match {
+      case s: CatalogSinkModifyOperation =>
+        getTableSink(s.getTableIdentifier) match {
+          case None =>
+            throw new TableException(
+              s"No table was registered under the name ${s.getTableIdentifier}.")
+
+          case Some(tableSink) =>
+            tableSink match {
+              case _: BatchTableSink[_] => // do nothing
+              case _: OutputFormatTableSink[_] => // do nothing
+              case _ =>
+                throw new TableException(
+                  "BatchTableSink or OutputFormatTableSink required to emit batch Table.")
+            }
+            // validate schema of source table and table sink
+            TableSinkUtils.validateSink(
+              s.getStaticPartitions,
+              s.getChild,
+              s.getTableIdentifier,
+              tableSink)
+            // set static partitions if it is a partitioned table sink
+            tableSink match {
+              case partitionableSink: PartitionableTableSink =>
+                partitionableSink.setStaticPartition(s.getStaticPartitions)
+              case _ =>
+            }
+            // set whether to overwrite if it's an OverwritableTableSink
+            tableSink match {
+              case overwritableTableSink: OverwritableTableSink =>
+                overwritableTableSink.setOverwrite(s.isOverwrite)
+              case _ =>
+                require(!s.isOverwrite, "INSERT OVERWRITE requires " +
+                  s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
+                  tableSink.getClass.getName)
+            }
+            tableSink
+        }
+      case o =>
+        throw new TableException("Unsupported Operation: " + o.asSummaryString())
+    }
+  }
+
+  protected def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
       .map(_.getTable) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>

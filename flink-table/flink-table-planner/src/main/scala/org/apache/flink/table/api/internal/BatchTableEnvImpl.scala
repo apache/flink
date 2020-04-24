@@ -38,8 +38,9 @@ import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor
 import org.apache.flink.table.expressions.{Expression, UnresolvedCallExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{DataSetQueryOperation, QueryOperation}
+import org.apache.flink.table.operations.{CatalogSinkModifyOperation, DataSetQueryOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.plan.BatchOptimizer
+import org.apache.flink.table.plan.nodes.LogicalSink
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.planner.Conversions
 import org.apache.flink.table.runtime.MapRunner
@@ -74,7 +75,7 @@ abstract class BatchTableEnvImpl(
     moduleManager: ModuleManager)
   extends TableEnvImpl(config, catalogManager, moduleManager) {
 
-  private val bufferedSinks = new JArrayList[DataSink[_]]
+  private val bufferedModifyOperations = new JArrayList[ModifyOperation]()
 
   private[flink] val optimizer = new BatchOptimizer(
     () => config.getPlannerConfig.unwrap(classOf[CalciteConfig]).orElse(CalciteConfig.DEFAULT),
@@ -170,8 +171,8 @@ abstract class BatchTableEnvImpl(
     }
   }
 
-  override protected def addToBuffer(sink: DataSink[_]): Unit = {
-    bufferedSinks.add(sink)
+  override protected def addToBuffer[T](modifyOperation: ModifyOperation): Unit = {
+    bufferedModifyOperations.add(modifyOperation)
   }
 
   /**
@@ -215,31 +216,68 @@ abstract class BatchTableEnvImpl(
     * @param extended Flag to include detailed optimizer estimates.
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
-    val ast = getRelBuilder.tableOperation(table.getQueryOperation).build()
-    val optimizedPlan = optimizer.optimize(ast)
-    val dataSet = translate[Row](
-      optimizedPlan,
-      getTableSchema(table.getQueryOperation.getTableSchema.getFieldNames, optimizedPlan))(
-      new GenericTypeInfo(classOf[Row]))
-    dataSet.output(new DiscardingOutputFormat[Row])
-    val env = dataSet.getExecutionEnvironment
+    explain(JCollections.singletonList(table.getQueryOperation.asInstanceOf[Operation]), extended)
+  }
+
+  override def explain(table: Table): String = explain(table: Table, extended = false)
+
+  override def explain(extended: Boolean): String = {
+    explain(bufferedModifyOperations.asScala.map(_.asInstanceOf[Operation]).asJava, extended)
+  }
+
+  private def explain(operations: JList[Operation], extended: Boolean): String = {
+    require(operations.asScala.nonEmpty, "operations should not be empty")
+    val astList = operations.asScala.map {
+      case queryOperation: QueryOperation =>
+        getRelBuilder.tableOperation(queryOperation).build()
+      case modifyOperation: ModifyOperation =>
+        translateToRel(modifyOperation, addLogicalSink = true)
+      case o => throw new TableException(s"Unsupported operation: ${o.asSummaryString()}")
+    }
+
+    val optimizedNodes = astList.map(optimizer.optimize)
+
+    val batchTableEnv = createDummyBatchTableEnv()
+    val dataSinks = optimizedNodes.zip(operations.asScala).map {
+      case (optimizedNode, operation) =>
+        operation match {
+          case queryOperation: QueryOperation =>
+            val dataSet = translate[Row](
+              optimizedNode,
+              getTableSchema(queryOperation.getTableSchema.getFieldNames, optimizedNode))(
+              new GenericTypeInfo(classOf[Row]))
+            dataSet.output(new DiscardingOutputFormat[Row])
+          case modifyOperation: ModifyOperation =>
+            val tableSink = getTableSink(modifyOperation)
+            translate(
+              batchTableEnv,
+              optimizedNode,
+              tableSink,
+              getTableSchema(modifyOperation.getChild.getTableSchema.getFieldNames, optimizedNode))
+          case o =>
+            throw new TableException("Unsupported Operation: " + o.asSummaryString())
+        }
+    }
+
+    val astPlan = astList.map(RelOptUtil.toString).mkString(System.lineSeparator)
+    val optimizedPlan = optimizedNodes.map(RelOptUtil.toString).mkString(System.lineSeparator)
+
+    val env = dataSinks.head.getDataSet.getExecutionEnvironment
     val jasonSqlPlan = env.getExecutionPlan
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
 
     s"== Abstract Syntax Tree ==" +
-        System.lineSeparator +
-        s"${RelOptUtil.toString(ast)}" +
-        System.lineSeparator +
-        s"== Optimized Logical Plan ==" +
-        System.lineSeparator +
-        s"${RelOptUtil.toString(optimizedPlan)}" +
-        System.lineSeparator +
-        s"== Physical Execution Plan ==" +
-        System.lineSeparator +
-        s"$sqlPlan"
+      System.lineSeparator +
+      s"$astPlan" +
+      System.lineSeparator +
+      s"== Optimized Logical Plan ==" +
+      System.lineSeparator +
+      s"$optimizedPlan" +
+      System.lineSeparator +
+      s"== Physical Execution Plan ==" +
+      System.lineSeparator +
+      s"$sqlPlan"
   }
-
-  override def explain(table: Table): String = explain(table: Table, extended = false)
 
   override def execute(jobName: String): JobExecutionResult = {
     val plan = createPipelineAndClearBuffer(jobName)
@@ -292,10 +330,6 @@ abstract class BatchTableEnvImpl(
     createPipelineAndClearBuffer(jobName)
   }
 
-  override def explain(extended: Boolean): String = {
-    throw new TableException("This method is unsupported in old planner.")
-  }
-
   /**
     * Translate the buffered sinks to Plan, and clear the buffer.
     *
@@ -304,10 +338,11 @@ abstract class BatchTableEnvImpl(
     * If the buffer is not clear after failure, the following `translate` will also fail.
     */
   private def createPipelineAndClearBuffer(jobName: String): Pipeline = {
+    val dataSinks = translate(bufferedModifyOperations)
     try {
-      createPipeline(bufferedSinks, jobName)
+      createPipeline(dataSinks, jobName)
     } finally {
-      bufferedSinks.clear()
+      bufferedModifyOperations.clear()
     }
   }
 
@@ -353,6 +388,102 @@ abstract class BatchTableEnvImpl(
       }))) {
       throw new ValidationException(
         ".rowtime and .proctime time indicators are not allowed in a batch environment.")
+    }
+  }
+
+  /**
+    * Translates a [[ModifyOperation]] into a [[RelNode]].
+    *
+    * The transformation does not involve optimizing the relational expression tree.
+    *
+    * @param modifyOperation The root ModifyOperation of the relational expression tree.
+    * @param addLogicalSink Whether add [[LogicalSink]] as the root.
+    *                       Currently, LogicalSink only is only used for explaining.
+    * @return The [[RelNode]] that corresponds to the translated [[ModifyOperation]].
+    */
+  private def translateToRel(modifyOperation: ModifyOperation, addLogicalSink: Boolean): RelNode = {
+    val input = getRelBuilder.tableOperation(modifyOperation.getChild).build()
+    if (addLogicalSink) {
+      val tableSink = getTableSink(modifyOperation)
+      modifyOperation match {
+        case s: CatalogSinkModifyOperation =>
+          LogicalSink.create(input, tableSink, s.getTableIdentifier.toString)
+        case o =>
+          throw new TableException("Unsupported Operation: " + o.asSummaryString())
+      }
+    } else {
+      input
+    }
+  }
+
+  /**
+    * Translates a list of [[ModifyOperation]] into a list of [[DataSink]].
+    *
+    * The transformation involves optimizing the relational expression tree as defined by
+    * Table API calls and / or SQL queries and generating corresponding [[DataSet]] operators.
+    *
+    * @param modifyOperations The root [[ModifyOperation]]s of the relational expression tree.
+    * @return The [[DataSink]] that corresponds to the translated [[ModifyOperation]]s.
+    */
+  private def translate[T](modifyOperations: JList[ModifyOperation]): JList[DataSink[_]] = {
+    val relNodes = modifyOperations.asScala.map(o => translateToRel(o, addLogicalSink = false))
+    val optimizedNodes = relNodes.map(optimizer.optimize)
+
+    val batchTableEnv = createDummyBatchTableEnv()
+    modifyOperations.asScala.zip(optimizedNodes).map {
+      case (modifyOperation, optimizedNode) =>
+        val tableSink = getTableSink(modifyOperation)
+        translate(
+          batchTableEnv,
+          optimizedNode,
+          tableSink,
+          getTableSchema(modifyOperation.getChild.getTableSchema.getFieldNames, optimizedNode))
+    }.asJava
+  }
+
+  /**
+    * Translates an optimized [[RelNode]] into a [[DataSet]]
+    * and handed over to the [[TableSink]] to write it.
+    *
+    * @param optimizedNode The [[RelNode]] to translate.
+    * @param tableSink The [[TableSink]] to write the [[Table]] to.
+    * @return The [[DataSink]] that corresponds to the [[RelNode]] and the [[TableSink]].
+    */
+  private def translate[T](
+      batchTableEnv: BatchTableEnvImpl,
+      optimizedNode: RelNode,
+      tableSink: TableSink[T],
+      tableSchema: TableSchema): DataSink[_] = {
+    tableSink match {
+      case batchSink: BatchTableSink[T] =>
+        val outputType = fromDataTypeToLegacyInfo(tableSink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
+        // translate the Table into a DataSet and provide the type that the TableSink expects.
+        val result: DataSet[T] = translate(optimizedNode, tableSchema)(outputType)
+        // create a dummy NoOpOperator, which holds dummy DummyExecutionEnvironment as context.
+        // NoOpOperator will be ignored in OperatorTranslation
+        // when translating DataSet to Operator, while its input can be translated normally.
+        val dummyOp = new DummyNoOpOperator(batchTableEnv.execEnv, result, result.getType)
+        // Give the DataSet to the TableSink to emit it.
+        batchSink.consumeDataSet(dummyOp)
+      case boundedSink: OutputFormatTableSink[T] =>
+        val outputType = fromDataTypeToLegacyInfo(tableSink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
+        // translate the Table into a DataSet and provide the type that the TableSink expects.
+        val result: DataSet[T] = translate(optimizedNode, tableSchema)(outputType)
+        // create a dummy NoOpOperator, which holds DummyExecutionEnvironment as context.
+        // NoOpOperator will be ignored in OperatorTranslation
+        // when translating DataSet to Operator, while its input can be translated normally.
+        val dummyOp = new DummyNoOpOperator(batchTableEnv.execEnv, result, result.getType)
+        // use the OutputFormat to consume the DataSet.
+        val dataSink = dummyOp.output(boundedSink.getOutputFormat)
+        dataSink.name(
+          TableConnectorUtils.generateRuntimeName(
+            boundedSink.getClass,
+            boundedSink.getTableSchema.getFieldNames))
+      case _ =>
+        throw new TableException(
+          "BatchTableSink or OutputFormatTableSink required to emit batch Table.")
     }
   }
 
