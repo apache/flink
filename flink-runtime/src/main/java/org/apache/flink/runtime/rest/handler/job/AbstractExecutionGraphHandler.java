@@ -26,7 +26,6 @@ import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
@@ -96,7 +95,7 @@ public abstract class AbstractExecutionGraphHandler<R extends ResponseBody, M ex
 
 	/**
 	 * Called for each request after the corresponding {@link AccessExecutionGraph} has been retrieved from the
-	 * {@link DefaultExecutionGraphCache}.
+	 * {@link ExecutionGraphCache}.
 	 *
 	 * @param request for further information
 	 * @param executionGraph for which the handler was called
