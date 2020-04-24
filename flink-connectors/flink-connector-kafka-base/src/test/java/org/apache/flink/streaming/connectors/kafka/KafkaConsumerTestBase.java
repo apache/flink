@@ -47,16 +47,19 @@ import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
@@ -1537,6 +1540,70 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 	}
 
 	/**
+	 * Test that ensures that DeserializationSchema can emit multiple records via a Collector.
+	 *
+	 * @throws Exception
+	 */
+	public void runCollectingSchemaTest() throws Exception {
+
+		final int elementCount = 20;
+		final String topic = writeSequence("testCollectingSchema", elementCount, 1, 1);
+
+		// read using custom schema
+		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
+		env1.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env1.setParallelism(1);
+		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env1.getConfig().disableSysoutLogging();
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
+		DataStream<Tuple2<Integer, String>> fromKafka = env1.addSource(
+			kafkaServer.getConsumer(
+				topic,
+				new CollectingDeserializationSchema(elementCount),
+				props)
+				.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple2<Integer, String>>() {
+					@Override
+					public long extractAscendingTimestamp(Tuple2<Integer, String> element) {
+						String string = element.f1;
+						return Long.parseLong(string.substring(0, string.length() - 1));
+					}
+				})
+		);
+		fromKafka
+			.keyBy(t -> t.f0)
+			.process(new KeyedProcessFunction<Integer, Tuple2<Integer, String>, Void>() {
+				private boolean registered = false;
+
+				@Override
+				public void processElement(
+						Tuple2<Integer, String> value,
+						Context ctx,
+						Collector<Void> out) throws Exception {
+					if (!registered) {
+						ctx.timerService().registerEventTimeTimer(elementCount - 2);
+						registered = true;
+					}
+				}
+
+				@Override
+				public void onTimer(
+						long timestamp,
+						OnTimerContext ctx,
+						Collector<Void> out) throws Exception {
+					throw new SuccessException();
+				}
+			});
+
+		tryExecute(env1, "Consume " + elementCount + " elements from Kafka");
+
+		deleteTestTopic(topic);
+	}
+
+	/**
 	 * Test metrics reporting for consumer.
 	 *
 	 * @throws Exception
@@ -1651,6 +1718,45 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		deleteTestTopic(topic);
+	}
+
+	private static class CollectingDeserializationSchema implements KafkaDeserializationSchema<Tuple2<Integer, String>> {
+
+		final int finalCount;
+
+		TypeInformation<Tuple2<Integer, String>> ti = TypeInformation.of(new TypeHint<Tuple2<Integer, String>>() {});
+		TypeSerializer<Tuple2<Integer, Integer>> ser =
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {})
+				.createSerializer(new ExecutionConfig());
+
+		public CollectingDeserializationSchema(int finalCount) {
+			this.finalCount = finalCount;
+		}
+
+		@Override
+		public boolean isEndOfStream(Tuple2<Integer, String> nextElement) {
+			return false;
+		}
+
+		@Override
+		public Tuple2<Integer, String> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+			throw new UnsupportedOperationException("Should not be called");
+		}
+
+		@Override
+		public void deserialize(
+				ConsumerRecord<byte[], byte[]> message,
+				Collector<Tuple2<Integer, String>> out) throws Exception {
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message.value()));
+			Tuple2<Integer, Integer> tuple = ser.deserialize(in);
+			out.collect(Tuple2.of(tuple.f0, tuple.f1 + "a"));
+			out.collect(Tuple2.of(tuple.f0, tuple.f1 + "b"));
+		}
+
+		@Override
+		public TypeInformation<Tuple2<Integer, String>> getProducedType() {
+			return ti;
+		}
 	}
 
 	private static class FixedNumberDeserializationSchema implements DeserializationSchema<Tuple2<Integer, Integer>> {

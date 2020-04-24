@@ -35,10 +35,14 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -113,8 +117,8 @@ public class AbstractFetcherTest {
 		assertEquals(2L, sourceContext.getLatestElement().getValue().longValue());
 		assertEquals(2L, partitionStateHolder.getOffset());
 
-		// emit null record
-		emitRecord(fetcher, null, partitionStateHolder, 3L);
+		// emit no records
+		fetcher.emitRecordsWithTimestamps(emptyQueue(), partitionStateHolder, 3L, Long.MIN_VALUE);
 		assertEquals(2L, sourceContext.getLatestElement().getValue().longValue()); // the null record should be skipped
 		assertEquals(3L, partitionStateHolder.getOffset()); // the offset in state still should have advanced
 	}
@@ -149,8 +153,8 @@ public class AbstractFetcherTest {
 		assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
 		assertEquals(3L, partitionStateHolder.getOffset());
 
-		// emit null record
-		emitRecord(fetcher, null, partitionStateHolder, 4L);
+		// emit no records
+		fetcher.emitRecordsWithTimestamps(emptyQueue(), partitionStateHolder, 4L, -1L);
 
 		// no elements or watermarks should have been collected
 		assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
@@ -193,8 +197,8 @@ public class AbstractFetcherTest {
 		assertTrue(sourceContext.hasWatermark());
 		assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
 
-		// emit null record
-		emitRecord(fetcher, null, partitionStateHolder, 4L);
+		// emit no records
+		fetcher.emitRecordsWithTimestamps(emptyQueue(), partitionStateHolder, 4L, Long.MIN_VALUE);
 
 		// no elements should have been collected
 		assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
@@ -238,9 +242,9 @@ public class AbstractFetcherTest {
 		// elements generate a watermark if the timestamp is a multiple of three
 
 		// elements for partition 1
-		emitRecord(fetcher, 1L, part1, 1L);
+		emitRecords(fetcher, Arrays.asList(1L, 2L), part1, 1L);
 		emitRecord(fetcher, 2L, part1, 2L);
-		emitRecord(fetcher, 3L, part1, 3L);
+		emitRecords(fetcher, Arrays.asList(2L, 3L), part1, 3L);
 		assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
 		assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
 		assertFalse(sourceContext.hasWatermark());
@@ -534,12 +538,32 @@ public class AbstractFetcherTest {
 			T record,
 			KafkaTopicPartitionState<KPH> partitionState,
 			long offset) throws Exception {
+		ArrayDeque<T> recordQueue = new ArrayDeque<>();
+		recordQueue.add(record);
 
-		fetcher.emitRecordWithTimestamp(
-			record,
+		fetcher.emitRecordsWithTimestamps(
+			recordQueue,
 			partitionState,
 			offset,
 			Long.MIN_VALUE);
+	}
+
+	private static <T, KPH> void emitRecords(
+			AbstractFetcher<T, KPH> fetcher,
+			List<T> records,
+			KafkaTopicPartitionState<KPH> partitionState,
+			long offset) throws Exception {
+		ArrayDeque<T> recordQueue = new ArrayDeque<>(records);
+
+		fetcher.emitRecordsWithTimestamps(
+			recordQueue,
+			partitionState,
+			offset,
+			Long.MIN_VALUE);
+	}
+
+	private static <T> Queue<T> emptyQueue() {
+		return new ArrayDeque<>();
 	}
 
 	private static class PeriodicTestExtractor implements AssignerWithPeriodicWatermarks<Long> {
