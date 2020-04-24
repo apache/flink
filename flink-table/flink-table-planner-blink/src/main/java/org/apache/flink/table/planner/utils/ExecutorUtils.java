@@ -25,6 +25,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
@@ -85,7 +86,7 @@ public class ExecutorUtils {
 			throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
 		}
 		if (ExecutorUtils.isShuffleModeAllBatch(tableConfig)) {
-			streamGraph.setBlockingConnectionsBetweenChains(true);
+			streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
 		}
 	}
 
