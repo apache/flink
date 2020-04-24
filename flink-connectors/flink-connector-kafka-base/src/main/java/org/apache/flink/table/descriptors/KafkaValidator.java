@@ -118,7 +118,12 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 			|| properties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
 			|| properties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID)) {
 
-			properties.validateString(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT, false);
+			if (properties.getString(CONNECTOR_VERSION).equals(CONNECTOR_VERSION_VALUE_08)) {
+				properties.validateString(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT, false);
+			} else {
+				properties.validateString(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT, true);
+			}
+
 			properties.validateString(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER, false);
 			properties.validateString(CONNECTOR_PROPERTIES_GROUP_ID, true);
 
