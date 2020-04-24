@@ -28,6 +28,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -156,6 +157,13 @@ public interface Environment {
 	TaskStateManager getTaskStateManager();
 
 	GlobalAggregateManager getGlobalAggregateManager();
+
+	/**
+	 * Get the {@link ExternalResourceInfoProvider} which contains infos of available external resources.
+	 *
+	 * @return {@link ExternalResourceInfoProvider} which contains infos of available external resources
+	 */
+	ExternalResourceInfoProvider getExternalResourceInfoProvider();
 
 	/**
 	 * Return the registry for accumulators which are periodically sent to the job manager.

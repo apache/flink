@@ -45,6 +45,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -193,6 +194,9 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	private final TaskEventDispatcher taskEventDispatcher;
 
+	/** Information provider for external resources. */
+	private final ExternalResourceInfoProvider externalResourceInfoProvider;
+
 	/** The manager for state of operators running in this task/slot. */
 	private final TaskStateManager taskStateManager;
 
@@ -294,6 +298,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		KvStateService kvStateService,
 		BroadcastVariableManager bcVarManager,
 		TaskEventDispatcher taskEventDispatcher,
+		ExternalResourceInfoProvider externalResourceInfoProvider,
 		TaskStateManager taskStateManager,
 		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
@@ -351,6 +356,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		this.operatorCoordinatorEventGateway = Preconditions.checkNotNull(operatorCoordinatorEventGateway);
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
+		this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
 
 		this.classLoaderHandle = Preconditions.checkNotNull(classLoaderHandle);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
@@ -680,7 +686,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				operatorCoordinatorEventGateway,
 				taskManagerConfig,
 				metrics,
-				this);
+				this,
+				externalResourceInfoProvider);
 
 			// Make sure the user code classloader is accessible thread-locally.
 			// We are setting the correct context class loader before instantiating the invokable

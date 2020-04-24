@@ -26,6 +26,7 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
@@ -50,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A streaming {@link RuntimeContext} which delegates to the underlying batch {@code RuntimeContext}
@@ -159,6 +161,11 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	@Override
 	public Histogram getHistogram(String name) {
 		return ctx.getHistogram(name);
+	}
+
+	@Override
+	public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+		throw new UnsupportedOperationException("Do not support external resource in current environment");
 	}
 
 	@Override
