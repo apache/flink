@@ -31,6 +31,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -62,6 +63,7 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
+import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -93,7 +95,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -148,6 +153,10 @@ public class ExecutionContext<ClusterID> {
 		this.originalSessionContext = originalSessionContext;
 
 		this.flinkConfig = flinkConfig;
+
+		if (hasPythonFunction(environment)) {
+			dependencies = addPythonFunctionDependency(dependencies);
+		}
 
 		// create class loader
 		classLoader = ClientUtils.buildUserCodeClassLoader(
@@ -517,6 +526,7 @@ public class ExecutionContext<ClusterID> {
 			CatalogManager catalogManager,
 			ModuleManager moduleManager,
 			FunctionCatalog functionCatalog) {
+		config.addConfiguration(flinkConfig);
 		if (environment.getExecution().isStreamingPlanner()) {
 			streamExecEnv = createStreamExecutionEnvironment();
 			execEnv = null;
@@ -630,7 +640,11 @@ public class ExecutionContext<ClusterID> {
 	private void registerFunctions() {
 		Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
 		environment.getFunctions().forEach((name, entry) -> {
-			final UserDefinedFunction function = FunctionService.createFunction(entry.getDescriptor(), classLoader, false);
+			final UserDefinedFunction function = FunctionService.createFunction(
+				entry.getDescriptor(),
+				classLoader,
+				false,
+				getTableEnvironment().getConfig().getConfiguration());
 			functions.put(name, function);
 		});
 		registerFunctions(functions);
@@ -694,6 +708,32 @@ public class ExecutionContext<ClusterID> {
 				"Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
 					temporalTableEntry.getHistoryTable() + ".\nCause: " + e.getMessage());
 		}
+	}
+
+	private boolean hasPythonFunction(Environment environment) {
+		return environment.getFunctions().values().stream().anyMatch(f ->
+			FunctionDescriptorValidator.FROM_VALUE_PYTHON.equals(
+				f.getDescriptor().toProperties().get(FunctionDescriptorValidator.FROM)));
+	}
+
+	private List<URL> addPythonFunctionDependency(List<URL> dependencies) {
+		List<URL> newDependencies = new ArrayList<>(dependencies);
+		URL location = PythonFunctionRunner.class.getProtectionDomain().getCodeSource().getLocation();
+		try {
+			if (Paths.get(location.toURI()).toFile().isFile()) {
+				newDependencies.add(location);
+			} else {
+				LOG.warn(
+					"Python UDF detected but flink-python jar not found. " +
+						"If you starts SQL-Client via `sql-client.sh`, " +
+						"please add the flink-python jar via `-j` command option manually.");
+			}
+		} catch (URISyntaxException e) {
+			LOG.warn("Python UDF detected but flink-python jar not found. " +
+				"If you starts SQL-Client via `sql-client.sh`, " +
+				"please add the flink-python jar via `-j` command option manually.", e);
+		}
+		return newDependencies;
 	}
 
 	//~ Inner Class -------------------------------------------------------------------------------
