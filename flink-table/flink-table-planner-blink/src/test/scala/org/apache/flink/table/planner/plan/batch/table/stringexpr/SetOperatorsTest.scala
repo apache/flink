@@ -29,6 +29,17 @@ import java.sql.Timestamp
 class SetOperatorsTest extends TableTestBase {
 
   @Test
+  def testInWithFilter(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTableSource[((Int, Int), String, (Int, Int))]("A", 'a, 'b, 'c)
+
+    val elements = t.where("b === 'two'").select("a").as("a1")
+    val in = t.select("*").where('c.in(elements))
+
+    util.verifyPlan(in)
+  }
+
+  @Test
   def testInWithProject(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Timestamp, String)]("A", 'a, 'b, 'c)

@@ -26,7 +26,7 @@ import org.apache.flink.types.Row
 import org.junit.Test
 
 /**
-  * Tests that can only be checked manually as they are non-deterministic.
+  * Tests that check all non-deterministic functions can be executed.
   */
 class NonDeterministicTests extends ExpressionTestBase {
 
