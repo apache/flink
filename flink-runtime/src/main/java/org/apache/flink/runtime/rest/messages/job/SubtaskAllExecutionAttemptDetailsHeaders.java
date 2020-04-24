@@ -31,7 +31,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for the {@link SubtaskAllExecutionAttemptsDetailsHandler}.
  */
-public class SubtaskAllExecutionAttemptDetailsHeaders implements MessageHeaders<EmptyRequestBody, SubtaskAllExecutionAttemptsDetailsInfo, SubtaskMessageParameters> {
+public class SubtaskAllExecutionAttemptDetailsHeaders
+	implements MessageHeaders<EmptyRequestBody, SubtaskAllExecutionAttemptsDetailsInfo, SubtaskMessageParameters> {
 
 	private static final SubtaskAllExecutionAttemptDetailsHeaders INSTANCE = new SubtaskAllExecutionAttemptDetailsHeaders();
 

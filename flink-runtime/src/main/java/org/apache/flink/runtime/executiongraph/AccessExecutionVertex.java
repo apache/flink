@@ -90,7 +90,7 @@ public interface AccessExecutionVertex {
 	/**
 	 * Returns prior executions for this execution vertex.
 	 *
-	 * @return prior executions for this execution vertex.
+	 * @return prior executions for this execution vertex
 	 */
 	EvictingBoundedList<ArchivedExecution> getPriorExecutionAttempts();
 }

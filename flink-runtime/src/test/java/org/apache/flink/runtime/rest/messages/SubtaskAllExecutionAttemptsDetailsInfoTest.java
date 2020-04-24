@@ -32,6 +32,7 @@ import java.util.Random;
  * Tests for (un)marshalling of {@link SubtaskAllExecutionAttemptsDetailsInfo}.
  */
 public class SubtaskAllExecutionAttemptsDetailsInfoTest extends RestResponseMarshallingTestBase {
+
 	@Override
 	protected Class getTestResponseClass() {
 		return SubtaskAllExecutionAttemptsDetailsInfo.class;
@@ -39,7 +40,6 @@ public class SubtaskAllExecutionAttemptsDetailsInfoTest extends RestResponseMars
 
 	@Override
 	protected ResponseBody getTestResponseInstance() throws Exception {
-
 		final Random random = new Random();
 		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
 			random.nextLong(),

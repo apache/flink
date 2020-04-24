@@ -45,7 +45,8 @@ import java.util.concurrent.Executor;
 /**
  * Handler which returns the details of all execution attempts of a subtask.
  */
-public class SubtaskAllExecutionAttemptsDetailsHandler extends AbstractSubtaskHandler<SubtaskAllExecutionAttemptsDetailsInfo, SubtaskMessageParameters> {
+public class SubtaskAllExecutionAttemptsDetailsHandler
+	extends AbstractSubtaskHandler<SubtaskAllExecutionAttemptsDetailsInfo, SubtaskMessageParameters> {
 
 	private final MetricFetcher metricFetcher;
 
@@ -72,7 +73,10 @@ public class SubtaskAllExecutionAttemptsDetailsHandler extends AbstractSubtaskHa
 		return createSubtaskExecutionAttemptsDetailsInfo(executionVertex, jobID, jobVertexID);
 	}
 
-	protected SubtaskAllExecutionAttemptsDetailsInfo createSubtaskExecutionAttemptsDetailsInfo(AccessExecutionVertex executionVertex, JobID jobID, JobVertexID jobVertexID) {
+	protected SubtaskAllExecutionAttemptsDetailsInfo createSubtaskExecutionAttemptsDetailsInfo(
+		AccessExecutionVertex executionVertex,
+		JobID jobID,
+		JobVertexID jobVertexID) {
 		List<SubtaskExecutionAttemptDetailsInfo> allAttempts = new ArrayList<>();
 		executionVertex.getPriorExecutionAttempts().forEach(execution -> {
 			if (execution != null) {

@@ -109,5 +109,4 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 	public EvictingBoundedList<ArchivedExecution> getPriorExecutionAttempts() {
 		return priorExecutions;
 	}
-
 }
