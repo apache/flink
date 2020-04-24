@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.ClassInstanceValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -25,6 +27,8 @@ import org.apache.flink.table.descriptors.FunctionDescriptor;
 import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.table.descriptors.HierarchyDescriptorValidator;
 import org.apache.flink.table.descriptors.LiteralValueValidator;
+import org.apache.flink.table.descriptors.PythonFunctionValidator;
+import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +82,23 @@ public class FunctionService {
 			FunctionDescriptor descriptor,
 			ClassLoader classLoader,
 			boolean performValidation) {
+		return createFunction(descriptor, classLoader, performValidation, new Configuration());
+	}
+
+	/**
+	 * Creates a user-defined function with the given properties.
+	 *
+	 * @param descriptor the descriptor that describes a function
+	 * @param classLoader the class loader to load the function and its parameter's classes
+	 * @param performValidation whether or not the descriptor should be validated
+	 * @param config the table configuration used to create the function
+	 * @return the generated user-defined function
+	 */
+	public static UserDefinedFunction createFunction(
+			FunctionDescriptor descriptor,
+			ClassLoader classLoader,
+			boolean performValidation,
+			ReadableConfig config) {
 
 		DescriptorProperties properties = new DescriptorProperties(true);
 		properties.putProperties(descriptor.toProperties());
@@ -87,11 +108,24 @@ public class FunctionService {
 			new FunctionDescriptorValidator().validate(properties);
 		}
 
-		// instantiate
-		Object instance = generateInstance(
-				HierarchyDescriptorValidator.EMPTY_PREFIX,
-				properties,
-				classLoader);
+		Object instance;
+		switch (properties.getString(FunctionDescriptorValidator.FROM)) {
+			case FunctionDescriptorValidator.FROM_VALUE_CLASS:
+				// instantiate
+				instance = generateInstance(
+					HierarchyDescriptorValidator.EMPTY_PREFIX,
+					properties,
+					classLoader);
+				break;
+			case FunctionDescriptorValidator.FROM_VALUE_PYTHON:
+				String fullyQualifiedName = properties.getString(PythonFunctionValidator.FULLY_QUALIFIED_NAME);
+				instance = PythonFunctionUtils.getPythonFunction(fullyQualifiedName, config);
+				break;
+			default:
+				throw new ValidationException(String.format(
+						"Unsupported function descriptor: %s",
+						properties.getString(FunctionDescriptorValidator.FROM)));
+		}
 
 		if (!UserDefinedFunction.class.isAssignableFrom(instance.getClass())) {
 			throw new ValidationException(String.format(
