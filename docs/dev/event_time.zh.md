@@ -26,13 +26,13 @@ under the License.
 
 In this section you will learn about writing time-aware Flink programs. Please
 take a look at [Timely Stream Processing]({% link
-concepts/timely-stream-processing.md %}) to learn about the concepts behind
+concepts/timely-stream-processing.zh.md %}) to learn about the concepts behind
 timely stream processing.
 
 For information about how to use time in Flink programs refer to
-[windowing]({% link dev/stream/operators/windows.md %}) and
+[windowing]({% link dev/stream/operators/windows.zh.md %}) and
 [ProcessFunction]({% link
-dev/stream/operators/process_function.md %}).
+dev/stream/operators/process_function.zh.md %}).
 
 * toc
 {:toc}
