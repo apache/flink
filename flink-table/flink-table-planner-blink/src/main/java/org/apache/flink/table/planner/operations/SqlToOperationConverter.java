@@ -292,12 +292,6 @@ public class SqlToOperationConverter {
 			);
 		} else {
 			FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
-			if (language == FunctionLanguage.PYTHON && !sqlCreateFunction.isTemporary()) {
-				throw new ValidationException(String.format(
-					"Unsupported function type for Python function %s, " +
-					"only temporary function is supported.",
-					sqlCreateFunction.getFunctionClassName().getValueAs(String.class)));
-			}
 			CatalogFunction catalogFunction = new CatalogFunctionImpl(
 				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
 				language);
