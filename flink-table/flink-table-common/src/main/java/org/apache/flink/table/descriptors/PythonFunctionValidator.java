@@ -19,33 +19,17 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.ValidationException;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Consumer;
 
 /**
- * Validator for {@link FunctionDescriptor}.
+ * Validator of python function.
  */
 @Internal
-public class FunctionDescriptorValidator implements DescriptorValidator {
+public class PythonFunctionValidator implements DescriptorValidator {
 
-	public static final String FROM = "from";
-	public static final String FROM_VALUE_CLASS = "class";
-	public static final String FROM_VALUE_PYTHON = "python";
+	public static final String FULLY_QUALIFIED_NAME = "fully-qualified-name";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
-		Map<String, Consumer<String>> enumValidation = new HashMap<>();
-		enumValidation.put(FROM_VALUE_CLASS, s -> new ClassInstanceValidator().validate(properties));
-		enumValidation.put(FROM_VALUE_PYTHON, s -> new PythonFunctionValidator().validate(properties));
-
-		// check for 'from'
-		if (properties.containsKey(FROM)) {
-			properties.validateEnum(FROM, false, enumValidation);
-		} else {
-			throw new ValidationException("Could not find 'from' property for function.");
-		}
+		properties.validateString(FULLY_QUALIFIED_NAME, false);
 	}
 }

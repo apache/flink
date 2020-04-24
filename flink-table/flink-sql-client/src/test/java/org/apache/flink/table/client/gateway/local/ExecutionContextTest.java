@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.client.python.PythonFunctionFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.table.api.SqlDialect;
@@ -39,6 +40,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.functions.python.PythonScalarFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -73,6 +75,7 @@ public class ExecutionContextTest {
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 	private static final String CONFIGURATION_ENVIRONMENT_FILE = "test-sql-client-configuration.yaml";
 	private static final String DIALECT_ENVIRONMENT_FILE = "test-sql-client-dialect.yaml";
+	private static final String FUNCTION_ENVIRONMENT_FILE = "test-sql-client-python-functions.yaml";
 
 	@Test
 	public void testExecutionConfig() throws Exception {
@@ -196,6 +199,22 @@ public class ExecutionContextTest {
 		Arrays.sort(expected);
 		Arrays.sort(actual);
 		assertArrayEquals(expected, actual);
+	}
+
+	@Test
+	public void testPythonFunction() throws Exception {
+		PythonFunctionFactory pythonFunctionFactory = PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.get();
+		PythonFunctionFactory testFunctionFactory = (moduleName, objectName) ->
+			new PythonScalarFunction(null, null, null, null, null, false, null);
+		try {
+			PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(testFunctionFactory);
+			ExecutionContext context = createPythonFunctionExecutionContext();
+			final String[] expected = new String[]{"pythonudf"};
+			final String[] actual = context.getTableEnvironment().listUserDefinedFunctions();
+			assertArrayEquals(expected, actual);
+		} finally {
+			PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(pythonFunctionFactory);
+		}
 	}
 
 	@Test
@@ -366,6 +385,10 @@ public class ExecutionContextTest {
 
 	private <T> ExecutionContext<T> createConfigurationExecutionContext() throws Exception {
 		return createExecutionContext(CONFIGURATION_ENVIRONMENT_FILE, new HashMap<>());
+	}
+
+	private <T> ExecutionContext<T> createPythonFunctionExecutionContext() throws Exception {
+		return createExecutionContext(FUNCTION_ENVIRONMENT_FILE, new HashMap<>());
 	}
 
 	// a catalog that requires the thread context class loader to be a user code classloader during construction and opening
