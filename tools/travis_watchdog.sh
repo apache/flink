@@ -25,7 +25,7 @@ if [ -z "$HERE" ] ; then
 	exit 1  # fail
 fi
 
-source "${HERE}/travis/stage.sh"
+source "${HERE}/ci/stage.sh"
 source "${HERE}/ci/maven-utils.sh"
 
 ARTIFACTS_DIR="${HERE}/artifacts"
