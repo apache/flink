@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.java.tuple.Tuple10;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -34,10 +35,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,6 +59,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 	public static final String OUTPUT_TABLE1 = "upsertSink";
 	public static final String OUTPUT_TABLE2 = "appendSink";
 	public static final String OUTPUT_TABLE3 = "batchSink";
+	public static final String OUTPUT_TABLE4 = "autoCreatedTable";
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
@@ -97,6 +102,15 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 		}
 	}
 
+	private void clearAutoCreatedTable() throws Exception {
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
+		try (
+			Connection conn = DriverManager.getConnection(DB_URL);
+			Statement stat = conn.createStatement()) {
+			stat.execute("DROP TABLE " + OUTPUT_TABLE4);
+		}
+	}
+
 	public static DataStream<Tuple4<Integer, Long, String, Timestamp>> get4TupleDataStream(StreamExecutionEnvironment env) {
 		List<Tuple4<Integer, Long, String, Timestamp>> data = new ArrayList<>();
 		data.add(new Tuple4<>(1, 1L, "Hi", Timestamp.valueOf("1970-01-01 00:00:00.001")));
@@ -120,6 +134,22 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 		data.add(new Tuple4<>(19, 6L, "Comment#13", Timestamp.valueOf("1970-01-01 00:00:00.019")));
 		data.add(new Tuple4<>(20, 6L, "Comment#14", Timestamp.valueOf("1970-01-01 00:00:00.020")));
 		data.add(new Tuple4<>(21, 6L, "Comment#15", Timestamp.valueOf("1970-01-01 00:00:00.021")));
+
+		Collections.shuffle(data);
+		return env.fromCollection(data);
+	}
+
+	public static DataStream<Tuple10<Boolean, Integer, Long, Float, Double, BigDecimal, String, Date, Time, Timestamp>> getFullTypeDataStream(
+		StreamExecutionEnvironment env) {
+		List<Tuple10<Boolean, Integer, Long, Float, Double, BigDecimal, String, Date, Time, Timestamp>> data = new ArrayList<>();
+		data.add(new Tuple10<>(true, 1, 1000L, 0.8f, 12.24d, new BigDecimal("5.110000000000000000"), "To be or not to be 1",
+			Date.valueOf("2020-03-10"), Time.valueOf("00:00:01"), Timestamp.valueOf("2020-03-10 00:00:00.021")));
+		data.add(new Tuple10<>(true, 2, 1001L, 0.9f, 12.25d, new BigDecimal("5.220000000000000000"), "To be or not to be 2",
+			Date.valueOf("2020-03-10"), Time.valueOf("00:00:02"), Timestamp.valueOf("2020-03-10 00:00:00.021")));
+		data.add(new Tuple10<>(false, 3, 1002L, 0.1f, 12.26d, new BigDecimal("5.330000000000000000"), "To be or not to be 3",
+			Date.valueOf("2020-03-10"), Time.valueOf("00:00:03"), Timestamp.valueOf("2020-03-10 00:00:00.021")));
+		data.add(new Tuple10<>(false, 4, 1003L, 0.11f, 12.27d, new BigDecimal("5.440000000000000000"), "To be or not to be 4",
+			Date.valueOf("2020-03-10"), Time.valueOf("00:00:04"), Timestamp.valueOf("2020-03-10 00:00:00.021")));
 
 		Collections.shuffle(data);
 		return env.fromCollection(data);
@@ -251,5 +281,101 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				Row.of("Kim", 42),
 				Row.of("Bob", 1)
 		}, DB_URL, OUTPUT_TABLE3, new String[]{"NAME", "SCORE"});
+	}
+
+	@Test
+	public void testCreateTableIfNotExists() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		env.getConfig().setParallelism(1);
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+		Table t = tEnv.fromDataStream(getFullTypeDataStream(env), "c0, c1, c2, c3, c4, c5, c6, c7, c8, c9");
+
+		tEnv.registerTable("T", t);
+
+		tEnv.sqlUpdate(
+			"CREATE TABLE upsertSink (" +
+				"  c0 BOOLEAN," +
+				"  c1 INTEGER," +
+				"  c2 BIGINT," +
+				"  c3 FLOAT," +
+				"  c4 DOUBLE," +
+				"  c5 DECIMAL," +
+				"  c6 STRING," +
+				"  c7 DATE," +
+				"  c8 TIME(0)," +
+				"  c9 TIMESTAMP(3)" +
+				") WITH (" +
+				"  'connector.type'='jdbc'," +
+				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.table'='" + OUTPUT_TABLE4 + "'," +
+				"  'connector.write.auto-create-table'='true'" +
+				")");
+
+		tEnv.sqlUpdate("INSERT INTO upsertSink " +
+			" SELECT c0, c1, c2, c3, c4, max(c5), max(c6), max(c7), max(c8), max(c9) " +
+			" FROM T WHERE c1 > 2" +
+			" group by c0, c1, c2, c3, c4");
+		tEnv.execute("testCreateTableIfNotExists");
+		check(new Row[] {
+				//JDBC treats SQL FLOAT/DOUBLE as java.lang.Double, convert float value to double before compare.
+				Row.of(false, 3, 1002L, Double.valueOf(0.1f), 12.26d, new BigDecimal("5.330000000000000000"), "To be or not to be 3",
+					Date.valueOf("2020-03-10"), Time.valueOf("00:00:03"), Timestamp.valueOf("2020-03-10 00:00:00.021")),
+				Row.of(false, 4, 1003L, Double.valueOf(0.11f), 12.27d, new BigDecimal("5.440000000000000000"), "To be or not to be 4",
+					Date.valueOf("2020-03-10"), Time.valueOf("00:00:04"), Timestamp.valueOf("2020-03-10 00:00:00.021"))},
+			DB_URL, OUTPUT_TABLE4, new String[]{"c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"});
+
+		clearAutoCreatedTable();
+	}
+
+	@Test
+	public void testCreateTableIfNotExistsUseBlinkPlanner() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		env.getConfig().setParallelism(1);
+		EnvironmentSettings setting = EnvironmentSettings.newInstance()
+			.useBlinkPlanner()
+			.inStreamingMode()
+			.build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, setting);
+		Table t = tEnv.fromDataStream(getFullTypeDataStream(env), "c0, c1, c2, c3, c4, c5, c6, c7, c8, c9");
+
+		tEnv.registerTable("T", t);
+
+		tEnv.sqlUpdate(
+			"CREATE TABLE upsertSink (" +
+				"  c0 BOOLEAN," +
+				"  c1 INTEGER," +
+				"  c2 BIGINT," +
+				"  c3 FLOAT," +
+				"  c4 DOUBLE," +
+				// the max decimal precision in Derby db is 31, but blink planner only support precision 38 now.
+				// "  c5 DECIMAL," +
+				"  c6 STRING," +
+				"  c7 DATE," +
+				"  c8 TIME(0)," +
+				"  c9 TIMESTAMP(3)" +
+				") WITH (" +
+				"  'connector.type'='jdbc'," +
+				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.table'='" + OUTPUT_TABLE4 + "'," +
+				"  'connector.write.auto-create-table'='true'" +
+				")");
+
+		tEnv.sqlUpdate("INSERT INTO upsertSink " +
+			" SELECT c0, c1, c2, c3, c4, max(c6), max(c7), max(c8), max(c9) " +
+			" FROM T WHERE c1 > 2" +
+			" group by c0, c1, c2, c3, c4");
+		tEnv.execute("testCreateTableIfNotExistsUseBlinkPlanner");
+		check(new Row[] {
+			//JDBC treats SQL FLOAT/DOUBLE as java.lang.Double, convert float value to double before compare.
+				Row.of(false, 3, 1002L, Double.valueOf(0.1f), 12.26d, "To be or not to be 3", Date.valueOf("2020-03-10"),
+					Time.valueOf("00:00:03"), Timestamp.valueOf("2020-03-10 00:00:00.021")),
+				Row.of(false, 4, 1003L, Double.valueOf(0.11f), 12.27d, "To be or not to be 4", Date.valueOf("2020-03-10"),
+					Time.valueOf("00:00:04"), Timestamp.valueOf("2020-03-10 00:00:00.021"))},
+			DB_URL, OUTPUT_TABLE4, new String[]{"c0", "c1", "c2", "c3", "c4", "c6", "c7", "c8", "c9"});
+
+		clearAutoCreatedTable();
 	}
 }

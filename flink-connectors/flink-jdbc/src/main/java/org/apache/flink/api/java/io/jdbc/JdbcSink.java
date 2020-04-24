@@ -65,7 +65,8 @@ public class JdbcSink {
 					"objects can not be reused with JDBC sink function");
 				return JdbcBatchStatementExecutor.simple(sql, statementBuilder, Function.identity());
 			},
-			JdbcBatchingOutputFormat.RecordExtractor.identity()
+			JdbcBatchingOutputFormat.RecordExtractor.identity(),
+			JdbcDdlOptions.builder().build()
 		));
 	}
 

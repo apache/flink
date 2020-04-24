@@ -37,6 +37,7 @@ import org.apache.flink.types.Row;
 import java.util.Arrays;
 import java.util.Objects;
 
+import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_CREATE_TABLE_IF_NOT_EXISTS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
 import static org.apache.flink.api.java.io.jdbc.JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
@@ -53,6 +54,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 	private final int flushMaxSize;
 	private final long flushIntervalMills;
 	private final int maxRetryTime;
+	private final boolean createTableIfNotExists;
 
 	private String[] keyFields;
 	private boolean isAppendOnly;
@@ -62,12 +64,14 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 			JDBCOptions options,
 			int flushMaxSize,
 			long flushIntervalMills,
-			int maxRetryTime) {
+			int maxRetryTime,
+			boolean createTableIfNotExists) {
 		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 		this.options = options;
 		this.flushMaxSize = flushMaxSize;
 		this.flushIntervalMills = flushIntervalMills;
 		this.maxRetryTime = maxRetryTime;
+		this.createTableIfNotExists = createTableIfNotExists;
 	}
 
 	private JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> newFormat() {
@@ -79,7 +83,16 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		int[] jdbcSqlTypes = Arrays.stream(schema.getFieldTypes())
 				.mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 
-		return JdbcBatchingOutputFormat.builder()
+		JdbcDdlOptions jdbcDdlOptions = JdbcDdlOptions.builder()
+			.setJDBCOptions(options)
+			.setCreateTableIfNotExists(createTableIfNotExists)
+			.setCreateTableStatement(options
+				.getDialect()
+				.getCreateTableStatement(options.getTableName(), schema, keyFields))
+			.setMaxRetry(maxRetryTime)
+			.build();
+
+		JdbcBatchingOutputFormat outputFormat = JdbcBatchingOutputFormat.builder()
 			.setOptions(options)
 			.setFieldNames(schema.getFieldNames())
 			.setFlushMaxSize(flushMaxSize)
@@ -87,7 +100,10 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 			.setMaxRetryTimes(maxRetryTime)
 			.setFieldTypes(jdbcSqlTypes)
 			.setKeyFields(keyFields)
+			.setJdbcDdlOptions(jdbcDdlOptions)
 			.build();
+
+		return outputFormat;
 	}
 
 	@Override
@@ -136,7 +152,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 					"But was: " + Arrays.toString(fieldNames) + " / " + Arrays.toString(fieldTypes));
 		}
 
-		JDBCUpsertTableSink copy = new JDBCUpsertTableSink(schema, options, flushMaxSize, flushIntervalMills, maxRetryTime);
+		JDBCUpsertTableSink copy = new JDBCUpsertTableSink(schema, options, flushMaxSize, flushIntervalMills, maxRetryTime, createTableIfNotExists);
 		copy.keyFields = keyFields;
 		return copy;
 	}
@@ -155,7 +171,8 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 				Objects.equals(flushIntervalMills, sink.flushIntervalMills) &&
 				Objects.equals(maxRetryTime, sink.maxRetryTime) &&
 				Arrays.equals(keyFields, sink.keyFields) &&
-				Objects.equals(isAppendOnly, sink.isAppendOnly);
+				Objects.equals(isAppendOnly, sink.isAppendOnly) &&
+				Objects.equals(createTableIfNotExists, sink.createTableIfNotExists);
 		} else {
 			return false;
 		}
@@ -170,6 +187,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		private int flushMaxSize = DEFAULT_FLUSH_MAX_SIZE;
 		private long flushIntervalMills = DEFAULT_FLUSH_INTERVAL_MILLS;
 		private int maxRetryTimes = DEFAULT_MAX_RETRY_TIMES;
+		private boolean createTableIfNotExists = DEFAULT_CREATE_TABLE_IF_NOT_EXISTS;
 
 		/**
 		 * required, table schema of this table source.
@@ -212,10 +230,18 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 			return this;
 		}
 
+		/**
+		 * optional, enable create jdbc table if the table not exists.
+		 */
+		public Builder setCreateTableIfNotExists(boolean createTableIfNotExists) {
+			this.createTableIfNotExists = createTableIfNotExists;
+			return this;
+		}
+
 		public JDBCUpsertTableSink build() {
 			checkNotNull(schema, "No schema supplied.");
 			checkNotNull(options, "No options supplied.");
-			return new JDBCUpsertTableSink(schema, options, flushMaxSize, flushIntervalMills, maxRetryTimes);
+			return new JDBCUpsertTableSink(schema, options, flushMaxSize, flushIntervalMills, maxRetryTimes, createTableIfNotExists);
 		}
 	}
 }

@@ -33,7 +33,11 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -60,6 +64,7 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 	private final JdbcExecutionOptions executionOptions;
 	private final StatementExecutorFactory<JdbcExec> statementExecutorFactory;
 	private final RecordExtractor<In, JdbcIn> jdbcRecordExtractor;
+	private final JdbcDdlOptions jdbcDdlOptions;
 
 	private transient JdbcExec jdbcStatementExecutor;
 	private transient int batchCount = 0;
@@ -73,11 +78,13 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 			@Nonnull JdbcConnectionProvider connectionProvider,
 			@Nonnull JdbcExecutionOptions executionOptions,
 			@Nonnull StatementExecutorFactory<JdbcExec> statementExecutorFactory,
-			@Nonnull RecordExtractor<In, JdbcIn> recordExtractor) {
+			@Nonnull RecordExtractor<In, JdbcIn> recordExtractor,
+			@Nonnull JdbcDdlOptions jdbcDdlOptions) {
 		super(connectionProvider);
 		this.executionOptions = checkNotNull(executionOptions);
 		this.statementExecutorFactory = checkNotNull(statementExecutorFactory);
 		this.jdbcRecordExtractor = checkNotNull(recordExtractor);
+		this.jdbcDdlOptions = checkNotNull(jdbcDdlOptions);
 	}
 
 	/**
@@ -87,6 +94,13 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 	 */
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
+		if (jdbcDdlOptions.createTableIfNotExists()) {
+			try {
+				tryCreateTableIfNotExists(taskNumber, jdbcDdlOptions);
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+		}
 		super.open(taskNumber, numTasks);
 		jdbcStatementExecutor = createAndOpenStatementExecutor(statementExecutorFactory);
 		if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
@@ -102,6 +116,66 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 					}
 				}
 			}, executionOptions.getBatchIntervalMs(), executionOptions.getBatchIntervalMs(), TimeUnit.MILLISECONDS);
+		}
+	}
+
+	private void tryCreateTableIfNotExists(int taskNumber, JdbcDdlOptions jdbcDdlOptions) throws SQLException, ClassNotFoundException {
+		// only try to create table from one TM, simply choice the minimum TM as leader
+		// after FLIP-27，this can be refactor better.
+		final boolean isCreateTableLeader = taskNumber == 0 ? true : false;
+		final JDBCOptions jdbcOptions = jdbcDdlOptions.getJdbcOptions();
+		final int maxRetries = jdbcDdlOptions.getMaxRetry();
+
+		int retry = 1;
+		if (isCreateTableLeader) {
+			while (retry <= maxRetries) {
+				try (Connection conn = new SimpleJdbcConnectionProvider(jdbcOptions).getConnection(); Statement st = conn.createStatement()) {
+					st.execute(jdbcDdlOptions.getCreateTableStatement());
+					break;
+				} catch (ClassNotFoundException e) {
+					throw new RuntimeException(
+						String.format("JDBC Driver class %s can not found.", jdbcOptions.getDriverName()), e);
+				} catch (SQLException e) {
+					if (retry == maxRetries) {
+						throw new RuntimeException(
+							String.format("Create table %s failed after %s attempts.", jdbcOptions.getTableName(), retry), e);
+					}
+					try {
+						Thread.sleep(1000 * retry);
+					} catch (InterruptedException ine) {
+						Thread.currentThread().interrupt();
+						throw new RuntimeException("Interrupted while retry.", ine);
+					}
+				}
+			}
+			retry++;
+		} else {
+			// just wait leader to create table
+			while (retry <= maxRetries) {
+				try {
+					Thread.sleep(1000 * retry);
+				} catch (InterruptedException ine) {
+					Thread.currentThread().interrupt();
+					throw new RuntimeException("Interrupted while retry.", ine);
+				}
+				try (Connection conn = new SimpleJdbcConnectionProvider(jdbcOptions).getConnection();) {
+					DatabaseMetaData dbMeta = conn.getMetaData();
+					ResultSet tables = dbMeta.getTables(null, null, jdbcOptions.getTableName(), null);
+					if (tables.next()) {
+						return;
+					} else {
+						if (retry == maxRetries) {
+							int timeOut = 0;
+							for (int i = 1; i <= maxRetries; i++) {
+								timeOut += i * 1000;
+							}
+							throw new RuntimeException(
+								String.format("Waiting create table %s time out after %s ms.", jdbcOptions.getTableName(), timeOut));
+						}
+					}
+				}
+				retry++;
+			}
 		}
 	}
 
@@ -213,6 +287,8 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 		private String[] fieldNames;
 		private String[] keyFields;
 		private int[] fieldTypes;
+		private JdbcDdlOptions jdbcDdlOptions;
+
 		private JdbcExecutionOptionsBuilder executionOptionsBuilder = JdbcExecutionOptions.builder();
 
 		/**
@@ -273,6 +349,14 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 		}
 
 		/**
+		 * optional, options for using DDL in database.
+		 */
+		Builder setJdbcDdlOptions(JdbcDdlOptions jdbcDdlOptions) {
+			this.jdbcDdlOptions = jdbcDdlOptions;
+			return this;
+		}
+
+		/**
 		 * Finalizes the configuration and checks validity.
 		 *
 		 * @return Configured JDBCUpsertOutputFormat
@@ -287,7 +371,8 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 				return new TableJdbcUpsertOutputFormat(
 					new SimpleJdbcConnectionProvider(options),
 					dml,
-					executionOptionsBuilder.build());
+					executionOptionsBuilder.build(),
+					jdbcDdlOptions);
 			} else {
 				// warn: don't close over builder fields
 				String sql = options.getDialect().getInsertIntoStatement(dml.getTableName(), dml.getFieldNames());
@@ -298,7 +383,8 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 					tuple2 -> {
 						Preconditions.checkArgument(tuple2.f0);
 						return tuple2.f1;
-					});
+					},
+					jdbcDdlOptions);
 			}
 		}
 	}

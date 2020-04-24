@@ -56,6 +56,7 @@ public class JDBCValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_WRITE_FLUSH_MAX_ROWS = "connector.write.flush.max-rows";
 	public static final String CONNECTOR_WRITE_FLUSH_INTERVAL = "connector.write.flush.interval";
 	public static final String CONNECTOR_WRITE_MAX_RETRIES = "connector.write.max-retries";
+	public static final String CONNECTOR_WRITE_AUTO_CREATE_TABLE = "connector.write.auto-create-table";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
@@ -125,6 +126,7 @@ public class JDBCValidator extends ConnectorDescriptorValidator {
 		properties.validateInt(CONNECTOR_WRITE_FLUSH_MAX_ROWS, true);
 		properties.validateDuration(CONNECTOR_WRITE_FLUSH_INTERVAL, true, 1);
 		properties.validateInt(CONNECTOR_WRITE_MAX_RETRIES, true);
+		properties.validateBoolean(CONNECTOR_WRITE_AUTO_CREATE_TABLE, true);
 	}
 
 	private void checkAllOrNone(DescriptorProperties properties, String[] propertyNames) {

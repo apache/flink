@@ -41,8 +41,12 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 	private JdbcBatchStatementExecutor<Row> deleteExecutor;
 	private final JdbcDmlOptions dmlOptions;
 
-	TableJdbcUpsertOutputFormat(JdbcConnectionProvider connectionProvider, JdbcDmlOptions dmlOptions, JdbcExecutionOptions batchOptions) {
-		super(connectionProvider, batchOptions, ctx -> createUpsertRowExecutor(dmlOptions, ctx), tuple2 -> tuple2.f1);
+	TableJdbcUpsertOutputFormat(
+			JdbcConnectionProvider connectionProvider,
+			JdbcDmlOptions dmlOptions,
+			JdbcExecutionOptions batchOptions,
+			JdbcDdlOptions jdbcDdlOptions) {
+		super(connectionProvider, batchOptions, ctx -> createUpsertRowExecutor(dmlOptions, ctx), tuple2 -> tuple2.f1, jdbcDdlOptions);
 		this.dmlOptions = dmlOptions;
 	}
 

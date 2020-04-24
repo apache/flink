@@ -1325,6 +1325,10 @@ CREATE TABLE MyUserTable (
 
   -- optional, max retry times if writing records to database failed
   'connector.write.max-retries' = '3'
+  
+  -- optional, create jdbc table when writing data to database if the table does not exist.
+  -- The default value is "false", which means do not create table if table does not exist.
+    'connector.write.auto-create-table' = 'true'
 )
 {% endhighlight %}
 </div>

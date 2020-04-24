@@ -19,12 +19,19 @@
 package org.apache.flink.api.java.io.jdbc.dialect;
 
 import org.apache.flink.api.java.io.jdbc.source.row.converter.JDBCRowConverter;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarCharType;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -146,6 +153,42 @@ public interface JDBCDialect extends Serializable {
 				.map(f -> quoteIdentifier(f) + "=?")
 				.collect(Collectors.joining(" AND "));
 		return "SELECT " + selectExpressions + " FROM " +
-				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
+			quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
+	}
+
+	/**
+	 * Get create table statement.
+	 */
+	default String getCreateTableStatement(String tableName, TableSchema schema, String[] primaryKeyFields) {
+		List<String> expressions = new ArrayList<>();
+		for (TableColumn column : schema.getTableColumns()) {
+			expressions.add(quoteIdentifier(column.getName()) + " " + getDialectTypeName(column.getType()));
+		}
+		if (primaryKeyFields != null && primaryKeyFields.length > 0) {
+			String primaryKey = "PRIMARY KEY" + String.format("(%s)", StringUtils.join(
+				Arrays.stream(primaryKeyFields)
+					.map(name -> quoteIdentifier(name))
+					.collect(Collectors.toList()),
+				","));
+			expressions.add(primaryKey);
+		}
+
+		return String.format("CREATE TABLE IF NOT EXISTS %s (%s)", quoteIdentifier(tableName),
+			StringUtils.join(expressions, ","));
+	}
+
+	/**
+	 * Get dialect type name from {@link DataType}.
+	 */
+	default String getDialectTypeName(DataType dataType) {
+		switch (dataType.getLogicalType().getTypeRoot()) {
+			case VARCHAR:
+				final int len = ((VarCharType) dataType.getLogicalType()).getLength();
+				return len > 255 ? "TEXT" : String.format("VARCHAR(%d)", len);
+			case FLOAT:
+				return "REAL";
+			default:
+				return dataType.toString();
+		}
 	}
 }
