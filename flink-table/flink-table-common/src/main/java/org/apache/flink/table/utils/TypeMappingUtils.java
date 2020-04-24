@@ -164,24 +164,24 @@ public final class TypeMappingUtils {
 					logicalFieldType,
 					(cause) -> new ValidationException(
 								String.format("Type %s of table field '%s' does not match with " +
-									"the physical type %s of the '%s' field of the %s.",
+									"the physical type %s of the '%s' field of the TableSource return type.",
 										logicalFieldType,
 										logicalFieldName,
 										physicalFieldType,
-										physicalFieldName,
-										"TableSource return type"), cause));
+										physicalFieldName),
+								cause));
 		} else {
 			checkIfCompatible(
 					logicalFieldType,
 					physicalFieldType,
 					(cause) -> new ValidationException(
 								String.format("Type %s of table field '%s' does not match with " +
-									"the physical type %s of the '%s' field of the %s.",
+									"the physical type %s of the '%s' field of the TableSink consumed type.",
 									logicalFieldType,
 									logicalFieldName,
 									physicalFieldType,
-									physicalFieldName,
-									"TableSink consumed type"), cause));
+									physicalFieldName),
+								cause));
 		}
 	}
 
