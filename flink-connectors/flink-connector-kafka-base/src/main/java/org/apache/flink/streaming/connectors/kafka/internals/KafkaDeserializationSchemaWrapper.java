@@ -53,10 +53,7 @@ public class KafkaDeserializationSchemaWrapper<T> implements KafkaDeserializatio
 
 	@Override
 	public void deserialize(ConsumerRecord<byte[], byte[]> message, Collector<T> out) throws Exception {
-		T record = deserializationSchema.deserialize(message.value());
-		if (record != null) {
-			out.collect(record);
-		}
+		deserializationSchema.deserialize(message.value(), out);
 	}
 
 	@Override
