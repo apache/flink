@@ -129,8 +129,11 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 			Class returnType = hiveFunctionWrapper.createFunction()
 				.getResolver().getEvalMethod(argTypeInfo).getReturnType();
 
+			Method evalMethod = hiveFunctionWrapper.createFunction().getResolver().getEvalMethod(argTypeInfo);
 			return HiveTypeUtil.toFlinkType(
-				HiveInspectors.getObjectInspector(hiveShim, returnType));
+				ObjectInspectorFactory.getReflectionObjectInspector(evalMethod.getGenericReturnType(), ObjectInspectorFactory.ObjectInspectorOptions.JAVA));
+//			return HiveTypeUtil.toFlinkType(
+//				HiveInspectors.getObjectInspector(hiveShim, returnType));
 		} catch (UDFArgumentException e) {
 			throw new FlinkHiveUDFException(e);
 		}

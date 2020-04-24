@@ -37,9 +37,44 @@ public class HiveUDFTest {
 		bsTableEnv = StreamTableEnvironment.create(bsEnv, bsSettings);
 
 		registerSimpleFunction("org.apache.flink.connectors.hive.HiveUDFV1", "hivetest");
-
+		registerSimpleFunction("org.apache.flink.connectors.hive.HiveMapUDFTest", "hiveMapReturnTest");
+		registerSimpleFunction("org.apache.flink.connectors.hive.HiveArrayUDFTest", "hiveArrayUDFTest");
+		registerSimpleFunction("org.apache.flink.connectors.hive.HiveIntergerUDFTest", "hiveIntergerUDFTest");
+		registerSimpleFunction("org.apache.flink.connectors.hive.HiveLongUDFTest", "hiveLongUDFTest");
+		registerSimpleFunction("org.apache.flink.connectors.hive.HiveFloatUDFTest", "hiveFloatUDFTest");
+		registerSimpleFunction("org.apache.flink.connectors.hive.HiveDoubleUDFTest", "hiveDoubleUDFTest");
+		registerSimpleFunction("org.apache.flink.connectors.hive.HiveBooleanUDFTest", "hiveBooleanUDFTest");
 	}
 
+	@Test
+	public void testHiveBooleanUDFTest() throws Exception {
+		loadSqlQuery("select hiveBooleanUDFTest(1)");
+	}
+
+	@Test
+	public void testHiveDoubleUDFTest() throws Exception {
+		loadSqlQuery("select hiveDoubleUDFTest(123)");
+	}
+	@Test
+	public void testHiveFloatUDFTest() throws Exception {
+		loadSqlQuery("select hiveFloatUDFTest(123)");
+	}
+	@Test
+	public void testHiveLongType() throws Exception {
+		loadSqlQuery("select hiveLongUDFTest(123)");
+	}
+	@Test
+	public void testHiveIntType() throws Exception {
+		loadSqlQuery("select hiveIntergerUDFTest(1)");
+	}
+	@Test
+	public void testHiveArrayType() throws Exception {
+		loadSqlQuery("select hiveArrayUDFTest('ttt222')");
+	}
+	@Test
+	public void testHiveMapType() throws Exception {
+		loadSqlQuery("select hiveMapReturnTest('test', 'rrrr')");
+	}
 	@Test
 	public void testHiveUdf() throws Exception {
 		loadSqlQuery("select hivetest('11')");
