@@ -125,7 +125,7 @@ stages:
           inputs:
             versionSpec: '= 2.4'
             addToPath: true
-        - script: ./tools/travis/docs.sh
+        - script: ./tools/ci/docs.sh
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels

@@ -25,8 +25,8 @@ if [ -z "$HERE" ] ; then
     exit 1  # fail
 fi
 
-source "${HERE}/travis/stage.sh"
-source "${HERE}/travis/shade.sh"
+source "${HERE}/ci/stage.sh"
+source "${HERE}/ci/shade.sh"
 source "${HERE}/ci/maven-utils.sh"
 
 echo $M2_HOME
