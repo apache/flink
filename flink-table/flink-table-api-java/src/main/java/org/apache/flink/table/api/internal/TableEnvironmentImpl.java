@@ -614,6 +614,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
+	public String explain(List<Operation> operations, ExplainDetail... extraDetails) {
+		return planner.explain(operations, extraDetails);
+	}
+
+	@Override
 	public String[] getCompletionHints(String statement, int position) {
 		return planner.getCompletionHints(statement, position);
 	}

@@ -19,11 +19,13 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
 
 import java.util.List;
 
@@ -56,4 +58,16 @@ interface TableEnvironmentInternal extends TableEnvironment {
 	 * @return the affected row counts (-1 means unknown).
 	 */
 	TableResult executeInternal(List<ModifyOperation> operations);
+
+	/**
+	 * Returns the AST of this table and the execution plan to compute
+	 * the result of this table.
+	 *
+	 * @param operations The operations to be explained.
+	 * @param extraDetails The extra explain details which the explain result should include,
+	 *   e.g. estimated cost, changelog mode for streaming
+	 * @return AST and the execution plan.
+	 */
+	String explain(List<Operation> operations, ExplainDetail... extraDetails);
+
 }
