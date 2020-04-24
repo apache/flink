@@ -169,8 +169,7 @@ public final class TypeMappingUtils {
 										logicalFieldName,
 										physicalFieldType,
 										physicalFieldName,
-										"TableSource return type"),
-								cause));
+										"TableSource return type"), cause));
 		} else {
 			checkIfCompatible(
 					logicalFieldType,
@@ -182,8 +181,7 @@ public final class TypeMappingUtils {
 									logicalFieldName,
 									physicalFieldType,
 									physicalFieldName,
-									"TableSink consumed type"),
-								cause));
+									"TableSink consumed type"), cause));
 		}
 	}
 
