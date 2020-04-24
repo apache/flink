@@ -120,6 +120,9 @@ public final class InputTypeStrategies {
 	/**
 	 * Strategy for a disjunction of multiple {@link InputTypeStrategy}s into one like
 	 * {@code f(NUMERIC) || f(STRING)}.
+	 *
+	 * <p>This strategy aims to infer a list of types that are equal to the input types (to prevent
+	 * unnecessary casting) or (if this is not possible) the first more specific, casted types.
 	 */
 	public static InputTypeStrategy or(InputTypeStrategy... strategies) {
 		return new OrInputTypeStrategy(Arrays.asList(strategies));

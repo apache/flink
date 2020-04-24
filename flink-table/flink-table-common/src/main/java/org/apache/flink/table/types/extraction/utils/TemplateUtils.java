@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -69,7 +70,7 @@ final class TemplateUtils {
 					throw extractionError(t, "Error in function hint annotation.");
 				}
 			})
-			.collect(Collectors.toSet());
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 	/**
@@ -81,7 +82,7 @@ final class TemplateUtils {
 		return functionTemplates.stream()
 			.filter(t -> t.getSignatureTemplate() == null && accessor.apply(t) != null)
 			.map(accessor)
-			.collect(Collectors.toSet());
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 	/**
@@ -95,11 +96,11 @@ final class TemplateUtils {
 		final Set<FunctionResultTemplate> resultOnly = Stream.concat(
 				globalResultOnly.stream(),
 				localResultOnly.stream())
-			.collect(Collectors.toSet());
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 		final Set<FunctionResultTemplate> allResults = Stream.concat(
 				resultOnly.stream(),
 				explicitMappings.stream().map(accessor))
-			.collect(Collectors.toSet());
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 		if (resultOnly.size() == 1 && allResults.size() == 1) {
 			return resultOnly.stream().findFirst().orElse(null);
 		}
@@ -119,7 +120,7 @@ final class TemplateUtils {
 			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
 		return Stream.concat(globalTemplates.stream(), localTemplates.stream())
 			.filter(t -> t.getSignatureTemplate() != null && accessor.apply(t) != null)
-			.collect(Collectors.toSet());
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 	/**
@@ -134,7 +135,7 @@ final class TemplateUtils {
 				t.getSignatureTemplate() != null &&
 				accessor.apply(t) == null)
 			.map(FunctionTemplate::getSignatureTemplate)
-			.collect(Collectors.toSet());
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 	private TemplateUtils() {
