@@ -50,8 +50,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
             'createFunction',
             'dropFunction',
             'createTemporaryFunction',
-            'dropTemporaryFunction',
-            'listViews'}
+            'dropTemporaryFunction'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

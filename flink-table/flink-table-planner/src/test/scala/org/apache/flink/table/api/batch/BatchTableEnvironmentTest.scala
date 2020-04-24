@@ -308,11 +308,14 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult2 = util.tableEnv.executeSql("CREATE VIEW view1 AS SELECT * FROM tbl1")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
 
-    val tableResult3 = util.tableEnv.executeSql("SHOW VIEWS")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    val tableResult3 = util.tableEnv.executeSql("CREATE TEMPORARY VIEW view2 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+
+    val tableResult4 = util.tableEnv.executeSql("SHOW VIEWS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult4.getResultKind)
     checkData(
       util.tableEnv.listViews().map(Row.of(_)).toList.asJava.iterator(),
-      tableResult3.collect())
+      tableResult4.collect())
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

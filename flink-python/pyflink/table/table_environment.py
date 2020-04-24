@@ -345,13 +345,23 @@ class TableEnvironment(object):
 
     def list_tables(self):
         """
-        Gets the names of all tables in the current database of the current catalog.
+        Gets the names of all tables and views in the current database of the current catalog.
 
-        :return: List of table names in the current database of the current catalog.
+        :return: List of table and view names in the current database of the current catalog.
         :rtype: list[str]
         """
         j_table_name_array = self._j_tenv.listTables()
         return [item for item in j_table_name_array]
+
+    def list_views(self):
+        """
+        Gets the names of all views in the current database of the current catalog.
+
+        :return: List of view names in the current database of the current catalog.
+        :rtype: list[str]
+        """
+        j_view_name_array = self._j_tenv.listViews()
+        return [item for item in j_view_name_array]
 
     def list_user_defined_functions(self):
         """
