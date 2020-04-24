@@ -16,8 +16,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -27,8 +27,8 @@ under the License.
 		<version>1.11-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-sql-parser</artifactId>
-	<name>flink-sql-parser</name>
+	<artifactId>flink-sql-parser-hive</artifactId>
+	<name>flink-sql-parser-hive</name>
 
 	<packaging>jar</packaging>
 
@@ -38,121 +38,24 @@ under the License.
 	</properties>
 
 	<dependencies>
+		<!-- depend on flink-sql-parser and explicitly define its provided deps -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-annotations</artifactId>
+			<artifactId>flink-sql-parser</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.calcite</groupId>
-			<artifactId>calcite-core</artifactId>
-			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
-			<version>${calcite.version}</version>
-			<exclusions>
-				<!--
-				"mvn dependency:tree" as of Calcite 1.22.0:
-
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.22.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.16.0:compile
-				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
-
-				Dependencies that are not needed for how we use Calcite right now.
-				-->
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-metrics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-server</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-io</groupId>
-					<artifactId>commons-io</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.protobuf</groupId>
-					<artifactId>protobuf-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-dbcp2</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.esri.geometry</groupId>
-					<artifactId>esri-geometry-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.dataformat</groupId>
-					<artifactId>jackson-dataformat-yaml</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.yahoo.datasketches</groupId>
-					<artifactId>sketches-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>net.hydromatic</groupId>
-					<artifactId>aggdesigner-algorithm</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.jayway.jsonpath</groupId>
-					<artifactId>json-path</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-linq4j</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.janino</groupId>
-					<artifactId>janino</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.janino</groupId>
-					<artifactId>commons-compiler</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>jsr305</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-lang3</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-codec</groupId>
-					<artifactId>commons-codec</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.calcite</groupId>

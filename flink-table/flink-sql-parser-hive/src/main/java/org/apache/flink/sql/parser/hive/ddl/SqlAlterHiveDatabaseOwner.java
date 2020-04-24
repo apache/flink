@@ -16,33 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl.hive;
+package org.apache.flink.sql.parser.hive.ddl;
 
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import static org.apache.flink.sql.parser.ddl.hive.SqlCreateHiveDatabase.DATABASE_LOCATION_URI;
-
 /**
- * ALTER Database location DDL for Hive dialect.
+ * ALTER Database owner DDL for Hive dialect.
  */
-public class SqlAlterHiveDatabaseLocation extends SqlAlterHiveDatabase {
+public class SqlAlterHiveDatabaseOwner extends SqlAlterHiveDatabase {
 
-	public SqlAlterHiveDatabaseLocation(SqlParserPos pos, SqlIdentifier databaseName, SqlCharStringLiteral location) {
+	public static final String DATABASE_OWNER_NAME = "database.owner.name";
+	public static final String DATABASE_OWNER_TYPE = "database.owner.type";
+	public static final String USER_OWNER = "user";
+	public static final String ROLE_OWNER = "role";
+
+	public SqlAlterHiveDatabaseOwner(SqlParserPos pos, SqlIdentifier databaseName,
+			String ownerType, SqlIdentifier ownerName) {
 		super(pos, databaseName, new SqlNodeList(pos));
+		SqlParserPos ownerPos = ownerName.getParserPosition();
 		getPropertyList().add(new SqlTableOption(
-				SqlLiteral.createCharString(DATABASE_LOCATION_URI, location.getParserPosition()),
-				location,
-				location.getParserPosition()));
+				SqlLiteral.createCharString(DATABASE_OWNER_TYPE, ownerPos),
+				SqlLiteral.createCharString(ownerType, ownerPos),
+				ownerPos));
+		getPropertyList().add(new SqlTableOption(
+				SqlLiteral.createCharString(DATABASE_OWNER_NAME, ownerPos),
+				SqlLiteral.createCharString(ownerName.getSimple(), ownerPos),
+				ownerPos
+		));
 	}
 
 	@Override
 	protected AlterHiveDatabaseOp getAlterOp() {
-		return AlterHiveDatabaseOp.CHANGE_LOCATION;
+		return AlterHiveDatabaseOp.CHANGE_OWNER;
 	}
 }

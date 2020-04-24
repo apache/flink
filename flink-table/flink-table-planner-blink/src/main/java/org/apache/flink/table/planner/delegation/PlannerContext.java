@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.sql.parser.FlinkSqlParserImplFactory;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;

@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl.hive;
+package org.apache.flink.sql.parser.hive.ddl;
 
-import org.apache.flink.sql.parser.impl.ParseException;
+import org.apache.flink.sql.parser.hive.impl.ParseException;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;

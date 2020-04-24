@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser;
+package org.apache.flink.sql.parser.hive;
 
-import org.apache.flink.sql.parser.impl.FlinkHiveSqlParserImpl;
+import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;

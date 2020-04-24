@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl.hive;
+package org.apache.flink.sql.parser.hive.ddl;
 
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
-import org.apache.flink.sql.parser.impl.ParseException;
+import org.apache.flink.sql.parser.hive.impl.ParseException;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 
 import org.apache.calcite.sql.SqlLiteral;
@@ -31,8 +31,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.sql.parser.ddl.hive.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
-import static org.apache.flink.sql.parser.ddl.hive.SqlCreateHiveDatabase.DATABASE_LOCATION_URI;
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase.DATABASE_LOCATION_URI;
 
 /**
  * Util methods for Hive DDL Sql nodes.

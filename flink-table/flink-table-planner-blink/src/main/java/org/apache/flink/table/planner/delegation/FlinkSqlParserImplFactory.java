@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser;
+package org.apache.flink.table.planner.delegation;
 
-import org.apache.flink.sql.parser.impl.FlinkHiveSqlParserImpl;
+import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl.hive;
+package org.apache.flink.sql.parser.hive.ddl;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 
