@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -148,7 +148,7 @@ public final class FunctionMappingExtractor {
 		final Set<FunctionResultTemplate> globalResultOnly = findResultOnlyTemplates(global, accessor);
 
 		// for each method find a signature that maps to results
-		final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappings = new HashMap<>();
+		final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappings = new LinkedHashMap<>();
 		final List<Method> methods = collectMethods(function, methodName);
 		if (methods.size() == 0) {
 			throw extractionError(
@@ -188,7 +188,7 @@ public final class FunctionMappingExtractor {
 			Set<FunctionResultTemplate> globalResultOnly,
 			ResultExtraction resultExtraction,
 			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
-		final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod = new HashMap<>();
+		final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod = new LinkedHashMap<>();
 		final Set<FunctionTemplate> local = extractLocalFunctionTemplates(typeFactory, method);
 
 		final Set<FunctionResultTemplate> localResultOnly = findResultOnlyTemplates(
