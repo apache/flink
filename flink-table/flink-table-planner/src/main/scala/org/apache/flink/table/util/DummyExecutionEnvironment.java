@@ -157,7 +157,7 @@ public class DummyExecutionEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+	public void configure(Configuration configuration, ClassLoader classLoader) {
 		//
 	}
 
