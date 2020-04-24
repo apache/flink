@@ -28,6 +28,10 @@ One of the most crucial aspects of data processing is managing metadata.
 It may be transient metadata like temporary tables, or UDFs registered against the table environment.
 Or permanent metadata, like that in a Hive Metastore. Catalogs provide a unified API for managing metadata and making it accessible from the Table API and SQL Queries. 
 
+Catalog enables users to reference existing metadata in their data systems, and automatically maps them to Flink's corresponding metadata. 
+For example, Flink can map JDBC tables to Flink table automatically, and users don't have to manually re-writing DDLs in Flink.
+Catalog greatly simplifies steps required to get started with Flink with users' existing system, and greatly enhanced user experiences.
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -36,6 +40,97 @@ Or permanent metadata, like that in a Hive Metastore. Catalogs provide a unified
 ### GenericInMemoryCatalog
 
 The `GenericInMemoryCatalog` is an in-memory implementation of a catalog. All objects will be available only for the lifetime of the session.
+
+### JDBCCatalog
+
+The `JDBCCatalog` enables users to connect Flink to relational databases over JDBC protocol.
+
+#### PostgresCatalog
+
+`PostgresCatalog` is the only implementation of JDBC Catalog at the moment.
+
+#### Usage of JDBCCatalog
+
+Set a `JDBCatalog` with the following parameters:
+
+- name: required, name of the catalog
+- default database: required, default database to connect to
+- username: required, username of Postgres account
+- password: required, password of the account
+- base url: required, should be of format "jdbc:postgresql://<ip>:<port>", and should not contain database name here
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+String name            = "mypg";
+String defaultDatabase = "mydb";
+String username        = "...";
+String password        = "...";
+String baseUrl         = "..."
+
+JDBCCatalog catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
+tableEnv.registerCatalog("mypg", catalog);
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg");
+{% endhighlight %}
+</div>
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+val tableEnv = TableEnvironment.create(settings)
+
+val name            = "mypg"
+val defaultDatabase = "mydb"
+val username        = "..."
+val password        = "..."
+val baseUrl         = "..."
+
+val catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl)
+tableEnv.registerCatalog("mypg", catalog)
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg")
+{% endhighlight %}
+</div>
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE CATALOG mypg WITH(
+    'type'='jdbc',
+    'default-database'='...',
+    'username'='...',
+    'password'='...',
+    'base-url'='...'
+);
+
+USE CATALOG mypg;
+{% endhighlight %}
+</div>
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+
+execution:
+    planner: blink
+    ...
+    current-catalog: mypg  # set the JDBCCatalog as the current catalog of the session
+    current-database: mydb
+    
+catalogs:
+   - name: mypg
+     type: jdbc
+     default-database: mydb
+     username: ...
+     password: ...
+     base-url: ...
+{% endhighlight %}
+</div>
+</div>
+
 
 ### HiveCatalog
 

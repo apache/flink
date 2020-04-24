@@ -26,9 +26,11 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
+import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
@@ -51,6 +53,8 @@ import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -72,20 +76,27 @@ import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.parser.SqlParser;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -168,6 +179,10 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertShowTables((SqlShowTables) validated));
 		} else if (validated instanceof SqlShowFunctions) {
 			return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
+		} else if (validated instanceof SqlCreateView) {
+			return Optional.of(converter.convertCreateView((SqlCreateView) validated));
+		} else if (validated instanceof SqlDropView) {
+			return Optional.of(converter.convertDropView((SqlDropView) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -268,10 +283,17 @@ public class SqlToOperationConverter {
 			return new CreateTempSystemFunctionOperation(
 				unresolvedIdentifier.getObjectName(),
 				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
-				sqlCreateFunction.isIfNotExists()
+				sqlCreateFunction.isIfNotExists(),
+				parseLanguage(sqlCreateFunction.getFunctionLanguage())
 			);
 		} else {
 			FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
+			if (language == FunctionLanguage.PYTHON && !sqlCreateFunction.isTemporary()) {
+				throw new ValidationException(String.format(
+					"Unsupported function type for Python function %s, " +
+						"only temporary function is supported.",
+					sqlCreateFunction.getFunctionClassName().getValueAs(String.class)));
+			}
 			CatalogFunction catalogFunction = new CatalogFunctionImpl(
 				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
 				language);
@@ -453,6 +475,61 @@ public class SqlToOperationConverter {
 		return new ShowFunctionsOperation();
 	}
 
+	/** Convert CREATE VIEW statement. */
+	private Operation convertCreateView(SqlCreateView sqlCreateView) {
+		final SqlNode query = sqlCreateView.getQuery();
+		final SqlNodeList fieldList = sqlCreateView.getFieldList();
+
+		SqlNode validateQuery = flinkPlanner.validate(query);
+		PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
+		TableSchema schema = operation.getTableSchema();
+
+		// the view column list in CREATE VIEW is optional, if it's not empty, we should update
+		// the column name with the names in view column list.
+		if (!fieldList.getList().isEmpty()) {
+			// alias column names
+			String[] inputFieldNames = schema.getFieldNames();
+			String[] aliasFieldNames = fieldList.getList().stream()
+					.map(SqlNode::toString)
+					.toArray(String[]::new);
+
+			if (inputFieldNames.length != aliasFieldNames.length) {
+				throw new SqlConversionException(String.format(
+						"VIEW definition and input fields not match:\n\tDef fields: %s.\n\tInput fields: %s.",
+						Arrays.toString(aliasFieldNames), Arrays.toString(inputFieldNames)));
+			}
+
+			DataType[] inputFieldTypes = schema.getFieldDataTypes();
+			schema = TableSchema.builder().fields(aliasFieldNames, inputFieldTypes).build();
+		}
+
+		String originalQuery = getQuotedSqlString(query);
+		String expandedQuery = getQuotedSqlString(validateQuery);
+		String comment = sqlCreateView.getComment().map(c -> c.getNlsString().getValue()).orElse(null);
+		CatalogView catalogView = new CatalogViewImpl(originalQuery,
+				expandedQuery,
+				schema,
+				Collections.emptyMap(),
+				comment);
+
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateView.fullViewName());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+		return new CreateViewOperation(
+				identifier,
+				catalogView,
+				sqlCreateView.isIfNotExists(),
+				sqlCreateView.isTemporary());
+	}
+
+	/** Convert DROP VIEW statement. */
+	private Operation convertDropView(SqlDropView sqlDropView) {
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlDropView.fullViewName());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+		return new DropViewOperation(identifier, sqlDropView.getIfExists(), sqlDropView.isTemporary());
+	}
+
 	/**
 	 * Create a table schema from {@link SqlCreateTable}. This schema contains computed column
 	 * fields, say, we have a create table DDL statement:
@@ -516,10 +593,6 @@ public class SqlToOperationConverter {
 				String.format("Unrecognized function language string %s", languageString), e);
 		}
 
-		if (language.equals(FunctionLanguage.PYTHON)) {
-			throw new UnsupportedOperationException("Only function language JAVA and SCALA are supported for now.");
-		}
-
 		return language;
 	}
 
@@ -527,5 +600,15 @@ public class SqlToOperationConverter {
 		// transform to a relational tree
 		RelRoot relational = planner.rel(validated);
 		return new PlannerQueryOperation(relational.rel);
+	}
+
+	private String getQuotedSqlString(SqlNode sqlNode) {
+		SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
+		SqlDialect dialect = new CalciteSqlDialect(SqlDialect.EMPTY_CONTEXT
+			.withQuotedCasing(parserConfig.unquotedCasing())
+			.withConformance(parserConfig.conformance())
+			.withUnquotedCasing(parserConfig.unquotedCasing())
+			.withIdentifierQuoteString(parserConfig.quoting().string));
+		return sqlNode.toSqlString(dialect).getSql();
 	}
 }

@@ -40,7 +40,6 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 
 	public TestingResourceManager(
 			RpcService rpcService,
-			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
@@ -51,7 +50,6 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 			ResourceManagerMetricGroup resourceManagerMetricGroup) {
 		super(
 			rpcService,
-			resourceManagerEndpointId,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

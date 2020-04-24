@@ -86,16 +86,6 @@ under the License.
 								</includes>
 							</artifactSet>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.shaded.okhttp3</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.shaded.okio</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 				</executions>

@@ -24,19 +24,14 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Test;
 
-import java.io.Reader;
-import java.util.function.UnaryOperator;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-
 
 /** FlinkSqlParserImpl tests. **/
 public class FlinkSqlParserImplTest extends SqlParserTest {
@@ -44,11 +39,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	@Override
 	protected SqlParserImplFactory parserImplFactory() {
 		return FlinkSqlParserImpl.FACTORY;
-	}
-
-	protected SqlParser getSqlParser(Reader source,
-			UnaryOperator<SqlParser.ConfigBuilder> transform) {
-		return super.getSqlParser(source, transform);
 	}
 
 	@Test
@@ -589,6 +579,33 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTableWithLikeClause() {
+		final String sql = "create table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c string\n" +
+			")\n" +
+			"LIKE parent_table (\n" +
+			"   INCLUDING ALL\n" +
+			"   OVERWRITING OPTIONS\n" +
+			"   EXCLUDING PARTITIONS\n" +
+			"   INCLUDING GENERATED\n" +
+			")";
+		final String expected = "CREATE TABLE `SOURCE_TABLE` (\n" +
+			"  `A`  INTEGER,\n" +
+			"  `B`  BIGINT,\n" +
+			"  `C`  STRING\n" +
+			")\n" +
+			"LIKE `PARENT_TABLE` (\n" +
+			"  INCLUDING ALL\n" +
+			"  OVERWRITING OPTIONS\n" +
+			"  EXCLUDING PARTITIONS\n" +
+			"  INCLUDING GENERATED\n" +
+			")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
 	public void testDropTable() {
 		final String sql = "DROP table catalog1.db1.tbl1";
 		final String expected = "DROP TABLE `CATALOG1`.`DB1`.`TBL1`";
@@ -616,11 +633,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			+ "select 'nom', 0, timestamp '1970-01-01 00:00:00',\n"
 			+ "  1, 1, 1, false\n"
 			+ "from (values 'a')";
-		sql(sql2).node(new ValidationMatcher());
+		sql(sql2).ok("INSERT INTO `EMP` (`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`," +
+			" `COMM`, `DEPTNO`, `SLACKER`)\n"
+			+ "PARTITION (`EMPNO` = '1', `JOB` = 'job')\n"
+			+ "(SELECT 'nom', 0, TIMESTAMP '1970-01-01 00:00:00', 1, 1, 1, FALSE\n"
+			+ "FROM (VALUES (ROW('a'))))");
 		final String sql3 = "insert into empnullables (empno, ename)\n"
 			+ "partition(ename='b')\n"
 			+ "select 1 from (values 'a')";
-		sql(sql3).node(new ValidationMatcher());
+		sql(sql3).ok("INSERT INTO `EMPNULLABLES` (`EMPNO`, `ENAME`)\n"
+			+ "PARTITION (`ENAME` = 'b')\n"
+			+ "(SELECT 1\n"
+			+ "FROM (VALUES (ROW('a'))))");
 	}
 
 	@Test
@@ -686,6 +710,19 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateViewWithInvalidFieldList() {
+		final String expected = "(?s).*Encountered \"\\)\" at line 1, column 15.\n" +
+				"Was expecting one of:\n" +
+				".*\n" +
+				".*\n" +
+				".*\n" +
+				".*\n" +
+				".*";
+		sql("CREATE VIEW V(^)^ AS SELECT * FROM TBL")
+			.fails(expected);
+	}
+
+	@Test
 	public void testCreateViewWithComment() {
 		final String sql = "create view v COMMENT 'this is a view' as select col1 from tbl";
 		final String expected = "CREATE VIEW `V`\n" +
@@ -715,9 +752,46 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTemporaryView() {
+		final String sql = "create temporary view v as select col1 from tbl";
+		final String expected = "CREATE TEMPORARY VIEW `V`\n" +
+			"AS\n" +
+			"SELECT `COL1`\n" +
+			"FROM `TBL`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testCreateTemporaryViewIfNotExists() {
+		final String sql = "create temporary view if not exists v as select col1 from tbl";
+		final String expected = "CREATE TEMPORARY VIEW IF NOT EXISTS `V`\n" +
+				"AS\n" +
+				"SELECT `COL1`\n" +
+				"FROM `TBL`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testCreateViewIfNotExists() {
+		final String sql = "create view if not exists v as select col1 from tbl";
+		final String expected = "CREATE VIEW IF NOT EXISTS `V`\n" +
+				"AS\n" +
+				"SELECT `COL1`\n" +
+				"FROM `TBL`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
 	public void testDropView() {
 		final String sql = "DROP VIEW IF EXISTS view_name";
 		final String expected = "DROP VIEW IF EXISTS `VIEW_NAME`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testDropTemporaryView() {
+		final String sql = "DROP TEMPORARY VIEW IF EXISTS view_name";
+		final String expected = "DROP TEMPORARY VIEW IF EXISTS `VIEW_NAME`";
 		sql(sql).ok(expected);
 	}
 
@@ -757,7 +831,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testCreateViewWithEmptyFields() {
 		String sql = "CREATE VIEW v1 AS SELECT 1";
-		sql(sql).node(new ValidationMatcher());
+		sql(sql).ok(
+			"CREATE VIEW `V1`\n"
+				+ "AS\n"
+				+ "SELECT 1"
+		);
 	}
 
 	@Test

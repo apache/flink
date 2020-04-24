@@ -86,7 +86,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			Supplier<CompletableFuture<Collection<JobID>>> listFunction,
 			int blobServerPort,
 			DispatcherId fencingToken,
-			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction) {
+			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction,
+			Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier) {
 		super(
 			address,
 			hostname,
@@ -100,7 +101,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			requestTaskManagerMetricQueryServiceGatewaysSupplier,
 			requestOperatorBackPressureStatsFunction,
 			triggerSavepointFunction,
-			stopWithSavepointFunction);
+			stopWithSavepointFunction,
+			clusterShutdownSupplier);
 		this.submitFunction = submitFunction;
 		this.listFunction = listFunction;
 		this.blobServerPort = blobServerPort;
@@ -198,7 +200,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 				listFunction,
 				blobServerPort,
 				fencingToken,
-				requestArchivedJobFunction);
+				requestArchivedJobFunction,
+				clusterShutdownSupplier);
 		}
 	}
 }

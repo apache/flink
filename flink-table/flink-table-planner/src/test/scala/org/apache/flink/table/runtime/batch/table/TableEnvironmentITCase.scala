@@ -198,7 +198,7 @@ class TableEnvironmentITCase(
     tEnv.scan("sourceTable")
       .select('a, 'b, 'c)
       .insertInto("targetTable")
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)

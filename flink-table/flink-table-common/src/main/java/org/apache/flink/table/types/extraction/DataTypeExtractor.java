@@ -27,7 +27,6 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
@@ -558,7 +557,6 @@ public final class DataTypeExtractor {
 	 * Use closest class for data type if possible. Even though a hint might have provided some data
 	 * type, in many cases, the conversion class can be enriched with the extraction type itself.
 	 */
-	@SuppressWarnings({"unchecked", "rawtypes"})
 	private DataType closestBridging(DataType dataType, @Nullable Class<?> clazz) {
 		// no context class or conversion class is already more specific than context class
 		if (clazz == null || clazz.isAssignableFrom(dataType.getConversionClass())) {
@@ -567,9 +565,7 @@ public final class DataTypeExtractor {
 		final LogicalType logicalType = dataType.getLogicalType();
 		final boolean supportsConversion = logicalType.supportsInputConversion(clazz) ||
 			logicalType.supportsOutputConversion(clazz);
-		if (supportsConversion && logicalType instanceof RawType) {
-			return DataTypes.RAW(clazz, ((RawType) logicalType).getTypeSerializer());
-		} else if (supportsConversion) {
+		if (supportsConversion) {
 			return dataType.bridgedTo(clazz);
 		}
 		return dataType;

@@ -260,7 +260,8 @@ public class ExecutionContext<ClusterID> {
 				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
 				return streamTableEnv.getPipeline(name);
 			} else {
-				return execEnv.createProgramPlan(name);
+				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
+				return batchTableEnv.getPipeline(name);
 			}
 		});
 	}
@@ -276,6 +277,11 @@ public class ExecutionContext<ClusterID> {
 			List<CustomCommandLine> commandLines) {
 		return new Builder(defaultEnv, sessionContext, dependencies, configuration,
 				serviceLoader, commandLineOptions, commandLines);
+	}
+
+	/** Close resources associated with this ExecutionContext, e.g. catalogs. */
+	public void close() {
+		wrapClassLoader(() -> getCatalogs().values().forEach(Catalog::close));
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -438,6 +444,7 @@ public class ExecutionContext<ClusterID> {
 		final TableConfig config = new TableConfig();
 		environment.getConfiguration().asMap().forEach((k, v) ->
 				config.getConfiguration().setString(k, v));
+		config.setSqlDialect(environment.getExecution().getSqlDialect());
 
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------

@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
@@ -64,14 +65,7 @@ import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.ComponentFactoryService;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.AggregateFunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
@@ -98,10 +92,12 @@ import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -142,12 +138,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
 			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
 			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, " +
-			"DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG.";
+			"DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, CREATE VIEW, DROP VIEW.";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS.";
+			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -632,6 +628,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof CreateTableOperation ||
 				operation instanceof DropTableOperation ||
 				operation instanceof AlterTableOperation ||
+				operation instanceof CreateViewOperation ||
+				operation instanceof DropViewOperation ||
 				operation instanceof CreateDatabaseOperation ||
 				operation instanceof DropDatabaseOperation ||
 				operation instanceof AlterDatabaseOperation ||
@@ -687,6 +685,35 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			} catch (Exception e) {
 				throw new TableException(exMsg, e);
 			}
+		} else if (operation instanceof CreateViewOperation) {
+			CreateViewOperation createViewOperation = (CreateViewOperation) operation;
+			if (createViewOperation.isTemporary()) {
+				catalogManager.createTemporaryTable(
+						createViewOperation.getCatalogView(),
+						createViewOperation.getViewIdentifier(),
+						createViewOperation.isIgnoreIfExists());
+			} else {
+				catalogManager.createTable(
+						createViewOperation.getCatalogView(),
+						createViewOperation.getViewIdentifier(),
+						createViewOperation.isIgnoreIfExists());
+			}
+			return TableResultImpl.TABLE_RESULT_OK;
+		} else if (operation instanceof DropViewOperation) {
+			DropViewOperation dropViewOperation = (DropViewOperation) operation;
+			if (dropViewOperation.isTemporary()) {
+				boolean dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier());
+				if (!dropped && !dropViewOperation.isIfExists()) {
+					throw new ValidationException(String.format(
+							"Temporary views with identifier '%s' doesn't exist",
+							dropViewOperation.getViewIdentifier().asSummaryString()));
+				}
+			} else {
+				catalogManager.dropTable(
+						dropViewOperation.getViewIdentifier(),
+						dropViewOperation.isIfExists());
+			}
+			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
@@ -934,15 +961,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			CreateCatalogFunctionOperation createCatalogFunctionOperation) {
 		String exMsg = getDDLOpExecuteErrorMsg(createCatalogFunctionOperation.asSummaryString());
 		try {
-			CatalogFunction function = createCatalogFunctionOperation.getCatalogFunction();
 			if (createCatalogFunctionOperation.isTemporary()) {
 				boolean exist = functionCatalog.hasTemporaryCatalogFunction(
 					createCatalogFunctionOperation.getFunctionIdentifier());
 				if (!exist) {
-					FunctionDefinition functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
-						createCatalogFunctionOperation.getFunctionName(), function.getClassName());
-					registerCatalogFunctionInFunctionCatalog(
-						createCatalogFunctionOperation.getFunctionIdentifier(), functionDefinition);
+					functionCatalog.registerTemporaryCatalogFunction(
+						UnresolvedIdentifier.of(createCatalogFunctionOperation.getFunctionIdentifier().toList()),
+						createCatalogFunctionOperation.getCatalogFunction(),
+						false);
 				} else if (!createCatalogFunctionOperation.isIgnoreIfExists()) {
 					throw new ValidationException(
 						String.format("Temporary catalog function %s is already defined",
@@ -973,6 +999,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			if (alterCatalogFunctionOperation.isTemporary()) {
 				throw new ValidationException(
 					"Alter temporary catalog function is not supported");
+			} else if (function.getFunctionLanguage() == FunctionLanguage.PYTHON) {
+				throw new ValidationException(
+					"Alter Python catalog function is not supported");
 			} else {
 				Catalog catalog = getCatalogOrThrowException(
 					alterCatalogFunctionOperation.getFunctionIdentifier().getCatalogName());
@@ -1021,11 +1050,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		try {
 				boolean exist = functionCatalog.hasTemporarySystemFunction(operation.getFunctionName());
 				if (!exist) {
-					FunctionDefinition functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
+					functionCatalog.registerTemporarySystemFunction(
 						operation.getFunctionName(),
-						operation.getFunctionClass());
-					registerSystemFunctionInFunctionCatalog(operation.getFunctionName(), functionDefinition);
-
+						operation.getFunctionClass(),
+						operation.getFunctionLanguage(),
+						false);
 				} else if (!operation.isIgnoreIfExists()) {
 					throw new ValidationException(
 						String.format("Temporary system function %s is already defined",
@@ -1050,73 +1079,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} catch (Exception e) {
 			throw new TableException(getDDLOpExecuteErrorMsg(operation.asSummaryString()), e);
 		}
-	}
-
-	private <T, ACC> void  registerCatalogFunctionInFunctionCatalog(
-		ObjectIdentifier functionIdentifier, FunctionDefinition functionDefinition) {
-		if (functionDefinition instanceof ScalarFunctionDefinition) {
-			ScalarFunctionDefinition scalarFunction = (ScalarFunctionDefinition) functionDefinition;
-			functionCatalog.registerTempCatalogScalarFunction(
-				functionIdentifier, scalarFunction.getScalarFunction());
-		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
-			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
-			AggregateFunction<T, ACC > aggregateFunction =
-				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
-				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
-
-			functionCatalog.registerTempCatalogAggregateFunction(
-				functionIdentifier,
-				aggregateFunction,
-				typeInfo,
-				accTypeInfo);
-		} else if (functionDefinition instanceof TableFunctionDefinition) {
-			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
-			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfTableFunction(tableFunction);
-			functionCatalog.registerTempCatalogTableFunction(
-				functionIdentifier,
-				tableFunction,
-				typeInfo);
-		}
-	}
-
-	private <T, ACC> void  registerSystemFunctionInFunctionCatalog(
-		String functionName, FunctionDefinition functionDefinition) {
-
-		if (functionDefinition instanceof ScalarFunctionDefinition) {
-			ScalarFunctionDefinition scalarFunction = (ScalarFunctionDefinition) functionDefinition;
-			functionCatalog.registerTempSystemScalarFunction(
-				functionName, scalarFunction.getScalarFunction());
-		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
-			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
-			AggregateFunction<T, ACC > aggregateFunction =
-				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
-				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
-			functionCatalog.registerTempSystemAggregateFunction(
-				functionName,
-				aggregateFunction,
-				typeInfo,
-				accTypeInfo);
-
-		} else if (functionDefinition instanceof TableFunctionDefinition) {
-			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
-			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
-				.getReturnTypeOfTableFunction(tableFunction);
-
-			functionCatalog.registerTempSystemTableFunction(
-				functionName,
-				tableFunction,
-				typeInfo);
-		}
-
 	}
 
 	protected TableImpl createTable(QueryOperation tableOperation) {

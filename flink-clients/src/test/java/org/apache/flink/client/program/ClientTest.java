@@ -183,7 +183,7 @@ public class ClientTest extends TestLogger {
 	@Test(expected = FlinkRuntimeException.class)
 	public void testMultiExecuteWithEnforcingSingleJobExecution() throws Throwable {
 		try {
-			launchMultiExecuteJob(true, false);
+			launchMultiExecuteJob(true);
 		} catch (Exception e) {
 			if (e instanceof ProgramInvocationException) {
 				throw e.getCause();
@@ -194,22 +194,10 @@ public class ClientTest extends TestLogger {
 
 	@Test
 	public void testMultiExecuteWithoutEnforcingSingleJobExecution() throws ProgramInvocationException {
-		launchMultiExecuteJob(false, false);
+		launchMultiExecuteJob(false);
 	}
 
-	@Test(expected = FlinkRuntimeException.class)
-	public void testMultiExecuteWithDisallowingToWaitForResult() throws Throwable {
-		try {
-			launchMultiExecuteJob(false, true);
-		} catch (Exception e) {
-			if (e instanceof ProgramInvocationException) {
-				throw e.getCause();
-			}
-		}
-		fail("Test should have failed due to trying to fetch the job result via the JobClient.");
-	}
-
-	private void launchMultiExecuteJob(final boolean enforceSingleJobExecution, final boolean forbidBlockingJobClient) throws ProgramInvocationException {
+	private void launchMultiExecuteJob(final boolean enforceSingleJobExecution) throws ProgramInvocationException {
 		try (final ClusterClient<?> clusterClient =
 					new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
 
@@ -224,7 +212,7 @@ public class ClientTest extends TestLogger {
 					configuration,
 					program,
 					enforceSingleJobExecution,
-					forbidBlockingJobClient);
+					false);
 		}
 	}
 

@@ -406,6 +406,60 @@ under the License.
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC</argLine>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>testUDF1</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction1.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func1
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testUDF2</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction2.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func2
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testJavaDDL</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/PythonFunctionFactoryTest.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/javaDDL
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>test-jar</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>

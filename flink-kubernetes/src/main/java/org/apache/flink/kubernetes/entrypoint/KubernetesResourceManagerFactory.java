@@ -81,7 +81,6 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 
 		return new KubernetesResourceManager(
 			rpcService,
-			getEndpointId(),
 			resourceId,
 			configuration,
 			highAvailabilityServices,

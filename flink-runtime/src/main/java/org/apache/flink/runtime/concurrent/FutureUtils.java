@@ -1094,12 +1094,30 @@ public class FutureUtils {
 	 * @param <T> type of the value
 	 */
 	public static <T> void forward(CompletableFuture<T> source, CompletableFuture<T> target) {
-		source.whenComplete((value, throwable) -> {
+		source.whenComplete(forwardTo(target));
+	}
+
+	/**
+	 * Forwards the value from the source future to the target future using the provided executor.
+	 *
+	 * @param source future to forward the value from
+	 * @param target future to forward the value to
+	 * @param executor executor to forward the source value to the target future
+	 * @param <T> type of the value
+	 */
+	public static <T> void forwardAsync(CompletableFuture<T> source, CompletableFuture<T> target, Executor executor) {
+		source.whenCompleteAsync(
+			forwardTo(target),
+			executor);
+	}
+
+	private static <T> BiConsumer<T, Throwable> forwardTo(CompletableFuture<T> target) {
+		return (value, throwable) -> {
 			if (throwable != null) {
 				target.completeExceptionally(throwable);
 			} else {
 				target.complete(value);
 			}
-		});
+		};
 	}
 }

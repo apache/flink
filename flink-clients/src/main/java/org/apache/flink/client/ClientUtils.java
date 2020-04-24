@@ -121,7 +121,7 @@ public enum ClientUtils {
 			Configuration configuration,
 			PackagedProgram program,
 			boolean enforceSingleJobExecution,
-			boolean forbidBlockingJobClient) throws ProgramInvocationException {
+			boolean suppressSysout) throws ProgramInvocationException {
 		checkNotNull(executorServiceLoader);
 		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -135,14 +135,14 @@ public enum ClientUtils {
 				configuration,
 				userCodeClassLoader,
 				enforceSingleJobExecution,
-				forbidBlockingJobClient);
+				suppressSysout);
 
 			StreamContextEnvironment.setAsContext(
 				executorServiceLoader,
 				configuration,
 				userCodeClassLoader,
 				enforceSingleJobExecution,
-				forbidBlockingJobClient);
+				suppressSysout);
 
 			try {
 				program.invokeInteractiveModeForExecution();

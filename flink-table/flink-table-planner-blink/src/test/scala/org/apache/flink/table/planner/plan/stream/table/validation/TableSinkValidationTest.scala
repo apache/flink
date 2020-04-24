@@ -91,8 +91,8 @@ class TableSinkValidationTest extends TableTestBase {
     expectedException.expectMessage(
       "Field types of query result and registered TableSink default_catalog." +
       "default_database.testSink do not match.\n" +
-      "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
-      "Sink schema: [a: INT, b: BIGINT, c: STRING, d: INT]")
+      "Query schema: [a: INT, b: BIGINT, c: VARCHAR(2147483647), d: BIGINT]\n" +
+      "Sink schema: [a: INT, b: BIGINT, c: VARCHAR(2147483647), d: INT]")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)

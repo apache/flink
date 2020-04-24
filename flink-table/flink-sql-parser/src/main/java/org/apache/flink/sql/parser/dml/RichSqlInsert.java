@@ -18,9 +18,7 @@
 
 package org.apache.flink.sql.parser.dml;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlProperty;
-import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlInsertKeyword;
@@ -36,7 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /** A {@link SqlInsert} that have some extension functions like partition, overwrite. **/
-public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
+public class RichSqlInsert extends SqlInsert {
 	private final SqlNodeList staticPartitions;
 
 	private final SqlNodeList extendedKeywords;
@@ -162,10 +160,5 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 			}
 		}
 		return null;
-	}
-
-	@Override
-	public void validate() throws SqlValidateException {
-		// no-op
 	}
 }

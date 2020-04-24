@@ -73,6 +73,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	private final SqlCharStringLiteral comment;
 
+	private final SqlTableLike tableLike;
+
 	public SqlCreateTable(
 			SqlParserPos pos,
 			SqlIdentifier tableName,
@@ -82,7 +84,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			SqlNodeList propertyList,
 			SqlNodeList partitionKeyList,
 			@Nullable SqlWatermark watermark,
-			@Nullable SqlCharStringLiteral comment) {
+			@Nullable SqlCharStringLiteral comment,
+			@Nullable SqlTableLike tableLike) {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "tableName should not be null");
 		this.columnList = requireNonNull(columnList, "columnList should not be null");
@@ -92,6 +95,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		this.partitionKeyList = requireNonNull(partitionKeyList, "partitionKeyList should not be null");
 		this.watermark = watermark;
 		this.comment = comment;
+		this.tableLike = tableLike;
 	}
 
 	@Override
@@ -102,7 +106,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	@Override
 	public List<SqlNode> getOperandList() {
 		return ImmutableNullableList.of(tableName, columnList, primaryKeyList,
-			propertyList, partitionKeyList, watermark, comment);
+			propertyList, partitionKeyList, watermark, comment, tableLike);
 	}
 
 	public SqlIdentifier getTableName() {
@@ -137,10 +141,15 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return Optional.ofNullable(comment);
 	}
 
+	public Optional<SqlTableLike> getTableLike() {
+		return Optional.ofNullable(tableLike);
+	}
+
 	public boolean isIfNotExists() {
 		return ifNotExists;
 	}
 
+	@Override
 	public void validate() throws SqlValidateException {
 		ColumnValidator validator = new ColumnValidator();
 		for (SqlNode column : columnList) {
@@ -187,6 +196,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 					"The rowtime attribute field \"" + rowtimeField + "\" is not defined in columns, at " +
 						watermark.getEventTimeColumnName().getParserPosition());
 			}
+		}
+
+		if (tableLike != null) {
+			tableLike.validate();
 		}
 	}
 
@@ -306,6 +319,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			}
 			writer.newlineAndIndent();
 			writer.endList(withFrame);
+		}
+
+		if (this.tableLike != null) {
+			writer.newlineAndIndent();
+			this.tableLike.unparse(writer, leftPrec, rightPrec);
 		}
 	}
 

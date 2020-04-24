@@ -27,11 +27,14 @@ import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.ql.io.IOConstants;
+import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.Credentials;
@@ -44,7 +47,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -59,6 +64,10 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableInputFormat.class);
+
+	// schema evolution configs are not available in older versions of IOConstants, let's define them ourselves
+	private static final String SCHEMA_EVOLUTION_COLUMNS = "schema.evolution.columns";
+	private static final String SCHEMA_EVOLUTION_COLUMNS_TYPES = "schema.evolution.columns.types";
 
 	private JobConf jobConf;
 
@@ -122,10 +131,33 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			this.reader = new HiveVectorizedParquetSplitReader(
 					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
 		} else {
-			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split,
+			JobConf clonedConf = new JobConf(jobConf);
+			addSchemaToConf(clonedConf);
+			this.reader = new HiveMapredSplitReader(clonedConf, partitionKeys, fieldTypes, selectedFields, split,
 					HiveShimLoader.loadHiveShim(hiveVersion));
 		}
 		currentReadCount = 0L;
+	}
+
+	// Hive readers may rely on the schema info in configuration
+	private void addSchemaToConf(JobConf jobConf) {
+		// set columns/types -- including partition cols
+		List<String> typeStrs = Arrays.stream(fieldTypes)
+				.map(t -> HiveTypeUtil.toHiveTypeInfo(t, true).toString())
+				.collect(Collectors.toList());
+		jobConf.set(IOConstants.COLUMNS, String.join(",", fieldNames));
+		jobConf.set(IOConstants.COLUMNS_TYPES, String.join(",", typeStrs));
+		// set schema evolution -- excluding partition cols
+		int numNonPartCol = fieldNames.length - partitionKeys.size();
+		jobConf.set(SCHEMA_EVOLUTION_COLUMNS, String.join(",", Arrays.copyOfRange(fieldNames, 0, numNonPartCol)));
+		jobConf.set(SCHEMA_EVOLUTION_COLUMNS_TYPES, String.join(",", typeStrs.subList(0, numNonPartCol)));
+
+		// in older versions, parquet reader also expects the selected col indices in conf, excluding part cols
+		String readColIDs = Arrays.stream(selectedFields)
+				.filter(i -> i < numNonPartCol)
+				.mapToObj(String::valueOf)
+				.collect(Collectors.joining(","));
+		jobConf.set(ColumnProjectionUtils.READ_COLUMN_IDS_CONF_STR, readColIDs);
 	}
 
 	private boolean isVectorizationUnsupported(LogicalType t) {

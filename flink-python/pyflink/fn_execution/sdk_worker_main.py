@@ -21,7 +21,10 @@ import sys
 # force to register the operations to SDK Harness
 from apache_beam.options.pipeline_options import PipelineOptions
 
-import pyflink.fn_execution.operations # noqa # pylint:  disable=unused-import
+try:
+    import pyflink.fn_execution.fast_operations
+except ImportError:
+    import pyflink.fn_execution.operations
 
 # force to register the coders to SDK Harness
 import pyflink.fn_execution.coders # noqa # pylint: disable=unused-import

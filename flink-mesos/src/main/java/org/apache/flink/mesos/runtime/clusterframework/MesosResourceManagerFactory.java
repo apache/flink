@@ -84,7 +84,6 @@ public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<Re
 
 		return new MesosResourceManager(
 			rpcService,
-			getEndpointId(),
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

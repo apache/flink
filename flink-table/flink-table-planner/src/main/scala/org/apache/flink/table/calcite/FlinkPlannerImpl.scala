@@ -47,7 +47,7 @@ import scala.collection.JavaConverters._
   * The main difference is that we do not create a new RelOptPlanner in the ready() method.
   */
 class FlinkPlannerImpl(
-    config: FrameworkConfig,
+    val config: FrameworkConfig,
     val catalogReaderSupplier: JFunction[JBoolean, CatalogReader],
     planner: RelOptPlanner,
     val typeFactory: FlinkTypeFactory)

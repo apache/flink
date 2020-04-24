@@ -626,10 +626,11 @@ TMSlaves() {
 runBashJavaUtilsCmd() {
     local cmd=$1
     local conf_dir=$2
-    local class_path="${3:-$FLINK_BIN_DIR/bash-java-utils.jar:`findFlinkDistJar`}"
+    local class_path=$3
+    local dynamic_args=${@:4}
     class_path=`manglePathList ${class_path}`
 
-    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} 2>&1 | tail -n 1000`
+    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} $dynamic_args 2>&1 | tail -n 1000`
     if [[ $? -ne 0 ]]; then
         echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
         # Print the output in case the user redirect the log to console.
@@ -645,7 +646,7 @@ extractExecutionParams() {
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
     local num_lines=$(echo "$execution_config" | wc -l)
-    if ! [[ ${num_lines} == 1 ]]; then
+    if [[ ${num_lines} -ne 1 ]]; then
         echo "[ERROR] Unexpected result ($num_lines lines): $execution_config" 1>&2
         echo "[ERROR] extractExecutionParams only accepts exactly one line as the input" 1>&2
         exit 1

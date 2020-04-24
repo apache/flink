@@ -20,7 +20,20 @@ package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.deployment.application.ApplicationDispatcherLeaderProcessFactoryFactory;
+import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -29,14 +42,16 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
+import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.FlinkException;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -46,44 +61,34 @@ import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLi
  * {@link JobClusterEntrypoint} which is started with a job in a predefined
  * location.
  */
-public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
+public final class StandaloneJobClusterEntryPoint extends ClusterEntrypoint {
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
-	@Nonnull
-	private final JobID jobId;
-
-	@Nonnull
-	private final SavepointRestoreSettings savepointRestoreSettings;
-
-	@Nonnull
-	private final String[] programArguments;
-
-	@Nullable
-	private final String jobClassName;
+	private final PackagedProgram program;
 
 	private StandaloneJobClusterEntryPoint(
-			Configuration configuration,
-			@Nonnull JobID jobId,
-			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
-			@Nonnull String[] programArguments,
-			@Nullable String jobClassName) {
+			final Configuration configuration,
+			final PackagedProgram program) {
 		super(configuration);
-		this.jobId = requireNonNull(jobId, "jobId");
-		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
-		this.programArguments = requireNonNull(programArguments, "programArguments");
-		this.jobClassName = jobClassName;
+		this.program = requireNonNull(program);
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
-		final ClassPathJobGraphRetriever.Builder classPathJobGraphRetrieverBuilder = ClassPathJobGraphRetriever.newBuilder(jobId, savepointRestoreSettings, programArguments)
-			.setJobClassName(jobClassName);
-		tryFindUserLibDirectory().ifPresent(classPathJobGraphRetrieverBuilder::setUserLibDirectory);
+	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+		return new DefaultDispatcherResourceManagerComponentFactory(
+				new DefaultDispatcherRunnerFactory(
+						ApplicationDispatcherLeaderProcessFactoryFactory
+								.create(configuration, SessionDispatcherFactory.INSTANCE, program)),
+				StandaloneResourceManagerFactory.INSTANCE,
+				JobRestEndpointFactory.INSTANCE);
+	}
 
-		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
-			StandaloneResourceManagerFactory.INSTANCE,
-			classPathJobGraphRetrieverBuilder.build());
+	@Override
+	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+			Configuration configuration,
+			ScheduledExecutor scheduledExecutor) {
+		return new MemoryArchivedExecutionGraphStore();
 	}
 
 	public static void main(String[] args) {
@@ -93,8 +98,8 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
 		final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
-		StandaloneJobClusterConfiguration clusterConfiguration = null;
 
+		StandaloneJobClusterConfiguration clusterConfiguration = null;
 		try {
 			clusterConfiguration = commandLineParser.parse(args);
 		} catch (Exception e) {
@@ -103,43 +108,66 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			System.exit(1);
 		}
 
-		Configuration configuration = loadConfiguration(clusterConfiguration);
-		setDefaultExecutionModeIfNotConfigured(configuration);
+		PackagedProgram program = null;
+		try {
+			program = getPackagedProgram(clusterConfiguration);
+		} catch (Exception e) {
+			LOG.error("Could not create application program.", e);
+			System.exit(1);
+		}
 
-		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(
-			configuration,
-			resolveJobIdForCluster(Optional.ofNullable(clusterConfiguration.getJobId()), configuration),
-			clusterConfiguration.getSavepointRestoreSettings(),
-			clusterConfiguration.getArgs(),
-			clusterConfiguration.getJobClassName());
+		Configuration configuration = loadConfigurationFromClusterConfig(clusterConfiguration);
+		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
+
+		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(configuration, program);
 
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 	}
 
 	@VisibleForTesting
-	@Nonnull
+	static Configuration loadConfigurationFromClusterConfig(StandaloneJobClusterConfiguration clusterConfiguration) {
+		Configuration configuration = loadConfiguration(clusterConfiguration);
+		setStaticJobId(clusterConfiguration, configuration);
+		SavepointRestoreSettings.toConfiguration(clusterConfiguration.getSavepointRestoreSettings(), configuration);
+		return configuration;
+	}
+
+	private static PackagedProgram getPackagedProgram(
+			final StandaloneJobClusterConfiguration clusterConfiguration) throws IOException, FlinkException {
+		final PackagedProgramRetriever programRetriever = getPackagedProgramRetriever(
+				clusterConfiguration.getArgs(),
+				clusterConfiguration.getJobClassName());
+		return programRetriever.getPackagedProgram();
+	}
+
+	private static PackagedProgramRetriever getPackagedProgramRetriever(
+			final String[] programArguments,
+			@Nullable final String jobClassName) throws IOException {
+		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
+				ClassPathPackagedProgramRetriever
+						.newBuilder(programArguments)
+						.setJobClassName(jobClassName);
+		tryFindUserLibDirectory().ifPresent(retrieverBuilder::setUserLibDirectory);
+		return retrieverBuilder.build();
+	}
+
+	private static void setStaticJobId(StandaloneJobClusterConfiguration clusterConfiguration, Configuration configuration) {
+		final JobID jobId = resolveJobIdForCluster(Optional.ofNullable(clusterConfiguration.getJobId()), configuration);
+		configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+	}
+
+	@VisibleForTesting
 	static JobID resolveJobIdForCluster(Optional<JobID> optionalJobID, Configuration configuration) {
 		return optionalJobID.orElseGet(() -> createJobIdForCluster(configuration));
 	}
 
-	@Nonnull
 	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
 		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
 			return ZERO_JOB_ID;
 		} else {
 			return JobID.generate();
 		}
-	}
-
-	@VisibleForTesting
-	static void setDefaultExecutionModeIfNotConfigured(Configuration configuration) {
-		if (isNoExecutionModeConfigured(configuration)) {
-			// In contrast to other places, the default for standalone job clusters is ExecutionMode.DETACHED
-			configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.DETACHED.toString());
-		}
-	}
-
-	private static boolean isNoExecutionModeConfigured(Configuration configuration) {
-		return configuration.getString(ClusterEntrypoint.EXECUTION_MODE, null) == null;
 	}
 }

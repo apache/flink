@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.client.deployment.DetachedOnlyJobClientAdapter;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -44,7 +43,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private final boolean forbidBlockingJobClient;
+	private final boolean suppressSysout;
 
 	private final boolean enforceSingleJobExecution;
 
@@ -55,9 +54,9 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
 			final boolean enforceSingleJobExecution,
-			final boolean forbidBlockingJobClient) {
+			final boolean suppressSysout) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
-		this.forbidBlockingJobClient = forbidBlockingJobClient;
+		this.suppressSysout = suppressSysout;
 		this.enforceSingleJobExecution = enforceSingleJobExecution;
 
 		this.jobCounter = 0;
@@ -97,14 +96,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobClient executeAsync(String jobName) throws Exception {
 		validateAllowedExecution();
-
 		final JobClient jobClient = super.executeAsync(jobName);
 
-		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		if (!suppressSysout) {
+			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		}
 
-		return forbidBlockingJobClient
-				? new DetachedOnlyJobClientAdapter(jobClient)
-				: jobClient;
+		return jobClient;
 	}
 
 	private void validateAllowedExecution() {
@@ -126,13 +124,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
 			final boolean enforceSingleJobExecution,
-			final boolean disallowBlockingJobClient) {
+			final boolean suppressSysout) {
 		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
 			executorServiceLoader,
 			configuration,
 			userCodeClassLoader,
 			enforceSingleJobExecution,
-			disallowBlockingJobClient);
+			suppressSysout);
 		initializeContextEnvironment(factory);
 	}
 

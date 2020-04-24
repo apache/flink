@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
-import org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader;
+import org.apache.flink.client.deployment.application.executors.WebSubmissionExecutorServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -53,15 +53,10 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DetachedApplicationRunner.class);
 
-	private final boolean forbidBlockingJobClient;
-
 	private final boolean enforceSingleJobExecution;
 
-	public DetachedApplicationRunner(
-			final boolean enforceSingleJobExecution,
-			final boolean forbidBlockingJobClient) {
+	public DetachedApplicationRunner(final boolean enforceSingleJobExecution) {
 		this.enforceSingleJobExecution = enforceSingleJobExecution;
-		this.forbidBlockingJobClient = forbidBlockingJobClient;
 	}
 
 	@Override
@@ -77,10 +72,10 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 
 		final List<JobID> applicationJobIds = new ArrayList<>();
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway);
+				new WebSubmissionExecutorServiceLoader(applicationJobIds, dispatcherGateway);
 
 		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution, forbidBlockingJobClient);
+			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution, true);
 		} catch (ProgramInvocationException e) {
 			LOG.warn("Could not execute application: ", e);
 			throw new FlinkRuntimeException("Could not execute application.", e);

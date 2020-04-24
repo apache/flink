@@ -46,6 +46,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -249,6 +250,17 @@ public class DataFormatConverters {
 					return new PojoConverter((PojoTypeInfo) compositeType, fieldTypes);
 				}
 			case RAW:
+				if (logicalType instanceof RawType) {
+					final RawType<?> rawType = (RawType<?>) logicalType;
+					if (clazz == BinaryGeneric.class) {
+						return BinaryGenericConverter.INSTANCE;
+					} else {
+						return new GenericConverter<>(rawType.getTypeSerializer());
+					}
+				}
+
+				// legacy
+
 				TypeInformation typeInfo = logicalType instanceof LegacyTypeInformationType ?
 						((LegacyTypeInformationType) logicalType).getTypeInformation() :
 						((TypeInformationRawType) logicalType).getTypeInformation();

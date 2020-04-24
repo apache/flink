@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.util.DummyExecutionEnvironment
 
 import _root_.scala.reflect.ClassTag
 
@@ -91,6 +92,15 @@ class BatchTableEnvironmentImpl(
       dataSet: DataSet[T],
       fields: Expression*): Unit = {
     createTemporaryView(path, fromDataSet(dataSet, fields: _*))
+  }
+
+  override protected def createDummyBatchTableEnv(): BatchTableEnvImpl = {
+    new BatchTableEnvironmentImpl(
+      new ExecutionEnvironment(new DummyExecutionEnvironment(execEnv.getJavaEnv)),
+      config,
+      catalogManager,
+      moduleManager
+    )
   }
 }
 

@@ -74,7 +74,7 @@ public final class PerJobMiniClusterFactory {
 	/**
 	 * Starts a {@link MiniCluster} and submits a job.
 	 */
-	public CompletableFuture<? extends JobClient> submitJob(JobGraph jobGraph) throws Exception {
+	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph) throws Exception {
 		MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
 		MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
 		miniCluster.start();
@@ -87,7 +87,8 @@ public final class PerJobMiniClusterFactory {
 					// We failed to create the JobClient and must shutdown to ensure cleanup.
 					shutDownCluster(miniCluster);
 				}
-			});
+			})
+			.thenApply(Function.identity());
 	}
 
 	private MiniClusterConfiguration getMiniClusterConfig(int maximumParallelism) {

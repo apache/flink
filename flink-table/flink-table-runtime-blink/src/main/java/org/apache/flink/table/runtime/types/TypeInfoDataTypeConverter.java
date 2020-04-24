@@ -41,6 +41,7 @@ import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
+import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
@@ -48,6 +49,7 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -179,8 +181,18 @@ public class TypeInfoDataTypeConverter {
 				} else {
 					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 				}
+			case RAW:
+				if (logicalType instanceof RawType) {
+					final RawType<?> rawType = (RawType<?>) logicalType;
+					return createWrapperTypeInfo(rawType);
+				}
+				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 			default:
 				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 		}
+	}
+
+	private static <T> WrapperTypeInfo<T> createWrapperTypeInfo(RawType<T> rawType) {
+		return new WrapperTypeInfo<>(rawType.getOriginatingClass(), rawType.getTypeSerializer());
 	}
 }

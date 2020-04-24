@@ -538,7 +538,7 @@ public final class CatalogManager {
 		temporaryTables.compute(objectIdentifier, (k, v) -> {
 			if (v != null) {
 				if (!ignoreIfExists) {
-					throw new ValidationException(String.format("Temporary table %s already exists", objectIdentifier));
+					throw new ValidationException(String.format("Temporary table '%s' already exists", objectIdentifier));
 				}
 				return v;
 			} else {

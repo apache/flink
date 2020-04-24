@@ -21,7 +21,6 @@ package org.apache.flink.client.deployment.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.program.PerJobMiniClusterFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -65,7 +64,7 @@ public class LocalExecutor implements PipelineExecutor {
 	}
 
 	@Override
-	public CompletableFuture<? extends JobClient> execute(Pipeline pipeline, Configuration configuration) throws Exception {
+	public CompletableFuture<JobClient> execute(Pipeline pipeline, Configuration configuration) throws Exception {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 
@@ -95,6 +94,6 @@ public class LocalExecutor implements PipelineExecutor {
 			plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 		}
 
-		return FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, 1);
+		return PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 	}
 }

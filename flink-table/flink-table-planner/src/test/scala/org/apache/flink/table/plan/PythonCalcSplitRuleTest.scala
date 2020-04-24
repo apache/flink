@@ -440,7 +440,7 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
     util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
 
-    val resultTable = table.select("pandasFunc1(a, b), pyFunc1(a, c) + 1")
+    val resultTable = table.select("pandasFunc1(a, b), pyFunc1(a, c) + 1, a + 1")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -451,9 +451,9 @@ class PythonCalcSplitRuleTest extends TableTestBase {
           streamTableNode(table),
           term("select", "a", "c", "pandasFunc1(a, b) AS f0")
         ),
-        term("select", "f0", "pyFunc1(a, c) AS f1")
+        term("select", "a", "f0", "pyFunc1(a, c) AS f1")
       ),
-      term("select",  "f0 AS _c0", "+(f1, 1) AS _c1")
+      term("select",  "f0 AS _c0", "+(f1, 1) AS _c1", "+(a, 1) AS _c2")
     )
 
     util.verifyTable(resultTable, expected)

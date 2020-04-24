@@ -179,7 +179,6 @@ public class MesosResourceManagerTest extends TestLogger {
 			ResourceManagerMetricGroup resourceManagerMetricGroup) {
 			super(
 				rpcService,
-				resourceManagerEndpointId,
 				resourceId,
 				highAvailabilityServices,
 				heartbeatServices,

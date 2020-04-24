@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
@@ -97,6 +98,10 @@ public class InternalSerializers {
 			case VARBINARY:
 				return BytePrimitiveArraySerializer.INSTANCE;
 			case RAW:
+				if (type instanceof RawType) {
+					final RawType<?> rawType = (RawType<?>) type;
+					return new BinaryGenericSerializer<>(rawType.getTypeSerializer());
+				}
 				return new BinaryGenericSerializer(
 						((TypeInformationRawType) type).getTypeInformation().createSerializer(config));
 			default:

@@ -82,7 +82,7 @@ cp ./opt/flink-s3-fs-hadoop-{{ site.version }}.jar ./plugins/s3-fs-hadoop/
 ## Hadoop 文件系统 (HDFS) 及其其他实现
 
 所有 Flink 无法找到直接支持的文件系统均将回退为 Hadoop。
-当 `flink-runtime` 和 Hadoop 类包含在 classpath 中时，所有的 Hadoop 文件系统将自动可用。参见 **[Hadoop 集成]({{ site.baseurl }}/zh/../../s3.zh.mdops/deployment/hadoop.html)**。
+当 `flink-runtime` 和 Hadoop 类包含在 classpath 中时，所有的 Hadoop 文件系统将自动可用。参见 **[Hadoop 集成]({{ site.baseurl }}/zh/ops/deployment/hadoop.html)**。
 
 因此，Flink 无缝支持所有实现 `org.apache.hadoop.fs.FileSystem` 接口的 Hadoop 文件系统和所有兼容 Hadoop 的文件系统 (Hadoop-compatible file system, HCFS)：
   - HDFS （已测试）

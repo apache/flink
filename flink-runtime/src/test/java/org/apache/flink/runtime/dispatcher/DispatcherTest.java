@@ -202,7 +202,7 @@ public class DispatcherTest extends TestLogger {
 
 	private class TestingDispatcherBuilder {
 
-		private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
+		private DispatcherBootstrap dispatcherBootstrap = new DefaultDispatcherBootstrap(Collections.emptyList());
 
 		private HeartbeatServices heartbeatServices = DispatcherTest.this.heartbeatServices;
 
@@ -222,8 +222,8 @@ public class DispatcherTest extends TestLogger {
 			return this;
 		}
 
-		TestingDispatcherBuilder setInitialJobGraphs(Collection<JobGraph> initialJobGraphs) {
-			this.initialJobGraphs = initialJobGraphs;
+		TestingDispatcherBuilder setDispatcherBootstrap(DispatcherBootstrap dispatcherBootstrap) {
+			this.dispatcherBootstrap = dispatcherBootstrap;
 			return this;
 		}
 
@@ -244,9 +244,8 @@ public class DispatcherTest extends TestLogger {
 
 			return new TestingDispatcher(
 				rpcService,
-				Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 				DispatcherId.generate(),
-				initialJobGraphs,
+				dispatcherBootstrap,
 				new DispatcherServices(
 					configuration,
 					haServices,
@@ -450,7 +449,7 @@ public class DispatcherTest extends TestLogger {
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setInitialJobGraphs(Collections.singleton(failingJobGraph))
+			.setDispatcherBootstrap(new DefaultDispatcherBootstrap(Collections.singleton(failingJobGraph)))
 			.build();
 
 		dispatcher.start();
@@ -600,7 +599,7 @@ public class DispatcherTest extends TestLogger {
 			.build();
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setInitialJobGraphs(Collections.singleton(jobGraph))
+			.setDispatcherBootstrap(new DefaultDispatcherBootstrap(Collections.singleton(jobGraph)))
 			.setJobGraphWriter(testingJobGraphStore)
 			.build();
 		dispatcher.start();

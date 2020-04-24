@@ -22,21 +22,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.functions.utils.TableSqlFunction
-import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CorrelateFlatMapRunner
 import org.apache.flink.types.Row
 
-import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexCall, RexNode}
 
 /**
-  * Flink RelNode which matches along with join a user defined table function.
+  * Flink RelNode which matches along with join a Java/Scala user defined table function.
   */
 class DataSetCorrelate(
     cluster: RelOptCluster,
@@ -48,16 +46,16 @@ class DataSetCorrelate(
     joinRowType: RelDataType,
     joinType: JoinRelType,
     ruleDescription: String)
-  extends SingleRel(cluster, traitSet, inputNode)
-  with CommonCorrelate
-  with DataSetRel {
-
-  override def deriveRowType() = relRowType
-
-  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-    val rowCnt = metadata.getRowCount(getInput) * 1.5
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * 0.5)
-  }
+  extends DataSetCorrelateBase(
+    cluster,
+    traitSet,
+    inputNode,
+    scan,
+    condition,
+    relRowType,
+    joinRowType,
+    joinType,
+    ruleDescription) {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetCorrelate(
@@ -72,26 +70,6 @@ class DataSetCorrelate(
       ruleDescription)
   }
 
-  override def toString: String = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    correlateToString(joinRowType, rexCall, sqlFunction, getExpressionString)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    super.explainTerms(pw)
-      .item("invocation", scan.getCall)
-      .item("correlate", correlateToString(
-        inputNode.getRowType,
-        rexCall, sqlFunction,
-        getExpressionString))
-      .item("select", selectToString(relRowType))
-      .item("rowType", relRowType)
-      .item("joinType", joinType)
-      .itemIf("condition", condition.orNull, condition.isDefined)
-  }
 
   override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
 

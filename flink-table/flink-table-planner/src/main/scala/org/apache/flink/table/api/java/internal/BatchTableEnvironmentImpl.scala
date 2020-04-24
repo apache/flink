@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.util.DummyExecutionEnvironment
 
 import _root_.scala.collection.JavaConverters._
 
@@ -126,5 +127,14 @@ class BatchTableEnvironmentImpl(
       .asInstanceOf[TypeInformation[ACC]]
 
     registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+
+  override protected def createDummyBatchTableEnv(): BatchTableEnvImpl = {
+    new BatchTableEnvironmentImpl(
+      new DummyExecutionEnvironment(execEnv),
+      config,
+      catalogManager,
+      moduleManager
+    )
   }
 }

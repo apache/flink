@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import importlib
 import os
 import platform
 import shlex
@@ -26,7 +27,7 @@ import time
 from subprocess import Popen, PIPE
 from threading import RLock
 
-from py4j.java_gateway import java_import, JavaGateway, GatewayParameters
+from py4j.java_gateway import java_import, JavaGateway, GatewayParameters, CallbackServerParameters
 from pyflink.find_flink_home import _find_flink_home
 from pyflink.util.exceptions import install_exception_handler
 
@@ -51,14 +52,19 @@ def get_gateway():
             # if Java Gateway is already running
             if 'PYFLINK_GATEWAY_PORT' in os.environ:
                 gateway_port = int(os.environ['PYFLINK_GATEWAY_PORT'])
+                callback_port = int(os.environ['PYFLINK_CALLBACK_PORT'])
                 gateway_param = GatewayParameters(port=gateway_port, auto_convert=True)
-                _gateway = JavaGateway(gateway_parameters=gateway_param)
+                _gateway = JavaGateway(
+                    gateway_parameters=gateway_param,
+                    callback_server_parameters=CallbackServerParameters(
+                        port=callback_port, daemonize=True, daemonize_connections=True))
             else:
                 _gateway = launch_gateway()
 
             # import the flink view
             import_flink_view(_gateway)
             install_exception_handler()
+            _gateway.entry_point.put("PythonFunctionFactory", PythonFunctionFactory())
     return _gateway
 
 
@@ -110,12 +116,15 @@ def launch_gateway():
 
         with open(conn_info_file, "rb") as info:
             gateway_port = struct.unpack("!I", info.read(4))[0]
+            callback_port = struct.unpack("!I", info.read(4))[0]
     finally:
         shutil.rmtree(conn_info_dir)
 
     # Connect to the gateway
     gateway = JavaGateway(
-        gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True))
+        gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True),
+        callback_server_parameters=CallbackServerParameters(
+            port=callback_port, daemonize=True, daemonize_connections=True))
 
     return gateway
 
@@ -147,3 +156,17 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.api.common.restartstrategy.RestartStrategies")
     java_import(gateway.jvm, "org.apache.flink.python.util.PythonDependencyUtils")
     java_import(gateway.jvm, "org.apache.flink.python.PythonOptions")
+    java_import(gateway.jvm, "org.apache.flink.client.python.PythonGatewayServer")
+
+
+class PythonFunctionFactory(object):
+    """
+    Used to create PythonFunction objects for Java jobs.
+    """
+
+    def getPythonFunction(self, moduleName, objectName):
+        udf_wrapper = getattr(importlib.import_module(moduleName), objectName)
+        return udf_wrapper._create_judf()
+
+    class Java:
+        implements = ["org.apache.flink.client.python.PythonFunctionFactory"]

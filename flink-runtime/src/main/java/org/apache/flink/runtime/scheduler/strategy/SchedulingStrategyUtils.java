@@ -60,4 +60,16 @@ class SchedulingStrategyUtils {
 				deploymentOptionRetriever.apply(executionVertexID)))
 			.collect(Collectors.toList());
 	}
+
+	static List<SchedulingPipelinedRegion> sortPipelinedRegionsInTopologicalOrder(
+			final SchedulingTopology topology,
+			final Set<SchedulingPipelinedRegion> regions) {
+
+		return IterableUtils.toStream(topology.getVertices())
+			.map(SchedulingExecutionVertex::getId)
+			.map(topology::getPipelinedRegionOfVertex)
+			.filter(regions::contains)
+			.distinct()
+			.collect(Collectors.toList());
+	}
 }

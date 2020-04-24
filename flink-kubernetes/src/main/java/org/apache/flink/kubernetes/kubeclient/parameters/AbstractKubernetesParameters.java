@@ -57,7 +57,13 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 	@Override
 	public String getClusterId() {
 		final String clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
-		checkNotNull(clusterId, "ClusterId must be specified.");
+
+		if (StringUtils.isBlank(clusterId)) {
+			throw new IllegalArgumentException(KubernetesConfigOptions.CLUSTER_ID.key() + " must not be blank.");
+		} else if (clusterId.length() > Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID) {
+			throw new IllegalArgumentException(KubernetesConfigOptions.CLUSTER_ID.key() + " must be no more than " +
+				Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID + " characters.");
+		}
 
 		return clusterId;
 	}
