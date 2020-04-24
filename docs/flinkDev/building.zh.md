@@ -62,11 +62,7 @@ mvn clean install -DskipTests -Dfast
 之后，进入Flink源码根目录，并执行以下命令，构建PyFlink的源码发布包和wheel包：
 
 {% highlight bash %}
-# 注: 执行以下命令设置版本（临时性需要）
-VERSION=`grep "^version:" docs/_config.yml | awk -F'\"' '{print $2}'`
-cd flink-python; perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${VERSION}\"#" pyflink/version.py
-# 打包
-python3 setup.py sdist bdist_wheel
+cd flink-python; python3 setup.py sdist bdist_wheel
 {% endhighlight %}
 
 构建好的源码发布包和wheel包位于`./flink-python/dist/`目录下。它们均可使用pip安装,比如:

@@ -62,11 +62,7 @@ If you want to build a PyFlink package that can be used for pip installation, yo
 Then go to the root directory of flink source code and run this command to build the sdist package and wheel package:
 
 {% highlight bash %}
-# Note: we need this temporarily due to a bug
-VERSION=`grep "^version:" docs/_config.yml | awk -F'\"' '{print $2}'`
-cd flink-python; perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${VERSION}\"#" pyflink/version.py
-# build packages
-python3 setup.py sdist bdist_wheel
+cd flink-python; python3 setup.py sdist bdist_wheel
 {% endhighlight %}
 
 The sdist and wheel package will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
