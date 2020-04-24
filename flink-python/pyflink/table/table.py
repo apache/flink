@@ -21,6 +21,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
 
 from pyflink.util.utils import to_jarray
+from pyflink.util.utils import to_j_explain_detail_arr
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 
@@ -717,6 +718,19 @@ class Table(object):
         :return: The table result.
         """
         self._j_table.executeInsert(table_path, overwrite)
+
+    def explain(self, *extra_details):
+        """
+        Returns the AST of this table and the execution plan.
+
+        :param extra_details: The extra explain details which the explain result should include,
+                              e.g. estimated cost, changelog mode for streaming
+        :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
+        :return: The statement for which the AST and execution plan will be returned.
+        :rtype: str
+        """
+        j_extra_details = to_j_explain_detail_arr(extra_details)
+        return self._j_table.explain(j_extra_details)
 
     def __str__(self):
         return self._j_table.toString()

@@ -471,13 +471,12 @@ class TableEnvironment(object):
 
     def explain_sql(self, stmt, *extra_details):
         """
-        Returns the AST of the specified statement and the execution plan to compute
-        the result of the given statement.
+        Returns the AST of the specified statement and the execution plan.
 
         :param stmt: The statement for which the AST and execution plan will be returned.
         :type stmt: str
         :param extra_details: The extra explain details which the explain result should include,
-                              e.g. estimated cost, change log trait for streaming
+                              e.g. estimated cost, changelog mode for streaming
         :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
         :return: The statement for which the AST and execution plan will be returned.
         :rtype: str

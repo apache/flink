@@ -614,6 +614,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
+	public String explainInternal(List<Operation> operations, ExplainDetail... extraDetails) {
+		return planner.explain(operations, extraDetails);
+	}
+
+	@Override
 	public String[] getCompletionHints(String statement, int position) {
 		return planner.getCompletionHints(statement, position);
 	}
@@ -873,6 +878,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
 					.data(Collections.singletonList(Row.of(explanation)))
+					.setPrintStyle(TableResultImpl.PrintStyle.RAW_CONTENT)
 					.build();
 
 		} else {
@@ -997,7 +1003,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	protected ExplainDetail[] getExplainDetails(boolean extended) {
 		if (extended) {
 			if (isStreamingMode) {
-				return new ExplainDetail[] { ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_TRAITS };
+				return new ExplainDetail[] { ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE };
 			} else {
 				return new ExplainDetail[] { ExplainDetail.ESTIMATED_COST };
 			}

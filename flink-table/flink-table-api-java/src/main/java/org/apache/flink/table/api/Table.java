@@ -1473,4 +1473,14 @@ public interface Table {
 	 * @return The insert operation execution result.
 	 */
 	TableResult executeInsert(String tablePath, boolean overwrite);
+
+	/**
+	 * Returns the AST of this table and the execution plan to compute
+	 * the result of this table.
+	 *
+	 * @param extraDetails The extra explain details which the explain result should include,
+	 *   e.g. estimated cost, change log trait for streaming
+	 * @return AST and the execution plan.
+	 */
+	String explain(ExplainDetail... extraDetails);
 }

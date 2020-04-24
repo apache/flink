@@ -16,19 +16,25 @@
 # limitations under the License.
 ################################################################################
 
-__all__ = ['ExplainDetail']
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.table.explain_detail import ExplainDetail
 
 
-class ExplainDetail(object):
-    """
-    ExplainDetail defines the types of details for explain result.
-    """
+class StreamTableExplainTests(PyFlinkStreamTableTestCase):
 
-    # The cost information on physical rel node estimated by optimizer.
-    # e.g. TableSourceScan(..., cumulative cost = {1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 network,
-    # 0.0 memory}
-    ESTIMATED_COST = 0
+    def test_explain(self):
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        result = t.group_by("c").select("a.sum, c as b").explain(ExplainDetail.CHANGELOG_MODE)
 
-    # The changelog mode produced by a physical rel node.
-    # e.g. GroupAggregate(..., changelogMode=[I,UA,D])
-    CHANGELOG_MODE = 1
+        assert isinstance(result, str)
+
+
+if __name__ == '__main__':
+    import unittest
+
+    try:
+        import xmlrunner
+        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+    except ImportError:
+        testRunner = None
+    unittest.main(testRunner=testRunner, verbosity=2)

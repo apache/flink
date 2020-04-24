@@ -265,7 +265,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             source_sink_utils.TestAppendSink(field_names, field_types))
 
         result = t_env.explain_sql(
-            "select a + 1, b, c from %s" % source, ExplainDetail.ESTIMATED_COST)
+            "select a + 1, b, c from %s" % source, ExplainDetail.CHANGELOG_MODE)
 
         assert isinstance(result, str)
 
